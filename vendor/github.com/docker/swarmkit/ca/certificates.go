@@ -14,7 +14,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -687,7 +686,7 @@ func ensureCertKeyMatch(cert *x509.Certificate, key crypto.PublicKey) error {
 // CA certificate, and returns the PEM-encoded Certificate if so
 func GetLocalRootCA(paths CertPaths) (RootCA, error) {
 	// Check if we have a Certificate file
-	cert, err := ioutil.ReadFile(paths.Cert)
+	cert, err := os.ReadFile(paths.Cert)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = ErrNoLocalRootCA
@@ -697,7 +696,7 @@ func GetLocalRootCA(paths CertPaths) (RootCA, error) {
 	}
 	signingCert := cert
 
-	key, err := ioutil.ReadFile(paths.Key)
+	key, err := os.ReadFile(paths.Key)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return RootCA{}, err
@@ -910,13 +909,13 @@ func readCertValidity(kr KeyReader) (time.Time, time.Time, error) {
 // SaveRootCA saves a RootCA object to disk
 func SaveRootCA(rootCA RootCA, paths CertPaths) error {
 	// Make sure the necessary dirs exist and they are writable
-	err := os.MkdirAll(filepath.Dir(paths.Cert), 0755)
+	err := os.MkdirAll(filepath.Dir(paths.Cert), 0o755)
 	if err != nil {
 		return err
 	}
 
 	// If the root certificate got returned successfully, save the rootCA to disk.
-	return ioutils.AtomicWriteFile(paths.Cert, rootCA.Certs, 0644)
+	return ioutils.AtomicWriteFile(paths.Cert, rootCA.Certs, 0o644)
 }
 
 // GenerateNewCSR returns a newly generated key and CSR signed with said key

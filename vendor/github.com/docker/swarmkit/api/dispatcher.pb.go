@@ -61,7 +61,7 @@ func (x AssignmentChange_AssignmentAction) String() string {
 }
 
 func (AssignmentChange_AssignmentAction) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{10, 0}
+	return fileDescriptor_71002346457e55a8, []int{12, 0}
 }
 
 // AssignmentType specifies whether this assignment message carries
@@ -88,7 +88,7 @@ func (x AssignmentsMessage_Type) String() string {
 }
 
 func (AssignmentsMessage_Type) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{11, 0}
+	return fileDescriptor_71002346457e55a8, []int{13, 0}
 }
 
 // SessionRequest starts a session.
@@ -411,6 +411,127 @@ func (m *UpdateTaskStatusResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_UpdateTaskStatusResponse proto.InternalMessageInfo
 
+type UpdateVolumeStatusRequest struct {
+	SessionID string                                          `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Updates   []*UpdateVolumeStatusRequest_VolumeStatusUpdate `protobuf:"bytes,2,rep,name=updates,proto3" json:"updates,omitempty"`
+}
+
+func (m *UpdateVolumeStatusRequest) Reset()      { *m = UpdateVolumeStatusRequest{} }
+func (*UpdateVolumeStatusRequest) ProtoMessage() {}
+func (*UpdateVolumeStatusRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{6}
+}
+func (m *UpdateVolumeStatusRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *UpdateVolumeStatusRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_UpdateVolumeStatusRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *UpdateVolumeStatusRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateVolumeStatusRequest.Merge(m, src)
+}
+func (m *UpdateVolumeStatusRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *UpdateVolumeStatusRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateVolumeStatusRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateVolumeStatusRequest proto.InternalMessageInfo
+
+type UpdateVolumeStatusRequest_VolumeStatusUpdate struct {
+	// ID is the ID of the volume being updated. This is the Swarmkit ID,
+	// not the CSI VolumeID.
+	ID string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Unpublished is set to true when the volume is affirmatively
+	// unpublished on the Node side. We don't need to report that a Volume
+	// is published on the the node; as soon as the Volume is assigned to
+	// the Node, we must assume that it has been published until informed
+	// otherwise.
+	//
+	// Further, the Node must not send unpublished = true unless it will
+	// definitely no longer attempt to call NodePublishVolume.
+	Unpublished bool `protobuf:"varint,2,opt,name=unpublished,proto3" json:"unpublished,omitempty"`
+}
+
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) Reset() {
+	*m = UpdateVolumeStatusRequest_VolumeStatusUpdate{}
+}
+func (*UpdateVolumeStatusRequest_VolumeStatusUpdate) ProtoMessage() {}
+func (*UpdateVolumeStatusRequest_VolumeStatusUpdate) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{6, 0}
+}
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_UpdateVolumeStatusRequest_VolumeStatusUpdate.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateVolumeStatusRequest_VolumeStatusUpdate.Merge(m, src)
+}
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) XXX_Size() int {
+	return m.Size()
+}
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateVolumeStatusRequest_VolumeStatusUpdate.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateVolumeStatusRequest_VolumeStatusUpdate proto.InternalMessageInfo
+
+type UpdateVolumeStatusResponse struct {
+}
+
+func (m *UpdateVolumeStatusResponse) Reset()      { *m = UpdateVolumeStatusResponse{} }
+func (*UpdateVolumeStatusResponse) ProtoMessage() {}
+func (*UpdateVolumeStatusResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_71002346457e55a8, []int{7}
+}
+func (m *UpdateVolumeStatusResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *UpdateVolumeStatusResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_UpdateVolumeStatusResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *UpdateVolumeStatusResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdateVolumeStatusResponse.Merge(m, src)
+}
+func (m *UpdateVolumeStatusResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *UpdateVolumeStatusResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_UpdateVolumeStatusResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_UpdateVolumeStatusResponse proto.InternalMessageInfo
+
 type TasksRequest struct {
 	SessionID string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 }
@@ -418,7 +539,7 @@ type TasksRequest struct {
 func (m *TasksRequest) Reset()      { *m = TasksRequest{} }
 func (*TasksRequest) ProtoMessage() {}
 func (*TasksRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{6}
+	return fileDescriptor_71002346457e55a8, []int{8}
 }
 func (m *TasksRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -456,7 +577,7 @@ type TasksMessage struct {
 func (m *TasksMessage) Reset()      { *m = TasksMessage{} }
 func (*TasksMessage) ProtoMessage() {}
 func (*TasksMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{7}
+	return fileDescriptor_71002346457e55a8, []int{9}
 }
 func (m *TasksMessage) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -492,7 +613,7 @@ type AssignmentsRequest struct {
 func (m *AssignmentsRequest) Reset()      { *m = AssignmentsRequest{} }
 func (*AssignmentsRequest) ProtoMessage() {}
 func (*AssignmentsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{8}
+	return fileDescriptor_71002346457e55a8, []int{10}
 }
 func (m *AssignmentsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -526,13 +647,14 @@ type Assignment struct {
 	//	*Assignment_Task
 	//	*Assignment_Secret
 	//	*Assignment_Config
+	//	*Assignment_Volume
 	Item isAssignment_Item `protobuf_oneof:"item"`
 }
 
 func (m *Assignment) Reset()      { *m = Assignment{} }
 func (*Assignment) ProtoMessage() {}
 func (*Assignment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{9}
+	return fileDescriptor_71002346457e55a8, []int{11}
 }
 func (m *Assignment) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -576,10 +698,14 @@ type Assignment_Secret struct {
 type Assignment_Config struct {
 	Config *Config `protobuf:"bytes,3,opt,name=config,proto3,oneof" json:"config,omitempty"`
 }
+type Assignment_Volume struct {
+	Volume *VolumeAssignment `protobuf:"bytes,4,opt,name=volume,proto3,oneof" json:"volume,omitempty"`
+}
 
 func (*Assignment_Task) isAssignment_Item()   {}
 func (*Assignment_Secret) isAssignment_Item() {}
 func (*Assignment_Config) isAssignment_Item() {}
+func (*Assignment_Volume) isAssignment_Item() {}
 
 func (m *Assignment) GetItem() isAssignment_Item {
 	if m != nil {
@@ -609,12 +735,20 @@ func (m *Assignment) GetConfig() *Config {
 	return nil
 }
 
+func (m *Assignment) GetVolume() *VolumeAssignment {
+	if x, ok := m.GetItem().(*Assignment_Volume); ok {
+		return x.Volume
+	}
+	return nil
+}
+
 // XXX_OneofWrappers is for the internal use of the proto package.
 func (*Assignment) XXX_OneofWrappers() []interface{} {
 	return []interface{}{
 		(*Assignment_Task)(nil),
 		(*Assignment_Secret)(nil),
 		(*Assignment_Config)(nil),
+		(*Assignment_Volume)(nil),
 	}
 }
 
@@ -626,7 +760,7 @@ type AssignmentChange struct {
 func (m *AssignmentChange) Reset()      { *m = AssignmentChange{} }
 func (*AssignmentChange) ProtoMessage() {}
 func (*AssignmentChange) Descriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{10}
+	return fileDescriptor_71002346457e55a8, []int{12}
 }
 func (m *AssignmentChange) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -674,7 +808,7 @@ type AssignmentsMessage struct {
 func (m *AssignmentsMessage) Reset()      { *m = AssignmentsMessage{} }
 func (*AssignmentsMessage) ProtoMessage() {}
 func (*AssignmentsMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_71002346457e55a8, []int{11}
+	return fileDescriptor_71002346457e55a8, []int{13}
 }
 func (m *AssignmentsMessage) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -713,6 +847,9 @@ func init() {
 	proto.RegisterType((*UpdateTaskStatusRequest)(nil), "docker.swarmkit.v1.UpdateTaskStatusRequest")
 	proto.RegisterType((*UpdateTaskStatusRequest_TaskStatusUpdate)(nil), "docker.swarmkit.v1.UpdateTaskStatusRequest.TaskStatusUpdate")
 	proto.RegisterType((*UpdateTaskStatusResponse)(nil), "docker.swarmkit.v1.UpdateTaskStatusResponse")
+	proto.RegisterType((*UpdateVolumeStatusRequest)(nil), "docker.swarmkit.v1.UpdateVolumeStatusRequest")
+	proto.RegisterType((*UpdateVolumeStatusRequest_VolumeStatusUpdate)(nil), "docker.swarmkit.v1.UpdateVolumeStatusRequest.VolumeStatusUpdate")
+	proto.RegisterType((*UpdateVolumeStatusResponse)(nil), "docker.swarmkit.v1.UpdateVolumeStatusResponse")
 	proto.RegisterType((*TasksRequest)(nil), "docker.swarmkit.v1.TasksRequest")
 	proto.RegisterType((*TasksMessage)(nil), "docker.swarmkit.v1.TasksMessage")
 	proto.RegisterType((*AssignmentsRequest)(nil), "docker.swarmkit.v1.AssignmentsRequest")
@@ -726,71 +863,79 @@ func init() {
 }
 
 var fileDescriptor_71002346457e55a8 = []byte{
-	// 1019 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x55, 0xcf, 0x4f, 0x1b, 0x47,
-	0x18, 0xf5, 0x18, 0xb3, 0xe0, 0xcf, 0x84, 0xba, 0xa3, 0x88, 0xba, 0x96, 0xb2, 0xb8, 0x4b, 0x82,
-	0x50, 0x43, 0xd7, 0xa9, 0xfb, 0xeb, 0x50, 0x44, 0x8b, 0xb1, 0x25, 0xac, 0x04, 0x82, 0x06, 0x92,
-	0x1c, 0xd1, 0x7a, 0x77, 0xb2, 0x6c, 0x8d, 0x77, 0xb6, 0x3b, 0xe3, 0xa4, 0x3e, 0x54, 0xea, 0xa1,
-	0x91, 0xaa, 0x9e, 0xa2, 0x9e, 0x90, 0xaa, 0xfe, 0x0b, 0x55, 0xff, 0x0c, 0xd4, 0x53, 0x8e, 0x39,
-	0xd1, 0xc6, 0xdc, 0xfb, 0x07, 0xf4, 0x54, 0xed, 0xec, 0xac, 0xed, 0x12, 0x1b, 0x0c, 0x27, 0x7b,
-	0x67, 0xde, 0x7b, 0xf3, 0xf6, 0x7d, 0xdf, 0x7e, 0x03, 0x65, 0xd7, 0x13, 0x87, 0x9d, 0xa6, 0x69,
-	0xb3, 0x76, 0xd9, 0x61, 0x76, 0x8b, 0x86, 0x65, 0xfe, 0xdc, 0x0a, 0xdb, 0x2d, 0x4f, 0x94, 0xad,
-	0xc0, 0x2b, 0x3b, 0x1e, 0x0f, 0x2c, 0x61, 0x1f, 0xd2, 0xd0, 0x0c, 0x42, 0x26, 0x18, 0xc6, 0x31,
-	0xca, 0x4c, 0x50, 0xe6, 0xb3, 0x8f, 0x8b, 0x1f, 0x5e, 0x22, 0x22, 0xba, 0x01, 0xe5, 0x31, 0xbf,
-	0xb8, 0x7a, 0x09, 0x96, 0x35, 0xbf, 0xa1, 0xb6, 0x48, 0xd0, 0x37, 0x5d, 0xe6, 0x32, 0xf9, 0xb7,
-	0x1c, 0xfd, 0x53, 0xab, 0x5f, 0x5c, 0xa0, 0x21, 0x11, 0xcd, 0xce, 0xd3, 0x72, 0x70, 0xd4, 0x71,
-	0x3d, 0x5f, 0xfd, 0x28, 0xa2, 0xee, 0x32, 0xe6, 0x1e, 0xd1, 0x01, 0xc8, 0xe9, 0x84, 0x96, 0xf0,
-	0x98, 0xda, 0x37, 0x5e, 0x20, 0x98, 0xdf, 0xa3, 0x9c, 0x7b, 0xcc, 0x27, 0xf4, 0xdb, 0x0e, 0xe5,
-	0x02, 0xd7, 0x21, 0xe7, 0x50, 0x6e, 0x87, 0x5e, 0x10, 0xe1, 0x0a, 0xa8, 0x84, 0x56, 0x72, 0x95,
-	0x25, 0xf3, 0xed, 0x14, 0xcc, 0x1d, 0xe6, 0xd0, 0xda, 0x00, 0x4a, 0x86, 0x79, 0x78, 0x15, 0x80,
-	0xc7, 0xc2, 0x07, 0x9e, 0x53, 0x48, 0x97, 0xd0, 0x4a, 0xb6, 0x7a, 0xa3, 0x77, 0xba, 0x98, 0x55,
-	0xc7, 0x35, 0x6a, 0x24, 0xab, 0x00, 0x0d, 0xc7, 0xf8, 0x35, 0xdd, 0xf7, 0xb1, 0x4d, 0x39, 0xb7,
-	0x5c, 0x7a, 0x4e, 0x00, 0x5d, 0x2c, 0x80, 0x57, 0x21, 0xe3, 0x33, 0x87, 0xca, 0x83, 0x72, 0x95,
-	0xc2, 0x38, 0xbb, 0x44, 0xa2, 0xf0, 0x1a, 0xcc, 0xb6, 0x2d, 0xdf, 0x72, 0x69, 0xc8, 0x0b, 0x53,
-	0xa5, 0xa9, 0x95, 0x5c, 0xa5, 0x34, 0x8a, 0xf1, 0x84, 0x7a, 0xee, 0xa1, 0xa0, 0xce, 0x2e, 0xa5,
-	0x21, 0xe9, 0x33, 0xf0, 0x13, 0x58, 0xf0, 0xa9, 0x78, 0xce, 0xc2, 0xd6, 0x41, 0x93, 0x31, 0xc1,
-	0x45, 0x68, 0x05, 0x07, 0x2d, 0xda, 0xe5, 0x85, 0x8c, 0xd4, 0xfa, 0x60, 0x94, 0x56, 0xdd, 0xb7,
-	0xc3, 0xae, 0x8c, 0xe6, 0x3e, 0xed, 0x92, 0x9b, 0x4a, 0xa0, 0x9a, 0xf0, 0xef, 0xd3, 0x2e, 0xc7,
-	0x0b, 0xa0, 0x11, 0xc6, 0xc4, 0xe6, 0x46, 0x61, 0xba, 0x84, 0x56, 0xe6, 0x88, 0x7a, 0x32, 0xbe,
-	0x86, 0xfc, 0x16, 0xb5, 0x42, 0xd1, 0xa4, 0x96, 0x48, 0xca, 0x74, 0xa5, 0x78, 0x8c, 0x5d, 0x78,
-	0x77, 0x48, 0x81, 0x07, 0xcc, 0xe7, 0x14, 0x7f, 0x09, 0x5a, 0x40, 0x43, 0x8f, 0x39, 0xaa, 0xc8,
-	0xef, 0x9b, 0x71, 0xb7, 0x98, 0x49, 0xb7, 0x98, 0x35, 0xd5, 0x2d, 0xd5, 0xd9, 0x93, 0xd3, 0xc5,
-	0xd4, 0xf1, 0x5f, 0x8b, 0x88, 0x28, 0x8a, 0xf1, 0x32, 0x0d, 0xef, 0x3d, 0x0a, 0x1c, 0x4b, 0xd0,
-	0x7d, 0x8b, 0xb7, 0xf6, 0x84, 0x25, 0x3a, 0xfc, 0x5a, 0xde, 0xf0, 0x63, 0x98, 0xe9, 0x48, 0xa1,
-	0xa4, 0x16, 0x6b, 0xa3, 0xf2, 0x1b, 0x73, 0x96, 0x39, 0x58, 0x89, 0x11, 0x24, 0x11, 0x2b, 0x32,
-	0xc8, 0x9f, 0xdf, 0xc4, 0x4b, 0x30, 0x23, 0x2c, 0xde, 0x1a, 0xd8, 0x82, 0xde, 0xe9, 0xa2, 0x16,
-	0xc1, 0x1a, 0x35, 0xa2, 0x45, 0x5b, 0x0d, 0x07, 0x7f, 0x0e, 0x1a, 0x97, 0x24, 0xd5, 0x4d, 0xfa,
-	0x28, 0x3f, 0x43, 0x4e, 0x14, 0xda, 0x28, 0x42, 0xe1, 0x6d, 0x97, 0x71, 0xd6, 0xc6, 0x1a, 0xcc,
-	0x45, 0xab, 0xd7, 0x8b, 0xc8, 0x58, 0x57, 0xec, 0xe4, 0xdb, 0x30, 0x61, 0x3a, 0xf2, 0xca, 0x0b,
-	0x48, 0x06, 0x56, 0x18, 0x67, 0x90, 0xc4, 0x30, 0xa3, 0x0a, 0x78, 0x83, 0x73, 0xcf, 0xf5, 0xdb,
-	0xd4, 0x17, 0xd7, 0xf4, 0xf0, 0x07, 0x02, 0x18, 0x88, 0x60, 0x13, 0x32, 0x91, 0xb6, 0x6a, 0x9d,
-	0xb1, 0x0e, 0xb6, 0x52, 0x44, 0xe2, 0xf0, 0xa7, 0xa0, 0x71, 0x6a, 0x87, 0x54, 0xa8, 0x50, 0x8b,
-	0xa3, 0x18, 0x7b, 0x12, 0xb1, 0x95, 0x22, 0x0a, 0x1b, 0xb1, 0x6c, 0xe6, 0x3f, 0xf5, 0xdc, 0xc2,
-	0xd4, 0x78, 0xd6, 0xa6, 0x44, 0x44, 0xac, 0x18, 0x5b, 0xd5, 0x20, 0xe3, 0x09, 0xda, 0x36, 0x5e,
-	0xa4, 0x21, 0x3f, 0xb0, 0xbc, 0x79, 0x68, 0xf9, 0x2e, 0xc5, 0xeb, 0x00, 0x56, 0x7f, 0x4d, 0xd9,
-	0x1f, 0x59, 0xe1, 0x01, 0x93, 0x0c, 0x31, 0xf0, 0x36, 0x68, 0x96, 0x2d, 0x47, 0x63, 0xf4, 0x22,
-	0xf3, 0x95, 0xcf, 0x2e, 0xe6, 0xc6, 0xa7, 0x0e, 0x2d, 0x6c, 0x48, 0x32, 0x51, 0x22, 0x46, 0x73,
-	0xd8, 0x62, 0xbc, 0x87, 0x97, 0x41, 0x7b, 0xb4, 0x5b, 0xdb, 0xd8, 0xaf, 0xe7, 0x53, 0xc5, 0xe2,
-	0xcf, 0xbf, 0x95, 0x16, 0xce, 0x23, 0x54, 0x37, 0x2f, 0x83, 0x46, 0xea, 0xdb, 0x0f, 0x1f, 0xd7,
-	0xf3, 0x68, 0x34, 0x8e, 0xd0, 0x36, 0x7b, 0x46, 0x8d, 0x7f, 0xd1, 0xff, 0xea, 0x9f, 0x74, 0xd1,
-	0x57, 0x90, 0x89, 0x2e, 0x2a, 0x99, 0xc1, 0x7c, 0xe5, 0xee, 0xc5, 0xef, 0x91, 0xb0, 0xcc, 0xfd,
-	0x6e, 0x40, 0x89, 0x24, 0xe2, 0x5b, 0x00, 0x56, 0x10, 0x1c, 0x79, 0x94, 0x1f, 0x08, 0x16, 0xcf,
-	0x78, 0x92, 0x55, 0x2b, 0xfb, 0x2c, 0xda, 0x0e, 0x29, 0xef, 0x1c, 0x09, 0x7e, 0xe0, 0xf9, 0xb2,
-	0x80, 0x59, 0x92, 0x55, 0x2b, 0x0d, 0x1f, 0xaf, 0xc3, 0x8c, 0x2d, 0xc3, 0x49, 0xe6, 0xe6, 0xed,
-	0x49, 0x92, 0x24, 0x09, 0xc9, 0xb8, 0x03, 0x99, 0xc8, 0x0b, 0x9e, 0x83, 0xd9, 0xcd, 0x87, 0xdb,
-	0xbb, 0x0f, 0xea, 0x51, 0x5e, 0xf8, 0x1d, 0xc8, 0x35, 0x76, 0x36, 0x49, 0x7d, 0xbb, 0xbe, 0xb3,
-	0xbf, 0xf1, 0x20, 0x8f, 0x2a, 0xc7, 0xd3, 0x00, 0xb5, 0xfe, 0xa5, 0x8e, 0xbf, 0x83, 0x19, 0xd5,
-	0xde, 0xd8, 0x18, 0xdd, 0x82, 0xc3, 0xb7, 0x61, 0xf1, 0x22, 0x8c, 0x4a, 0xc4, 0x58, 0xfa, 0xf3,
-	0xf7, 0x7f, 0x8e, 0xd3, 0xb7, 0x60, 0x4e, 0x62, 0x3e, 0x8a, 0xe6, 0x3a, 0x0d, 0xe1, 0x46, 0xfc,
-	0xa4, 0x6e, 0x8d, 0x7b, 0x08, 0x7f, 0x0f, 0xd9, 0xfe, 0x0c, 0xc6, 0x23, 0xdf, 0xf5, 0xfc, 0x90,
-	0x2f, 0xde, 0xb9, 0x04, 0xa5, 0x86, 0xcb, 0x24, 0x06, 0xf0, 0x2f, 0x08, 0xf2, 0xe7, 0xc7, 0x13,
-	0xbe, 0x7b, 0x85, 0x51, 0x5b, 0x5c, 0x9d, 0x0c, 0x7c, 0x15, 0x53, 0x1d, 0x98, 0x96, 0x83, 0x0d,
-	0x97, 0xc6, 0x0d, 0x90, 0xfe, 0xe9, 0xe3, 0x11, 0x49, 0x1d, 0x96, 0x27, 0x38, 0xf1, 0xa7, 0x34,
-	0xba, 0x87, 0xf0, 0x8f, 0x08, 0x72, 0x43, 0xad, 0x8d, 0x97, 0x2f, 0xe9, 0xfd, 0xc4, 0xc3, 0xf2,
-	0x64, 0xdf, 0xc8, 0x84, 0x1d, 0x51, 0xbd, 0x7d, 0xf2, 0x46, 0x4f, 0xbd, 0x7e, 0xa3, 0xa7, 0x7e,
-	0xe8, 0xe9, 0xe8, 0xa4, 0xa7, 0xa3, 0x57, 0x3d, 0x1d, 0xfd, 0xdd, 0xd3, 0xd1, 0xcb, 0x33, 0x3d,
-	0xf5, 0xea, 0x4c, 0x4f, 0xbd, 0x3e, 0xd3, 0x53, 0x4d, 0x4d, 0x5e, 0xc7, 0x9f, 0xfc, 0x17, 0x00,
-	0x00, 0xff, 0xff, 0xa9, 0xc4, 0x36, 0xaa, 0xba, 0x0a, 0x00, 0x00,
+	// 1138 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x56, 0xbf, 0x6f, 0xdb, 0x46,
+	0x14, 0x16, 0x15, 0x85, 0xb6, 0x9e, 0x9c, 0x54, 0x3d, 0x04, 0xae, 0x42, 0x34, 0xb2, 0xca, 0x24,
+	0x86, 0xd1, 0x38, 0x54, 0xaa, 0xfe, 0x1a, 0x1a, 0xb8, 0xb1, 0x2c, 0x01, 0x11, 0x12, 0x3b, 0xc6,
+	0xc5, 0x71, 0x80, 0x2e, 0x06, 0x25, 0x5e, 0x68, 0x56, 0x12, 0x8f, 0xe5, 0x1d, 0x9d, 0x6a, 0x28,
+	0xd0, 0xa1, 0x01, 0x8a, 0x4e, 0x41, 0x27, 0x03, 0x45, 0xff, 0x85, 0x2e, 0xfd, 0x27, 0x8c, 0x4e,
+	0x19, 0x33, 0xb9, 0x8d, 0xbc, 0x17, 0x5d, 0xba, 0x74, 0x2a, 0x78, 0x3c, 0x4a, 0xaa, 0x4c, 0xd9,
+	0xb2, 0x3b, 0x49, 0x7c, 0xf7, 0x7d, 0xef, 0x3e, 0x7e, 0xf7, 0xde, 0x3d, 0x42, 0xd9, 0x76, 0xf8,
+	0x6e, 0xd0, 0x34, 0x5a, 0xb4, 0x5b, 0xb6, 0x68, 0xab, 0x4d, 0xfc, 0x32, 0x7b, 0x6e, 0xfa, 0xdd,
+	0xb6, 0xc3, 0xcb, 0xa6, 0xe7, 0x94, 0x2d, 0x87, 0x79, 0x26, 0x6f, 0xed, 0x12, 0xdf, 0xf0, 0x7c,
+	0xca, 0x29, 0x42, 0x11, 0xca, 0x88, 0x51, 0xc6, 0xde, 0x07, 0xda, 0xfb, 0xa7, 0x24, 0xe1, 0x3d,
+	0x8f, 0xb0, 0x88, 0xaf, 0x2d, 0x9f, 0x82, 0xa5, 0xcd, 0x2f, 0x49, 0x8b, 0xc7, 0xe8, 0x2b, 0x36,
+	0xb5, 0xa9, 0xf8, 0x5b, 0x0e, 0xff, 0xc9, 0xe8, 0xa7, 0x27, 0xe4, 0x10, 0x88, 0x66, 0xf0, 0xac,
+	0xec, 0x75, 0x02, 0xdb, 0x71, 0xe5, 0x8f, 0x24, 0x16, 0x6d, 0x4a, 0xed, 0x0e, 0x19, 0x82, 0xac,
+	0xc0, 0x37, 0xb9, 0x43, 0xe5, 0xba, 0xfe, 0x42, 0x81, 0xcb, 0x8f, 0x09, 0x63, 0x0e, 0x75, 0x31,
+	0xf9, 0x2a, 0x20, 0x8c, 0xa3, 0x3a, 0xe4, 0x2c, 0xc2, 0x5a, 0xbe, 0xe3, 0x85, 0xb8, 0x82, 0x52,
+	0x52, 0x96, 0x72, 0x95, 0xeb, 0xc6, 0x71, 0x17, 0x8c, 0x0d, 0x6a, 0x91, 0xda, 0x10, 0x8a, 0x47,
+	0x79, 0x68, 0x19, 0x80, 0x45, 0x89, 0x77, 0x1c, 0xab, 0x90, 0x2e, 0x29, 0x4b, 0xd9, 0xea, 0xa5,
+	0xfe, 0xe1, 0x42, 0x56, 0x6e, 0xd7, 0xa8, 0xe1, 0xac, 0x04, 0x34, 0x2c, 0xfd, 0xa7, 0xf4, 0x40,
+	0xc7, 0x3a, 0x61, 0xcc, 0xb4, 0xc9, 0x58, 0x02, 0xe5, 0xe4, 0x04, 0x68, 0x19, 0x32, 0x2e, 0xb5,
+	0x88, 0xd8, 0x28, 0x57, 0x29, 0x4c, 0x92, 0x8b, 0x05, 0x0a, 0xdd, 0x85, 0xd9, 0xae, 0xe9, 0x9a,
+	0x36, 0xf1, 0x59, 0xe1, 0x42, 0xe9, 0xc2, 0x52, 0xae, 0x52, 0x4a, 0x62, 0x3c, 0x25, 0x8e, 0xbd,
+	0xcb, 0x89, 0xb5, 0x49, 0x88, 0x8f, 0x07, 0x0c, 0xf4, 0x14, 0xe6, 0x5d, 0xc2, 0x9f, 0x53, 0xbf,
+	0xbd, 0xd3, 0xa4, 0x94, 0x33, 0xee, 0x9b, 0xde, 0x4e, 0x9b, 0xf4, 0x58, 0x21, 0x23, 0x72, 0xbd,
+	0x97, 0x94, 0xab, 0xee, 0xb6, 0xfc, 0x9e, 0xb0, 0xe6, 0x01, 0xe9, 0xe1, 0x2b, 0x32, 0x41, 0x35,
+	0xe6, 0x3f, 0x20, 0x3d, 0x86, 0xe6, 0x41, 0xc5, 0x94, 0xf2, 0xb5, 0xd5, 0xc2, 0xc5, 0x92, 0xb2,
+	0x34, 0x87, 0xe5, 0x93, 0x7e, 0x0f, 0xf2, 0xf7, 0x89, 0xe9, 0xf3, 0x26, 0x31, 0x79, 0x7c, 0x4c,
+	0x67, 0xb2, 0x47, 0xdf, 0x84, 0xb7, 0x47, 0x32, 0x30, 0x8f, 0xba, 0x8c, 0xa0, 0xcf, 0x40, 0xf5,
+	0x88, 0xef, 0x50, 0x4b, 0x1e, 0xf2, 0x55, 0x23, 0xaa, 0x16, 0x23, 0xae, 0x16, 0xa3, 0x26, 0xab,
+	0xa5, 0x3a, 0x7b, 0x70, 0xb8, 0x90, 0xda, 0xff, 0x7d, 0x41, 0xc1, 0x92, 0xa2, 0xbf, 0x4c, 0xc3,
+	0x3b, 0x4f, 0x3c, 0xcb, 0xe4, 0x64, 0xcb, 0x64, 0xed, 0xc7, 0xdc, 0xe4, 0x01, 0x3b, 0x97, 0x36,
+	0xb4, 0x0d, 0x33, 0x81, 0x48, 0x14, 0x9f, 0xc5, 0xdd, 0x24, 0xff, 0x26, 0xec, 0x65, 0x0c, 0x23,
+	0x11, 0x02, 0xc7, 0xc9, 0x34, 0x0a, 0xf9, 0xf1, 0x45, 0x74, 0x1d, 0x66, 0xb8, 0xc9, 0xda, 0x43,
+	0x59, 0xd0, 0x3f, 0x5c, 0x50, 0x43, 0x58, 0xa3, 0x86, 0xd5, 0x70, 0xa9, 0x61, 0xa1, 0x4f, 0x40,
+	0x65, 0x82, 0x24, 0xab, 0xa9, 0x98, 0xa4, 0x67, 0x44, 0x89, 0x44, 0xeb, 0x1a, 0x14, 0x8e, 0xab,
+	0x8c, 0xbc, 0xd6, 0xff, 0x56, 0xe0, 0x6a, 0xb4, 0xb8, 0x4d, 0x3b, 0x41, 0x97, 0xfc, 0x1f, 0xc3,
+	0xbe, 0x18, 0x1a, 0x96, 0x16, 0x86, 0xdd, 0x9b, 0x6c, 0x58, 0xc2, 0x6e, 0xc6, 0x68, 0x6c, 0xdc,
+	0xb4, 0x0d, 0x40, 0xc7, 0x97, 0xd1, 0x3c, 0xa4, 0x07, 0xba, 0xd4, 0xfe, 0xe1, 0x42, 0xba, 0x51,
+	0xc3, 0x69, 0xc7, 0x42, 0x25, 0xc8, 0x05, 0xae, 0x17, 0x34, 0x3b, 0x0e, 0xdb, 0x25, 0x51, 0x97,
+	0xcf, 0xe2, 0xd1, 0x90, 0xfe, 0x2e, 0x68, 0x49, 0x42, 0xa4, 0x2b, 0x77, 0x61, 0x2e, 0xf4, 0xea,
+	0x7c, 0x3e, 0xe8, 0x2b, 0x92, 0x1d, 0xdf, 0x18, 0x06, 0x5c, 0x0c, 0x4f, 0x90, 0x15, 0x14, 0xe1,
+	0x4a, 0x61, 0xd2, 0xb1, 0xe1, 0x08, 0xa6, 0x57, 0x01, 0xad, 0x32, 0xe6, 0xd8, 0x6e, 0x97, 0xb8,
+	0xfc, 0x9c, 0x1a, 0xfe, 0x52, 0x00, 0x86, 0x49, 0x90, 0x01, 0x99, 0x30, 0xb7, 0x6c, 0xa8, 0x89,
+	0x0a, 0xee, 0xa7, 0xb0, 0xc0, 0xa1, 0x8f, 0x40, 0x65, 0xa4, 0xe5, 0x13, 0x2e, 0x4b, 0x4d, 0x4b,
+	0x62, 0x3c, 0x16, 0x88, 0xfb, 0x29, 0x2c, 0xb1, 0x21, 0xab, 0x45, 0xdd, 0x67, 0x8e, 0x5d, 0xb8,
+	0x30, 0x99, 0xb5, 0x26, 0x10, 0x21, 0x2b, 0xc2, 0xa2, 0x15, 0x50, 0xf7, 0xc4, 0x21, 0x14, 0x32,
+	0x82, 0x75, 0x23, 0x89, 0x15, 0x1d, 0xd3, 0xf0, 0x8d, 0x42, 0x7e, 0xc4, 0xaa, 0xaa, 0x90, 0x71,
+	0x38, 0xe9, 0xea, 0x2f, 0xd2, 0x90, 0x1f, 0x02, 0xd6, 0x76, 0x4d, 0xd7, 0x26, 0x68, 0x05, 0xc0,
+	0x1c, 0xc4, 0xe4, 0xeb, 0x27, 0xf6, 0xcd, 0x90, 0x89, 0x47, 0x18, 0x68, 0x1d, 0x54, 0xb3, 0x25,
+	0x06, 0x4e, 0x68, 0xc4, 0xe5, 0xca, 0xc7, 0x27, 0x73, 0xa3, 0x5d, 0x47, 0x02, 0xab, 0x82, 0x8c,
+	0x65, 0x12, 0xbd, 0x39, 0x2a, 0x31, 0x5a, 0x43, 0x8b, 0xa0, 0x3e, 0xd9, 0xac, 0xad, 0x6e, 0xd5,
+	0xf3, 0x29, 0x4d, 0xfb, 0xe1, 0xe7, 0xd2, 0xfc, 0x38, 0x42, 0x16, 0xfb, 0x22, 0xa8, 0xb8, 0xbe,
+	0xfe, 0x68, 0xbb, 0x9e, 0x57, 0x92, 0x71, 0x98, 0x74, 0xe9, 0x1e, 0xd1, 0xff, 0x51, 0xfe, 0x53,
+	0x3f, 0x71, 0x15, 0x7e, 0x0e, 0x99, 0x70, 0xfc, 0x0b, 0x0f, 0x2e, 0x57, 0x6e, 0x9d, 0xfc, 0x1e,
+	0x31, 0xcb, 0xd8, 0xea, 0x79, 0x04, 0x0b, 0x22, 0xba, 0x06, 0x60, 0x7a, 0x5e, 0xc7, 0x21, 0x6c,
+	0x87, 0xd3, 0x68, 0x72, 0xe2, 0xac, 0x8c, 0x6c, 0xd1, 0x70, 0xd9, 0x27, 0x2c, 0xe8, 0x70, 0xb6,
+	0xe3, 0xb8, 0xa2, 0x00, 0xb2, 0x38, 0x2b, 0x23, 0x0d, 0x17, 0xad, 0xc0, 0x4c, 0x4b, 0x98, 0x13,
+	0x4f, 0xa3, 0x1b, 0xd3, 0x38, 0x89, 0x63, 0x92, 0x7e, 0x13, 0x32, 0xa1, 0x16, 0x34, 0x07, 0xb3,
+	0x6b, 0x8f, 0xd6, 0x37, 0x1f, 0xd6, 0x43, 0xbf, 0xd0, 0x5b, 0x90, 0x6b, 0x6c, 0xac, 0xe1, 0xfa,
+	0x7a, 0x7d, 0x63, 0x6b, 0xf5, 0x61, 0x5e, 0xa9, 0xfc, 0xaa, 0x02, 0xd4, 0x06, 0x9f, 0x4a, 0xe8,
+	0x6b, 0x98, 0x91, 0xed, 0x81, 0xf4, 0xe4, 0x12, 0x1e, 0xfd, 0xc6, 0xd0, 0x4e, 0xc2, 0x48, 0x47,
+	0xf4, 0xeb, 0xbf, 0xfd, 0xf2, 0xe7, 0x7e, 0xfa, 0x1a, 0xcc, 0x09, 0xcc, 0xed, 0x70, 0x5a, 0x12,
+	0x1f, 0x2e, 0x45, 0x4f, 0x72, 0x16, 0xdf, 0x51, 0xd0, 0x37, 0x90, 0x1d, 0x4c, 0x36, 0x94, 0xf8,
+	0xae, 0xe3, 0xa3, 0x53, 0xbb, 0x79, 0x0a, 0x4a, 0x5e, 0x4e, 0xd3, 0x08, 0x40, 0x3f, 0x2a, 0x90,
+	0x1f, 0xbf, 0xf4, 0xd1, 0xad, 0x33, 0x0c, 0x30, 0x6d, 0x79, 0x3a, 0xf0, 0x59, 0x44, 0xed, 0x2b,
+	0x80, 0x8e, 0xdf, 0xba, 0xe8, 0xf6, 0x99, 0xc6, 0x84, 0x66, 0x4c, 0x0b, 0x3f, 0x8b, 0xb4, 0x00,
+	0x2e, 0x8a, 0x3b, 0x1b, 0x95, 0x26, 0xdd, 0x8d, 0x83, 0xfd, 0x27, 0x23, 0xe2, 0x12, 0x59, 0x9c,
+	0x62, 0xc7, 0xef, 0xd3, 0xca, 0x1d, 0x05, 0x7d, 0xa7, 0x40, 0x6e, 0xa4, 0xeb, 0xd0, 0xe2, 0x29,
+	0x6d, 0x19, 0x6b, 0x58, 0x9c, 0xae, 0x7d, 0xa7, 0x2c, 0xd6, 0xea, 0x8d, 0x83, 0x37, 0xc5, 0xd4,
+	0xeb, 0x37, 0xc5, 0xd4, 0xb7, 0xfd, 0xa2, 0x72, 0xd0, 0x2f, 0x2a, 0xaf, 0xfa, 0x45, 0xe5, 0x8f,
+	0x7e, 0x51, 0x79, 0x79, 0x54, 0x4c, 0xbd, 0x3a, 0x2a, 0xa6, 0x5e, 0x1f, 0x15, 0x53, 0x4d, 0x55,
+	0x7c, 0x7f, 0x7d, 0xf8, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x78, 0x3b, 0xe2, 0x0b, 0xab, 0x0c,
+	0x00, 0x00,
 }
 
 type authenticatedWrapperDispatcherServer struct {
@@ -827,6 +972,14 @@ func (p *authenticatedWrapperDispatcherServer) UpdateTaskStatus(ctx context.Cont
 		return nil, err
 	}
 	return p.local.UpdateTaskStatus(ctx, r)
+}
+
+func (p *authenticatedWrapperDispatcherServer) UpdateVolumeStatus(ctx context.Context, r *UpdateVolumeStatusRequest) (*UpdateVolumeStatusResponse, error) {
+
+	if err := p.authorize(ctx, []string{"swarm-worker", "swarm-manager"}); err != nil {
+		return nil, err
+	}
+	return p.local.UpdateVolumeStatus(ctx, r)
 }
 
 func (p *authenticatedWrapperDispatcherServer) Tasks(r *TasksRequest, stream Dispatcher_TasksServer) error {
@@ -986,6 +1139,54 @@ func (m *UpdateTaskStatusResponse) Copy() *UpdateTaskStatusResponse {
 }
 
 func (m *UpdateTaskStatusResponse) CopyFrom(src interface{}) {}
+func (m *UpdateVolumeStatusRequest) Copy() *UpdateVolumeStatusRequest {
+	if m == nil {
+		return nil
+	}
+	o := &UpdateVolumeStatusRequest{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *UpdateVolumeStatusRequest) CopyFrom(src interface{}) {
+
+	o := src.(*UpdateVolumeStatusRequest)
+	*m = *o
+	if o.Updates != nil {
+		m.Updates = make([]*UpdateVolumeStatusRequest_VolumeStatusUpdate, len(o.Updates))
+		for i := range m.Updates {
+			m.Updates[i] = &UpdateVolumeStatusRequest_VolumeStatusUpdate{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Updates[i], o.Updates[i])
+		}
+	}
+
+}
+
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) Copy() *UpdateVolumeStatusRequest_VolumeStatusUpdate {
+	if m == nil {
+		return nil
+	}
+	o := &UpdateVolumeStatusRequest_VolumeStatusUpdate{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) CopyFrom(src interface{}) {
+
+	o := src.(*UpdateVolumeStatusRequest_VolumeStatusUpdate)
+	*m = *o
+}
+
+func (m *UpdateVolumeStatusResponse) Copy() *UpdateVolumeStatusResponse {
+	if m == nil {
+		return nil
+	}
+	o := &UpdateVolumeStatusResponse{}
+	o.CopyFrom(m)
+	return o
+}
+
+func (m *UpdateVolumeStatusResponse) CopyFrom(src interface{}) {}
 func (m *TasksRequest) Copy() *TasksRequest {
 	if m == nil {
 		return nil
@@ -1072,6 +1273,12 @@ func (m *Assignment) CopyFrom(src interface{}) {
 			}
 			github_com_docker_swarmkit_api_deepcopy.Copy(v.Config, o.GetConfig())
 			m.Item = &v
+		case *Assignment_Volume:
+			v := Assignment_Volume{
+				Volume: &VolumeAssignment{},
+			}
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Volume, o.GetVolume())
+			m.Item = &v
 		}
 	}
 
@@ -1151,6 +1358,10 @@ type DispatcherClient interface {
 	// If a task is unknown the dispatcher, the status update should be
 	// accepted regardless.
 	UpdateTaskStatus(ctx context.Context, in *UpdateTaskStatusRequest, opts ...grpc.CallOption) (*UpdateTaskStatusResponse, error)
+	// UpdateVolumeStatus updates the status of a Volume. Like
+	// UpdateTaskStatus, the node should send such updates on every status
+	// change of its volumes.
+	UpdateVolumeStatus(ctx context.Context, in *UpdateVolumeStatusRequest, opts ...grpc.CallOption) (*UpdateVolumeStatusResponse, error)
 	// Tasks is a stream of tasks state for node. Each message contains full list
 	// of tasks which should be run on node, if task is not present in that list,
 	// it should be terminated.
@@ -1214,6 +1425,15 @@ func (c *dispatcherClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, 
 func (c *dispatcherClient) UpdateTaskStatus(ctx context.Context, in *UpdateTaskStatusRequest, opts ...grpc.CallOption) (*UpdateTaskStatusResponse, error) {
 	out := new(UpdateTaskStatusResponse)
 	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.Dispatcher/UpdateTaskStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dispatcherClient) UpdateVolumeStatus(ctx context.Context, in *UpdateVolumeStatusRequest, opts ...grpc.CallOption) (*UpdateVolumeStatusResponse, error) {
+	out := new(UpdateVolumeStatusResponse)
+	err := c.cc.Invoke(ctx, "/docker.swarmkit.v1.Dispatcher/UpdateVolumeStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1307,6 +1527,10 @@ type DispatcherServer interface {
 	// If a task is unknown the dispatcher, the status update should be
 	// accepted regardless.
 	UpdateTaskStatus(context.Context, *UpdateTaskStatusRequest) (*UpdateTaskStatusResponse, error)
+	// UpdateVolumeStatus updates the status of a Volume. Like
+	// UpdateTaskStatus, the node should send such updates on every status
+	// change of its volumes.
+	UpdateVolumeStatus(context.Context, *UpdateVolumeStatusRequest) (*UpdateVolumeStatusResponse, error)
 	// Tasks is a stream of tasks state for node. Each message contains full list
 	// of tasks which should be run on node, if task is not present in that list,
 	// it should be terminated.
@@ -1330,6 +1554,9 @@ func (*UnimplementedDispatcherServer) Heartbeat(ctx context.Context, req *Heartb
 }
 func (*UnimplementedDispatcherServer) UpdateTaskStatus(ctx context.Context, req *UpdateTaskStatusRequest) (*UpdateTaskStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateTaskStatus not implemented")
+}
+func (*UnimplementedDispatcherServer) UpdateVolumeStatus(ctx context.Context, req *UpdateVolumeStatusRequest) (*UpdateVolumeStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateVolumeStatus not implemented")
 }
 func (*UnimplementedDispatcherServer) Tasks(req *TasksRequest, srv Dispatcher_TasksServer) error {
 	return status.Errorf(codes.Unimplemented, "method Tasks not implemented")
@@ -1399,6 +1626,24 @@ func _Dispatcher_UpdateTaskStatus_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dispatcher_UpdateVolumeStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateVolumeStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DispatcherServer).UpdateVolumeStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/docker.swarmkit.v1.Dispatcher/UpdateVolumeStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DispatcherServer).UpdateVolumeStatus(ctx, req.(*UpdateVolumeStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Dispatcher_Tasks_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(TasksRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -1452,6 +1697,10 @@ var _Dispatcher_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateTaskStatus",
 			Handler:    _Dispatcher_UpdateTaskStatus_Handler,
+		},
+		{
+			MethodName: "UpdateVolumeStatus",
+			Handler:    _Dispatcher_UpdateVolumeStatus_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -1763,6 +2012,113 @@ func (m *UpdateTaskStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error
 	return len(dAtA) - i, nil
 }
 
+func (m *UpdateVolumeStatusRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *UpdateVolumeStatusRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *UpdateVolumeStatusRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Updates) > 0 {
+		for iNdEx := len(m.Updates) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Updates[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintDispatcher(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.SessionID) > 0 {
+		i -= len(m.SessionID)
+		copy(dAtA[i:], m.SessionID)
+		i = encodeVarintDispatcher(dAtA, i, uint64(len(m.SessionID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Unpublished {
+		i--
+		if m.Unpublished {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintDispatcher(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *UpdateVolumeStatusResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *UpdateVolumeStatusResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *UpdateVolumeStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func (m *TasksRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1952,6 +2308,27 @@ func (m *Assignment_Config) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		}
 		i--
 		dAtA[i] = 0x1a
+	}
+	return len(dAtA) - i, nil
+}
+func (m *Assignment_Volume) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Assignment_Volume) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Volume != nil {
+		{
+			size, err := m.Volume.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintDispatcher(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
 	}
 	return len(dAtA) - i, nil
 }
@@ -2256,6 +2633,41 @@ func (p *raftProxyDispatcherServer) UpdateTaskStatus(ctx context.Context, r *Upd
 	return resp, err
 }
 
+func (p *raftProxyDispatcherServer) UpdateVolumeStatus(ctx context.Context, r *UpdateVolumeStatusRequest) (*UpdateVolumeStatusResponse, error) {
+
+	conn, err := p.connSelector.LeaderConn(ctx)
+	if err != nil {
+		if err == raftselector.ErrIsLeader {
+			ctx, err = p.runCtxMods(ctx, p.localCtxMods)
+			if err != nil {
+				return nil, err
+			}
+			return p.local.UpdateVolumeStatus(ctx, r)
+		}
+		return nil, err
+	}
+	modCtx, err := p.runCtxMods(ctx, p.remoteCtxMods)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := NewDispatcherClient(conn).UpdateVolumeStatus(modCtx, r)
+	if err != nil {
+		if !strings.Contains(err.Error(), "is closing") && !strings.Contains(err.Error(), "the connection is unavailable") && !strings.Contains(err.Error(), "connection error") {
+			return resp, err
+		}
+		conn, err := p.pollNewLeaderConn(ctx)
+		if err != nil {
+			if err == raftselector.ErrIsLeader {
+				return p.local.UpdateVolumeStatus(ctx, r)
+			}
+			return nil, err
+		}
+		return NewDispatcherClient(conn).UpdateVolumeStatus(modCtx, r)
+	}
+	return resp, err
+}
+
 type Dispatcher_TasksServerWrapper struct {
 	Dispatcher_TasksServer
 	ctx context.Context
@@ -2477,6 +2889,50 @@ func (m *UpdateTaskStatusResponse) Size() (n int) {
 	return n
 }
 
+func (m *UpdateVolumeStatusRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.SessionID)
+	if l > 0 {
+		n += 1 + l + sovDispatcher(uint64(l))
+	}
+	if len(m.Updates) > 0 {
+		for _, e := range m.Updates {
+			l = e.Size()
+			n += 1 + l + sovDispatcher(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ID)
+	if l > 0 {
+		n += 1 + l + sovDispatcher(uint64(l))
+	}
+	if m.Unpublished {
+		n += 2
+	}
+	return n
+}
+
+func (m *UpdateVolumeStatusResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
 func (m *TasksRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -2562,6 +3018,18 @@ func (m *Assignment_Config) Size() (n int) {
 	_ = l
 	if m.Config != nil {
 		l = m.Config.Size()
+		n += 1 + l + sovDispatcher(uint64(l))
+	}
+	return n
+}
+func (m *Assignment_Volume) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Volume != nil {
+		l = m.Volume.Size()
 		n += 1 + l + sovDispatcher(uint64(l))
 	}
 	return n
@@ -2705,6 +3173,42 @@ func (this *UpdateTaskStatusResponse) String() string {
 	}, "")
 	return s
 }
+func (this *UpdateVolumeStatusRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForUpdates := "[]*UpdateVolumeStatusRequest_VolumeStatusUpdate{"
+	for _, f := range this.Updates {
+		repeatedStringForUpdates += strings.Replace(fmt.Sprintf("%v", f), "UpdateVolumeStatusRequest_VolumeStatusUpdate", "UpdateVolumeStatusRequest_VolumeStatusUpdate", 1) + ","
+	}
+	repeatedStringForUpdates += "}"
+	s := strings.Join([]string{`&UpdateVolumeStatusRequest{`,
+		`SessionID:` + fmt.Sprintf("%v", this.SessionID) + `,`,
+		`Updates:` + repeatedStringForUpdates + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *UpdateVolumeStatusRequest_VolumeStatusUpdate) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&UpdateVolumeStatusRequest_VolumeStatusUpdate{`,
+		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
+		`Unpublished:` + fmt.Sprintf("%v", this.Unpublished) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *UpdateVolumeStatusResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&UpdateVolumeStatusResponse{`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *TasksRequest) String() string {
 	if this == nil {
 		return "nil"
@@ -2776,6 +3280,16 @@ func (this *Assignment_Config) String() string {
 	}
 	s := strings.Join([]string{`&Assignment_Config{`,
 		`Config:` + strings.Replace(fmt.Sprintf("%v", this.Config), "Config", "Config", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *Assignment_Volume) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&Assignment_Volume{`,
+		`Volume:` + strings.Replace(fmt.Sprintf("%v", this.Volume), "VolumeAssignment", "VolumeAssignment", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3604,6 +4118,274 @@ func (m *UpdateTaskStatusResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *UpdateVolumeStatusRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowDispatcher
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: UpdateVolumeStatusRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: UpdateVolumeStatusRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SessionID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SessionID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Updates", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Updates = append(m.Updates, &UpdateVolumeStatusRequest_VolumeStatusUpdate{})
+			if err := m.Updates[len(m.Updates)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipDispatcher(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *UpdateVolumeStatusRequest_VolumeStatusUpdate) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowDispatcher
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: VolumeStatusUpdate: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: VolumeStatusUpdate: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Unpublished", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Unpublished = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipDispatcher(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *UpdateVolumeStatusResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowDispatcher
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: UpdateVolumeStatusResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: UpdateVolumeStatusResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipDispatcher(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *TasksRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -3985,6 +4767,41 @@ func (m *Assignment) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			m.Item = &Assignment_Config{v}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowDispatcher
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthDispatcher
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &VolumeAssignment{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Item = &Assignment_Volume{v}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

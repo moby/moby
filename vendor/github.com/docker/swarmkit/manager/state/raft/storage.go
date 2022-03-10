@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/coreos/etcd/raft"
-	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
@@ -14,6 +12,8 @@ import (
 	"github.com/docker/swarmkit/manager/state/raft/storage"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/pkg/errors"
+	"go.etcd.io/etcd/raft/v3"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 var (

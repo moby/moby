@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"io/ioutil"
 	"math"
 	"net"
 	"os"
@@ -195,11 +194,11 @@ func (n *Node) RemoteAPIAddr() (string, error) {
 
 // New returns new Node instance.
 func New(c *Config) (*Node, error) {
-	if err := os.MkdirAll(c.StateDir, 0700); err != nil {
+	if err := os.MkdirAll(c.StateDir, 0o700); err != nil {
 		return nil, err
 	}
 	stateFile := filepath.Join(c.StateDir, stateFilename)
-	dt, err := ioutil.ReadFile(stateFile)
+	dt, err := os.ReadFile(stateFile)
 	var p []api.Peer
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -337,7 +336,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	// database if it doesn't already exist, and if it does already exist, no
 	// error will be returned, so we use this regardless of whether this node
 	// is new or not.
-	if err := os.MkdirAll(filepath.Dir(taskDBPath), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(taskDBPath), 0o777); err != nil {
 		return err
 	}
 
@@ -1248,7 +1247,7 @@ func (s *persistentRemotes) save() error {
 		return err
 	}
 	s.lastSavedState = remotes
-	return ioutils.AtomicWriteFile(s.storePath, dt, 0600)
+	return ioutils.AtomicWriteFile(s.storePath, dt, 0o600)
 }
 
 // WaitSelect waits until at least one remote becomes available and then selects one.

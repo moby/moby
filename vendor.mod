@@ -33,7 +33,7 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libkv v0.2.2-0.20211217103745-e480589147e3
 	github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
-	github.com/docker/swarmkit v1.12.1-0.20210726173615-3629f50980f6
+	github.com/docker/swarmkit v1.12.1-0.20220307221335-616e8db4c3b0
 	github.com/fluent/fluent-logger-golang v1.9.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/godbus/dbus/v5 v5.0.6
@@ -89,17 +89,17 @@ require (
 require (
 	code.cloudfoundry.org/clock v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cilium/ebpf v0.7.0 // indirect
+	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-runc v1.0.0 // indirect
 	github.com/containerd/ttrpc v1.1.0 // indirect
-	github.com/coreos/etcd v3.3.27+incompatible // indirect
-	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
-	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/fernet/fernet-go v0.0.0-20180830025343-9eac43b88a5e // indirect
 	github.com/gofrs/flock v0.7.3 // indirect
 	github.com/gogo/googleapis v1.4.0 // indirect
@@ -129,11 +129,19 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.10.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/rexray/gocsi v1.2.2 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/tinylib/msgp v1.1.0 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.2 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.5.2 // indirect
+	go.etcd.io/etcd/raft/v3 v3.5.2 // indirect
+	go.etcd.io/etcd/server/v3 v3.5.2 // indirect
 	go.opencensus.io v0.23.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.4.2 // indirect
@@ -169,6 +177,9 @@ replace (
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
 	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 )
+
+// Removes etcd dependency
+replace github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 
 // autogen/winresources/dockerd is generated a build time, this replacement is only for the purpose of `go mod vendor`
 replace github.com/docker/docker/autogen/winresources/dockerd => ./hack/make/.resources-windows

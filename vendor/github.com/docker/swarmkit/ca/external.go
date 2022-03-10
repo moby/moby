@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
@@ -193,7 +192,7 @@ func makeExternalSignRequest(ctx context.Context, client *http.Client, url strin
 	defer resp.Body.Close()
 
 	b := io.LimitReader(resp.Body, CertificateMaxSize)
-	body, err := ioutil.ReadAll(b)
+	body, err := io.ReadAll(b)
 	if err != nil {
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to read CSR response body")}
 	}

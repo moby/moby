@@ -9,12 +9,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"github.com/coreos/etcd/raft"
-	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/pkg/errors"
+	"go.etcd.io/etcd/raft/v3"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/status"
 )
 

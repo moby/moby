@@ -52,7 +52,7 @@ func NewExecutor(b executorpkg.Backend, p plugin.Backend, i executorpkg.ImageBac
 		pluginBackend: p,
 		imageBackend:  i,
 		volumeBackend: v,
-		dependencies:  agent.NewDependencyManager(),
+		dependencies:  agent.NewDependencyManager(b.PluginGetter()),
 	}
 }
 

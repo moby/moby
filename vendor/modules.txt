@@ -54,6 +54,8 @@ github.com/Microsoft/hcsshim/pkg/ociwclayer
 # github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 ## explicit
 github.com/RackSec/srslog
+# github.com/akutz/memconn v0.1.0
+## explicit
 # github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
 ## explicit
 github.com/armon/go-metrics
@@ -133,6 +135,9 @@ github.com/cloudflare/cfssl/log
 github.com/cloudflare/cfssl/ocsp/config
 github.com/cloudflare/cfssl/signer
 github.com/cloudflare/cfssl/signer/local
+# github.com/container-storage-interface/spec v1.5.0
+## explicit; go 1.16
+github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/cgroups v1.0.3
 ## explicit; go 1.16
 github.com/containerd/cgroups
@@ -230,31 +235,12 @@ github.com/containerd/ttrpc
 # github.com/containerd/typeurl v1.0.2
 ## explicit; go 1.13
 github.com/containerd/typeurl
-# github.com/coreos/etcd v3.3.27+incompatible
-## explicit
-github.com/coreos/etcd/pkg/crc
-github.com/coreos/etcd/pkg/fileutil
-github.com/coreos/etcd/pkg/idutil
-github.com/coreos/etcd/pkg/ioutil
-github.com/coreos/etcd/pkg/pbutil
-github.com/coreos/etcd/raft
-github.com/coreos/etcd/raft/raftpb
-github.com/coreos/etcd/snap
-github.com/coreos/etcd/snap/snappb
-github.com/coreos/etcd/wal
-github.com/coreos/etcd/wal/walpb
-# github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf => github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7
-## explicit
-github.com/coreos/go-systemd/journal
 # github.com/coreos/go-systemd/v22 v22.3.2
 ## explicit; go 1.12
 github.com/coreos/go-systemd/v22/activation
 github.com/coreos/go-systemd/v22/daemon
 github.com/coreos/go-systemd/v22/dbus
 github.com/coreos/go-systemd/v22/journal
-# github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f => github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
-## explicit
-github.com/coreos/pkg/capnslog
 # github.com/creack/pty v1.1.11
 ## explicit; go 1.13
 github.com/creack/pty
@@ -308,10 +294,12 @@ github.com/docker/libkv/store/boltdb
 # github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
 ## explicit
 github.com/docker/libtrust
-# github.com/docker/swarmkit v1.12.1-0.20210726173615-3629f50980f6
+# github.com/docker/swarmkit v1.12.1-0.20220307221335-616e8db4c3b0
 ## explicit
 github.com/docker/swarmkit/agent
 github.com/docker/swarmkit/agent/configs
+github.com/docker/swarmkit/agent/csi
+github.com/docker/swarmkit/agent/csi/plugin
 github.com/docker/swarmkit/agent/exec
 github.com/docker/swarmkit/agent/secrets
 github.com/docker/swarmkit/api
@@ -334,6 +322,7 @@ github.com/docker/swarmkit/manager/allocator/cnmallocator
 github.com/docker/swarmkit/manager/allocator/networkallocator
 github.com/docker/swarmkit/manager/constraint
 github.com/docker/swarmkit/manager/controlapi
+github.com/docker/swarmkit/manager/csi
 github.com/docker/swarmkit/manager/dispatcher
 github.com/docker/swarmkit/manager/dispatcher/heartbeat
 github.com/docker/swarmkit/manager/drivers
@@ -353,6 +342,7 @@ github.com/docker/swarmkit/manager/orchestrator/restart
 github.com/docker/swarmkit/manager/orchestrator/taskinit
 github.com/docker/swarmkit/manager/orchestrator/taskreaper
 github.com/docker/swarmkit/manager/orchestrator/update
+github.com/docker/swarmkit/manager/orchestrator/volumeenforcer
 github.com/docker/swarmkit/manager/raftselector
 github.com/docker/swarmkit/manager/resourceapi
 github.com/docker/swarmkit/manager/scheduler
@@ -368,9 +358,13 @@ github.com/docker/swarmkit/protobuf/plugin
 github.com/docker/swarmkit/protobuf/ptypes
 github.com/docker/swarmkit/remotes
 github.com/docker/swarmkit/template
+github.com/docker/swarmkit/volumequeue
 github.com/docker/swarmkit/watch
 github.com/docker/swarmkit/watch/queue
 github.com/docker/swarmkit/xnet
+# github.com/dustin/go-humanize v1.0.0
+## explicit
+github.com/dustin/go-humanize
 # github.com/fernet/fernet-go v0.0.0-20180830025343-9eac43b88a5e
 ## explicit
 github.com/fernet/fernet-go
@@ -420,6 +414,7 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/struct
 github.com/golang/protobuf/ptypes/timestamp
+github.com/golang/protobuf/ptypes/wrappers
 # github.com/google/btree v1.0.1
 ## explicit; go 1.12
 github.com/google/btree
@@ -710,6 +705,8 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/rexray/gocsi v1.2.2 => github.com/dperny/gocsi v1.2.3-pre
+## explicit; go 1.12
 # github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 ## explicit
 github.com/sean-/seed
@@ -753,6 +750,28 @@ github.com/vishvananda/netns
 # go.etcd.io/bbolt v1.3.6
 ## explicit; go 1.12
 go.etcd.io/bbolt
+# go.etcd.io/etcd/client/pkg/v3 v3.5.2
+## explicit; go 1.16
+go.etcd.io/etcd/client/pkg/v3/fileutil
+# go.etcd.io/etcd/pkg/v3 v3.5.2
+## explicit; go 1.16
+go.etcd.io/etcd/pkg/v3/crc
+go.etcd.io/etcd/pkg/v3/idutil
+go.etcd.io/etcd/pkg/v3/ioutil
+go.etcd.io/etcd/pkg/v3/pbutil
+# go.etcd.io/etcd/raft/v3 v3.5.2
+## explicit; go 1.16
+go.etcd.io/etcd/raft/v3
+go.etcd.io/etcd/raft/v3/confchange
+go.etcd.io/etcd/raft/v3/quorum
+go.etcd.io/etcd/raft/v3/raftpb
+go.etcd.io/etcd/raft/v3/tracker
+# go.etcd.io/etcd/server/v3 v3.5.2
+## explicit; go 1.16
+go.etcd.io/etcd/server/v3/etcdserver/api/snap
+go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
+go.etcd.io/etcd/server/v3/wal
+go.etcd.io/etcd/server/v3/wal/walpb
 # go.opencensus.io v0.23.0 => go.opencensus.io v0.22.3
 ## explicit; go 1.13
 go.opencensus.io
@@ -772,6 +791,20 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
+# go.uber.org/atomic v1.7.0
+## explicit; go 1.13
+go.uber.org/atomic
+# go.uber.org/multierr v1.6.0
+## explicit; go 1.12
+go.uber.org/multierr
+# go.uber.org/zap v1.17.0
+## explicit; go 1.13
+go.uber.org/zap
+go.uber.org/zap/buffer
+go.uber.org/zap/internal/bufferpool
+go.uber.org/zap/internal/color
+go.uber.org/zap/internal/exit
+go.uber.org/zap/zapcore
 # golang.org/x/crypto v0.0.0-20211202192323-5770296d904e
 ## explicit; go 1.17
 golang.org/x/crypto/blowfish
@@ -999,4 +1032,5 @@ gotest.tools/v3/skip
 # google.golang.org/api => google.golang.org/api v0.8.0
 # google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
 # google.golang.org/grpc => google.golang.org/grpc v1.27.1
+# github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 # github.com/docker/docker/autogen/winresources/dockerd => ./hack/make/.resources-windows

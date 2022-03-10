@@ -1,24 +1,23 @@
 package storage
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/coreos/etcd/pkg/fileutil"
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/snap"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/pkg/errors"
+	"go.etcd.io/etcd/client/pkg/v3/fileutil"
+	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 )
 
-// This package wraps the github.com/coreos/etcd/snap package, and encrypts
+// This package wraps the go.etcd.io/etcd/server/v3/api/snap package, and encrypts
 // the bytes of whatever snapshot is passed to it, and decrypts the bytes of
 // whatever snapshot it reads.
 
-// Snapshotter is the interface presented by github.com/coreos/etcd/snap.Snapshotter that we depend upon
+// Snapshotter is the interface presented by go.etcd.io/etcd/server/v3/api/snap.Snapshotter that we depend upon
 type Snapshotter interface {
 	SaveSnap(snapshot raftpb.Snapshot) error
 	Load() (*raftpb.Snapshot, error)
@@ -34,7 +33,7 @@ var _ Snapshotter = &wrappedSnap{}
 var _ Snapshotter = &snap.Snapshotter{}
 var _ SnapFactory = snapCryptor{}
 
-// wrappedSnap wraps a github.com/coreos/etcd/snap.Snapshotter, and handles
+// wrappedSnap wraps a go.etcd.io/etcd/server/v3/api/snap.Snapshotter, and handles
 // encrypting/decrypting.
 type wrappedSnap struct {
 	*snap.Snapshotter
@@ -88,7 +87,7 @@ func NewSnapFactory(encrypter encryption.Encrypter, decrypter encryption.Decrypt
 // NewSnapshotter returns a new Snapshotter with the given encrypters and decrypters
 func (sc snapCryptor) New(dirpath string) Snapshotter {
 	return &wrappedSnap{
-		Snapshotter: snap.New(dirpath),
+		Snapshotter: snap.New(nil, dirpath),
 		encrypter:   sc.encrypter,
 		decrypter:   sc.decrypter,
 	}
@@ -97,7 +96,7 @@ func (sc snapCryptor) New(dirpath string) Snapshotter {
 type originalSnap struct{}
 
 func (o originalSnap) New(dirpath string) Snapshotter {
-	return snap.New(dirpath)
+	return snap.New(nil, dirpath)
 }
 
 // OriginalSnap is the original `snap` package as an implementation of the SnapFactory interface
@@ -140,7 +139,7 @@ func MigrateSnapshot(oldDir, newDir string, oldFactory, newFactory SnapFactory) 
 // ListSnapshots lists all the snapshot files in a particular directory and returns
 // the snapshot files in reverse lexical order (newest first)
 func ListSnapshots(dirpath string) ([]string, error) {
-	dirents, err := ioutil.ReadDir(dirpath)
+	dirents, err := os.ReadDir(dirpath)
 	if err != nil {
 		return nil, err
 	}

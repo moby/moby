@@ -35,11 +35,18 @@ type ConfigsProvider interface {
 	Configs() ConfigsManager
 }
 
+// VolumesProvider is implemented by objects that can store volumes,
+// typically an executor.
+type VolumesProvider interface {
+	Volumes() VolumesManager
+}
+
 // DependencyManager is a meta-object that can keep track of typed objects
 // such as secrets and configs.
 type DependencyManager interface {
 	SecretsProvider
 	ConfigsProvider
+	VolumesProvider
 }
 
 // DependencyGetter is a meta-object that can provide access to typed objects
@@ -47,6 +54,7 @@ type DependencyManager interface {
 type DependencyGetter interface {
 	Secrets() SecretGetter
 	Configs() ConfigGetter
+	Volumes() VolumeGetter
 }
 
 // SecretGetter contains secret data necessary for the Controller.
@@ -79,4 +87,40 @@ type ConfigsManager interface {
 	Add(configs ...api.Config) // add one or more configs
 	Remove(configs []string)   // remove the configs by ID
 	Reset()                    // remove all configs
+}
+
+// VolumeGetter contains volume data necessary for the Controller.
+type VolumeGetter interface {
+	// Get returns the the volume with a specific volume ID, if available.
+	// When the volume is not available, the return will be nil.
+	Get(volumeID string) (string, error)
+}
+
+// VolumesManager is the interface for volume storage and updates.
+type VolumesManager interface {
+	VolumeGetter
+
+	// Add adds one or more volumes
+	Add(volumes ...api.VolumeAssignment)
+	// Remove removes one or more volumes. The callback is called each time a
+	// volume is successfully removed with the ID of the volume removed.
+	//
+	// Remove takes a full VolumeAssignment because we may be instructed by the
+	// swarm manager to attempt removal of a Volume we don't know we have.
+	Remove(volumes []api.VolumeAssignment, callback func(string))
+	// Plugins returns the VolumePluginManager for this VolumesManager
+	Plugins() VolumePluginManager
+}
+
+// PluginManager is the interface for accessing the volume plugin manager from
+// the executor. This is identical to
+// github.com/docker/swarmkit/agent/csi/plugin.PluginManager, except the former
+// also includes a Get method for the VolumesManager to use. This does not
+// contain that Get method, to avoid having to import the Plugin type, and
+// because in this context, it is not needed.
+type VolumePluginManager interface {
+	// NodeInfo returns the NodeCSIInfo for each active plugin. Plugins which
+	// are added through Set but to which no connection has yet been
+	// successfully established will not be included.
+	NodeInfo(ctx context.Context) ([]*api.NodeCSIInfo, error)
 }
