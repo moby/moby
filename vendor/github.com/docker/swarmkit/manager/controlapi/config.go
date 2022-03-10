@@ -15,7 +15,7 @@ import (
 )
 
 // MaxConfigSize is the maximum byte length of the `Config.Spec.Data` field.
-const MaxConfigSize = 500 * 1024 // 500KB
+const MaxConfigSize = 1000 * 1024 // 500KB
 
 // assumes spec is not nil
 func configFromConfigSpec(spec *api.ConfigSpec) *api.Config {
