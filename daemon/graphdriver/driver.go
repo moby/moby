@@ -193,7 +193,9 @@ type Options struct {
 func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if name != "" {
 		logrus.Infof("[graphdriver] trying configured driver: %s", name)
-		logDeprecatedWarning(name)
+		if isDeprecated(name) {
+			logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated and will be removed in a future release; visit https://docs.docker.com/go/storage-driver/ for more information", name)
+		}
 		return GetDriver(name, pg, config)
 	}
 
@@ -214,6 +216,11 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 				logrus.Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
 				return nil, err
 			}
+			if isDeprecated(name) {
+				err = errors.Errorf("prior storage driver %s is deprecated and will be removed in a future release; update the the daemon configuration and explicitly choose this storage driver to continue using it; visit https://docs.docker.com/go/storage-driver/ for more information", name)
+				logrus.Errorf("[graphdriver] %v", err)
+				return nil, err
+			}
 
 			// abort starting when there are other prior configured drivers
 			// to ensure the user explicitly selects the driver to load
@@ -229,14 +236,18 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 
 			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
-			logDeprecatedWarning(name)
 			return driver, nil
 		}
 	}
 
 	// If no prior state was found, continue with automatic selection, and pick
-	// the first supported storage driver (in order of priorityList).
+	// the first supported, non-deprecated, storage driver (in order of priorityList).
 	for _, name := range priorityList {
+		if isDeprecated(name) {
+			// Deprecated storage-drivers are skipped in automatic selection, but
+			// can be selected through configuration.
+			continue
+		}
 		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.IDMap)
 		if err != nil {
 			if IsDriverNotSupported(err) {
@@ -244,7 +255,6 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 			return nil, err
 		}
-		logDeprecatedWarning(name)
 		return driver, nil
 	}
 
@@ -321,11 +331,4 @@ func isDeprecated(name string) bool {
 		return true
 	}
 	return false
-}
-
-// logDeprecatedWarning logs a warning if the given storage-driver is marked "deprecated"
-func logDeprecatedWarning(name string) {
-	if isDeprecated(name) {
-		logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated, and will be removed in a future release", name)
-	}
 }
