@@ -3,7 +3,6 @@ package ca
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,9 +19,9 @@ import (
 
 const (
 	// keyPerms are the permissions used to write the TLS keys
-	keyPerms = 0600
+	keyPerms = 0o600
 	// certPerms are the permissions used to write TLS certificates
-	certPerms = 0644
+	certPerms = 0o644
 	// versionHeader is the TLS PEM key header that contains the KEK version
 	versionHeader = "kek-version"
 )
@@ -157,14 +156,14 @@ func (k *KeyReadWriter) SetKeyFormatter(kf keyutils.Formatter) {
 // location than two possible key locations.
 func (k *KeyReadWriter) Migrate() error {
 	tmpPaths := k.genTempPaths()
-	keyBytes, err := ioutil.ReadFile(tmpPaths.Key)
+	keyBytes, err := os.ReadFile(tmpPaths.Key)
 	if err != nil {
 		return nil // no key?  no migration
 	}
 
 	// it does exist - no need to decrypt, because previous versions of swarmkit
 	// which supported this temporary key did not support encrypting TLS keys
-	cert, err := ioutil.ReadFile(k.paths.Cert)
+	cert, err := os.ReadFile(k.paths.Cert)
 	if err != nil {
 		return os.RemoveAll(tmpPaths.Key) // no cert?  no migration
 	}
@@ -202,7 +201,7 @@ func (k *KeyReadWriter) Read() ([]byte, []byte, error) {
 	}
 
 	keyBytes := pem.EncodeToMemory(keyBlock)
-	cert, err := ioutil.ReadFile(k.paths.Cert)
+	cert, err := os.ReadFile(k.paths.Cert)
 	// The cert is written to a temporary file first, then the key, and then
 	// the cert gets renamed - so, if interrupted, it's possible to end up with
 	// a cert that only exists in the temporary location.
@@ -219,7 +218,7 @@ func (k *KeyReadWriter) Read() ([]byte, []byte, error) {
 	if err != nil {
 		var tempErr error
 		tmpPaths := k.genTempPaths()
-		cert, tempErr = ioutil.ReadFile(tmpPaths.Cert)
+		cert, tempErr = os.ReadFile(tmpPaths.Cert)
 		if tempErr != nil {
 			return nil, nil, err // return the original error
 		}
@@ -308,7 +307,7 @@ func (k *KeyReadWriter) Write(certBytes, plaintextKeyBytes []byte, kekData *KEKD
 	defer k.mu.Unlock()
 
 	// current assumption is that the cert and key will be in the same directory
-	if err := os.MkdirAll(filepath.Dir(k.paths.Key), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(k.paths.Key), 0o755); err != nil {
 		return err
 	}
 
@@ -353,7 +352,7 @@ func (k *KeyReadWriter) Target() string {
 }
 
 func (k *KeyReadWriter) readKeyblock() (*pem.Block, error) {
-	key, err := ioutil.ReadFile(k.paths.Key)
+	key, err := os.ReadFile(k.paths.Key)
 	if err != nil {
 		return nil, err
 	}

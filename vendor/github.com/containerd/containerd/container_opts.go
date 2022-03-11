@@ -19,6 +19,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/containerd/containers"
@@ -31,7 +32,6 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // DeleteOpts allows the caller to set options for the deletion of a container
@@ -227,7 +227,7 @@ func WithNewSnapshot(id string, i Image, opts ...snapshots.Opt) NewContainerOpts
 func WithSnapshotCleanup(ctx context.Context, client *Client, c containers.Container) error {
 	if c.SnapshotKey != "" {
 		if c.Snapshotter == "" {
-			return errors.Wrapf(errdefs.ErrInvalidArgument, "container.Snapshotter must be set to cleanup rootfs snapshot")
+			return fmt.Errorf("container.Snapshotter must be set to cleanup rootfs snapshot: %w", errdefs.ErrInvalidArgument)
 		}
 		s, err := client.getSnapshotter(ctx, c.Snapshotter)
 		if err != nil {
@@ -276,15 +276,15 @@ func WithNewSnapshotView(id string, i Image, opts ...snapshots.Opt) NewContainer
 func WithContainerExtension(name string, extension interface{}) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		if name == "" {
-			return errors.Wrapf(errdefs.ErrInvalidArgument, "extension key must not be zero-length")
+			return fmt.Errorf("extension key must not be zero-length: %w", errdefs.ErrInvalidArgument)
 		}
 
 		any, err := typeurl.MarshalAny(extension)
 		if err != nil {
 			if errors.Is(err, typeurl.ErrNotFound) {
-				return errors.Wrapf(err, "extension %q is not registered with the typeurl package, see `typeurl.Register`", name)
+				return fmt.Errorf("extension %q is not registered with the typeurl package, see `typeurl.Register`: %w", name, err)
 			}
-			return errors.Wrap(err, "error marshalling extension")
+			return fmt.Errorf("error marshalling extension: %w", err)
 		}
 
 		if c.Extensions == nil {

@@ -18,6 +18,7 @@ package platforms
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -25,7 +26,6 @@ import (
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
-	"github.com/pkg/errors"
 )
 
 // Present the ARM instruction set architecture, eg: v7, v8
@@ -48,7 +48,7 @@ func cpuVariant() string {
 // by ourselves. We can just parse these information from /proc/cpuinfo
 func getCPUInfo(pattern string) (info string, err error) {
 	if !isLinuxOS(runtime.GOOS) {
-		return "", errors.Wrapf(errdefs.ErrNotImplemented, "getCPUInfo for OS %s", runtime.GOOS)
+		return "", fmt.Errorf("getCPUInfo for OS %s: %w", runtime.GOOS, errdefs.ErrNotImplemented)
 	}
 
 	cpuinfo, err := os.Open("/proc/cpuinfo")
@@ -75,7 +75,7 @@ func getCPUInfo(pattern string) (info string, err error) {
 		return "", err
 	}
 
-	return "", errors.Wrapf(errdefs.ErrNotFound, "getCPUInfo for pattern: %s", pattern)
+	return "", fmt.Errorf("getCPUInfo for pattern: %s: %w", pattern, errdefs.ErrNotFound)
 }
 
 func getCPUVariant() string {

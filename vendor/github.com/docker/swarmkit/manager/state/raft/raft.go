@@ -14,9 +14,6 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/clock"
-	"github.com/coreos/etcd/pkg/idutil"
-	"github.com/coreos/etcd/raft"
-	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/docker/go-events"
 	"github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
@@ -32,6 +29,9 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.etcd.io/etcd/pkg/v3/idutil"
+	"go.etcd.io/etcd/raft/v3"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -447,7 +447,7 @@ func (n *Node) JoinAndStart(ctx context.Context) (err error) {
 	}
 
 	n.initTransport()
-	n.raftNode = raft.StartNode(n.Config, nil)
+	n.raftNode = raft.RestartNode(n.Config)
 
 	return nil
 }
@@ -607,6 +607,12 @@ func (n *Node) Run(ctx context.Context) error {
 			}
 
 			for _, msg := range rd.Messages {
+				// if the message is a snapshot, before we send it, we should
+				// overwrite the original ConfState from the snapshot with the
+				// current one
+				if msg.Type == raftpb.MsgSnap {
+					msg.Snapshot.Metadata.ConfState = n.confState
+				}
 				// Send raft messages to peers
 				if err := n.transport.Send(msg); err != nil {
 					log.G(ctx).WithError(err).Error("failed to send message to member")
@@ -2096,7 +2102,7 @@ func createConfigChangeEnts(ids []uint64, self uint64, term, index uint64) []raf
 func getIDs(snap *raftpb.Snapshot, ents []raftpb.Entry) []uint64 {
 	ids := make(map[uint64]struct{})
 	if snap != nil {
-		for _, id := range snap.Metadata.ConfState.Nodes {
+		for _, id := range snap.Metadata.ConfState.Voters {
 			ids[id] = struct{}{}
 		}
 	}

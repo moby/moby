@@ -18,7 +18,7 @@ require (
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.3
-	github.com/containerd/containerd v1.5.10
+	github.com/containerd/containerd v1.6.1
 	github.com/containerd/continuity v0.2.2
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
@@ -33,7 +33,7 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libkv v0.2.2-0.20211217103745-e480589147e3
 	github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
-	github.com/docker/swarmkit v1.12.1-0.20210726173615-3629f50980f6
+	github.com/docker/swarmkit v1.12.1-0.20220307221335-616e8db4c3b0
 	github.com/fluent/fluent-logger-golang v1.9.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/godbus/dbus/v5 v5.0.6
@@ -74,32 +74,32 @@ require (
 	github.com/tchap/go-patricia v2.3.0+incompatible
 	github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
 	github.com/vbatts/tar-split v0.11.2
-	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
+	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
+	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.43.0
 	gotest.tools/v3 v3.1.0
 )
 
 require (
 	code.cloudfoundry.org/clock v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cilium/ebpf v0.7.0 // indirect
+	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-runc v1.0.0 // indirect
 	github.com/containerd/ttrpc v1.1.0 // indirect
-	github.com/coreos/etcd v3.3.27+incompatible // indirect
-	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
-	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/fernet/fernet-go v0.0.0-20180830025343-9eac43b88a5e // indirect
 	github.com/gofrs/flock v0.7.3 // indirect
 	github.com/gogo/googleapis v1.4.0 // indirect
@@ -127,13 +127,21 @@ require (
 	github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.10.0 // indirect
-	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/prometheus/common v0.30.0 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/rexray/gocsi v1.2.2 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/tinylib/msgp v1.1.0 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.2 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.5.2 // indirect
+	go.etcd.io/etcd/raft/v3 v3.5.2 // indirect
+	go.etcd.io/etcd/server/v3 v3.5.2 // indirect
 	go.opencensus.io v0.23.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.4.2 // indirect
@@ -143,19 +151,16 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/api v0.46.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
 	labix.org/v2/mgo v0.0.0-20140701140051-000000000287 // indirect
 )
 
 replace (
-	cloud.google.com/go => cloud.google.com/go v0.59.0
-	cloud.google.com/go/bigquery => cloud.google.com/go/bigquery v1.0.0
-	cloud.google.com/go/logging => cloud.google.com/go/logging v1.0.1-0.20190813144457-ceeb313ad77b
 	github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
 	github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
 	github.com/coreos/go-systemd => github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7
 	github.com/coreos/pkg => github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
 	github.com/gogo/googleapis => github.com/gogo/googleapis v1.3.2
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
 	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe
 	github.com/hashicorp/go-msgpack => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
 	github.com/hashicorp/go-multierror => github.com/hashicorp/go-multierror v1.0.0
@@ -165,10 +170,10 @@ replace (
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
 	github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 	go.opencensus.io => go.opencensus.io v0.22.3
-	google.golang.org/api => google.golang.org/api v0.8.0
-	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200227132054-3f1135a288c9
-	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 )
+
+// Removes etcd dependency
+replace github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 
 // autogen/winresources/dockerd is generated a build time, this replacement is only for the purpose of `go mod vendor`
 replace github.com/docker/docker/autogen/winresources/dockerd => ./hack/make/.resources-windows

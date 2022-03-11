@@ -88,6 +88,8 @@ message CreateTaskRequest {
 	containerd.types.Descriptor checkpoint = 8;
 
 	google.protobuf.Any options = 9;
+
+	string runtime_path = 10;
 }
 
 message CreateTaskResponse {

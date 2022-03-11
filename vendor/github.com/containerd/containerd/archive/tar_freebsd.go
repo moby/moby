@@ -1,5 +1,3 @@
-// +build freebsd
-
 /*
    Copyright The containerd Authors.
 

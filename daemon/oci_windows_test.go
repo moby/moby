@@ -179,7 +179,7 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 	t.Run("happy path with a 'config://' option", func(t *testing.T) {
 		configID := "my-cred-spec"
 
-		dependencyManager := swarmagent.NewDependencyManager()
+		dependencyManager := swarmagent.NewDependencyManager(nil)
 		dependencyManager.Configs().Add(swarmapi.Config{
 			ID: configID,
 			Spec: swarmapi.ConfigSpec{

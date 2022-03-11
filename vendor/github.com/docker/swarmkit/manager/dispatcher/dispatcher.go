@@ -154,6 +154,12 @@ type Dispatcher struct {
 	nodeUpdates     map[string]nodeUpdate // indexed by node ID
 	nodeUpdatesLock sync.Mutex
 
+	// unpublishedVolumes keeps track of Volumes that Nodes have reported as
+	// unpublished. it maps the volume ID to a list of nodes it has been
+	// unpublished on.
+	unpublishedVolumes     map[string][]string
+	unpublishedVolumesLock sync.Mutex
+
 	downNodes *nodeStore
 
 	processUpdatesTrigger chan struct{}
@@ -222,6 +228,10 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	d.nodeUpdatesLock.Lock()
 	d.nodeUpdates = make(map[string]nodeUpdate)
 	d.nodeUpdatesLock.Unlock()
+
+	d.unpublishedVolumesLock.Lock()
+	d.unpublishedVolumes = make(map[string][]string)
+	d.unpublishedVolumesLock.Unlock()
 
 	d.mu.Lock()
 	if d.isRunning() {
@@ -305,6 +315,8 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			// batch timer has already expired, so no need to drain
 			batchTimer.Reset(maxBatchInterval)
 		case v := <-configWatcher:
+			// TODO(dperny): remove extraneous log message
+			log.G(ctx).Info("cluster update event")
 			cluster := v.(api.EventUpdateCluster)
 			d.mu.Lock()
 			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
@@ -664,14 +676,61 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 		case <-dctx.Done():
 		}
 	}
-	return nil, nil
+
+	return &api.UpdateTaskStatusResponse{}, nil
+}
+
+func (d *Dispatcher) UpdateVolumeStatus(ctx context.Context, r *api.UpdateVolumeStatusRequest) (*api.UpdateVolumeStatusResponse, error) {
+	d.rpcRW.RLock()
+	defer d.rpcRW.RUnlock()
+
+	_, err := d.isRunningLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	nodeInfo, err := ca.RemoteNode(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeID := nodeInfo.NodeID
+	fields := logrus.Fields{
+		"node.id":      nodeID,
+		"node.session": r.SessionID,
+		"method":       "(*Dispatcher).UpdateVolumeStatus",
+	}
+	if nodeInfo.ForwardedBy != nil {
+		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
+	}
+	log := log.G(ctx).WithFields(fields)
+
+	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		return nil, err
+	}
+
+	d.unpublishedVolumesLock.Lock()
+	for _, status := range r.Updates {
+		if status.Unpublished {
+			// it's ok if nodes is nil, because append works on a nil slice.
+			nodes := append(d.unpublishedVolumes[status.ID], nodeID)
+			d.unpublishedVolumes[status.ID] = nodes
+			log.Debugf("volume %s unpublished on node %s", status.ID, nodeID)
+		}
+	}
+	d.unpublishedVolumesLock.Unlock()
+
+	// we won't kick off a batch here, we'll just wait for the timer.
+	return &api.UpdateVolumeStatusResponse{}, nil
 }
 
 func (d *Dispatcher) processUpdates(ctx context.Context) {
 	var (
-		taskUpdates map[string]*api.TaskStatus
-		nodeUpdates map[string]nodeUpdate
+		taskUpdates        map[string]*api.TaskStatus
+		nodeUpdates        map[string]nodeUpdate
+		unpublishedVolumes map[string][]string
 	)
+
 	d.taskUpdatesLock.Lock()
 	if len(d.taskUpdates) != 0 {
 		taskUpdates = d.taskUpdates
@@ -686,7 +745,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 	}
 	d.nodeUpdatesLock.Unlock()
 
-	if len(taskUpdates) == 0 && len(nodeUpdates) == 0 {
+	d.unpublishedVolumesLock.Lock()
+	if len(d.unpublishedVolumes) != 0 {
+		unpublishedVolumes = d.unpublishedVolumes
+		d.unpublishedVolumes = make(map[string][]string)
+	}
+	d.unpublishedVolumesLock.Unlock()
+
+	if len(taskUpdates) == 0 && len(nodeUpdates) == 0 && len(unpublishedVolumes) == 0 {
 		return
 	}
 
@@ -749,7 +815,7 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				logger := log.WithField("node.id", nodeID)
 				node := store.GetNode(tx, nodeID)
 				if node == nil {
-					logger.Errorf("node unavailable")
+					logger.Error("node unavailable")
 					return nil
 				}
 
@@ -773,6 +839,37 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 			})
 			if err != nil {
 				log.WithError(err).Error("dispatcher node update transaction failed")
+			}
+		}
+
+		for volumeID, nodes := range unpublishedVolumes {
+			err := batch.Update(func(tx store.Tx) error {
+				logger := log.WithField("volume.id", volumeID)
+				volume := store.GetVolume(tx, volumeID)
+				if volume == nil {
+					logger.Error("volume unavailable")
+				}
+
+				// buckle your seatbelts, we're going quadratic.
+			nodesLoop:
+				for _, nodeID := range nodes {
+					for _, status := range volume.PublishStatus {
+						if status.NodeID == nodeID {
+							status.State = api.VolumePublishStatus_PENDING_UNPUBLISH
+							continue nodesLoop
+						}
+					}
+				}
+
+				if err := store.UpdateVolume(tx, volume); err != nil {
+					logger.WithError(err).Error("failed to update volume")
+					return nil
+				}
+				return nil
+			})
+
+			if err != nil {
+				log.WithError(err).Error("dispatcher volume update transaction failed")
 			}
 		}
 
@@ -947,7 +1044,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	var (
 		sequence    int64
 		appliesTo   string
-		assignments = newAssignmentSet(log, d.dp)
+		assignments = newAssignmentSet(nodeID, log, d.dp)
 	)
 
 	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
@@ -974,12 +1071,45 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				assignments.addOrUpdateTask(readTx, t)
 			}
 
+			// there is no quick index for which nodes are using a volume, but
+			// there should not be thousands of volumes in a typical
+			// deployment, so this should be ok
+			volumes, err := store.FindVolumes(readTx, store.All)
+			if err != nil {
+				return err
+			}
+
+			for _, v := range volumes {
+				for _, status := range v.PublishStatus {
+					if status.NodeID == nodeID {
+						assignments.addOrUpdateVolume(readTx, v)
+					}
+				}
+			}
+
 			return nil
 		},
 		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
+		api.EventUpdateVolume{
+			// typically, a check function takes an object from this
+			// prototypical event and compares it to the object from the
+			// incoming event. However, because this is a bespoke, in-line
+			// matcher, we can discard the first argument (the prototype) and
+			// instead pass the desired node ID in as part of a closure.
+			Checks: []api.VolumeCheckFunc{
+				func(v1, v2 *api.Volume) bool {
+					for _, status := range v2.PublishStatus {
+						if status.NodeID == nodeID {
+							return true
+						}
+					}
+					return false
+				},
+			},
+		},
 	)
 	if err != nil {
 		return err
@@ -1035,11 +1165,26 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 						}
 					})
 				case api.EventDeleteTask:
-					if assignments.removeTask(v.Task) {
-						oneModification()
-					}
+					d.store.View(func(readTx store.ReadTx) {
+						if assignments.removeTask(readTx, v.Task) {
+							oneModification()
+						}
+					})
 					// TODO(aaronl): For node secrets, we'll need to handle
 					// EventCreateSecret.
+				case api.EventUpdateVolume:
+					d.store.View(func(readTx store.ReadTx) {
+						vol := store.GetVolume(readTx, v.Volume.ID)
+						// check through the PublishStatus to see if there is
+						// one for this node.
+						for _, status := range vol.PublishStatus {
+							if status.NodeID == nodeID {
+								if assignments.addOrUpdateVolume(readTx, vol) {
+									oneModification()
+								}
+							}
+						}
+					})
 				}
 			case <-batchingTimeout:
 				break batchingLoop

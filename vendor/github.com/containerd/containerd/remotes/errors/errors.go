@@ -19,7 +19,6 @@ package errors
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -41,7 +40,7 @@ func (e ErrUnexpectedStatus) Error() string {
 func NewUnexpectedStatusErr(resp *http.Response) error {
 	var b []byte
 	if resp.Body != nil {
-		b, _ = ioutil.ReadAll(io.LimitReader(resp.Body, 64000)) // 64KB
+		b, _ = io.ReadAll(io.LimitReader(resp.Body, 64000)) // 64KB
 	}
 	err := ErrUnexpectedStatus{
 		Body:          b,

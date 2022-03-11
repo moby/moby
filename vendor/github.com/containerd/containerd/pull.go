@@ -18,6 +18,8 @@ package containerd
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
@@ -26,7 +28,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 )
@@ -49,7 +50,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 		} else {
 			p, err := platforms.Parse(pullCtx.Platforms[0])
 			if err != nil {
-				return nil, errors.Wrapf(err, "invalid platform %s", pullCtx.Platforms[0])
+				return nil, fmt.Errorf("invalid platform %s: %w", pullCtx.Platforms[0], err)
 			}
 
 			pullCtx.PlatformMatcher = platforms.Only(p)
@@ -70,13 +71,13 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 		// unpacker only supports schema 2 image, for schema 1 this is noop.
 		u, err := c.newUnpacker(ctx, pullCtx)
 		if err != nil {
-			return nil, errors.Wrap(err, "create unpacker")
+			return nil, fmt.Errorf("create unpacker: %w", err)
 		}
 		unpackWrapper, unpackEg = u.handlerWrapper(ctx, pullCtx, &unpacks)
 		defer func() {
 			if err := unpackEg.Wait(); err != nil {
 				if retErr == nil {
-					retErr = errors.Wrap(err, "unpack")
+					retErr = fmt.Errorf("unpack: %w", err)
 				}
 			}
 		}()
@@ -117,7 +118,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (_ Ima
 			// Try to unpack is none is done previously.
 			// This is at least required for schema 1 image.
 			if err := i.Unpack(ctx, pullCtx.Snapshotter, pullCtx.UnpackOpts...); err != nil {
-				return nil, errors.Wrapf(err, "failed to unpack image on snapshotter %s", pullCtx.Snapshotter)
+				return nil, fmt.Errorf("failed to unpack image on snapshotter %s: %w", pullCtx.Snapshotter, err)
 			}
 		}
 	}
@@ -129,12 +130,12 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, lim
 	store := c.ContentStore()
 	name, desc, err := rCtx.Resolver.Resolve(ctx, ref)
 	if err != nil {
-		return images.Image{}, errors.Wrapf(err, "failed to resolve reference %q", ref)
+		return images.Image{}, fmt.Errorf("failed to resolve reference %q: %w", ref, err)
 	}
 
 	fetcher, err := rCtx.Resolver.Fetcher(ctx, name)
 	if err != nil {
-		return images.Image{}, errors.Wrapf(err, "failed to get fetcher for %q", name)
+		return images.Image{}, fmt.Errorf("failed to get fetcher for %q: %w", name, err)
 	}
 
 	var (

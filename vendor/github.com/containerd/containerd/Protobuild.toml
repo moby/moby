@@ -32,26 +32,9 @@ plugins = ["grpc", "fieldpath"]
   "google/rpc/status.proto" = "github.com/gogo/googleapis/google/rpc"
 
 [[overrides]]
-prefixes = ["github.com/containerd/containerd/api/events"]
-plugins = ["fieldpath"] # disable grpc for this package
-
-[[overrides]]
-prefixes = ["github.com/containerd/containerd/api/services/ttrpc/events/v1"]
-plugins = ["ttrpc", "fieldpath"]
-
-[[overrides]]
 # enable ttrpc and disable fieldpath and grpc for the shim
 prefixes = ["github.com/containerd/containerd/runtime/v1/shim/v1", "github.com/containerd/containerd/runtime/v2/task"]
 plugins = ["ttrpc"]
-
-# Aggregrate the API descriptors to lock down API changes.
-[[descriptors]]
-prefix = "github.com/containerd/containerd/api"
-target = "api/next.pb.txt"
-ignore_files = [
-	"google/protobuf/descriptor.proto",
-	"gogoproto/gogo.proto"
-]
 
 # Lock down runc config
 [[descriptors]]

@@ -19,6 +19,8 @@ package metadata
 import (
 	"context"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,7 +30,6 @@ import (
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/snapshots"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -181,7 +182,7 @@ func (m *DB) Init(ctx context.Context) error {
 			for _, m := range updates {
 				t0 := time.Now()
 				if err := m.migrate(tx); err != nil {
-					return errors.Wrapf(err, "failed to migrate to %s.%d", m.schema, m.version)
+					return fmt.Errorf("failed to migrate to %s.%d: %w", m.schema, m.version, err)
 				}
 				log.G(ctx).WithField("d", time.Since(t0)).Debugf("finished database migration to %s.%d", m.schema, m.version)
 			}
@@ -276,7 +277,7 @@ func (s GCStats) Elapsed() time.Duration {
 	return s.MetaD
 }
 
-// GarbageCollect starts garbage collection
+// GarbageCollect removes resources (snapshots, contents, ...) that are no longer used.
 func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 	m.wlock.Lock()
 	t1 := time.Now()
@@ -307,7 +308,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 		}
 
 		if err := scanAll(ctx, tx, rm); err != nil {
-			return errors.Wrap(err, "failed to scan and remove")
+			return fmt.Errorf("failed to scan and remove: %w", err)
 		}
 
 		return nil
@@ -362,6 +363,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 	return stats, err
 }
 
+// getMarked returns all resources that are used.
 func (m *DB) getMarked(ctx context.Context) (map[gc.Node]struct{}, error) {
 	var marked map[gc.Node]struct{}
 	if err := m.db.View(func(tx *bolt.Tx) error {

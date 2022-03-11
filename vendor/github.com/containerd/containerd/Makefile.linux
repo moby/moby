@@ -20,7 +20,7 @@ COMMANDS += containerd-shim containerd-shim-runc-v1 containerd-shim-runc-v2
 
 # check GOOS for cross compile builds
 ifeq ($(GOOS),linux)
-  ifneq ($(GOARCH),$(filter $(GOARCH),mips mipsle mips64 mips64le ppc64 riscv64))
+  ifneq ($(GOARCH),$(filter $(GOARCH),mips mipsle mips64 mips64le ppc64))
 	GO_GCFLAGS += -buildmode=pie
   endif
 endif

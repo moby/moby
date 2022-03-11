@@ -18,13 +18,13 @@ package metadata
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/identifiers"
 	l "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -49,7 +49,7 @@ func (s *namespaceStore) Create(ctx context.Context, namespace string, labels ma
 
 	for k, v := range labels {
 		if err := l.Validate(k, v); err != nil {
-			return errors.Wrapf(err, "namespace.Labels")
+			return fmt.Errorf("namespace.Labels: %w", err)
 		}
 	}
 
@@ -57,7 +57,7 @@ func (s *namespaceStore) Create(ctx context.Context, namespace string, labels ma
 	bkt, err := topbkt.CreateBucket([]byte(namespace))
 	if err != nil {
 		if err == bolt.ErrBucketExists {
-			return errors.Wrapf(errdefs.ErrAlreadyExists, "namespace %q", namespace)
+			return fmt.Errorf("namespace %q: %w", namespace, errdefs.ErrAlreadyExists)
 		}
 
 		return err
@@ -97,7 +97,7 @@ func (s *namespaceStore) Labels(ctx context.Context, namespace string) (map[stri
 
 func (s *namespaceStore) SetLabel(ctx context.Context, namespace, key, value string) error {
 	if err := l.Validate(key, value); err != nil {
-		return errors.Wrapf(err, "namespace.Labels")
+		return fmt.Errorf("namespace.Labels: %w", err)
 	}
 
 	return withNamespacesLabelsBucket(s.tx, namespace, func(bkt *bolt.Bucket) error {
@@ -147,16 +147,16 @@ func (s *namespaceStore) Delete(ctx context.Context, namespace string, opts ...n
 	}
 
 	if len(types) > 0 {
-		return errors.Wrapf(
-			errdefs.ErrFailedPrecondition,
-			"namespace %q must be empty, but it still has %s",
+		return fmt.Errorf(
+			"namespace %q must be empty, but it still has %s: %w",
 			namespace, strings.Join(types, ", "),
+			errdefs.ErrFailedPrecondition,
 		)
 	}
 
 	if err := bkt.DeleteBucket([]byte(namespace)); err != nil {
 		if err == bolt.ErrBucketNotFound {
-			return errors.Wrapf(errdefs.ErrNotFound, "namespace %q", namespace)
+			return fmt.Errorf("namespace %q: %w", namespace, errdefs.ErrNotFound)
 		}
 
 		return err
@@ -184,7 +184,7 @@ func (s *namespaceStore) listNs(namespace string) ([]string, error) {
 		if err := snbkt.ForEach(func(k, v []byte) error {
 			if v == nil {
 				if !isBucketEmpty(snbkt.Bucket(k)) {
-					out = append(out, "snapshot-"+string(k))
+					out = append(out, fmt.Sprintf("snapshots on %q snapshotter", k))
 				}
 			}
 			return nil

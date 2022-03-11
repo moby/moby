@@ -15,7 +15,7 @@
 */
 
 // Package metadata stores all labels and object specific metadata by namespace.
-// This package also contains the main garbage collection logic  for cleaning up
+// This package also contains the main garbage collection logic for cleaning up
 // resources consistently and atomically. Resources used by backends will be
 // tracked in the metadata store to be exposed to consumers of this package.
 //

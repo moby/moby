@@ -34,9 +34,18 @@ in this package for details.
 
 Timeouts and Cancellation
 
-By default, all requests in sub-packages will run indefinitely, retrying on transient
-errors when correctness allows. To set timeouts or arrange for cancellation, use
-contexts. See the examples for details.
+By default, non-streaming methods, like Create or Get, will have a default deadline applied to the
+context provided at call time, unless a context deadline is already set. Streaming
+methods have no default deadline and will run indefinitely. To set timeouts or
+arrange for cancellation, use contexts. See the examples for details. Transient
+errors will be retried when correctness allows.
+
+To opt out of default deadlines, set the temporary environment variable
+GOOGLE_API_GO_EXPERIMENTAL_DISABLE_DEFAULT_DEADLINE to "true" prior to client
+creation. This affects all Google Cloud Go client libraries. This opt-out
+mechanism will be removed in a future release. File an issue at
+https://github.com/googleapis/google-cloud-go if the default deadlines
+cannot work for you.
 
 Do not attempt to control the initial connection (dialing) of a service by setting a
 timeout on the context passed to NewClient. Dialing is non-blocking, so timeouts
@@ -75,6 +84,20 @@ https://godoc.org/google.golang.org/grpc/grpclog for more information.
 
 For HTTP logging, set the GODEBUG environment variable to "http2debug=1" or "http2debug=2".
 
+
+Inspecting errors
+
+Most of the errors returned by the generated clients can be converted into a
+`grpc.Status`. Converting your errors to this type can be a useful to get
+more information about what went wrong while debugging.
+ if err != {
+    if s, ok := status.FromError(err); ok {
+	   log.Println(s.Message())
+	   for _, d := range s.Proto().Details {
+	      log.Println(d)
+	   }
+	}
+ }
 
 Client Stability
 

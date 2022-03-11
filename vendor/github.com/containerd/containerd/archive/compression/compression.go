@@ -21,15 +21,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 
 	"github.com/containerd/containerd/log"
 	"github.com/klauspost/compress/zstd"
+	exec "golang.org/x/sys/execabs"
 )
 
 type (
@@ -125,17 +126,52 @@ func (r *bufferedReader) Peek(n int) ([]byte, error) {
 	return r.buf.Peek(n)
 }
 
+const (
+	zstdMagicSkippableStart = 0x184D2A50
+	zstdMagicSkippableMask  = 0xFFFFFFF0
+)
+
+var (
+	gzipMagic = []byte{0x1F, 0x8B, 0x08}
+	zstdMagic = []byte{0x28, 0xb5, 0x2f, 0xfd}
+)
+
+type matcher = func([]byte) bool
+
+func magicNumberMatcher(m []byte) matcher {
+	return func(source []byte) bool {
+		return bytes.HasPrefix(source, m)
+	}
+}
+
+// zstdMatcher detects zstd compression algorithm.
+// There are two frame formats defined by Zstandard: Zstandard frames and Skippable frames.
+// See https://tools.ietf.org/id/draft-kucherawy-dispatch-zstd-00.html#rfc.section.2 for more details.
+func zstdMatcher() matcher {
+	return func(source []byte) bool {
+		if bytes.HasPrefix(source, zstdMagic) {
+			// Zstandard frame
+			return true
+		}
+		// skippable frame
+		if len(source) < 8 {
+			return false
+		}
+		// magic number from 0x184D2A50 to 0x184D2A5F.
+		if binary.LittleEndian.Uint32(source[:4])&zstdMagicSkippableMask == zstdMagicSkippableStart {
+			return true
+		}
+		return false
+	}
+}
+
 // DetectCompression detects the compression algorithm of the source.
 func DetectCompression(source []byte) Compression {
-	for compression, m := range map[Compression][]byte{
-		Gzip: {0x1F, 0x8B, 0x08},
-		Zstd: {0x28, 0xb5, 0x2f, 0xfd},
+	for compression, fn := range map[Compression]matcher{
+		Gzip: magicNumberMatcher(gzipMagic),
+		Zstd: zstdMatcher(),
 	} {
-		if len(source) < len(m) {
-			// Len too short
-			continue
-		}
-		if bytes.Equal(m, source[:len(m)]) {
+		if fn(source) {
 			return compression
 		}
 	}

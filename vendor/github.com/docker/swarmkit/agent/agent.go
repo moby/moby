@@ -543,6 +543,40 @@ func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api
 	}
 }
 
+// ReportVolumeUnpublished sends a Volume status update to the manager
+// indicating that the provided volume has been successfully unpublished.
+func (a *Agent) ReportVolumeUnpublished(ctx context.Context, volumeID string) error {
+	l := log.G(ctx).WithField("volume.ID", volumeID)
+	l.Debug("(*Agent).ReportVolumeUnpublished")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errs := make(chan error, 1)
+	if err := a.withSession(ctx, func(session *session) error {
+		go func() {
+			err := session.reportVolumeUnpublished(ctx, []string{volumeID})
+			if err != nil {
+				l.WithError(err).Error("error reporting volume unpublished")
+			} else {
+				l.Debug("reported volume unpublished")
+			}
+
+			errs <- err
+		}()
+
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	select {
+	case err := <-errs:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // Publisher returns a LogPublisher for the given subscription
 // as well as a cancel function that should be called when the log stream
 // is completed.
@@ -597,8 +631,8 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.NodeTLSInfo) (*api.NodeDescription, error) {
 	desc, err := a.config.Executor.Describe(ctx)
 
-	// Override hostname and TLS info
 	if desc != nil {
+		// Override hostname and TLS info
 		if a.config.Hostname != "" {
 			desc.Hostname = a.config.Hostname
 		}

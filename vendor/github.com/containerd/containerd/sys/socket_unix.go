@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 /*
@@ -19,11 +20,11 @@
 package sys
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -31,7 +32,7 @@ import (
 func CreateUnixSocket(path string) (net.Listener, error) {
 	// BSDs have a 104 limit
 	if len(path) > 104 {
-		return nil, errors.Errorf("%q: unix socket path too long (> 104)", path)
+		return nil, fmt.Errorf("%q: unix socket path too long (> 104)", path)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0660); err != nil {
 		return nil, err

@@ -23,7 +23,6 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/containerd/containerd/log"
-	"github.com/pkg/errors"
 )
 
 const pipeRoot = `\\.\pipe`
@@ -54,7 +53,7 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (_ *cio, retErr error) {
 	if fifos.Stdin != "" {
 		l, err := winio.ListenPipe(fifos.Stdin, nil)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create stdin pipe %s", fifos.Stdin)
+			return nil, fmt.Errorf("failed to create stdin pipe %s: %w", fifos.Stdin, err)
 		}
 		cios.closers = append(cios.closers, l)
 
@@ -77,7 +76,7 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (_ *cio, retErr error) {
 	if fifos.Stdout != "" {
 		l, err := winio.ListenPipe(fifos.Stdout, nil)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create stdout pipe %s", fifos.Stdout)
+			return nil, fmt.Errorf("failed to create stdout pipe %s: %w", fifos.Stdout, err)
 		}
 		cios.closers = append(cios.closers, l)
 
@@ -100,7 +99,7 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (_ *cio, retErr error) {
 	if fifos.Stderr != "" {
 		l, err := winio.ListenPipe(fifos.Stderr, nil)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create stderr pipe %s", fifos.Stderr)
+			return nil, fmt.Errorf("failed to create stderr pipe %s: %w", fifos.Stderr, err)
 		}
 		cios.closers = append(cios.closers, l)
 

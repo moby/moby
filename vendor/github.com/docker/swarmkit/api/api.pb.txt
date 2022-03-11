@@ -2373,6 +2373,17 @@ file {
       }
       json_name: "fips"
     }
+    field {
+      name: "csi_info"
+      number: 7
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.NodeCSIInfo"
+      options {
+        65004: "CSIInfo"
+      }
+      json_name: "csiInfo"
+    }
   }
   message_type {
     name: "NodeTLSInfo"
@@ -2396,6 +2407,38 @@ file {
       label: LABEL_OPTIONAL
       type: TYPE_BYTES
       json_name: "certIssuerPublicKey"
+    }
+  }
+  message_type {
+    name: "NodeCSIInfo"
+    field {
+      name: "plugin_name"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "pluginName"
+    }
+    field {
+      name: "node_id"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "nodeId"
+    }
+    field {
+      name: "max_volumes_per_node"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_INT64
+      json_name: "maxVolumesPerNode"
+    }
+    field {
+      name: "accessible_topology"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Topology"
+      json_name: "accessibleTopology"
     }
   }
   message_type {
@@ -2733,6 +2776,13 @@ file {
         number: 3
         options {
           66001: "MountTypeNamedPipe"
+        }
+      }
+      value {
+        name: "CSI"
+        number: 4
+        options {
+          66001: "MountTypeCSI"
         }
       }
       options {
@@ -4327,6 +4377,540 @@ file {
       json_name: "lastExecution"
     }
   }
+  message_type {
+    name: "VolumeAccessMode"
+    field {
+      name: "scope"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".docker.swarmkit.v1.VolumeAccessMode.Scope"
+      json_name: "scope"
+    }
+    field {
+      name: "sharing"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".docker.swarmkit.v1.VolumeAccessMode.Sharing"
+      json_name: "sharing"
+    }
+    field {
+      name: "block"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAccessMode.BlockVolume"
+      oneof_index: 0
+      json_name: "block"
+    }
+    field {
+      name: "mount"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAccessMode.MountVolume"
+      oneof_index: 0
+      json_name: "mount"
+    }
+    nested_type {
+      name: "BlockVolume"
+    }
+    nested_type {
+      name: "MountVolume"
+      field {
+        name: "fs_type"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "fsType"
+      }
+      field {
+        name: "mount_flags"
+        number: 2
+        label: LABEL_REPEATED
+        type: TYPE_STRING
+        json_name: "mountFlags"
+      }
+    }
+    enum_type {
+      name: "Scope"
+      value {
+        name: "SINGLE_NODE"
+        number: 0
+        options {
+          66001: "VolumeScopeSingleNode"
+        }
+      }
+      value {
+        name: "MULTI_NODE"
+        number: 1
+        options {
+          66001: "VolumeScopeMultiNode"
+        }
+      }
+      options {
+        62001: 0
+      }
+    }
+    enum_type {
+      name: "Sharing"
+      value {
+        name: "NONE"
+        number: 0
+        options {
+          66001: "VolumeSharingNone"
+        }
+      }
+      value {
+        name: "READ_ONLY"
+        number: 1
+        options {
+          66001: "VolumeSharingReadOnly"
+        }
+      }
+      value {
+        name: "ONE_WRITER"
+        number: 2
+        options {
+          66001: "VolumeSharingOneWriter"
+        }
+      }
+      value {
+        name: "ALL"
+        number: 3
+        options {
+          66001: "VolumeSharingAll"
+        }
+      }
+      options {
+        62001: 0
+      }
+    }
+    oneof_decl {
+      name: "access_type"
+    }
+  }
+  message_type {
+    name: "VolumeSecret"
+    field {
+      name: "key"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "key"
+    }
+    field {
+      name: "secret"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "secret"
+    }
+  }
+  message_type {
+    name: "VolumePublishStatus"
+    field {
+      name: "node_id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "nodeId"
+    }
+    field {
+      name: "state"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".docker.swarmkit.v1.VolumePublishStatus.State"
+      json_name: "state"
+    }
+    field {
+      name: "publish_context"
+      number: 3
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumePublishStatus.PublishContextEntry"
+      json_name: "publishContext"
+    }
+    field {
+      name: "message"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "message"
+    }
+    nested_type {
+      name: "PublishContextEntry"
+      field {
+        name: "key"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "key"
+      }
+      field {
+        name: "value"
+        number: 2
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "value"
+      }
+      options {
+        map_entry: true
+      }
+    }
+    enum_type {
+      name: "State"
+      value {
+        name: "PENDING_PUBLISH"
+        number: 0
+      }
+      value {
+        name: "PUBLISHED"
+        number: 1
+      }
+      value {
+        name: "PENDING_NODE_UNPUBLISH"
+        number: 2
+      }
+      value {
+        name: "PENDING_UNPUBLISH"
+        number: 3
+      }
+    }
+  }
+  message_type {
+    name: "VolumeInfo"
+    field {
+      name: "capacity_bytes"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_INT64
+      json_name: "capacityBytes"
+    }
+    field {
+      name: "volume_context"
+      number: 2
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeInfo.VolumeContextEntry"
+      json_name: "volumeContext"
+    }
+    field {
+      name: "volume_id"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "volumeId"
+    }
+    field {
+      name: "accessible_topology"
+      number: 4
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Topology"
+      json_name: "accessibleTopology"
+    }
+    nested_type {
+      name: "VolumeContextEntry"
+      field {
+        name: "key"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "key"
+      }
+      field {
+        name: "value"
+        number: 2
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "value"
+      }
+      options {
+        map_entry: true
+      }
+    }
+  }
+  message_type {
+    name: "CapacityRange"
+    field {
+      name: "required_bytes"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_INT64
+      json_name: "requiredBytes"
+    }
+    field {
+      name: "limit_bytes"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_INT64
+      json_name: "limitBytes"
+    }
+  }
+  message_type {
+    name: "VolumeAssignment"
+    field {
+      name: "id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "id"
+    }
+    field {
+      name: "volume_id"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "volumeId"
+    }
+    field {
+      name: "driver"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Driver"
+      json_name: "driver"
+    }
+    field {
+      name: "volume_context"
+      number: 4
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAssignment.VolumeContextEntry"
+      json_name: "volumeContext"
+    }
+    field {
+      name: "publish_context"
+      number: 5
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAssignment.PublishContextEntry"
+      json_name: "publishContext"
+    }
+    field {
+      name: "access_mode"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAccessMode"
+      json_name: "accessMode"
+    }
+    field {
+      name: "secrets"
+      number: 7
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeSecret"
+      json_name: "secrets"
+    }
+    nested_type {
+      name: "VolumeContextEntry"
+      field {
+        name: "key"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "key"
+      }
+      field {
+        name: "value"
+        number: 2
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "value"
+      }
+      options {
+        map_entry: true
+      }
+    }
+    nested_type {
+      name: "PublishContextEntry"
+      field {
+        name: "key"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "key"
+      }
+      field {
+        name: "value"
+        number: 2
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "value"
+      }
+      options {
+        map_entry: true
+      }
+    }
+  }
+  message_type {
+    name: "VolumeAttachment"
+    field {
+      name: "id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "id"
+    }
+    field {
+      name: "source"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "source"
+    }
+    field {
+      name: "target"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "target"
+    }
+  }
+  message_type {
+    name: "TopologyRequirement"
+    field {
+      name: "requisite"
+      number: 1
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Topology"
+      json_name: "requisite"
+    }
+    field {
+      name: "preferred"
+      number: 2
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Topology"
+      json_name: "preferred"
+    }
+  }
+  message_type {
+    name: "Topology"
+    field {
+      name: "segments"
+      number: 1
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Topology.SegmentsEntry"
+      json_name: "segments"
+    }
+    nested_type {
+      name: "SegmentsEntry"
+      field {
+        name: "key"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "key"
+      }
+      field {
+        name: "value"
+        number: 2
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "value"
+      }
+      options {
+        map_entry: true
+      }
+    }
+  }
+  message_type {
+    name: "VolumeCapability"
+    field {
+      name: "block"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeCapability.BlockVolume"
+      oneof_index: 0
+      json_name: "block"
+    }
+    field {
+      name: "mount"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeCapability.MountVolume"
+      oneof_index: 0
+      json_name: "mount"
+    }
+    field {
+      name: "access_mode"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeCapability.AccessMode"
+      json_name: "accessMode"
+    }
+    nested_type {
+      name: "BlockVolume"
+    }
+    nested_type {
+      name: "MountVolume"
+      field {
+        name: "fs_type"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "fsType"
+      }
+      field {
+        name: "mount_flags"
+        number: 2
+        label: LABEL_REPEATED
+        type: TYPE_STRING
+        json_name: "mountFlags"
+      }
+    }
+    nested_type {
+      name: "AccessMode"
+      field {
+        name: "mode"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_ENUM
+        type_name: ".docker.swarmkit.v1.VolumeCapability.AccessMode.Mode"
+        json_name: "mode"
+      }
+      enum_type {
+        name: "Mode"
+        value {
+          name: "UNKNOWN"
+          number: 0
+        }
+        value {
+          name: "SINGLE_NODE_WRITER"
+          number: 1
+        }
+        value {
+          name: "SINGLE_NODE_READER_ONLY"
+          number: 2
+        }
+        value {
+          name: "MULTI_NODE_READER_ONLY"
+          number: 3
+        }
+        value {
+          name: "MULTI_NODE_SINGLE_WRITER"
+          number: 4
+        }
+        value {
+          name: "MULTI_NODE_MULTI_WRITER"
+          number: 5
+        }
+      }
+    }
+    oneof_decl {
+      name: "access_type"
+    }
+  }
   enum_type {
     name: "ResourceType"
     value {
@@ -4340,6 +4924,10 @@ file {
     value {
       name: "CONFIG"
       number: 2
+    }
+    value {
+      name: "VOLUME"
+      number: 3
     }
   }
   enum_type {
@@ -5485,6 +6073,102 @@ file {
       json_name: "templating"
     }
   }
+  message_type {
+    name: "VolumeSpec"
+    field {
+      name: "annotations"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Annotations"
+      options {
+        65001: 0
+      }
+      json_name: "annotations"
+    }
+    field {
+      name: "group"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "group"
+    }
+    field {
+      name: "driver"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Driver"
+      json_name: "driver"
+    }
+    field {
+      name: "access_mode"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAccessMode"
+      json_name: "accessMode"
+    }
+    field {
+      name: "secrets"
+      number: 5
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeSecret"
+      json_name: "secrets"
+    }
+    field {
+      name: "AccessibilityRequirements"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.TopologyRequirement"
+      json_name: "AccessibilityRequirements"
+    }
+    field {
+      name: "capacity_range"
+      number: 7
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.CapacityRange"
+      json_name: "capacityRange"
+    }
+    field {
+      name: "availability"
+      number: 8
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".docker.swarmkit.v1.VolumeSpec.VolumeAvailability"
+      json_name: "availability"
+    }
+    enum_type {
+      name: "VolumeAvailability"
+      value {
+        name: "ACTIVE"
+        number: 0
+        options {
+          66001: "VolumeAvailabilityActive"
+        }
+      }
+      value {
+        name: "PAUSE"
+        number: 1
+        options {
+          66001: "VolumeAvailabilityPause"
+        }
+      }
+      value {
+        name: "DRAIN"
+        number: 2
+        options {
+          66001: "VolumeAvailabilityDrain"
+        }
+      }
+      options {
+        62001: 0
+      }
+    }
+  }
   syntax: "proto3"
 }
 file {
@@ -6263,6 +6947,14 @@ file {
       type_name: ".docker.swarmkit.v1.Version"
       json_name: "jobIteration"
     }
+    field {
+      name: "volumes"
+      number: 17
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAttachment"
+      json_name: "volumes"
+    }
     options {
       70001 {
         1 {
@@ -6740,6 +7432,73 @@ file {
       label: LABEL_OPTIONAL
       type: TYPE_STRING
       json_name: "description"
+    }
+    options {
+      70001 {
+        1 {
+          1: 1
+          2: 1
+          3: 1
+          4: 1
+          5: 1
+          6: 1
+        }
+      }
+    }
+  }
+  message_type {
+    name: "Volume"
+    field {
+      name: "id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "id"
+    }
+    field {
+      name: "meta"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Meta"
+      options {
+        65001: 0
+      }
+      json_name: "meta"
+    }
+    field {
+      name: "spec"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeSpec"
+      options {
+        65001: 0
+      }
+      json_name: "spec"
+    }
+    field {
+      name: "publish_status"
+      number: 4
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumePublishStatus"
+      json_name: "publishStatus"
+    }
+    field {
+      name: "volume_info"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeInfo"
+      json_name: "volumeInfo"
+    }
+    field {
+      name: "pending_delete"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_BOOL
+      json_name: "pendingDelete"
     }
     options {
       70001 {
@@ -8271,6 +9030,194 @@ file {
       json_name: "resources"
     }
   }
+  message_type {
+    name: "CreateVolumeRequest"
+    field {
+      name: "spec"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeSpec"
+      json_name: "spec"
+    }
+  }
+  message_type {
+    name: "CreateVolumeResponse"
+    field {
+      name: "volume"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Volume"
+      json_name: "volume"
+    }
+  }
+  message_type {
+    name: "GetVolumeRequest"
+    field {
+      name: "volume_id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "volumeId"
+    }
+  }
+  message_type {
+    name: "GetVolumeResponse"
+    field {
+      name: "volume"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Volume"
+      json_name: "volume"
+    }
+  }
+  message_type {
+    name: "UpdateVolumeRequest"
+    field {
+      name: "volume_id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "volumeId"
+    }
+    field {
+      name: "volume_version"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Version"
+      json_name: "volumeVersion"
+    }
+    field {
+      name: "spec"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeSpec"
+      json_name: "spec"
+    }
+  }
+  message_type {
+    name: "UpdateVolumeResponse"
+    field {
+      name: "volume"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Volume"
+      json_name: "volume"
+    }
+  }
+  message_type {
+    name: "ListVolumesRequest"
+    field {
+      name: "filters"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.ListVolumesRequest.Filters"
+      json_name: "filters"
+    }
+    nested_type {
+      name: "Filters"
+      field {
+        name: "names"
+        number: 1
+        label: LABEL_REPEATED
+        type: TYPE_STRING
+        json_name: "names"
+      }
+      field {
+        name: "id_prefixes"
+        number: 2
+        label: LABEL_REPEATED
+        type: TYPE_STRING
+        json_name: "idPrefixes"
+      }
+      field {
+        name: "labels"
+        number: 3
+        label: LABEL_REPEATED
+        type: TYPE_MESSAGE
+        type_name: ".docker.swarmkit.v1.ListVolumesRequest.Filters.LabelsEntry"
+        json_name: "labels"
+      }
+      field {
+        name: "name_prefixes"
+        number: 4
+        label: LABEL_REPEATED
+        type: TYPE_STRING
+        json_name: "namePrefixes"
+      }
+      field {
+        name: "groups"
+        number: 5
+        label: LABEL_REPEATED
+        type: TYPE_STRING
+        json_name: "groups"
+      }
+      field {
+        name: "drivers"
+        number: 6
+        label: LABEL_REPEATED
+        type: TYPE_STRING
+        json_name: "drivers"
+      }
+      nested_type {
+        name: "LabelsEntry"
+        field {
+          name: "key"
+          number: 1
+          label: LABEL_OPTIONAL
+          type: TYPE_STRING
+          json_name: "key"
+        }
+        field {
+          name: "value"
+          number: 2
+          label: LABEL_OPTIONAL
+          type: TYPE_STRING
+          json_name: "value"
+        }
+        options {
+          map_entry: true
+        }
+      }
+    }
+  }
+  message_type {
+    name: "ListVolumesResponse"
+    field {
+      name: "volumes"
+      number: 1
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Volume"
+      json_name: "volumes"
+    }
+  }
+  message_type {
+    name: "RemoveVolumeRequest"
+    field {
+      name: "volume_id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "volumeId"
+    }
+    field {
+      name: "force"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_BOOL
+      json_name: "force"
+    }
+  }
+  message_type {
+    name: "RemoveVolumeResponse"
+  }
   service {
     name: "Control"
     method {
@@ -8653,6 +9600,56 @@ file {
         }
       }
     }
+    method {
+      name: "CreateVolume"
+      input_type: ".docker.swarmkit.v1.CreateVolumeRequest"
+      output_type: ".docker.swarmkit.v1.CreateVolumeResponse"
+      options {
+        73626345 {
+          1: "swarm-manager"
+        }
+      }
+    }
+    method {
+      name: "GetVolume"
+      input_type: ".docker.swarmkit.v1.GetVolumeRequest"
+      output_type: ".docker.swarmkit.v1.GetVolumeResponse"
+      options {
+        73626345 {
+          1: "swarm-manager"
+        }
+      }
+    }
+    method {
+      name: "UpdateVolume"
+      input_type: ".docker.swarmkit.v1.UpdateVolumeRequest"
+      output_type: ".docker.swarmkit.v1.UpdateVolumeResponse"
+      options {
+        73626345 {
+          1: "swarm-manager"
+        }
+      }
+    }
+    method {
+      name: "ListVolumes"
+      input_type: ".docker.swarmkit.v1.ListVolumesRequest"
+      output_type: ".docker.swarmkit.v1.ListVolumesResponse"
+      options {
+        73626345 {
+          1: "swarm-manager"
+        }
+      }
+    }
+    method {
+      name: "RemoveVolume"
+      input_type: ".docker.swarmkit.v1.RemoveVolumeRequest"
+      output_type: ".docker.swarmkit.v1.RemoveVolumeResponse"
+      options {
+        73626345 {
+          1: "swarm-manager"
+        }
+      }
+    }
   }
   syntax: "proto3"
 }
@@ -8788,6 +9785,44 @@ file {
     name: "UpdateTaskStatusResponse"
   }
   message_type {
+    name: "UpdateVolumeStatusRequest"
+    field {
+      name: "session_id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "sessionId"
+    }
+    field {
+      name: "updates"
+      number: 2
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.UpdateVolumeStatusRequest.VolumeStatusUpdate"
+      json_name: "updates"
+    }
+    nested_type {
+      name: "VolumeStatusUpdate"
+      field {
+        name: "id"
+        number: 1
+        label: LABEL_OPTIONAL
+        type: TYPE_STRING
+        json_name: "id"
+      }
+      field {
+        name: "unpublished"
+        number: 2
+        label: LABEL_OPTIONAL
+        type: TYPE_BOOL
+        json_name: "unpublished"
+      }
+    }
+  }
+  message_type {
+    name: "UpdateVolumeStatusResponse"
+  }
+  message_type {
     name: "TasksRequest"
     field {
       name: "session_id"
@@ -8846,6 +9881,15 @@ file {
       type_name: ".docker.swarmkit.v1.Config"
       oneof_index: 0
       json_name: "config"
+    }
+    field {
+      name: "volume"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.VolumeAssignment"
+      oneof_index: 0
+      json_name: "volume"
     }
     oneof_decl {
       name: "item"
@@ -8960,6 +10004,17 @@ file {
       name: "UpdateTaskStatus"
       input_type: ".docker.swarmkit.v1.UpdateTaskStatusRequest"
       output_type: ".docker.swarmkit.v1.UpdateTaskStatusResponse"
+      options {
+        73626345 {
+          1: "swarm-worker"
+          1: "swarm-manager"
+        }
+      }
+    }
+    method {
+      name: "UpdateVolumeStatus"
+      input_type: ".docker.swarmkit.v1.UpdateVolumeStatusRequest"
+      output_type: ".docker.swarmkit.v1.UpdateVolumeStatusResponse"
       options {
         73626345 {
           1: "swarm-worker"
@@ -9378,7 +10433,7 @@ file {
   syntax: "proto3"
 }
 file {
-  name: "github.com/coreos/etcd/raft/raftpb/raft.proto"
+  name: "go.etcd.io/etcd/raft/v3/raftpb/raft.proto"
   package: "raftpb"
   dependency: "gogoproto/gogo.proto"
   message_type {
@@ -9636,11 +10691,11 @@ file {
   message_type {
     name: "ConfState"
     field {
-      name: "nodes"
+      name: "voters"
       number: 1
       label: LABEL_REPEATED
       type: TYPE_UINT64
-      json_name: "nodes"
+      json_name: "voters"
     }
     field {
       name: "learners"
@@ -9649,21 +10704,35 @@ file {
       type: TYPE_UINT64
       json_name: "learners"
     }
+    field {
+      name: "voters_outgoing"
+      number: 3
+      label: LABEL_REPEATED
+      type: TYPE_UINT64
+      json_name: "votersOutgoing"
+    }
+    field {
+      name: "learners_next"
+      number: 4
+      label: LABEL_REPEATED
+      type: TYPE_UINT64
+      json_name: "learnersNext"
+    }
+    field {
+      name: "auto_leave"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_BOOL
+      options {
+        65001: 0
+      }
+      json_name: "autoLeave"
+    }
   }
   message_type {
     name: "ConfChange"
     field {
-      name: "ID"
-      number: 1
-      label: LABEL_OPTIONAL
-      type: TYPE_UINT64
-      options {
-        65001: 0
-      }
-      json_name: "ID"
-    }
-    field {
-      name: "Type"
+      name: "type"
       number: 2
       label: LABEL_OPTIONAL
       type: TYPE_ENUM
@@ -9671,24 +10740,93 @@ file {
       options {
         65001: 0
       }
-      json_name: "Type"
+      json_name: "type"
     }
     field {
-      name: "NodeID"
+      name: "node_id"
       number: 3
       label: LABEL_OPTIONAL
       type: TYPE_UINT64
       options {
         65001: 0
+        65004: "NodeID"
       }
-      json_name: "NodeID"
+      json_name: "nodeId"
     }
     field {
-      name: "Context"
+      name: "context"
       number: 4
       label: LABEL_OPTIONAL
       type: TYPE_BYTES
-      json_name: "Context"
+      json_name: "context"
+    }
+    field {
+      name: "id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      options {
+        65001: 0
+        65004: "ID"
+      }
+      json_name: "id"
+    }
+  }
+  message_type {
+    name: "ConfChangeSingle"
+    field {
+      name: "type"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".raftpb.ConfChangeType"
+      options {
+        65001: 0
+      }
+      json_name: "type"
+    }
+    field {
+      name: "node_id"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      options {
+        65001: 0
+        65004: "NodeID"
+      }
+      json_name: "nodeId"
+    }
+  }
+  message_type {
+    name: "ConfChangeV2"
+    field {
+      name: "transition"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".raftpb.ConfChangeTransition"
+      options {
+        65001: 0
+      }
+      json_name: "transition"
+    }
+    field {
+      name: "changes"
+      number: 2
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".raftpb.ConfChangeSingle"
+      options {
+        65001: 0
+      }
+      json_name: "changes"
+    }
+    field {
+      name: "context"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_BYTES
+      json_name: "context"
     }
   }
   enum_type {
@@ -9700,6 +10838,10 @@ file {
     value {
       name: "EntryConfChange"
       number: 1
+    }
+    value {
+      name: "EntryConfChangeV2"
+      number: 2
     }
   }
   enum_type {
@@ -9782,6 +10924,21 @@ file {
     }
   }
   enum_type {
+    name: "ConfChangeTransition"
+    value {
+      name: "ConfChangeTransitionAuto"
+      number: 0
+    }
+    value {
+      name: "ConfChangeTransitionJointImplicit"
+      number: 1
+    }
+    value {
+      name: "ConfChangeTransitionJointExplicit"
+      number: 2
+    }
+  }
+  enum_type {
     name: "ConfChangeType"
     value {
       name: "ConfChangeAddNode"
@@ -9806,6 +10963,9 @@ file {
     63017: 1
     63018: 1
     63020: 1
+    63026: 0
+    63034: 0
+    63035: 0
   }
 }
 file {
@@ -9813,7 +10973,7 @@ file {
   package: "docker.swarmkit.v1"
   dependency: "github.com/docker/swarmkit/api/objects.proto"
   dependency: "github.com/docker/swarmkit/api/types.proto"
-  dependency: "github.com/coreos/etcd/raft/raftpb/raft.proto"
+  dependency: "go.etcd.io/etcd/raft/v3/raftpb/raft.proto"
   dependency: "gogoproto/gogo.proto"
   dependency: "github.com/docker/swarmkit/protobuf/plugin/plugin.proto"
   message_type {
@@ -10069,6 +11229,15 @@ file {
       oneof_index: 0
       json_name: "config"
     }
+    field {
+      name: "volume"
+      number: 11
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Volume"
+      oneof_index: 0
+      json_name: "volume"
+    }
     oneof_decl {
       name: "target"
     }
@@ -10323,6 +11492,14 @@ file {
       type_name: ".docker.swarmkit.v1.Config"
       json_name: "configs"
     }
+    field {
+      name: "volumes"
+      number: 10
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Volume"
+      json_name: "volumes"
+    }
   }
   message_type {
     name: "ClusterSnapshot"
@@ -10478,6 +11655,15 @@ file {
       type_name: ".docker.swarmkit.v1.Config"
       oneof_index: 0
       json_name: "config"
+    }
+    field {
+      name: "volume"
+      number: 10
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Volume"
+      oneof_index: 0
+      json_name: "volume"
     }
     oneof_decl {
       name: "Object"

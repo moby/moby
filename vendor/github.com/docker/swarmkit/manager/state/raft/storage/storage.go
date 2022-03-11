@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/coreos/etcd/pkg/fileutil"
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/snap"
-	"github.com/coreos/etcd/wal"
-	"github.com/coreos/etcd/wal/walpb"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/pkg/errors"
+	"go.etcd.io/etcd/client/pkg/v3/fileutil"
+	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
+	"go.etcd.io/etcd/server/v3/wal"
+	"go.etcd.io/etcd/server/v3/wal/walpb"
 )
 
 // ErrNoWAL is returned if there are no WALs on disk
@@ -83,7 +83,7 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 		}
 	}
 	// ensure the new directory exists
-	if err := os.MkdirAll(snapDir, 0700); err != nil {
+	if err := os.MkdirAll(snapDir, 0o700); err != nil {
 		return nil, WALData{}, errors.Wrap(err, "failed to create snapshot directory")
 	}
 
@@ -105,6 +105,7 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 	if snapshot != nil {
 		walsnap.Index = snapshot.Metadata.Index
 		walsnap.Term = snapshot.Metadata.Term
+		walsnap.ConfState = &snapshot.Metadata.ConfState
 	}
 
 	if !wal.Exist(walDir) {
@@ -147,7 +148,7 @@ func (e *EncryptedRaftLogger) BootstrapNew(metadata []byte) error {
 	walFactory := NewWALFactory(encrypter, decrypter)
 
 	for _, dirpath := range []string{filepath.Dir(e.walDir()), e.snapDir()} {
-		if err := os.MkdirAll(dirpath, 0700); err != nil {
+		if err := os.MkdirAll(dirpath, 0o700); err != nil {
 			return errors.Wrapf(err, "failed to create %s", dirpath)
 		}
 	}
@@ -197,8 +198,9 @@ func (e *EncryptedRaftLogger) RotateEncryptionKey(newKey []byte) {
 func (e *EncryptedRaftLogger) SaveSnapshot(snapshot raftpb.Snapshot) error {
 
 	walsnap := walpb.Snapshot{
-		Index: snapshot.Metadata.Index,
-		Term:  snapshot.Metadata.Term,
+		Index:     snapshot.Metadata.Index,
+		Term:      snapshot.Metadata.Term,
+		ConfState: &snapshot.Metadata.ConfState,
 	}
 
 	e.encoderMu.RLock()

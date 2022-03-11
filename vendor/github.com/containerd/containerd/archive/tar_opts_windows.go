@@ -1,5 +1,3 @@
-// +build windows
-
 /*
    Copyright The containerd Authors.
 
@@ -26,7 +24,7 @@ import (
 )
 
 // applyWindowsLayer applies a tar stream of an OCI style diff tar of a Windows layer
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md#applying-changesets
 func applyWindowsLayer(ctx context.Context, root string, r io.Reader, options ApplyOptions) (size int64, err error) {
 	return ociwclayer.ImportLayerFromTar(ctx, r, root, options.Parents)
 }
@@ -47,7 +45,7 @@ func AsWindowsContainerLayer() ApplyOpt {
 // Produces a tar using OCI style file markers for deletions. Deleted
 // files will be prepended with the prefix ".wh.". This style is
 // based off AUFS whiteouts.
-// See https://github.com/opencontainers/image-spec/blob/master/layer.md
+// See https://github.com/opencontainers/image-spec/blob/main/layer.md
 func writeDiffWindowsLayers(ctx context.Context, w io.Writer, _, layer string, options WriteDiffOptions) error {
 	return ociwclayer.ExportLayerToTar(ctx, w, layer, options.ParentLayers)
 }

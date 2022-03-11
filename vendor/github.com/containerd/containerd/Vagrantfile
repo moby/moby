@@ -17,7 +17,7 @@
 
 # Vagrantfile for cgroup2 and SELinux
 Vagrant.configure("2") do |config|
-  config.vm.box = "fedora/34-cloud-base"
+  config.vm.box = "fedora/35-cloud-base"
   memory = 4096
   cpus = 2
   config.vm.provider :virtualbox do |v|
@@ -77,7 +77,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.upload_path = "/tmp/vagrant-install-golang"
     sh.env = {
-        'GO_VERSION': ENV['GO_VERSION'] || "1.16.14",
+        'GO_VERSION': ENV['GO_VERSION'] || "1.17.7",
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash
@@ -254,6 +254,33 @@ EOF
         trap cleanup EXIT
         ctr version
         critest --parallel=$(nproc) --report-dir="${REPORT_DIR}" --ginkgo.skip='HostIpc is true'
+    SHELL
+  end
+
+  # Rootless Podman is used for testing CRI-in-UserNS
+  # (We could use rootless nerdctl, but we are using Podman here because it is available in dnf)
+  config.vm.provision "install-rootless-podman", type: "shell", run: "never" do |sh|
+    sh.upload_path = "/tmp/vagrant-install-rootless-podman"
+    sh.inline = <<~SHELL
+        #!/usr/bin/env bash
+        set -eux -o pipefail
+        # Delegate cgroup v2 controllers to rootless
+        mkdir -p /etc/systemd/system/user@.service.d
+        cat > /etc/systemd/system/user@.service.d/delegate.conf << EOF
+[Service]
+Delegate=yes
+EOF
+        systemctl daemon-reload
+        # Install Podman
+        dnf install -y podman
+        # Configure Podman to resolve `golang` to `docker.io/library/golang`
+        mkdir -p /etc/containers
+        cat > /etc/containers/registries.conf <<EOF
+[registries.search]
+registries = ['docker.io']
+EOF
+        # Disable SELinux to allow overlayfs
+        setenforce 0
     SHELL
   end
 

@@ -4,7 +4,7 @@ package docker.swarmkit.v1;
 
 import "github.com/docker/swarmkit/api/objects.proto";
 import "github.com/docker/swarmkit/api/types.proto";
-import "github.com/coreos/etcd/raft/raftpb/raft.proto";
+import "go.etcd.io/etcd/raft/v3/raftpb/raft.proto";
 import weak "gogoproto/gogo.proto";
 import weak "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
@@ -146,5 +146,6 @@ message StoreAction {
 		Resource resource = 8;
 		Extension extension = 9;
 		Config config = 10;
+		Volume volume = 11;
 	}
 }

@@ -27,7 +27,7 @@ considered "pre-releases".
 
 ### Major and Minor Releases
 
-Major and minor releases of containerd will be made from master. Releases of
+Major and minor releases of containerd will be made from main. Releases of
 containerd will be marked with GPG signed tags and announced at
 https://github.com/containerd/containerd/releases. The tag will be of the
 format `v<major>.<minor>.<patch>` and should be made with the command `git tag
@@ -43,7 +43,7 @@ done against that branch.
 
 Pre-releases, such as alphas, betas and release candidates will be conducted
 from their source branch. For major and minor releases, these releases will be
-done from master. For patch releases, these pre-releases should be done within
+done from main. For patch releases, these pre-releases should be done within
 the corresponding release branch.
 
 While pre-releases are done to assist in the stabilization process, no
@@ -89,7 +89,7 @@ whichever is longer. Additionally, releases may have an extended security suppor
 period after the end of the active period to accept security backports. This
 timeframe will be decided by maintainers before the end of the active status.
 
-The current state is available in the following table:
+The current state is available in the following tables:
 
 | Release | Status      | Start            | End of Life       |
 |---------|-------------|------------------|-------------------|
@@ -100,12 +100,27 @@ The current state is available in the following table:
 | [1.1](https://github.com/containerd/containerd/releases/tag/v1.1.8)  | End of Life | April 23, 2018  | October 23, 2019 |
 | [1.2](https://github.com/containerd/containerd/releases/tag/v1.2.13) | End of Life | October 24, 2018 | October 15, 2020 |
 | [1.3](https://github.com/containerd/containerd/releases/tag/v1.3.10) | End of Life | September 26, 2019  | March 4, 2021 |
-| [1.4](https://github.com/containerd/containerd/releases/tag/v1.4.4)  | Active   | August 17, 2020 | max(August 17, 2021, release of 1.5.0 + 6 months) |
-| [1.5](https://github.com/containerd/containerd/milestone/30)         | Next   | TBD  | max(TBD+1 year, release of 1.6.0 + 6 months) |
+| [1.4](https://github.com/containerd/containerd/releases/tag/v1.4.12) | Extended   | August 17, 2020 | March 3, 2022 (Extended) |
+| [1.5](https://github.com/containerd/containerd/releases/tag/v1.5.9)  | Active   | May 3, 2021  | October 28, 2022 |
+| [1.6](https://github.com/containerd/containerd/releases/tag/v1.6.0)  | Active   | February 15, 2022  | max(February 15, 2023 or release of 1.7.0 + 6 months) |
+| [1.7](https://github.com/containerd/containerd/milestone/42)         | Next   | TBD  | TBD |
 
 Note that branches and release from before 1.0 may not follow these rules.
 
-This table should be updated as part of the release preparation process.
+| CRI-Containerd Version | Containerd Version | Kubernetes Version | CRI Version  |
+|------------------------|--------------------|--------------------|--------------|
+| v1.0.0-alpha.x         |                    | 1.7, 1.8           | v1alpha1     |
+| v1.0.0-beta.x          |                    | 1.9                | v1alpha1     |
+| End-Of-Life            | v1.1 (End-Of-Life) | 1.10+              | v1alpha2     |
+|                        | v1.2 (End-Of-Life) | 1.10+              | v1alpha2     |
+|                        | v1.3 (End-Of-Life) | 1.12+              | v1alpha2     |
+|                        | v1.4               | 1.19+              | v1alpha2     |
+|                        | v1.5               | 1.20+              | v1alpha2     |
+|                        | v1.6               | 1.23+              | v1, v1alpha2 |
+
+**Note:** The support table above specifies the Kubernetes Version that was supported at time of release of the containerd - cri integration and Kubernetes only supports n-3 minor release versions.
+
+These tables should be updated as part of the release preparation process.
 
 ### Backporting
 
@@ -115,11 +130,11 @@ will be features for the next _minor_ or _major_ release. For the most part,
 this process is straightforward and we are here to help make it as smooth as
 possible.
 
-If there are important fixes that need to be backported, please let use know in
+If there are important fixes that need to be backported, please let us know in
 one of three ways:
 
 1. Open an issue.
-2. Open a PR with cherry-picked change from master.
+2. Open a PR with cherry-picked change from main.
 3. Open a PR with a ported fix.
 
 __If you are reporting a security issue, please reach out discreetly at security@containerd.io__.
@@ -127,10 +142,10 @@ Remember that backported PRs must follow the versioning guidelines from this doc
 
 Any release that is "active" can accept backports. Opening a backport PR is
 fairly straightforward. The steps differ depending on whether you are pulling
-a fix from master or need to draft a new commit specific to a particular
+a fix from main or need to draft a new commit specific to a particular
 branch.
 
-To cherry pick a straightforward commit from master, simply use the cherry pick
+To cherry pick a straightforward commit from main, simply use the cherry pick
 process:
 
 1. Pick the branch to which you want backported, usually in the format
@@ -154,7 +169,7 @@ process:
 	```
 
    Make sure to replace `stevvooe` with whatever fork you are using to open
-   the PR. When you open the PR, make sure to switch `master` with whatever
+   the PR. When you open the PR, make sure to switch `main` with whatever
    release branch you are targeting with the fix. Make sure the PR title has
    `[<release branch>]` prefixed. e.g.:
 
@@ -162,11 +177,11 @@ process:
    [release/1.4] Fix foo in bar
    ```
 
-If there is no existing fix in master, you should first fix the bug in master,
+If there is no existing fix in main, you should first fix the bug in main,
 or ask us a maintainer or contributor to do it via an issue. Once that PR is
 completed, open a PR using the process above.
 
-Only when the bug is not seen in master and must be made for the specific
+Only when the bug is not seen in main and must be made for the specific
 release branch should you open a PR with new code.
 
 ## Public API Stability
@@ -177,12 +192,12 @@ containerd versions:
 
 | Component        | Status   | Stabilized Version | Links         |
 |------------------|----------|--------------------|---------------|
-| GRPC API         | Stable   | 1.0                | [api/](api) |
+| GRPC API         | Stable   | 1.0                | [gRPC API](#grpc-api) |
 | Metrics API      | Stable   | 1.0                | - |
 | Runtime Shim API | Stable   | 1.2                | - |
-| Daemon Config    | Stable   | 1.0			       | - |
+| Daemon Config    | Stable   | 1.0                | - |
+| CRI GRPC API     | Stable   | 1.6 (_CRI v1_)     | [cri-api](https://github.com/kubernetes/cri-api/tree/master/pkg/apis/runtime/v1) |
 | Go client API    | Unstable | _future_           | [godoc](https://godoc.org/github.com/containerd/containerd) |
-| CRI GRPC API     | Unstable | v1alpha2 _current_ | [cri-api](https://github.com/kubernetes/cri-api/tree/master/pkg/apis/runtime/v1alpha2) |
 | `ctr` tool       | Unstable | Out of scope       | - |
 
 From the version stated in the above table, that component must adhere to the
@@ -201,7 +216,7 @@ version jump.
 To ensure compatibility, we have collected the entire GRPC API symbol set into
 a single file. At each _minor_ release of containerd, we will move the current
 `next.pb.txt` file to a file named for the minor version, such as `1.0.pb.txt`,
-enumerating the support services and messages. See [api/](api) for details.
+enumerating the support services and messages.
 
 Note that new services may be added in _minor_ releases. New service methods
 and new fields on messages may be added if they are optional.
@@ -321,9 +336,10 @@ against total impact.
 
 The deprecated features are shown in the following table:
 
-| Component                                                            | Deprecation release | Target release for removal | Recommendation                |
-|----------------------------------------------------------------------|---------------------|----------------------------|-------------------------------|
-| Runtime V1 API and implementation (`io.containerd.runtime.v1.linux`) | containerd v1.4     | containerd v2.0            | Use `io.containerd.runc.v2`   |
-| Runc V1 implementation of Runtime V2 (`io.containerd.runc.v1`)       | containerd v1.4     | containerd v2.0            | Use `io.containerd.runc.v2`   |
-| config.toml `version = 1`                                            | containerd v1.5     | containerd v2.0            | Use config.toml `version = 2` |
-| Built-in `aufs` snapshotter                                          | containerd v1.5     | containerd v2.0            | Use `overlayfs` snapshotter   |
+| Component                                                            | Deprecation release | Target release for removal | Recommendation                    |
+|----------------------------------------------------------------------|---------------------|----------------------------|-----------------------------------|
+| Runtime V1 API and implementation (`io.containerd.runtime.v1.linux`) | containerd v1.4     | containerd v2.0            | Use `io.containerd.runc.v2`       |
+| Runc V1 implementation of Runtime V2 (`io.containerd.runc.v1`)       | containerd v1.4     | containerd v2.0            | Use `io.containerd.runc.v2`       |
+| config.toml `version = 1`                                            | containerd v1.5     | containerd v2.0            | Use config.toml `version = 2`     |
+| Built-in `aufs` snapshotter                                          | containerd v1.5     | containerd v2.0            | Use `overlayfs` snapshotter       |
+| `cri-containerd-*.tar.gz` release bundles                            | containerd v1.6     | containerd v2.0            | Use `containerd-*.tar.gz` bundles |
