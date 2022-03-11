@@ -40,6 +40,11 @@ type Executor interface {
 	Signal(id string, signal int) error
 }
 
+// EndpointResolver provides looking up registry endpoints for pulling.
+type EndpointResolver interface {
+	LookupPullEndpoints(hostname string) (endpoints []registry.APIEndpoint, err error)
+}
+
 func (pm *Manager) restorePlugin(p *v2.Plugin, c *controller) error {
 	if p.IsEnabled() {
 		return pm.restore(p, c)
@@ -52,7 +57,7 @@ type eventLogger func(id, name, action string)
 // ManagerConfig defines configuration needed to start new manager.
 type ManagerConfig struct {
 	Store              *Store // remove
-	RegistryService    registry.Service
+	RegistryService    EndpointResolver
 	LiveRestoreEnabled bool // TODO: remove
 	LogPluginEvent     eventLogger
 	Root               string
