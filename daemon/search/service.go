@@ -1,13 +1,18 @@
-package images // import "github.com/docker/docker/daemon/images"
+package search // import "github.com/docker/docker/daemon/search"
 
 import (
 	"context"
 	"strconv"
 
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
+	registrypkg "github.com/docker/docker/registry"
 )
+
+// registrySearch provides functions to search a registry, using the registry V1 search API.
+type registrySearch interface {
+	Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, header map[string][]string) (*registry.SearchResults, error)
+}
 
 var acceptedSearchFilterTags = map[string]bool{
 	"is-automated": true,
@@ -15,14 +20,26 @@ var acceptedSearchFilterTags = map[string]bool{
 	"stars":        true,
 }
 
-// SearchRegistryForImages queries the registry for images matching
-// term. authConfig is used to login.
-//
-// TODO: this could be implemented in a registry service instead of the image
-// service.
-func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int,
-	authConfig *registry.AuthConfig,
-	headers map[string][]string) (*registry.SearchResults, error) {
+// Service provides the backend to search registries for images.
+type Service struct {
+	registrySearch registrySearch
+}
+
+// NewService initializes a new Service  to search registries for images.
+func NewService(opts registrypkg.SearchServiceOptions) (*Service, error) {
+	registrySearch, err := registrypkg.NewSearchService(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Service{registrySearch: registrySearch}, nil
+}
+
+// SearchImages queries the registry for images matching the given term and
+// options.
+func (i *Service) SearchImages(ctx context.Context, term string, opts registry.SearchOpts) (*registry.SearchResults, error) {
+	searchFilters := opts.Filters
+
 	if err := searchFilters.Validate(acceptedSearchFilterTags); err != nil {
 		return nil, err
 	}
@@ -44,8 +61,7 @@ func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilter
 		}
 	}
 	if searchFilters.Contains("stars") {
-		hasStars := searchFilters.Get("stars")
-		for _, hasStar := range hasStars {
+		for _, hasStar := range searchFilters.Get("stars") {
 			iHasStar, err := strconv.Atoi(hasStar)
 			if err != nil {
 				return nil, invalidFilter{"stars", hasStar}
@@ -56,12 +72,12 @@ func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilter
 		}
 	}
 
-	unfilteredResult, err := i.registryService.Search(ctx, term, limit, authConfig, dockerversion.DockerUserAgent(ctx), headers)
+	unfilteredResult, err := i.registrySearch.Search(ctx, term, opts.Limit, opts.AuthConfig, dockerversion.DockerUserAgent(ctx), opts.Headers)
 	if err != nil {
 		return nil, err
 	}
 
-	filteredResults := []registry.SearchResult{}
+	filteredResults := make([]registry.SearchResult, 0, len(unfilteredResult.Results))
 	for _, result := range unfilteredResult.Results {
 		if searchFilters.Contains("is-automated") {
 			if isAutomated != result.IsAutomated {

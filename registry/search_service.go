@@ -4,15 +4,40 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/sirupsen/logrus"
 )
 
+// SearchServiceOptions holds configuration options for the search service,
+// such as mirrors and insecure registries. It currently wraps ServiceOptions,
+// but does not use the ServiceOptions.AllowNondistributableArtifacts field.
+type SearchServiceOptions struct {
+	ServiceOptions
+}
+
+// NewSearchService returns a new instance of SearchService ready to be
+// installed into an engine.
+func NewSearchService(options SearchServiceOptions) (*SearchService, error) {
+	config, err := newServiceConfig(options.ServiceOptions)
+	if err != nil {
+		return nil, err
+	}
+	return &SearchService{config: config}, err
+}
+
+// SearchService is a service to search a registry. It tracks configuration data
+// such as a list of mirrors.
+type SearchService struct {
+	config *serviceConfig
+	mu     sync.RWMutex
+}
+
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *defaultService) Search(_ context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
+func (s *SearchService) Search(_ context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)

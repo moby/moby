@@ -1,4 +1,4 @@
-package images // import "github.com/docker/docker/daemon/images"
+package search // import "github.com/docker/docker/daemon/search"
 
 import (
 	"context"
@@ -8,12 +8,10 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	registrypkg "github.com/docker/docker/registry"
 	"gotest.tools/v3/assert"
 )
 
 type fakeService struct {
-	registrypkg.Service
 	shouldReturnError bool
 
 	term    string
@@ -31,7 +29,7 @@ func (s *fakeService) Search(ctx context.Context, term string, limit int, authCo
 	}, nil
 }
 
-func TestSearchRegistryForImagesErrors(t *testing.T) {
+func TestSearchImagesErrors(t *testing.T) {
 	errorCases := []struct {
 		filtersArgs       filters.Args
 		shouldReturnError bool
@@ -82,12 +80,14 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 	for _, tc := range errorCases {
 		tc := tc
 		t.Run(tc.expectedError, func(t *testing.T) {
-			daemon := &ImageService{
-				registryService: &fakeService{
+			service := &Service{
+				registrySearch: &fakeService{
 					shouldReturnError: tc.shouldReturnError,
 				},
 			}
-			_, err := daemon.SearchRegistryForImages(context.Background(), tc.filtersArgs, "term", 0, nil, map[string][]string{})
+			_, err := service.SearchImages(context.Background(), "term", registry.SearchOpts{
+				Filters: tc.filtersArgs,
+			})
 			assert.ErrorContains(t, err, tc.expectedError)
 			if tc.shouldReturnError {
 				assert.Check(t, errdefs.IsUnknown(err), "got: %T: %v", err, err)
@@ -98,7 +98,7 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 	}
 }
 
-func TestSearchRegistryForImages(t *testing.T) {
+func TestSearchImages(t *testing.T) {
 	term := "term"
 	successCases := []struct {
 		name            string
@@ -348,13 +348,15 @@ func TestSearchRegistryForImages(t *testing.T) {
 	for _, tc := range successCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			daemon := &ImageService{
-				registryService: &fakeService{
+			service := &Service{
+				registrySearch: &fakeService{
 					term:    term,
 					results: tc.registryResults,
 				},
 			}
-			results, err := daemon.SearchRegistryForImages(context.Background(), tc.filtersArgs, term, 0, nil, map[string][]string{})
+			results, err := service.SearchImages(context.Background(), term, registry.SearchOpts{
+				Filters: tc.filtersArgs,
+			})
 			assert.NilError(t, err)
 			assert.Equal(t, results.Query, term)
 			assert.Equal(t, results.NumResults, len(tc.expectedResults))

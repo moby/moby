@@ -67,7 +67,6 @@ type ImageService interface {
 	// Other
 
 	GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (distribution.Repository, error)
-	SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *registry.AuthConfig, headers map[string][]string) (*registry.SearchResults, error)
 	DistributionServices() images.DistributionServices
 	Children(id image.ID) []image.ID
 	Cleanup() error

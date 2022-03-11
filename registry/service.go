@@ -19,7 +19,6 @@ type Service interface {
 	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error)
 	ServiceConfig() *registry.ServiceConfig
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
