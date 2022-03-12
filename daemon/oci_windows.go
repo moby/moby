@@ -254,26 +254,12 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		return err
 	}
 
-	// Do we have any assigned devices?
-	if len(c.HostConfig.Devices) > 0 {
-		if isHyperV {
-			return errors.New("device assignment is not supported for HyperV containers")
-		}
-		for _, deviceMapping := range c.HostConfig.Devices {
-			srcParts := strings.SplitN(deviceMapping.PathOnHost, "/", 2)
-			if len(srcParts) != 2 {
-				return errors.New("invalid device assignment path")
-			}
-			if srcParts[0] != "class" {
-				return errors.Errorf("invalid device assignment type: '%s' should be 'class'", srcParts[0])
-			}
-			wd := specs.WindowsDevice{
-				ID:     srcParts[1],
-				IDType: srcParts[0],
-			}
-			s.Windows.Devices = append(s.Windows.Devices, wd)
-		}
+	devices, err := setupWindowsDevices(c.HostConfig.Devices, isHyperV)
+	if err != nil {
+		return err
 	}
+
+	s.Windows.Devices = append(s.Windows.Devices, devices...)
 
 	return nil
 }
@@ -464,4 +450,31 @@ func readCredentialSpecFile(id, root, location string) (string, error) {
 		return "", errors.Wrapf(err, "credential spec for container %s could not be read from file %q", id, full)
 	}
 	return string(bcontents[:]), nil
+}
+
+func setupWindowsDevices(devices []containertypes.DeviceMapping, isHyperV bool) (specDevices []specs.WindowsDevice, err error) {
+	if len(devices) == 0 {
+		return
+	}
+
+	if isHyperV {
+		return nil, errors.New("device assignment is not supported for HyperV containers")
+	}
+
+	for _, deviceMapping := range devices {
+		srcParts := strings.SplitN(deviceMapping.PathOnHost, "/", 2)
+		if len(srcParts) != 2 {
+			return nil, errors.New("invalid device assignment path")
+		}
+		if srcParts[0] != "class" {
+			return nil, errors.Errorf("invalid device assignment type: '%s' should be 'class'", srcParts[0])
+		}
+		wd := specs.WindowsDevice{
+			ID:     srcParts[1],
+			IDType: srcParts[0],
+		}
+		specDevices = append(specDevices, wd)
+	}
+
+	return
 }
