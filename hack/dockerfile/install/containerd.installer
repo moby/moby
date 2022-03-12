@@ -15,7 +15,7 @@ set -e
 # the binary version you may also need to update the vendor version to pick up
 # bug fixes or new APIs, however, usually the Go packages are built from a
 # commit from the master branch.
-: "${CONTAINERD_VERSION:=v1.5.10}"
+: "${CONTAINERD_VERSION:=v1.6.1}"
 
 install_containerd() (
 	echo "Install containerd version $CONTAINERD_VERSION"
