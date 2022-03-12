@@ -313,56 +313,44 @@ func setRegistryOpenKeyFunc(t *testing.T, key *dummyRegistryKey, err ...error) f
 }
 
 func TestSetupWindowsDevices(t *testing.T) {
-	t.Run("it does nothing if there are no devices and HyperV is disabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices(nil, false)
+	t.Run("it does nothing if there are no devices", func(t *testing.T) {
+		devices, err := setupWindowsDevices(nil)
 		assert.NilError(t, err)
 		assert.Equal(t, len(devices), 0)
 	})
 
-	t.Run("it does nothing if there are no devices and HyperV is enabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices(nil, true)
-		assert.NilError(t, err)
-		assert.Equal(t, len(devices), 0)
-	})
-
-	t.Run("it fails if there are devices and HyperV is enabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "anything"}}, true)
-		assert.ErrorContains(t, err, "device assignment is not supported for HyperV containers")
-		assert.Equal(t, len(devices), 0)
-	})
-
-	t.Run("it fails if any devices are blank and HyperV is disabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: ""}}, false)
+	t.Run("it fails if any devices are blank", func(t *testing.T) {
+		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: ""}})
 		assert.ErrorContains(t, err, "invalid device assignment path")
 		assert.Equal(t, len(devices), 0)
 	})
 
-	t.Run("it fails if all devices do not contain '/' and HyperV is disabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "anything"}, {PathOnHost: "goes"}}, false)
+	t.Run("it fails if all devices do not contain '/'", func(t *testing.T) {
+		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "anything"}, {PathOnHost: "goes"}})
 		assert.ErrorContains(t, err, "invalid device assignment path")
 		assert.Equal(t, len(devices), 0)
 	})
 
-	t.Run("it fails if any devices do not contain '/' and HyperV is disabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: "goes"}}, false)
+	t.Run("it fails if any devices do not contain '/'", func(t *testing.T) {
+		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: "goes"}})
 		assert.ErrorContains(t, err, "invalid device assignment path")
 		assert.Equal(t, len(devices), 0)
 	})
 
-	t.Run("it fails if all devices do not have IDType 'class' and HyperV is disabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "klass/anything"}, {PathOnHost: "klass/goes"}}, false)
+	t.Run("it fails if all devices do not have IDType 'class'", func(t *testing.T) {
+		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "klass/anything"}, {PathOnHost: "klass/goes"}})
 		assert.ErrorContains(t, err, "invalid device assignment type: 'klass' should be 'class'")
 		assert.Equal(t, len(devices), 0)
 	})
 
-	t.Run("it fails if any devices do not have IDType 'class' and HyperV is disabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: "klass/goes"}}, false)
+	t.Run("it fails if any devices do not have IDType 'class'", func(t *testing.T) {
+		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: "klass/goes"}})
 		assert.ErrorContains(t, err, "invalid device assignment type: 'klass' should be 'class'")
 		assert.Equal(t, len(devices), 0)
 	})
 
-	t.Run("it creates devices if all devices have IDType 'class' and HyperV is disabled", func(t *testing.T) {
-		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: "class/goes"}}, false)
+	t.Run("it creates devices if all devices have IDType 'class'", func(t *testing.T) {
+		devices, err := setupWindowsDevices([]containertypes.DeviceMapping{{PathOnHost: "class/anything"}, {PathOnHost: "class/goes"}})
 		expectedDevices := []specs.WindowsDevice{{IDType: "class", ID: "anything"}, {IDType: "class", ID: "goes"}}
 		assert.NilError(t, err)
 		assert.Equal(t, len(devices), len(expectedDevices))

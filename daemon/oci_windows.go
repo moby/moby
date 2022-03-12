@@ -254,7 +254,7 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		return err
 	}
 
-	devices, err := setupWindowsDevices(c.HostConfig.Devices, isHyperV)
+	devices, err := setupWindowsDevices(c.HostConfig.Devices)
 	if err != nil {
 		return err
 	}
@@ -452,13 +452,9 @@ func readCredentialSpecFile(id, root, location string) (string, error) {
 	return string(bcontents[:]), nil
 }
 
-func setupWindowsDevices(devices []containertypes.DeviceMapping, isHyperV bool) (specDevices []specs.WindowsDevice, err error) {
+func setupWindowsDevices(devices []containertypes.DeviceMapping) (specDevices []specs.WindowsDevice, err error) {
 	if len(devices) == 0 {
 		return
-	}
-
-	if isHyperV {
-		return nil, errors.New("device assignment is not supported for HyperV containers")
 	}
 
 	for _, deviceMapping := range devices {
