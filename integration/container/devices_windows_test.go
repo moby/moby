@@ -50,12 +50,10 @@ func TestWindowsDevices(t *testing.T) {
 			expectedStdout: "/Windows/System32/HostDriverStore/FileRepository",
 		},
 		{
-			doc:                         "process/vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599 mounted",
-			devices:                     []string{"vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599"},
-			isolation:                   containertypes.IsolationProcess,
-			expectedStartFailure:        !testEnv.RuntimeIsWindowsContainerd(),
-			expectedStartFailureMessage: "device assignment of type 'vpci-class-guid' is not supported",
-			expectedStdout:              "/Windows/System32/HostDriverStore/FileRepository",
+			doc:            "process/vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599 mounted",
+			devices:        []string{"vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599"},
+			isolation:      containertypes.IsolationProcess,
+			expectedStdout: "/Windows/System32/HostDriverStore/FileRepository",
 		},
 		{
 			doc:              "hyperv/no device mounted",

@@ -313,8 +313,8 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		}
 		for _, d := range spec.Windows.Devices {
 			// Per https://github.com/microsoft/hcsshim/blob/v0.9.2/internal/uvm/virtual_device.go#L17-L18,
-			// this represents an Interface Class GUID.
-			if d.IDType != "class" {
+			// these represent an Interface Class GUID.
+			if d.IDType != "class" && d.IDType != "vpci-class-guid" {
 				return errors.Errorf("device assignment of type '%s' is not supported", d.IDType)
 			}
 			configuration.AssignedDevices = append(configuration.AssignedDevices, hcsshim.AssignedDevice{InterfaceClassGUID: d.ID})
