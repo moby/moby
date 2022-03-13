@@ -44,6 +44,20 @@ func TestWindowsDevices(t *testing.T) {
 			expectedStdout: "/Windows/System32/HostDriverStore/FileRepository",
 		},
 		{
+			doc:            "process/class://5B45201D-F2F2-4F3B-85BB-30FF1F953599 mounted",
+			devices:        []string{"class://5B45201D-F2F2-4F3B-85BB-30FF1F953599"},
+			isolation:      containertypes.IsolationProcess,
+			expectedStdout: "/Windows/System32/HostDriverStore/FileRepository",
+		},
+		{
+			doc:                         "process/vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599 mounted",
+			devices:                     []string{"vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599"},
+			isolation:                   containertypes.IsolationProcess,
+			expectedStartFailure:        !testEnv.RuntimeIsWindowsContainerd(),
+			expectedStartFailureMessage: "device assignment of type 'vpci-class-guid' is not supported",
+			expectedStdout:              "/Windows/System32/HostDriverStore/FileRepository",
+		},
+		{
 			doc:              "hyperv/no device mounted",
 			isolation:        containertypes.IsolationHyperV,
 			expectedExitCode: 1,
@@ -51,6 +65,22 @@ func TestWindowsDevices(t *testing.T) {
 		{
 			doc:                         "hyperv/class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 mounted",
 			devices:                     []string{"class/5B45201D-F2F2-4F3B-85BB-30FF1F953599"},
+			isolation:                   containertypes.IsolationHyperV,
+			expectedStartFailure:        !testEnv.RuntimeIsWindowsContainerd(),
+			expectedStartFailureMessage: "device assignment is not supported for HyperV containers",
+			expectedStdout:              "/Windows/System32/HostDriverStore/FileRepository",
+		},
+		{
+			doc:                         "hyperv/class://5B45201D-F2F2-4F3B-85BB-30FF1F953599 mounted",
+			devices:                     []string{"class://5B45201D-F2F2-4F3B-85BB-30FF1F953599"},
+			isolation:                   containertypes.IsolationHyperV,
+			expectedStartFailure:        !testEnv.RuntimeIsWindowsContainerd(),
+			expectedStartFailureMessage: "device assignment is not supported for HyperV containers",
+			expectedStdout:              "/Windows/System32/HostDriverStore/FileRepository",
+		},
+		{
+			doc:                         "hyperv/vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599 mounted",
+			devices:                     []string{"vpci-class-guid://5B45201D-F2F2-4F3B-85BB-30FF1F953599"},
 			isolation:                   containertypes.IsolationHyperV,
 			expectedStartFailure:        !testEnv.RuntimeIsWindowsContainerd(),
 			expectedStartFailureMessage: "device assignment is not supported for HyperV containers",

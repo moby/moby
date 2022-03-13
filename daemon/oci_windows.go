@@ -458,12 +458,17 @@ func setupWindowsDevices(devices []containertypes.DeviceMapping) (specDevices []
 	}
 
 	for _, deviceMapping := range devices {
-		srcParts := strings.SplitN(deviceMapping.PathOnHost, "/", 2)
-		if len(srcParts) != 2 {
-			return nil, errors.New("invalid device assignment path")
+		devicePath := deviceMapping.PathOnHost
+		if strings.HasPrefix(devicePath, "class/") {
+			devicePath = strings.Replace(devicePath, "class/", "class://", 1)
 		}
-		if srcParts[0] != "class" {
-			return nil, errors.Errorf("invalid device assignment type: '%s' should be 'class'", srcParts[0])
+
+		srcParts := strings.SplitN(devicePath, "://", 2)
+		if len(srcParts) != 2 {
+			return nil, errors.Errorf("invalid device assignment path: '%s', must be 'class/ID' or 'IDType://ID'", deviceMapping.PathOnHost)
+		}
+		if srcParts[0] == "" {
+			return nil, errors.Errorf("invalid device assignment path: '%s', IDType cannot be empty", deviceMapping.PathOnHost)
 		}
 		wd := specs.WindowsDevice{
 			ID:     srcParts[1],
