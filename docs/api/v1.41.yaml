@@ -2035,11 +2035,23 @@ definitions:
           ```
         type: "array"
         items:
-          type: "object"
-          additionalProperties:
-            type: "string"
+          $ref: "#/definitions/IPAMConfig"
       Options:
         description: "Driver-specific options, specified as a map."
+        type: "object"
+        additionalProperties:
+          type: "string"
+
+  IPAMConfig:
+    type: "object"
+    properties:
+      Subnet:
+        type: "string"
+      IPRange:
+        type: "string"
+      Gateway:
+        type: "string"
+      AuxiliaryAddresses:
         type: "object"
         additionalProperties:
           type: "string"
