@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net"
@@ -16,7 +17,9 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
+	"github.com/docker/docker/libnetwork/firewallapi"
 	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/nftables"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
@@ -204,19 +207,25 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 
 func programMangle(vni uint32, add bool) (err error) {
 	var (
-		p      = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
-		c      = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
-		m      = strconv.FormatUint(uint64(r), 10)
-		chain  = "OUTPUT"
-		rule   = []string{"-p", "udp", "--dport", p, "-m", "u32", "--u32", c, "-j", "MARK", "--set-mark", m}
-		a      = "-A"
-		action = "install"
+		p               = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
+		c               = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
+		m               = strconv.FormatUint(uint64(r), 10)
+		chain           = "OUTPUT"
+		rule   []string = []string{"-p", "udp", "--dport", p, "-m", "u32", "--u32", c, "-j", "MARK", "--set-mark", m}
+		a               = "-A"
+		action          = "install"
 	)
 
 	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
+	var table firewallapi.FirewallTable
+	if err := nftables.InitCheck(); err != nil {
+		//nftables does not gracefully support this yet
+		return errors.New("nftables does not yet support vxlan packet mangling")
+	} else {
+		table = iptables.GetTable(iptables.IPv4)
+	}
 
-	if add == iptable.Exists(iptables.Mangle, chain, rule...) {
+	if add == table.Exists(iptables.Mangle, chain, rule...) {
 		return
 	}
 
@@ -225,7 +234,7 @@ func programMangle(vni uint32, add bool) (err error) {
 		action = "remove"
 	}
 
-	if err = iptable.RawCombinedOutput(append([]string{"-t", string(iptables.Mangle), a, chain}, rule...)...); err != nil {
+	if err = table.RawCombinedOutput(append([]string{"-t", string(iptables.Mangle), a, chain}, rule...)...); err != nil {
 		logrus.Warnf("could not %s mangle rule: %v", action, err)
 	}
 
@@ -246,18 +255,24 @@ func programInput(vni uint32, add bool) (err error) {
 	)
 
 	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
+	var table firewallapi.FirewallTable
+	if err := nftables.InitCheck(); err != nil {
+		//nftables does not gracefully support this yet
+		return errors.New("nftables does not yet support vxlan packet mangling")
+	} else {
+		table = iptables.GetTable(iptables.IPv4)
+	}
 
 	if !add {
 		action = iptables.Delete
 		msg = "remove"
 	}
 
-	if err := iptable.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
+	if err := table.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
 		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
 	}
 
-	if err := iptable.ProgramRule(iptables.Filter, chain, action, block); err != nil {
+	if err := table.ProgramRule(iptables.Filter, chain, action, block); err != nil {
 		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
 	}
 

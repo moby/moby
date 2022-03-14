@@ -3,7 +3,7 @@
 
 package bridge
 
-import "github.com/docker/docker/libnetwork/iptables"
+import "github.com/docker/docker/libnetwork/firewalld"
 
 func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeInterface) error {
 	d := n.driver
@@ -16,8 +16,8 @@ func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeIn
 		return IPTableCfgError(config.BridgeName)
 	}
 
-	iptables.OnReloaded(func() { n.setupIP4Tables(config, i) })
-	iptables.OnReloaded(n.portMapper.ReMapAll)
+	firewalld.OnReloaded(func() { n.setupIP4Tables(config, i) })
+	firewalld.OnReloaded(n.portMapper.ReMapAll)
 	return nil
 }
 
@@ -32,7 +32,7 @@ func (n *bridgeNetwork) setupFirewalld6(config *networkConfiguration, i *bridgeI
 		return IPTableCfgError(config.BridgeName)
 	}
 
-	iptables.OnReloaded(func() { n.setupIP6Tables(config, i) })
-	iptables.OnReloaded(n.portMapperV6.ReMapAll)
+	firewalld.OnReloaded(func() { n.setupIP6Tables(config, i) })
+	firewalld.OnReloaded(n.portMapperV6.ReMapAll)
 	return nil
 }

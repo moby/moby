@@ -20,8 +20,31 @@ func getPorts() []types.TransportPort {
 func TestLinkNew(t *testing.T) {
 	ports := getPorts()
 
-	link := newLink("172.0.17.3", "172.0.17.2", ports, "docker0")
+	link := newLink("172.0.17.3", "172.0.17.2", ports, "docker0", false)
 
+	if link == nil {
+		t.FailNow()
+	}
+	if link.parentIP != "172.0.17.3" {
+		t.Fail()
+	}
+	if link.childIP != "172.0.17.2" {
+		t.Fail()
+	}
+	for i, p := range link.ports {
+		if p != ports[i] {
+			t.Fail()
+		}
+	}
+	if link.bridge != "docker0" {
+		t.Fail()
+	}
+}
+
+func TestLinkNFTablesNew(t *testing.T) {
+	ports := getPorts()
+
+	link := newLink("172.0.17.3", "172.0.17.2", ports, "docker0", true)
 	if link == nil {
 		t.FailNow()
 	}

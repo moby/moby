@@ -479,7 +479,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 
 // Verify the network isolation rules are installed for each network
 func verifyV4INCEntries(networks map[string]*bridgeNetwork, t *testing.T) {
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable := iptables.GetTable(iptables.IPv4)
 	out1, err := iptable.Raw("-S", IsolationChain1)
 	if err != nil {
 		t.Fatal(err)
@@ -725,7 +725,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	d := newDriver()
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable := iptables.GetTable(iptables.IPv4)
 
 	config := &configuration{
 		EnableIPTables: true,
@@ -1017,7 +1017,7 @@ func TestCleanupIptableRules(t *testing.T) {
 			t.Fatalf("Error setting up ip chains for %s: %v", version, err)
 		}
 
-		iptable := iptables.GetIptable(version)
+		iptable := iptables.GetTable(version)
 		for _, chainInfo := range bridgeChain {
 			if !iptable.ExistChain(chainInfo.Name, chainInfo.Table) {
 				t.Fatalf("iptables version %s chain %s of %s table should have been created", version, chainInfo.Name, chainInfo.Table)

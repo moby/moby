@@ -271,6 +271,26 @@ func (action InvalidIPTablesCfgError) Error() string {
 	return fmt.Sprintf("Invalid IPTables action '%s'", string(action))
 }
 
+// NFTableCfgError is returned when an unexpected nf tables configuration is entered
+type NFTableCfgError string
+
+func (name NFTableCfgError) Error() string {
+	return fmt.Sprintf("unexpected request to set NF tables for interface: %s", string(name))
+}
+
+// BadRequest denotes the type of this error
+func (name NFTableCfgError) BadRequest() {}
+
+// InvalidNFTablesCfgError is returned when an invalid ip tables configuration is entered
+type InvalidNFTablesCfgError string
+
+func (action InvalidNFTablesCfgError) Error() string {
+	return fmt.Sprintf("Invalid NFTables action '%s'", string(action))
+}
+
+// BadRequest denotes the type of this error
+func (action InvalidNFTablesCfgError) BadRequest() {}
+
 // BadRequest denotes the type of this error
 func (action InvalidIPTablesCfgError) BadRequest() {}
 

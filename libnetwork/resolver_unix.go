@@ -10,7 +10,9 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/docker/docker/libnetwork/firewallapi"
 	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/nftables"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netns"
@@ -38,12 +40,6 @@ func reexecSetupResolver() {
 
 	resolverIP, ipPort, _ := net.SplitHostPort(os.Args[2])
 	_, tcpPort, _ := net.SplitHostPort(os.Args[3])
-	rules := [][]string{
-		{"-t", "nat", "-I", outputChain, "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", os.Args[2]},
-		{"-t", "nat", "-I", postroutingchain, "-s", resolverIP, "-p", "udp", "--sport", ipPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
-		{"-t", "nat", "-I", outputChain, "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", os.Args[3]},
-		{"-t", "nat", "-I", postroutingchain, "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
-	}
 
 	f, err := os.OpenFile(os.Args[1], os.O_RDONLY, 0)
 	if err != nil {
@@ -59,30 +55,20 @@ func reexecSetupResolver() {
 	}
 
 	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
-
-	// insert outputChain and postroutingchain
-	err = iptable.RawCombinedOutputNative("-t", "nat", "-C", "OUTPUT", "-d", resolverIP, "-j", outputChain)
-	if err == nil {
-		iptable.RawCombinedOutputNative("-t", "nat", "-F", outputChain)
+	var table firewallapi.FirewallTable
+	if err := nftables.InitCheck(); err != nil {
+		table = nftables.GetTable(nftables.IPv4)
 	} else {
-		iptable.RawCombinedOutputNative("-t", "nat", "-N", outputChain)
-		iptable.RawCombinedOutputNative("-t", "nat", "-I", "OUTPUT", "-d", resolverIP, "-j", outputChain)
+		table = iptables.GetTable(iptables.IPv4)
 	}
 
-	err = iptable.RawCombinedOutputNative("-t", "nat", "-C", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
-	if err == nil {
-		iptable.RawCombinedOutputNative("-t", "nat", "-F", postroutingchain)
-	} else {
-		iptable.RawCombinedOutputNative("-t", "nat", "-N", postroutingchain)
-		iptable.RawCombinedOutputNative("-t", "nat", "-I", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
-	}
+	table.AddJumpRuleForIP(firewallapi.Nat, "OUTPUT", outputChain, resolverIP)
+	table.AddJumpRuleForIP(firewallapi.Nat, "POSTROUTING", outputChain, resolverIP)
 
-	for _, rule := range rules {
-		if iptable.RawCombinedOutputNative(rule...) != nil {
-			logrus.Errorf("set up rule failed, %v", rule)
-		}
-	}
+	table.AddDNATwithPort(firewallapi.Nat, outputChain, resolverIP, "udp", dnsPort, os.Args[2])
+	table.ADDSNATwithPort(firewallapi.Nat, postroutingchain, resolverIP, "udp", ipPort, dnsPort)
+	table.AddDNATwithPort(firewallapi.Nat, outputChain, resolverIP, "tcp", dnsPort, os.Args[3])
+	table.ADDSNATwithPort(firewallapi.Nat, postroutingchain, resolverIP, "tcp", tcpPort, dnsPort)
 }
 
 func (r *resolver) setupIPTable() error {

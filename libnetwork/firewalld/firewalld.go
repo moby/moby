@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package iptables
+package firewalld
 
 import (
 	"fmt"
@@ -62,7 +62,7 @@ type ZoneSettings struct {
 var (
 	connection *Conn
 
-	firewalldRunning bool      // is Firewalld service running
+	FirewalldRunning bool      // is Firewalld service running
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
@@ -73,8 +73,8 @@ func FirewalldInit() error {
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
-	firewalldRunning = checkRunning()
-	if !firewalldRunning {
+	FirewalldRunning = checkRunning()
+	if !FirewalldRunning {
 		connection.sysconn.Close()
 		connection = nil
 	}
@@ -127,7 +127,7 @@ func (c *Conn) initConnection() error {
 func signalHandler() {
 	for signal := range connection.signal {
 		if strings.Contains(signal.Name, "NameOwnerChanged") {
-			firewalldRunning = checkRunning()
+			FirewalldRunning = checkRunning()
 			dbusConnectionChanged(signal.Body)
 		} else if strings.Contains(signal.Name, "Reloaded") {
 			reloaded()

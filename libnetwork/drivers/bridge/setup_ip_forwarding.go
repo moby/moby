@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/docker/docker/libnetwork/firewallapi"
+	"github.com/docker/docker/libnetwork/firewalld"
 	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/nftables"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,7 +27,15 @@ func configureIPForwarding(enable bool) error {
 	return os.WriteFile(ipv4ForwardConf, []byte{val, '\n'}, ipv4ForwardConfPerm)
 }
 
-func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
+func setupIPForwarding(enableIPTables bool, enableIP6Tables bool, enableNFTables bool) error {
+	var table firewallapi.FirewallTable
+
+	if enableNFTables {
+		table = nftables.GetTable(nftables.IPv4)
+	} else {
+		table = iptables.GetTable(iptables.IPv4)
+	}
+
 	// Get current IPv4 forward setup
 	ipv4ForwardData, err := os.ReadFile(ipv4ForwardConf)
 	if err != nil {
@@ -40,16 +51,15 @@ func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 		// When enabling ip_forward set the default policy on forward chain to
 		// drop only if the daemon option iptables is not set to false.
 		if enableIPTables {
-			iptable := iptables.GetIptable(iptables.IPv4)
-			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			if err := table.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 				if err := configureIPForwarding(false); err != nil {
 					logrus.Errorf("Disabling IP forwarding failed, %v", err)
 				}
 				return err
 			}
-			iptables.OnReloaded(func() {
+			firewalld.OnReloaded(func() {
 				logrus.Debug("Setting the default DROP policy on firewall reload")
-				if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+				if err := table.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 					logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 				}
 			})
@@ -58,13 +68,17 @@ func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 
 	// add only iptables rules - forwarding is handled by setupIPv6Forwarding in setup_ipv6
 	if enableIP6Tables {
-		iptable := iptables.GetIptable(iptables.IPv6)
-		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+		if enableNFTables {
+			table = nftables.GetTable(nftables.IPv6)
+		} else {
+			table = iptables.GetTable(iptables.IPv6)
+		}
+		if err := table.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 			logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 		}
-		iptables.OnReloaded(func() {
+		firewalld.OnReloaded(func() {
 			logrus.Debug("Setting the default DROP policy on firewall reload")
-			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
+			if err := table.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 				logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 			}
 		})

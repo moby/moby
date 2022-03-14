@@ -1,12 +1,15 @@
 //go:build linux
 // +build linux
 
-package iptables
+package firewalld
 
 import (
 	"net"
 	"strconv"
 	"testing"
+
+	"github.com/docker/docker/libnetwork/firewallapi"
+	"github.com/docker/docker/libnetwork/iptables"
 )
 
 func TestFirewalldInit(t *testing.T) {
@@ -20,10 +23,10 @@ func TestFirewalldInit(t *testing.T) {
 
 func TestReloaded(t *testing.T) {
 	var err error
-	var fwdChain *ChainInfo
+	var fwdChain firewallapi.FirewallChain
 
-	iptable := GetIptable(IPv4)
-	fwdChain, err = iptable.NewChain("FWD", Filter, false)
+	iptable := iptables.GetTable(iptables.IPv4)
+	fwdChain, err = iptable.NewChain("FWD", iptables.Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,12 +44,12 @@ func TestReloaded(t *testing.T) {
 	port := 1234
 	proto := "tcp"
 
-	err = fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName)
+	err = fwdChain.Link(iptables.Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	} else {
 		// to be re-called again later
-		OnReloaded(func() { fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName) })
+		OnReloaded(func() { fwdChain.Link(iptables.Append, ip1, ip2, port, proto, bridgeName) })
 	}
 
 	rule1 := []string{
@@ -58,7 +61,7 @@ func TestReloaded(t *testing.T) {
 		"--dport", strconv.Itoa(port),
 		"-j", "ACCEPT"}
 
-	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
+	if !iptable.Exists(fwdChain.GetTable(), fwdChain.GetName(), rule1...) {
 		t.Fatal("rule1 does not exist")
 	}
 
@@ -68,7 +71,7 @@ func TestReloaded(t *testing.T) {
 	reloaded()
 
 	// make sure the rules have been recreated
-	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
+	if !iptable.Exists(fwdChain.GetTable(), fwdChain.GetName(), rule1...) {
 		t.Fatal("rule1 hasn't been recreated")
 	}
 }
@@ -80,13 +83,13 @@ func TestPassthrough(t *testing.T) {
 		"--dport", "123",
 		"-j", "ACCEPT"}
 
-	iptable := GetIptable(IPv4)
-	if firewalldRunning {
+	iptable := iptables.GetTable(iptables.IPv4)
+	if FirewalldRunning {
 		_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !iptable.Exists(Filter, "INPUT", rule1...) {
+		if !iptable.Exists(iptables.Filter, "INPUT", rule1...) {
 			t.Fatal("rule1 does not exist")
 		}
 	}
