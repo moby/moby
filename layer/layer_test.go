@@ -41,7 +41,7 @@ func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
 		},
 	}
 
-	options := graphdriver.Options{Root: td, UIDMaps: uidMap, GIDMaps: gidMap}
+	options := graphdriver.Options{Root: td, IDMap: idtools.IdentityMapping{UIDMaps: uidMap, GIDMaps: gidMap}}
 	return graphdriver.GetDriver("vfs", nil, options)
 }
 

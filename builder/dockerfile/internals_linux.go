@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func parseChownFlag(builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping *idtools.IdentityMapping) (idtools.Identity, error) {
+func parseChownFlag(builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping idtools.IdentityMapping) (idtools.Identity, error) {
 	var userStr, grpStr string
 	parts := strings.Split(chown, ":")
 	if len(parts) > 2 {

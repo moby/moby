@@ -321,10 +321,10 @@ func TestNewIDMappings(t *testing.T) {
 	tempUser, err := user.Lookup(tempUser)
 	assert.Check(t, err)
 
-	idMapping, err := NewIdentityMapping(tempUser.Username)
+	idMapping, err := LoadIdentityMapping(tempUser.Username)
 	assert.Check(t, err)
 
-	rootUID, rootGID, err := GetRootUIDGID(idMapping.UIDs(), idMapping.GIDs())
+	rootUID, rootGID, err := GetRootUIDGID(idMapping.UIDMaps, idMapping.GIDMaps)
 	assert.Check(t, err)
 
 	dirName, err := os.MkdirTemp("", "mkdirall")

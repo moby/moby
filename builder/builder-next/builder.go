@@ -72,7 +72,7 @@ type Opt struct {
 	RegistryHosts       docker.RegistryHosts
 	BuilderConfig       config.BuilderConfig
 	Rootless            bool
-	IdentityMapping     *idtools.IdentityMapping
+	IdentityMapping     idtools.IdentityMapping
 	DNSConfig           config.DNSConfig
 	ApparmorProfile     string
 }
@@ -89,10 +89,6 @@ type Builder struct {
 // New creates a new builder
 func New(opt Opt) (*Builder, error) {
 	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
-
-	if opt.IdentityMapping != nil && opt.IdentityMapping.Empty() {
-		opt.IdentityMapping = nil
-	}
 
 	c, err := newController(reqHandler, opt)
 	if err != nil {

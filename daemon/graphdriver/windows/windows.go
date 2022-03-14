@@ -97,7 +97,7 @@ type Driver struct {
 }
 
 // InitFilter returns a new Windows storage filter driver.
-func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graphdriver.Driver, error) {
 	logrus.Debugf("WindowsGraphDriver InitFilter at %s", home)
 
 	fsType, err := getFileSystemType(string(home[0]))

@@ -227,13 +227,13 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		userNS := false
 		// user
 		if c.HostConfig.UsernsMode.IsPrivate() {
-			uidMap := daemon.idMapping.UIDs()
+			uidMap := daemon.idMapping.UIDMaps
 			if uidMap != nil {
 				userNS = true
 				ns := specs.LinuxNamespace{Type: "user"}
 				setNamespace(s, ns)
 				s.Linux.UIDMappings = specMapping(uidMap)
-				s.Linux.GIDMappings = specMapping(daemon.idMapping.GIDs())
+				s.Linux.GIDMappings = specMapping(daemon.idMapping.GIDMaps)
 			}
 		}
 		// network
@@ -689,7 +689,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
 		// we must clear the readonly flag for the cgroups mount (@mrunalp concurs)
-		if uidMap := daemon.idMapping.UIDs(); uidMap != nil || c.HostConfig.Privileged {
+		if uidMap := daemon.idMapping.UIDMaps; uidMap != nil || c.HostConfig.Privileged {
 			for i, m := range s.Mounts {
 				if m.Type == "cgroup" {
 					clearReadOnly(&s.Mounts[i])

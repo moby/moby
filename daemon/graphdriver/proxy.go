@@ -38,13 +38,12 @@ type graphDriverResponse struct {
 }
 
 type graphDriverInitRequest struct {
-	Home    string
-	Opts    []string        `json:"Opts"`
-	UIDMaps []idtools.IDMap `json:"UIDMaps"`
-	GIDMaps []idtools.IDMap `json:"GIDMaps"`
+	Home string
+	Opts []string `json:"Opts"`
+	idtools.IdentityMapping
 }
 
-func (d *graphDriverProxy) Init(home string, opts []string, uidMaps, gidMaps []idtools.IDMap) error {
+func (d *graphDriverProxy) Init(home string, opts []string, idMap idtools.IdentityMapping) error {
 	if !d.p.IsV1() {
 		if cp, ok := d.p.(plugingetter.CountedPlugin); ok {
 			// always acquire here, it will be cleaned up on daemon shutdown
@@ -52,10 +51,9 @@ func (d *graphDriverProxy) Init(home string, opts []string, uidMaps, gidMaps []i
 		}
 	}
 	args := &graphDriverInitRequest{
-		Home:    home,
-		Opts:    opts,
-		UIDMaps: uidMaps,
-		GIDMaps: gidMaps,
+		Home:            home,
+		Opts:            opts,
+		IdentityMapping: idMap,
 	}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Init", args, &ret); err != nil {

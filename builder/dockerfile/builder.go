@@ -46,13 +46,13 @@ const (
 
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
-	idMapping *idtools.IdentityMapping
+	idMapping idtools.IdentityMapping
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, identityMapping *idtools.IdentityMapping) (*BuildManager, error) {
+func NewBuildManager(b builder.Backend, identityMapping idtools.IdentityMapping) (*BuildManager, error) {
 	bm := &BuildManager{
 		backend:   b,
 		pathCache: &syncmap.Map{},
@@ -103,7 +103,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
-	IDMapping      *idtools.IdentityMapping
+	IDMapping      idtools.IdentityMapping
 }
 
 // Builder is a Dockerfile builder
@@ -119,7 +119,7 @@ type Builder struct {
 	docker    builder.Backend
 	clientCtx context.Context
 
-	idMapping        *idtools.IdentityMapping
+	idMapping        idtools.IdentityMapping
 	disableCommit    bool
 	imageSources     *imageSources
 	pathCache        pathCache

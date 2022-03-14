@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -31,7 +30,6 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	d := &Daemon{
 		// some empty structs to avoid getting a panic
 		// caused by a null pointer dereference
-		idMapping:     &idtools.IdentityMapping{},
 		configStore:   &config.Config{},
 		linkIndex:     newLinkIndex(),
 		netController: netController,

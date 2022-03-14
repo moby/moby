@@ -60,8 +60,7 @@ const (
 // mounts that are created using this driver.
 type Driver struct {
 	home      string
-	uidMaps   []idtools.IDMap
-	gidMaps   []idtools.IDMap
+	idMap     idtools.IdentityMapping
 	ctr       *graphdriver.RefCounter
 	naiveDiff graphdriver.DiffDriver
 	locker    *locker.Locker
@@ -78,7 +77,7 @@ func init() {
 // Init returns the naive diff driver for fuse-overlayfs.
 // If fuse-overlayfs is not supported on the host, the error
 // graphdriver.ErrNotSupported is returned.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported
@@ -87,11 +86,10 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	remappedRoot := idtools.NewIDMappingsFromMaps(uidMaps, gidMaps)
 	currentID := idtools.CurrentIdentity()
 	dirID := idtools.Identity{
 		UID: currentID.UID,
-		GID: remappedRoot.RootPair().GID,
+		GID: idMap.RootPair().GID,
 	}
 
 	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
@@ -102,14 +100,13 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	d := &Driver{
-		home:    home,
-		uidMaps: uidMaps,
-		gidMaps: gidMaps,
-		ctr:     graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicFUSE)),
-		locker:  locker.New(),
+		home:   home,
+		idMap:  idMap,
+		ctr:    graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicFUSE)),
+		locker: locker.New(),
 	}
 
-	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
+	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
 
 	return d, nil
 }
@@ -175,22 +172,12 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 
 func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
 	dir := d.dir(id)
+	root := d.idMap.RootPair()
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
-	if err != nil {
+	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0710, root); err != nil {
 		return err
 	}
-	root := idtools.Identity{UID: rootUID, GID: rootGID}
-
-	dirID := idtools.Identity{
-		UID: rootUID,
-		GID: rootGID,
-	}
-
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0710, dirID); err != nil {
-		return err
-	}
-	if err := idtools.MkdirAndChown(dir, 0710, dirID); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0710, root); err != nil {
 		return err
 	}
 
@@ -224,7 +211,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return nil
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0710, dirID); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0710, root); err != nil {
 		return err
 	}
 
@@ -377,11 +364,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	mountData := label.FormatMountLabel(opts, mountLabel)
 	mountTarget := mergedDir
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
-	if err != nil {
-		return nil, err
-	}
-	if err := idtools.MkdirAndChown(mergedDir, 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
+	if err := idtools.MkdirAndChown(mergedDir, 0700, d.idMap.RootPair()); err != nil {
 		return nil, err
 	}
 
@@ -477,8 +460,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 	logger.Debugf("Applying tar in %s", applyDir)
 	// Overlay doesn't need the parent id to apply the diff
 	if err := untar(diff, applyDir, &archive.TarOptions{
-		UIDMaps: d.uidMaps,
-		GIDMaps: d.gidMaps,
+		IDMap: d.idMap,
 		// Use AUFS whiteout format: https://github.com/containers/storage/blob/39a8d5ed9843844eafb5d2ba6e6a7510e0126f40/drivers/overlay/overlay.go#L1084-L1089
 		WhiteoutFormat: archive.AUFSWhiteoutFormat,
 		InUserNS:       userns.RunningInUserNS(),

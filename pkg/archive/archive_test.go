@@ -791,7 +791,7 @@ func TestTarWithOptionsChownOptsAlwaysOverridesIdPair(t *testing.T) {
 		expectedGID int
 	}{
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 1337, GID: 42}}, 1337, 42},
-		{&TarOptions{ChownOpts: &idtools.Identity{UID: 100001, GID: 100001}, UIDMaps: idMaps, GIDMaps: idMaps}, 100001, 100001},
+		{&TarOptions{ChownOpts: &idtools.Identity{UID: 100001, GID: 100001}, IDMap: idtools.IdentityMapping{UIDMaps: idMaps, GIDMaps: idMaps}}, 100001, 100001},
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 0, GID: 0}, NoLchown: false}, 0, 0},
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 1, GID: 1}, NoLchown: true}, 1, 1},
 		{&TarOptions{ChownOpts: &idtools.Identity{UID: 1000, GID: 1000}, NoLchown: true}, 1000, 1000},

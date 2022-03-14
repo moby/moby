@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/v3/assert"
@@ -31,7 +32,7 @@ func init() {
 }
 
 func testInit(dir string, t testing.TB) graphdriver.Driver {
-	d, err := Init(dir, nil, nil, nil)
+	d, err := Init(dir, nil, idtools.IdentityMapping{})
 	if err != nil {
 		if err == graphdriver.ErrNotSupported {
 			t.Skip(err)

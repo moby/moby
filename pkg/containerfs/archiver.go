@@ -26,7 +26,7 @@ type Archiver struct {
 	DstDriver Driver
 	Tar       TarFunc
 	Untar     UntarFunc
-	IDMapping *idtools.IdentityMapping
+	IDMapping idtools.IdentityMapping
 }
 
 // TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
@@ -39,8 +39,7 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 	}
 	defer tarArchive.Close()
 	options := &archive.TarOptions{
-		UIDMaps: archiver.IDMapping.UIDs(),
-		GIDMaps: archiver.IDMapping.GIDs(),
+		IDMap: archiver.IDMapping,
 	}
 	return archiver.Untar(tarArchive, dst, options)
 }
@@ -53,8 +52,7 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 	}
 	defer tarArchive.Close()
 	options := &archive.TarOptions{
-		UIDMaps: archiver.IDMapping.UIDs(),
-		GIDMaps: archiver.IDMapping.GIDs(),
+		IDMap: archiver.IDMapping,
 	}
 	return archiver.Untar(tarArchive, dst, options)
 }
@@ -181,11 +179,11 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (retErr error) {
 }
 
 // IdentityMapping returns the IdentityMapping of the archiver.
-func (archiver *Archiver) IdentityMapping() *idtools.IdentityMapping {
+func (archiver *Archiver) IdentityMapping() idtools.IdentityMapping {
 	return archiver.IDMapping
 }
 
-func remapIDs(idMapping *idtools.IdentityMapping, hdr *tar.Header) error {
+func remapIDs(idMapping idtools.IdentityMapping, hdr *tar.Header) error {
 	ids, err := idMapping.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return err
