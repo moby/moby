@@ -2140,6 +2140,7 @@ definitions:
             - "10.255.0.10/16"
   ServiceSpec:
     description: "User modifiable configuration for a service."
+    type: object
     properties:
       Name:
         description: "Name of the service."
@@ -4088,14 +4089,7 @@ paths:
         400:
           description: "Bad parameter"
           schema:
-            allOf:
-              - $ref: "#/definitions/ErrorResponse"
-              - type: "object"
-                properties:
-                  message:
-                    description: "The error message. Either \"must specify path parameter\" (path cannot be empty) or \"not a directory\" (path was asserted to be a directory but exists as a file)."
-                    type: "string"
-                    x-nullable: false
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "Container or path does not exist"
           schema:
@@ -4131,14 +4125,7 @@ paths:
         400:
           description: "Bad parameter"
           schema:
-            allOf:
-              - $ref: "#/definitions/ErrorResponse"
-              - type: "object"
-                properties:
-                  message:
-                    description: "The error message. Either \"must specify path parameter\" (path cannot be empty) or \"not a directory\" (path was asserted to be a directory but exists as a file)."
-                    type: "string"
-                    x-nullable: false
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "Container or path does not exist"
           schema:
@@ -4164,7 +4151,10 @@ paths:
       tags: ["Container"]
     put:
       summary: "Extract an archive of files or folders to a directory in a container"
-      description: "Upload a tar archive to be extracted to a path in the filesystem of container id."
+      description: |
+        Upload a tar archive to be extracted to a path in the filesystem of container id.
+        `path` parameter is asserted to be a directory. If it exists as a file, 400 error
+        will be returned with message "not a directory".
       operationId: "ContainerPutArchive"
       consumes:
         - "application/x-tar"
@@ -4176,6 +4166,9 @@ paths:
           description: "Bad parameter"
           schema:
             $ref: "#/definitions/ErrorResponse"
+          examples:
+            application/json:
+              message: "not a directory"
         403:
           description: "Permission denied, the volume or container rootfs is marked as read-only."
           schema:
