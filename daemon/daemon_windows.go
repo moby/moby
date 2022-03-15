@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
@@ -553,7 +554,7 @@ func (daemon *Daemon) setDefaultIsolation() error {
 	// On client SKUs, default to Hyper-V. @engine maintainers. This
 	// should not be removed. Ping Microsoft folks is there are PRs to
 	// to change this.
-	if system.IsWindowsClient() {
+	if operatingsystem.IsWindowsClient() {
 		daemon.defaultIsolation = containertypes.IsolationHyperV
 	} else {
 		daemon.defaultIsolation = containertypes.IsolationProcess
