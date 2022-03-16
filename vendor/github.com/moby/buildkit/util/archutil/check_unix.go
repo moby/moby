@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/moby/buildkit/util/system"
 	"github.com/pkg/errors"
 )
 
@@ -22,7 +23,7 @@ func withChroot(cmd *exec.Cmd, dir string) {
 }
 
 func check(arch, bin string) (string, error) {
-	tmpdir, err := os.MkdirTemp("", "qemu-check")
+	tmpdir, err := system.MkdirTemp("", "qemu-check")
 	if err != nil {
 		return "", err
 	}

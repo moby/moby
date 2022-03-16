@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/mount"
+	"github.com/moby/buildkit/util/system"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +38,7 @@ func (lm *localMounter) Mount() (string, error) {
 		}
 	}
 
-	dir, err := os.MkdirTemp("", "buildkit-mount")
+	dir, err := system.MkdirTemp("", "buildkit-mount")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create temp dir")
 	}

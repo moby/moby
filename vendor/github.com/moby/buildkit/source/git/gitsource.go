@@ -28,6 +28,7 @@ import (
 	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/progress/logs"
+	"github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/util/urlutil"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
@@ -542,7 +543,7 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 	} else {
 		cd := checkoutDir
 		if subdir != "." {
-			cd, err = os.MkdirTemp(cd, "checkout")
+			cd, err = system.MkdirTemp(cd, "checkout")
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create temporary checkout dir")
 			}

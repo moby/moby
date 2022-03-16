@@ -22,6 +22,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"
+	"github.com/moby/buildkit/util/system"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
@@ -281,7 +282,7 @@ type secretMountInstance struct {
 }
 
 func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
-	dir, err := os.MkdirTemp("", "buildkit-secrets")
+	dir, err := system.MkdirTemp("", "buildkit-secrets")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create temp dir")
 	}

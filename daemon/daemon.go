@@ -768,6 +768,25 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		os.Setenv("TMPDIR", realTmp)
 	}
 
+	// set up the buildkit_tmpDir
+	// TODO document this approach better after the approach is approved
+	buildkitTmp, err := prepareBuildKitTempDir(config.Root, rootIDs)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
+	}
+	realBuildkitTmp, err := fileutils.ReadSymlinkedDirectory(buildkitTmp)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get the full path to the Buildkit_TmpDir (%s): %s", buildkitTmp, err)
+	}
+	if isWindows {
+		if _, err := os.Stat(realBuildkitTmp); err != nil && os.IsNotExist(err) {
+			if err := system.MkdirAll(realBuildkitTmp, 0700); err != nil {
+				return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realBuildkitTmp, err)
+			}
+		}
+	}
+	os.Setenv("BUILDKIT_TMPDIR", realBuildkitTmp)
+
 	d := &Daemon{
 		configStore: config,
 		PluginStore: pluginStore,
@@ -1298,6 +1317,34 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 	}
 
 	return v4Subnets, v6Subnets
+}
+
+// prepareBuildkitTmpDir prepares and return a tmp dir used specifically for buildkit
+// This is needed for security reason as we don't want buildkit to have access to other
+// temp files in the default docker temp dir
+// If it doesn't exist, it is created. If it exists, its content is removed.
+func prepareBuildKitTempDir(rootDir string, rootIdentity idtools.Identity) (string, error) {
+	var tmpDir string
+	if tmpDir = os.Getenv("BUILDKIT_TMPDIR"); tmpDir == "" {
+		tmpDir = filepath.Join(rootDir, "buildkit", "tmp")
+		newName := tmpDir + "-old"
+		if err := os.Rename(tmpDir, newName); err == nil {
+			go func() {
+				if err := os.RemoveAll(newName); err != nil {
+					logrus.Warnf("failed to delete old tmp directory: %s", newName)
+				}
+			}()
+		} else if !os.IsNotExist(err) {
+			logrus.Warnf("failed to rename %s for background deletion: %s. Deleting synchronously", tmpDir, err)
+			if err := os.RemoveAll(tmpDir); err != nil {
+				logrus.Warnf("failed to delete old tmp directory: %s", tmpDir)
+			}
+		}
+	}
+	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0710, idtools.Identity{
+		UID: idtools.CurrentIdentity().UID,
+		GID: rootIdentity.GID,
+	})
 }
 
 // prepareTempDir prepares and returns the default directory to use

@@ -26,7 +26,6 @@ import (
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/apicaps"
 	binfotypes "github.com/moby/buildkit/util/buildinfo/types"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -42,24 +41,23 @@ const (
 	buildArgPrefix = "build-arg:"
 	labelPrefix    = "label:"
 
-	keyTarget            = "target"
-	keyFilename          = "filename"
-	keyCacheFrom         = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
-	keyCacheImports      = "cache-imports" // JSON representation of []CacheOptionsEntry
-	keyCgroupParent      = "cgroup-parent"
-	keyContextSubDir     = "contextsubdir"
-	keyForceNetwork      = "force-network-mode"
-	keyGlobalAddHosts    = "add-hosts"
-	keyHostname          = "hostname"
-	keyImageResolveMode  = "image-resolve-mode"
-	keyMultiPlatform     = "multi-platform"
-	keyNameContext       = "contextkey"
-	keyNameDockerfile    = "dockerfilekey"
-	keyNoCache           = "no-cache"
-	keyOverrideCopyImage = "override-copy-image" // remove after CopyOp implemented
-	keyShmSize           = "shm-size"
-	keyTargetPlatform    = "platform"
-	keyUlimit            = "ulimit"
+	keyTarget           = "target"
+	keyFilename         = "filename"
+	keyCacheFrom        = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
+	keyCacheImports     = "cache-imports" // JSON representation of []CacheOptionsEntry
+	keyCgroupParent     = "cgroup-parent"
+	keyContextSubDir    = "contextsubdir"
+	keyForceNetwork     = "force-network-mode"
+	keyGlobalAddHosts   = "add-hosts"
+	keyHostname         = "hostname"
+	keyImageResolveMode = "image-resolve-mode"
+	keyMultiPlatform    = "multi-platform"
+	keyNameContext      = "contextkey"
+	keyNameDockerfile   = "dockerfilekey"
+	keyNoCache          = "no-cache"
+	keyShmSize          = "shm-size"
+	keyTargetPlatform   = "platform"
+	keyUlimit           = "ulimit"
 
 	// Don't forget to update frontend documentation if you add
 	// a new build-arg: frontend/dockerfile/docs/syntax.md
@@ -77,6 +75,18 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	opts := c.BuildOpts().Opts
 	caps := c.BuildOpts().LLBCaps
 	gwcaps := c.BuildOpts().Caps
+
+	if err := caps.Supports(pb.CapFileBase); err != nil {
+		return nil, errors.Wrap(err, "needs BuildKit 0.5 or later")
+	}
+	if opts["override-copy-image"] != "" {
+		return nil, errors.New("support for \"override-copy-image\" was removed in BuildKit 0.11")
+	}
+	if v, ok := opts["build-arg:BUILDKIT_DISABLE_FILEOP"]; ok {
+		if b, err := strconv.ParseBool(v); err == nil && b {
+			return nil, errors.New("support for \"build-arg:BUILDKIT_DISABLE_FILEOP\" was removed in BuildKit 0.11")
+		}
+	}
 
 	allowForward, capsError := validateCaps(opts["frontend.caps"])
 	if !allowForward && capsError != nil {
@@ -168,8 +178,6 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		llb.Differ(llb.DiffNone, false),
 	)
 
-	fileop := useFileOp(opts, &caps)
-
 	var buildContext *llb.State
 	isNotLocalContext := false
 	if st, ok := detectGitContext(opts[localNameContext], opts[keyContextKeepGitDirArg]); ok {
@@ -205,28 +213,13 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Wrapf(err, "failed to read downloaded context")
 		}
 		if isArchive(dt) {
-			if fileop {
-				bc := llb.Scratch().File(llb.Copy(httpContext, "/context", "/", &llb.CopyInfo{
-					AttemptUnpack: true,
-				}))
-				if !forceLocalDockerfile {
-					src = bc
-				}
-				buildContext = &bc
-			} else {
-				copyImage := opts[keyOverrideCopyImage]
-				if copyImage == "" {
-					copyImage = dockerfile2llb.DefaultCopyImage
-				}
-				unpack := llb.Image(copyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
-					Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
-				unpack.AddMount("/src", httpContext, llb.Readonly)
-				bc := unpack.AddMount("/out", llb.Scratch())
-				if !forceLocalDockerfile {
-					src = bc
-				}
-				buildContext = &bc
+			bc := llb.Scratch().File(llb.Copy(httpContext, "/context", "/", &llb.CopyInfo{
+				AttemptUnpack: true,
+			}))
+			if !forceLocalDockerfile {
+				src = bc
 			}
+			buildContext = &bc
 		} else {
 			filename = "context"
 			if !forceLocalDockerfile {
@@ -257,7 +250,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	if buildContext != nil {
 		if sub, ok := opts[keyContextSubDir]; ok {
-			buildContext = scopeToSubDir(buildContext, fileop, sub)
+			buildContext = scopeToSubDir(buildContext, sub)
 		}
 	}
 
@@ -435,28 +428,27 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 				}()
 
 				st, img, bi, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
-					Target:            opts[keyTarget],
-					MetaResolver:      c,
-					BuildArgs:         filter(opts, buildArgPrefix),
-					Labels:            filter(opts, labelPrefix),
-					CacheIDNamespace:  opts[keyCacheNSArg],
-					SessionID:         c.BuildOpts().SessionID,
-					BuildContext:      buildContext,
-					Excludes:          excludes,
-					IgnoreCache:       ignoreCache,
-					TargetPlatform:    tp,
-					BuildPlatforms:    buildPlatforms,
-					ImageResolveMode:  resolveMode,
-					PrefixPlatform:    exportMap,
-					ExtraHosts:        extraHosts,
-					ShmSize:           shmSize,
-					Ulimit:            ulimit,
-					CgroupParent:      opts[keyCgroupParent],
-					ForceNetMode:      defaultNetMode,
-					OverrideCopyImage: opts[keyOverrideCopyImage],
-					LLBCaps:           &caps,
-					SourceMap:         sourceMap,
-					Hostname:          opts[keyHostname],
+					Target:           opts[keyTarget],
+					MetaResolver:     c,
+					BuildArgs:        filter(opts, buildArgPrefix),
+					Labels:           filter(opts, labelPrefix),
+					CacheIDNamespace: opts[keyCacheNSArg],
+					SessionID:        c.BuildOpts().SessionID,
+					BuildContext:     buildContext,
+					Excludes:         excludes,
+					IgnoreCache:      ignoreCache,
+					TargetPlatform:   tp,
+					BuildPlatforms:   buildPlatforms,
+					ImageResolveMode: resolveMode,
+					PrefixPlatform:   exportMap,
+					ExtraHosts:       extraHosts,
+					ShmSize:          shmSize,
+					Ulimit:           ulimit,
+					CgroupParent:     opts[keyCgroupParent],
+					ForceNetMode:     defaultNetMode,
+					LLBCaps:          &caps,
+					SourceMap:        sourceMap,
+					Hostname:         opts[keyHostname],
 					Warn: func(msg, url string, detail [][]byte, location *parser.Range) {
 						if i != 0 {
 							return
@@ -765,27 +757,10 @@ func parseNetMode(v string) (pb.NetMode, error) {
 	}
 }
 
-func useFileOp(args map[string]string, caps *apicaps.CapSet) bool {
-	enabled := true
-	if v, ok := args["build-arg:BUILDKIT_DISABLE_FILEOP"]; ok {
-		if b, err := strconv.ParseBool(v); err == nil {
-			enabled = !b
-		}
-	}
-	return enabled && caps != nil && caps.Supports(pb.CapFileBase) == nil
-}
-
-func scopeToSubDir(c *llb.State, fileop bool, dir string) *llb.State {
-	if fileop {
-		bc := llb.Scratch().File(llb.Copy(*c, dir, "/", &llb.CopyInfo{
-			CopyDirContentsOnly: true,
-		}))
-		return &bc
-	}
-	unpack := llb.Image(dockerfile2llb.DefaultCopyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
-		Run(llb.Shlexf("copy %s/. /out/", path.Join("/src", dir)), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("filtering build context"))
-	unpack.AddMount("/src", *c, llb.Readonly)
-	bc := unpack.AddMount("/out", llb.Scratch())
+func scopeToSubDir(c *llb.State, dir string) *llb.State {
+	bc := llb.Scratch().File(llb.Copy(*c, dir, "/", &llb.CopyInfo{
+		CopyDirContentsOnly: true,
+	}))
 	return &bc
 }
 

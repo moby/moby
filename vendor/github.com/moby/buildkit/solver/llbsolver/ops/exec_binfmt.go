@@ -14,6 +14,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/system"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
@@ -46,7 +47,7 @@ type staticEmulatorMount struct {
 }
 
 func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
-	tmpdir, err := os.MkdirTemp("", "buildkit-qemu-emulator")
+	tmpdir, err := system.MkdirTemp("", "buildkit-qemu-emulator")
 	if err != nil {
 		return nil, nil, err
 	}

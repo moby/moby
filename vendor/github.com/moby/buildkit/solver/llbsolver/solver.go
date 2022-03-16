@@ -40,6 +40,17 @@ type ExporterRequest struct {
 // ResolveWorkerFunc returns default worker for the temporary default non-distributed use cases
 type ResolveWorkerFunc func() (worker.Worker, error)
 
+// Opt defines options for new Solver.
+type Opt struct {
+	CacheManager     solver.CacheManager
+	CacheResolvers   map[string]remotecache.ResolveCacheImporterFunc
+	Entitlements     []string
+	Frontends        map[string]frontend.Frontend
+	GatewayForwarder *controlgateway.GatewayForwarder
+	SessionManager   *session.Manager
+	WorkerController *worker.Controller
+}
+
 type Solver struct {
 	workerController          *worker.Controller
 	solver                    *solver.Solver
@@ -52,21 +63,21 @@ type Solver struct {
 	entitlements              []string
 }
 
-func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI map[string]remotecache.ResolveCacheImporterFunc, gatewayForwarder *controlgateway.GatewayForwarder, sm *session.Manager, ents []string) (*Solver, error) {
+func New(opt Opt) (*Solver, error) {
 	s := &Solver{
-		workerController:          wc,
-		resolveWorker:             defaultResolver(wc),
-		eachWorker:                allWorkers(wc),
-		frontends:                 f,
-		resolveCacheImporterFuncs: resolveCI,
-		gatewayForwarder:          gatewayForwarder,
-		sm:                        sm,
-		entitlements:              ents,
+		workerController:          opt.WorkerController,
+		resolveWorker:             defaultResolver(opt.WorkerController),
+		eachWorker:                allWorkers(opt.WorkerController),
+		frontends:                 opt.Frontends,
+		resolveCacheImporterFuncs: opt.CacheResolvers,
+		gatewayForwarder:          opt.GatewayForwarder,
+		sm:                        opt.SessionManager,
+		entitlements:              opt.Entitlements,
 	}
 
 	s.solver = solver.NewSolver(solver.SolverOpt{
 		ResolveOpFunc: s.resolver(),
-		DefaultCache:  cache,
+		DefaultCache:  opt.CacheManager,
 	})
 	return s, nil
 }

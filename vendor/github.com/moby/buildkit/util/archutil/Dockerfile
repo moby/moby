@@ -48,7 +48,7 @@ FROM base AS exit-mips64
 COPY fixtures/exit.mips64.s .
 RUN mips64-linux-gnuabi64-as --noexecstack -o exit.o exit.mips64.s && mips64-linux-gnuabi64-ld -o exit -s exit.o
 
-FROM golang:1.17-alpine AS generate
+FROM golang:1.18-alpine AS generate
 WORKDIR /src
 COPY --from=exit-amd64 /src/exit amd64
 COPY --from=exit-386 /src/exit 386

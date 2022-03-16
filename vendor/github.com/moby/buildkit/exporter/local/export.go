@@ -13,6 +13,7 @@ import (
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/system"
 	"github.com/tonistiigi/fsutil"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
@@ -66,7 +67,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 			var err error
 			var idmap *idtools.IdentityMapping
 			if ref == nil {
-				src, err = os.MkdirTemp("", "buildkit")
+				src, err = system.MkdirTemp("", "buildkit")
 				if err != nil {
 					return err
 				}

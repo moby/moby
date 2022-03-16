@@ -59,6 +59,7 @@ type Opt struct {
 	ID                string
 	Labels            map[string]string
 	GCPolicy          []client.PruneInfo
+	BuildkitVersion   client.BuildkitVersion
 	Executor          executor.Executor
 	Snapshotter       snapshot.Snapshotter
 	ContentStore      content.Store
@@ -77,6 +78,12 @@ type Opt struct {
 type Worker struct {
 	Opt
 	SourceManager *source.Manager
+}
+
+// Placeholder buildversion function
+// TODO: place holder to be inplemented
+func (w *Worker) BuildkitVersion() client.BuildkitVersion {
+	return w.Opt.BuildkitVersion
 }
 
 // NewWorker instantiates a local worker

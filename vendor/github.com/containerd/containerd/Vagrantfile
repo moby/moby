@@ -15,9 +15,10 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# Vagrantfile for cgroup2 and SELinux
+# Vagrantfile for Fedora and EL
 Vagrant.configure("2") do |config|
-  config.vm.box = "fedora/35-cloud-base"
+  config.vm.box = ENV["BOX"] || "fedora/35-cloud-base"
+  config.vm.box_version = ENV["BOX_VERSION"]
   memory = 4096
   cpus = 2
   config.vm.provider :virtualbox do |v|
@@ -71,6 +72,19 @@ Vagrant.configure("2") do |config|
     SHELL
   end
 
+  # EL does not have /usr/local/{bin,sbin} in the PATH by default
+  config.vm.provision "setup-etc-environment", type: "shell", run: "once" do |sh|
+    sh.upload_path = "/tmp/vagrant-setup-etc-environment"
+    sh.inline = <<~SHELL
+        #!/usr/bin/env bash
+        set -eux -o pipefail
+        cat >> /etc/environment <<EOF
+PATH=/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:$PATH
+EOF
+        source /etc/environment
+        SHELL
+  end
+
   # To re-run this provisioner, installing a different version of go:
   #   GO_VERSION="1.14.6" vagrant up --provision-with=install-golang
   #
@@ -83,10 +97,6 @@ Vagrant.configure("2") do |config|
         #!/usr/bin/env bash
         set -eux -o pipefail
         curl -fsSL "https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz" | tar Cxz /usr/local
-        cat >> /etc/environment <<EOF
-PATH=/usr/local/go/bin:$PATH
-EOF
-        source /etc/environment
         cat >> /etc/profile.d/sh.local <<EOF
 GOPATH=\\$HOME/go
 PATH=\\$GOPATH/bin:\\$PATH

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/system"
 	"github.com/pkg/errors"
 	context "golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
@@ -63,7 +64,7 @@ type SocketOpt struct {
 }
 
 func MountSSHSocket(ctx context.Context, c session.Caller, opt SocketOpt) (sockPath string, closer func() error, err error) {
-	dir, err := os.MkdirTemp("", ".buildkit-ssh-sock")
+	dir, err := system.MkdirTemp("", ".buildkit-ssh-sock")
 	if err != nil {
 		return "", nil, errors.WithStack(err)
 	}

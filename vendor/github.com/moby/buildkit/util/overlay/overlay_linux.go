@@ -19,6 +19,7 @@ import (
 	"github.com/containerd/continuity/devices"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
+	"github.com/moby/buildkit/util/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -113,7 +114,7 @@ func GetOverlayLayers(m mount.Mount) ([]string, error) {
 // WriteUpperdir writes a layer tar archive into the specified writer, based on
 // the diff information stored in the upperdir.
 func WriteUpperdir(ctx context.Context, w io.Writer, upperdir string, lower []mount.Mount) error {
-	emptyLower, err := os.MkdirTemp("", "buildkit") // empty directory used for the lower of diff view
+	emptyLower, err := system.MkdirTemp("", "buildkit") // empty directory used for the lower of diff view
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp dir")
 	}

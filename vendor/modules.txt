@@ -153,7 +153,7 @@ github.com/containerd/cgroups/v2/stats
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.6.2
+# github.com/containerd/containerd v1.6.3-0.20220401172941-5ff8fce1fcc6
 ## explicit; go 1.17
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
@@ -224,7 +224,7 @@ github.com/containerd/containerd/snapshots
 github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
 github.com/containerd/containerd/version
-# github.com/containerd/continuity v0.2.2
+# github.com/containerd/continuity v0.2.3-0.20220330195504-d132b287edc8
 ## explicit; go 1.13
 github.com/containerd/continuity/devices
 github.com/containerd/continuity/driver
@@ -539,7 +539,7 @@ github.com/mistifyio/go-zfs
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
-# github.com/moby/buildkit v0.10.1-0.20220327110152-d7744bcb3532
+# github.com/moby/buildkit v0.10.1-0.20220327110152-d7744bcb3532 => github.com/jiashuChen/buildkit v0.10.1-0.20220410130821-3c5439a59b33
 ## explicit; go 1.17
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -680,7 +680,7 @@ github.com/morikuni/aec
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
+# github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799
 ## explicit
 github.com/opencontainers/image-spec/identity
 github.com/opencontainers/image-spec/specs-go

@@ -27,6 +27,7 @@ import (
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/util/winlayers"
 	"github.com/moby/sys/mountinfo"
 	digest "github.com/opencontainers/go-digest"
@@ -1630,7 +1631,7 @@ func (sm *sharableMountable) Mount() (_ []mount.Mount, _ func() error, retErr er
 			// Don't need temporary mount wrapper for non-overlayfs mounts
 			return mounts, release, nil
 		}
-		dir, err := os.MkdirTemp(sm.mountPoolRoot, "buildkit")
+		dir, err := system.MkdirTemp(sm.mountPoolRoot, "buildkit")
 		if err != nil {
 			return nil, nil, err
 		}

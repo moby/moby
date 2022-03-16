@@ -18,8 +18,8 @@ require (
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.3
-	github.com/containerd/containerd v1.6.2
-	github.com/containerd/continuity v0.2.2
+	github.com/containerd/containerd v1.6.3-0.20220401172941-5ff8fce1fcc6
+	github.com/containerd/continuity v0.2.3-0.20220330195504-d132b287edc8
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
 	github.com/coreos/go-systemd/v22 v22.3.2
@@ -61,7 +61,7 @@ require (
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
+	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799
 	github.com/opencontainers/runc v1.1.1
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/selinux v1.10.0
@@ -185,6 +185,9 @@ replace (
 
 // Removes etcd dependency
 replace github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
+
+// Temp muck around
+replace github.com/moby/buildkit v0.10.1-0.20220327110152-d7744bcb3532 => github.com/jiashuChen/buildkit v0.10.1-0.20220410130821-3c5439a59b33
 
 // autogen/winresources/dockerd is generated a build time, this replacement is only for the purpose of `go mod vendor`
 replace github.com/docker/docker/autogen/winresources/dockerd => ./hack/make/.resources-windows
