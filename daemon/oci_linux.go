@@ -314,9 +314,22 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			setNamespace(s, ns)
 		}
 		// uts
-		if c.HostConfig.UTSMode.IsHost() {
+		if c.HostConfig.UTSMode.IsContainer() {
+			uc, err := daemon.getUtsContainer(c)
+			if err != nil {
+				return err
+			}
+			ns := specs.LinuxNamespace{
+				Type: "uts",
+				Path: fmt.Sprintf("/proc/%d/ns/uts", uc.State.GetPID()),
+			}
+			setNamespace(s, ns)
+		} else if c.HostConfig.UTSMode.IsHost() {
 			oci.RemoveNamespace(s, "uts")
 			s.Hostname = ""
+		} else {
+			ns := specs.LinuxNamespace{Type: "uts"}
+			setNamespace(s, ns)
 		}
 
 		// cgroup

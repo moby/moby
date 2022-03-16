@@ -228,15 +228,34 @@ func (n UTSMode) IsHost() bool {
 	return n == "host"
 }
 
-// Valid indicates whether the UTS namespace is valid.
+// IsContainer indicates whether container uses another container's UTS namespace.
+func (n UTSMode) IsContainer() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
+
+// Valid indicates whether the uts mode is valid.
 func (n UTSMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
 	case "", "host":
+	case "container":
+		if len(parts) != 2 || parts[1] == "" {
+			return false
+		}
 	default:
 		return false
 	}
 	return true
+}
+
+// Container returns the name of the container whose uts namespace is going to be used.
+func (n UTSMode) Container() string {
+	parts := strings.SplitN(string(n), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
 }
 
 // PidMode represents the pid namespace of the container.

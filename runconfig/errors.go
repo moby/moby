@@ -31,6 +31,8 @@ const (
 	ErrUnsupportedNetworkAndAlias validationError = "network-scoped alias is supported only for containers in user defined networks"
 	// ErrConflictUTSHostname conflict between the hostname and the UTS mode
 	ErrConflictUTSHostname validationError = "conflicting options: hostname and the UTS mode"
+	// ErrConflictUTSDomainname conflict between the domainname and the UTS mode
+	ErrConflictUTSDomainname validationError = "conflicting options: domainname and the UTS mode"
 )
 
 type validationError string
