@@ -20,7 +20,7 @@ var basicFunctions = template.FuncMap{
 	},
 	"split":    strings.Split,
 	"join":     strings.Join,
-	"title":    strings.Title,
+	"title":    strings.Title, //nolint:staticcheck // SA1019: strings.Title is deprecated: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead.
 	"lower":    strings.ToLower,
 	"upper":    strings.ToUpper,
 	"pad":      padWithSpace,
