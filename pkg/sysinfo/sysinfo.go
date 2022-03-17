@@ -71,10 +71,14 @@ type cgroupMemInfo struct {
 	// Whether memory swappiness is supported or not
 	MemorySwappiness bool
 
-	// Whether kernel memory limit is supported or not
+	// Whether kernel memory limit is supported or not. This option is used to
+	// detect support for kernel-memory limits on API < v1.42. Kernel memory
+	// limit (`kmem.limit_in_bytes`) is not supported on cgroups v2, and has been
+	// removed in kernel 5.4.
 	KernelMemory bool
 
-	// Whether kernel memory TCP limit is supported or not
+	// Whether kernel memory TCP limit is supported or not. Kernel memory TCP
+	// limit (`memory.kmem.tcp.limit_in_bytes`) is not supported on cgroups v2.
 	KernelMemoryTCP bool
 }
 

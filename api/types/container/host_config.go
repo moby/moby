@@ -376,14 +376,17 @@ type Resources struct {
 	Devices              []DeviceMapping // List of devices to map inside the container
 	DeviceCgroupRules    []string        // List of rule to be added to the device cgroup
 	DeviceRequests       []DeviceRequest // List of device requests for device drivers
-	KernelMemory         int64           // Kernel memory limit (in bytes), Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes
-	KernelMemoryTCP      int64           // Hard limit for kernel TCP buffer memory (in bytes)
-	MemoryReservation    int64           // Memory soft limit (in bytes)
-	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to enable unlimited swap
-	MemorySwappiness     *int64          // Tuning container memory swappiness behaviour
-	OomKillDisable       *bool           // Whether to disable OOM Killer or not
-	PidsLimit            *int64          // Setting PIDs limit for a container; Set `0` or `-1` for unlimited, or `null` to not change.
-	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
+
+	// KernelMemory specifies the kernel memory limit (in bytes) for the container.
+	// Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes.
+	KernelMemory      int64           `json:",omitempty"`
+	KernelMemoryTCP   int64           `json:",omitempty"` // Hard limit for kernel TCP buffer memory (in bytes)
+	MemoryReservation int64           // Memory soft limit (in bytes)
+	MemorySwap        int64           // Total memory usage (memory + swap); set `-1` to enable unlimited swap
+	MemorySwappiness  *int64          // Tuning container memory swappiness behaviour
+	OomKillDisable    *bool           // Whether to disable OOM Killer or not
+	PidsLimit         *int64          // Setting PIDs limit for a container; Set `0` or `-1` for unlimited, or `null` to not change.
+	Ulimits           []*units.Ulimit // List of ulimits to be set in the container
 
 	// Applicable to Windows
 	CPUCount           int64  `json:"CpuCount"`   // CPU count

@@ -445,17 +445,16 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		// Kernel memory limit is not supported on cgroup v2.
 		// Even on cgroup v1, kernel memory limit (`kmem.limit_in_bytes`) has been deprecated since kernel 5.4.
 		// https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7
-		warnings = append(warnings, "Specifying a kernel memory limit is deprecated and will be removed in a future release.")
-	}
-	if resources.KernelMemory > 0 && !sysInfo.KernelMemory {
-		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
-		resources.KernelMemory = 0
-	}
-	if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 6MB")
-	}
-	if resources.KernelMemory > 0 && !kernel.CheckKernelVersion(4, 0, 0) {
-		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
+		if !sysInfo.KernelMemory {
+			warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
+			resources.KernelMemory = 0
+		}
+		if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
+			return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 6MB")
+		}
+		if !kernel.CheckKernelVersion(4, 0, 0) {
+			warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
+		}
 	}
 	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
 		// only produce warnings if the setting wasn't to *disable* the OOM Kill; no point

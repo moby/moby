@@ -577,19 +577,13 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/DeviceRequest"
-      KernelMemory:
-        description: |
-          Kernel memory limit in bytes.
-
-          <p><br /></p>
-
-          > **Deprecated**: This field is deprecated as the kernel 5.4 deprecated
-          > `kmem.limit_in_bytes`.
-        type: "integer"
-        format: "int64"
-        example: 209715200
       KernelMemoryTCP:
-        description: "Hard limit for kernel TCP buffer memory (in bytes)."
+        description: |
+          Hard limit for kernel TCP buffer memory (in bytes). Depending on the
+          OCI runtime in use, this option may be ignored. It is no longer supported
+          by the default (runc) runtime.
+
+          This field is omitted when empty.
         type: "integer"
         format: "int64"
       MemoryReservation:
@@ -4657,19 +4651,10 @@ definitions:
         description: "Indicates if the host has memory swap limit support enabled."
         type: "boolean"
         example: true
-      KernelMemory:
-        description: |
-          Indicates if the host has kernel memory limit support enabled.
-
-          <p><br /></p>
-
-          > **Deprecated**: This field is deprecated as the kernel 5.4 deprecated
-          > `kmem.limit_in_bytes`.
-        type: "boolean"
-        example: true
       KernelMemoryTCP:
         description: |
-          Indicates if the host has kernel memory TCP limit support enabled.
+          Indicates if the host has kernel memory TCP limit support enabled. This
+          field is omitted if not supported.
 
           Kernel memory TCP limits are not supported when using cgroups v2, which
           does not support the corresponding `memory.kmem.tcp.limit_in_bytes` cgroup.
@@ -5834,7 +5819,6 @@ paths:
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
-                KernelMemory: 0
                 NanoCpus: 500000
                 CpuPercent: 80
                 CpuShares: 512
@@ -6126,7 +6110,6 @@ paths:
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
-                KernelMemory: 0
                 OomKillDisable: false
                 OomScoreAdj: 500
                 NetworkMode: "bridge"
@@ -6871,7 +6854,6 @@ paths:
               Memory: 314572800
               MemorySwap: 514288000
               MemoryReservation: 209715200
-              KernelMemory: 52428800
               RestartPolicy:
                 MaximumRetryCount: 4
                 Name: "on-failure"
