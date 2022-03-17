@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -21,13 +21,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// A Session is used to communicate with a V1 registry
-type Session struct {
-	indexEndpoint *V1Endpoint
+// A session is used to communicate with a V1 registry
+type session struct {
+	indexEndpoint *v1Endpoint
 	client        *http.Client
-	// TODO(tiborvass): remove authConfig
-	authConfig *types.AuthConfig
-	id         string
+	id            string
 }
 
 type authTransport struct {
@@ -149,13 +147,13 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) error {
+func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *v1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
 	if endpoint.String() != IndexServer && endpoint.URL.Scheme == "https" {
-		info, err := endpoint.Ping()
+		info, err := endpoint.ping()
 		if err != nil {
 			return err
 		}
@@ -171,43 +169,32 @@ func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return errors.New("cookiejar.New is not supposed to return an error")
+		return errdefs.System(errors.New("cookiejar.New is not supposed to return an error"))
 	}
 	client.Jar = jar
 
 	return nil
 }
 
-func newSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) *Session {
-	return &Session{
-		authConfig:    authConfig,
+func newSession(client *http.Client, endpoint *v1Endpoint) *session {
+	return &session{
 		client:        client,
 		indexEndpoint: endpoint,
 		id:            stringid.GenerateRandomID(),
 	}
 }
 
-// NewSession creates a new session
-// TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) (*Session, error) {
-	if err := authorizeClient(client, authConfig, endpoint); err != nil {
-		return nil, err
-	}
-
-	return newSession(client, authConfig, endpoint), nil
-}
-
-// SearchRepositories performs a search against the remote repository
-func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
+// searchRepositories performs a search against the remote repository
+func (r *session) searchRepositories(term string, limit int) (*registry.SearchResults, error) {
 	if limit < 1 || limit > 100 {
-		return nil, errdefs.InvalidParameter(errors.Errorf("Limit %d is outside the range of [1, 100]", limit))
+		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
-		return nil, errors.Wrap(errdefs.InvalidParameter(err), "Error building request")
+		return nil, invalidParamWrapf(err, "error building request")
 	}
 	// Have the AuthTransport send authentication, when logged in.
 	req.Header.Set("X-Docker-Token", "true")
@@ -222,6 +209,6 @@ func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.Sea
 			Code:    res.StatusCode,
 		}
 	}
-	result := new(registrytypes.SearchResults)
+	result := new(registry.SearchResults)
 	return result, errors.Wrap(json.NewDecoder(res.Body).Decode(result), "error decoding registry search results")
 }

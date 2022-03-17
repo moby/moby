@@ -183,10 +183,8 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	}
 
 	for k, v := range m {
-		if d, err := registry.HostCertsDir(k); err == nil {
-			v.TLSConfigDir = []string{d}
-			m[k] = v
-		}
+		v.TLSConfigDir = []string{registry.HostCertsDir(k)}
+		m[k] = v
 	}
 
 	certsDir := registry.CertsDir()

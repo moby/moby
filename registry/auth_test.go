@@ -4,14 +4,15 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
+	"gotest.tools/v3/assert"
 )
 
 func buildAuthConfigs() map[string]types.AuthConfig {
 	authConfigs := map[string]types.AuthConfig{}
 
-	for _, registry := range []string{"testIndex", IndexServer} {
-		authConfigs[registry] = types.AuthConfig{
+	for _, reg := range []string{"testIndex", IndexServer} {
+		authConfigs[reg] = types.AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
 		}
@@ -24,18 +25,18 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	authConfigs := buildAuthConfigs()
 	indexConfig := authConfigs[IndexServer]
 
-	officialIndex := &registrytypes.IndexInfo{
+	officialIndex := &registry.IndexInfo{
 		Official: true,
 	}
-	privateIndex := &registrytypes.IndexInfo{
+	privateIndex := &registry.IndexInfo{
 		Official: false,
 	}
 
 	resolved := ResolveAuthConfig(authConfigs, officialIndex)
-	assertEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
+	assert.Equal(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
 
 	resolved = ResolveAuthConfig(authConfigs, privateIndex)
-	assertNotEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
+	assert.Check(t, resolved != indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
 }
 
 func TestResolveAuthConfigFullURL(t *testing.T) {
@@ -87,19 +88,19 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		if !ok {
 			t.Fail()
 		}
-		index := &registrytypes.IndexInfo{
+		index := &registry.IndexInfo{
 			Name: configKey,
 		}
-		for _, registry := range registries {
-			authConfigs[registry] = configured
+		for _, reg := range registries {
+			authConfigs[reg] = configured
 			resolved := ResolveAuthConfig(authConfigs, index)
 			if resolved.Username != configured.Username || resolved.Password != configured.Password {
-				t.Errorf("%s -> %v != %v\n", registry, resolved, configured)
+				t.Errorf("%s -> %v != %v\n", reg, resolved, configured)
 			}
-			delete(authConfigs, registry)
+			delete(authConfigs, reg)
 			resolved = ResolveAuthConfig(authConfigs, index)
 			if resolved.Username == configured.Username || resolved.Password == configured.Password {
-				t.Errorf("%s -> %v == %v\n", registry, resolved, configured)
+				t.Errorf("%s -> %v == %v\n", reg, resolved, configured)
 			}
 		}
 	}

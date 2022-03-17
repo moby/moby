@@ -10,15 +10,13 @@ import (
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	// AuthClientID is used the ClientID used for the token server
-	AuthClientID = "docker"
-)
+// AuthClientID is used the ClientID used for the token server
+const AuthClientID = "docker"
 
 type loginCredentialStore struct {
 	authConfig *types.AuthConfig
@@ -80,7 +78,7 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	var (
 		endpointStr          = strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 		modifiers            = Headers(userAgent, nil)
-		authTransport        = transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
+		authTransport        = transport.NewTransport(newTransport(endpoint.TLSConfig), modifiers...)
 		credentialAuthConfig = *authConfig
 		creds                = loginCredentialStore{authConfig: &credentialAuthConfig}
 	)
@@ -109,8 +107,7 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	}
 
 	// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
-	err = errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
-	return "", "", err
+	return "", "", errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
 }
 
 func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, error) {
@@ -129,10 +126,9 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
 	basicHandler := auth.NewBasicHandler(creds)
 	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
-	tr := transport.NewTransport(authTransport, modifiers...)
 
 	return &http.Client{
-		Transport: tr,
+		Transport: transport.NewTransport(authTransport, modifiers...),
 		Timeout:   15 * time.Second,
 	}, nil
 }
@@ -146,14 +142,11 @@ func ConvertToHostname(url string) string {
 	} else if strings.HasPrefix(url, "https://") {
 		stripped = strings.TrimPrefix(url, "https://")
 	}
-
-	nameParts := strings.SplitN(stripped, "/", 2)
-
-	return nameParts[0]
+	return strings.SplitN(stripped, "/", 2)[0]
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
-func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registry.IndexInfo) types.AuthConfig {
 	configKey := GetAuthConfigKey(index)
 	// First try the happy case
 	if c, found := authConfigs[configKey]; found || index.Official {
