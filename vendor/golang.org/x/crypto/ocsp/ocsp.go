@@ -668,7 +668,7 @@ func CreateRequest(cert, issuer *x509.Certificate, opts *RequestOptions) ([]byte
 // The responder cert is used to populate the responder's name field, and the
 // certificate itself is provided alongside the OCSP response signature.
 //
-// The issuer cert is used to puplate the IssuerNameHash and IssuerKeyHash fields.
+// The issuer cert is used to populate the IssuerNameHash and IssuerKeyHash fields.
 //
 // The template is used to populate the SerialNumber, Status, RevokedAt,
 // RevocationReason, ThisUpdate, and NextUpdate fields.
