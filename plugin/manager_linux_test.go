@@ -1,6 +1,7 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
+	"context"
 	"io"
 	"net"
 	"os"
@@ -61,7 +62,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := m.Remove(p1.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
+	if err := m.Remove(context.Background(), p1.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 	if mounted, err := mountinfo.Mounted(p2Mount); !mounted || err != nil {
@@ -136,7 +137,7 @@ func TestCreateFailed(t *testing.T) {
 		t.Fatalf("expected Create failed error, got %v", err)
 	}
 
-	if err := m.Remove(p.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
+	if err := m.Remove(context.Background(), p.GetID(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 }

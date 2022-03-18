@@ -45,7 +45,7 @@ var acceptedPluginFilterTags = map[string]bool{
 }
 
 // Disable deactivates a plugin. This means resources (volumes, networks) cant use them.
-func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) error {
+func (pm *Manager) Disable(ctx context.Context, refOrID string, config *types.PluginDisableConfig) error {
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
-func (pm *Manager) Enable(refOrID string, config *types.PluginEnableConfig) error {
+func (pm *Manager) Enable(ctx context.Context, refOrID string, config *types.PluginEnableConfig) error {
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (pm *Manager) Enable(refOrID string, config *types.PluginEnableConfig) erro
 }
 
 // Inspect examines a plugin config
-func (pm *Manager) Inspect(refOrID string) (tp *types.Plugin, err error) {
+func (pm *Manager) Inspect(ctx context.Context, refOrID string) (tp *types.Plugin, err error) {
 	p, err := pm.config.Store.GetV2Plugin(refOrID)
 	if err != nil {
 		return nil, err
@@ -309,7 +309,7 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 }
 
 // List displays the list of plugins and associated metadata.
-func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
+func (pm *Manager) List(ctx context.Context, pluginFilters filters.Args) ([]types.Plugin, error) {
 	if err := pluginFilters.Validate(acceptedPluginFilterTags); err != nil {
 		return nil, err
 	}
@@ -555,7 +555,7 @@ func writeManifest(ctx context.Context, cs content.Store, m *manifest) (specs.De
 }
 
 // Remove deletes plugin's root directory.
-func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
+func (pm *Manager) Remove(ctx context.Context, name string, config *types.PluginRmConfig) error {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	pm.mu.RLock()
 	c := pm.cMap[p]
@@ -602,7 +602,7 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 }
 
 // Set sets plugin args
-func (pm *Manager) Set(name string, args []string) error {
+func (pm *Manager) Set(ctx context.Context, name string, args []string) error {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
 		return err
