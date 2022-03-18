@@ -42,6 +42,7 @@ const (
 	aggregateAndDNSSupportEnv    = "GRPC_XDS_EXPERIMENTAL_ENABLE_AGGREGATE_AND_LOGICAL_DNS_CLUSTER"
 	rbacSupportEnv               = "GRPC_XDS_EXPERIMENTAL_RBAC"
 	federationEnv                = "GRPC_EXPERIMENTAL_XDS_FEDERATION"
+	rlsInXDSEnv                  = "GRPC_EXPERIMENTAL_XDS_RLS_LB"
 
 	c2pResolverTestOnlyTrafficDirectorURIEnv = "GRPC_TEST_ONLY_GOOGLE_C2P_RESOLVER_TRAFFIC_DIRECTOR_URI"
 )
@@ -84,6 +85,12 @@ var (
 
 	// XDSFederation indicates whether federation support is enabled.
 	XDSFederation = strings.EqualFold(os.Getenv(federationEnv), "true")
+
+	// XDSRLS indicates whether processing of Cluster Specifier plugins and
+	// support for the RLS CLuster Specifier is enabled, which can be enabled by
+	// setting the environment variable "GRPC_EXPERIMENTAL_XDS_RLS_LB" to
+	// "true".
+	XDSRLS = strings.EqualFold(os.Getenv(rlsInXDSEnv), "true")
 
 	// C2PResolverTestOnlyTrafficDirectorURI is the TD URI for testing.
 	C2PResolverTestOnlyTrafficDirectorURI = os.Getenv(c2pResolverTestOnlyTrafficDirectorURIEnv)

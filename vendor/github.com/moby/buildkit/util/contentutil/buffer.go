@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -59,7 +59,7 @@ func (b *buffer) Writer(ctx context.Context, opts ...content.WriterOpt) (content
 	}, nil
 }
 
-func (b *buffer) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+func (b *buffer) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	r, err := b.getBytesReader(ctx, desc.Digest)
 	if err != nil {
 		return nil, err

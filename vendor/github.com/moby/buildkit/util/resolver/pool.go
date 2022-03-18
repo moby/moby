@@ -3,6 +3,7 @@ package resolver
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,7 +15,8 @@ import (
 	distreference "github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/source"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/buildkit/version"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // DefaultPool is the default shared resolver pool instance
@@ -40,7 +42,7 @@ func (p *Pool) gc() {
 	defer p.mu.Unlock()
 
 	for k, ns := range p.m {
-		ns.mu.Lock()
+		ns.muHandlers.Lock()
 		for key, h := range ns.handlers {
 			if time.Since(h.lastUsed) < 10*time.Minute {
 				continue
@@ -58,7 +60,7 @@ func (p *Pool) gc() {
 		if len(ns.handlers) == 0 {
 			delete(p.m, k)
 		}
-		ns.mu.Unlock()
+		ns.muHandlers.Unlock()
 	}
 
 	time.AfterFunc(5*time.Minute, p.gc)
@@ -104,8 +106,11 @@ func newResolver(hosts docker.RegistryHosts, handler *authHandlerNS, sm *session
 		g:       g,
 		handler: handler,
 	}
+	headers := http.Header{}
+	headers.Set("User-Agent", version.UserAgent())
 	r.Resolver = docker.NewResolver(docker.ResolverOptions{
-		Hosts: r.HostsFunc,
+		Hosts:   r.HostsFunc,
+		Headers: headers,
 	})
 	return r
 }
@@ -128,9 +133,9 @@ func (r *Resolver) HostsFunc(host string) ([]docker.RegistryHost, error) {
 	return func(domain string) ([]docker.RegistryHost, error) {
 		v, err := r.handler.g.Do(context.TODO(), domain, func(ctx context.Context) (interface{}, error) {
 			// long lock not needed because flightcontrol.Do
-			r.handler.mu.Lock()
+			r.handler.muHosts.Lock()
 			v, ok := r.handler.hosts[domain]
-			r.handler.mu.Unlock()
+			r.handler.muHosts.Unlock()
 			if ok {
 				return v, nil
 			}
@@ -138,18 +143,21 @@ func (r *Resolver) HostsFunc(host string) ([]docker.RegistryHost, error) {
 			if err != nil {
 				return nil, err
 			}
-			r.handler.mu.Lock()
+			r.handler.muHosts.Lock()
 			r.handler.hosts[domain] = res
-			r.handler.mu.Unlock()
+			r.handler.muHosts.Unlock()
 			return res, nil
 		})
 		if err != nil || v == nil {
 			return nil, err
 		}
-		res := v.([]docker.RegistryHost)
-		if len(res) == 0 {
+		vv := v.([]docker.RegistryHost)
+		if len(vv) == 0 {
 			return nil, nil
 		}
+		// make a copy so authorizer is set on unique instance
+		res := make([]docker.RegistryHost, len(vv))
+		copy(res, vv)
 		auth := newDockerAuthorizer(res[0].Client, r.handler, r.sm, r.g)
 		for i := range res {
 			res[i].Authorizer = auth
@@ -163,6 +171,9 @@ func (r *Resolver) WithSession(s session.Group) *Resolver {
 	r2 := *r
 	r2.auth = nil
 	r2.g = s
+	r2.Resolver = docker.NewResolver(docker.ResolverOptions{
+		Hosts: r2.HostsFunc, // this refers to the newly-configured session so we need to recreate the resolver.
+	})
 	return &r2
 }
 
@@ -184,7 +195,7 @@ func (r *Resolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, er
 }
 
 // Resolve attempts to resolve the reference into a name and descriptor.
-func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispec.Descriptor, error) {
+func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.Descriptor, error) {
 	if r.mode == source.ResolveModePreferLocal && r.is != nil {
 		if img, err := r.is.Get(ctx, ref); err == nil {
 			return ref, img.Target, nil
@@ -194,7 +205,7 @@ func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispec.Des
 	n, desc, err := r.Resolver.Resolve(ctx, ref)
 	if err == nil {
 		atomic.AddInt64(&r.handler.counter, 1)
-		return n, desc, err
+		return n, desc, nil
 	}
 
 	if r.mode == source.ResolveModeDefault && r.is != nil {
@@ -203,5 +214,5 @@ func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispec.Des
 		}
 	}
 
-	return "", ocispec.Descriptor{}, err
+	return "", ocispecs.Descriptor{}, err
 }

@@ -28,6 +28,9 @@ func (o *decoderOptions) setDefault() {
 		concurrent:    runtime.GOMAXPROCS(0),
 		maxWindowSize: MaxWindowSize,
 	}
+	if o.concurrent > 4 {
+		o.concurrent = 4
+	}
 	o.maxDecodedSize = 1 << 63
 }
 
@@ -37,16 +40,25 @@ func WithDecoderLowmem(b bool) DOption {
 	return func(o *decoderOptions) error { o.lowMem = b; return nil }
 }
 
-// WithDecoderConcurrency will set the concurrency,
-// meaning the maximum number of decoders to run concurrently.
-// The value supplied must be at least 1.
-// By default this will be set to GOMAXPROCS.
+// WithDecoderConcurrency sets the number of created decoders.
+// When decoding block with DecodeAll, this will limit the number
+// of possible concurrently running decodes.
+// When decoding streams, this will limit the number of
+// inflight blocks.
+// When decoding streams and setting maximum to 1,
+// no async decoding will be done.
+// When a value of 0 is provided GOMAXPROCS will be used.
+// By default this will be set to 4 or GOMAXPROCS, whatever is lower.
 func WithDecoderConcurrency(n int) DOption {
 	return func(o *decoderOptions) error {
-		if n <= 0 {
+		if n < 0 {
 			return errors.New("concurrency must be at least 1")
 		}
-		o.concurrent = n
+		if n == 0 {
+			o.concurrent = runtime.GOMAXPROCS(0)
+		} else {
+			o.concurrent = n
+		}
 		return nil
 	}
 }

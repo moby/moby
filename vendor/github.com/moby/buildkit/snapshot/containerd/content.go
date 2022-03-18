@@ -6,7 +6,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/namespaces"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -53,7 +53,7 @@ func (c *nsContent) Abort(ctx context.Context, ref string) error {
 	return c.Store.Abort(ctx, ref)
 }
 
-func (c *nsContent) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+func (c *nsContent) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	ctx = namespaces.WithNamespace(ctx, c.ns)
 	return c.Store.ReaderAt(ctx, desc)
 }

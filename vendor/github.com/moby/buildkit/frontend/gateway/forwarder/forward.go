@@ -19,6 +19,7 @@ import (
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/worker"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
@@ -216,6 +217,10 @@ func (c *bridgeClient) discard(err error) {
 	}
 }
 
+func (c *bridgeClient) Warn(ctx context.Context, dgst digest.Digest, msg string, opts client.WarnOpts) error {
+	return c.FrontendLLBBridge.Warn(ctx, dgst, msg, opts)
+}
+
 func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainerRequest) (client.Container, error) {
 	ctrReq := gateway.NewContainerRequest{
 		ContainerID: identity.NewID(),
@@ -268,6 +273,11 @@ func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 	}
 
 	err := eg.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	ctrReq.ExtraHosts, err = gateway.ParseExtraHosts(req.ExtraHosts)
 	if err != nil {
 		return nil, err
 	}

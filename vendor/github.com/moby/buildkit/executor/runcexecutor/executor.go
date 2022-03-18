@@ -7,10 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/moby/buildkit/util/bklog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/containerd/containerd/mount"
 	containerdoci "github.com/containerd/containerd/oci"
@@ -19,7 +22,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
-	"github.com/moby/buildkit/frontend/gateway/errdefs"
+	gatewayapi "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
@@ -27,7 +30,6 @@ import (
 	"github.com/moby/buildkit/util/stack"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type Opt struct {
@@ -46,6 +48,7 @@ type Opt struct {
 	DNS             *oci.DNSConfig
 	OOMScoreAdj     *int
 	ApparmorProfile string
+	TracingSocket   string
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -64,6 +67,7 @@ type runcExecutor struct {
 	running          map[string]chan error
 	mu               sync.Mutex
 	apparmorProfile  string
+	tracingSocket    string
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -127,6 +131,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		oomScoreAdj:      opt.OOMScoreAdj,
 		running:          make(map[string]chan error),
 		apparmorProfile:  opt.ApparmorProfile,
+		tracingSocket:    opt.TracingSocket,
 	}
 	return w, nil
 }
@@ -163,7 +168,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 	defer namespace.Close()
 
 	if meta.NetMode == pb.NetMode_HOST {
-		logrus.Info("enabling HostNetworking")
+		bklog.G(ctx).Info("enabling HostNetworking")
 	}
 
 	resolvConf, err := oci.GetResolvConf(ctx, w.root, w.idmap, w.dns)
@@ -246,17 +251,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 		}
 	}
 
-	if w.cgroupParent != "" {
-		var cgroupsPath string
-		lastSeparator := w.cgroupParent[len(w.cgroupParent)-1:]
-		if strings.Contains(w.cgroupParent, ".slice") && lastSeparator == ":" {
-			cgroupsPath = w.cgroupParent + id
-		} else {
-			cgroupsPath = filepath.Join("/", w.cgroupParent, "buildkit", id)
-		}
-		opts = append(opts, containerdoci.WithCgroup(cgroupsPath))
-	}
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, w.idmap, w.apparmorProfile, opts...)
+	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.cgroupParent, w.processMode, w.idmap, w.apparmorProfile, w.tracingSocket, opts...)
 	if err != nil {
 		return err
 	}
@@ -300,7 +295,7 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 			case <-ctx.Done():
 				killCtx, timeout := context.WithTimeout(context.Background(), 7*time.Second)
 				if err := w.runc.Kill(killCtx, id, int(syscall.SIGKILL), nil); err != nil {
-					logrus.Errorf("failed to kill runc %s: %+v", id, err)
+					bklog.G(ctx).Errorf("failed to kill runc %s: %+v", id, err)
 					select {
 					case <-killCtx.Done():
 						timeout()
@@ -321,31 +316,39 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 		}
 	}()
 
-	logrus.Debugf("> creating %s %v", id, meta.Args)
-	// this is a cheat, we have not actually started, but as close as we can get with runc for now
-	if started != nil {
-		startedOnce.Do(func() {
-			close(started)
-		})
-	}
+	bklog.G(ctx).Debugf("> creating %s %v", id, meta.Args)
 
-	err = w.run(runCtx, id, bundle, process)
+	trace.SpanFromContext(ctx).AddEvent("Container created")
+	err = w.run(runCtx, id, bundle, process, func() {
+		startedOnce.Do(func() {
+			trace.SpanFromContext(ctx).AddEvent("Container started")
+			if started != nil {
+				close(started)
+			}
+		})
+	})
 	close(ended)
 	return exitError(ctx, err)
 }
 
 func exitError(ctx context.Context, err error) error {
 	if err != nil {
-		exitErr := &errdefs.ExitError{
-			ExitCode: errdefs.UnknownExitStatus,
+		exitErr := &gatewayapi.ExitError{
+			ExitCode: gatewayapi.UnknownExitStatus,
 			Err:      err,
 		}
 		var runcExitError *runc.ExitError
 		if errors.As(err, &runcExitError) {
-			exitErr = &errdefs.ExitError{
+			exitErr = &gatewayapi.ExitError{
 				ExitCode: uint32(runcExitError.Status),
 			}
 		}
+		trace.SpanFromContext(ctx).AddEvent(
+			"Container exited",
+			trace.WithAttributes(
+				attribute.Int("exit.code", int(exitErr.ExitCode)),
+			),
+		)
 		select {
 		case <-ctx.Done():
 			exitErr.Err = errors.Wrapf(ctx.Err(), exitErr.Error())
@@ -355,6 +358,10 @@ func exitError(ctx context.Context, err error) error {
 		}
 	}
 
+	trace.SpanFromContext(ctx).AddEvent(
+		"Container exited",
+		trace.WithAttributes(attribute.Int("exit.code", 0)),
+	)
 	return nil
 }
 
@@ -421,7 +428,7 @@ func (w *runcExecutor) Exec(ctx context.Context, id string, process executor.Pro
 		spec.Process.Env = process.Meta.Env
 	}
 
-	err = w.exec(ctx, id, state.Bundle, spec.Process, process)
+	err = w.exec(ctx, id, state.Bundle, spec.Process, process, nil)
 	return exitError(ctx, err)
 }
 
@@ -450,4 +457,79 @@ func (s *forwardIO) Stdout() io.ReadCloser {
 
 func (s *forwardIO) Stderr() io.ReadCloser {
 	return nil
+}
+
+// startingProcess is to track the os process so we can send signals to it.
+type startingProcess struct {
+	Process *os.Process
+	ready   chan struct{}
+}
+
+// Release will free resources with a startingProcess.
+func (p *startingProcess) Release() {
+	if p.Process != nil {
+		p.Process.Release()
+	}
+}
+
+// WaitForReady will wait until the Process has been populated or the
+// provided context was cancelled.  This should be called before using
+// the Process field.
+func (p *startingProcess) WaitForReady(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-p.ready:
+		return nil
+	}
+}
+
+// WaitForStart will record the pid reported by Runc via the channel.
+// We wait for up to 10s for the runc process to start.  If the started
+// callback is non-nil it will be called after receiving the pid.
+func (p *startingProcess) WaitForStart(ctx context.Context, startedCh <-chan int, started func()) error {
+	startedCtx, timeout := context.WithTimeout(ctx, 10*time.Second)
+	defer timeout()
+	var err error
+	select {
+	case <-startedCtx.Done():
+		return errors.New("runc started message never received")
+	case pid, ok := <-startedCh:
+		if !ok {
+			return errors.New("runc process failed to send pid")
+		}
+		if started != nil {
+			started()
+		}
+		p.Process, err = os.FindProcess(pid)
+		if err != nil {
+			return errors.Wrapf(err, "unable to find runc process for pid %d", pid)
+		}
+		close(p.ready)
+	}
+	return nil
+}
+
+// handleSignals will wait until the runcProcess is ready then will
+// send each signal received on the channel to the process.
+func handleSignals(ctx context.Context, runcProcess *startingProcess, signals <-chan syscall.Signal) error {
+	if signals == nil {
+		return nil
+	}
+	err := runcProcess.WaitForReady(ctx)
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case sig := <-signals:
+			err := runcProcess.Process.Signal(sig)
+			if err != nil {
+				bklog.G(ctx).Errorf("failed to signal %s to process: %s", sig, err)
+				return err
+			}
+		}
+	}
 }

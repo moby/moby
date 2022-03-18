@@ -3,6 +3,8 @@ package oci
 import (
 	"context"
 	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/containerd/containerd/containers"
@@ -11,10 +13,11 @@ import (
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/mitchellh/hashstructure"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/network"
+	traceexec "github.com/moby/buildkit/util/tracing/exec"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -32,13 +35,38 @@ const (
 	NoProcessSandbox
 )
 
+func (pm ProcessMode) String() string {
+	switch pm {
+	case ProcessSandbox:
+		return "sandbox"
+	case NoProcessSandbox:
+		return "no-sandbox"
+	default:
+		return ""
+	}
+}
+
 // Ideally we don't have to import whole containerd just for the default spec
 
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, cgroupParent string, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, tracingSocket string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
+	}
+
+	if len(meta.CgroupParent) > 0 {
+		cgroupParent = meta.CgroupParent
+	}
+	if cgroupParent != "" {
+		var cgroupsPath string
+		lastSeparator := cgroupParent[len(cgroupParent)-1:]
+		if strings.Contains(cgroupParent, ".slice") && lastSeparator == ":" {
+			cgroupsPath = cgroupParent + id
+		} else {
+			cgroupsPath = filepath.Join("/", cgroupParent, "buildkit", id)
+		}
+		opts = append(opts, oci.WithCgroup(cgroupsPath))
 	}
 
 	// containerd/oci.GenerateSpec requires a namespace, which
@@ -71,9 +99,21 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
+	if rlimitsOpts, err := generateRlimitOpts(meta.Ulimit); err == nil {
+		opts = append(opts, rlimitsOpts...)
+	} else {
+		return nil, nil, err
+	}
+
 	hostname := defaultHostname
 	if meta.Hostname != "" {
 		hostname = meta.Hostname
+	}
+
+	if tracingSocket != "" {
+		// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
+		meta.Env = append(meta.Env, "OTEL_TRACES_EXPORTER=otlp", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=unix:///dev/otel-grpc.sock", "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc")
+		meta.Env = append(meta.Env, traceexec.Environ(ctx)...)
 	}
 
 	opts = append(opts,
@@ -89,12 +129,15 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
+	if len(meta.Ulimit) == 0 {
+		// reset open files limit
+		s.Process.Rlimits = nil
+	}
+
 	// set the networking information on the spec
 	if err := namespace.Set(s); err != nil {
 		return nil, nil, err
 	}
-
-	s.Process.Rlimits = nil // reset open files limit
 
 	sm := &submounts{}
 
@@ -139,6 +182,16 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		}
 	}
 
+	if tracingSocket != "" {
+		s.Mounts = append(s.Mounts, specs.Mount{
+			Destination: "/dev/otel-grpc.sock",
+			Type:        "bind",
+			Source:      tracingSocket,
+			Options:     []string{"ro", "rbind"},
+		})
+	}
+
+	s.Mounts = dedupMounts(s.Mounts)
 	return s, releaseAll, nil
 }
 
@@ -158,7 +211,7 @@ func (s *submounts) subMount(m mount.Mount, subPath string) (mount.Mount, error)
 	if s.m == nil {
 		s.m = map[uint64]mountRef{}
 	}
-	h, err := hashstructure.Hash(m, nil)
+	h, err := hashstructure.Hash(m, hashstructure.FormatV2, nil)
 	if err != nil {
 		return mount.Mount{}, nil
 	}

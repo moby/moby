@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/circbuf"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/progress"
@@ -27,12 +28,17 @@ const (
 
 var configCheckOnce sync.Once
 
-func NewLogStreams(ctx context.Context, printOutput bool) (io.WriteCloser, io.WriteCloser) {
-	return newStreamWriter(ctx, stdout, printOutput), newStreamWriter(ctx, stderr, printOutput)
+func NewLogStreams(ctx context.Context, printOutput bool) (io.WriteCloser, io.WriteCloser, func()) {
+	stdout := newStreamWriter(ctx, stdout, printOutput)
+	stderr := newStreamWriter(ctx, stderr, printOutput)
+	return stdout, stderr, func() {
+		stdout.flushBuffer()
+		stderr.flushBuffer()
+	}
 }
 
-func newStreamWriter(ctx context.Context, stream int, printOutput bool) io.WriteCloser {
-	pw, _, _ := progress.FromContext(ctx)
+func newStreamWriter(ctx context.Context, stream int, printOutput bool) *streamWriter {
+	pw, _, _ := progress.NewFromContext(ctx)
 	return &streamWriter{
 		pw:          pw,
 		stream:      stream,
@@ -49,6 +55,7 @@ type streamWriter struct {
 	size            int
 	clipping        bool
 	clipReasonSpeed bool
+	buf             *circbuf.Buffer
 }
 
 func (sw *streamWriter) checkLimit(n int) int {
@@ -97,7 +104,19 @@ func (sw *streamWriter) clipLimitMessage() string {
 
 func (sw *streamWriter) Write(dt []byte) (int, error) {
 	oldSize := len(dt)
-	dt = append([]byte{}, dt[:sw.checkLimit(len(dt))]...)
+	limit := sw.checkLimit(len(dt))
+	if sw.buf == nil && limit < len(dt) {
+		var err error
+		sw.buf, err = circbuf.NewBuffer(256 * 1024)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if sw.buf != nil {
+		sw.buf.Write(dt)
+	}
+
+	dt = append([]byte{}, dt[:limit]...)
 
 	if sw.clipping && oldSize == len(dt) {
 		sw.clipping = false
@@ -107,23 +126,40 @@ func (sw *streamWriter) Write(dt []byte) (int, error) {
 		sw.clipping = true
 	}
 
-	if len(dt) != 0 {
-		sw.pw.Write(identity.NewID(), client.VertexLog{
-			Stream: sw.stream,
-			Data:   dt,
-		})
-		if sw.printOutput {
-			switch sw.stream {
-			case 1:
-				return os.Stdout.Write(dt)
-			case 2:
-				return os.Stderr.Write(dt)
-			default:
-				return 0, errors.Errorf("invalid stream %d", sw.stream)
-			}
-		}
+	_, err := sw.write(dt)
+	if err != nil {
+		return 0, err
 	}
 	return oldSize, nil
+}
+
+func (sw *streamWriter) write(dt []byte) (int, error) {
+	if len(dt) == 0 {
+		return 0, nil
+	}
+	sw.pw.Write(identity.NewID(), client.VertexLog{
+		Stream: sw.stream,
+		Data:   dt,
+	})
+	if sw.printOutput {
+		switch sw.stream {
+		case 1:
+			return os.Stdout.Write(dt)
+		case 2:
+			return os.Stderr.Write(dt)
+		default:
+			return 0, errors.Errorf("invalid stream %d", sw.stream)
+		}
+	}
+	return len(dt), nil
+}
+
+func (sw *streamWriter) flushBuffer() {
+	if sw.buf == nil {
+		return
+	}
+	_, _ = sw.write(sw.buf.Bytes())
+	sw.buf = nil
 }
 
 func (sw *streamWriter) Close() error {
@@ -132,7 +168,7 @@ func (sw *streamWriter) Close() error {
 
 func LoggerFromContext(ctx context.Context) func([]byte) {
 	return func(dt []byte) {
-		pw, _, _ := progress.FromContext(ctx)
+		pw, _, _ := progress.NewFromContext(ctx)
 		defer pw.Close()
 		pw.Write(identity.NewID(), client.VertexLog{
 			Stream: stderr,

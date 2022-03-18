@@ -1,7 +1,8 @@
+//go:build !arm
 // +build !arm
 
 package archutil
 
-func armSupported() error {
-	return check(Binaryarm)
+func armSupported() (string, error) {
+	return check("arm", Binaryarm)
 }

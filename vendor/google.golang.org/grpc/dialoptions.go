@@ -272,7 +272,7 @@ func withBackoff(bs internalbackoff.Strategy) DialOption {
 	})
 }
 
-// WithBlock returns a DialOption which makes caller of Dial blocks until the
+// WithBlock returns a DialOption which makes callers of Dial block until the
 // underlying connection is up. Without this, Dial returns immediately and
 // connecting the server happens in background.
 func WithBlock() DialOption {
@@ -304,7 +304,7 @@ func WithReturnConnectionError() DialOption {
 // WithCredentialsBundle or WithPerRPCCredentials) which require transport
 // security is incompatible and will cause grpc.Dial() to fail.
 //
-// Deprecated: use insecure.NewCredentials() instead.
+// Deprecated: use WithTransportCredentials and insecure.NewCredentials() instead.
 // Will be supported throughout 1.x.
 func WithInsecure() DialOption {
 	return newFuncDialOption(func(o *dialOptions) {

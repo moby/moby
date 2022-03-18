@@ -15,6 +15,12 @@ import (
 )
 
 func GetUser(root, username string) (uint32, uint32, []uint32, error) {
+	var isDefault bool
+	if username == "" {
+		username = "0"
+		isDefault = true
+	}
+
 	// fast path from uid/gid
 	if uid, gid, err := ParseUIDGID(username); err == nil {
 		return uid, gid, nil, nil
@@ -31,6 +37,9 @@ func GetUser(root, username string) (uint32, uint32, []uint32, error) {
 
 	execUser, err := user.GetExecUser(username, nil, passwdFile, groupFile)
 	if err != nil {
+		if isDefault {
+			return 0, 0, nil, nil
+		}
 		return 0, 0, nil, err
 	}
 	var sgids []uint32

@@ -12,11 +12,9 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/idtools"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/locker"
@@ -30,8 +28,6 @@ var errNotFound = errors.Errorf("not found")
 
 var defaultManager *cacheManager
 var defaultManagerOnce sync.Once
-
-const keyContentHash = "buildkit.contenthash.v0"
 
 func getDefaultManager() *cacheManager {
 	defaultManagerOnce.Do(func() {
@@ -58,15 +54,15 @@ func Checksum(ctx context.Context, ref cache.ImmutableRef, path string, opts Che
 	return getDefaultManager().Checksum(ctx, ref, path, opts, s)
 }
 
-func GetCacheContext(ctx context.Context, md *metadata.StorageItem, idmap *idtools.IdentityMapping) (CacheContext, error) {
-	return getDefaultManager().GetCacheContext(ctx, md, idmap)
+func GetCacheContext(ctx context.Context, md cache.RefMetadata) (CacheContext, error) {
+	return getDefaultManager().GetCacheContext(ctx, md)
 }
 
-func SetCacheContext(ctx context.Context, md *metadata.StorageItem, cc CacheContext) error {
+func SetCacheContext(ctx context.Context, md cache.RefMetadata, cc CacheContext) error {
 	return getDefaultManager().SetCacheContext(ctx, md, cc)
 }
 
-func ClearCacheContext(md *metadata.StorageItem) {
+func ClearCacheContext(md cache.RefMetadata) {
 	getDefaultManager().clearCacheContext(md.ID())
 }
 
@@ -79,9 +75,12 @@ type Hashed interface {
 	Digest() digest.Digest
 }
 
-type IncludedPath struct {
-	Path   string
-	Record *CacheRecord
+type includedPath struct {
+	path             string
+	record           *CacheRecord
+	included         bool
+	includeMatchInfo fileutils.MatchInfo
+	excludeMatchInfo fileutils.MatchInfo
 }
 
 type cacheManager struct {
@@ -91,14 +90,20 @@ type cacheManager struct {
 }
 
 func (cm *cacheManager) Checksum(ctx context.Context, ref cache.ImmutableRef, p string, opts ChecksumOpts, s session.Group) (digest.Digest, error) {
-	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref.Metadata()), ref.IdentityMapping())
+	if ref == nil {
+		if p == "/" {
+			return digest.FromBytes(nil), nil
+		}
+		return "", errors.Errorf("%s: no such file or directory", p)
+	}
+	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref))
 	if err != nil {
 		return "", nil
 	}
 	return cc.Checksum(ctx, ref, p, opts, s)
 }
 
-func (cm *cacheManager) GetCacheContext(ctx context.Context, md *metadata.StorageItem, idmap *idtools.IdentityMapping) (CacheContext, error) {
+func (cm *cacheManager) GetCacheContext(ctx context.Context, md cache.RefMetadata) (CacheContext, error) {
 	cm.locker.Lock(md.ID())
 	cm.lruMu.Lock()
 	v, ok := cm.lru.Get(md.ID())
@@ -108,7 +113,7 @@ func (cm *cacheManager) GetCacheContext(ctx context.Context, md *metadata.Storag
 		v.(*cacheContext).linkMap = map[string][][]byte{}
 		return v.(*cacheContext), nil
 	}
-	cc, err := newCacheContext(md, idmap)
+	cc, err := newCacheContext(md)
 	if err != nil {
 		cm.locker.Unlock(md.ID())
 		return nil, err
@@ -120,14 +125,14 @@ func (cm *cacheManager) GetCacheContext(ctx context.Context, md *metadata.Storag
 	return cc, nil
 }
 
-func (cm *cacheManager) SetCacheContext(ctx context.Context, md *metadata.StorageItem, cci CacheContext) error {
+func (cm *cacheManager) SetCacheContext(ctx context.Context, md cache.RefMetadata, cci CacheContext) error {
 	cc, ok := cci.(*cacheContext)
 	if !ok {
 		return errors.Errorf("invalid cachecontext: %T", cc)
 	}
 	if md.ID() != cc.md.ID() {
 		cc = &cacheContext{
-			md:       md,
+			md:       cacheMetadata{md},
 			tree:     cci.(*cacheContext).tree,
 			dirtyMap: map[string]struct{}{},
 			linkMap:  map[string][][]byte{},
@@ -151,7 +156,7 @@ func (cm *cacheManager) clearCacheContext(id string) {
 
 type cacheContext struct {
 	mu    sync.RWMutex
-	md    *metadata.StorageItem
+	md    cacheMetadata
 	tree  *iradix.Tree
 	dirty bool // needs to be persisted to disk
 
@@ -160,7 +165,20 @@ type cacheContext struct {
 	node     *iradix.Node
 	dirtyMap map[string]struct{}
 	linkMap  map[string][][]byte
-	idmap    *idtools.IdentityMapping
+}
+
+type cacheMetadata struct {
+	cache.RefMetadata
+}
+
+const keyContentHash = "buildkit.contenthash.v0"
+
+func (md cacheMetadata) GetContentHash() ([]byte, error) {
+	return md.GetExternal(keyContentHash)
+}
+
+func (md cacheMetadata) SetContentHash(dt []byte) error {
+	return md.SetExternal(keyContentHash, dt)
 }
 
 type mount struct {
@@ -201,13 +219,12 @@ func (m *mount) clean() error {
 	return nil
 }
 
-func newCacheContext(md *metadata.StorageItem, idmap *idtools.IdentityMapping) (*cacheContext, error) {
+func newCacheContext(md cache.RefMetadata) (*cacheContext, error) {
 	cc := &cacheContext{
-		md:       md,
+		md:       cacheMetadata{md},
 		tree:     iradix.New(),
 		dirtyMap: map[string]struct{}{},
 		linkMap:  map[string][][]byte{},
-		idmap:    idmap,
 	}
 	if err := cc.load(); err != nil {
 		return nil, err
@@ -216,7 +233,7 @@ func newCacheContext(md *metadata.StorageItem, idmap *idtools.IdentityMapping) (
 }
 
 func (cc *cacheContext) load() error {
-	dt, err := cc.md.GetExternal(keyContentHash)
+	dt, err := cc.md.GetContentHash()
 	if err != nil {
 		return nil
 	}
@@ -257,7 +274,7 @@ func (cc *cacheContext) save() error {
 		return err
 	}
 
-	return cc.md.SetExternal(keyContentHash, dt)
+	return cc.md.SetContentHash(dt)
 }
 
 func keyPath(p string) string {
@@ -398,12 +415,12 @@ func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable,
 
 	if opts.FollowLinks {
 		for i, w := range includedPaths {
-			if w.Record.Type == CacheRecordTypeSymlink {
-				dgst, err := cc.checksumFollow(ctx, m, w.Path, opts.FollowLinks)
+			if w.record.Type == CacheRecordTypeSymlink {
+				dgst, err := cc.checksumFollow(ctx, m, w.path, opts.FollowLinks)
 				if err != nil {
 					return "", err
 				}
-				includedPaths[i].Record = &CacheRecord{Digest: dgst}
+				includedPaths[i].record = &CacheRecord{Digest: dgst}
 			}
 		}
 	}
@@ -411,8 +428,8 @@ func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable,
 		return digest.FromBytes([]byte{}), nil
 	}
 
-	if len(includedPaths) == 1 && path.Base(p) == path.Base(includedPaths[0].Path) {
-		return includedPaths[0].Record.Digest, nil
+	if len(includedPaths) == 1 && path.Base(p) == path.Base(includedPaths[0].path) {
+		return includedPaths[0].record.Digest, nil
 	}
 
 	digester := digest.Canonical.Digester()
@@ -420,8 +437,8 @@ func (cc *cacheContext) Checksum(ctx context.Context, mountable cache.Mountable,
 		if i != 0 {
 			digester.Hash().Write([]byte{0})
 		}
-		digester.Hash().Write([]byte(path.Base(w.Path)))
-		digester.Hash().Write([]byte(w.Record.Digest))
+		digester.Hash().Write([]byte(path.Base(w.path)))
+		digester.Hash().Write([]byte(w.record.Digest))
 	}
 	return digester.Digest(), nil
 }
@@ -450,7 +467,7 @@ func (cc *cacheContext) checksumFollow(ctx context.Context, m *mount, p string, 
 	}
 }
 
-func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, opts ChecksumOpts) ([]*IncludedPath, error) {
+func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, opts ChecksumOpts) ([]*includedPath, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 
@@ -481,11 +498,7 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 
 	var includePatternMatcher *fileutils.PatternMatcher
 	if len(opts.IncludePatterns) != 0 {
-		rootedIncludePatterns := make([]string, len(opts.IncludePatterns))
-		for i, includePattern := range opts.IncludePatterns {
-			rootedIncludePatterns[i] = keyPath(includePattern)
-		}
-		includePatternMatcher, err = fileutils.NewPatternMatcher(rootedIncludePatterns)
+		includePatternMatcher, err = fileutils.NewPatternMatcher(opts.IncludePatterns)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid includepatterns: %s", opts.IncludePatterns)
 		}
@@ -493,51 +506,89 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 
 	var excludePatternMatcher *fileutils.PatternMatcher
 	if len(opts.ExcludePatterns) != 0 {
-		rootedExcludePatterns := make([]string, len(opts.ExcludePatterns))
-		for i, excludePattern := range opts.ExcludePatterns {
-			rootedExcludePatterns[i] = keyPath(excludePattern)
-		}
-		excludePatternMatcher, err = fileutils.NewPatternMatcher(rootedExcludePatterns)
+		excludePatternMatcher, err = fileutils.NewPatternMatcher(opts.ExcludePatterns)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid excludepatterns: %s", opts.ExcludePatterns)
 		}
 	}
 
-	includedPaths := make([]*IncludedPath, 0, 2)
+	includedPaths := make([]*includedPath, 0, 2)
 
 	txn := cc.tree.Txn()
 	root = txn.Root()
 	var (
-		updated bool
-		iter    *iradix.Seeker
-		k       []byte
-		kOk     bool
+		updated        bool
+		iter           *iradix.Iterator
+		k              []byte
+		keyOk          bool
+		origPrefix     string
+		resolvedPrefix string
 	)
 
+	iter = root.Iterator()
+
 	if opts.Wildcard {
-		iter = root.Seek([]byte{})
-		k, _, kOk = iter.Next()
-	} else {
-		k = convertPathToKey([]byte(p))
-		if _, kOk = root.Get(k); kOk {
-			iter = root.Seek(k)
+		origPrefix, k, keyOk, err = wildcardPrefix(root, p)
+		if err != nil {
+			return nil, err
 		}
+	} else {
+		origPrefix = p
+		k = convertPathToKey([]byte(origPrefix))
+
+		// We need to resolve symlinks here, in case the base path
+		// involves a symlink. That will match fsutil behavior of
+		// calling functions such as stat and walk.
+		var cr *CacheRecord
+		k, cr, err = getFollowLinks(root, k, true)
+		if err != nil {
+			return nil, err
+		}
+		keyOk = (cr != nil)
+	}
+
+	if origPrefix != "" {
+		if keyOk {
+			iter.SeekLowerBound(append(append([]byte{}, k...), 0))
+		}
+
+		resolvedPrefix = string(convertKeyToPath(k))
+	} else {
+		k, _, keyOk = iter.Next()
 	}
 
 	var (
-		parentDirHeaders []*IncludedPath
+		parentDirHeaders []*includedPath
 		lastMatchedDir   string
 	)
 
-	for kOk {
+	for keyOk {
 		fn := string(convertKeyToPath(k))
+
+		// Convert the path prefix from what we found in the prefix
+		// tree to what the argument specified.
+		//
+		// For example, if the original 'p' argument was /a/b and there
+		// is a symlink a->c, we want fn to be /a/b/foo rather than
+		// /c/b/foo. This is necessary to ensure correct pattern
+		// matching.
+		//
+		// When wildcards are enabled, this translation applies to the
+		// portion of 'p' before any wildcards.
+		if strings.HasPrefix(fn, resolvedPrefix) {
+			fn = origPrefix + strings.TrimPrefix(fn, resolvedPrefix)
+		}
 
 		for len(parentDirHeaders) != 0 {
 			lastParentDir := parentDirHeaders[len(parentDirHeaders)-1]
-			if strings.HasPrefix(fn, lastParentDir.Path+"/") {
+			if strings.HasPrefix(fn, lastParentDir.path+"/") {
 				break
 			}
 			parentDirHeaders = parentDirHeaders[:len(parentDirHeaders)-1]
+		}
+		var parentDir *includedPath
+		if len(parentDirHeaders) != 0 {
+			parentDir = parentDirHeaders[len(parentDirHeaders)-1]
 		}
 
 		dirHeader := false
@@ -546,33 +597,55 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 			fn = fn[:len(fn)-1]
 			if fn == p && endsInSep {
 				// We don't include the metadata header for a source dir which ends with a separator
-				k, _, kOk = iter.Next()
+				k, _, keyOk = iter.Next()
 				continue
 			}
 		}
+
+		maybeIncludedPath := &includedPath{path: fn}
+		var shouldInclude bool
 		if opts.Wildcard {
-			if lastMatchedDir == "" || !strings.HasPrefix(fn, lastMatchedDir+"/") {
+			if p != "" && (lastMatchedDir == "" || !strings.HasPrefix(fn, lastMatchedDir+"/")) {
 				include, err := path.Match(p, fn)
 				if err != nil {
 					return nil, err
 				}
 				if !include {
-					k, _, kOk = iter.Next()
+					k, _, keyOk = iter.Next()
 					continue
 				}
 				lastMatchedDir = fn
 			}
-		} else if !strings.HasPrefix(fn+"/", p+"/") {
-			k, _, kOk = iter.Next()
-			continue
+
+			shouldInclude, err = shouldIncludePath(
+				strings.TrimSuffix(strings.TrimPrefix(fn+"/", lastMatchedDir+"/"), "/"),
+				includePatternMatcher,
+				excludePatternMatcher,
+				maybeIncludedPath,
+				parentDir,
+			)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			if !strings.HasPrefix(fn+"/", p+"/") {
+				break
+			}
+
+			shouldInclude, err = shouldIncludePath(
+				strings.TrimSuffix(strings.TrimPrefix(fn+"/", p+"/"), "/"),
+				includePatternMatcher,
+				excludePatternMatcher,
+				maybeIncludedPath,
+				parentDir,
+			)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		shouldInclude, err := shouldIncludePath(p, fn, includePatternMatcher, excludePatternMatcher)
-		if err != nil {
-			return nil, err
-		}
 		if !shouldInclude && !dirHeader {
-			k, _, kOk = iter.Next()
+			k, _, keyOk = iter.Next()
 			continue
 		}
 
@@ -590,19 +663,28 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 			// dir.
 			shouldInclude = false
 		}
+		maybeIncludedPath.record = cr
 
-		if !shouldInclude {
-			if cr.Type == CacheRecordTypeDirHeader {
-				// We keep track of non-included parent dir headers in case an
-				// include pattern matches a file inside one of these dirs.
-				parentDirHeaders = append(parentDirHeaders, &IncludedPath{Path: fn, Record: cr})
+		if shouldInclude {
+			for _, parentDir := range parentDirHeaders {
+				if !parentDir.included {
+					includedPaths = append(includedPaths, parentDir)
+					parentDir.included = true
+				}
 			}
-		} else {
-			includedPaths = append(includedPaths, parentDirHeaders...)
-			parentDirHeaders = nil
-			includedPaths = append(includedPaths, &IncludedPath{Path: fn, Record: cr})
+			includedPaths = append(includedPaths, maybeIncludedPath)
+			maybeIncludedPath.included = true
 		}
-		k, _, kOk = iter.Next()
+
+		if cr.Type == CacheRecordTypeDirHeader {
+			// We keep track of parent dir headers whether
+			// they are immediately included or not, in case
+			// an include pattern matches a file inside one
+			// of these dirs.
+			parentDirHeaders = append(parentDirHeaders, maybeIncludedPath)
+		}
+
+		k, _, keyOk = iter.Next()
 	}
 
 	cc.tree = txn.Commit()
@@ -612,32 +694,124 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 }
 
 func shouldIncludePath(
-	p string,
 	candidate string,
 	includePatternMatcher *fileutils.PatternMatcher,
 	excludePatternMatcher *fileutils.PatternMatcher,
+	maybeIncludedPath *includedPath,
+	parentDir *includedPath,
 ) (bool, error) {
+	var (
+		m         bool
+		matchInfo fileutils.MatchInfo
+		err       error
+	)
 	if includePatternMatcher != nil {
-		m, err := includePatternMatcher.Matches(filepath.FromSlash(candidate))
+		if parentDir != nil {
+			m, matchInfo, err = includePatternMatcher.MatchesUsingParentResults(candidate, parentDir.includeMatchInfo)
+		} else {
+			m, matchInfo, err = includePatternMatcher.MatchesUsingParentResults(candidate, fileutils.MatchInfo{})
+		}
 		if err != nil {
 			return false, errors.Wrap(err, "failed to match includepatterns")
 		}
+		maybeIncludedPath.includeMatchInfo = matchInfo
 		if !m {
 			return false, nil
 		}
 	}
 
 	if excludePatternMatcher != nil {
-		m, err := excludePatternMatcher.Matches(filepath.FromSlash(candidate))
+		if parentDir != nil {
+			m, matchInfo, err = excludePatternMatcher.MatchesUsingParentResults(candidate, parentDir.excludeMatchInfo)
+		} else {
+			m, matchInfo, err = excludePatternMatcher.MatchesUsingParentResults(candidate, fileutils.MatchInfo{})
+		}
 		if err != nil {
 			return false, errors.Wrap(err, "failed to match excludepatterns")
 		}
+		maybeIncludedPath.excludeMatchInfo = matchInfo
 		if m {
 			return false, nil
 		}
 	}
 
 	return true, nil
+}
+
+func wildcardPrefix(root *iradix.Node, p string) (string, []byte, bool, error) {
+	// For consistency with what the copy implementation in fsutil
+	// does: split pattern into non-wildcard prefix and rest of
+	// pattern, then follow symlinks when resolving the non-wildcard
+	// prefix.
+
+	d1, d2 := splitWildcards(p)
+	if d1 == "/" {
+		return "", nil, false, nil
+	}
+
+	linksWalked := 0
+	k, cr, err := getFollowLinksWalk(root, convertPathToKey([]byte(d1)), true, &linksWalked)
+	if err != nil {
+		return "", k, false, err
+	}
+
+	if d2 != "" && cr != nil && cr.Type == CacheRecordTypeSymlink {
+		// getFollowLinks only handles symlinks in path
+		// components before the last component, so
+		// handle last component in d1 specially.
+		resolved := string(convertKeyToPath(k))
+		for {
+			v, ok := root.Get(k)
+
+			if !ok {
+				return d1, k, false, nil
+			}
+			if v.(*CacheRecord).Type != CacheRecordTypeSymlink {
+				break
+			}
+
+			linksWalked++
+			if linksWalked > 255 {
+				return "", k, false, errors.Errorf("too many links")
+			}
+
+			resolved := cleanLink(resolved, v.(*CacheRecord).Linkname)
+			k = convertPathToKey([]byte(resolved))
+		}
+	}
+	return d1, k, cr != nil, nil
+}
+
+func splitWildcards(p string) (d1, d2 string) {
+	parts := strings.Split(path.Join(p), "/")
+	var p1, p2 []string
+	var found bool
+	for _, p := range parts {
+		if !found && containsWildcards(p) {
+			found = true
+		}
+		if p == "" {
+			p = "/"
+		}
+		if !found {
+			p1 = append(p1, p)
+		} else {
+			p2 = append(p2, p)
+		}
+	}
+	return filepath.Join(p1...), filepath.Join(p2...)
+}
+
+func containsWildcards(name string) bool {
+	for i := 0; i < len(name); i++ {
+		ch := name[i]
+		if ch == '\\' {
+			i++
+		} else if ch == '*' || ch == '?' || ch == '[' {
+			return true
+		}
+	}
+	return false
 }
 
 func (cc *cacheContext) checksumNoFollow(ctx context.Context, m *mount, p string) (*CacheRecord, error) {
@@ -721,7 +895,7 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *ir
 		return nil, false, err
 	}
 	if cr == nil {
-		return nil, false, errors.Wrapf(errNotFound, "%q not found", convertKeyToPath(origk))
+		return nil, false, errors.Wrapf(errNotFound, "%q", convertKeyToPath(origk))
 	}
 	if cr.Digest != "" {
 		return cr, false, nil
@@ -732,7 +906,8 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *ir
 	case CacheRecordTypeDir:
 		h := sha256.New()
 		next := append(k, 0)
-		iter := root.Seek(next)
+		iter := root.Iterator()
+		iter.SeekLowerBound(append(append([]byte{}, next...), 0))
 		subk := next
 		ok := true
 		for {
@@ -750,7 +925,8 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *ir
 
 			if subcr.Type == CacheRecordTypeDir { // skip subfiles
 				next := append(subk, 0, 0xff)
-				iter = root.Seek(next)
+				iter = root.Iterator()
+				iter.SeekLowerBound(next)
 			}
 			subk, _, ok = iter.Next()
 		}
@@ -919,14 +1095,8 @@ func getFollowLinksWalk(root *iradix.Node, k []byte, follow bool, linksWalked *i
 			if *linksWalked > 255 {
 				return nil, nil, errors.Errorf("too many links")
 			}
-			dirPath := path.Clean(string(convertKeyToPath(dir)))
-			if dirPath == "." || dirPath == "/" {
-				dirPath = ""
-			}
-			link := path.Clean(parent.Linkname)
-			if !path.IsAbs(link) {
-				link = path.Join("/", path.Join(path.Dir(dirPath), link))
-			}
+
+			link := cleanLink(string(convertKeyToPath(dir)), parent.Linkname)
 			return getFollowLinksWalk(root, append(convertPathToKey([]byte(link)), file...), follow, linksWalked)
 		}
 	}
@@ -936,6 +1106,18 @@ func getFollowLinksWalk(root *iradix.Node, k []byte, follow bool, linksWalked *i
 		return k, v.(*CacheRecord), nil
 	}
 	return k, nil, nil
+}
+
+func cleanLink(dir, linkname string) string {
+	dirPath := path.Clean(dir)
+	if dirPath == "." || dirPath == "/" {
+		dirPath = ""
+	}
+	link := path.Clean(linkname)
+	if !path.IsAbs(link) {
+		return path.Join("/", path.Join(path.Dir(dirPath), link))
+	}
+	return link
 }
 
 func prepareDigest(fp, p string, fi os.FileInfo) (digest.Digest, error) {
@@ -970,20 +1152,12 @@ func addParentToMap(d string, m map[string]struct{}) {
 	addParentToMap(d, m)
 }
 
-func ensureOriginMetadata(md *metadata.StorageItem) *metadata.StorageItem {
-	v := md.Get("cache.equalMutable") // TODO: const
-	if v == nil {
-		return md
+func ensureOriginMetadata(md cache.RefMetadata) cache.RefMetadata {
+	em, ok := md.GetEqualMutable()
+	if !ok {
+		em = md
 	}
-	var mutable string
-	if err := v.Unmarshal(&mutable); err != nil {
-		return md
-	}
-	si, ok := md.Storage().Get(mutable)
-	if ok {
-		return si
-	}
-	return md
+	return em
 }
 
 var pool32K = sync.Pool{

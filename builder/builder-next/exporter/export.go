@@ -14,7 +14,6 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -48,20 +47,12 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 	for k, v := range opt {
 		switch k {
 		case keyImageName:
-			for _, v := range strings.Split(v, ",") {
-				ref, err := distref.ParseNormalizedNamed(v)
-				if err != nil {
-					return nil, err
-				}
-				i.targetNames = append(i.targetNames, ref)
-			}
-		case exptypes.ExporterImageConfigKey:
+			i.targetName = v
+		default:
 			if i.meta == nil {
 				i.meta = make(map[string][]byte)
 			}
 			i.meta[k] = []byte(v)
-		default:
-			logrus.Warnf("image exporter: unknown option %s", k)
 		}
 	}
 	return i, nil
@@ -69,12 +60,16 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 
 type imageExporterInstance struct {
 	*imageExporter
-	targetNames []distref.Named
-	meta        map[string][]byte
+	targetName string
+	meta       map[string][]byte
 }
 
 func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
+}
+
+func (e *imageExporterInstance) Config() exporter.Config {
+	return exporter.Config{}
 }
 
 func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {
@@ -115,7 +110,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	if ref != nil {
 		layersDone := oneOffProgress(ctx, "exporting layers")
 
-		if err := ref.Finalize(ctx, true); err != nil {
+		if err := ref.Finalize(ctx); err != nil {
 			return nil, layersDone(err)
 		}
 
@@ -162,10 +157,14 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	_ = configDone(nil)
 
 	if e.opt.ReferenceStore != nil {
-		for _, targetName := range e.targetNames {
-			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
-
-			if err := e.opt.ReferenceStore.AddTag(targetName, digest.Digest(id), true); err != nil {
+		targetNames := strings.Split(e.targetName, ",")
+		for _, targetName := range targetNames {
+			tagDone := oneOffProgress(ctx, "naming to "+targetName)
+			tref, err := distref.ParseNormalizedNamed(targetName)
+			if err != nil {
+				return nil, err
+			}
+			if err := e.opt.ReferenceStore.AddTag(tref, digest.Digest(id), true); err != nil {
 				return nil, tagDone(err)
 			}
 			_ = tagDone(nil)
@@ -173,6 +172,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	}
 
 	return map[string]string{
-		"containerimage.digest": id.String(),
+		exptypes.ExporterImageConfigDigestKey: configDigest.String(),
+		exptypes.ExporterImageDigestKey:       id.String(),
 	}, nil
 }

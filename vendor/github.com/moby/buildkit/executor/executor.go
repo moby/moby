@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"syscall"
 
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/pb"
@@ -18,6 +19,8 @@ type Meta struct {
 	Tty            bool
 	ReadonlyRootFS bool
 	ExtraHosts     []HostIP
+	Ulimit         []*pb.Ulimit
+	CgroupParent   string
 	NetMode        pb.NetMode
 	SecurityMode   pb.SecurityMode
 }
@@ -43,6 +46,7 @@ type ProcessInfo struct {
 	Stdin          io.ReadCloser
 	Stdout, Stderr io.WriteCloser
 	Resize         <-chan WinSize
+	Signal         <-chan syscall.Signal
 }
 
 type Executor interface {

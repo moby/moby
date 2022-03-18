@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package snapshot
@@ -15,7 +16,7 @@ func (lm *localMounter) Mount() (string, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	if lm.mounts == nil {
+	if lm.mounts == nil && lm.mountable != nil {
 		mounts, release, err := lm.mountable.Mount()
 		if err != nil {
 			return "", err

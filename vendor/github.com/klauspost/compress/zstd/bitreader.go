@@ -7,6 +7,7 @@ package zstd
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math/bits"
 )
@@ -132,6 +133,9 @@ func (b *bitReader) remain() uint {
 func (b *bitReader) close() error {
 	// Release reference.
 	b.in = nil
+	if !b.finished() {
+		return fmt.Errorf("%d extra bits on block, should be 0", b.remain())
+	}
 	if b.bitsRead > 64 {
 		return io.ErrUnexpectedEOF
 	}

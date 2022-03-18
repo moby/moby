@@ -7,14 +7,14 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/remotes"
+	"github.com/moby/buildkit/util/resolver/limited"
 	"github.com/moby/buildkit/util/resolver/retryhandler"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func Copy(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispec.Descriptor, logger func([]byte)) error {
-	if _, err := retryhandler.New(remotes.FetchHandler(ingester, &localFetcher{provider}), logger)(ctx, desc); err != nil {
+func Copy(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor, ref string, logger func([]byte)) error {
+	if _, err := retryhandler.New(limited.FetchHandler(ingester, &localFetcher{provider}, ref), logger)(ctx, desc); err != nil {
 		return err
 	}
 	return nil
@@ -24,7 +24,7 @@ type localFetcher struct {
 	content.Provider
 }
 
-func (f *localFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
+func (f *localFetcher) Fetch(ctx context.Context, desc ocispecs.Descriptor) (io.ReadCloser, error) {
 	r, err := f.Provider.ReaderAt(ctx, desc)
 	if err != nil {
 		return nil, err
@@ -34,26 +34,38 @@ func (f *localFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 
 type rc struct {
 	content.ReaderAt
-	offset int
+	offset int64
 }
 
 func (r *rc) Read(b []byte) (int, error) {
-	n, err := r.ReadAt(b, int64(r.offset))
-	r.offset += n
+	n, err := r.ReadAt(b, r.offset)
+	r.offset += int64(n)
 	if n > 0 && err == io.EOF {
 		err = nil
 	}
 	return n, err
 }
 
-func CopyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispec.Descriptor) error {
-	var m sync.Mutex
-	manifestStack := []ocispec.Descriptor{}
+func (r *rc) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	case io.SeekStart:
+		r.offset = offset
+	case io.SeekCurrent:
+		r.offset += offset
+	case io.SeekEnd:
+		r.offset = r.Size() - offset
+	}
+	return r.offset, nil
+}
 
-	filterHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+func CopyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor) error {
+	var m sync.Mutex
+	manifestStack := []ocispecs.Descriptor{}
+
+	filterHandler := images.HandlerFunc(func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
 		switch desc.MediaType {
-		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
-			images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+		case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest,
+			images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
 			m.Lock()
 			manifestStack = append(manifestStack, desc)
 			m.Unlock()
@@ -65,7 +77,7 @@ func CopyChain(ctx context.Context, ingester content.Ingester, provider content.
 	handlers := []images.Handler{
 		images.ChildrenHandler(provider),
 		filterHandler,
-		retryhandler.New(remotes.FetchHandler(ingester, &localFetcher{provider}), func(_ []byte) {}),
+		retryhandler.New(limited.FetchHandler(ingester, &localFetcher{provider}, ""), func(_ []byte) {}),
 	}
 
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
@@ -73,7 +85,7 @@ func CopyChain(ctx context.Context, ingester content.Ingester, provider content.
 	}
 
 	for i := len(manifestStack) - 1; i >= 0; i-- {
-		if err := Copy(ctx, ingester, provider, manifestStack[i], nil); err != nil {
+		if err := Copy(ctx, ingester, provider, manifestStack[i], "", nil); err != nil {
 			return errors.WithStack(err)
 		}
 	}

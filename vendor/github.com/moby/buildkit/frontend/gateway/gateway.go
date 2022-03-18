@@ -7,12 +7,16 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/mount"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/gogo/googleapis/google/rpc"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/golang/protobuf/ptypes/any"
@@ -25,23 +29,25 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
 	gwclient "github.com/moby/buildkit/frontend/gateway/client"
-	gwerrdefs "github.com/moby/buildkit/frontend/gateway/errdefs"
 	pb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/errdefs"
 	llberrdefs "github.com/moby/buildkit/solver/llbsolver/errdefs"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/buildinfo"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/stack"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/worker"
-	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/sys/signal"
+	digest "github.com/opencontainers/go-digest"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
 	"golang.org/x/sync/errgroup"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
@@ -84,10 +90,12 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	}
 
 	_, isDevel := opts[keyDevel]
-	var img specs.Image
+	var img ocispecs.Image
 	var mfstDigest digest.Digest
 	var rootFS cache.MutableRef
 	var readonly bool // TODO: try to switch to read-only by default.
+
+	var frontendDef *opspb.Definition
 
 	if isDevel {
 		devRes, err := llbBridge.Solve(ctx,
@@ -107,10 +115,12 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		if devRes.Ref == nil {
 			return nil, errors.Errorf("development gateway didn't return default result")
 		}
+		frontendDef = devRes.Ref.Definition()
 		res, err := devRes.Ref.Result(ctx)
 		if err != nil {
 			return nil, err
 		}
+
 		workerRef, ok := res.Sys().(*worker.WorkerRef)
 		if !ok {
 			return nil, errors.Errorf("invalid ref: %T", res.Sys())
@@ -170,8 +180,8 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		}()
 		if res.Ref == nil {
 			return nil, errors.Errorf("gateway source didn't return default result")
-
 		}
+		frontendDef = res.Ref.Definition()
 		r, err := res.Ref.Result(ctx)
 		if err != nil {
 			return nil, err
@@ -253,7 +263,19 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		return nil, err
 	}
 
-	err = w.Executor().Run(ctx, "", mountWithSession(rootFS, session.NewGroup(sid)), nil, executor.ProcessInfo{Meta: meta, Stdin: lbf.Stdin, Stdout: lbf.Stdout, Stderr: os.Stderr}, nil)
+	mdmnt, release, err := metadataMount(frontendDef)
+	if err != nil {
+		return nil, err
+	}
+	if release != nil {
+		defer release()
+	}
+	var mnts []executor.Mount
+	if mdmnt != nil {
+		mnts = append(mnts, *mdmnt)
+	}
+
+	err = w.Executor().Run(ctx, "", mountWithSession(rootFS, session.NewGroup(sid)), mnts, executor.ProcessInfo{Meta: meta, Stdin: lbf.Stdin, Stdout: lbf.Stdout, Stderr: os.Stderr}, nil)
 
 	if err != nil {
 		if errdefs.IsCanceled(err) && lbf.isErrServerClosed {
@@ -271,6 +293,53 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	}
 
 	return lbf.Result()
+}
+
+func metadataMount(def *opspb.Definition) (*executor.Mount, func(), error) {
+	dt, err := def.Marshal()
+	if err != nil {
+		return nil, nil, err
+	}
+	dir, err := os.MkdirTemp("", "buildkit-metadata")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "frontend.bin"), dt, 0400); err != nil {
+		return nil, nil, err
+	}
+
+	return &executor.Mount{
+			Src:      &bind{dir},
+			Dest:     "/run/config/buildkit/metadata",
+			Readonly: true,
+		}, func() {
+			os.RemoveAll(dir)
+		}, nil
+}
+
+type bind struct {
+	dir string
+}
+
+func (b *bind) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
+	return &bindMount{b.dir, readonly}, nil
+}
+
+type bindMount struct {
+	dir      string
+	readonly bool
+}
+
+func (b *bindMount) Mount() ([]mount.Mount, func() error, error) {
+	return []mount.Mount{{
+		Type:    "bind",
+		Source:  b.dir,
+		Options: []string{"bind", "ro"},
+	}}, func() error { return nil }, nil
+}
+func (b *bindMount) IdentityMapping() *idtools.IdentityMapping {
+	return nil
 }
 
 func (lbf *llbBridgeForwarder) Discard() {
@@ -460,9 +529,9 @@ type llbBridgeForwarder struct {
 
 func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.ResolveImageConfigRequest) (*pb.ResolveImageConfigResponse, error) {
 	ctx = tracing.ContextWithSpanFromContext(ctx, lbf.callCtx)
-	var platform *specs.Platform
+	var platform *ocispecs.Platform
 	if p := req.Platform; p != nil {
-		platform = &specs.Platform{
+		platform = &ocispecs.Platform{
 			OS:           p.OS,
 			Architecture: p.Architecture,
 			Variant:      p.Variant,
@@ -595,6 +664,16 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 			if ref == nil {
 				id = ""
 			} else {
+				dtbi, err := buildinfo.Encode(ctx, pbRes.Metadata, fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k), ref.BuildSources())
+				if err != nil {
+					return nil, err
+				}
+				if dtbi != nil && len(dtbi) > 0 {
+					if pbRes.Metadata == nil {
+						pbRes.Metadata = make(map[string][]byte)
+					}
+					pbRes.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k)] = dtbi
+				}
 				lbf.refs[id] = ref
 			}
 			ids[k] = id
@@ -618,6 +697,16 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 		if ref == nil {
 			id = ""
 		} else {
+			dtbi, err := buildinfo.Encode(ctx, pbRes.Metadata, exptypes.ExporterBuildInfo, ref.BuildSources())
+			if err != nil {
+				return nil, err
+			}
+			if dtbi != nil && len(dtbi) > 0 {
+				if pbRes.Metadata == nil {
+					pbRes.Metadata = make(map[string][]byte)
+				}
+				pbRes.Metadata[exptypes.ExporterBuildInfo] = dtbi
+			}
 			def = ref.Definition()
 			lbf.refs[id] = ref
 		}
@@ -669,7 +758,7 @@ func (lbf *llbBridgeForwarder) getImmutableRef(ctx context.Context, id, path str
 		return nil, errors.Errorf("no such ref: %v", id)
 	}
 	if ref == nil {
-		return nil, errors.Wrapf(os.ErrNotExist, "%s not found", path)
+		return nil, errors.Wrap(os.ErrNotExist, path)
 	}
 
 	r, err := ref.Result(ctx)
@@ -760,7 +849,6 @@ func (lbf *llbBridgeForwarder) StatFile(ctx context.Context, req *pb.StatFileReq
 }
 
 func (lbf *llbBridgeForwarder) Ping(context.Context, *pb.PingRequest) (*pb.PongResponse, error) {
-
 	workers := lbf.workers.WorkerInfos()
 	pbWorkers := make([]*apitypes.WorkerRecord, 0, len(workers))
 	for _, w := range workers {
@@ -834,7 +922,7 @@ func (lbf *llbBridgeForwarder) Inputs(ctx context.Context, in *pb.InputsRequest)
 }
 
 func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewContainerRequest) (_ *pb.NewContainerResponse, err error) {
-	logrus.Debugf("|<--- NewContainer %s", in.ContainerID)
+	bklog.G(ctx).Debugf("|<--- NewContainer %s", in.ContainerID)
 	ctrReq := NewContainerRequest{
 		ContainerID: in.ContainerID,
 		NetMode:     in.Network,
@@ -863,7 +951,6 @@ func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewConta
 					return nil, errors.Errorf("invalid reference %T", res.Sys())
 				}
 			}
-
 		}
 		ctrReq.Mounts = append(ctrReq.Mounts, Mount{
 			WorkerRef: workerRef,
@@ -884,6 +971,11 @@ func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewConta
 	group := session.NewGroup(lbf.sid)
 
 	w, err := lbf.workers.GetDefault()
+	if err != nil {
+		return nil, stack.Enable(err)
+	}
+
+	ctrReq.ExtraHosts, err = ParseExtraHosts(in.ExtraHosts)
 	if err != nil {
 		return nil, stack.Enable(err)
 	}
@@ -909,7 +1001,7 @@ func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewConta
 }
 
 func (lbf *llbBridgeForwarder) ReleaseContainer(ctx context.Context, in *pb.ReleaseContainerRequest) (*pb.ReleaseContainerResponse, error) {
-	logrus.Debugf("|<--- ReleaseContainer %s", in.ContainerID)
+	bklog.G(ctx).Debugf("|<--- ReleaseContainer %s", in.ContainerID)
 	lbf.ctrsMu.Lock()
 	ctr, ok := lbf.ctrs[in.ContainerID]
 	delete(lbf.ctrs, in.ContainerID)
@@ -921,10 +1013,25 @@ func (lbf *llbBridgeForwarder) ReleaseContainer(ctx context.Context, in *pb.Rele
 	return &pb.ReleaseContainerResponse{}, stack.Enable(err)
 }
 
+func (lbf *llbBridgeForwarder) Warn(ctx context.Context, in *pb.WarnRequest) (*pb.WarnResponse, error) {
+	err := lbf.llbBridge.Warn(ctx, in.Digest, string(in.Short), frontend.WarnOpts{
+		Level:      int(in.Level),
+		SourceInfo: in.Info,
+		Range:      in.Ranges,
+		Detail:     in.Detail,
+		URL:        in.Url,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &pb.WarnResponse{}, nil
+}
+
 type processIO struct {
 	id       string
 	mu       sync.Mutex
 	resize   func(context.Context, gwclient.WinSize) error
+	signal   func(context.Context, syscall.Signal) error
 	done     chan struct{}
 	doneOnce sync.Once
 	// these track the process side of the io pipe for
@@ -1024,7 +1131,7 @@ type outputWriter struct {
 }
 
 func (w *outputWriter) Write(msg []byte) (int, error) {
-	logrus.Debugf("|---> File Message %s, fd=%d, %d bytes", w.processID, w.fd, len(msg))
+	bklog.G(w.stream.Context()).Debugf("|---> File Message %s, fd=%d, %d bytes", w.processID, w.fd, len(msg))
 	err := w.stream.Send(&pb.ExecMessage{
 		ProcessID: w.processID,
 		Input: &pb.ExecMessage_File{
@@ -1054,15 +1161,17 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 			}
 			switch m := execMsg.GetInput().(type) {
 			case *pb.ExecMessage_Init:
-				logrus.Debugf("|<--- Init Message %s", execMsg.ProcessID)
+				bklog.G(ctx).Debugf("|<--- Init Message %s", execMsg.ProcessID)
 			case *pb.ExecMessage_File:
 				if m.File.EOF {
-					logrus.Debugf("|<--- File Message %s, fd=%d, EOF", execMsg.ProcessID, m.File.Fd)
+					bklog.G(ctx).Debugf("|<--- File Message %s, fd=%d, EOF", execMsg.ProcessID, m.File.Fd)
 				} else {
-					logrus.Debugf("|<--- File Message %s, fd=%d, %d bytes", execMsg.ProcessID, m.File.Fd, len(m.File.Data))
+					bklog.G(ctx).Debugf("|<--- File Message %s, fd=%d, %d bytes", execMsg.ProcessID, m.File.Fd, len(m.File.Data))
 				}
 			case *pb.ExecMessage_Resize:
-				logrus.Debugf("|<--- Resize Message %s", execMsg.ProcessID)
+				bklog.G(ctx).Debugf("|<--- Resize Message %s", execMsg.ProcessID)
+			case *pb.ExecMessage_Signal:
+				bklog.G(ctx).Debugf("|<--- Signal Message %s: %s", execMsg.ProcessID, m.Signal.Name)
 			}
 			select {
 			case <-ctx.Done():
@@ -1115,6 +1224,15 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					Cols: resize.Cols,
 					Rows: resize.Rows,
 				})
+			} else if sig := execMsg.GetSignal(); sig != nil {
+				if !pioFound {
+					return stack.Enable(status.Errorf(codes.NotFound, "IO for process %q not found", pid))
+				}
+				syscallSignal, ok := signal.SignalMap[sig.Name]
+				if !ok {
+					return stack.Enable(status.Errorf(codes.InvalidArgument, "Unknown signal %s", sig.Name))
+				}
+				pio.signal(ctx, syscallSignal)
 			} else if init := execMsg.GetInit(); init != nil {
 				if pioFound {
 					return stack.Enable(status.Errorf(codes.AlreadyExists, "Process %s already exists", pid))
@@ -1134,23 +1252,25 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 				pios[pid] = pio
 
 				proc, err := ctr.Start(initCtx, gwclient.StartRequest{
-					Args:   init.Meta.Args,
-					Env:    init.Meta.Env,
-					User:   init.Meta.User,
-					Cwd:    init.Meta.Cwd,
-					Tty:    init.Tty,
-					Stdin:  pio.processReaders[0],
-					Stdout: pio.processWriters[1],
-					Stderr: pio.processWriters[2],
+					Args:         init.Meta.Args,
+					Env:          init.Meta.Env,
+					User:         init.Meta.User,
+					Cwd:          init.Meta.Cwd,
+					Tty:          init.Tty,
+					Stdin:        pio.processReaders[0],
+					Stdout:       pio.processWriters[1],
+					Stderr:       pio.processWriters[2],
+					SecurityMode: init.Security,
 				})
 				if err != nil {
 					return stack.Enable(err)
 				}
 				pio.resize = proc.Resize
+				pio.signal = proc.Signal
 
 				eg.Go(func() error {
 					<-pio.done
-					logrus.Debugf("|---> Done Message %s", pid)
+					bklog.G(ctx).Debugf("|---> Done Message %s", pid)
 					err := srv.Send(&pb.ExecMessage{
 						ProcessID: pid,
 						Input: &pb.ExecMessage_Done{
@@ -1167,10 +1287,10 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					err := proc.Wait()
 
 					var statusCode uint32
-					var exitError *gwerrdefs.ExitError
+					var exitError *pb.ExitError
 					var statusError *rpc.Status
 					if err != nil {
-						statusCode = gwerrdefs.UnknownExitStatus
+						statusCode = pb.UnknownExitStatus
 						st, _ := status.FromError(grpcerrors.ToGRPC(err))
 						stp := st.Proto()
 						statusError = &rpc.Status{
@@ -1182,7 +1302,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					if errors.As(err, &exitError) {
 						statusCode = exitError.ExitCode
 					}
-					logrus.Debugf("|---> Exit Message %s, code=%d, error=%s", pid, statusCode, err)
+					bklog.G(ctx).Debugf("|---> Exit Message %s, code=%d, error=%s", pid, statusCode, err)
 					sendErr := srv.Send(&pb.ExecMessage{
 						ProcessID: pid,
 						Input: &pb.ExecMessage_Exit{
@@ -1207,7 +1327,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					return stack.Enable(err)
 				})
 
-				logrus.Debugf("|---> Started Message %s", pid)
+				bklog.G(ctx).Debugf("|---> Started Message %s", pid)
 				err = srv.Send(&pb.ExecMessage{
 					ProcessID: pid,
 					Input: &pb.ExecMessage_Started{
@@ -1246,7 +1366,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 							return stack.Enable(err)
 						}
 						// no error so must be EOF
-						logrus.Debugf("|---> File Message %s, fd=%d, EOF", pid, fd)
+						bklog.G(ctx).Debugf("|---> File Message %s, fd=%d, EOF", pid, fd)
 						err = srv.Send(&pb.ExecMessage{
 							ProcessID: pid,
 							Input: &pb.ExecMessage_File{
@@ -1288,7 +1408,7 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 		<-ctx.Done()
 		conn.Close()
 	}()
-	logrus.Debugf("serving grpc connection")
+	bklog.G(ctx).Debugf("serving grpc connection")
 	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer})
 }
 

@@ -41,7 +41,7 @@ func (i *rawIterator) Next() {
 	// Initialize our stack if needed.
 	if i.stack == nil && i.node != nil {
 		i.stack = []rawStackEntry{
-			rawStackEntry{
+			{
 				edges: edges{
 					edge{node: i.node},
 				},

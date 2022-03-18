@@ -11,7 +11,6 @@ type exporter struct {
 	records []*CacheRecord
 	record  *CacheRecord
 
-	res      []CacheExporterRecord
 	edge     *edge // for secondaryExporters
 	override *bool
 }
@@ -52,9 +51,10 @@ func addBacklinks(t CacheExporterTarget, rec CacheExporterRecord, cm *cacheManag
 	return rec, nil
 }
 
-type backlinkT struct{}
+type contextT string
 
-var backlinkKey = backlinkT{}
+var backlinkKey = contextT("solver/exporter/backlinks")
+var resKey = contextT("solver/exporter/res")
 
 func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt CacheExportOpt) ([]CacheExporterRecord, error) {
 	var bkm map[string]CacheExporterRecord
@@ -66,8 +66,16 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		bkm = bk.(map[string]CacheExporterRecord)
 	}
 
+	var res map[*exporter][]CacheExporterRecord
+	if r := ctx.Value(resKey); r == nil {
+		res = map[*exporter][]CacheExporterRecord{}
+		ctx = context.WithValue(ctx, resKey, res)
+	} else {
+		res = r.(map[*exporter][]CacheExporterRecord)
+	}
+
 	if t.Visited(e) {
-		return e.res, nil
+		return res[e], nil
 	}
 	t.Visit(e)
 
@@ -78,7 +86,8 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		selector digest.Digest
 	}
 
-	rec := t.Add(rootKey(e.k.Digest(), e.k.Output()))
+	recKey := rootKey(e.k.Digest(), e.k.Output())
+	rec := t.Add(recKey)
 	allRec := []CacheExporterRecord{rec}
 
 	addRecord := true
@@ -93,6 +102,8 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 
 	var remote *Remote
 	if v := e.record; v != nil && len(e.k.Deps()) > 0 && addRecord {
+		var variants []CacheExporterRecord
+
 		cm := v.cacheManager
 		key := cm.getID(v.key)
 		res, err := cm.backend.Load(key, v.ID)
@@ -100,21 +111,41 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 			return nil, err
 		}
 
-		remote, err = cm.results.LoadRemote(ctx, res, opt.Session)
+		remotes, err := cm.results.LoadRemotes(ctx, res, opt.CompressionOpt, opt.Session)
 		if err != nil {
 			return nil, err
 		}
+		if len(remotes) > 0 {
+			remote, remotes = remotes[0], remotes[1:] // pop the first element
+		}
+		if opt.CompressionOpt != nil {
+			for _, r := range remotes { // record all remaining remotes as well
+				rec := t.Add(recKey)
+				rec.AddResult(v.CreatedAt, r)
+				variants = append(variants, rec)
+			}
+		}
 
-		if remote == nil && opt.Mode != CacheExportModeRemoteOnly {
+		if (remote == nil || opt.CompressionOpt != nil) && opt.Mode != CacheExportModeRemoteOnly {
 			res, err := cm.results.Load(ctx, res)
 			if err != nil {
 				return nil, err
 			}
-			remote, err = opt.Convert(ctx, res)
+			remotes, err := opt.ResolveRemotes(ctx, res)
 			if err != nil {
 				return nil, err
 			}
 			res.Release(context.TODO())
+			if remote == nil && len(remotes) > 0 {
+				remote, remotes = remotes[0], remotes[1:] // pop the first element
+			}
+			if opt.CompressionOpt != nil {
+				for _, r := range remotes { // record all remaining remotes as well
+					rec := t.Add(recKey)
+					rec.AddResult(v.CreatedAt, r)
+					variants = append(variants, rec)
+				}
+			}
 		}
 
 		if remote != nil {
@@ -122,6 +153,7 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 				rec.AddResult(v.CreatedAt, remote)
 			}
 		}
+		allRec = append(allRec, variants...)
 	}
 
 	if remote != nil && opt.Mode == CacheExportModeMin {
@@ -154,15 +186,17 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		}
 	}
 
-	for i, srcs := range srcs {
-		for _, src := range srcs {
-			rec.LinkFrom(src.r, i, src.selector.String())
+	for _, rec := range allRec {
+		for i, srcs := range srcs {
+			for _, src := range srcs {
+				rec.LinkFrom(src.r, i, src.selector.String())
+			}
 		}
-	}
 
-	for cm, id := range e.k.ids {
-		if _, err := addBacklinks(t, rec, cm, id, bkm); err != nil {
-			return nil, err
+		for cm, id := range e.k.ids {
+			if _, err := addBacklinks(t, rec, cm, id, bkm); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -180,9 +214,9 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 		}
 	}
 
-	e.res = allRec
+	res[e] = allRec
 
-	return e.res, nil
+	return allRec, nil
 }
 
 func getBestResult(records []*CacheRecord) *CacheRecord {

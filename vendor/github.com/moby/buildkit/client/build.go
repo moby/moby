@@ -44,7 +44,13 @@ func (c *Client) Build(ctx context.Context, opt SolveOpt, product string, buildF
 		})
 	}
 
-	cb := func(ref string, s *session.Session) error {
+	cb := func(ref string, s *session.Session, opts map[string]string) error {
+		for k, v := range opts {
+			if feOpts == nil {
+				feOpts = map[string]string{}
+			}
+			feOpts[k] = v
+		}
 		gwClient := c.gatewayClientForBuild(ref)
 		g, err := grpcclient.New(ctx, feOpts, s.ID(), product, gwClient, gworkers)
 		if err != nil {
@@ -147,4 +153,9 @@ func (g *gatewayClientForBuild) ExecProcess(ctx context.Context, opts ...grpc.Ca
 	}
 	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
 	return g.gateway.ExecProcess(ctx, opts...)
+}
+
+func (g *gatewayClientForBuild) Warn(ctx context.Context, in *gatewayapi.WarnRequest, opts ...grpc.CallOption) (*gatewayapi.WarnResponse, error) {
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.Warn(ctx, in)
 }

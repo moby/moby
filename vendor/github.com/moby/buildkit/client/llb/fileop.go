@@ -544,7 +544,7 @@ type FileOp struct {
 	isValidated bool
 }
 
-func (f *FileOp) Validate(context.Context) error {
+func (f *FileOp) Validate(context.Context, *Constraints) error {
 	if f.isValidated {
 		return nil
 	}
@@ -667,7 +667,7 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	if f.Cached(c) {
 		return f.Load()
 	}
-	if err := f.Validate(ctx); err != nil {
+	if err := f.Validate(ctx, c); err != nil {
 		return "", nil, nil, nil, err
 	}
 
@@ -676,11 +676,18 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	pfo := &pb.FileOp{}
 
 	if f.constraints.Platform == nil {
-		p, err := getPlatform(*f.action.state)(ctx)
+		p, err := getPlatform(*f.action.state)(ctx, c)
 		if err != nil {
 			return "", nil, nil, nil, err
 		}
 		f.constraints.Platform = p
+	}
+
+	state := newMarshalState(ctx)
+	for _, st := range state.actions {
+		if adder, isCapAdder := st.action.(capAdder); isCapAdder {
+			adder.addCaps(f)
+		}
 	}
 
 	pop, md := MarshalConstraints(c, &f.constraints)
@@ -688,7 +695,6 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		File: pfo,
 	}
 
-	state := newMarshalState(ctx)
 	_, err := state.add(f.action, c)
 	if err != nil {
 		return "", nil, nil, nil, err
@@ -696,10 +702,6 @@ func (f *FileOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 	pop.Inputs = state.inputs
 
 	for i, st := range state.actions {
-		if adder, isCapAdder := st.action.(capAdder); isCapAdder {
-			adder.addCaps(f)
-		}
-
 		output := pb.OutputIndex(-1)
 		if i+1 == len(state.actions) {
 			output = 0

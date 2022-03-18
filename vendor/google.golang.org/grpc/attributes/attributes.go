@@ -69,7 +69,9 @@ func (a *Attributes) Value(key interface{}) interface{} {
 // bool' is implemented for a value in the attributes, it is called to
 // determine if the value matches the one stored in the other attributes.  If
 // Equal is not implemented, standard equality is used to determine if the two
-// values are equal.
+// values are equal. Note that some types (e.g. maps) aren't comparable by
+// default, so they must be wrapped in a struct, or in an alias type, with Equal
+// defined.
 func (a *Attributes) Equal(o *Attributes) bool {
 	if a == nil && o == nil {
 		return true

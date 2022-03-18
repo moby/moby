@@ -18,14 +18,14 @@ import (
 	"github.com/moby/buildkit/util/progress/logs"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 type ResolveCacheExporterFunc func(ctx context.Context, g session.Group, attrs map[string]string) (Exporter, error)
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,
@@ -45,6 +45,11 @@ type Exporter interface {
 	// Finalize finalizes and return metadata that are returned to the client
 	// e.g. ExporterResponseManifestDesc
 	Finalize(ctx context.Context) (map[string]string, error)
+	Config() Config
+}
+
+type Config struct {
+	Compression compression.Config
 }
 
 const (
@@ -58,16 +63,24 @@ type contentCacheExporter struct {
 	chains   *v1.CacheChains
 	ingester content.Ingester
 	oci      bool
+	ref      string
+	comp     compression.Config
 }
 
-func NewExporter(ingester content.Ingester, oci bool) Exporter {
+func NewExporter(ingester content.Ingester, ref string, oci bool, compressionConfig compression.Config) Exporter {
 	cc := v1.NewCacheChains()
-	return &contentCacheExporter{CacheExporterTarget: cc, chains: cc, ingester: ingester, oci: oci}
+	return &contentCacheExporter{CacheExporterTarget: cc, chains: cc, ingester: ingester, oci: oci, ref: ref, comp: compressionConfig}
+}
+
+func (ce *contentCacheExporter) Config() Config {
+	return Config{
+		Compression: ce.comp,
+	}
 }
 
 func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string, error) {
 	res := make(map[string]string)
-	config, descs, err := ce.chains.Marshal()
+	config, descs, err := ce.chains.Marshal(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -79,14 +92,14 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 		MediaType string `json:"mediaType,omitempty"`
 
 		// Manifests references platform specific manifests.
-		Manifests []ocispec.Descriptor `json:"manifests"`
+		Manifests []ocispecs.Descriptor `json:"manifests"`
 	}
 
 	var mfst manifestList
 	mfst.SchemaVersion = 2
 	mfst.MediaType = images.MediaTypeDockerSchema2ManifestList
 	if ce.oci {
-		mfst.MediaType = ocispec.MediaTypeImageIndex
+		mfst.MediaType = ocispecs.MediaTypeImageIndex
 	}
 
 	for _, l := range config.Layers {
@@ -95,7 +108,7 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 			return nil, errors.Errorf("missing blob %s", l.Blob)
 		}
 		layerDone := oneOffProgress(ctx, fmt.Sprintf("writing layer %s", l.Blob))
-		if err := contentutil.Copy(ctx, ce.ingester, dgstPair.Provider, dgstPair.Descriptor, logs.LoggerFromContext(ctx)); err != nil {
+		if err := contentutil.Copy(ctx, ce.ingester, dgstPair.Provider, dgstPair.Descriptor, ce.ref, logs.LoggerFromContext(ctx)); err != nil {
 			return nil, layerDone(errors.Wrap(err, "error writing layer blob"))
 		}
 		layerDone(nil)
@@ -109,7 +122,7 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 		return nil, err
 	}
 	dgst := digest.FromBytes(dt)
-	desc := ocispec.Descriptor{
+	desc := ocispecs.Descriptor{
 		Digest:    dgst,
 		Size:      int64(len(dt)),
 		MediaType: v1.CacheConfigMediaTypeV0,
@@ -128,7 +141,7 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 	}
 	dgst = digest.FromBytes(dt)
 
-	desc = ocispec.Descriptor{
+	desc = ocispecs.Descriptor{
 		Digest:    dgst,
 		Size:      int64(len(dt)),
 		MediaType: mfst.MediaType,

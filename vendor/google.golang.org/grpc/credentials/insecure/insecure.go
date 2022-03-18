@@ -18,11 +18,6 @@
 
 // Package insecure provides an implementation of the
 // credentials.TransportCredentials interface which disables transport security.
-//
-// Experimental
-//
-// Notice: This package is EXPERIMENTAL and may be changed or removed in a
-// later release.
 package insecure
 
 import (

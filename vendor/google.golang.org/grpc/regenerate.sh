@@ -76,7 +76,21 @@ SOURCES=(
 # These options of the form 'Mfoo.proto=bar' instruct the codegen to use an
 # import path of 'bar' in the generated code when 'foo.proto' is imported in
 # one of the sources.
-OPTS=Mgrpc/service_config/service_config.proto=/internal/proto/grpc_service_config,Mgrpc/core/stats.proto=google.golang.org/grpc/interop/grpc_testing/core
+#
+# Note that the protos listed here are all for testing purposes. All protos to
+# be used externally should have a go_package option (and they don't need to be
+# listed here).
+OPTS=Mgrpc/service_config/service_config.proto=/internal/proto/grpc_service_config,\
+Mgrpc/core/stats.proto=google.golang.org/grpc/interop/grpc_testing/core,\
+Mgrpc/testing/benchmark_service.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/stats.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/report_qps_scenario_service.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/messages.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/worker_service.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/control.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/test.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/payloads.proto=google.golang.org/grpc/interop/grpc_testing,\
+Mgrpc/testing/empty.proto=google.golang.org/grpc/interop/grpc_testing
 
 for src in ${SOURCES[@]}; do
   echo "protoc ${src}"
@@ -85,7 +99,6 @@ for src in ${SOURCES[@]}; do
     -I${WORKDIR}/grpc-proto \
     -I${WORKDIR}/googleapis \
     -I${WORKDIR}/protobuf/src \
-    -I${WORKDIR}/istio \
     ${src}
 done
 
@@ -96,7 +109,6 @@ for src in ${LEGACY_SOURCES[@]}; do
     -I${WORKDIR}/grpc-proto \
     -I${WORKDIR}/googleapis \
     -I${WORKDIR}/protobuf/src \
-    -I${WORKDIR}/istio \
     ${src}
 done
 

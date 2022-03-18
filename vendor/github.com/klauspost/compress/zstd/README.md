@@ -78,6 +78,9 @@ of a stream. This is independent of the `WithEncoderConcurrency(n)`, but that is
 in the future. So if you want to limit concurrency for future updates, specify the concurrency
 you would like.
 
+If you would like stream encoding to be done without spawning async goroutines, use `WithEncoderConcurrency(1)`
+which will compress input as each block is completed, blocking on writes until each has completed.
+
 You can specify your desired compression level using `WithEncoderLevel()` option. Currently only pre-defined 
 compression settings can be specified.
 
@@ -104,7 +107,8 @@ and seems to ignore concatenated streams, even though [it is part of the spec](h
 For compressing small blocks, the returned encoder has a function called `EncodeAll(src, dst []byte) []byte`.
 
 `EncodeAll` will encode all input in src and append it to dst.
-This function can be called concurrently, but each call will only run on a single goroutine.
+This function can be called concurrently. 
+Each call will only run on a same goroutine as the caller.
 
 Encoded blocks can be concatenated and the result will be the combined input stream.
 Data compressed with EncodeAll can be decoded with the Decoder, using either a stream or `DecodeAll`.
@@ -283,8 +287,13 @@ func Decompress(in io.Reader, out io.Writer) error {
 }
 ```
 
-It is important to use the "Close" function when you no longer need the Reader to stop running goroutines. 
-See "Allocation-less operation" below.
+It is important to use the "Close" function when you no longer need the Reader to stop running goroutines, 
+when running with default settings.
+Goroutines will exit once an error has been returned, including `io.EOF` at the end of a stream.
+
+Streams are decoded concurrently in 4 asynchronous stages to give the best possible throughput.
+However, if you prefer synchronous decompression, use `WithDecoderConcurrency(1)` which will decompress data 
+as it is being requested only.
 
 For decoding buffers, it could look something like this:
 
@@ -293,7 +302,7 @@ import "github.com/klauspost/compress/zstd"
 
 // Create a reader that caches decompressors.
 // For this operation type we supply a nil Reader.
-var decoder, _ = zstd.NewReader(nil)
+var decoder, _ = zstd.NewReader(nil, WithDecoderConcurrency(0))
 
 // Decompress a buffer. We don't supply a destination buffer,
 // so it will be allocated by the decoder.
@@ -303,9 +312,12 @@ func Decompress(src []byte) ([]byte, error) {
 ```
 
 Both of these cases should provide the functionality needed. 
-The decoder can be used for *concurrent* decompression of multiple buffers. 
+The decoder can be used for *concurrent* decompression of multiple buffers.
+By default 4 decompressors will be created. 
+
 It will only allow a certain number of concurrent operations to run. 
-To tweak that yourself use the `WithDecoderConcurrency(n)` option when creating the decoder.   
+To tweak that yourself use the `WithDecoderConcurrency(n)` option when creating the decoder.
+It is possible to use `WithDecoderConcurrency(0)` to create GOMAXPROCS decoders.
 
 ### Dictionaries
 
@@ -357,19 +369,21 @@ In this case no unneeded allocations should be made.
 The buffer decoder does everything on the same goroutine and does nothing concurrently.
 It can however decode several buffers concurrently. Use `WithDecoderConcurrency(n)` to limit that.
 
-The stream decoder operates on
+The stream decoder will create goroutines that:
 
-* One goroutine reads input and splits the input to several block decoders.
-* A number of decoders will decode blocks.
-* A goroutine coordinates these blocks and sends history from one to the next.
+1) Reads input and splits the input into blocks.
+2) Decompression of literals.
+3) Decompression of sequences.
+4) Reconstruction of output stream.
 
 So effectively this also means the decoder will "read ahead" and prepare data to always be available for output.
 
+The concurrency level will, for streams, determine how many blocks ahead the compression will start.
+
 Since "blocks" are quite dependent on the output of the previous block stream decoding will only have limited concurrency.
 
-In practice this means that concurrency is often limited to utilizing about 2 cores effectively.
- 
- 
+In practice this means that concurrency is often limited to utilizing about 3 cores effectively.
+  
 ### Benchmarks
 
 These are some examples of performance compared to [datadog cgo library](https://github.com/DataDog/zstd).

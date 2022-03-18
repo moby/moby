@@ -8,9 +8,11 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/solver/pb"
+	srctypes "github.com/moby/buildkit/source/types"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil"
 )
 
 var (
@@ -26,14 +28,6 @@ const (
 	ResolveModePreferLocal
 )
 
-const (
-	DockerImageScheme = "docker-image"
-	GitScheme         = "git"
-	LocalScheme       = "local"
-	HTTPScheme        = "http"
-	HTTPSScheme       = "https"
-)
-
 type Identifier interface {
 	ID() string // until sources are in process this string comparison could be avoided
 }
@@ -46,15 +40,15 @@ func FromString(s string) (Identifier, error) {
 	}
 
 	switch parts[0] {
-	case DockerImageScheme:
+	case srctypes.DockerImageScheme:
 		return NewImageIdentifier(parts[1])
-	case GitScheme:
+	case srctypes.GitScheme:
 		return NewGitIdentifier(parts[1])
-	case LocalScheme:
+	case srctypes.LocalScheme:
 		return NewLocalIdentifier(parts[1])
-	case HTTPSScheme:
+	case srctypes.HTTPSScheme:
 		return NewHTTPIdentifier(parts[1], true)
-	case HTTPScheme:
+	case srctypes.HTTPScheme:
 		return NewHTTPIdentifier(parts[1], false)
 	default:
 		return nil, errors.Wrapf(errNotFound, "unknown schema %s", parts[0])
@@ -69,7 +63,7 @@ func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 
 	if id, ok := id.(*ImageIdentifier); ok {
 		if platform != nil {
-			id.Platform = &specs.Platform{
+			id.Platform = &ocispecs.Platform{
 				OS:           platform.OS,
 				Architecture: platform.Architecture,
 				Variant:      platform.Variant,
@@ -146,6 +140,13 @@ func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 				id.FollowPaths = paths
 			case pb.AttrSharedKeyHint:
 				id.SharedKeyHint = v
+			case pb.AttrLocalDiffer:
+				switch v {
+				case pb.AttrLocalDifferMetadata, "":
+					id.Differ = fsutil.DiffMetadata
+				case pb.AttrLocalDifferNone:
+					id.Differ = fsutil.DiffNone
+				}
 			}
 		}
 	}
@@ -186,7 +187,7 @@ func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 
 type ImageIdentifier struct {
 	Reference   reference.Spec
-	Platform    *specs.Platform
+	Platform    *ocispecs.Platform
 	ResolveMode ResolveMode
 	RecordType  client.UsageRecordType
 }
@@ -204,7 +205,7 @@ func NewImageIdentifier(str string) (*ImageIdentifier, error) {
 }
 
 func (*ImageIdentifier) ID() string {
-	return DockerImageScheme
+	return srctypes.DockerImageScheme
 }
 
 type LocalIdentifier struct {
@@ -214,6 +215,7 @@ type LocalIdentifier struct {
 	ExcludePatterns []string
 	FollowPaths     []string
 	SharedKeyHint   string
+	Differ          fsutil.DiffType
 }
 
 func NewLocalIdentifier(str string) (*LocalIdentifier, error) {
@@ -221,7 +223,7 @@ func NewLocalIdentifier(str string) (*LocalIdentifier, error) {
 }
 
 func (*LocalIdentifier) ID() string {
-	return LocalScheme
+	return srctypes.LocalScheme
 }
 
 func NewHTTPIdentifier(str string, tls bool) (*HTTPIdentifier, error) {
@@ -243,7 +245,7 @@ type HTTPIdentifier struct {
 }
 
 func (*HTTPIdentifier) ID() string {
-	return HTTPSScheme
+	return srctypes.HTTPSScheme
 }
 
 func (r ResolveMode) String() string {

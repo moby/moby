@@ -1,9 +1,8 @@
-FROM debian:buster-slim AS base
-RUN echo "deb http://os.loongnix.org/mirrors/debian/debian/ buster main" > /etc/apt/sources.list
+FROM debian:bullseye-slim AS base
 RUN apt-get update && apt-get --no-install-recommends install -y \
+  gcc-x86-64-linux-gnu \
   binutils-arm-linux-gnueabihf \
   binutils-aarch64-linux-gnu \
-  binutils-x86-64-linux-gnu \
   binutils-i686-linux-gnu \
   binutils-riscv64-linux-gnu \
   binutils-s390x-linux-gnu \
@@ -14,8 +13,8 @@ WORKDIR /src
 
 
 FROM base AS exit-amd64
-COPY fixtures/exit.amd64.s .
-RUN x86_64-linux-gnu-as --noexecstack -o exit.o exit.amd64.s && x86_64-linux-gnu-ld -o exit -s exit.o
+COPY fixtures/exit.amd64.S .
+RUN x86_64-linux-gnu-gcc -static -nostdlib -o exit exit.amd64.S
 
 FROM base AS exit-386
 COPY fixtures/exit.386.s .
@@ -49,7 +48,7 @@ FROM base AS exit-mips64
 COPY fixtures/exit.mips64.s .
 RUN mips64-linux-gnuabi64-as --noexecstack -o exit.o exit.mips64.s && mips64-linux-gnuabi64-ld -o exit -s exit.o
 
-FROM golang:1.16-alpine AS generate
+FROM golang:1.17-alpine AS generate
 WORKDIR /src
 COPY --from=exit-amd64 /src/exit amd64
 COPY --from=exit-386 /src/exit 386
