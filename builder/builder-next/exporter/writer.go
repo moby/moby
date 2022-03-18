@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/cache"
+	binfotypes "github.com/moby/buildkit/util/buildinfo/types"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/system"
 	"github.com/opencontainers/go-digest"
@@ -43,7 +44,7 @@ func parseHistoryFromConfig(dt []byte) ([]ocispec.History, error) {
 	return config.History, nil
 }
 
-func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History, cache []byte) ([]byte, error) {
+func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History, cache []byte, buildInfo []byte) ([]byte, error) {
 	m := map[string]json.RawMessage{}
 	if err := json.Unmarshal(dt, &m); err != nil {
 		return nil, errors.Wrap(err, "failed to parse image config for patch")
@@ -80,11 +81,21 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History,
 	}
 
 	if cache != nil {
-		dt, err = json.Marshal(cache)
+		dt, err := json.Marshal(cache)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal cache")
+			return nil, err
 		}
 		m["moby.buildkit.cache.v0"] = dt
+	}
+
+	if buildInfo != nil {
+		dt, err := json.Marshal(buildInfo)
+		if err != nil {
+			return nil, err
+		}
+		m[binfotypes.ImageConfigField] = dt
+	} else {
+		delete(m, binfotypes.ImageConfigField)
 	}
 
 	dt, err = json.Marshal(m)

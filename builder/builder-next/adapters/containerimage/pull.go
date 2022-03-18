@@ -309,7 +309,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 		if err != nil {
 			return "", "", nil, false, err
 		}
-		return dgst.String(), dgst.String(), nil, false, nil
+		return dgst.String(), p.desc.Digest.String(), nil, false, nil
 	}
 
 	if p.config != nil {
@@ -329,7 +329,7 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 		if err != nil {
 			return "", "", nil, false, err
 		}
-		return dgst.String(), dgst.String(), nil, false, nil
+		return dgst.String(), p.desc.Digest.String(), nil, false, nil
 	}
 
 	if len(p.config) == 0 && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
@@ -342,10 +342,10 @@ func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (stri
 		if err != nil {
 			return "", "", nil, false, err
 		}
-		return dgst.String(), dgst.String(), nil, true, nil
+		return dgst.String(), p.desc.Digest.String(), nil, true, nil
 	}
 
-	return k, "", nil, true, nil
+	return k, k, nil, true, nil
 }
 
 func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cache.RefOption) (cache.ImmutableRef, error) {
