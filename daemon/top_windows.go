@@ -24,13 +24,13 @@ import (
 //    task manager does and use the private working set as the memory counter.
 //    We could return more info for those who really understand how memory
 //    management works in Windows if we introduced a "raw" stats (above).
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*containertypes.ContainerTopOKBody, error) {
+func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs string) (*containertypes.ContainerTopOKBody, error) {
 	// It's not at all an equivalent to linux 'ps' on Windows
 	if psArgs != "" {
 		return nil, errors.New("Windows does not support arguments to top")
 	}
 
-	container, err := daemon.GetContainer(name)
+	container, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*containertypes.
 		return nil, errContainerIsRestarting(container.ID)
 	}
 
-	s, err := daemon.containerd.Summary(context.Background(), container.ID)
+	s, err := daemon.containerd.Summary(ctx, container.ID)
 	if err != nil {
 		return nil, err
 	}

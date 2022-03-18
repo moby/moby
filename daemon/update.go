@@ -10,7 +10,7 @@ import (
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
+func (daemon *Daemon) ContainerUpdate(ctx context.Context, name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
 	var warnings []string
 
 	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
@@ -18,19 +18,19 @@ func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostCon
 		return container.ContainerUpdateOKBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	if err := daemon.update(name, hostConfig); err != nil {
+	if err := daemon.update(ctx, name, hostConfig); err != nil {
 		return container.ContainerUpdateOKBody{Warnings: warnings}, err
 	}
 
 	return container.ContainerUpdateOKBody{Warnings: warnings}, nil
 }
 
-func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) error {
+func (daemon *Daemon) update(ctx context.Context, name string, hostConfig *container.HostConfig) error {
 	if hostConfig == nil {
 		return nil
 	}
 
-	ctr, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// If container is running (including paused), we need to update configs
 	// to the real world.
 	if ctr.IsRunning() && !ctr.IsRestarting() {
-		if err := daemon.containerd.UpdateResources(context.Background(), ctr.ID, toContainerdResources(hostConfig.Resources)); err != nil {
+		if err := daemon.containerd.UpdateResources(ctx, ctr.ID, toContainerdResources(hostConfig.Resources)); err != nil {
 			restoreConfig = true
 			// TODO: it would be nice if containerd responded with better errors here so we can classify this better.
 			return errCannotUpdate(ctr.ID, errdefs.System(err))

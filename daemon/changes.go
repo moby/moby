@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -8,9 +9,9 @@ import (
 )
 
 // ContainerChanges returns a list of container fs changes
-func (daemon *Daemon) ContainerChanges(name string) ([]archive.Change, error) {
+func (daemon *Daemon) ContainerChanges(ctx context.Context, name string) ([]archive.Change, error) {
 	start := time.Now()
-	container, err := daemon.GetContainer(name)
+	container, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}

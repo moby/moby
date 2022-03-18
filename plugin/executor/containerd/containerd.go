@@ -121,10 +121,10 @@ func (e *Executor) Signal(id string, signal int) error {
 
 // ProcessEvent handles events from containerd
 // All events are ignored except the exit event, which is sent of to the stored handler
-func (e *Executor) ProcessEvent(id string, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
+func (e *Executor) ProcessEvent(ctx context.Context, id string, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
 	switch et {
 	case libcontainerdtypes.EventExit:
-		deleteTaskAndContainer(context.Background(), e.client, id, nil)
+		deleteTaskAndContainer(ctx, e.client, id, nil)
 		return e.exitHandler.HandleExitEvent(ei.ContainerID)
 	}
 	return nil

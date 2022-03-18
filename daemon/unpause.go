@@ -9,16 +9,16 @@ import (
 )
 
 // ContainerUnpause unpauses a container
-func (daemon *Daemon) ContainerUnpause(name string) error {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerUnpause(ctx context.Context, name string) error {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return err
 	}
-	return daemon.containerUnpause(ctr)
+	return daemon.containerUnpause(ctx, ctr)
 }
 
 // containerUnpause resumes the container execution after the container is paused.
-func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
+func (daemon *Daemon) containerUnpause(ctx context.Context, ctr *container.Container) error {
 	ctr.Lock()
 	defer ctr.Unlock()
 
@@ -27,7 +27,7 @@ func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
 		return fmt.Errorf("Container %s is not paused", ctr.ID)
 	}
 
-	if err := daemon.containerd.Resume(context.Background(), ctr.ID); err != nil {
+	if err := daemon.containerd.Resume(ctx, ctr.ID); err != nil {
 		return fmt.Errorf("Cannot unpause container %s: %s", ctr.ID, err)
 	}
 

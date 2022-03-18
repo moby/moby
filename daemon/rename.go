@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"strings"
 
 	dockercontainer "github.com/docker/docker/container"
@@ -13,7 +14,7 @@ import (
 // ContainerRename changes the name of a container, using the oldName
 // to find the container. An error is returned if newName is already
 // reserved.
-func (daemon *Daemon) ContainerRename(oldName, newName string) error {
+func (daemon *Daemon) ContainerRename(ctx context.Context, oldName, newName string) error {
 	var (
 		sid string
 		sb  libnetwork.Sandbox
@@ -27,7 +28,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		newName = "/" + newName
 	}
 
-	container, err := daemon.GetContainer(oldName)
+	container, err := daemon.GetContainer(ctx, oldName)
 	if err != nil {
 		return err
 	}

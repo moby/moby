@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"runtime"
@@ -31,16 +32,16 @@ type createOpts struct {
 }
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(createOpts{
+func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:                  params,
 		managed:                 true,
 		ignoreImagesArgsEscaped: false})
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(createOpts{
+func (daemon *Daemon) ContainerCreate(ctx context.Context, params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:                  params,
 		managed:                 false,
 		ignoreImagesArgsEscaped: false})
@@ -48,14 +49,14 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (conta
 
 // ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
 // and ensures that we do not take the images ArgsEscaped
-func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(createOpts{
+func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:                  params,
 		managed:                 false,
 		ignoreImagesArgsEscaped: true})
 }
 
-func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.ContainerCreateCreatedBody, error) {
+func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (containertypes.ContainerCreateCreatedBody, error) {
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
@@ -89,12 +90,12 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
-	err = daemon.adaptContainerSettings(opts.params.HostConfig, opts.params.AdjustCPUShares)
+	err = daemon.adaptContainerSettings(ctx, opts.params.HostConfig, opts.params.AdjustCPUShares)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	ctr, err := daemon.create(opts)
+	ctr, err := daemon.create(ctx, opts)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
@@ -108,7 +109,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
+func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *container.Container, retErr error) {
 	var (
 		ctr   *container.Container
 		img   *image.Image
@@ -152,7 +153,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.cleanupContainer(ctr, true, true); err != nil {
+			if err := daemon.cleanupContainer(ctx, ctr, true, true); err != nil {
 				logrus.Errorf("failed to cleanup container on create error: %v", err)
 			}
 		}
@@ -179,11 +180,11 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		return nil, err
 	}
 
-	if err := daemon.setHostConfig(ctr, opts.params.HostConfig); err != nil {
+	if err := daemon.setHostConfig(ctx, ctr, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
-	if err := daemon.createContainerOSSpecificSettings(ctr, opts.params.Config, opts.params.HostConfig); err != nil {
+	if err := daemon.createContainerOSSpecificSettings(ctx, ctr, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
@@ -196,7 +197,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	runconfig.SetDefaultNetModeIfBlank(ctr.HostConfig)
 
 	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
-	if err := daemon.Register(ctr); err != nil {
+	if err := daemon.Register(ctx, ctr); err != nil {
 		return nil, err
 	}
 	stateCtr.set(ctr.ID, "stopped")
@@ -211,7 +212,7 @@ func toHostConfigSelinuxLabels(labels []string) []string {
 	return labels
 }
 
-func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig) ([]string, error) {
+func (daemon *Daemon) generateSecurityOpt(ctx context.Context, hostConfig *containertypes.HostConfig) ([]string, error) {
 	for _, opt := range hostConfig.SecurityOpt {
 		con := strings.Split(opt, "=")
 		if con[0] == "label" {
@@ -231,7 +232,7 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 	ipcContainer := ipcMode.Container()
 	pidContainer := pidMode.Container()
 	if ipcContainer != "" {
-		c, err := daemon.GetContainer(ipcContainer)
+		c, err := daemon.GetContainer(ctx, ipcContainer)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +245,7 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 		}
 	}
 	if pidContainer != "" {
-		c, err := daemon.GetContainer(pidContainer)
+		c, err := daemon.GetContainer(ctx, pidContainer)
 		if err != nil {
 			return nil, err
 		}

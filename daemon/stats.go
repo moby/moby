@@ -26,7 +26,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		return errors.New("API versions pre v1.21 do not support stats on Windows")
 	}
 
-	ctr, err := daemon.GetContainer(prefixOrName)
+	ctr, err := daemon.GetContainer(ctx, prefixOrName)
 	if err != nil {
 		return err
 	}
@@ -145,15 +145,15 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 }
 
 // GetContainerStats collects all the stats published by a container
-func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
-	stats, err := daemon.stats(container)
+func (daemon *Daemon) GetContainerStats(ctx context.Context, container *container.Container) (*types.StatsJSON, error) {
+	stats, err := daemon.stats(ctx, container)
 	if err != nil {
 		return nil, err
 	}
 
 	// We already have the network stats on Windows directly from HCS.
 	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
-		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
+		if stats.Networks, err = daemon.getNetworkStats(ctx, container); err != nil {
 			return nil, err
 		}
 	}

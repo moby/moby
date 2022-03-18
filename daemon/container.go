@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ import (
 //  - A partial container ID prefix (e.g. short ID) of any length that is
 //    unique enough to only return a single container object
 //  If none of these searches succeed, an error is returned
-func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, error) {
+func (daemon *Daemon) GetContainer(ctx context.Context, prefixOrName string) (*container.Container, error) {
 	if len(prefixOrName) == 0 {
 		return nil, errors.WithStack(invalidIdentifier(prefixOrName))
 	}
@@ -44,7 +45,7 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	}
 
 	// GetByName will match only an exact name provided; we ignore errors
-	if containerByName, _ := daemon.GetByName(prefixOrName); containerByName != nil {
+	if containerByName, _ := daemon.GetByName(ctx, prefixOrName); containerByName != nil {
 		// prefix is an exact match to a full container Name
 		return containerByName, nil
 	}
@@ -72,15 +73,21 @@ func (daemon *Daemon) checkContainer(container *container.Container, conditions 
 
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
-func (daemon *Daemon) Exists(id string) bool {
-	c, _ := daemon.GetContainer(id)
-	return c != nil
+func (daemon *Daemon) Exists(ctx context.Context, id string) (bool, error) {
+	c, err := daemon.GetContainer(ctx, id)
+	if errdefs.IsNotFound(err) {
+		return false, nil
+	}
+	return c != nil, err
 }
 
 // IsPaused returns a bool indicating if the specified container is paused.
-func (daemon *Daemon) IsPaused(id string) bool {
-	c, _ := daemon.GetContainer(id)
-	return c.State.IsPaused()
+func (daemon *Daemon) IsPaused(ctx context.Context, id string) (bool, error) {
+	c, err := daemon.GetContainer(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	return c.State.IsPaused(), nil
 }
 
 func (daemon *Daemon) containerRoot(id string) string {
@@ -105,7 +112,7 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(c *container.Container) error {
+func (daemon *Daemon) Register(ctx context.Context, c *container.Container) error {
 	// Attach to stdout and stderr
 	if c.Config.OpenStdin {
 		c.StreamConfig.NewInputPipes()
@@ -162,7 +169,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 }
 
 // GetByName returns a container given a name.
-func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
+func (daemon *Daemon) GetByName(ctx context.Context, name string) (*container.Container, error) {
 	if len(name) == 0 {
 		return nil, fmt.Errorf("No container name supplied")
 	}
@@ -207,10 +214,10 @@ func (daemon *Daemon) setSecurityOptions(container *container.Container, hostCon
 	return daemon.parseSecurityOpt(container, hostConfig)
 }
 
-func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) setHostConfig(ctx context.Context, container *container.Container, hostConfig *containertypes.HostConfig) error {
 	// Do not lock while creating volumes since this could be calling out to external plugins
 	// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
-	if err := daemon.registerMountPoints(container, hostConfig); err != nil {
+	if err := daemon.registerMountPoints(ctx, container, hostConfig); err != nil {
 		return err
 	}
 
@@ -218,7 +225,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 	defer container.Unlock()
 
 	// Register any links from the host config before starting the container
-	if err := daemon.registerLinks(container, hostConfig); err != nil {
+	if err := daemon.registerLinks(ctx, container, hostConfig); err != nil {
 		return err
 	}
 

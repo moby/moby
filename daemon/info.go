@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -26,7 +27,7 @@ import (
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
-func (daemon *Daemon) SystemInfo() *types.Info {
+func (daemon *Daemon) SystemInfo(ctx context.Context) (*types.Info, error) {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
@@ -65,7 +66,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	daemon.fillDebugInfo(v)
 	daemon.fillAPIInfo(v)
 	// Retrieve platform specific info
-	daemon.fillPlatformInfo(v, sysInfo)
+	daemon.fillPlatformInfo(ctx, v, sysInfo)
 	daemon.fillDriverInfo(v)
 	daemon.fillPluginsInfo(v)
 	daemon.fillSecurityOptions(v, sysInfo)
@@ -76,11 +77,11 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		v.Warnings = append(v.Warnings, fmt.Sprintf("Configured default runtime %q is deprecated and will be removed in the next release.", config.LinuxV1RuntimeName))
 	}
 
-	return v
+	return v, ctx.Err()
 }
 
 // SystemVersion returns version information about the daemon.
-func (daemon *Daemon) SystemVersion() types.Version {
+func (daemon *Daemon) SystemVersion(ctx context.Context) (types.Version, error) {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_version"))()
 
 	kernelVersion := kernelVersion()
@@ -119,8 +120,8 @@ func (daemon *Daemon) SystemVersion() types.Version {
 
 	v.Platform.Name = dockerversion.PlatformName
 
-	daemon.fillPlatformVersion(&v)
-	return v
+	daemon.fillPlatformVersion(ctx, &v)
+	return v, ctx.Err()
 }
 
 func (daemon *Daemon) fillDriverInfo(v *types.Info) {

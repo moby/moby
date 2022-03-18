@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -18,8 +19,12 @@ var (
 	validContainerNamePattern = names.RestrictedNamePattern
 )
 
-func (daemon *Daemon) registerName(container *container.Container) error {
-	if daemon.Exists(container.ID) {
+func (daemon *Daemon) registerName(ctx context.Context, container *container.Container) error {
+	exists, err := daemon.Exists(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+	if exists {
 		return fmt.Errorf("Container is already loaded")
 	}
 	if err := validateID(container.ID); err != nil {

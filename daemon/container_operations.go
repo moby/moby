@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -526,7 +527,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	}
 }
 
-func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr error) {
+func (daemon *Daemon) allocateNetwork(ctx context.Context, container *container.Container) (retErr error) {
 	if daemon.netController == nil {
 		return nil
 	}
@@ -559,7 +560,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
 		cleanOperationalData(nConf)
-		if err := daemon.connectToNetwork(container, defaultNetName, nConf.EndpointSettings, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(ctx, container, defaultNetName, nConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}
 
@@ -577,7 +578,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(container, netName, epConf.EndpointSettings, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(ctx, container, netName, epConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}
 	}
@@ -731,7 +732,7 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n libn
 	return nil
 }
 
-func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
+func (daemon *Daemon) connectToNetwork(ctx context.Context, container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
 	start := time.Now()
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
@@ -827,7 +828,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	if !container.Managed {
 		// add container name/alias to DNS
-		if err := daemon.ActivateContainerServiceBinding(container.Name); err != nil {
+		if err := daemon.ActivateContainerServiceBinding(ctx, container.Name); err != nil {
 			return fmt.Errorf("Activate container service binding for %s failed: %v", container.Name, err)
 		}
 	}
@@ -955,12 +956,12 @@ func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network libnetwork.Ne
 	daemon.LogNetworkEventWithAttributes(network, "disconnect", attributes)
 }
 
-func (daemon *Daemon) initializeNetworking(container *container.Container) error {
+func (daemon *Daemon) initializeNetworking(ctx context.Context, container *container.Container) error {
 	var err error
 
 	if container.HostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
-		nc, err := daemon.getNetworkedContainer(container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
+		nc, err := daemon.getNetworkedContainer(ctx, container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
 		if err != nil {
 			return err
 		}
@@ -984,15 +985,15 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 		}
 	}
 
-	if err := daemon.allocateNetwork(container); err != nil {
+	if err := daemon.allocateNetwork(ctx, container); err != nil {
 		return err
 	}
 
 	return container.BuildHostnameFile()
 }
 
-func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID string) (*container.Container, error) {
-	nc, err := daemon.GetContainer(connectedContainerID)
+func (daemon *Daemon) getNetworkedContainer(ctx context.Context, containerID, connectedContainerID string) (*container.Container, error) {
+	nc, err := daemon.GetContainer(ctx, connectedContainerID)
 	if err != nil {
 		return nil, err
 	}
@@ -1060,7 +1061,7 @@ func errRemovalContainer(containerID string) error {
 }
 
 // ConnectToNetwork connects a container to a network
-func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+func (daemon *Daemon) ConnectToNetwork(ctx context.Context, container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
 	if endpointConfig == nil {
 		endpointConfig = &networktypes.EndpointSettings{}
 	}
@@ -1083,7 +1084,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 			}
 		}
 	} else {
-		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
+		if err := daemon.connectToNetwork(ctx, container, idOrName, endpointConfig, true); err != nil {
 			return err
 		}
 	}
@@ -1136,8 +1137,8 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 }
 
 // ActivateContainerServiceBinding puts this container into load balancer active rotation and DNS response
-func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) error {
-	ctr, err := daemon.GetContainer(containerName)
+func (daemon *Daemon) ActivateContainerServiceBinding(ctx context.Context, containerName string) error {
+	ctr, err := daemon.GetContainer(ctx, containerName)
 	if err != nil {
 		return err
 	}
@@ -1149,8 +1150,8 @@ func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) erro
 }
 
 // DeactivateContainerServiceBinding removes this container from load balancer active rotation, and DNS response
-func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) error {
-	ctr, err := daemon.GetContainer(containerName)
+func (daemon *Daemon) DeactivateContainerServiceBinding(ctx context.Context, containerName string) error {
+	ctr, err := daemon.GetContainer(ctx, containerName)
 	if err != nil {
 		return err
 	}

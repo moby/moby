@@ -226,7 +226,7 @@ func (r *controller) Start(ctx context.Context) error {
 
 	// no health check
 	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil || len(ctnr.Config.Healthcheck.Test) == 0 || ctnr.Config.Healthcheck.Test[0] == "NONE" {
-		if err := r.adapter.activateServiceBinding(); err != nil {
+		if err := r.adapter.activateServiceBinding(ctx); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s which has no healthcheck config", r.adapter.container.name())
 			return err
 		}
@@ -266,7 +266,7 @@ func (r *controller) Start(ctx context.Context) error {
 				// set health check error, and wait for container to fully exit ("die" event)
 				healthErr = ErrContainerUnhealthy
 			case "health_status: healthy":
-				if err := r.adapter.activateServiceBinding(); err != nil {
+				if err := r.adapter.activateServiceBinding(ctx); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s after healthy event", r.adapter.container.name())
 					return err
 				}
@@ -357,7 +357,7 @@ func (r *controller) Shutdown(ctx context.Context) error {
 
 	if r.hasServiceBinding() {
 		// remove container from service binding
-		if err := r.adapter.deactivateServiceBinding(); err != nil {
+		if err := r.adapter.deactivateServiceBinding(ctx); err != nil {
 			log.G(ctx).WithError(err).Warningf("failed to deactivate service binding for container %s", r.adapter.container.name())
 			// Don't return an error here, because failure to deactivate
 			// the service binding is expected if the container was never
