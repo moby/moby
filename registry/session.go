@@ -39,7 +39,7 @@ type authTransport struct {
 	modReq map[*http.Request]*http.Request // original -> modified
 }
 
-// AuthTransport handles the auth layer when communicating with a v1 registry (private or official)
+// newAuthTransport handles the auth layer when communicating with a v1 registry (private or official)
 //
 // For private v1 registries, set alwaysSetBasicAuth to true.
 //
@@ -52,7 +52,7 @@ type authTransport struct {
 // If the server sends a token without the client having requested it, it is ignored.
 //
 // This RoundTripper also has a CancelRequest method important for correct timeout handling.
-func AuthTransport(base http.RoundTripper, authConfig *types.AuthConfig, alwaysSetBasicAuth bool) http.RoundTripper {
+func newAuthTransport(base http.RoundTripper, authConfig *types.AuthConfig, alwaysSetBasicAuth bool) *authTransport {
 	if base == nil {
 		base = http.DefaultTransport
 	}
@@ -165,7 +165,7 @@ func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint
 
 	// Annotate the transport unconditionally so that v2 can
 	// properly fallback on v1 when an image is not found.
-	client.Transport = AuthTransport(client.Transport, authConfig, alwaysSetBasicAuth)
+	client.Transport = newAuthTransport(client.Transport, authConfig, alwaysSetBasicAuth)
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
