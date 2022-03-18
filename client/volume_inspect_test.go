@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -51,7 +51,7 @@ func TestVolumeInspectWithEmptyID(t *testing.T) {
 
 func TestVolumeInspect(t *testing.T) {
 	expectedURL := "/volumes/volume_id"
-	expected := types.Volume{
+	expected := volume.Volume{
 		Name:       "name",
 		Driver:     "driver",
 		Mountpoint: "mountpoint",

@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -28,12 +28,12 @@ func TestVolumesCreateAndList(t *testing.T) {
 	if testEnv.OSType == "windows" {
 		name = strings.ToLower(name)
 	}
-	vol, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{
+	vol, err := client.VolumeCreate(ctx, volume.VolumeCreateBody{
 		Name: name,
 	})
 	assert.NilError(t, err)
 
-	expected := types.Volume{
+	expected := volume.Volume{
 		// Ignore timestamp of CreatedAt
 		CreatedAt:  vol.CreatedAt,
 		Driver:     "local",
@@ -90,7 +90,7 @@ func TestVolumesInspect(t *testing.T) {
 	ctx := context.Background()
 
 	now := time.Now()
-	vol, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{})
+	vol, err := client.VolumeCreate(ctx, volume.VolumeCreateBody{})
 	assert.NilError(t, err)
 
 	inspected, err := client.VolumeInspect(ctx, vol.Name)

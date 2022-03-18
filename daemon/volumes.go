@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	mounttypes "github.com/docker/docker/api/types/mount"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
@@ -186,7 +186,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		if mp.Type == mounttypes.TypeVolume {
-			var v *types.Volume
+			var v *volumetypes.Volume
 			if cfg.VolumeOptions != nil {
 				var driverOpts map[string]string
 				if cfg.VolumeOptions.DriverConfig != nil {
@@ -385,12 +385,12 @@ func (daemon *Daemon) VolumesService() *service.VolumesService {
 }
 
 type volumeMounter interface {
-	Mount(ctx context.Context, v *types.Volume, ref string) (string, error)
-	Unmount(ctx context.Context, v *types.Volume, ref string) error
+	Mount(ctx context.Context, v *volumetypes.Volume, ref string) (string, error)
+	Unmount(ctx context.Context, v *volumetypes.Volume, ref string) error
 }
 
 type volumeWrapper struct {
-	v *types.Volume
+	v *volumetypes.Volume
 	s volumeMounter
 }
 

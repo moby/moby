@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
 )
 
 // SystemDiskUsage returns information about the daemon data disk usage

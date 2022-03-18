@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/volume"
 	containerpkg "github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networkSettings "github.com/docker/docker/daemon/network"
@@ -66,7 +67,7 @@ type Backend interface {
 
 // VolumeBackend is used by an executor to perform volume operations
 type VolumeBackend interface {
-	Create(ctx context.Context, name, driverName string, opts ...volumeopts.CreateOption) (*types.Volume, error)
+	Create(ctx context.Context, name, driverName string, opts ...volumeopts.CreateOption) (*volume.Volume, error)
 }
 
 // ImageBackend is used by an executor to perform image operations

@@ -10,9 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -70,8 +69,8 @@ func TestVolumeList(t *testing.T) {
 				if actualFilters != listCase.expectedFilters {
 					return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", listCase.expectedFilters, actualFilters)
 				}
-				content, err := json.Marshal(volumetypes.VolumeListOKBody{
-					Volumes: []*types.Volume{
+				content, err := json.Marshal(volume.VolumeListOKBody{
+					Volumes: []*volume.Volume{
 						{
 							Name:   "volume",
 							Driver: "local",
