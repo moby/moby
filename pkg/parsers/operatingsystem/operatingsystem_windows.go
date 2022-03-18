@@ -62,3 +62,9 @@ func GetOperatingSystemVersion() (string, error) {
 func IsContainerized() (bool, error) {
 	return false, nil
 }
+
+// IsWindowsClient returns true if the SKU is client. It returns false on
+// Windows server.
+func IsWindowsClient() bool {
+	return windows.RtlGetVersion().ProductType == verNTWorkstation
+}
