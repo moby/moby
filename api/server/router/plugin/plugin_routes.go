@@ -228,7 +228,7 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 	}
 	config := &types.PluginEnableConfig{Timeout: timeout}
 
-	return pr.backend.Enable(name, config)
+	return pr.backend.Enable(ctx, name, config)
 }
 
 func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -241,7 +241,7 @@ func (pr *pluginRouter) disablePlugin(ctx context.Context, w http.ResponseWriter
 		ForceDisable: httputils.BoolValue(r, "force"),
 	}
 
-	return pr.backend.Disable(name, config)
+	return pr.backend.Disable(ctx, name, config)
 }
 
 func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -253,7 +253,7 @@ func (pr *pluginRouter) removePlugin(ctx context.Context, w http.ResponseWriter,
 	config := &types.PluginRmConfig{
 		ForceRemove: httputils.BoolValue(r, "force"),
 	}
-	return pr.backend.Remove(name, config)
+	return pr.backend.Remove(ctx, name, config)
 }
 
 func (pr *pluginRouter) pushPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -283,7 +283,7 @@ func (pr *pluginRouter) setPlugin(ctx context.Context, w http.ResponseWriter, r 
 		}
 		return errdefs.InvalidParameter(err)
 	}
-	if err := pr.backend.Set(vars["name"], args); err != nil {
+	if err := pr.backend.Set(ctx, vars["name"], args); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -299,7 +299,7 @@ func (pr *pluginRouter) listPlugins(ctx context.Context, w http.ResponseWriter, 
 	if err != nil {
 		return err
 	}
-	l, err := pr.backend.List(pluginFilters)
+	l, err := pr.backend.List(ctx, pluginFilters)
 	if err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (pr *pluginRouter) listPlugins(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (pr *pluginRouter) inspectPlugin(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	result, err := pr.backend.Inspect(vars["name"])
+	result, err := pr.backend.Inspect(ctx, vars["name"])
 	if err != nil {
 		return err
 	}
