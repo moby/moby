@@ -60,14 +60,14 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	attributes := map[string]string{
 		"exitCode": strconv.Itoa(int(ec)),
 	}
-	daemon.Cleanup(c)
+	daemon.Cleanup(context.TODO(), c)
 
 	if err == nil && restart {
 		c.RestartCount++
 		c.SetRestarting(&exitStatus)
 	} else {
 		c.SetStopped(&exitStatus)
-		defer daemon.autoRemove(c)
+		defer daemon.autoRemove(context.TODO(), c)
 	}
 	defer c.Unlock() // needs to be called before autoRemove
 
@@ -84,7 +84,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				// But containerStart will use daemon.netController segment.
 				// So to avoid panic at startup process, here must wait util daemon restore done.
 				daemon.waitForStartupDone()
-				if err = daemon.containerStart(c, "", "", false); err != nil {
+				if err = daemon.containerStart(context.TODO(), c, "", "", false); err != nil {
 					logrus.Debugf("failed to restart container: %+v", err)
 				}
 			}
@@ -94,7 +94,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				daemon.setStateCounter(c)
 				c.CheckpointTo(daemon.containersReplica)
 				c.Unlock()
-				defer daemon.autoRemove(c)
+				defer daemon.autoRemove(context.TODO(), c)
 				if err != restartmanager.ErrRestartCanceled {
 					logrus.Errorf("restartmanger wait error: %+v", err)
 				}
@@ -106,8 +106,8 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 }
 
 // ProcessEvent is called by libcontainerd whenever an event occurs
-func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
-	c, err := daemon.GetContainer(id)
+func (daemon *Daemon) ProcessEvent(ctx context.Context, id string, e libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
+	c, err := daemon.GetContainer(ctx, id)
 	if err != nil {
 		return errors.Wrapf(err, "could not find container %s", id)
 	}
@@ -209,7 +209,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 	return nil
 }
 
-func (daemon *Daemon) autoRemove(c *container.Container) {
+func (daemon *Daemon) autoRemove(ctx context.Context, c *container.Container) {
 	c.Lock()
 	ar := c.HostConfig.AutoRemove
 	c.Unlock()
@@ -217,7 +217,7 @@ func (daemon *Daemon) autoRemove(c *container.Container) {
 		return
 	}
 
-	err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+	err := daemon.ContainerRm(ctx, c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
 	if err == nil {
 		return
 	}

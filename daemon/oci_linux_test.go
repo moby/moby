@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,7 +75,7 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 	d := setupFakeDaemon(t, c)
 	defer cleanupFakeContainer(c)
 
-	_, err := d.createSpec(c)
+	_, err := d.createSpec(context.Background(), c)
 	assert.Check(t, err)
 }
 
@@ -93,7 +94,7 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 	d := setupFakeDaemon(t, c)
 	defer cleanupFakeContainer(c)
 
-	s, err := d.createSpec(c)
+	s, err := d.createSpec(context.Background(), c)
 	assert.Check(t, err)
 
 	// Find the /dev/shm mount in ms, check it does not have ro
@@ -123,7 +124,7 @@ func TestSysctlOverride(t *testing.T) {
 	defer cleanupFakeContainer(c)
 
 	// Ensure that the implicit sysctl is set correctly.
-	s, err := d.createSpec(c)
+	s, err := d.createSpec(context.Background(), c)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Hostname, "foobar")
 	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.Config.Domainname)
@@ -139,7 +140,7 @@ func TestSysctlOverride(t *testing.T) {
 	assert.Assert(t, c.HostConfig.Sysctls["kernel.domainname"] != c.Config.Domainname)
 	c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"] = "1024"
 
-	s, err = d.createSpec(c)
+	s, err = d.createSpec(context.Background(), c)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Hostname, "foobar")
 	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.HostConfig.Sysctls["kernel.domainname"])
@@ -147,7 +148,7 @@ func TestSysctlOverride(t *testing.T) {
 
 	// Ensure the ping_group_range is not set on a daemon with user-namespaces enabled
 	d.configStore.RemappedRoot = "dummy:dummy"
-	s, err = d.createSpec(c)
+	s, err = d.createSpec(context.Background(), c)
 	assert.NilError(t, err)
 	_, ok := s.Linux.Sysctl["net.ipv4.ping_group_range"]
 	assert.Assert(t, !ok)
@@ -155,7 +156,7 @@ func TestSysctlOverride(t *testing.T) {
 	// Ensure the ping_group_range is set on a container in "host" userns mode
 	// on a daemon with user-namespaces enabled
 	c.HostConfig.UsernsMode = "host"
-	s, err = d.createSpec(c)
+	s, err = d.createSpec(context.Background(), c)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "0 2147483647")
 }
@@ -175,7 +176,7 @@ func TestSysctlOverrideHost(t *testing.T) {
 	defer cleanupFakeContainer(c)
 
 	// Ensure that the implicit sysctl is not set
-	s, err := d.createSpec(c)
+	s, err := d.createSpec(context.Background(), c)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], "")
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "")
@@ -183,7 +184,7 @@ func TestSysctlOverrideHost(t *testing.T) {
 	// Set an explicit sysctl.
 	c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"] = "1024"
 
-	s, err = d.createSpec(c)
+	s, err = d.createSpec(context.Background(), c)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], c.HostConfig.Sysctls["net.ipv4.ip_unprivileged_port_start"])
 }

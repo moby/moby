@@ -19,9 +19,8 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool) error {
+func (daemon *Daemon) removeMountPoints(ctx context.Context, container *container.Container, rm bool) error {
 	var rmErrors []string
-	ctx := context.TODO()
 	for _, m := range container.MountPoints {
 		if m.Type != mounttypes.TypeVolume || m.Volume == nil {
 			continue

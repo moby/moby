@@ -24,18 +24,20 @@ type MockBackend struct {
 	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
 }
 
-func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
+var _ builder.Backend = (*MockBackend)(nil)
+
+func (m *MockBackend) ContainerAttachRaw(ctx context.Context, cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
 	return nil
 }
 
-func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
 	if m.containerCreateFunc != nil {
 		return m.containerCreateFunc(config)
 	}
 	return container.ContainerCreateCreatedBody{}, nil
 }
 
-func (m *MockBackend) ContainerRm(name string, config *types.ContainerRmConfig) error {
+func (m *MockBackend) ContainerRm(ctx context.Context, name string, config *types.ContainerRmConfig) error {
 	return nil
 }
 
@@ -46,11 +48,11 @@ func (m *MockBackend) CommitBuildStep(c backend.CommitConfig) (image.ID, error) 
 	return "", nil
 }
 
-func (m *MockBackend) ContainerKill(containerID string, sig uint64) error {
+func (m *MockBackend) ContainerKill(ctx context.Context, containerID string, sig uint64) error {
 	return nil
 }
 
-func (m *MockBackend) ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error {
+func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error {
 	return nil
 }
 
@@ -58,7 +60,7 @@ func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, con
 	return nil, nil
 }
 
-func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
+func (m *MockBackend) ContainerCreateWorkdir(ctx context.Context, containerID string) error {
 	return nil
 }
 

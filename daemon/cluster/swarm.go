@@ -408,12 +408,12 @@ func (c *Cluster) Leave(force bool) error {
 	c.mu.Unlock()
 
 	if nodeID := state.NodeID(); nodeID != "" {
-		nodeContainers, err := c.listContainerForNode(nodeID)
+		nodeContainers, err := c.listContainerForNode(context.TODO(), nodeID)
 		if err != nil {
 			return err
 		}
 		for _, id := range nodeContainers {
-			if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
+			if err := c.config.Backend.ContainerRm(context.TODO(), id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
 				logrus.Errorf("error removing %v: %v", id, err)
 			}
 		}
@@ -603,11 +603,11 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 	return ctx.Err()
 }
 
-func (c *Cluster) listContainerForNode(nodeID string) ([]string, error) {
+func (c *Cluster) listContainerForNode(ctx context.Context, nodeID string) ([]string, error) {
 	var ids []string
 	filters := filters.NewArgs()
 	filters.Add("label", fmt.Sprintf("com.docker.swarm.node.id=%s", nodeID))
-	containers, err := c.config.Backend.Containers(&apitypes.ContainerListOptions{
+	containers, err := c.config.Backend.Containers(ctx, &apitypes.ContainerListOptions{
 		Filters: filters,
 	})
 	if err != nil {

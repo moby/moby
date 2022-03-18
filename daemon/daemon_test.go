@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -80,32 +81,33 @@ func TestGetContainer(t *testing.T) {
 	daemon.reserveName(c4.ID, c4.Name)
 	daemon.reserveName(c5.ID, c5.Name)
 
-	if ctr, _ := daemon.GetContainer("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); ctr != c2 {
+	ctx := context.Background()
+	if ctr, _ := daemon.GetContainer(ctx, "3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); ctr != c2 {
 		t.Fatal("Should explicitly match full container IDs")
 	}
 
-	if ctr, _ := daemon.GetContainer("75fb0b8009"); ctr != c4 {
+	if ctr, _ := daemon.GetContainer(ctx, "75fb0b8009"); ctr != c4 {
 		t.Fatal("Should match a partial ID")
 	}
 
-	if ctr, _ := daemon.GetContainer("drunk_hawking"); ctr != c2 {
+	if ctr, _ := daemon.GetContainer(ctx, "drunk_hawking"); ctr != c2 {
 		t.Fatal("Should match a full name")
 	}
 
 	// c3.Name is a partial match for both c3.ID and c2.ID
-	if c, _ := daemon.GetContainer("3cdbd1aa"); c != c3 {
+	if c, _ := daemon.GetContainer(ctx, "3cdbd1aa"); c != c3 {
 		t.Fatal("Should match a full name even though it collides with another container's ID")
 	}
 
-	if ctr, _ := daemon.GetContainer("d22d69a2b896"); ctr != c5 {
+	if ctr, _ := daemon.GetContainer(ctx, "d22d69a2b896"); ctr != c5 {
 		t.Fatal("Should match a container where the provided prefix is an exact match to the its name, and is also a prefix for its ID")
 	}
 
-	if _, err := daemon.GetContainer("3cdbd1"); err == nil {
+	if _, err := daemon.GetContainer(ctx, "3cdbd1"); err == nil {
 		t.Fatal("Should return an error when provided a prefix that partially matches multiple container ID's")
 	}
 
-	if _, err := daemon.GetContainer("nothing"); err == nil {
+	if _, err := daemon.GetContainer(ctx, "nothing"); err == nil {
 		t.Fatal("Should return an error when provided a prefix that is neither a name or a partial match to an ID")
 	}
 }

@@ -44,7 +44,7 @@ type Backend interface {
 	// a build step.
 	CommitBuildStep(backend.CommitConfig) (image.ID, error)
 	// ContainerCreateWorkdir creates the workdir
-	ContainerCreateWorkdir(containerID string) error
+	ContainerCreateWorkdir(ctx context.Context, containerID string) error
 
 	CreateImage(config []byte, parent string) (Image, error)
 
@@ -59,15 +59,15 @@ type ImageBackend interface {
 // ExecBackend contains the interface methods required for executing containers
 type ExecBackend interface {
 	// ContainerAttachRaw attaches to container.
-	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
+	ContainerAttachRaw(ctx context.Context, cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
 	// ContainerCreateIgnoreImagesArgsEscaped creates a new Docker container and returns potential warnings
-	ContainerCreateIgnoreImagesArgsEscaped(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	// ContainerRm removes a container specified by `id`.
-	ContainerRm(name string, config *types.ContainerRmConfig) error
+	ContainerRm(ctx context.Context, name string, config *types.ContainerRmConfig) error
 	// ContainerKill stops the container execution abruptly.
-	ContainerKill(containerID string, sig uint64) error
+	ContainerKill(ctx context.Context, containerID string, sig uint64) error
 	// ContainerStart starts a new container
-	ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
+	ContainerStart(ctx context.Context, containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	// ContainerWait stops processing until the given container is stopped.
 	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
 }

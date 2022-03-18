@@ -14,7 +14,7 @@ import (
 // context timeout or cancellation). On a successful wait, the exit code of the
 // container is returned in the status with a non-nil Err() value.
 func (daemon *Daemon) ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan container.StateStatus, error) {
-	cntr, err := daemon.GetContainer(name)
+	cntr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}

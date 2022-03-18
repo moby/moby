@@ -1,6 +1,8 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/versions/v1p19"
@@ -19,8 +21,8 @@ func setPlatformSpecificContainerFields(container *container.Container, contJSON
 }
 
 // containerInspectPre120 gets containers for pre 1.20 APIs.
-func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON, error) {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) containerInspectPre120(ctx context.Context, name string) (*v1p19.ContainerJSON, error) {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}

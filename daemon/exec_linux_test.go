@@ -4,6 +4,7 @@
 package daemon
 
 import (
+	"context"
 	"testing"
 
 	"github.com/containerd/containerd/pkg/apparmor"
@@ -82,7 +83,7 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 				ec := &exec.Config{Privileged: execPrivileged}
 				p := &specs.Process{}
 
-				err := d.execSetPlatformOpt(c, ec, p)
+				err := d.execSetPlatformOpt(context.Background(), c, ec, p)
 				assert.NilError(t, err)
 				assert.Equal(t, p.ApparmorProfile, tc.expectedProfile)
 			})

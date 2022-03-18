@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -12,8 +13,8 @@ import (
 
 // ContainerExport writes the contents of the container to the given
 // writer. An error is returned if the container cannot be found.
-func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerExport(ctx context.Context, name string, out io.Writer) error {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return err
 	}

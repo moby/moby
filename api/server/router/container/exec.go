@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
@@ -18,7 +19,7 @@ import (
 )
 
 func (s *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	eConfig, err := s.backend.ContainerExecInspect(vars["id"])
+	eConfig, err := s.backend.ContainerExecInspect(ctx, vars["id"])
 	if err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	}
 
 	// Register an instance of Exec in container.
-	id, err := s.backend.ContainerExecCreate(name, execConfig)
+	id, err := s.backend.ContainerExecCreate(ctx, name, execConfig)
 	if err != nil {
 		logrus.Errorf("Error setting up exec command in container %s: %v", name, err)
 		return err
@@ -94,7 +95,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		return errdefs.InvalidParameter(err)
 	}
 
-	if exists, err := s.backend.ExecExists(execName); !exists {
+	if exists, err := s.backend.ExecExists(ctx, execName); !exists {
 		return err
 	}
 
@@ -152,5 +153,9 @@ func (s *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 		return errdefs.InvalidParameter(err)
 	}
 
-	return s.backend.ContainerExecResize(vars["name"], height, width)
+	// TODO: the timeout is hardcoded here. It would be more flexible to
+	// make it a parameter, which would need API changes.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return s.backend.ContainerExecResize(ctx, vars["name"], height, width)
 }

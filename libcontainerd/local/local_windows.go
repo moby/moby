@@ -159,7 +159,7 @@ func (c *client) Create(_ context.Context, id string, spec *specs.Spec, shim str
 				"container": id,
 				"event":     libcontainerdtypes.EventCreate,
 			}).Info("sending event")
-			err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, ei)
+			err := c.backend.ProcessEvent(context.Background(), id, libcontainerdtypes.EventCreate, ei)
 			if err != nil {
 				c.logger.WithError(err).WithFields(logrus.Fields{
 					"container": id,
@@ -514,7 +514,7 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 			"event":      libcontainerdtypes.EventStart,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ei.ContainerID, libcontainerdtypes.EventStart, ei)
+		err := c.backend.ProcessEvent(context.Background(), ei.ContainerID, libcontainerdtypes.EventStart, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  id,
@@ -664,7 +664,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 			"event":      libcontainerdtypes.EventExecAdded,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExecAdded, ei)
+		err := c.backend.ProcessEvent(context.Background(), ctr.id, libcontainerdtypes.EventExecAdded, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  ctr.id,
@@ -672,7 +672,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
-		err = c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExecStarted, ei)
+		err = c.backend.ProcessEvent(context.Background(), ctr.id, libcontainerdtypes.EventExecStarted, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  ctr.id,
@@ -777,7 +777,7 @@ func (c *client) Pause(_ context.Context, containerID string) error {
 	ctr.status = containerd.Paused
 
 	c.eventQ.Append(containerID, func() {
-		err := c.backend.ProcessEvent(containerID, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
+		err := c.backend.ProcessEvent(context.Background(), containerID, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
 			ContainerID: containerID,
 			ProcessID:   libcontainerdtypes.InitProcessName,
 		})
@@ -817,7 +817,7 @@ func (c *client) Resume(_ context.Context, containerID string) error {
 	ctr.status = containerd.Running
 
 	c.eventQ.Append(containerID, func() {
-		err := c.backend.ProcessEvent(containerID, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
+		err := c.backend.ProcessEvent(context.Background(), containerID, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
 			ContainerID: containerID,
 			ProcessID:   libcontainerdtypes.InitProcessName,
 		})
@@ -1146,7 +1146,7 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 			"event":      libcontainerdtypes.EventExit,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExit, ei)
+		err := c.backend.ProcessEvent(context.Background(), ctr.id, libcontainerdtypes.EventExit, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  ctr.id,

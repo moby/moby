@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,7 +25,7 @@ const (
 	credentialSpecFileLocation     = "CredentialSpecs"
 )
 
-func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
+func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (*specs.Spec, error) {
 
 	img, err := daemon.imageService.GetImage(string(c.ImageID), nil)
 	if err != nil {

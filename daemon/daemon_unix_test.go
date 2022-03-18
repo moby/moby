@@ -4,6 +4,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -23,7 +24,9 @@ type fakeContainerGetter struct {
 	containers map[string]*container.Container
 }
 
-func (f *fakeContainerGetter) GetContainer(cid string) (*container.Container, error) {
+var _ containerGetter = (*fakeContainerGetter)(nil)
+
+func (f *fakeContainerGetter) GetContainer(ctx context.Context, cid string) (*container.Container, error) {
 	ctr, ok := f.containers[cid]
 	if !ok {
 		return nil, errors.New("container not found")
@@ -45,7 +48,7 @@ func TestAdjustSharedNamespaceContainerName(t *testing.T) {
 		ID: fakeID,
 	}
 
-	adaptSharedNamespaceContainer(containerStore, hostConfig)
+	adaptSharedNamespaceContainer(context.Background(), containerStore, hostConfig)
 	if hostConfig.IpcMode != containertypes.IpcMode("container:"+fakeID) {
 		t.Errorf("Expected IpcMode to be container:%s", fakeID)
 	}
@@ -73,25 +76,25 @@ func TestAdjustCPUShares(t *testing.T) {
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, true)
 	if hostConfig.CPUShares != linuxMinCPUShares {
 		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, true)
 	if hostConfig.CPUShares != linuxMaxCPUShares {
 		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares)
 	}
 
 	hostConfig.CPUShares = 0
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, true)
 	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, true)
 	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
@@ -112,25 +115,25 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, false)
 	if hostConfig.CPUShares != linuxMinCPUShares-1 {
 		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares-1)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, false)
 	if hostConfig.CPUShares != linuxMaxCPUShares+1 {
 		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares+1)
 	}
 
 	hostConfig.CPUShares = 0
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, false)
 	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(context.Background(), hostConfig, false)
 	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
