@@ -175,23 +175,16 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 		modifiers := Headers(userAgent, nil)
 		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
 		if err != nil {
-			if fErr, ok := err.(fallbackError); ok {
-				logrus.WithError(fErr.err).Error("cannot use identity token for search, v2 auth not supported")
-			} else {
-				return nil, err
-			}
-		} else {
-			// Copy non transport http client features
-			v2Client.Timeout = endpoint.client.Timeout
-			v2Client.CheckRedirect = endpoint.client.CheckRedirect
-			v2Client.Jar = endpoint.client.Jar
-
-			logrus.Debugf("using v2 client for search to %s", endpoint.URL)
-			client = v2Client
+			return nil, err
 		}
-	}
+		// Copy non transport http client features
+		v2Client.Timeout = endpoint.client.Timeout
+		v2Client.CheckRedirect = endpoint.client.CheckRedirect
+		v2Client.Jar = endpoint.client.Jar
 
-	if client == nil {
+		logrus.Debugf("using v2 client for search to %s", endpoint.URL)
+		client = v2Client
+	} else {
 		client = endpoint.client
 		if err := authorizeClient(client, authConfig, endpoint); err != nil {
 			return nil, err

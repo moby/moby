@@ -63,14 +63,6 @@ func (scs staticCredentialStore) RefreshToken(*url.URL, string) string {
 func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 }
 
-type fallbackError struct {
-	err error
-}
-
-func (err fallbackError) Error() string {
-	return err.err.Error()
-}
-
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
