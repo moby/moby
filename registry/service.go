@@ -29,7 +29,6 @@ type Service interface {
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
 	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error)
 	ServiceConfig() *registry.ServiceConfig
-	TLSConfig(hostname string) (*tls.Config, error)
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
 	LoadInsecureRegistries([]string) error
@@ -219,15 +218,6 @@ type APIEndpoint struct {
 	Official                       bool
 	TrimHostname                   bool
 	TLSConfig                      *tls.Config
-}
-
-// TLSConfig constructs a client TLS configuration based on server defaults
-func (s *defaultService) TLSConfig(hostname string) (*tls.Config, error) {
-	s.mu.RLock()
-	secure := s.config.isSecureIndex(hostname)
-	s.mu.RUnlock()
-
-	return newTLSConfig(hostname, secure)
 }
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
