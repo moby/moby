@@ -82,7 +82,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	addPlugins("Log", info.Plugins.Log)
 
 	// add v2 plugins
-	v2Plugins, err := e.backend.PluginManager().List(filters.NewArgs())
+	v2Plugins, err := e.backend.PluginManager().List(ctx, filters.NewArgs())
 	if err == nil {
 		for _, plgn := range v2Plugins {
 			for _, typ := range plgn.Config.Interface.Types {

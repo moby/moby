@@ -41,12 +41,12 @@ type Controller struct {
 // Backend is the interface for interacting with the plugin manager
 // Controller actions are passed to the configured backend to do the real work.
 type Backend interface {
-	Disable(name string, config *enginetypes.PluginDisableConfig) error
-	Enable(name string, config *enginetypes.PluginEnableConfig) error
-	Remove(name string, config *enginetypes.PluginRmConfig) error
+	Disable(ctx context.Context, name string, config *enginetypes.PluginDisableConfig) error
+	Enable(ctx context.Context, name string, config *enginetypes.PluginEnableConfig) error
+	Remove(ctx context.Context, name string, config *enginetypes.PluginRmConfig) error
 	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error
 	Upgrade(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error
-	Get(name string) (*v2.Plugin, error)
+	Get(ctx context.Context, name string) (*v2.Plugin, error)
 	SubscribeEvents(buffer int, events ...plugin.Event) (eventCh <-chan interface{}, cancel func())
 }
 
@@ -99,7 +99,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 	var authConfig enginetypes.AuthConfig
 	privs := convertPrivileges(p.spec.Privileges)
 
-	pl, err := p.backend.Get(p.spec.Name)
+	pl, err := p.backend.Get(ctx, p.spec.Name)
 
 	defer func() {
 		if pl != nil && err == nil {
@@ -112,7 +112,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 			return errors.Errorf("plugin already exists: %s", p.spec.Name)
 		}
 		if pl.IsEnabled() {
-			if err := p.backend.Disable(pl.GetID(), &enginetypes.PluginDisableConfig{ForceDisable: true}); err != nil {
+			if err := p.backend.Disable(ctx, pl.GetID(), &enginetypes.PluginDisableConfig{ForceDisable: true}); err != nil {
 				p.logger.WithError(err).Debug("could not disable plugin before running upgrade")
 			}
 		}
@@ -123,7 +123,7 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 	if err := p.backend.Pull(ctx, remote, p.spec.Name, nil, &authConfig, privs, io.Discard, plugin.WithSwarmService(p.serviceID), plugin.WithEnv(p.spec.Env)); err != nil {
 		return err
 	}
-	pl, err = p.backend.Get(p.spec.Name)
+	pl, err = p.backend.Get(ctx, p.spec.Name)
 	if err != nil {
 		return err
 	}
@@ -136,19 +136,19 @@ func (p *Controller) Prepare(ctx context.Context) (err error) {
 func (p *Controller) Start(ctx context.Context) error {
 	p.logger.Debug("Start")
 
-	pl, err := p.backend.Get(p.pluginID)
+	pl, err := p.backend.Get(ctx, p.pluginID)
 	if err != nil {
 		return err
 	}
 
 	if p.spec.Disabled {
 		if pl.IsEnabled() {
-			return p.backend.Disable(p.pluginID, &enginetypes.PluginDisableConfig{ForceDisable: false})
+			return p.backend.Disable(ctx, p.pluginID, &enginetypes.PluginDisableConfig{ForceDisable: false})
 		}
 		return nil
 	}
 	if !pl.IsEnabled() {
-		return p.backend.Enable(p.pluginID, &enginetypes.PluginEnableConfig{Timeout: 30})
+		return p.backend.Enable(ctx, p.pluginID, &enginetypes.PluginEnableConfig{Timeout: 30})
 	}
 	return nil
 }
@@ -157,7 +157,7 @@ func (p *Controller) Start(ctx context.Context) error {
 func (p *Controller) Wait(ctx context.Context) error {
 	p.logger.Debug("Wait")
 
-	pl, err := p.backend.Get(p.pluginID)
+	pl, err := p.backend.Get(ctx, p.pluginID)
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (p *Controller) Terminate(ctx context.Context) error {
 func (p *Controller) Remove(ctx context.Context) error {
 	p.logger.Debug("Remove")
 
-	pl, err := p.backend.Get(p.pluginID)
+	pl, err := p.backend.Get(ctx, p.pluginID)
 	if err != nil {
 		if isNotFound(err) {
 			return nil
@@ -232,7 +232,7 @@ func (p *Controller) Remove(ctx context.Context) error {
 
 	// This may error because we have exactly 1 plugin, but potentially multiple
 	// tasks which are calling remove.
-	err = p.backend.Remove(p.pluginID, &enginetypes.PluginRmConfig{ForceRemove: true})
+	err = p.backend.Remove(ctx, p.pluginID, &enginetypes.PluginRmConfig{ForceRemove: true})
 	if isNotFound(err) {
 		return nil
 	}
