@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/volume"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -64,7 +65,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 		})
 	}
 
-	var volumes []*types.Volume
+	var volumes []*volume.Volume
 	if opts.Volumes {
 		eg.Go(func() error {
 			var err error

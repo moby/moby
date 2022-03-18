@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
@@ -66,7 +67,7 @@ func (s *VolumesService) GetDriverList() []string {
 //
 // A good example for a reference ID is a container's ID.
 // When whatever is going to reference this volume is removed the caller should defeference the volume by calling `Release`.
-func (s *VolumesService) Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*types.Volume, error) {
+func (s *VolumesService) Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*volumetypes.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateRandomID()
 	}
@@ -80,7 +81,7 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 }
 
 // Get returns details about a volume
-func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.GetOption) (*types.Volume, error) {
+func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.GetOption) (*volumetypes.Volume, error) {
 	v, err := s.vs.Get(ctx, name, getOpts...)
 	if err != nil {
 		return nil, err
@@ -107,7 +108,7 @@ func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.G
 // s.Mount(ctx, vol, mountID)
 // s.Unmount(ctx, vol, mountID)
 // ```
-func (s *VolumesService) Mount(ctx context.Context, vol *types.Volume, ref string) (string, error) {
+func (s *VolumesService) Mount(ctx context.Context, vol *volumetypes.Volume, ref string) (string, error) {
 	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
 	if err != nil {
 		if IsNotExist(err) {
@@ -124,7 +125,7 @@ func (s *VolumesService) Mount(ctx context.Context, vol *types.Volume, ref strin
 // The reference specified here should be the same reference specified during `Mount` and should be
 // unique for each mount/unmount pair.
 // See `Mount` documentation for an example.
-func (s *VolumesService) Unmount(ctx context.Context, vol *types.Volume, ref string) error {
+func (s *VolumesService) Unmount(ctx context.Context, vol *volumetypes.Volume, ref string) error {
 	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
 	if err != nil {
 		if IsNotExist(err) {
@@ -183,7 +184,7 @@ var acceptedListFilters = map[string]bool{
 // Note that this intentionally skips volumes which have mount options. Typically
 // volumes with mount options are not really local even if they are using the
 // local driver.
-func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume, error) {
+func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*volumetypes.Volume, error) {
 	ch := s.usage.DoChan("LocalVolumesSize", func() (interface{}, error) {
 		ls, _, err := s.vs.Find(ctx, And(ByDriver(volume.DefaultDriverName), CustomFilter(func(v volume.Volume) bool {
 			dv, ok := v.(volume.DetailedVolume)
@@ -201,7 +202,7 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume,
 		if res.Err != nil {
 			return nil, res.Err
 		}
-		return res.Val.([]*types.Volume), nil
+		return res.Val.([]*volumetypes.Volume), nil
 	}
 }
 
@@ -257,7 +258,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 
 // List gets the list of volumes which match the past in filters
 // If filters is nil or empty all volumes are returned.
-func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumesOut []*types.Volume, warnings []string, err error) {
+func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumesOut []*volumetypes.Volume, warnings []string, err error) {
 	by, err := filtersToBy(filter, acceptedListFilters)
 	if err != nil {
 		return nil, nil, err

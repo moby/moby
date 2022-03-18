@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/volume"
 	"github.com/sirupsen/logrus"
@@ -28,9 +28,9 @@ type pathCacher interface {
 	CachedPath() string
 }
 
-func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volume, opts ...convertOpt) []*types.Volume {
+func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volume, opts ...convertOpt) []*volumetypes.Volume {
 	var (
-		out        = make([]*types.Volume, 0, len(volumes))
+		out        = make([]*volumetypes.Volume, 0, len(volumes))
 		getSize    bool
 		cachedPath bool
 	)
@@ -69,7 +69,7 @@ func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volu
 				logrus.WithError(err).WithField("volume", v.Name()).Warnf("Failed to determine size of volume")
 				sz = -1
 			}
-			apiV.UsageData = &types.VolumeUsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}
+			apiV.UsageData = &volumetypes.VolumeUsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}
 		}
 
 		out = append(out, &apiV)
@@ -77,9 +77,9 @@ func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volu
 	return out
 }
 
-func volumeToAPIType(v volume.Volume) types.Volume {
+func volumeToAPIType(v volume.Volume) volumetypes.Volume {
 	createdAt, _ := v.CreatedAt()
-	tv := types.Volume{
+	tv := volumetypes.Volume{
 		Name:      v.Name(),
 		Driver:    v.DriverName(),
 		CreatedAt: createdAt.Format(time.RFC3339),

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -37,7 +38,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.DeepEqual(t, du, types.DiskUsage{
 					Images:     []*types.ImageSummary{},
 					Containers: []*types.Container{},
-					Volumes:    []*types.Volume{},
+					Volumes:    []*volume.Volume{},
 					BuildCache: []*types.BuildCache{},
 				})
 				return du
@@ -64,7 +65,7 @@ func TestDiskUsage(t *testing.T) {
 						},
 					},
 					Containers: []*types.Container{},
-					Volumes:    []*types.Volume{},
+					Volumes:    []*volume.Volume{},
 					BuildCache: []*types.BuildCache{},
 				})
 				return du
@@ -107,7 +108,7 @@ func TestDiskUsage(t *testing.T) {
 							Mounts:          du.Containers[0].Mounts,          // not relevant for the test
 						},
 					},
-					Volumes:    []*types.Volume{},
+					Volumes:    []*volume.Volume{},
 					BuildCache: []*types.BuildCache{},
 				})
 				return du
