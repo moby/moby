@@ -8,9 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestWildcardMatches(t *testing.T) {
@@ -205,17 +202,25 @@ func TestMatches(t *testing.T) {
 		for _, test := range tests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%s: %v", desc, err)
+			}
 			res, _ := pm.MatchesOrParentMatches(test.text)
-			assert.Check(t, is.Equal(test.pass, res), desc)
+			if res != test.pass {
+				t.Fatalf("%s: expected %t, got %t", desc, test.pass, res)
+			}
 		}
 
 		for _, test := range multiPatternTests {
 			desc := fmt.Sprintf("patterns=%q text=%q", test.patterns, test.text)
 			pm, err := NewPatternMatcher(test.patterns)
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%s: %v", desc, err)
+			}
 			res, _ := pm.MatchesOrParentMatches(test.text)
-			assert.Check(t, is.Equal(test.pass, res), desc)
+			if res != test.pass {
+				t.Fatalf("%s: expected %t, got %t", desc, test.pass, res)
+			}
 		}
 	})
 
@@ -223,7 +228,9 @@ func TestMatches(t *testing.T) {
 		for _, test := range tests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%s: %v", desc, err)
+			}
 
 			parentPath := filepath.Dir(filepath.FromSlash(test.text))
 			parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
@@ -236,7 +243,9 @@ func TestMatches(t *testing.T) {
 			}
 
 			res, _ := pm.MatchesUsingParentResult(test.text, parentMatched)
-			assert.Check(t, is.Equal(test.pass, res), desc)
+			if res != test.pass {
+				t.Fatalf("%s: expected %t, got %t", desc, test.pass, res)
+			}
 		}
 	})
 
@@ -253,13 +262,17 @@ func TestMatches(t *testing.T) {
 			}
 
 			res, _, _ := pm.MatchesUsingParentResults(text, parentMatchInfo)
-			assert.Check(t, is.Equal(pass, res), desc)
+			if res != pass {
+				t.Fatalf("%s: expected %t, got %t", desc, pass, res)
+			}
 		}
 
 		for _, test := range tests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%s: %v", desc, err)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
@@ -267,7 +280,9 @@ func TestMatches(t *testing.T) {
 		for _, test := range multiPatternTests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.patterns, test.text)
 			pm, err := NewPatternMatcher(test.patterns)
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%s: %v", desc, err)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
@@ -276,13 +291,17 @@ func TestMatches(t *testing.T) {
 	t.Run("MatchesUsingParentResultsNoContext", func(t *testing.T) {
 		check := func(pm *PatternMatcher, text string, pass bool, desc string) {
 			res, _, _ := pm.MatchesUsingParentResults(text, MatchInfo{})
-			assert.Check(t, is.Equal(pass, res), desc)
+			if res != pass {
+				t.Fatalf("%s: expected %t, got %t", desc, pass, res)
+			}
 		}
 
 		for _, test := range tests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%s: %v", desc, err)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
@@ -290,7 +309,9 @@ func TestMatches(t *testing.T) {
 		for _, test := range multiPatternTests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.patterns, test.text)
 			pm, err := NewPatternMatcher(test.patterns)
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%s: %v", desc, err)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
