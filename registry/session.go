@@ -184,8 +184,14 @@ func newSession(client *http.Client, endpoint *v1Endpoint) *session {
 	}
 }
 
+// defaultSearchLimit is the default value for maximum number of returned search results.
+const defaultSearchLimit = 25
+
 // searchRepositories performs a search against the remote repository
 func (r *session) searchRepositories(term string, limit int) (*registry.SearchResults, error) {
+	if limit == 0 {
+		limit = defaultSearchLimit
+	}
 	if limit < 1 || limit > 100 {
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}

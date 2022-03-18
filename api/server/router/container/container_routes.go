@@ -721,7 +721,7 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 
 	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return err
 	}
 
 	pruneReport, err := s.backend.ContainersPrune(ctx, pruneFilters)

@@ -17,19 +17,19 @@ func (s *DockerSuite) TestSearchOnCentralRegistry(c *testing.T) {
 func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *testing.T) {
 	out, _, err := dockerCmdWithError("search", "--filter", "stars=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 
 	out, _, err = dockerCmdWithError("search", "-f", "stars=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 
 	out, _, err = dockerCmdWithError("search", "-f", "is-automated=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 
 	out, _, err = dockerCmdWithError("search", "-f", "is-official=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 }
 
 func (s *DockerSuite) TestSearchCmdOptions(c *testing.T) {
@@ -73,7 +73,7 @@ func (s *DockerSuite) TestSearchWithLimit(c *testing.T) {
 		assert.Equal(c, len(outSlice), limit+2) // 1 header, 1 carriage return
 	}
 
-	for _, limit := range []int{-1, 0, 101} {
+	for _, limit := range []int{-1, 101} {
 		_, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 		assert.ErrorContains(c, err, "")
 	}

@@ -91,7 +91,7 @@ func TestListInvalidFilter(t *testing.T) {
 	_, err = d.Containers(&types.ContainerListOptions{
 		Filters: f,
 	})
-	assert.Assert(t, is.Error(err, "Invalid filter 'invalid'"))
+	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
 }
 
 func TestNameFilter(t *testing.T) {

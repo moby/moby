@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -290,15 +289,21 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 			headers[k] = v
 		}
 	}
-	limit := registry.DefaultSearchLimit
+
+	var limit int
 	if r.Form.Get("limit") != "" {
-		limitValue, err := strconv.Atoi(r.Form.Get("limit"))
-		if err != nil {
-			return err
+		var err error
+		limit, err = strconv.Atoi(r.Form.Get("limit"))
+		if err != nil || limit < 0 {
+			return errdefs.InvalidParameter(errors.Wrap(err, "invalid limit specified"))
 		}
-		limit = limitValue
 	}
-	query, err := s.backend.SearchRegistryForImages(ctx, r.Form.Get("filters"), r.Form.Get("term"), limit, config, headers)
+	searchFilters, err := filters.FromJSON(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	query, err := s.backend.SearchRegistryForImages(ctx, searchFilters, r.Form.Get("term"), limit, config, headers)
 	if err != nil {
 		return err
 	}

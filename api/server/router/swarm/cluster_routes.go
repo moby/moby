@@ -164,7 +164,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 	}
 	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return errdefs.InvalidParameter(err)
+		return err
 	}
 
 	// the status query parameter is only support in API versions >= 1.41. If

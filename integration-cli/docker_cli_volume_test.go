@@ -166,13 +166,13 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 func (s *DockerSuite) TestVolumeCLILsErrorWithInvalidFilterName(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Invalid filter"))
+	assert.Assert(c, strings.Contains(out, "invalid filter"))
 }
 
 func (s *DockerSuite) TestVolumeCLILsWithIncorrectFilterValue(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Invalid filter"))
+	assert.Assert(c, strings.Contains(out, "invalid filter"))
 }
 
 func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {

@@ -203,7 +203,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
 	assert.Equal(c, RemoveOutputForExistingElements(containerOut, existingContainers), secondID)
 
 	result := cli.Docker(cli.Args("ps", "-a", "-q", "--filter=status=rubbish"), cli.WithTimeout(time.Second*60))
-	err := "Invalid filter 'status=rubbish'"
+	err := "invalid filter 'status=rubbish'"
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
 		err = "Unrecognised filter value for status: rubbish"
 	}
