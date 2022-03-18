@@ -136,7 +136,7 @@ func psPidsArg(pids []uint32) string {
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error) {
+func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs string) (*container.ContainerTopOKBody, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
 	}
@@ -145,7 +145,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 		return nil, err
 	}
 
-	ctr, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 		return nil, errContainerIsRestarting(ctr.ID)
 	}
 
-	procs, err := daemon.containerd.ListPids(context.Background(), ctr.ID)
+	procs, err := daemon.containerd.ListPids(ctx, ctr.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ import (
 )
 
 // fillPlatformInfo fills the platform related info.
-func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) {
+func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *types.Info, sysInfo *sysinfo.SysInfo) {
 	v.CgroupDriver = daemon.getCgroupDriver()
 	v.CgroupVersion = "1"
 	if sysInfo.CgroupUnified {
@@ -45,7 +45,7 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	v.InitCommit.ID = "N/A"
 
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(v.DefaultRuntime).Path
-	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
+	if rv, err := exec.CommandContext(ctx, defaultRuntimeBinary, "--version").Output(); err == nil {
 		if _, _, commit, err := parseRuntimeVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %v", defaultRuntimeBinary, err)
 		} else {
@@ -55,14 +55,14 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		logrus.Warnf("failed to retrieve %s version: %v", defaultRuntimeBinary, err)
 	}
 
-	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
+	if rv, err := daemon.containerd.Version(ctx); err == nil {
 		v.ContainerdCommit.ID = rv.Revision
 	} else {
 		logrus.Warnf("failed to retrieve containerd version: %v", err)
 	}
 
 	defaultInitBinary := daemon.configStore.GetInitPath()
-	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
+	if rv, err := exec.CommandContext(ctx, defaultInitBinary, "--version").Output(); err == nil {
 		if _, commit, err := parseInitVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %s", defaultInitBinary, err)
 		} else {
@@ -163,8 +163,8 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	}
 }
 
-func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
-	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
+func (daemon *Daemon) fillPlatformVersion(ctx context.Context, v *types.Version) {
+	if rv, err := daemon.containerd.Version(ctx); err == nil {
 		v.Components = append(v.Components, types.ComponentVersion{
 			Name:    "containerd",
 			Version: rv.Version,
@@ -176,7 +176,7 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 
 	defaultRuntime := daemon.configStore.GetDefaultRuntimeName()
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(defaultRuntime).Path
-	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
+	if rv, err := exec.CommandContext(ctx, defaultRuntimeBinary, "--version").Output(); err == nil {
 		if _, ver, commit, err := parseRuntimeVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %v", defaultRuntimeBinary, err)
 		} else {
@@ -193,7 +193,7 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 	}
 
 	defaultInitBinary := daemon.configStore.GetInitPath()
-	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
+	if rv, err := exec.CommandContext(ctx, defaultInitBinary, "--version").Output(); err == nil {
 		if ver, commit, err := parseInitVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %s", defaultInitBinary, err)
 		} else {

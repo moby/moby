@@ -49,7 +49,7 @@ func (s *containerRouter) postContainersCopy(ctx context.Context, w http.Respons
 		return pathError{}
 	}
 
-	data, err := s.backend.ContainerCopy(vars["name"], cfg.Resource)
+	data, err := s.backend.ContainerCopy(ctx, vars["name"], cfg.Resource)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (s *containerRouter) headContainersArchive(ctx context.Context, w http.Resp
 		return err
 	}
 
-	stat, err := s.backend.ContainerStatPath(v.Name, v.Path)
+	stat, err := s.backend.ContainerStatPath(ctx, v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (s *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 		return err
 	}
 
-	tarArchive, stat, err := s.backend.ContainerArchivePath(v.Name, v.Path)
+	tarArchive, stat, err := s.backend.ContainerArchivePath(ctx, v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -141,5 +141,5 @@ func (s *containerRouter) putContainersArchive(ctx context.Context, w http.Respo
 	noOverwriteDirNonDir := httputils.BoolValue(r, "noOverwriteDirNonDir")
 	copyUIDGID := httputils.BoolValue(r, "copyUIDGID")
 
-	return s.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, noOverwriteDirNonDir, r.Body)
+	return s.backend.ContainerExtractToDir(ctx, v.Name, v.Path, copyUIDGID, noOverwriteDirNonDir, r.Body)
 }

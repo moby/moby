@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -104,7 +105,7 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
+func (daemon *Daemon) Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.refreshImage)
 }
 

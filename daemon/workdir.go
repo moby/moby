@@ -1,13 +1,15 @@
 package daemon // import "github.com/docker/docker/daemon"
 
+import "context"
+
 // ContainerCreateWorkdir creates the working directory. This solves the
 // issue arising from https://github.com/docker/docker/issues/27545,
 // which was initially fixed by https://github.com/docker/docker/pull/27884. But that fix
 // was too expensive in terms of performance on Windows. Instead,
 // https://github.com/docker/docker/pull/28514 introduces this new functionality
 // where the builder calls into the backend here to create the working directory.
-func (daemon *Daemon) ContainerCreateWorkdir(cID string) error {
-	container, err := daemon.GetContainer(cID)
+func (daemon *Daemon) ContainerCreateWorkdir(ctx context.Context, cID string) error {
+	container, err := daemon.GetContainer(ctx, cID)
 	if err != nil {
 		return err
 	}

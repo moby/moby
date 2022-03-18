@@ -12,7 +12,7 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 	if containertypes.Isolation.IsDefault(hostConfig.Isolation) {
 		// Make sure the host config has the default daemon isolation if not specified by caller.
 		hostConfig.Isolation = daemon.defaultIsolation
@@ -40,7 +40,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 
 		// Create the volume in the volume driver. If it doesn't exist,
 		// a new one will be created.
-		v, err := daemon.volumes.Create(context.TODO(), mp.Name, volumeDriver, volumeopts.WithCreateReference(container.ID))
+		v, err := daemon.volumes.Create(ctx, mp.Name, volumeDriver, volumeopts.WithCreateReference(container.ID))
 		if err != nil {
 			return err
 		}

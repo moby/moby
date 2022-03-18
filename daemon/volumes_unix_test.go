@@ -4,6 +4,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -250,7 +251,7 @@ func TestBackportMountSpec(t *testing.T) {
 	} {
 
 		mp := c.MountPoints[x.mp.Destination]
-		d.backportMountSpec(c)
+		d.backportMountSpec(context.Background(), c)
 
 		if !reflect.DeepEqual(mp.Spec, x.mp.Spec) {
 			t.Fatalf("%s\nexpected:\n\t%s\n\ngot:\n\t%s", x.comment, pretty(x.mp), pretty(mp))

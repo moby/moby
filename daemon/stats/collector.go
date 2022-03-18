@@ -2,6 +2,7 @@ package stats // import "github.com/docker/docker/daemon/stats"
 
 import (
 	"bufio"
+	"context"
 	"sync"
 	"time"
 
@@ -36,7 +37,7 @@ func NewCollector(supervisor supervisor, interval time.Duration) *Collector {
 
 type supervisor interface {
 	// GetContainerStats collects all the stats related to a container
-	GetContainerStats(container *container.Container) (*types.StatsJSON, error)
+	GetContainerStats(ctx context.Context, container *container.Container) (*types.StatsJSON, error)
 }
 
 // Collect registers the container with the collector and adds it to
@@ -114,7 +115,7 @@ func (s *Collector) Run() {
 		}
 
 		for _, pair := range pairs {
-			stats, err := s.supervisor.GetContainerStats(pair.container)
+			stats, err := s.supervisor.GetContainerStats(context.Background(), pair.container)
 
 			switch err.(type) {
 			case nil:

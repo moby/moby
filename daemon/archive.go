@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -48,8 +49,8 @@ func archivePath(i interface{}, src string, opts *archive.TarOptions, root strin
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the container identified by the given name.
-func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerCopy(ctx context.Context, name string, res string) (io.ReadCloser, error) {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +73,8 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
-func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerStatPath(ctx context.Context, name string, path string) (stat *types.ContainerPathStat, err error) {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +98,8 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.C
 // ContainerArchivePath creates an archive of the filesystem resource at the
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
-func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerArchivePath(ctx context.Context, name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -125,8 +126,8 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 // be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
-func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerExtractToDir(ctx context.Context, name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return err
 	}

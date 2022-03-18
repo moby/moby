@@ -252,7 +252,10 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	close(stdinCloseSync)
 
 	if err := t.Start(ctx); err != nil {
-		if _, err := t.Delete(ctx); err != nil {
+		// context may be canceled at this point but we still want to
+		// clean up, so use a fresh context.
+		// TODO: timeout to help prevent lockups? Can we make this async?
+		if _, err := t.Delete(context.TODO()); err != nil {
 			c.logger.WithError(err).WithField("container", id).
 				Error("failed to delete task after fail start")
 		}
@@ -675,7 +678,7 @@ func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, std
 
 func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) {
 	c.eventQ.Append(ei.ContainerID, func() {
-		err := c.backend.ProcessEvent(ei.ContainerID, et, ei)
+		err := c.backend.ProcessEvent(ctx, ei.ContainerID, et, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  ei.ContainerID,

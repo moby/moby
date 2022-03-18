@@ -285,7 +285,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.ContainerCreateCreatedBody
 	var err error
-	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
+	if cr, err = c.backend.CreateManagedContainer(ctx, types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),
@@ -301,7 +301,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {
-			if err := c.backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
+			if err := c.backend.ConnectContainerToNetwork(ctx, cr.ID, n, ep); err != nil {
 				return err
 			}
 		}
@@ -312,22 +312,22 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		return errors.New("unable to get container from task spec")
 	}
 
-	if err := c.backend.SetContainerDependencyStore(cr.ID, c.dependencies); err != nil {
+	if err := c.backend.SetContainerDependencyStore(ctx, cr.ID, c.dependencies); err != nil {
 		return err
 	}
 
 	// configure secrets
 	secretRefs := convert.SecretReferencesFromGRPC(container.Secrets)
-	if err := c.backend.SetContainerSecretReferences(cr.ID, secretRefs); err != nil {
+	if err := c.backend.SetContainerSecretReferences(ctx, cr.ID, secretRefs); err != nil {
 		return err
 	}
 
 	configRefs := convert.ConfigReferencesFromGRPC(container.Configs)
-	if err := c.backend.SetContainerConfigReferences(cr.ID, configRefs); err != nil {
+	if err := c.backend.SetContainerConfigReferences(ctx, cr.ID, configRefs); err != nil {
 		return err
 	}
 
-	return c.backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig())
+	return c.backend.UpdateContainerServiceConfig(ctx, cr.ID, c.container.serviceConfig())
 }
 
 // checkMounts ensures that the provided mounts won't have any host-specific
@@ -352,11 +352,11 @@ func (c *containerAdapter) start(ctx context.Context) error {
 		return err
 	}
 
-	return c.backend.ContainerStart(c.container.name(), nil, "", "")
+	return c.backend.ContainerStart(ctx, c.container.name(), nil, "", "")
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {
-	cs, err := c.backend.ContainerInspectCurrent(c.container.name(), false)
+	cs, err := c.backend.ContainerInspectCurrent(ctx, c.container.name(), false)
 	if ctx.Err() != nil {
 		return types.ContainerJSON{}, ctx.Err()
 	}
@@ -414,15 +414,15 @@ func (c *containerAdapter) shutdown(ctx context.Context) error {
 		stopgraceValue := int(spec.StopGracePeriod.Seconds)
 		stopgrace = &stopgraceValue
 	}
-	return c.backend.ContainerStop(c.container.name(), stopgrace)
+	return c.backend.ContainerStop(ctx, c.container.name(), stopgrace)
 }
 
 func (c *containerAdapter) terminate(ctx context.Context) error {
-	return c.backend.ContainerKill(c.container.name(), uint64(syscall.SIGKILL))
+	return c.backend.ContainerKill(ctx, c.container.name(), uint64(syscall.SIGKILL))
 }
 
 func (c *containerAdapter) remove(ctx context.Context) error {
-	return c.backend.ContainerRm(c.container.name(), &types.ContainerRmConfig{
+	return c.backend.ContainerRm(ctx, c.container.name(), &types.ContainerRmConfig{
 		RemoveVolume: true,
 		ForceRemove:  true,
 	})
@@ -462,12 +462,12 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 	return nil
 }
 
-func (c *containerAdapter) activateServiceBinding() error {
-	return c.backend.ActivateContainerServiceBinding(c.container.name())
+func (c *containerAdapter) activateServiceBinding(ctx context.Context) error {
+	return c.backend.ActivateContainerServiceBinding(ctx, c.container.name())
 }
 
-func (c *containerAdapter) deactivateServiceBinding() error {
-	return c.backend.DeactivateContainerServiceBinding(c.container.name())
+func (c *containerAdapter) deactivateServiceBinding(ctx context.Context) error {
+	return c.backend.DeactivateContainerServiceBinding(ctx, c.container.name())
 }
 
 func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {

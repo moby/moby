@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -19,20 +20,20 @@ import (
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(name string, size bool, version string) (interface{}, error) {
+func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bool, version string) (interface{}, error) {
 	switch {
 	case versions.LessThan(version, "1.20"):
-		return daemon.containerInspectPre120(name)
+		return daemon.containerInspectPre120(ctx, name)
 	case versions.Equal(version, "1.20"):
-		return daemon.containerInspect120(name)
+		return daemon.containerInspect120(ctx, name)
 	}
-	return daemon.ContainerInspectCurrent(name, size)
+	return daemon.ContainerInspectCurrent(ctx, name, size)
 }
 
 // ContainerInspectCurrent returns low-level information about a
 // container in a most recent api version.
-func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, size bool) (*types.ContainerJSON, error) {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +93,8 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 }
 
 // containerInspect120 serializes the master version of a container into a json type.
-func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, error) {
-	container, err := daemon.GetContainer(name)
+func (daemon *Daemon) containerInspect120(ctx context.Context, name string) (*v1p20.ContainerJSON, error) {
+	container, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +209,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
-func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
+func (daemon *Daemon) ContainerExecInspect(ctx context.Context, id string) (*backend.ExecInspect, error) {
 	e := daemon.execCommands.Get(id)
 	if e == nil {
 		return nil, errExecNotFound(id)

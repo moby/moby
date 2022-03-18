@@ -34,7 +34,7 @@ func (daemon *Daemon) registerExecCommand(container *container.Container, config
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
-func (daemon *Daemon) ExecExists(name string) (bool, error) {
+func (daemon *Daemon) ExecExists(ctx context.Context, name string) (bool, error) {
 	if _, err := daemon.getExecConfig(name); err != nil {
 		return false, err
 	}
@@ -75,8 +75,8 @@ func (daemon *Daemon) unregisterExecCommand(container *container.Container, exec
 	daemon.execCommands.Delete(execConfig.ID, execConfig.Pid)
 }
 
-func (daemon *Daemon) getActiveContainer(name string) (*container.Container, error) {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) getActiveContainer(ctx context.Context, name string) (*container.Container, error) {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +94,8 @@ func (daemon *Daemon) getActiveContainer(name string) (*container.Container, err
 }
 
 // ContainerExecCreate sets up an exec in a running container.
-func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
-	cntr, err := daemon.getActiveContainer(name)
+func (daemon *Daemon) ContainerExecCreate(ctx context.Context, name string, config *types.ExecConfig) (string, error) {
+	cntr, err := daemon.getActiveContainer(ctx, name)
 	if err != nil {
 		return "", err
 	}
@@ -242,7 +242,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		p.Cwd = "/"
 	}
 
-	if err := daemon.execSetPlatformOpt(c, ec, p); err != nil {
+	if err := daemon.execSetPlatformOpt(ctx, c, ec, p); err != nil {
 		return err
 	}
 
@@ -278,6 +278,10 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 
 	select {
 	case <-ctx.Done():
+		// Must use a new context since the current context is done.
+		ctxErr := ctx.Err()
+		ctx := context.Background()
+
 		logrus.Debugf("Sending TERM signal to process %v in container %v", name, c.ID)
 		daemon.containerd.SignalProcess(ctx, c.ID, name, int(signal.SignalMap["TERM"]))
 
@@ -291,7 +295,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		case <-attachErr:
 			// TERM signal worked
 		}
-		return ctx.Err()
+		return ctxErr
 	case err := <-attachErr:
 		if err != nil {
 			if _, ok := err.(term.EscapeError); !ok {

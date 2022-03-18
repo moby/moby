@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -71,7 +72,7 @@ func TestContainerDelete(t *testing.T) {
 		defer cleanup()
 		d.containers.Add(c.ID, c)
 
-		err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: false})
+		err := d.ContainerRm(context.Background(), c.ID, &types.ContainerRmConfig{ForceRemove: false})
 		assert.Check(t, is.ErrorContains(err, te.errMsg))
 		assert.Check(t, is.ErrorContains(err, te.fixMsg))
 	}
@@ -89,6 +90,6 @@ func TestContainerDoubleDelete(t *testing.T) {
 
 	// Try to remove the container when its state is removalInProgress.
 	// It should return an error indicating it is under removal progress.
-	err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true})
+	err := d.ContainerRm(context.Background(), c.ID, &types.ContainerRmConfig{ForceRemove: true})
 	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("removal of container %s is already in progress", c.ID)))
 }

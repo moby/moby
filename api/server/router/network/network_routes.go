@@ -275,7 +275,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 	// The reason is that, In case of attachable network in swarm scope, the actual local network
 	// may not be available at the time. At the same time, inside daemon `ConnectContainerToNetwork`
 	// does the ambiguity check anyway. Therefore, passing the name to daemon would be enough.
-	return n.backend.ConnectContainerToNetwork(connect.Container, vars["id"], connect.EndpointConfig)
+	return n.backend.ConnectContainerToNetwork(ctx, connect.Container, vars["id"], connect.EndpointConfig)
 }
 
 func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -295,7 +295,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return errdefs.InvalidParameter(err)
 	}
 
-	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, vars["id"], disconnect.Force)
+	return n.backend.DisconnectContainerFromNetwork(ctx, disconnect.Container, vars["id"], disconnect.Force)
 }
 
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
