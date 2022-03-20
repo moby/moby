@@ -2,15 +2,18 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
@@ -57,6 +60,47 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 	err := apiclient.CopyToContainer(ctx, cid, "/dne", nil, types.CopyToContainerOptions{})
 	assert.Check(t, client.IsErrNotFound(err))
 	assert.ErrorContains(t, err, "Could not find the file /dne in container "+cid)
+}
+
+func TestCopyEmptyFile(t *testing.T) {
+	defer setupTest(t)()
+
+	tmpDir := t.TempDir()
+	srcPath := filepath.Join(tmpDir, "empty-file.txt")
+	err := os.WriteFile(srcPath, []byte(""), 0400)
+	assert.NilError(t, err)
+
+	// TODO(thaJeztah) Add utilities to the client to make steps below less complicated.
+	// Code below is taken from copyToContainer() in docker/cli.
+	srcInfo, err := archive.CopyInfoSourcePath(srcPath, false)
+	assert.NilError(t, err)
+
+	srcArchive, err := archive.TarResource(srcInfo)
+	assert.NilError(t, err)
+	defer srcArchive.Close()
+
+	ctrPath := "/empty-file.txt"
+	dstInfo := archive.CopyInfo{Path: ctrPath}
+	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, dstInfo)
+	assert.NilError(t, err)
+	defer preparedArchive.Close()
+
+	ctx := context.Background()
+	apiclient := testEnv.APIClient()
+	cid := container.Create(ctx, t, apiclient)
+
+	// empty content
+	err = apiclient.CopyToContainer(ctx, cid, dstDir, bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
+	assert.NilError(t, err)
+
+	// tar with empty file
+	err = apiclient.CopyToContainer(ctx, cid, dstDir, preparedArchive, types.CopyToContainerOptions{})
+	assert.NilError(t, err)
+
+	// copy from empty file
+	rdr, _, err := apiclient.CopyFromContainer(ctx, cid, dstDir)
+	assert.NilError(t, err)
+	defer rdr.Close()
 }
 
 func TestCopyToContainerPathIsNotDir(t *testing.T) {
