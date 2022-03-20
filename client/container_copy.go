@@ -23,7 +23,7 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 	response, err := cli.head(ctx, urlStr, query, nil)
 	defer ensureReaderClosed(response)
 	if err != nil {
-		return types.ContainerPathStat{}, wrapResponseError(err, response, "container:path", containerID+":"+path)
+		return types.ContainerPathStat{}, err
 	}
 	return getContainerPathStatFromHeader(response.header)
 }
@@ -47,7 +47,7 @@ func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath str
 	response, err := cli.putRaw(ctx, apiPath, query, content, nil)
 	defer ensureReaderClosed(response)
 	if err != nil {
-		return wrapResponseError(err, response, "container:path", containerID+":"+dstPath)
+		return err
 	}
 
 	// TODO this code converts non-error status-codes (e.g., "204 No Content") into an error; verify if this is the desired behavior
@@ -67,7 +67,7 @@ func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath s
 	apiPath := "/containers/" + containerID + "/archive"
 	response, err := cli.get(ctx, apiPath, query, nil)
 	if err != nil {
-		return nil, types.ContainerPathStat{}, wrapResponseError(err, response, "container:path", containerID+":"+srcPath)
+		return nil, types.ContainerPathStat{}, err
 	}
 
 	// TODO this code converts non-error status-codes (e.g., "204 No Content") into an error; verify if this is the desired behavior

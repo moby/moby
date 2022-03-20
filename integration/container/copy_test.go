@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -28,8 +27,7 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 
 	_, _, err := apiclient.CopyFromContainer(ctx, cid, "/dne")
 	assert.Check(t, client.IsErrNotFound(err))
-	expected := fmt.Sprintf("No such container:path: %s:%s", cid, "/dne")
-	assert.Check(t, is.ErrorContains(err, expected))
+	assert.ErrorContains(t, err, "Could not find the file /dne in container "+cid)
 }
 
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
@@ -58,8 +56,7 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 
 	err := apiclient.CopyToContainer(ctx, cid, "/dne", nil, types.CopyToContainerOptions{})
 	assert.Check(t, client.IsErrNotFound(err))
-	expected := fmt.Sprintf("No such container:path: %s:%s", cid, "/dne")
-	assert.Check(t, is.ErrorContains(err, expected))
+	assert.ErrorContains(t, err, "Could not find the file /dne in container "+cid)
 }
 
 func TestCopyToContainerPathIsNotDir(t *testing.T) {

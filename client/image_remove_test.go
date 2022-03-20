@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageRemoveError(t *testing.T) {
@@ -29,11 +28,11 @@ func TestImageRemoveError(t *testing.T) {
 
 func TestImageRemoveImageNotFound(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
+		client: newMockClient(errorMock(http.StatusNotFound, "no such image: unknown")),
 	}
 
 	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
-	assert.Check(t, is.Error(err, "Error: No such image: unknown"))
+	assert.ErrorContains(t, err, "no such image: unknown")
 	assert.Check(t, IsErrNotFound(err))
 }
 

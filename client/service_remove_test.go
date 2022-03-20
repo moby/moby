@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceRemoveError(t *testing.T) {
@@ -27,11 +26,11 @@ func TestServiceRemoveError(t *testing.T) {
 
 func TestServiceRemoveNotFoundError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
+		client: newMockClient(errorMock(http.StatusNotFound, "no such service: service_id")),
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	assert.Check(t, is.Error(err, "Error: No such service: service_id"))
+	assert.ErrorContains(t, err, "no such service: service_id")
 	assert.Check(t, IsErrNotFound(err))
 }
 

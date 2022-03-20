@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNetworkInspect(t *testing.T) {
@@ -37,7 +36,7 @@ func TestNetworkInspect(t *testing.T) {
 				return nil, errors.New("expected URL '/networks/network_id', got " + req.URL.Path)
 			}
 			if strings.Contains(req.URL.RawQuery, "scope=global") {
-				return errorMock(http.StatusNotFound, "Error: No such network: unknown")(req)
+				return errorMock(http.StatusNotFound, "Error: No such network: network_id")(req)
 			}
 			var (
 				content []byte
@@ -88,12 +87,12 @@ func TestNetworkInspect(t *testing.T) {
 	})
 	t.Run("global scope", func(t *testing.T) {
 		_, err := client.NetworkInspect(context.Background(), "network_id", types.NetworkInspectOptions{Scope: "global"})
-		assert.Check(t, is.Error(err, "Error: No such network: network_id"))
+		assert.ErrorContains(t, err, "Error: No such network: network_id")
 		assert.Check(t, IsErrNotFound(err))
 	})
 	t.Run("unknown network", func(t *testing.T) {
 		_, err := client.NetworkInspect(context.Background(), "unknown", types.NetworkInspectOptions{})
-		assert.Check(t, is.Error(err, "Error: No such network: unknown"))
+		assert.ErrorContains(t, err, "Error: No such network: unknown")
 		assert.Check(t, IsErrNotFound(err))
 	})
 	t.Run("server error", func(t *testing.T) {
