@@ -26,7 +26,7 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 
 	backend, err := image.NewFSStoreBackend(filepath.Join(dir, "images"))
 	assert.NilError(t, err)
-	is, err := image.NewImageStore(backend, nil)
+	is, err := image.NewImageStore(context.Background(), backend, nil)
 	assert.NilError(t, err)
 
 	db, err := bbolt.Open(filepath.Join(dir, "metadata.db"), 0600, nil)
@@ -41,7 +41,7 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 		assert.Check(t, os.RemoveAll(dir))
 	}
 	ctx := namespaces.WithNamespace(context.Background(), t.Name())
-	images := &imageStoreWithLease{Store: is, ns: t.Name(), leases: metadata.NewLeaseManager(mdb)}
+	images := &imageStoreWithLease{Store: is, leases: metadata.NewLeaseManager(mdb)}
 
 	return ctx, cs, images, cleanup
 }
@@ -51,22 +51,22 @@ func TestImageDelete(t *testing.T) {
 	defer cleanup(t)
 
 	t.Run("no lease", func(t *testing.T) {
-		id, err := images.Create([]byte(`{"rootFS": {}}`))
+		id, err := images.Create(ctx, []byte(`{"rootFS": {}}`))
 		assert.NilError(t, err)
-		defer images.Delete(id)
+		defer images.Delete(ctx, id)
 
 		ls, err := images.leases.List(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, len(ls), 0, ls)
 
-		_, err = images.Delete(id)
+		_, err = images.Delete(ctx, id)
 		assert.NilError(t, err, "should not error when there is no lease")
 	})
 
 	t.Run("lease exists", func(t *testing.T) {
-		id, err := images.Create([]byte(`{"rootFS": {}}`))
+		id, err := images.Create(ctx, []byte(`{"rootFS": {}}`))
 		assert.NilError(t, err)
-		defer images.Delete(id)
+		defer images.Delete(ctx, id)
 
 		leaseID := imageKey(digest.Digest(id))
 		_, err = images.leases.Create(ctx, leases.WithID(leaseID))
@@ -77,7 +77,7 @@ func TestImageDelete(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Equal(len(ls), 1), ls)
 
-		_, err = images.Delete(id)
+		_, err = images.Delete(ctx, id)
 		assert.NilError(t, err)
 
 		ls, err = images.leases.List(ctx)

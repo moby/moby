@@ -119,13 +119,13 @@ func NewImageConfigStoreFromStore(is image.Store) ImageConfigStore {
 	}
 }
 
-func (s *imageConfigStore) Put(_ context.Context, c []byte) (digest.Digest, error) {
-	id, err := s.Store.Create(c)
+func (s *imageConfigStore) Put(ctx context.Context, c []byte) (digest.Digest, error) {
+	id, err := s.Store.Create(ctx, c)
 	return digest.Digest(id), err
 }
 
-func (s *imageConfigStore) Get(_ context.Context, d digest.Digest) ([]byte, error) {
-	img, err := s.Store.Get(image.IDFromDigest(d))
+func (s *imageConfigStore) Get(ctx context.Context, d digest.Digest) ([]byte, error) {
+	img, err := s.Store.Get(ctx, image.IDFromDigest(d))
 	if err != nil {
 		return nil, err
 	}

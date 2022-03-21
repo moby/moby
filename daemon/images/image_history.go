@@ -1,19 +1,21 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
+func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	img, err := i.GetImage(name, nil)
+	img, err := i.GetImage(ctx, name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +71,12 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 		if id == "" {
 			break
 		}
-		histImg, err = i.GetImage(id.String(), nil)
+		histImg, err = i.GetImage(ctx, id.String(), nil)
 		if err != nil {
-			break
+			if errdefs.IsNotFound(err) {
+				break
+			}
+			return nil, err
 		}
 	}
 	imageActions.WithValues("history").UpdateSince(start)

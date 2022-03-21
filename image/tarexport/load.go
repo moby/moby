@@ -1,6 +1,7 @@
 package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	var progressOutput progress.Output
 	if !quiet {
 		progressOutput = streamformatter.NewJSONProgressOutput(outStream, false)
@@ -49,7 +50,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	manifestFile, err := os.Open(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return l.legacyLoad(tmpDir, outStream, progressOutput)
+			return l.legacyLoad(ctx, tmpDir, outStream, progressOutput)
 		}
 		return err
 	}
@@ -112,7 +113,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			rootFS.Append(diffID)
 		}
 
-		imgID, err := l.is.Create(config)
+		imgID, err := l.is.Create(ctx, config)
 		if err != nil {
 			return err
 		}
@@ -139,7 +140,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 
 	for _, p := range validatedParentLinks(parentLinks) {
 		if p.parentID != "" {
-			if err := l.setParentID(p.id, p.parentID); err != nil {
+			if err := l.setParentID(ctx, p.id, p.parentID); err != nil {
 				return err
 			}
 		}
@@ -152,19 +153,19 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	return nil
 }
 
-func (l *tarexporter) setParentID(id, parentID image.ID) error {
-	img, err := l.is.Get(id)
+func (l *tarexporter) setParentID(ctx context.Context, id, parentID image.ID) error {
+	img, err := l.is.Get(ctx, id)
 	if err != nil {
 		return err
 	}
-	parent, err := l.is.Get(parentID)
+	parent, err := l.is.Get(ctx, parentID)
 	if err != nil {
 		return err
 	}
 	if !checkValidParent(img, parent) {
 		return fmt.Errorf("image %v is not a valid parent for %v", parent.ID(), img.ID())
 	}
-	return l.is.SetParent(id, parentID)
+	return l.is.SetParent(ctx, id, parentID)
 }
 
 func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
@@ -210,7 +211,7 @@ func (l *tarexporter) setLoadedTag(ref reference.Named, imgID digest.Digest, out
 	return l.rs.AddTag(ref, imgID, true)
 }
 
-func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOutput progress.Output) error {
+func (l *tarexporter) legacyLoad(ctx context.Context, tmpDir string, outStream io.Writer, progressOutput progress.Output) error {
 	if runtime.GOOS == "windows" {
 		return errors.New("Windows does not support legacy loading of images")
 	}
@@ -225,7 +226,7 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 	// every dir represents an image
 	for _, d := range dirs {
 		if d.IsDir() {
-			if err := l.legacyLoadImage(d.Name(), tmpDir, legacyLoadedMap, progressOutput); err != nil {
+			if err := l.legacyLoadImage(ctx, d.Name(), tmpDir, legacyLoadedMap, progressOutput); err != nil {
 				return err
 			}
 		}
@@ -268,7 +269,7 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 	return nil
 }
 
-func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[string]image.ID, progressOutput progress.Output) error {
+func (l *tarexporter) legacyLoadImage(ctx context.Context, oldID, sourceDir string, loadedMap map[string]image.ID, progressOutput progress.Output) error {
 	if _, loaded := loadedMap[oldID]; loaded {
 		return nil
 	}
@@ -302,7 +303,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 		for {
 			var loaded bool
 			if parentID, loaded = loadedMap[img.Parent]; !loaded {
-				if err := l.legacyLoadImage(img.Parent, sourceDir, loadedMap, progressOutput); err != nil {
+				if err := l.legacyLoadImage(ctx, img.Parent, sourceDir, loadedMap, progressOutput); err != nil {
 					return err
 				}
 			} else {
@@ -316,7 +317,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	var history []image.History
 
 	if parentID != "" {
-		parentImg, err := l.is.Get(parentID)
+		parentImg, err := l.is.Get(ctx, parentID)
 		if err != nil {
 			return err
 		}
@@ -345,7 +346,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if err != nil {
 		return err
 	}
-	imgID, err := l.is.Create(config)
+	imgID, err := l.is.Create(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -357,7 +358,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	}
 
 	if parentID != "" {
-		if err := l.is.SetParent(imgID, parentID); err != nil {
+		if err := l.is.SetParent(ctx, imgID, parentID); err != nil {
 			return err
 		}
 	}

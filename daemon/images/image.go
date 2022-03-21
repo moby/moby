@@ -148,7 +148,7 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
 	defer func() {
 		if retErr != nil || retImg == nil || platform == nil {
 			return
@@ -192,7 +192,7 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 			return nil, ErrImageDoesNotExist{ref}
 		}
 		id := image.IDFromDigest(digested.Digest())
-		if img, err := i.imageStore.Get(id); err == nil {
+		if img, err := i.imageStore.Get(ctx, id); err == nil {
 			return img, nil
 		}
 		return nil, ErrImageDoesNotExist{ref}
@@ -201,14 +201,14 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 	if digest, err := i.referenceStore.Get(namedRef); err == nil {
 		// Search the image stores to get the operating system, defaulting to host OS.
 		id := image.IDFromDigest(digest)
-		if img, err := i.imageStore.Get(id); err == nil {
+		if img, err := i.imageStore.Get(ctx, id); err == nil {
 			return img, nil
 		}
 	}
 
 	// Search based on ID
-	if id, err := i.imageStore.Search(refOrID); err == nil {
-		img, err := i.imageStore.Get(id)
+	if id, err := i.imageStore.Search(ctx, refOrID); err == nil {
+		img, err := i.imageStore.Get(ctx, id)
 		if err != nil {
 			return nil, ErrImageDoesNotExist{ref}
 		}

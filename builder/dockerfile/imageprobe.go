@@ -1,6 +1,8 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/sirupsen/logrus"
@@ -9,39 +11,44 @@ import (
 // ImageProber exposes an Image cache to the Builder. It supports resetting a
 // cache.
 type ImageProber interface {
-	Reset()
-	Probe(parentID string, runConfig *container.Config) (string, error)
+	Reset(ctx context.Context) error
+	Probe(ctx context.Context, parentID string, runConfig *container.Config) (string, error)
 }
 
 type imageProber struct {
 	cache       builder.ImageCache
-	reset       func() builder.ImageCache
+	reset       func(context.Context) (builder.ImageCache, error)
 	cacheBusted bool
 }
 
-func newImageProber(cacheBuilder builder.ImageCacheBuilder, cacheFrom []string, noCache bool) ImageProber {
+func newImageProber(ctx context.Context, cacheBuilder builder.ImageCacheBuilder, cacheFrom []string, noCache bool) (ImageProber, error) {
 	if noCache {
-		return &nopProber{}
+		return &nopProber{}, nil
 	}
 
-	reset := func() builder.ImageCache {
-		return cacheBuilder.MakeImageCache(cacheFrom)
+	reset := func(ctx context.Context) (builder.ImageCache, error) {
+		return cacheBuilder.MakeImageCache(ctx, cacheFrom)
 	}
-	return &imageProber{cache: reset(), reset: reset}
+	cache, err := reset(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &imageProber{cache: cache, reset: reset}, nil
 }
 
-func (c *imageProber) Reset() {
-	c.cache = c.reset()
+func (c *imageProber) Reset(ctx context.Context) (err error) {
+	c.cache, err = c.reset(ctx)
 	c.cacheBusted = false
+	return
 }
 
 // Probe checks if cache match can be found for current build instruction.
 // It returns the cachedID if there is a hit, and the empty string on miss
-func (c *imageProber) Probe(parentID string, runConfig *container.Config) (string, error) {
+func (c *imageProber) Probe(ctx context.Context, parentID string, runConfig *container.Config) (string, error) {
 	if c.cacheBusted {
 		return "", nil
 	}
-	cacheID, err := c.cache.GetCache(parentID, runConfig)
+	cacheID, err := c.cache.GetCache(ctx, parentID, runConfig)
 	if err != nil {
 		return "", err
 	}
@@ -56,8 +63,8 @@ func (c *imageProber) Probe(parentID string, runConfig *container.Config) (strin
 
 type nopProber struct{}
 
-func (c *nopProber) Reset() {}
+func (c *nopProber) Reset(context.Context) error { return nil }
 
-func (c *nopProber) Probe(_ string, _ *container.Config) (string, error) {
+func (c *nopProber) Probe(context.Context, string, *container.Config) (string, error) {
 	return "", nil
 }

@@ -1,7 +1,7 @@
 package imagerefchecker
 
 import (
-	"sync"
+	"context"
 
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -24,7 +24,11 @@ type Opt struct {
 // is being used by any of the images in the image store
 func New(opt Opt) cache.ExternalRefCheckerFunc {
 	return func() (cache.ExternalRefChecker, error) {
-		return &checker{opt: opt, layers: lchain{}, cache: map[string]bool{}}, nil
+		c := &checker{opt: opt, layers: lchain{}, cache: map[string]bool{}}
+		if err := c.init(context.TODO()); err != nil {
+			return nil, err
+		}
+		return c, nil
 	}
 }
 
@@ -53,7 +57,6 @@ func (c lchain) has(ids []layer.DiffID) bool {
 
 type checker struct {
 	opt    Opt
-	once   sync.Once
 	layers lchain
 	cache  map[string]bool
 }
@@ -62,8 +65,6 @@ func (c *checker) Exists(key string, chain []digest.Digest) bool {
 	if c.opt.ImageStore == nil {
 		return false
 	}
-
-	c.once.Do(c.init)
 
 	if b, ok := c.cache[key]; ok {
 		return b
@@ -80,12 +81,16 @@ func (c *checker) Exists(key string, chain []digest.Digest) bool {
 	return ok
 }
 
-func (c *checker) init() {
-	imgs := c.opt.ImageStore.Map()
+func (c *checker) init(ctx context.Context) error {
+	imgs, err := c.opt.ImageStore.Map(ctx)
+	if err != nil {
+		return err
+	}
 
 	for _, img := range imgs {
 		c.layers.add(img.RootFS.DiffIDs)
 	}
+	return nil
 }
 
 func diffIDs(l layer.Layer) []layer.DiffID {

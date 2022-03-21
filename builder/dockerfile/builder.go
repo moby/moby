@@ -134,6 +134,10 @@ func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 		config = new(types.ImageBuildOptions)
 	}
 
+	prober, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
+	if err != nil {
+		return nil, err
+	}
 	b := &Builder{
 		options:          config,
 		Stdout:           options.ProgressWriter.StdoutFormatter,
@@ -144,7 +148,7 @@ func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 		idMapping:        options.IDMapping,
 		imageSources:     newImageSources(ctx, options),
 		pathCache:        options.PathCache,
-		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),
+		imageProber:      prober,
 		containerManager: newContainerManager(options.Backend),
 	}
 
