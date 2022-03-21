@@ -167,7 +167,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		return nil, err
 	}
 
-	img, err := i.GetImage(name, platform)
+	img, err := i.GetImage(ctx, name, platform)
 	if errdefs.IsNotFound(err) && img != nil && platform != nil {
 		imgPlat := specs.Platform{
 			OS:           img.OS,
@@ -211,7 +211,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		image, err := i.GetImage(refOrID, opts.Platform)
+		image, err := i.GetImage(ctx, refOrID, opts.Platform)
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
@@ -239,17 +239,17 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
-	id, err := i.imageStore.Create(config)
+func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent string) (builder.Image, error) {
+	id, err := i.imageStore.Create(ctx, config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create image")
 	}
 
 	if parent != "" {
-		if err := i.imageStore.SetParent(id, image.ID(parent)); err != nil {
+		if err := i.imageStore.SetParent(ctx, id, image.ID(parent)); err != nil {
 			return nil, errors.Wrapf(err, "failed to set parent %s", parent)
 		}
 	}
 
-	return i.imageStore.Get(id)
+	return i.imageStore.Get(ctx, id)
 }

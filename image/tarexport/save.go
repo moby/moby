@@ -1,6 +1,7 @@
 package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -35,20 +37,20 @@ type saveSession struct {
 	diffIDPaths map[layer.DiffID]string // cache every diffID blob to avoid duplicates
 }
 
-func (l *tarexporter) Save(names []string, outStream io.Writer) error {
-	images, err := l.parseNames(names)
+func (l *tarexporter) Save(ctx context.Context, names []string, outStream io.Writer) error {
+	images, err := l.parseNames(ctx, names)
 	if err != nil {
 		return err
 	}
 
 	// Release all the image top layer references
 	defer l.releaseLayerReferences(images)
-	return (&saveSession{tarexporter: l, images: images}).save(outStream)
+	return (&saveSession{tarexporter: l, images: images}).save(ctx, outStream)
 }
 
 // parseNames will parse the image names to a map which contains image.ID to *imageDescriptor.
 // Each imageDescriptor holds an image top layer reference named 'layerRef'. It is taken here, should be released later.
-func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescriptor, rErr error) {
+func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[image.ID]*imageDescriptor, rErr error) {
 	imgDescr := make(map[image.ID]*imageDescriptor)
 	defer func() {
 		if rErr != nil {
@@ -59,7 +61,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 	addAssoc := func(id image.ID, ref reference.Named) error {
 		if _, ok := imgDescr[id]; !ok {
 			descr := &imageDescriptor{}
-			if err := l.takeLayerReference(id, descr); err != nil {
+			if err := l.takeLayerReference(ctx, id, descr); err != nil {
 				return err
 			}
 			imgDescr[id] = descr
@@ -103,7 +105,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		}
 
 		if reference.FamiliarName(namedRef) == string(digest.Canonical) {
-			imgID, err := l.is.Search(name)
+			imgID, err := l.is.Search(ctx, name)
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +122,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 				}
 			}
 			if len(assocs) == 0 {
-				imgID, err := l.is.Search(name)
+				imgID, err := l.is.Search(ctx, name)
 				if err != nil {
 					return nil, err
 				}
@@ -143,8 +145,8 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 }
 
 // takeLayerReference will take/Get the image top layer reference
-func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor) error {
-	img, err := l.is.Get(id)
+func (l *tarexporter) takeLayerReference(ctx context.Context, id image.ID, imgDescr *imageDescriptor) error {
+	img, err := l.is.Get(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -174,7 +176,7 @@ func (l *tarexporter) releaseLayerReferences(imgDescr map[image.ID]*imageDescrip
 	return nil
 }
 
-func (s *saveSession) save(outStream io.Writer) error {
+func (s *saveSession) save(ctx context.Context, outStream io.Writer) error {
 	s.savedLayers = make(map[string]struct{})
 	s.diffIDPaths = make(map[layer.DiffID]string)
 
@@ -222,7 +224,10 @@ func (s *saveSession) save(outStream io.Writer) error {
 			LayerSources: foreignSrcs,
 		})
 
-		parentID, _ := s.is.GetParent(id)
+		parentID, err := s.is.GetParent(ctx, id)
+		if err != nil && !errdefs.IsNotFound(err) {
+			return err
+		}
 		parentLinks = append(parentLinks, parentLink{id, parentID})
 		s.tarexporter.loggerImgEvent.LogImageEvent(id.String(), id.String(), "save")
 	}

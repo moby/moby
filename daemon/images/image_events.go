@@ -1,6 +1,8 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types/events"
 )
 
@@ -11,7 +13,7 @@ func (i *ImageService) LogImageEvent(imageID, refName, action string) {
 
 // LogImageEventWithAttributes generates an event related to an image with specific given attributes.
 func (i *ImageService) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
-	img, err := i.GetImage(imageID, nil)
+	img, err := i.GetImage(context.TODO(), imageID, nil)
 	if err == nil && img.Config != nil {
 		// image has not been removed yet.
 		// it could be missing if the event is `delete`.

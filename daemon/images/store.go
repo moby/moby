@@ -8,7 +8,6 @@ import (
 	c8derrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -28,18 +27,13 @@ func imageKey(dgst digest.Digest) string {
 type imageStoreWithLease struct {
 	image.Store
 	leases leases.Manager
-
-	// Normally we'd pass namespace down through a context.Context, however...
-	// The interface for image store doesn't allow this, so we store it here.
-	ns string
 }
 
-func (s *imageStoreWithLease) Delete(id image.ID) ([]layer.Metadata, error) {
-	ctx := namespaces.WithNamespace(context.TODO(), s.ns)
+func (s *imageStoreWithLease) Delete(ctx context.Context, id image.ID) ([]layer.Metadata, error) {
 	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(digest.Digest(id))}); err != nil && !c8derrdefs.IsNotFound(err) {
 		return nil, errors.Wrap(err, "error deleting lease")
 	}
-	return s.Store.Delete(id)
+	return s.Store.Delete(ctx, id)
 }
 
 // iamgeStoreForPull is created for each pull It wraps an underlying image store

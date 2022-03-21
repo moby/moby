@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/docker/swarmkit/agent/exec"
@@ -74,9 +75,12 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.imageBackend.LookupImage(spec.Image)
+			_, err := c.imageBackend.LookupImage(ctx, spec.Image)
 			if err == nil {
 				return nil
+			}
+			if !errdefs.IsNotFound(err) {
+				return err
 			}
 		}
 	}

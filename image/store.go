@@ -1,6 +1,7 @@
 package image // import "github.com/docker/docker/image"
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -15,18 +16,18 @@ import (
 
 // Store is an interface for creating and accessing images
 type Store interface {
-	Create(config []byte) (ID, error)
-	Get(id ID) (*Image, error)
-	Delete(id ID) ([]layer.Metadata, error)
-	Search(partialID string) (ID, error)
-	SetParent(id ID, parent ID) error
-	GetParent(id ID) (ID, error)
-	SetLastUpdated(id ID) error
-	GetLastUpdated(id ID) (time.Time, error)
-	Children(id ID) []ID
-	Map() map[ID]*Image
-	Heads() map[ID]*Image
-	Len() int
+	Create(ctx context.Context, config []byte) (ID, error)
+	Get(ctx context.Context, id ID) (*Image, error)
+	Delete(ctx context.Context, id ID) ([]layer.Metadata, error)
+	Search(ctx context.Context, partialID string) (ID, error)
+	SetParent(ctx context.Context, id ID, parent ID) error
+	GetParent(ctx context.Context, id ID) (ID, error)
+	SetLastUpdated(ctx context.Context, id ID) error
+	GetLastUpdated(ctx context.Context, id ID) (time.Time, error)
+	Children(ctx context.Context, id ID) ([]ID, error)
+	Map(ctx context.Context) (map[ID]*Image, error)
+	Heads(ctx context.Context) (map[ID]*Image, error)
+	Len(ctx context.Context) (int, error)
 }
 
 // LayerGetReleaser is a minimal interface for getting and releasing images.
@@ -49,7 +50,7 @@ type store struct {
 }
 
 // NewImageStore returns new store object for given set of layer stores
-func NewImageStore(fs StoreBackend, lss LayerGetReleaser) (Store, error) {
+func NewImageStore(ctx context.Context, fs StoreBackend, lss LayerGetReleaser) (Store, error) {
 	is := &store{
 		lss:       lss,
 		images:    make(map[ID]*imageMeta),
@@ -58,16 +59,16 @@ func NewImageStore(fs StoreBackend, lss LayerGetReleaser) (Store, error) {
 	}
 
 	// load all current images and retain layers
-	if err := is.restore(); err != nil {
+	if err := is.restore(ctx); err != nil {
 		return nil, err
 	}
 
 	return is, nil
 }
 
-func (is *store) restore() error {
+func (is *store) restore(ctx context.Context) error {
 	err := is.fs.Walk(func(dgst digest.Digest) error {
-		img, err := is.Get(IDFromDigest(dgst))
+		img, err := is.Get(ctx, IDFromDigest(dgst))
 		if err != nil {
 			logrus.Errorf("invalid image %v, %v", dgst, err)
 			return nil
@@ -106,7 +107,7 @@ func (is *store) restore() error {
 
 	// Second pass to fill in children maps
 	for id := range is.images {
-		if parent, err := is.GetParent(id); err == nil {
+		if parent, err := is.GetParent(ctx, id); err == nil {
 			if parentMeta := is.images[parent]; parentMeta != nil {
 				parentMeta.children[id] = struct{}{}
 			}
@@ -116,7 +117,7 @@ func (is *store) restore() error {
 	return nil
 }
 
-func (is *store) Create(config []byte) (ID, error) {
+func (is *store) Create(ctx context.Context, config []byte) (ID, error) {
 	var img *Image
 	img, err := NewFromJSON(config)
 	if err != nil {
@@ -188,7 +189,7 @@ func (e imageNotFoundError) Error() string {
 
 func (imageNotFoundError) NotFound() {}
 
-func (is *store) Search(term string) (ID, error) {
+func (is *store) Search(ctx context.Context, term string) (ID, error) {
 	dgst, err := is.digestSet.Lookup(term)
 	if err != nil {
 		if err == digestset.ErrDigestNotFound {
@@ -199,7 +200,7 @@ func (is *store) Search(term string) (ID, error) {
 	return IDFromDigest(dgst), nil
 }
 
-func (is *store) Get(id ID) (*Image, error) {
+func (is *store) Get(ctx context.Context, id ID) (*Image, error) {
 	// todo: Check if image is in images
 	// todo: Detect manual insertions and start using them
 	config, err := is.fs.Get(id.Digest())
@@ -213,7 +214,7 @@ func (is *store) Get(id ID) (*Image, error) {
 	}
 	img.computedID = id
 
-	img.Parent, err = is.GetParent(id)
+	img.Parent, err = is.GetParent(ctx, id)
 	if err != nil {
 		img.Parent = ""
 	}
@@ -221,7 +222,7 @@ func (is *store) Get(id ID) (*Image, error) {
 	return img, nil
 }
 
-func (is *store) Delete(id ID) ([]layer.Metadata, error) {
+func (is *store) Delete(ctx context.Context, id ID) ([]layer.Metadata, error) {
 	is.Lock()
 	defer is.Unlock()
 
@@ -229,14 +230,14 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	if imageMeta == nil {
 		return nil, fmt.Errorf("unrecognized image ID %s", id.String())
 	}
-	_, err := is.Get(id)
+	_, err := is.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("unrecognized image %s, %v", id.String(), err)
 	}
 	for id := range imageMeta.children {
 		is.fs.DeleteMetadata(id.Digest(), "parent")
 	}
-	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
+	if parent, err := is.GetParent(ctx, id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)
 	}
 
@@ -252,21 +253,21 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	return nil, nil
 }
 
-func (is *store) SetParent(id, parent ID) error {
+func (is *store) SetParent(ctx context.Context, id, parent ID) error {
 	is.Lock()
 	defer is.Unlock()
 	parentMeta := is.images[parent]
 	if parentMeta == nil {
 		return fmt.Errorf("unknown parent image ID %s", parent.String())
 	}
-	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
+	if parent, err := is.GetParent(ctx, id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)
 	}
 	parentMeta.children[id] = struct{}{}
 	return is.fs.SetMetadata(id.Digest(), "parent", []byte(parent))
 }
 
-func (is *store) GetParent(id ID) (ID, error) {
+func (is *store) GetParent(ctx context.Context, id ID) (ID, error) {
 	d, err := is.fs.GetMetadata(id.Digest(), "parent")
 	if err != nil {
 		return "", err
@@ -275,13 +276,13 @@ func (is *store) GetParent(id ID) (ID, error) {
 }
 
 // SetLastUpdated time for the image ID to the current time
-func (is *store) SetLastUpdated(id ID) error {
+func (is *store) SetLastUpdated(ctx context.Context, id ID) error {
 	lastUpdated := []byte(time.Now().Format(time.RFC3339Nano))
 	return is.fs.SetMetadata(id.Digest(), "lastUpdated", lastUpdated)
 }
 
 // GetLastUpdated time for the image ID
-func (is *store) GetLastUpdated(id ID) (time.Time, error) {
+func (is *store) GetLastUpdated(ctx context.Context, id ID) (time.Time, error) {
 	bytes, err := is.fs.GetMetadata(id.Digest(), "lastUpdated")
 	if err != nil || len(bytes) == 0 {
 		// No lastUpdated time
@@ -290,11 +291,11 @@ func (is *store) GetLastUpdated(id ID) (time.Time, error) {
 	return time.Parse(time.RFC3339Nano, string(bytes))
 }
 
-func (is *store) Children(id ID) []ID {
+func (is *store) Children(ctx context.Context, id ID) ([]ID, error) {
 	is.RLock()
 	defer is.RUnlock()
 
-	return is.children(id)
+	return is.children(id), nil
 }
 
 func (is *store) children(id ID) []ID {
@@ -307,15 +308,15 @@ func (is *store) children(id ID) []ID {
 	return ids
 }
 
-func (is *store) Heads() map[ID]*Image {
-	return is.imagesMap(false)
+func (is *store) Heads(ctx context.Context) (map[ID]*Image, error) {
+	return is.imagesMap(ctx, false)
 }
 
-func (is *store) Map() map[ID]*Image {
-	return is.imagesMap(true)
+func (is *store) Map(ctx context.Context) (map[ID]*Image, error) {
+	return is.imagesMap(ctx, true)
 }
 
-func (is *store) imagesMap(all bool) map[ID]*Image {
+func (is *store) imagesMap(ctx context.Context, all bool) (map[ID]*Image, error) {
 	is.RLock()
 	defer is.RUnlock()
 
@@ -325,18 +326,18 @@ func (is *store) imagesMap(all bool) map[ID]*Image {
 		if !all && len(is.children(id)) > 0 {
 			continue
 		}
-		img, err := is.Get(id)
+		img, err := is.Get(ctx, id)
 		if err != nil {
 			logrus.Errorf("invalid image access: %q, error: %q", id, err)
 			continue
 		}
 		images[id] = img
 	}
-	return images
+	return images, ctx.Err()
 }
 
-func (is *store) Len() int {
+func (is *store) Len(context.Context) (int, error) {
 	is.RLock()
 	defer is.RUnlock()
-	return len(is.images)
+	return len(is.images), nil
 }
