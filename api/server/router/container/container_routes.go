@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -626,7 +627,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
 		if errHijack == nil {
-			statusCode := errdefs.GetHTTPErrorStatusCode(err)
+			statusCode := httpstatus.FromError(err)
 			statusText := http.StatusText(statusCode)
 			fmt.Fprintf(conn, "HTTP/1.1 %d %s\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n%s\r\n", statusCode, statusText, err.Error())
 			httputils.CloseStreams(conn)
