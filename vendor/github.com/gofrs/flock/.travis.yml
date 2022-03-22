@@ -1,7 +1,7 @@
 language: go
 go:
-  - 1.10.x
-  - 1.11.x
+  - 1.14.x
+  - 1.15.x
 script: go test -v -check.vv -race ./...
 sudo: false
 notifications:
