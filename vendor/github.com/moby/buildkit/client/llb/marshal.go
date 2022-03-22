@@ -2,7 +2,6 @@ package llb
 
 import (
 	"io"
-	"io/ioutil"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/solver/pb"
@@ -67,7 +66,7 @@ func WriteTo(def *Definition, w io.Writer) error {
 }
 
 func ReadFrom(r io.Reader) (*Definition, error) {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}

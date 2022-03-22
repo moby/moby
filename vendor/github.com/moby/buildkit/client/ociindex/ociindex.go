@@ -2,7 +2,7 @@ package ociindex
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/gofrs/flock"
@@ -62,7 +62,7 @@ func PutDescToIndexJSONFileLocked(indexJSONPath string, desc ocispecs.Descriptor
 	}
 	defer f.Close()
 	var idx ocispecs.Index
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return errors.Wrapf(err, "could not read %s", indexJSONPath)
 	}
@@ -101,7 +101,7 @@ func ReadIndexJSONFileLocked(indexJSONPath string) (*ocispecs.Index, error) {
 		lock.Unlock()
 		os.RemoveAll(lockPath)
 	}()
-	b, err := ioutil.ReadFile(indexJSONPath)
+	b, err := os.ReadFile(indexJSONPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not read %s", indexJSONPath)
 	}

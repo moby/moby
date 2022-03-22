@@ -1,5 +1,5 @@
-//go:build !gofuzz
-// +build !gofuzz
+//go:build !ignorecrc
+// +build !ignorecrc
 
 // Copyright 2019+ Klaus Post. All rights reserved.
 // License information can be found in the LICENSE file.

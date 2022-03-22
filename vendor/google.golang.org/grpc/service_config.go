@@ -218,7 +218,7 @@ type jsonSC struct {
 }
 
 func init() {
-	internal.ParseServiceConfigForTesting = parseServiceConfig
+	internal.ParseServiceConfig = parseServiceConfig
 }
 func parseServiceConfig(js string) *serviceconfig.ParseResult {
 	if len(js) == 0 {

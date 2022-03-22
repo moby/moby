@@ -167,6 +167,11 @@ func (b *blockDec) reset(br byteBuffer, windowSize uint64) error {
 			}
 			return ErrCompressedSizeTooBig
 		}
+		// Empty compressed blocks must at least be 2 bytes
+		// for Literals_Block_Type and one for Sequences_Section_Header.
+		if cSize < 2 {
+			return ErrBlockTooSmall
+		}
 	case blockTypeRaw:
 		if cSize > maxCompressedBlockSize || cSize > int(b.WindowSize) {
 			if debugDecoder {
@@ -491,6 +496,9 @@ func (b *blockDec) decodeCompressed(hist *history) error {
 }
 
 func (b *blockDec) prepareSequences(in []byte, hist *history) (err error) {
+	if debugDecoder {
+		printf("prepareSequences: %d byte(s) input\n", len(in))
+	}
 	// Decode Sequences
 	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#sequences-section
 	if len(in) < 1 {
@@ -499,8 +507,6 @@ func (b *blockDec) prepareSequences(in []byte, hist *history) (err error) {
 	var nSeqs int
 	seqHeader := in[0]
 	switch {
-	case seqHeader == 0:
-		in = in[1:]
 	case seqHeader < 128:
 		nSeqs = int(seqHeader)
 		in = in[1:]
@@ -516,6 +522,13 @@ func (b *blockDec) prepareSequences(in []byte, hist *history) (err error) {
 		}
 		nSeqs = 0x7f00 + int(in[1]) + (int(in[2]) << 8)
 		in = in[3:]
+	}
+	if nSeqs == 0 && len(in) != 0 {
+		// When no sequences, there should not be any more data...
+		if debugDecoder {
+			printf("prepareSequences: 0 sequences, but %d byte(s) left on stream\n", len(in))
+		}
+		return ErrUnexpectedBlockSize
 	}
 
 	var seqs = &hist.decoders
@@ -635,6 +648,7 @@ func (b *blockDec) decodeSequences(hist *history) error {
 		hist.decoders.seqSize = len(hist.decoders.literals)
 		return nil
 	}
+	hist.decoders.windowSize = hist.windowSize
 	hist.decoders.prevOffset = hist.recentOffsets
 	err := hist.decoders.decode(b.sequence)
 	hist.recentOffsets = hist.decoders.prevOffset

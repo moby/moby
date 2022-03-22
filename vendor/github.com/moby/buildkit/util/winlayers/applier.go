@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"context"
 	"io"
-	"io/ioutil"
 	"runtime"
 	"strings"
 	"sync"
@@ -87,7 +86,7 @@ func (s *winApplier) Apply(ctx context.Context, desc ocispecs.Descriptor, mounts
 		}
 
 		// Read any trailing data
-		if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+		if _, err := io.Copy(io.Discard, rc); err != nil {
 			discard(err)
 			return err
 		}
@@ -144,7 +143,7 @@ func filter(in io.Reader, f func(*tar.Header) bool) (io.Reader, func(error)) {
 					}
 				} else {
 					if h.Size > 0 {
-						if _, err := io.Copy(ioutil.Discard, tarReader); err != nil {
+						if _, err := io.Copy(io.Discard, tarReader); err != nil {
 							return err
 						}
 					}

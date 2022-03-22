@@ -165,6 +165,11 @@ func (b *bitReaderShifted) peekBitsFast(n uint8) uint16 {
 	return uint16(b.value >> ((64 - n) & 63))
 }
 
+// peekTopBits(n) is equvialent to peekBitFast(64 - n)
+func (b *bitReaderShifted) peekTopBits(n uint8) uint16 {
+	return uint16(b.value >> n)
+}
+
 func (b *bitReaderShifted) advance(n uint8) {
 	b.bitsRead += n
 	b.value <<= n & 63

@@ -17,6 +17,23 @@ This package provides various compression algorithms.
 
 # changelog
 
+* Mar 3, 2022 (v1.15.0)
+	* zstd: Refactor decoder by @klauspost in [#498](https://github.com/klauspost/compress/pull/498)
+	* zstd: Add stream encoding without goroutines by @klauspost in [#505](https://github.com/klauspost/compress/pull/505)
+	* huff0: Prevent single blocks exceeding 16 bits by @klauspost in[#507](https://github.com/klauspost/compress/pull/507)
+	* flate: Inline literal emission by @klauspost in [#509](https://github.com/klauspost/compress/pull/509)
+	* gzhttp: Add zstd to transport by @klauspost in [#400](https://github.com/klauspost/compress/pull/400)
+	* gzhttp: Make content-type optional by @klauspost in [#510](https://github.com/klauspost/compress/pull/510)
+
+<details>
+	<summary>See  Details</summary>
+Both compression and decompression now supports "synchronous" stream operations. This means that whenever "concurrency" is set to 1, they will operate without spawning goroutines.
+
+Stream decompression is now faster on asynchronous, since the goroutine allocation much more effectively splits the workload. On typical streams this will typically use 2 cores fully for decompression. When a stream has finished decoding no goroutines will be left over, so decoders can now safely be pooled and still be garbage collected.
+
+While the release has been extensively tested, it is recommended to testing when upgrading.
+</details>
+
 * Feb 22, 2022 (v1.14.4)
 	* flate: Fix rare huffman only (-2) corruption. [#503](https://github.com/klauspost/compress/pull/503)
 	* zip: Update deprecated CreateHeaderRaw to correctly call CreateRaw by @saracen in [#502](https://github.com/klauspost/compress/pull/502)

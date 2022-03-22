@@ -107,7 +107,10 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 	llState, mlState, ofState := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
 	s.seqSize = 0
 	litRemain := len(s.literals)
-
+	maxBlockSize := maxCompressedBlockSize
+	if s.windowSize < maxBlockSize {
+		maxBlockSize = s.windowSize
+	}
 	for i := range seqs {
 		var ll, mo, ml int
 		if br.off > 4+((maxOffsetBits+16+16)>>3) {
@@ -192,7 +195,7 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 		}
 		s.seqSize += ll + ml
 		if s.seqSize > maxBlockSize {
-			return fmt.Errorf("output (%d) bigger than max block size", s.seqSize)
+			return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
 		}
 		litRemain -= ll
 		if litRemain < 0 {
@@ -230,7 +233,7 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 	}
 	s.seqSize += litRemain
 	if s.seqSize > maxBlockSize {
-		return fmt.Errorf("output (%d) bigger than max block size", s.seqSize)
+		return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
 	}
 	err := br.close()
 	if err != nil {
@@ -347,6 +350,10 @@ func (s *sequenceDecs) decodeSync(history *history) error {
 	llState, mlState, ofState := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
 	hist := history.b[history.ignoreBuffer:]
 	out := s.out
+	maxBlockSize := maxCompressedBlockSize
+	if s.windowSize < maxBlockSize {
+		maxBlockSize = s.windowSize
+	}
 
 	for i := seqs - 1; i >= 0; i-- {
 		if br.overread() {
@@ -426,7 +433,7 @@ func (s *sequenceDecs) decodeSync(history *history) error {
 		}
 		size := ll + ml + len(out)
 		if size-startSize > maxBlockSize {
-			return fmt.Errorf("output (%d) bigger than max block size", size)
+			return fmt.Errorf("output (%d) bigger than max block size (%d)", size, maxBlockSize)
 		}
 		if size > cap(out) {
 			// Not enough size, which can happen under high volume block streaming conditions
@@ -533,6 +540,11 @@ func (s *sequenceDecs) decodeSync(history *history) error {
 			lowBits = uint16(bits) & bitMask[ofState.nbBits()&15]
 			ofState = ofTable[(ofState.newState()+lowBits)&maxTableMask]
 		}
+	}
+
+	// Check if space for literals
+	if len(s.literals)+len(s.out)-startSize > maxBlockSize {
+		return fmt.Errorf("output (%d) bigger than max block size (%d)", len(s.out), maxBlockSize)
 	}
 
 	// Add final literals

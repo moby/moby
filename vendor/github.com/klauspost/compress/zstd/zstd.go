@@ -39,6 +39,9 @@ const zstdMinMatch = 3
 // Reset the buffer offset when reaching this.
 const bufferReset = math.MaxInt32 - MaxWindowSize
 
+// fcsUnknown is used for unknown frame content size.
+const fcsUnknown = math.MaxUint64
+
 var (
 	// ErrReservedBlockType is returned when a reserved block type is found.
 	// Typically this indicates wrong or corrupted input.
@@ -51,6 +54,10 @@ var (
 	// ErrBlockTooSmall is returned when a block is too small to be decoded.
 	// Typically returned on invalid input.
 	ErrBlockTooSmall = errors.New("block too small")
+
+	// ErrUnexpectedBlockSize is returned when a block has unexpected size.
+	// Typically returned on invalid input.
+	ErrUnexpectedBlockSize = errors.New("unexpected block size")
 
 	// ErrMagicMismatch is returned when a "magic" number isn't what is expected.
 	// Typically this indicates wrong or corrupted input.

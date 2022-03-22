@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/moby/buildkit/util/progress"
-	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
 
@@ -23,7 +21,6 @@ type mergeOp struct {
 	op     *pb.MergeOp
 	worker worker.Worker
 	vtx    solver.Vertex
-	pg     progress.Controller
 }
 
 func NewMergeOp(v solver.Vertex, op *pb.Op_Merge, w worker.Worker) (solver.Op, error) {
@@ -56,16 +53,7 @@ func (m *mergeOp) CacheMap(ctx context.Context, group session.Group, index int) 
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
 		}, len(m.op.Inputs)),
-		Opts: solver.CacheOpts(make(map[interface{}]interface{})),
 	}
-
-	m.pg = &controller.Controller{
-		WriterFactory: progress.FromContext(ctx),
-		Digest:        m.vtx.Digest(),
-		Name:          m.vtx.Name(),
-		ProgressGroup: m.vtx.Options().ProgressGroup,
-	}
-	cm.Opts[cache.ProgressKey{}] = m.pg
 
 	return cm, true, nil
 }
@@ -93,7 +81,7 @@ func (m *mergeOp) Exec(ctx context.Context, g session.Group, inputs []solver.Res
 		return nil, nil
 	}
 
-	mergedRef, err := m.worker.CacheManager().Merge(ctx, refs, m.pg,
+	mergedRef, err := m.worker.CacheManager().Merge(ctx, refs, solver.ProgressControllerFromContext(ctx),
 		cache.WithDescription(m.vtx.Name()))
 	if err != nil {
 		return nil, err
