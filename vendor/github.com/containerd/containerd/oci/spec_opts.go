@@ -770,7 +770,6 @@ func WithCapabilities(caps []string) SpecOpts {
 		s.Process.Capabilities.Bounding = caps
 		s.Process.Capabilities.Effective = caps
 		s.Process.Capabilities.Permitted = caps
-		s.Process.Capabilities.Inheritable = caps
 
 		return nil
 	}
@@ -828,7 +827,6 @@ func WithAddedCapabilities(caps []string) SpecOpts {
 				&s.Process.Capabilities.Bounding,
 				&s.Process.Capabilities.Effective,
 				&s.Process.Capabilities.Permitted,
-				&s.Process.Capabilities.Inheritable,
 			} {
 				if !capsContain(*cl, c) {
 					*cl = append(*cl, c)
@@ -848,7 +846,6 @@ func WithDroppedCapabilities(caps []string) SpecOpts {
 				&s.Process.Capabilities.Bounding,
 				&s.Process.Capabilities.Effective,
 				&s.Process.Capabilities.Permitted,
-				&s.Process.Capabilities.Inheritable,
 			} {
 				removeCap(cl, c)
 			}
@@ -863,7 +860,7 @@ func WithDroppedCapabilities(caps []string) SpecOpts {
 func WithAmbientCapabilities(caps []string) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		setCapabilities(s)
-
+		s.Process.Capabilities.Inheritable = caps
 		s.Process.Capabilities.Ambient = caps
 		return nil
 	}
