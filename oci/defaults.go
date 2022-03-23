@@ -41,10 +41,9 @@ func DefaultLinuxSpec() specs.Spec {
 		Version: specs.Version,
 		Process: &specs.Process{
 			Capabilities: &specs.LinuxCapabilities{
-				Bounding:    caps.DefaultCapabilities(),
-				Permitted:   caps.DefaultCapabilities(),
-				Inheritable: caps.DefaultCapabilities(),
-				Effective:   caps.DefaultCapabilities(),
+				Bounding:  caps.DefaultCapabilities(),
+				Permitted: caps.DefaultCapabilities(),
+				Effective: caps.DefaultCapabilities(),
 			},
 		},
 		Root: &specs.Root{},
