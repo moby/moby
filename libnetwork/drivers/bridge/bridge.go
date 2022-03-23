@@ -1352,6 +1352,11 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 		}
 	}()
 
+	// Clean the connection tracker state of the host for the
+	// specific endpoint. This is needed because some flows may be
+	// bound to the local proxy and won't bre redirect to the new endpoints.
+	clearEndpointConnections(d.nlh, endpoint)
+
 	if err = d.storeUpdate(endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
