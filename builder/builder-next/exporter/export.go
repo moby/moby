@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	"github.com/moby/buildkit/util/compression"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -69,7 +70,11 @@ func (e *imageExporterInstance) Name() string {
 }
 
 func (e *imageExporterInstance) Config() exporter.Config {
-	return exporter.Config{}
+	return exporter.Config{
+		Compression: compression.Config{
+			Type: compression.Default,
+		},
+	}
 }
 
 func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {

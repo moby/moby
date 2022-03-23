@@ -185,6 +185,10 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 			return ops.NewFileOp(v, op, w.CacheManager(), parallelism, w)
 		case *pb.Op_Build:
 			return ops.NewBuildOp(v, op, s, w)
+		case *pb.Op_Merge:
+			return ops.NewMergeOp(v, op, w)
+		case *pb.Op_Diff:
+			return ops.NewDiffOp(v, op, w)
 		}
 	}
 	return nil, errors.Errorf("could not resolve %v", v)
