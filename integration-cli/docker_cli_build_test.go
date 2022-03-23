@@ -4644,6 +4644,7 @@ func (s *DockerSuite) TestBuildMultiStageArg(c *testing.T) {
 
 	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
 	parentID := strings.TrimSpace(result.Stdout())
+	assert.Equal(c, len(parentID), 12)
 
 	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
 	assert.Assert(c, strings.Contains(result.Stdout(), "foo=abc"))
