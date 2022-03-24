@@ -74,7 +74,7 @@ func (cli *Client) ContainerLogs(ctx context.Context, container string, options 
 
 	resp, err := cli.get(ctx, "/containers/"+container+"/logs", query, nil)
 	if err != nil {
-		return nil, wrapResponseError(err, resp, "container", container)
+		return nil, err
 	}
 	return resp.body, nil
 }

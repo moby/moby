@@ -2,7 +2,6 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
@@ -57,19 +56,6 @@ func (e objectNotFoundError) NotFound() {}
 
 func (e objectNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
-}
-
-func wrapResponseError(err error, resp serverResponse, object, id string) error {
-	switch {
-	case err == nil:
-		return nil
-	case resp.statusCode == http.StatusNotFound:
-		return objectNotFoundError{object: object, id: id}
-	case resp.statusCode == http.StatusNotImplemented:
-		return errdefs.NotImplemented(err)
-	default:
-		return err
-	}
 }
 
 // unauthorizedError represents an authorization error in a remote registry.

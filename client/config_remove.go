@@ -9,5 +9,5 @@ func (cli *Client) ConfigRemove(ctx context.Context, id string) error {
 	}
 	resp, err := cli.delete(ctx, "/configs/"+id, nil, nil)
 	defer ensureReaderClosed(resp)
-	return wrapResponseError(err, resp, "config", id)
+	return err
 }

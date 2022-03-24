@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	dconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/ioutils"
@@ -1590,7 +1591,7 @@ func (s *DockerSuite) TestContainerAPIDeleteWithEmptyName(c *testing.T) {
 	defer cli.Close()
 
 	err = cli.ContainerRemove(context.Background(), "", types.ContainerRemoveOptions{})
-	assert.ErrorContains(c, err, "No such container")
+	assert.Check(c, errdefs.IsNotFound(err))
 }
 
 func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {

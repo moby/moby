@@ -17,7 +17,7 @@ func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*type
 	resp, err := cli.get(ctx, "/plugins/"+name+"/json", nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return nil, nil, wrapResponseError(err, resp, "plugin", name)
+		return nil, nil, err
 	}
 
 	body, err := io.ReadAll(resp.body)
