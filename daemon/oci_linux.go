@@ -862,7 +862,7 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
 
-		if c.HostConfig.Privileged && !userns.RunningInUserNS() {
+		if c.HostConfig.Privileged {
 			hostDevices, err := coci.HostDevices()
 			if err != nil {
 				return err
