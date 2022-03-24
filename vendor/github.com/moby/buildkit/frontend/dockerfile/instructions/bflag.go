@@ -3,6 +3,8 @@ package instructions
 import (
 	"fmt"
 	"strings"
+
+	"github.com/moby/buildkit/util/suggest"
 )
 
 // FlagType is the type of the build flag
@@ -139,12 +141,12 @@ func (bf *BFlags) Parse() error {
 	// go ahead and bubble it back up here since we didn't do it
 	// earlier in the processing
 	if bf.Err != nil {
-		return fmt.Errorf("Error setting up flags: %s", bf.Err)
+		return fmt.Errorf("error setting up flags: %s", bf.Err)
 	}
 
 	for _, arg := range bf.Args {
 		if !strings.HasPrefix(arg, "--") {
-			return fmt.Errorf("Arg should start with -- : %s", arg)
+			return fmt.Errorf("arg should start with -- : %s", arg)
 		}
 
 		if arg == "--" {
@@ -162,11 +164,11 @@ func (bf *BFlags) Parse() error {
 
 		flag, ok := bf.flags[arg]
 		if !ok {
-			return fmt.Errorf("Unknown flag: %s", arg)
+			return suggest.WrapError(fmt.Errorf("unknown flag: %s", arg), arg, allFlags(bf.flags), true)
 		}
 
 		if _, ok = bf.used[arg]; ok && flag.flagType != stringsType {
-			return fmt.Errorf("Duplicate flag specified: %s", arg)
+			return fmt.Errorf("duplicate flag specified: %s", arg)
 		}
 
 		bf.used[arg] = flag
@@ -175,7 +177,7 @@ func (bf *BFlags) Parse() error {
 		case boolType:
 			// value == "" is only ok if no "=" was specified
 			if index >= 0 && value == "" {
-				return fmt.Errorf("Missing a value on flag: %s", arg)
+				return fmt.Errorf("missing a value on flag: %s", arg)
 			}
 
 			lower := strings.ToLower(value)
@@ -184,26 +186,33 @@ func (bf *BFlags) Parse() error {
 			} else if lower == "true" || lower == "false" {
 				flag.Value = lower
 			} else {
-				return fmt.Errorf("Expecting boolean value for flag %s, not: %s", arg, value)
+				return fmt.Errorf("expecting boolean value for flag %s, not: %s", arg, value)
 			}
 
 		case stringType:
 			if index < 0 {
-				return fmt.Errorf("Missing a value on flag: %s", arg)
+				return fmt.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.Value = value
 
 		case stringsType:
 			if index < 0 {
-				return fmt.Errorf("Missing a value on flag: %s", arg)
+				return fmt.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.StringValues = append(flag.StringValues, value)
 
 		default:
 			panic("No idea what kind of flag we have! Should never get here!")
 		}
-
 	}
 
 	return nil
+}
+
+func allFlags(flags map[string]*Flag) []string {
+	var names []string
+	for name := range flags {
+		names = append(names, name)
+	}
+	return names
 }

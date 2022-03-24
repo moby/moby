@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# This script returns the current BuildKit ref being used in moby.
+
+: "${BUILDKIT_REPO=moby/buildkit}"
+: "${BUILDKIT_REF=}"
+
+if [ -n "$BUILDKIT_REF" ]; then
+	echo "$BUILDKIT_REF"
+	exit 0
+fi
+
+# prepare go mod
+./hack/go-mod-prepare.sh
+
+# get buildkit version from vendor.mod
+BUILDKIT_REF=$(GO111MODULE=on go list -mod=mod -modfile=vendor.mod -u -m -f '{{.Version}}' "github.com/${BUILDKIT_REPO}")
+if [[ "${BUILDKIT_REF}" == *-*-* ]]; then
+	# if pseudo-version, figure out just the uncommon sha (https://github.com/golang/go/issues/34745)
+	BUILDKIT_REF=$(echo "${BUILDKIT_REF}" | awk -F"-" '{print $NF}' | awk 'BEGIN{FIELDWIDTHS="7"} {print $1}')
+	# use github api to return full sha to be able to use it as ref
+	BUILDKIT_REF=$(curl -s "https://api.github.com/repos/${BUILDKIT_REPO}/commits/${BUILDKIT_REF}" | jq -r .sha)
+fi
+
+echo "$BUILDKIT_REF"

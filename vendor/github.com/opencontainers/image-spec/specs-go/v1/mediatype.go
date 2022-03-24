@@ -34,6 +34,10 @@ const (
 	// referenced by the manifest.
 	MediaTypeImageLayerGzip = "application/vnd.oci.image.layer.v1.tar+gzip"
 
+	// MediaTypeImageLayerZstd is the media type used for zstd compressed
+	// layers referenced by the manifest.
+	MediaTypeImageLayerZstd = "application/vnd.oci.image.layer.v1.tar+zstd"
+
 	// MediaTypeImageLayerNonDistributable is the media type for layers referenced by
 	// the manifest but with distribution restrictions.
 	MediaTypeImageLayerNonDistributable = "application/vnd.oci.image.layer.nondistributable.v1.tar"
@@ -42,6 +46,11 @@ const (
 	// gzipped layers referenced by the manifest but with distribution
 	// restrictions.
 	MediaTypeImageLayerNonDistributableGzip = "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip"
+
+	// MediaTypeImageLayerNonDistributableZstd is the media type for zstd
+	// compressed layers referenced by the manifest but with distribution
+	// restrictions.
+	MediaTypeImageLayerNonDistributableZstd = "application/vnd.oci.image.layer.nondistributable.v1.tar+zstd"
 
 	// MediaTypeImageConfig specifies the media type for the image configuration.
 	MediaTypeImageConfig = "application/vnd.oci.image.config.v1+json"

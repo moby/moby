@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gogo/googleapis/google/rpc"
@@ -16,20 +17,21 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/gateway/client"
-	"github.com/moby/buildkit/frontend/gateway/errdefs"
 	pb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/grpcerrors"
+	"github.com/moby/sys/signal"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -298,6 +300,19 @@ func (c *grpcClient) requestForRef(ref client.Reference) (*pb.SolveRequest, erro
 	return req, nil
 }
 
+func (c *grpcClient) Warn(ctx context.Context, dgst digest.Digest, msg string, opts client.WarnOpts) error {
+	_, err := c.client.Warn(ctx, &pb.WarnRequest{
+		Digest: dgst,
+		Level:  int64(opts.Level),
+		Short:  []byte(msg),
+		Info:   opts.SourceInfo,
+		Ranges: opts.Range,
+		Detail: opts.Detail,
+		Url:    opts.URL,
+	})
+	return err
+}
+
 func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *client.Result, err error) {
 	if creq.Definition != nil {
 		for _, md := range creq.Definition.Metadata {
@@ -323,6 +338,24 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 				Type:  im.Type,
 				Attrs: im.Attrs,
 			})
+		}
+	}
+
+	// these options are added by go client in solve()
+	if _, ok := creq.FrontendOpt["cache-imports"]; !ok {
+		if v, ok := c.opts["cache-imports"]; ok {
+			if creq.FrontendOpt == nil {
+				creq.FrontendOpt = map[string]string{}
+			}
+			creq.FrontendOpt["cache-imports"] = v
+		}
+	}
+	if _, ok := creq.FrontendOpt["cache-from"]; !ok {
+		if v, ok := c.opts["cache-from"]; ok {
+			if creq.FrontendOpt == nil {
+				creq.FrontendOpt = map[string]string{}
+			}
+			creq.FrontendOpt["cache-from"] = v
 		}
 	}
 
@@ -457,6 +490,27 @@ func (c *grpcClient) BuildOpts() client.BuildOpts {
 	}
 }
 
+func (c *grpcClient) CurrentFrontend() (*llb.State, error) {
+	fp := "/run/config/buildkit/metadata/frontend.bin"
+	if _, err := os.Stat(fp); err != nil {
+		return nil, nil
+	}
+	dt, err := os.ReadFile(fp)
+	if err != nil {
+		return nil, err
+	}
+	var def opspb.Definition
+	if err := def.Unmarshal(dt); err != nil {
+		return nil, err
+	}
+	op, err := llb.NewDefinitionOp(&def)
+	if err != nil {
+		return nil, err
+	}
+	st := llb.NewState(op)
+	return &st, nil
+}
+
 func (c *grpcClient) Inputs(ctx context.Context) (map[string]llb.State, error) {
 	err := c.caps.Supports(pb.CapFrontendInputs)
 	if err != nil {
@@ -576,7 +630,7 @@ func (m *messageForwarder) Start() (err error) {
 				if errors.Is(err, io.EOF) || grpcerrors.Code(err) == codes.Canceled {
 					return nil
 				}
-				logrus.Debugf("|<--- %s", debugMessage(msg))
+				bklog.G(m.ctx).Debugf("|<--- %s", debugMessage(msg))
 
 				if err != nil {
 					return err
@@ -587,7 +641,7 @@ func (m *messageForwarder) Start() (err error) {
 				m.mu.Unlock()
 
 				if !ok {
-					logrus.Debugf("Received exec message for unregistered process: %s", msg.String())
+					bklog.G(m.ctx).Debugf("Received exec message for unregistered process: %s", msg.String())
 					continue
 				}
 				msgs.Send(m.ctx, msg)
@@ -608,6 +662,8 @@ func debugMessage(msg *pb.ExecMessage) string {
 		return fmt.Sprintf("File Message %s, fd=%d, %d bytes", msg.ProcessID, m.File.Fd, len(m.File.Data))
 	case *pb.ExecMessage_Resize:
 		return fmt.Sprintf("Resize Message %s", msg.ProcessID)
+	case *pb.ExecMessage_Signal:
+		return fmt.Sprintf("Signal Message %s: %s", msg.ProcessID, m.Signal.Name)
 	case *pb.ExecMessage_Started:
 		return fmt.Sprintf("Started Message %s", msg.ProcessID)
 	case *pb.ExecMessage_Exit:
@@ -625,7 +681,7 @@ func (m *messageForwarder) Send(msg *pb.ExecMessage) error {
 	if !ok {
 		return errors.Errorf("process %s has ended, not sending message %#v", msg.ProcessID, msg.Input)
 	}
-	logrus.Debugf("|---> %s", debugMessage(msg))
+	bklog.G(m.ctx).Debugf("|---> %s", debugMessage(msg))
 	return m.stream.Send(msg)
 }
 
@@ -703,12 +759,14 @@ func (c *grpcClient) NewContainer(ctx context.Context, req client.NewContainerRe
 		})
 	}
 
-	logrus.Debugf("|---> NewContainer %s", id)
+	bklog.G(ctx).Debugf("|---> NewContainer %s", id)
 	_, err = c.client.NewContainer(ctx, &pb.NewContainerRequest{
 		ContainerID: id,
 		Mounts:      mounts,
 		Platform:    req.Platform,
 		Constraints: req.Constraints,
+		Network:     req.NetMode,
+		ExtraHosts:  req.ExtraHosts,
 	})
 	if err != nil {
 		return nil, err
@@ -882,8 +940,8 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 					Message: exit.Error.Message,
 					Details: convertGogoAny(exit.Error.Details),
 				}))
-				if exit.Code != errdefs.UnknownExitStatus {
-					exitError = &errdefs.ExitError{ExitCode: exit.Code, Err: exitError}
+				if exit.Code != pb.UnknownExitStatus {
+					exitError = &pb.ExitError{ExitCode: exit.Code, Err: exitError}
 				}
 			} else if serverDone := msg.GetDone(); serverDone != nil {
 				return exitError
@@ -897,7 +955,7 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 }
 
 func (ctr *container) Release(ctx context.Context) error {
-	logrus.Debugf("|---> ReleaseContainer %s", ctr.id)
+	bklog.G(ctx).Debugf("|---> ReleaseContainer %s", ctr.id)
 	_, err := ctr.client.ReleaseContainer(ctx, &pb.ReleaseContainerRequest{
 		ContainerID: ctr.id,
 	})
@@ -922,6 +980,29 @@ func (ctrProc *containerProcess) Resize(_ context.Context, size client.WinSize) 
 			Resize: &pb.ResizeMessage{
 				Cols: size.Cols,
 				Rows: size.Rows,
+			},
+		},
+	})
+}
+
+var sigToName = map[syscall.Signal]string{}
+
+func init() {
+	for name, value := range signal.SignalMap {
+		sigToName[value] = name
+	}
+}
+
+func (ctrProc *containerProcess) Signal(_ context.Context, sig syscall.Signal) error {
+	name := sigToName[sig]
+	if name == "" {
+		return errors.Errorf("unknown signal %v", sig)
+	}
+	return ctrProc.execMsgs.Send(&pb.ExecMessage{
+		ProcessID: ctrProc.id,
+		Input: &pb.ExecMessage_Signal{
+			Signal: &pb.SignalMessage{
+				Name: name,
 			},
 		},
 	})
@@ -1006,7 +1087,7 @@ func grpcClientConn(ctx context.Context) (context.Context, *grpc.ClientConn, err
 		return stdioConn(), nil
 	})
 
-	cc, err := grpc.DialContext(ctx, "localhost", dialOpt, grpc.WithInsecure(), grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor))
+	cc, err := grpc.DialContext(ctx, "localhost", dialOpt, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor))
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create grpc client")
 	}

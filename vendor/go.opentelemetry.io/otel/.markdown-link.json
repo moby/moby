@@ -1,0 +1,16 @@
+{
+    "ignorePatterns": [
+        {
+            "pattern": "^http(s)?://localhost"
+        }
+    ],
+    "replacementPatterns": [
+        {
+            "pattern": "^/registry",
+            "replacement": "https://opentelemetry.io/registry"
+        }
+    ],
+    "retryOn429": true,
+    "retryCount": 5,
+    "fallbackRetryDelay": "30s"
+}

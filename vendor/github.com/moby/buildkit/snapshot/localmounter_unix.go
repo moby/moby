@@ -1,9 +1,9 @@
+//go:build !windows
 // +build !windows
 
 package snapshot
 
 import (
-	"io/ioutil"
 	"os"
 	"syscall"
 
@@ -15,7 +15,7 @@ func (lm *localMounter) Mount() (string, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	if lm.mounts == nil {
+	if lm.mounts == nil && lm.mountable != nil {
 		mounts, release, err := lm.mountable.Mount()
 		if err != nil {
 			return "", err
@@ -37,7 +37,7 @@ func (lm *localMounter) Mount() (string, error) {
 		}
 	}
 
-	dir, err := ioutil.TempDir("", "buildkit-mount")
+	dir, err := os.MkdirTemp("", "buildkit-mount")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create temp dir")
 	}

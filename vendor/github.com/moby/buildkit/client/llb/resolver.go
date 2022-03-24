@@ -4,7 +4,7 @@ import (
 	"context"
 
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // WithMetaResolver adds a metadata resolver to an image
@@ -29,7 +29,7 @@ type ImageMetaResolver interface {
 }
 
 type ResolveImageConfigOpt struct {
-	Platform    *specs.Platform
+	Platform    *ocispecs.Platform
 	ResolveMode string
 	LogName     string
 }

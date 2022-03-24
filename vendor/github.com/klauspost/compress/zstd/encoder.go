@@ -98,23 +98,25 @@ func (e *Encoder) Reset(w io.Writer) {
 	if cap(s.filling) == 0 {
 		s.filling = make([]byte, 0, e.o.blockSize)
 	}
-	if cap(s.current) == 0 {
-		s.current = make([]byte, 0, e.o.blockSize)
-	}
-	if cap(s.previous) == 0 {
-		s.previous = make([]byte, 0, e.o.blockSize)
+	if e.o.concurrent > 1 {
+		if cap(s.current) == 0 {
+			s.current = make([]byte, 0, e.o.blockSize)
+		}
+		if cap(s.previous) == 0 {
+			s.previous = make([]byte, 0, e.o.blockSize)
+		}
+		s.current = s.current[:0]
+		s.previous = s.previous[:0]
+		if s.writing == nil {
+			s.writing = &blockEnc{lowMem: e.o.lowMem}
+			s.writing.init()
+		}
+		s.writing.initNewEncode()
 	}
 	if s.encoder == nil {
 		s.encoder = e.o.encoder()
 	}
-	if s.writing == nil {
-		s.writing = &blockEnc{lowMem: e.o.lowMem}
-		s.writing.init()
-	}
-	s.writing.initNewEncode()
 	s.filling = s.filling[:0]
-	s.current = s.current[:0]
-	s.previous = s.previous[:0]
 	s.encoder.Reset(e.o.dict, false)
 	s.headerWritten = false
 	s.eofWritten = false
@@ -255,6 +257,46 @@ func (e *Encoder) nextBlock(final bool) error {
 			s.nWritten += int64(len(blk.output))
 			s.eofWritten = true
 		}
+		return s.err
+	}
+
+	// SYNC:
+	if e.o.concurrent == 1 {
+		src := s.filling
+		s.nInput += int64(len(s.filling))
+		if debugEncoder {
+			println("Adding sync block,", len(src), "bytes, final:", final)
+		}
+		enc := s.encoder
+		blk := enc.Block()
+		blk.reset(nil)
+		enc.Encode(blk, src)
+		blk.last = final
+		if final {
+			s.eofWritten = true
+		}
+
+		err := errIncompressible
+		// If we got the exact same number of literals as input,
+		// assume the literals cannot be compressed.
+		if len(src) != len(blk.literals) || len(src) != e.o.blockSize {
+			err = blk.encode(src, e.o.noEntropy, !e.o.allLitEntropy)
+		}
+		switch err {
+		case errIncompressible:
+			if debugEncoder {
+				println("Storing incompressible block as raw")
+			}
+			blk.encodeRaw(src)
+			// In fast mode, we do not transfer offsets, so we don't have to deal with changing the.
+		case nil:
+		default:
+			s.err = err
+			return err
+		}
+		_, s.err = s.w.Write(blk.output)
+		s.nWritten += int64(len(blk.output))
+		s.filling = s.filling[:0]
 		return s.err
 	}
 

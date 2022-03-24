@@ -1,6 +1,7 @@
 package cacheimport
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -8,7 +9,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func NewCacheChains() *CacheChains {
@@ -75,7 +76,7 @@ func (c *CacheChains) normalize() error {
 	return nil
 }
 
-func (c *CacheChains) Marshal() (*CacheConfig, DescriptorProvider, error) {
+func (c *CacheChains) Marshal(ctx context.Context) (*CacheConfig, DescriptorProvider, error) {
 	if err := c.normalize(); err != nil {
 		return nil, nil, err
 	}
@@ -87,7 +88,7 @@ func (c *CacheChains) Marshal() (*CacheConfig, DescriptorProvider, error) {
 	}
 
 	for _, it := range c.items {
-		if err := marshalItem(it, st); err != nil {
+		if err := marshalItem(ctx, it, st); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -104,7 +105,7 @@ func (c *CacheChains) Marshal() (*CacheConfig, DescriptorProvider, error) {
 type DescriptorProvider map[digest.Digest]DescriptorProviderPair
 
 type DescriptorProviderPair struct {
-	Descriptor ocispec.Descriptor
+	Descriptor ocispecs.Descriptor
 	Provider   content.Provider
 }
 

@@ -11,25 +11,29 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/auth"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
 	"github.com/moby/buildkit/session"
 	sessionauth "github.com/moby/buildkit/session/auth"
+	log "github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/moby/buildkit/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
+const defaultExpiration = 60
+
 type authHandlerNS struct {
 	counter int64 // needs to be 64bit aligned for 32bit systems
 
-	mu       sync.Mutex
-	handlers map[string]*authHandler
-	hosts    map[string][]docker.RegistryHost
-	sm       *session.Manager
-	g        flightcontrol.Group
+	handlers   map[string]*authHandler
+	muHandlers sync.Mutex
+	hosts      map[string][]docker.RegistryHost
+	muHosts    sync.Mutex
+	sm         *session.Manager
+	g          flightcontrol.Group
 }
 
 func newAuthHandlerNS(sm *session.Manager) *authHandlerNS {
@@ -118,8 +122,8 @@ func newDockerAuthorizer(client *http.Client, handlers *authHandlerNS, sm *sessi
 
 // Authorize handles auth request.
 func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) error {
-	a.handlers.mu.Lock()
-	defer a.handlers.mu.Unlock()
+	a.handlers.muHandlers.Lock()
+	defer a.handlers.muHandlers.Unlock()
 
 	// skip if there is no auth handler
 	ah := a.handlers.get(ctx, req.URL.Host, a.sm, a.session)
@@ -141,8 +145,8 @@ func (a *dockerAuthorizer) getCredentials(host string) (sessionID, username, sec
 }
 
 func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.Response) error {
-	a.handlers.mu.Lock()
-	defer a.handlers.mu.Unlock()
+	a.handlers.muHandlers.Lock()
+	defer a.handlers.muHandlers.Unlock()
 
 	last := responses[len(responses)-1]
 	host := last.Request.URL.Host
@@ -349,10 +353,16 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 		if err != nil {
 			return nil, err
 		}
+		if resp.ExpiresIn == 0 {
+			resp.ExpiresIn = defaultExpiration
+		}
 		issuedAt, expires = time.Unix(resp.IssuedAt, 0), int(resp.ExpiresIn)
 		token = resp.Token
 		return nil, nil
 	}
+
+	hdr := http.Header{}
+	hdr.Set("User-Agent", version.UserAgent())
 
 	// fetch token for the resource scope
 	if to.Secret != "" {
@@ -369,9 +379,12 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 				// As of September 2017, GCR is known to return 404.
 				// As of February 2018, JFrog Artifactory is known to return 401.
 				if (errStatus.StatusCode == 405 && to.Username != "") || errStatus.StatusCode == 404 || errStatus.StatusCode == 401 {
-					resp, err := auth.FetchTokenWithOAuth(ctx, ah.client, nil, "buildkit-client", to)
+					resp, err := auth.FetchTokenWithOAuth(ctx, ah.client, hdr, "buildkit-client", to)
 					if err != nil {
 						return nil, err
+					}
+					if resp.ExpiresIn == 0 {
+						resp.ExpiresIn = defaultExpiration
 					}
 					issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
 					token = resp.AccessToken
@@ -384,14 +397,20 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 			}
 			return nil, err
 		}
+		if resp.ExpiresIn == 0 {
+			resp.ExpiresIn = defaultExpiration
+		}
 		issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
 		token = resp.Token
 		return nil, nil
 	}
 	// do request anonymously
-	resp, err := auth.FetchToken(ctx, ah.client, nil, to)
+	resp, err := auth.FetchToken(ctx, ah.client, hdr, to)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch anonymous token")
+	}
+	if resp.ExpiresIn == 0 {
+		resp.ExpiresIn = defaultExpiration
 	}
 	issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
 
@@ -400,11 +419,6 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 }
 
 func invalidAuthorization(c auth.Challenge, responses []*http.Response) error {
-	lastResponse := responses[len(responses)-1]
-	if lastResponse.StatusCode == http.StatusUnauthorized {
-		return errors.Wrapf(docker.ErrInvalidAuthorization, "authorization status: %v", lastResponse.StatusCode)
-	}
-
 	errStr := c.Parameters["error"]
 	if errStr == "" {
 		return nil
@@ -433,25 +447,28 @@ type scopes map[string]map[string]struct{}
 func parseScopes(s []string) scopes {
 	// https://docs.docker.com/registry/spec/auth/scope/
 	m := map[string]map[string]struct{}{}
-	for _, scope := range s {
-		parts := strings.SplitN(scope, ":", 3)
-		names := []string{parts[0]}
-		if len(parts) > 1 {
-			names = append(names, parts[1])
-		}
-		var actions []string
-		if len(parts) == 3 {
-			actions = append(actions, strings.Split(parts[2], ",")...)
-		}
-		name := strings.Join(names, ":")
-		ma, ok := m[name]
-		if !ok {
-			ma = map[string]struct{}{}
-			m[name] = ma
-		}
+	for _, scopeStr := range s {
+		// The scopeStr may have strings that contain multiple scopes separated by a space.
+		for _, scope := range strings.Split(scopeStr, " ") {
+			parts := strings.SplitN(scope, ":", 3)
+			names := []string{parts[0]}
+			if len(parts) > 1 {
+				names = append(names, parts[1])
+			}
+			var actions []string
+			if len(parts) == 3 {
+				actions = append(actions, strings.Split(parts[2], ",")...)
+			}
+			name := strings.Join(names, ":")
+			ma, ok := m[name]
+			if !ok {
+				ma = map[string]struct{}{}
+				m[name] = ma
+			}
 
-		for _, a := range actions {
-			ma[a] = struct{}{}
+			for _, a := range actions {
+				ma[a] = struct{}{}
+			}
 		}
 	}
 	return m

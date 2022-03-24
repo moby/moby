@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
 	"github.com/moby/buildkit/util/progress"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -24,7 +24,7 @@ type ProviderWithProgress struct {
 	Manager  PullManager
 }
 
-func (p *ProviderWithProgress) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+func (p *ProviderWithProgress) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	ra, err := p.Provider.ReaderAt(ctx, desc)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ type FetcherWithProgress struct {
 	Manager PullManager
 }
 
-func (f *FetcherWithProgress) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
+func (f *FetcherWithProgress) Fetch(ctx context.Context, desc ocispecs.Descriptor) (io.ReadCloser, error) {
 	rc, err := f.Fetcher.Fetch(ctx, desc)
 	if err != nil {
 		return nil, err
@@ -85,8 +85,7 @@ func (r readerWithCancel) Close() error {
 	return r.ReadCloser.Close()
 }
 
-func trackProgress(ctx context.Context, desc ocispec.Descriptor, manager PullManager, doneCh chan<- struct{}) {
-
+func trackProgress(ctx context.Context, desc ocispecs.Descriptor, manager PullManager, doneCh chan<- struct{}) {
 	defer close(doneCh)
 
 	ticker := time.NewTicker(150 * time.Millisecond)
@@ -96,7 +95,7 @@ func trackProgress(ctx context.Context, desc ocispec.Descriptor, manager PullMan
 		ticker.Stop()
 	}()
 
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	defer pw.Close()
 
 	ingestRef := remotes.MakeRefKey(ctx, desc)
@@ -133,6 +132,5 @@ func trackProgress(ctx context.Context, desc ocispec.Descriptor, manager PullMan
 			})
 			return
 		}
-
 	}
 }

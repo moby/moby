@@ -7,8 +7,9 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/compression"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Vertex is a node in a build graph. It defines an interface for a
@@ -54,6 +55,7 @@ type VertexOptions struct {
 	Description  map[string]string // text values with no special meaning for solver
 	ExportCache  *bool
 	// WorkerConstraint
+	ProgressGroup *pb.ProgressGroup
 }
 
 // Result is an abstract return value for a solve
@@ -74,6 +76,7 @@ type ResultProxy interface {
 	Result(context.Context) (CachedResult, error)
 	Release(context.Context) error
 	Definition() *pb.Definition
+	BuildSources() BuildSources
 }
 
 // CacheExportMode is the type for setting cache exporting modes
@@ -92,12 +95,15 @@ const (
 
 // CacheExportOpt defines options for exporting build cache
 type CacheExportOpt struct {
-	// Convert can convert a build result to transferable object
-	Convert func(context.Context, Result) (*Remote, error)
+	// ResolveRemotes can convert a build result to transferable objects
+	ResolveRemotes func(context.Context, Result) ([]*Remote, error)
 	// Mode defines a cache export algorithm
 	Mode CacheExportMode
 	// Session is the session group to client (for auth credentials etc)
 	Session session.Group
+	// CompressionOpt is an option to specify the compression of the object to load.
+	// If specified, all objects that meet the option will be cached.
+	CompressionOpt *compression.Config
 }
 
 // CacheExporter can export the artifacts of the build chain
@@ -122,7 +128,7 @@ type CacheExporterRecord interface {
 // from a content provider
 // TODO: add closer to keep referenced data from getting deleted
 type Remote struct {
-	Descriptors []ocispec.Descriptor
+	Descriptors []ocispecs.Descriptor
 	Provider    content.Provider
 }
 
@@ -190,7 +196,14 @@ type CacheMap struct {
 	// such as oci descriptor content providers and progress writers to be passed to
 	// the cache. Opts should not have any impact on the computed cache key.
 	Opts CacheOpts
+
+	// BuildSources contains build dependencies that will be set from source
+	// operation.
+	BuildSources BuildSources
 }
+
+// BuildSources contains solved build dependencies.
+type BuildSources map[string]string
 
 // ExportableCacheKey is a cache key connected with an exporter that can export
 // a chain of cacherecords pointing to that key

@@ -3,12 +3,12 @@ package dockerfile2llb
 import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type platformOpt struct {
-	targetPlatform specs.Platform
-	buildPlatforms []specs.Platform
+	targetPlatform ocispecs.Platform
+	buildPlatforms []ocispecs.Platform
 	implicitTarget bool
 }
 
@@ -18,10 +18,10 @@ func buildPlatformOpt(opt *ConvertOpt) *platformOpt {
 	implicitTargetPlatform := false
 
 	if opt.TargetPlatform != nil && opt.BuildPlatforms == nil {
-		buildPlatforms = []specs.Platform{*opt.TargetPlatform}
+		buildPlatforms = []ocispecs.Platform{*opt.TargetPlatform}
 	}
 	if len(buildPlatforms) == 0 {
-		buildPlatforms = []specs.Platform{platforms.DefaultSpec()}
+		buildPlatforms = []ocispecs.Platform{platforms.DefaultSpec()}
 	}
 
 	if opt.TargetPlatform == nil {

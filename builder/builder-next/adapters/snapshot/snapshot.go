@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
@@ -198,7 +199,7 @@ func (s *snapshotter) getGraphDriverID(key string) (string, bool) {
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(key))
 		if b == nil {
-			return errors.Errorf("not found") // TODO: typed
+			return errors.Wrapf(errdefs.ErrNotFound, "key %s", key)
 		}
 		v := b.Get(keyCommitted)
 		if v != nil {
@@ -242,7 +243,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(id))
 		if b == nil && l == nil {
-			return errors.Errorf("snapshot %s not found", id) // TODO: typed
+			return errors.Wrapf(errdefs.ErrNotFound, "snapshot %s", id)
 		}
 		inf.Name = key
 		if b != nil {

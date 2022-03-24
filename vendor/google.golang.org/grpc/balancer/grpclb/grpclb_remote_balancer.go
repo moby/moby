@@ -33,6 +33,7 @@ import (
 	"google.golang.org/grpc/balancer"
 	lbpb "google.golang.org/grpc/balancer/grpclb/grpc_lb_v1"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/internal/backoff"
 	"google.golang.org/grpc/internal/channelz"
 	imetadata "google.golang.org/grpc/internal/metadata"
@@ -228,7 +229,7 @@ func (lb *lbBalancer) newRemoteBalancerCCWrapper() {
 	} else if bundle := lb.grpclbClientConnCreds; bundle != nil {
 		dopts = append(dopts, grpc.WithCredentialsBundle(bundle))
 	} else {
-		dopts = append(dopts, grpc.WithInsecure())
+		dopts = append(dopts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	if lb.opt.Dialer != nil {
 		dopts = append(dopts, grpc.WithContextDialer(lb.opt.Dialer))

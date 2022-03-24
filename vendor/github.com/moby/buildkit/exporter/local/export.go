@@ -2,7 +2,6 @@ package local
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -46,8 +45,11 @@ func (e *localExporterInstance) Name() string {
 	return "exporting to client"
 }
 
-func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {
+func (e *localExporter) Config() exporter.Config {
+	return exporter.Config{}
+}
 
+func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -64,7 +66,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 			var err error
 			var idmap *idtools.IdentityMapping
 			if ref == nil {
-				src, err = ioutil.TempDir("", "buildkit")
+				src, err = os.MkdirTemp("", "buildkit")
 				if err != nil {
 					return err
 				}
@@ -143,7 +145,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 
 func newProgressHandler(ctx context.Context, id string) func(int, bool) {
 	limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 1)
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,

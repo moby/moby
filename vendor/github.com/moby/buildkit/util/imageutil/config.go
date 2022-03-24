@@ -14,9 +14,10 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/buildkit/util/resolver/limited"
 	"github.com/moby/buildkit/util/resolver/retryhandler"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -43,7 +44,7 @@ func AddLease(f func(context.Context) error) {
 	leasesMu.Unlock()
 }
 
-func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, leaseManager leases.Manager, p *specs.Platform) (digest.Digest, []byte, error) {
+func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, leaseManager leases.Manager, p *ocispecs.Platform) (digest.Digest, []byte, error) {
 	// TODO: fix buildkit to take interface instead of struct
 	var platform platforms.MatchComparer
 	if p != nil {
@@ -68,7 +69,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 		}()
 	}
 
-	desc := specs.Descriptor{
+	desc := ocispecs.Descriptor{
 		Digest: ref.Digest(),
 	}
 	if desc.Digest != "" {
@@ -101,7 +102,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	children := childrenConfigHandler(cache, platform)
 
 	handlers := []images.Handler{
-		retryhandler.New(remotes.FetchHandler(cache, fetcher), func(_ []byte) {}),
+		retryhandler.New(limited.FetchHandler(cache, fetcher, str), func(_ []byte) {}),
 		children,
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
@@ -121,10 +122,10 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 }
 
 func childrenConfigHandler(provider content.Provider, platform platforms.MatchComparer) images.HandlerFunc {
-	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
-		var descs []specs.Descriptor
+	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
+		var descs []ocispecs.Descriptor
 		switch desc.MediaType {
-		case images.MediaTypeDockerSchema2Manifest, specs.MediaTypeImageManifest:
+		case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest:
 			p, err := content.ReadBlob(ctx, provider, desc)
 			if err != nil {
 				return nil, err
@@ -132,19 +133,19 @@ func childrenConfigHandler(provider content.Provider, platform platforms.MatchCo
 
 			// TODO(stevvooe): We just assume oci manifest, for now. There may be
 			// subtle differences from the docker version.
-			var manifest specs.Manifest
+			var manifest ocispecs.Manifest
 			if err := json.Unmarshal(p, &manifest); err != nil {
 				return nil, err
 			}
 
 			descs = append(descs, manifest.Config)
-		case images.MediaTypeDockerSchema2ManifestList, specs.MediaTypeImageIndex:
+		case images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
 			p, err := content.ReadBlob(ctx, provider, desc)
 			if err != nil {
 				return nil, err
 			}
 
-			var index specs.Index
+			var index ocispecs.Index
 			if err := json.Unmarshal(p, &index); err != nil {
 				return nil, err
 			}
@@ -158,7 +159,7 @@ func childrenConfigHandler(provider content.Provider, platform platforms.MatchCo
 			} else {
 				descs = append(descs, index.Manifests...)
 			}
-		case images.MediaTypeDockerSchema2Config, specs.MediaTypeImageConfig, docker.LegacyConfigMediaType:
+		case images.MediaTypeDockerSchema2Config, ocispecs.MediaTypeImageConfig, docker.LegacyConfigMediaType:
 			// childless data types.
 			return nil, nil
 		default:
@@ -183,19 +184,39 @@ func DetectManifestMediaType(ra content.ReaderAt) (string, error) {
 
 func DetectManifestBlobMediaType(dt []byte) (string, error) {
 	var mfst struct {
-		MediaType string          `json:"mediaType"`
+		MediaType *string         `json:"mediaType"`
 		Config    json.RawMessage `json:"config"`
+		Manifests json.RawMessage `json:"manifests"`
+		Layers    json.RawMessage `json:"layers"`
 	}
 
 	if err := json.Unmarshal(dt, &mfst); err != nil {
 		return "", err
 	}
 
-	if mfst.MediaType != "" {
-		return mfst.MediaType, nil
+	mt := images.MediaTypeDockerSchema2ManifestList
+
+	if mfst.Config != nil || mfst.Layers != nil {
+		mt = images.MediaTypeDockerSchema2Manifest
+
+		if mfst.Manifests != nil {
+			return "", errors.Errorf("invalid ambiguous manifest and manifest list")
+		}
 	}
-	if mfst.Config != nil {
-		return images.MediaTypeDockerSchema2Manifest, nil
+
+	if mfst.MediaType != nil {
+		switch *mfst.MediaType {
+		case images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
+			if mt != images.MediaTypeDockerSchema2ManifestList {
+				return "", errors.Errorf("mediaType in manifest does not match manifest contents")
+			}
+			mt = *mfst.MediaType
+		case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest:
+			if mt != images.MediaTypeDockerSchema2Manifest {
+				return "", errors.Errorf("mediaType in manifest does not match manifest contents")
+			}
+			mt = *mfst.MediaType
+		}
 	}
-	return images.MediaTypeDockerSchema2ManifestList, nil
+	return mt, nil
 }

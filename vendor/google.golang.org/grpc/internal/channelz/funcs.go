@@ -24,6 +24,7 @@
 package channelz
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
@@ -49,7 +50,8 @@ var (
 // TurnOn turns on channelz data collection.
 func TurnOn() {
 	if !IsOn() {
-		NewChannelzStorage()
+		db.set(newChannelMap())
+		idGen.reset()
 		atomic.StoreInt32(&curState, 1)
 	}
 }
@@ -94,46 +96,40 @@ func (d *dbWrapper) get() *channelMap {
 	return d.DB
 }
 
-// NewChannelzStorage initializes channelz data storage and id generator.
+// NewChannelzStorageForTesting initializes channelz data storage and id
+// generator for testing purposes.
 //
-// This function returns a cleanup function to wait for all channelz state to be reset by the
-// grpc goroutines when those entities get closed. By using this cleanup function, we make sure tests
-// don't mess up each other, i.e. lingering goroutine from previous test doing entity removal happen
-// to remove some entity just register by the new test, since the id space is the same.
-//
-// Note: This function is exported for testing purpose only. User should not call
-// it in most cases.
-func NewChannelzStorage() (cleanup func() error) {
-	db.set(&channelMap{
-		topLevelChannels: make(map[int64]struct{}),
-		channels:         make(map[int64]*channel),
-		listenSockets:    make(map[int64]*listenSocket),
-		normalSockets:    make(map[int64]*normalSocket),
-		servers:          make(map[int64]*server),
-		subChannels:      make(map[int64]*subChannel),
-	})
+// Returns a cleanup function to be invoked by the test, which waits for up to
+// 10s for all channelz state to be reset by the grpc goroutines when those
+// entities get closed. This cleanup function helps with ensuring that tests
+// don't mess up each other.
+func NewChannelzStorageForTesting() (cleanup func() error) {
+	db.set(newChannelMap())
 	idGen.reset()
+
 	return func() error {
-		var err error
 		cm := db.get()
 		if cm == nil {
 			return nil
 		}
-		for i := 0; i < 1000; i++ {
-			cm.mu.Lock()
-			if len(cm.topLevelChannels) == 0 && len(cm.servers) == 0 && len(cm.channels) == 0 && len(cm.subChannels) == 0 && len(cm.listenSockets) == 0 && len(cm.normalSockets) == 0 {
-				cm.mu.Unlock()
-				// all things stored in the channelz map have been cleared.
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			cm.mu.RLock()
+			topLevelChannels, servers, channels, subChannels, listenSockets, normalSockets := len(cm.topLevelChannels), len(cm.servers), len(cm.channels), len(cm.subChannels), len(cm.listenSockets), len(cm.normalSockets)
+			cm.mu.RUnlock()
+
+			if err := ctx.Err(); err != nil {
+				return fmt.Errorf("after 10s the channelz map has not been cleaned up yet, topchannels: %d, servers: %d, channels: %d, subchannels: %d, listen sockets: %d, normal sockets: %d", topLevelChannels, servers, channels, subChannels, listenSockets, normalSockets)
+			}
+			if topLevelChannels == 0 && servers == 0 && channels == 0 && subChannels == 0 && listenSockets == 0 && normalSockets == 0 {
 				return nil
 			}
-			cm.mu.Unlock()
-			time.Sleep(10 * time.Millisecond)
+			<-ticker.C
 		}
-
-		cm.mu.Lock()
-		err = fmt.Errorf("after 10s the channelz map has not been cleaned up yet, topchannels: %d, servers: %d, channels: %d, subchannels: %d, listen sockets: %d, normal sockets: %d", len(cm.topLevelChannels), len(cm.servers), len(cm.channels), len(cm.subChannels), len(cm.listenSockets), len(cm.normalSockets))
-		cm.mu.Unlock()
-		return err
 	}
 }
 
@@ -324,6 +320,17 @@ type channelMap struct {
 	subChannels      map[int64]*subChannel
 	listenSockets    map[int64]*listenSocket
 	normalSockets    map[int64]*normalSocket
+}
+
+func newChannelMap() *channelMap {
+	return &channelMap{
+		topLevelChannels: make(map[int64]struct{}),
+		channels:         make(map[int64]*channel),
+		listenSockets:    make(map[int64]*listenSocket),
+		normalSockets:    make(map[int64]*normalSocket),
+		servers:          make(map[int64]*server),
+		subChannels:      make(map[int64]*subChannel),
+	}
 }
 
 func (c *channelMap) addServer(id int64, s *server) {

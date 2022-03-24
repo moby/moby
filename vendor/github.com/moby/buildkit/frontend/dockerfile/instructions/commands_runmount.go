@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	dockeropts "github.com/docker/docker/opts"
+	"github.com/moby/buildkit/util/suggest"
 	"github.com/pkg/errors"
 )
 
@@ -55,6 +57,20 @@ func isValidMountType(s string) bool {
 	}
 	_, ok := allowedMountTypes[s]
 	return ok
+}
+
+func allMountTypes() []string {
+	types := make([]string, 0, len(allowedMountTypes)+2)
+	for k := range allowedMountTypes {
+		types = append(types, k)
+	}
+	if isSecretMountsSupported() {
+		types = append(types, "secret")
+	}
+	if isSSHMountsSupported() {
+		types = append(types, "ssh")
+	}
+	return types
 }
 
 func runMountPreHook(cmd *RunCommand, req parseRequest) error {
@@ -108,6 +124,7 @@ type Mount struct {
 	Source       string
 	Target       string
 	ReadOnly     bool
+	SizeLimit    int64
 	CacheID      string
 	CacheSharing string
 	Required     bool
@@ -132,6 +149,9 @@ func parseMount(value string, expander SingleWordExpander) (*Mount, error) {
 		key := strings.ToLower(parts[0])
 
 		if len(parts) == 1 {
+			if expander == nil {
+				continue // evaluate later
+			}
 			switch key {
 			case "readonly", "ro":
 				m.ReadOnly = true
@@ -173,10 +193,11 @@ func parseMount(value string, expander SingleWordExpander) (*Mount, error) {
 			// if we don't have an expander, defer evaluation to later
 			continue
 		}
+
 		switch key {
 		case "type":
 			if !isValidMountType(strings.ToLower(value)) {
-				return nil, errors.Errorf("unsupported mount type %q", value)
+				return nil, suggest.WrapError(errors.Errorf("unsupported mount type %q", value), value, allMountTypes(), true)
 			}
 			m.Type = strings.ToLower(value)
 		case "from":
@@ -208,6 +229,16 @@ func parseMount(value string, expander SingleWordExpander) (*Mount, error) {
 			} else {
 				return nil, errors.Errorf("unexpected key '%s' for mount type '%s'", key, m.Type)
 			}
+		case "size":
+			if m.Type == "tmpfs" {
+				tmpfsSize := new(dockeropts.MemBytes)
+				if err := tmpfsSize.Set(value); err != nil {
+					return nil, errors.Errorf("invalid value for %s: %s", key, value)
+				}
+				m.SizeLimit = tmpfsSize.Value()
+			} else {
+				return nil, errors.Errorf("unexpected key '%s' for mount type '%s'", key, m.Type)
+			}
 		case "id":
 			m.CacheID = value
 		case "sharing":
@@ -234,7 +265,10 @@ func parseMount(value string, expander SingleWordExpander) (*Mount, error) {
 			}
 			m.GID = &gid
 		default:
-			return nil, errors.Errorf("unexpected key '%s' in '%s'", key, field)
+			allKeys := []string{
+				"type", "from", "source", "target", "readonly", "id", "sharing", "required", "mode", "uid", "gid", "src", "dst", "ro", "rw", "readwrite",
+			}
+			return nil, suggest.WrapError(errors.Errorf("unexpected key '%s' in '%s'", key, field), key, allKeys, true)
 		}
 	}
 

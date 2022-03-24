@@ -20,9 +20,12 @@ package grpcutil
 
 import "regexp"
 
-// FullMatchWithRegex returns whether the full string matches the regex provided.
-func FullMatchWithRegex(re *regexp.Regexp, string string) bool {
+// FullMatchWithRegex returns whether the full text matches the regex provided.
+func FullMatchWithRegex(re *regexp.Regexp, text string) bool {
+	if len(text) == 0 {
+		return re.MatchString(text)
+	}
 	re.Longest()
-	rem := re.FindString(string)
-	return len(rem) == len(string)
+	rem := re.FindString(text)
+	return len(rem) == len(text)
 }

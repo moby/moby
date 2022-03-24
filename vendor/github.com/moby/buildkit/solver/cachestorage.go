@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/compression"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -47,6 +48,6 @@ type CacheInfoLink struct {
 type CacheResultStorage interface {
 	Save(Result, time.Time) (CacheResult, error)
 	Load(ctx context.Context, res CacheResult) (Result, error)
-	LoadRemote(ctx context.Context, res CacheResult, s session.Group) (*Remote, error)
+	LoadRemotes(ctx context.Context, res CacheResult, compression *compression.Config, s session.Group) ([]*Remote, error)
 	Exists(id string) bool
 }

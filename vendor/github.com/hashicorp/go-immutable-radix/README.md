@@ -1,4 +1,4 @@
-go-immutable-radix [![Build Status](https://travis-ci.org/hashicorp/go-immutable-radix.png)](https://travis-ci.org/hashicorp/go-immutable-radix)
+go-immutable-radix [![CircleCI](https://circleci.com/gh/hashicorp/go-immutable-radix/tree/master.svg?style=svg)](https://circleci.com/gh/hashicorp/go-immutable-radix/tree/master)
 =========
 
 Provides the `iradix` package that implements an immutable [radix tree](http://en.wikipedia.org/wiki/Radix_tree).
@@ -37,5 +37,30 @@ m, _, _ := r.Root().LongestPrefix([]byte("foozip"))
 if string(m) != "foo" {
     panic("should be foo")
 }
+```
+
+Here is an example of performing a range scan of the keys.
+
+```go
+// Create a tree
+r := iradix.New()
+r, _, _ = r.Insert([]byte("001"), 1)
+r, _, _ = r.Insert([]byte("002"), 2)
+r, _, _ = r.Insert([]byte("005"), 5)
+r, _, _ = r.Insert([]byte("010"), 10)
+r, _, _ = r.Insert([]byte("100"), 10)
+
+// Range scan over the keys that sort lexicographically between [003, 050)
+it := r.Root().Iterator()
+it.SeekLowerBound([]byte("003"))
+for key, _, ok := it.Next(); ok; key, _, ok = it.Next() {
+  if key >= "050" {
+      break
+  }
+  fmt.Println(key)
+}
+// Output:
+//  005
+//  010
 ```
 

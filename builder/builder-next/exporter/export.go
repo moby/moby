@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	distref "github.com/docker/distribution/reference"
@@ -12,13 +13,15 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	"github.com/moby/buildkit/util/compression"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
-	keyImageName = "name"
+	keyImageName      = "name"
+	keyBuildInfo      = "buildinfo"
+	keyBuildInfoAttrs = "buildinfo-attrs"
 )
 
 // Differ can make a moby layer from a snapshot
@@ -44,24 +47,39 @@ func New(opt Opt) (exporter.Exporter, error) {
 }
 
 func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exporter.ExporterInstance, error) {
-	i := &imageExporterInstance{imageExporter: e}
+	i := &imageExporterInstance{
+		imageExporter: e,
+		buildInfo:     true,
+	}
 	for k, v := range opt {
 		switch k {
 		case keyImageName:
-			for _, v := range strings.Split(v, ",") {
-				ref, err := distref.ParseNormalizedNamed(v)
-				if err != nil {
-					return nil, err
-				}
-				i.targetNames = append(i.targetNames, ref)
+			i.targetName = v
+		case keyBuildInfo:
+			if v == "" {
+				i.buildInfo = true
+				continue
 			}
-		case exptypes.ExporterImageConfigKey:
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
+			}
+			i.buildInfo = b
+		case keyBuildInfoAttrs:
+			if v == "" {
+				i.buildInfoAttrs = false
+				continue
+			}
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "non-bool value specified for %s", k)
+			}
+			i.buildInfoAttrs = b
+		default:
 			if i.meta == nil {
 				i.meta = make(map[string][]byte)
 			}
 			i.meta[k] = []byte(v)
-		default:
-			logrus.Warnf("image exporter: unknown option %s", k)
 		}
 	}
 	return i, nil
@@ -69,12 +87,22 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 
 type imageExporterInstance struct {
 	*imageExporter
-	targetNames []distref.Named
-	meta        map[string][]byte
+	targetName     string
+	meta           map[string][]byte
+	buildInfo      bool
+	buildInfoAttrs bool
 }
 
 func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
+}
+
+func (e *imageExporterInstance) Config() exporter.Config {
+	return exporter.Config{
+		Compression: compression.Config{
+			Type: compression.Default,
+		},
+	}
 }
 
 func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {
@@ -93,9 +121,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	}
 
 	var config []byte
+	var buildInfo []byte
 	switch len(inp.Refs) {
 	case 0:
 		config = inp.Metadata[exptypes.ExporterImageConfigKey]
+		if v, ok := inp.Metadata[exptypes.ExporterBuildInfo]; ok {
+			buildInfo = v
+		}
 	case 1:
 		platformsBytes, ok := inp.Metadata[exptypes.ExporterPlatformsKey]
 		if !ok {
@@ -109,13 +141,16 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 			return nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
 		}
 		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, p.Platforms[0].ID)]
+		if v, ok := inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, p.Platforms[0].ID)]; ok {
+			buildInfo = v
+		}
 	}
 
 	var diffs []digest.Digest
 	if ref != nil {
 		layersDone := oneOffProgress(ctx, "exporting layers")
 
-		if err := ref.Finalize(ctx, true); err != nil {
+		if err := ref.Finalize(ctx); err != nil {
 			return nil, layersDone(err)
 		}
 
@@ -147,7 +182,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 
 	diffs, history = normalizeLayersAndHistory(diffs, history, ref)
 
-	config, err = patchImageConfig(config, diffs, history, inp.Metadata[exptypes.ExporterInlineCache])
+	config, err = patchImageConfig(config, diffs, history, inp.Metadata[exptypes.ExporterInlineCache], buildInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -162,10 +197,14 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	_ = configDone(nil)
 
 	if e.opt.ReferenceStore != nil {
-		for _, targetName := range e.targetNames {
-			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
-
-			if err := e.opt.ReferenceStore.AddTag(targetName, digest.Digest(id), true); err != nil {
+		targetNames := strings.Split(e.targetName, ",")
+		for _, targetName := range targetNames {
+			tagDone := oneOffProgress(ctx, "naming to "+targetName)
+			tref, err := distref.ParseNormalizedNamed(targetName)
+			if err != nil {
+				return nil, err
+			}
+			if err := e.opt.ReferenceStore.AddTag(tref, digest.Digest(id), true); err != nil {
 				return nil, tagDone(err)
 			}
 			_ = tagDone(nil)
@@ -173,6 +212,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	}
 
 	return map[string]string{
-		"containerimage.digest": id.String(),
+		exptypes.ExporterImageConfigDigestKey: configDigest.String(),
+		exptypes.ExporterImageDigestKey:       id.String(),
 	}, nil
 }

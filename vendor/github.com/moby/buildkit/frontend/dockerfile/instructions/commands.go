@@ -71,9 +71,16 @@ func newWithNameAndCode(req parseRequest) withNameAndCode {
 // SingleWordExpander is a provider for variable expansion where 1 word => 1 output
 type SingleWordExpander func(word string) (string, error)
 
-// SupportsSingleWordExpansion interface marks a command as supporting variable expansion
+// SupportsSingleWordExpansion interface marks a command as supporting variable
+// expansion
 type SupportsSingleWordExpansion interface {
 	Expand(expander SingleWordExpander) error
+}
+
+// SupportsSingleWordExpansionRaw interface marks a command as supporting
+// variable expansion, while ensuring that quotes are preserved
+type SupportsSingleWordExpansionRaw interface {
+	ExpandRaw(expander SingleWordExpander) error
 }
 
 // PlatformSpecific adds platform checks to a command
@@ -180,18 +187,6 @@ type SourcesAndDest struct {
 }
 
 func (s *SourcesAndDest) Expand(expander SingleWordExpander) error {
-	for i, content := range s.SourceContents {
-		if !content.Expand {
-			continue
-		}
-
-		expandedData, err := expander(content.Data)
-		if err != nil {
-			return err
-		}
-		s.SourceContents[i].Data = expandedData
-	}
-
 	err := expandSliceInPlace(s.SourcePaths, expander)
 	if err != nil {
 		return err
@@ -206,6 +201,21 @@ func (s *SourcesAndDest) Expand(expander SingleWordExpander) error {
 	return nil
 }
 
+func (s *SourcesAndDest) ExpandRaw(expander SingleWordExpander) error {
+	for i, content := range s.SourceContents {
+		if !content.Expand {
+			continue
+		}
+
+		expandedData, err := expander(content.Data)
+		if err != nil {
+			return err
+		}
+		s.SourceContents[i].Data = expandedData
+	}
+	return nil
+}
+
 // AddCommand : ADD foo /path
 //
 // Add the file 'foo' to '/path'. Tarball and Remote URL (http, https) handling
@@ -216,6 +226,7 @@ type AddCommand struct {
 	SourcesAndDest
 	Chown string
 	Chmod string
+	Link  bool
 }
 
 // Expand variables
@@ -239,6 +250,7 @@ type CopyCommand struct {
 	From  string
 	Chown string
 	Chmod string
+	Link  bool
 }
 
 // Expand variables

@@ -741,6 +741,12 @@ func (e ConnectionError) Origin() error {
 	return e.err
 }
 
+// Unwrap returns the original error of this connection error or nil when the
+// origin is nil.
+func (e ConnectionError) Unwrap() error {
+	return e.err
+}
+
 var (
 	// ErrConnClosing indicates that the transport is closing.
 	ErrConnClosing = connectionErrorf(true, nil, "transport is closing")

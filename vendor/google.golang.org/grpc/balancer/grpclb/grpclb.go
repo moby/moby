@@ -413,8 +413,8 @@ func (lb *lbBalancer) handleServiceConfig(gc *grpclbServiceConfig) {
 	// this target is sent in the first message on the stream.
 	if gc != nil {
 		target := lb.dialTarget
-		if gc.TargetName != "" {
-			target = gc.TargetName
+		if gc.ServiceName != "" {
+			target = gc.ServiceName
 		}
 		if target != lb.target {
 			lb.target = target

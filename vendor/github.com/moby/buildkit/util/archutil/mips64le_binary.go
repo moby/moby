@@ -1,3 +1,4 @@
+//go:build !mips64le
 // +build !mips64le
 
 package archutil
