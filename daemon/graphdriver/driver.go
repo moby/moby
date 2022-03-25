@@ -1,19 +1,18 @@
 package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-	"github.com/vbatts/tar-split/tar/storage"
-
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // FsMagic unsigned id of the filesystem in use.
@@ -152,7 +151,7 @@ func init() {
 // Register registers an InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
-		return fmt.Errorf("Name already registered %s", name)
+		return errors.Errorf("name already registered %s", name)
 	}
 	drivers[name] = initFunc
 
@@ -193,20 +192,18 @@ type Options struct {
 // New creates the driver and initializes it at the specified root.
 func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if name != "" {
-		logrus.Debugf("[graphdriver] trying provided driver: %s", name) // so the logs show specified driver
-		logDeprecatedWarning(name)
+		logrus.Infof("[graphdriver] trying configured driver: %s", name)
+		if isDeprecated(name) {
+			logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated and will be removed in a future release; visit https://docs.docker.com/go/storage-driver/ for more information", name)
+		}
 		return GetDriver(name, pg, config)
 	}
 
 	// Guess for prior driver
 	driversMap := scanPriorDrivers(config.Root)
-	list := strings.Split(priority, ",")
-	logrus.Debugf("[graphdriver] priority list: %v", list)
-	for _, name := range list {
-		if name == "vfs" {
-			// don't use vfs even if there is state present.
-			continue
-		}
+	priorityList := strings.Split(priority, ",")
+	logrus.Debugf("[graphdriver] priority list: %v", priorityList)
+	for _, name := range priorityList {
 		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
@@ -219,26 +216,38 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 				logrus.Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
 				return nil, err
 			}
+			if isDeprecated(name) {
+				err = errors.Errorf("prior storage driver %s is deprecated and will be removed in a future release; update the the daemon configuration and explicitly choose this storage driver to continue using it; visit https://docs.docker.com/go/storage-driver/ for more information", name)
+				logrus.Errorf("[graphdriver] %v", err)
+				return nil, err
+			}
 
 			// abort starting when there are other prior configured drivers
 			// to ensure the user explicitly selects the driver to load
-			if len(driversMap)-1 > 0 {
+			if len(driversMap) > 1 {
 				var driversSlice []string
 				for name := range driversMap {
 					driversSlice = append(driversSlice, name)
 				}
 
-				return nil, fmt.Errorf("%s contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
+				err = errors.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
+				logrus.Errorf("[graphdriver] %v", err)
+				return nil, err
 			}
 
 			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
-			logDeprecatedWarning(name)
 			return driver, nil
 		}
 	}
 
-	// Check for priority drivers first
-	for _, name := range list {
+	// If no prior state was found, continue with automatic selection, and pick
+	// the first supported, non-deprecated, storage driver (in order of priorityList).
+	for _, name := range priorityList {
+		if isDeprecated(name) {
+			// Deprecated storage-drivers are skipped in automatic selection, but
+			// can be selected through configuration.
+			continue
+		}
 		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.IDMap)
 		if err != nil {
 			if IsDriverNotSupported(err) {
@@ -246,7 +255,6 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 			return nil, err
 		}
-		logDeprecatedWarning(name)
 		return driver, nil
 	}
 
@@ -264,13 +272,14 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 			return nil, err
 		}
-		logDeprecatedWarning(name)
 		return driver, nil
 	}
-	return nil, fmt.Errorf("No supported storage backend found")
+
+	return nil, errors.Errorf("no supported storage driver found")
 }
 
-// scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
+// scanPriorDrivers returns an un-ordered scan of directories of prior storage
+// drivers. The 'vfs' storage driver is not taken into account, and ignored.
 func scanPriorDrivers(root string) map[string]bool {
 	driversMap := make(map[string]bool)
 
@@ -322,11 +331,4 @@ func isDeprecated(name string) bool {
 		return true
 	}
 	return false
-}
-
-// logDeprecatedWarning logs a warning if the given storage-driver is marked "deprecated"
-func logDeprecatedWarning(name string) {
-	if isDeprecated(name) {
-		logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated, and will be removed in a future release", name)
-	}
 }

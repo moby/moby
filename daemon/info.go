@@ -124,9 +124,13 @@ func (daemon *Daemon) SystemVersion() types.Version {
 }
 
 func (daemon *Daemon) fillDriverInfo(v *types.Info) {
+	const warnMsg = `
+WARNING: The %s storage-driver is deprecated, and will be removed in a future release.
+         Refer to the documentation for more information: https://docs.docker.com/go/storage-driver/`
+
 	switch daemon.graphDriver {
 	case "aufs", "devicemapper", "overlay":
-		v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", daemon.graphDriver))
+		v.Warnings = append(v.Warnings, fmt.Sprintf(warnMsg, daemon.graphDriver))
 	}
 
 	v.Driver = daemon.graphDriver
