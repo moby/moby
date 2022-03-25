@@ -148,10 +148,9 @@ func populateDefaultUnixSpec(ctx context.Context, s *Spec, id string) error {
 				GID: 0,
 			},
 			Capabilities: &specs.LinuxCapabilities{
-				Bounding:    defaultUnixCaps(),
-				Permitted:   defaultUnixCaps(),
-				Inheritable: defaultUnixCaps(),
-				Effective:   defaultUnixCaps(),
+				Bounding:  defaultUnixCaps(),
+				Permitted: defaultUnixCaps(),
+				Effective: defaultUnixCaps(),
 			},
 			Rlimits: []specs.POSIXRlimit{
 				{
