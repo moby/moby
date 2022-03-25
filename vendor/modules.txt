@@ -732,7 +732,7 @@ github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/rexray/gocsi v1.2.2 => github.com/dperny/gocsi v1.2.3-pre
 ## explicit; go 1.12
-# github.com/rootless-containers/rootlesskit v0.14.6
+# github.com/rootless-containers/rootlesskit v1.0.0
 ## explicit; go 1.16
 github.com/rootless-containers/rootlesskit/pkg/api
 github.com/rootless-containers/rootlesskit/pkg/api/client
