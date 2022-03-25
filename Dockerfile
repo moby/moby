@@ -14,6 +14,7 @@ RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.con
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
+RUN --mount=type=bind,target=/usr/local/share/ca-certificates,source=/hack/dockerfile/certs update-ca-certificates
 ENV GO111MODULE=off
 
 FROM base AS criu
