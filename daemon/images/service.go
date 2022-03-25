@@ -140,8 +140,6 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
-	// Indexing by OS is safe here as validation of OS has already been performed in create() (the only
-	// caller), and guaranteed non-nil
 	return i.layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)
 }
 
