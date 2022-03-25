@@ -1043,8 +1043,9 @@ definitions:
             description: "Mount the container's root filesystem as read only."
           SecurityOpt:
             type: "array"
-            description: "A list of string values to customize labels for MLS
-            systems, such as SELinux."
+            description: |
+              A list of string values to customize labels for MLS systems, such
+              as SELinux.
             items:
               type: "string"
           StorageOpt:
@@ -1837,18 +1838,22 @@ definitions:
         type: "string"
         description: "Name of the volume."
         x-nullable: false
+        example: "tardis"
       Driver:
         type: "string"
         description: "Name of the volume driver used by the volume."
         x-nullable: false
+        example: "custom"
       Mountpoint:
         type: "string"
         description: "Mount path of the volume on the host."
         x-nullable: false
+        example: "/var/lib/docker/volumes/tardis"
       CreatedAt:
         type: "string"
         format: "dateTime"
         description: "Date/Time the volume was created."
+        example: "2016-06-07T20:31:11.853781916Z"
       Status:
         type: "object"
         description: |
@@ -1860,12 +1865,17 @@ definitions:
           does not support this feature.
         additionalProperties:
           type: "object"
+        example:
+          hello: "world"
       Labels:
         type: "object"
         description: "User-defined key/value metadata."
         x-nullable: false
         additionalProperties:
           type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
       Scope:
         type: "string"
         description: |
@@ -1874,12 +1884,17 @@ definitions:
         default: "local"
         x-nullable: false
         enum: ["local", "global"]
+        example: "local"
       Options:
         type: "object"
         description: |
           The driver specific options used when creating the volume.
         additionalProperties:
           type: "string"
+        example:
+          device: "tmpfs"
+          o: "size=100m,uid=1000"
+          type: "tmpfs"
       UsageData:
         type: "object"
         x-nullable: true
@@ -1905,17 +1920,43 @@ definitions:
               is set to `-1` if the reference-count is not available.
             x-nullable: false
 
-    example:
-      Name: "tardis"
-      Driver: "custom"
-      Mountpoint: "/var/lib/docker/volumes/tardis"
-      Status:
-        hello: "world"
+  VolumeCreateOptions:
+    description: "Volume configuration"
+    type: "object"
+    title: "VolumeConfig"
+    x-go-name: "VolumeCreateBody"
+    properties:
+      Name:
+        description: |
+          The new volume's name. If not specified, Docker generates a name.
+        type: "string"
+        x-nullable: false
+        example: "tardis"
+      Driver:
+        description: "Name of the volume driver to use."
+        type: "string"
+        default: "local"
+        x-nullable: false
+        example: "custom"
+      DriverOpts:
+        description: |
+          A mapping of driver options and values. These options are
+          passed directly to the driver and are driver specific.
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          device: "tmpfs"
+          o: "size=100m,uid=1000"
+          type: "tmpfs"
       Labels:
-        com.example.some-label: "some-value"
-        com.example.some-other-label: "some-other-value"
-      Scope: "local"
-      CreatedAt: "2016-06-07T20:31:11.853781916Z"
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+        example:
+          com.example.some-label: "some-value"
+          com.example.some-other-label: "some-other-value"
 
   Network:
     type: "object"
@@ -4310,6 +4351,29 @@ definitions:
       Health:
         x-nullable: true
         $ref: "#/definitions/Health"
+
+  ContainerWaitResponse:
+    description: "OK response to ContainerWait operation"
+    type: "object"
+    x-go-name: "ContainerWaitOKBody"
+    title: "ContainerWaitResponse"
+    required: [StatusCode, Error]
+    properties:
+      StatusCode:
+        description: "Exit code of the container"
+        type: "integer"
+        x-nullable: false
+      Error:
+        $ref: "#/definitions/ContainerWaitExitError"
+
+  ContainerWaitExitError:
+    description: "container waiting error, if any"
+    type: "object"
+    x-go-name: "ContainerWaitOKBodyError"
+    properties:
+      Message:
+        description: "Details of an error"
+        type: "string"
 
   SystemVersion:
     type: "object"
@@ -7030,22 +7094,7 @@ paths:
         200:
           description: "The container has exit."
           schema:
-            type: "object"
-            title: "ContainerWaitResponse"
-            description: "OK response to ContainerWait operation"
-            required: [StatusCode]
-            properties:
-              StatusCode:
-                description: "Exit code of the container"
-                type: "integer"
-                x-nullable: false
-              Error:
-                description: "container waiting error, if any"
-                type: "object"
-                properties:
-                  Message:
-                    description: "Details of an error"
-                    type: "string"
+            $ref: "#/definitions/ContainerWaitResponse"
         400:
           description: "bad parameter"
           schema:
@@ -8816,23 +8865,6 @@ paths:
                   Warnings that occurred when fetching the list of volumes.
                 items:
                   type: "string"
-
-          examples:
-            application/json:
-              Volumes:
-                - CreatedAt: "2017-07-19T12:00:26Z"
-                  Name: "tardis"
-                  Driver: "local"
-                  Mountpoint: "/var/lib/docker/volumes/tardis"
-                  Labels:
-                    com.example.some-label: "some-value"
-                    com.example.some-other-label: "some-other-value"
-                  Scope: "local"
-                  Options:
-                    device: "tmpfs"
-                    o: "size=100m,uid=1000"
-                    type: "tmpfs"
-              Warnings: []
         500:
           description: "Server error"
           schema:
@@ -8877,38 +8909,7 @@ paths:
           required: true
           description: "Volume configuration"
           schema:
-            type: "object"
-            description: "Volume configuration"
-            title: "VolumeConfig"
-            properties:
-              Name:
-                description: |
-                  The new volume's name. If not specified, Docker generates a name.
-                type: "string"
-                x-nullable: false
-              Driver:
-                description: "Name of the volume driver to use."
-                type: "string"
-                default: "local"
-                x-nullable: false
-              DriverOpts:
-                description: |
-                  A mapping of driver options and values. These options are
-                  passed directly to the driver and are driver specific.
-                type: "object"
-                additionalProperties:
-                  type: "string"
-              Labels:
-                description: "User-defined key/value metadata."
-                type: "object"
-                additionalProperties:
-                  type: "string"
-            example:
-              Name: "tardis"
-              Labels:
-                com.example.some-label: "some-value"
-                com.example.some-other-label: "some-other-value"
-              Driver: "custom"
+            $ref: "#/definitions/VolumeCreateOptions"
       tags: ["Volume"]
 
   /volumes/{name}:

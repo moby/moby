@@ -13,6 +13,15 @@ swagger generate model -f api/swagger.yaml \
 	-n ServiceUpdateResponse \
 	-n Volume
 
+swagger generate model -f api/swagger.yaml \
+	-t api -m types/container --skip-validator -C api/swagger-gen.yaml \
+	-n ContainerWaitResponse \
+	-n ContainerWaitExitError
+
+swagger generate model -f api/swagger.yaml \
+	-t api -m types/volume --skip-validator -C api/swagger-gen.yaml \
+	-n VolumeCreateOptions
+
 swagger generate operation -f api/swagger.yaml \
 	-t api -a types -m types -C api/swagger-gen.yaml \
 	-T api/templates --skip-responses --skip-parameters --skip-validator \
@@ -21,7 +30,5 @@ swagger generate operation -f api/swagger.yaml \
 	-n ContainerCreate \
 	-n ContainerTop \
 	-n ContainerUpdate \
-	-n ContainerWait \
 	-n ImageHistory \
-	-n VolumeCreate \
 	-n VolumeList
