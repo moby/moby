@@ -71,8 +71,7 @@ func init() {
 // Driver contains information about the filesystem mounted.
 type Driver struct {
 	root          string
-	uidMaps       []idtools.IDMap
-	gidMaps       []idtools.IDMap
+	idMap         idtools.IdentityMapping
 	ctr           *graphdriver.RefCounter
 	pathCacheLock sync.Mutex
 	pathCache     map[string]string
@@ -83,7 +82,7 @@ type Driver struct {
 
 // Init returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
-func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(root string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
 		logger.Error(err)
@@ -121,21 +120,16 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	a := &Driver{
 		root:      root,
-		uidMaps:   uidMaps,
-		gidMaps:   gidMaps,
+		idMap:     idMap,
 		pathCache: make(map[string]string),
 		ctr:       graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicAufs)),
 		locker:    locker.New(),
 	}
 
 	currentID := idtools.CurrentIdentity()
-	_, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return nil, err
-	}
 	dirID := idtools.Identity{
 		UID: currentID.UID,
-		GID: rootGID,
+		GID: a.idMap.RootPair().GID,
 	}
 
 	// Create the root aufs driver dir
@@ -170,7 +164,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		}
 	}
 
-	a.naiveDiff = graphdriver.NewNaiveDiffDriver(a, uidMaps, gidMaps)
+	a.naiveDiff = graphdriver.NewNaiveDiffDriver(a, a.idMap)
 	return a, nil
 }
 
@@ -285,15 +279,11 @@ func (a *Driver) createDirsFor(id string) error {
 		"diff",
 	}
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(a.uidMaps, a.gidMaps)
-	if err != nil {
-		return err
-	}
 	// Directory permission is 0755.
 	// The path of directories are <aufs_root_path>/mnt/<image_id>
 	// and <aufs_root_path>/diff/<image_id>
 	for _, p := range paths {
-		if err := idtools.MkdirAllAndChown(path.Join(a.rootPath(), p, id), 0755, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
+		if err := idtools.MkdirAllAndChown(path.Join(a.rootPath(), p, id), 0755, a.idMap.RootPair()); err != nil {
 			return err
 		}
 	}
@@ -439,8 +429,7 @@ func (a *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression:     archive.Uncompressed,
 		ExcludePatterns: []string{archive.WhiteoutMetaPrefix + "*", "!" + archive.WhiteoutOpaqueDir},
-		UIDMaps:         a.uidMaps,
-		GIDMaps:         a.gidMaps,
+		IDMap:           a.idMap,
 	})
 }
 
@@ -461,8 +450,7 @@ func (a *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 
 func (a *Driver) applyDiff(id string, diff io.Reader) error {
 	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
-		UIDMaps: a.uidMaps,
-		GIDMaps: a.gidMaps,
+		IDMap: a.idMap,
 	})
 }
 

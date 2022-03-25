@@ -11,7 +11,7 @@ import (
 	"github.com/moby/buildkit/executor/oci"
 )
 
-func newExecutor(_, _ string, _ libnetwork.NetworkController, _ *oci.DNSConfig, _ bool, _ *idtools.IdentityMapping, _ string) (executor.Executor, error) {
+func newExecutor(_, _ string, _ libnetwork.NetworkController, _ *oci.DNSConfig, _ bool, _ idtools.IdentityMapping, _ string) (executor.Executor, error) {
 	return &winExecutor{}, nil
 }
 

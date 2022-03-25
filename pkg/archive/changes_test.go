@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim/osversion"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"gotest.tools/v3/assert"
@@ -444,7 +445,7 @@ func TestApplyLayer(t *testing.T) {
 	changes, err := ChangesDirs(dst, src)
 	assert.NilError(t, err)
 
-	layer, err := ExportChanges(dst, changes, nil, nil)
+	layer, err := ExportChanges(dst, changes, idtools.IdentityMapping{})
 	assert.NilError(t, err)
 
 	layerCopy, err := NewTempArchive(layer, "")

@@ -33,7 +33,7 @@ type Archiver interface {
 	UntarPath(src, dst string) error
 	CopyWithTar(src, dst string) error
 	CopyFileWithTar(src, dst string) error
-	IdentityMapping() *idtools.IdentityMapping
+	IdentityMapping() idtools.IdentityMapping
 }
 
 // The builder will use the following interfaces if the container fs implements

@@ -1062,7 +1062,7 @@ func removeDefaultBridgeInterface() {
 	}
 }
 
-func setupInitLayer(idMapping *idtools.IdentityMapping) func(containerfs.ContainerFS) error {
+func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.ContainerFS) error {
 	return func(initPath containerfs.ContainerFS) error {
 		return initlayer.Setup(initPath, idMapping.RootPair())
 	}
@@ -1161,9 +1161,9 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	return username, groupname, nil
 }
 
-func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) {
+func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
-		return nil, fmt.Errorf("User namespaces are only supported on Linux")
+		return idtools.IdentityMapping{}, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse
@@ -1171,25 +1171,25 @@ func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) 
 	if config.RemappedRoot != "" {
 		username, groupname, err := parseRemappedRoot(config.RemappedRoot)
 		if err != nil {
-			return nil, err
+			return idtools.IdentityMapping{}, err
 		}
 		if username == "root" {
 			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
 			// effectively
 			logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
-			return &idtools.IdentityMapping{}, nil
+			return idtools.IdentityMapping{}, nil
 		}
 		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s", username)
 		// update remapped root setting now that we have resolved them to actual names
 		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
 
-		mappings, err := idtools.NewIdentityMapping(username)
+		mappings, err := idtools.LoadIdentityMapping(username)
 		if err != nil {
-			return nil, errors.Wrap(err, "Can't create ID mappings")
+			return idtools.IdentityMapping{}, errors.Wrap(err, "Can't create ID mappings")
 		}
 		return mappings, nil
 	}
-	return &idtools.IdentityMapping{}, nil
+	return idtools.IdentityMapping{}, nil
 }
 
 func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools.Identity) error {

@@ -32,7 +32,7 @@ type Opt struct {
 	GraphDriver     graphdriver.Driver
 	LayerStore      layer.Store
 	Root            string
-	IdentityMapping *idtools.IdentityMapping
+	IdentityMapping idtools.IdentityMapping
 }
 
 type graphIDRegistrar interface {
@@ -100,7 +100,12 @@ func (s *snapshotter) Name() string {
 }
 
 func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
-	return s.opt.IdentityMapping
+	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
+	// https://github.com/moby/moby/pull/39444
+	if s.opt.IdentityMapping.Empty() {
+		return nil
+	}
+	return &s.opt.IdentityMapping
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
@@ -482,7 +487,7 @@ type mountable struct {
 	acquire  func() ([]mount.Mount, func() error, error)
 	release  func() error
 	refCount int
-	idmap    *idtools.IdentityMapping
+	idmap    idtools.IdentityMapping
 }
 
 func (m *mountable) Mount() ([]mount.Mount, func() error, error) {
@@ -527,5 +532,10 @@ func (m *mountable) releaseMount() error {
 }
 
 func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
-	return m.idmap
+	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
+	// https://github.com/moby/moby/pull/39444
+	if m.idmap.Empty() {
+		return nil
+	}
+	return &m.idmap
 }

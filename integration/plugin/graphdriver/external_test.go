@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -146,9 +147,9 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 
 	base, err := os.MkdirTemp("", name)
 	assert.NilError(t, err)
-	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
+	vfsProto, err := vfs.Init(base, []string{}, idtools.IdentityMapping{})
 	assert.NilError(t, err, "error initializing graph driver")
-	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
+	driver := graphdriver.NewNaiveDiffDriver(vfsProto, idtools.IdentityMapping{})
 
 	ec[ext] = &graphEventsCounter{}
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {

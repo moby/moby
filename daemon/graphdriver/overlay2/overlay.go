@@ -93,8 +93,7 @@ type overlayOptions struct {
 // mounts that are created using this driver.
 type Driver struct {
 	home          string
-	uidMaps       []idtools.IDMap
-	gidMaps       []idtools.IDMap
+	idMap         idtools.IdentityMapping
 	ctr           *graphdriver.RefCounter
 	quotaCtl      *quota.Control
 	options       overlayOptions
@@ -124,7 +123,7 @@ func init() {
 // graphdriver.ErrNotSupported is returned.
 // If an overlay filesystem is not supported over an existing filesystem then
 // the error graphdriver.ErrIncompatibleFS is returned.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
 	opts, err := parseOptions(options)
 	if err != nil {
 		return nil, err
@@ -164,15 +163,10 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		logger.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
 	}
 
-	_, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return nil, err
-	}
-
 	cur := idtools.CurrentIdentity()
 	dirID := idtools.Identity{
 		UID: cur.UID,
-		GID: rootGID,
+		GID: idMap.RootPair().GID,
 	}
 	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
 		return nil, err
@@ -183,15 +177,14 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	d := &Driver{
 		home:          home,
-		uidMaps:       uidMaps,
-		gidMaps:       gidMaps,
+		idMap:         idMap,
 		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
 		supportsDType: supportsDType,
 		locker:        locker.New(),
 		options:       *opts,
 	}
 
-	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
+	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
 
 	if backingFs == "xfs" {
 		// Try to enable project quota support over xfs.
@@ -351,14 +344,10 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
 	dir := d.dir(id)
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
-	if err != nil {
-		return err
-	}
-	root := idtools.Identity{UID: rootUID, GID: rootGID}
+	root := d.idMap.RootPair()
 	dirID := idtools.Identity{
 		UID: idtools.CurrentIdentity().UID,
-		GID: rootGID,
+		GID: root.GID,
 	}
 
 	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0710, dirID); err != nil {
@@ -580,11 +569,8 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	mount := unix.Mount
 	mountTarget := mergedDir
 
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
-	if err != nil {
-		return nil, err
-	}
-	if err := idtools.MkdirAndChown(mergedDir, 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
+	root := d.idMap.RootPair()
+	if err := idtools.MkdirAndChown(mergedDir, 0700, root); err != nil {
 		return nil, err
 	}
 
@@ -618,7 +604,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if !readonly {
 		// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 		// user namespace requires this to move a directory from lower to upper.
-		if err := os.Chown(path.Join(workDir, workDirName), rootUID, rootGID); err != nil {
+		if err := root.Chown(path.Join(workDir, workDirName)); err != nil {
 			return nil, err
 		}
 	}
@@ -702,8 +688,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 	logger.Debugf("Applying tar in %s", applyDir)
 	// Overlay doesn't need the parent id to apply the diff
 	if err := untar(diff, applyDir, &archive.TarOptions{
-		UIDMaps:        d.uidMaps,
-		GIDMaps:        d.gidMaps,
+		IDMap:          d.idMap,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
 	}); err != nil {
 		return 0, err
@@ -740,8 +725,7 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	logger.Debugf("Tar with options on %s", diffPath)
 	return archive.TarWithOptions(diffPath, &archive.TarOptions{
 		Compression:    archive.Uncompressed,
-		UIDMaps:        d.uidMaps,
-		GIDMaps:        d.gidMaps,
+		IDMap:          d.idMap,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
 	})
 }

@@ -63,7 +63,7 @@ func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfi
 	return nil
 }
 
-func setupInitLayer(idMapping *idtools.IdentityMapping) func(containerfs.ContainerFS) error {
+func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.ContainerFS) error {
 	return nil
 }
 
@@ -437,8 +437,8 @@ func recursiveUnmount(_ string) error {
 	return nil
 }
 
-func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) {
-	return &idtools.IdentityMapping{}, nil
+func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
+	return idtools.IdentityMapping{}, nil
 }
 
 func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools.Identity) error {

@@ -37,7 +37,7 @@ type CreateOpts struct {
 }
 
 // InitFunc initializes the storage driver.
-type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error)
+type InitFunc func(root string, options []string, idMap idtools.IdentityMapping) (Driver, error)
 
 // ProtoDriver defines the basic capabilities of a driver.
 // This interface exists solely to be a minimum set of methods
@@ -162,7 +162,7 @@ func Register(name string, initFunc InitFunc) error {
 // GetDriver initializes and returns the registered driver
 func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
+		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.IDMap)
 	}
 
 	pluginDriver, err := lookupPlugin(name, pg, config)
@@ -174,9 +174,9 @@ func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Drive
 }
 
 // getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
-func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
+func getBuiltinDriver(name, home string, options []string, idMap idtools.IdentityMapping) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
+		return initFunc(filepath.Join(home, name), options, idMap)
 	}
 	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
@@ -186,8 +186,7 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 type Options struct {
 	Root                string
 	DriverOptions       []string
-	UIDMaps             []idtools.IDMap
-	GIDMaps             []idtools.IDMap
+	IDMap               idtools.IdentityMapping
 	ExperimentalEnabled bool
 }
 
@@ -211,7 +210,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
-			driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
+			driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.IDMap)
 			if err != nil {
 				// unlike below, we will return error here, because there is prior
 				// state, and now it is no longer supported/prereq/compatible, so
@@ -240,7 +239,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 
 	// Check for priority drivers first
 	for _, name := range list {
-		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
+		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.IDMap)
 		if err != nil {
 			if IsDriverNotSupported(err) {
 				continue
@@ -258,7 +257,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			// can be selected through configuration.
 			continue
 		}
-		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
+		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.IDMap)
 		if err != nil {
 			if IsDriverNotSupported(err) {
 				continue

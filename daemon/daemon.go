@@ -98,7 +98,7 @@ type Daemon struct {
 	sysInfoOnce           sync.Once
 	sysInfo               *sysinfo.SysInfo
 	shutdown              bool
-	idMapping             *idtools.IdentityMapping
+	idMapping             idtools.IdentityMapping
 	graphDriver           string        // TODO: move graphDriver field to an InfoService
 	PluginStore           *plugin.Store // TODO: remove
 	pluginManager         *plugin.Manager
@@ -1459,7 +1459,7 @@ func (daemon *Daemon) GetAttachmentStore() *network.AttachmentStore {
 }
 
 // IdentityMapping returns uid/gid mapping or a SID (in the case of Windows) for the builder
-func (daemon *Daemon) IdentityMapping() *idtools.IdentityMapping {
+func (daemon *Daemon) IdentityMapping() idtools.IdentityMapping {
 	return daemon.idMapping
 }
 
