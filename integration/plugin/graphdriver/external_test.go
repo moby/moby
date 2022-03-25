@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -138,7 +139,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 
 	decReq := func(b io.ReadCloser, out interface{}, w http.ResponseWriter) error {
 		defer b.Close()
-		if err := json.NewDecoder(b).Decode(&out); err != nil {
+		if err := json.NewDecoder(b).Decode(out); err != nil {
 			http.Error(w, fmt.Sprintf("error decoding json: %s", err.Error()), 500)
 		}
 		return nil
@@ -146,9 +147,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 
 	base, err := os.MkdirTemp("", name)
 	assert.NilError(t, err)
-	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
-	assert.NilError(t, err, "error initializing graph driver")
-	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
+	var driver graphdriver.Driver
 
 	ec[ext] = &graphEventsCounter{}
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -158,6 +157,23 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 
 	mux.HandleFunc("/GraphDriver.Init", func(w http.ResponseWriter, r *http.Request) {
 		ec[ext].init++
+
+		type initReq struct {
+			Home    string
+			UIDMaps []idtools.IDMap `json:"UIDMaps,omitempty"`
+			GIDMaps []idtools.IDMap `json:"GIDMaps,omitempty"`
+		}
+
+		var req initReq
+		decReq(r.Body, &req, w)
+
+		vfsProto, err := vfs.Init(base, []string{}, req.UIDMaps, req.GIDMaps)
+		if err != nil {
+			respond(w, err)
+			return
+		}
+
+		driver = graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
 		respond(w, "{}")
 	})
 
@@ -361,6 +377,7 @@ func testExternalGraphDriver(ext string, ec map[string]*graphEventsCounter) func
 			ctx := context.Background()
 
 			testGraphDriver(ctx, t, c, driverName, func(t *testing.T) {
+				t.Helper()
 				d.Restart(t, "-s", driverName)
 			})
 
@@ -390,6 +407,7 @@ func testExternalGraphDriver(ext string, ec map[string]*graphEventsCounter) func
 
 func testGraphDriverPull(c client.APIClient, d *daemon.Daemon) func(*testing.T) {
 	return func(t *testing.T) {
+		t.Helper()
 		d.Start(t)
 		defer d.Stop(t)
 		ctx := context.Background()
@@ -409,6 +427,9 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	skip.If(t, !requirement.HasHubConnectivity(t))
 	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	skip.If(t, !requirement.Overlay2Supported(testEnv.DaemonInfo.KernelVersion))
+
+	// runc gives EPERM when trying to setup the rootfs here.
+	skip.If(t, testEnv.IsUserNamespace, "user namespaces is not supported with managed graphdriver plugins")
 
 	d := daemon.New(t, daemon.WithExperimental())
 	d.Start(t)
@@ -454,7 +475,6 @@ func testGraphDriver(ctx context.Context, t *testing.T, c client.APIClient, driv
 		Kind: archive.ChangeAdd,
 		Path: "/hello",
 	}), "diffs: %v", diffs)
-
 	err = c.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		Force: true,
 	})
