@@ -33,3 +33,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVarP(&conf.SocketGroup, "group", "G", "", "Users or groups that can access the named pipe")
 	return nil
 }
+
+// configureCertsDir configures registry.CertsDir() depending on if the daemon
+// is running in rootless mode or not. On Windows, it is a no-op.
+func configureCertsDir() {}

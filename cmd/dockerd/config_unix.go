@@ -5,10 +5,13 @@ package main
 
 import (
 	"os/exec"
+	"path/filepath"
 
 	"github.com/containerd/cgroups"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/rootless"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
@@ -49,6 +52,11 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 		if err != nil {
 			return errors.Wrapf(err, "running with RootlessKit, but %s not installed", rootless.RootlessKitDockerProxyBinary)
 		}
+
+		configHome, err := homedir.GetConfigHome()
+		if err == nil {
+			registry.SetCertsDir(filepath.Join(configHome, "docker/certs.d"))
+		}
 	}
 	flags.StringVar(&conf.BridgeConfig.UserlandProxyPath, "userland-proxy-path", defaultUserlandProxyPath, "Path to the userland proxy binary")
 	flags.StringVar(&conf.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
@@ -73,4 +81,15 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	}
 	flags.StringVar(&conf.CgroupNamespaceMode, "default-cgroupns-mode", string(defaultCgroupNamespaceMode), `Default mode for containers cgroup namespace ("host" | "private")`)
 	return nil
+}
+
+// configureCertsDir configures registry.CertsDir() depending on if the daemon
+// is running in rootless mode or not.
+func configureCertsDir() {
+	if rootless.RunningWithRootlessKit() {
+		configHome, err := homedir.GetConfigHome()
+		if err == nil {
+			registry.SetCertsDir(filepath.Join(configHome, "docker/certs.d"))
+		}
+	}
 }
