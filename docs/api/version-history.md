@@ -50,6 +50,21 @@ keywords: "API, Docker, rcli, REST, documentation"
   if they are not set.
 * `GET /info` now omits the `KernelMemory` and `KernelMemoryTCP` if they are not
   supported by the host or host's configuration (if cgroups v2 are in use).
+* `GET /_ping` and `HEAD /_ping` now return a `Swarm` header, which allows a
+  client to detect if Swarm is enabled on the daemon, without having to call
+  additional endpoints.
+  This change is not versioned, and affects all API versions if the daemon has
+  this patch. Clients must consider this header "optional", and fall back to
+  using other endpoints to get this information if the header is not present.
+
+  The `Swarm` header can contain one of the following values:
+
+    - "inactive"
+    - "pending"
+    - "error"
+    - "locked"
+    - "active/worker"
+    - "active/manager"
 
 ## v1.41 API changes
 
