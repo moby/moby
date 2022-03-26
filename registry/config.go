@@ -59,7 +59,25 @@ var (
 
 	// for mocking in unit tests
 	lookupIP = net.LookupIP
+
+	// certsDir is used to override defaultCertsDir.
+	certsDir string
 )
+
+// SetCertsDir allows the default certs directory to be changed. This function
+// is used at daemon startup to set the correct location when running in
+// rootless mode.
+func SetCertsDir(path string) {
+	certsDir = path
+}
+
+// CertsDir is the directory where certificates are stored.
+func CertsDir() string {
+	if certsDir != "" {
+		return certsDir
+	}
+	return defaultCertsDir
+}
 
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {

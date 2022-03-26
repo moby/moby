@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-// CertsDir is the directory where certificates are stored
-func CertsDir() string {
-	return os.Getenv("programdata") + `\docker\certs.d`
-}
+// defaultCertsDir is the platform-specific default directory where certificates
+// are stored. On Linux, it may be overridden through certsDir, for example, when
+// running in rootless mode.
+var defaultCertsDir = os.Getenv("programdata") + `\docker\certs.d`
 
 // cleanPath is used to ensure that a directory name is valid on the target
 // platform. It will be passed in something *similar* to a URL such as

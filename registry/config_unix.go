@@ -3,25 +3,10 @@
 
 package registry // import "github.com/docker/docker/registry"
 
-import (
-	"path/filepath"
-
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
-)
-
-// CertsDir is the directory where certificates are stored
-func CertsDir() string {
-	d := "/etc/docker/certs.d"
-
-	if rootless.RunningWithRootlessKit() {
-		configHome, err := homedir.GetConfigHome()
-		if err == nil {
-			d = filepath.Join(configHome, "docker/certs.d")
-		}
-	}
-	return d
-}
+// defaultCertsDir is the platform-specific default directory where certificates
+// are stored. On Linux, it may be overridden through certsDir, for example, when
+// running in rootless mode.
+const defaultCertsDir = "/etc/docker/certs.d"
 
 // cleanPath is used to ensure that a directory name is valid on the target
 // platform. It will be passed in something *similar* to a URL such as
