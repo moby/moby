@@ -35,6 +35,7 @@ var validCommitCommands = map[string]bool{
 	"expose":      true,
 	"label":       true,
 	"onbuild":     true,
+	"stopsignal":  true,
 	"user":        true,
 	"volume":      true,
 	"workdir":     true,
