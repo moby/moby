@@ -122,7 +122,12 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 	}
 
 	writeStatus(reference.FamiliarString(ref), p.config.ProgressOutput, layersDownloaded)
-
+	platformMsg := fmt.Sprintf("Platform: os: %s, architecture: %s, variant: %s",
+		p.config.Platform.OS,
+		p.config.Platform.Architecture,
+		p.config.Platform.Variant,
+	)
+	progress.Message(p.config.ProgressOutput, "", platformMsg)
 	return nil
 }
 
