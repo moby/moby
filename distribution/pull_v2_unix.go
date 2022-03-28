@@ -54,7 +54,7 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 }
 
 func withDefault(p specs.Platform) specs.Platform {
-	def := platforms.DefaultSpec()
+	def := maximumSpec()
 	if p.OS == "" {
 		p.OS = def.OS
 	}
