@@ -187,7 +187,24 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		du.Containers = systemDiskUsage.Containers
 		du.Volumes = systemDiskUsage.Volumes
 	}
-	return httputils.WriteJSON(w, http.StatusOK, du)
+	var out interface{} = du
+	if versions.LessThan(version, "1.42") {
+		volumes := make([]types.Volume, 0, len(du.Volumes))
+		for _, v := range du.Volumes {
+			volumes = append(volumes, types.Volume{
+				Name:      v.Name,
+				UsageData: v.UsageData,
+			})
+		}
+		out = struct {
+			types.DiskUsage
+			Volumes []types.Volume
+		}{
+			DiskUsage: du,
+			Volumes:   volumes,
+		}
+	}
+	return httputils.WriteJSON(w, http.StatusOK, out)
 }
 
 type invalidRequestError struct {

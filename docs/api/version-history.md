@@ -17,6 +17,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* Removed `CreatedAt`, `Driver`, `Labels`, `Mountpoint`, `Name`, `Options`, `Scope`, `Status` fields
+  from volume usage data returned by `GET /system/df`.
 * Removed the `BuilderSize` field on the `GET /system/df` endpoint. This field
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.

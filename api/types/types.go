@@ -683,7 +683,7 @@ type DiskUsage struct {
 	LayersSize  int64
 	Images      []*ImageSummary
 	Containers  []*Container
-	Volumes     []*Volume
+	Volumes     []*VolumeUsage
 	BuildCache  []*BuildCache
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
 }

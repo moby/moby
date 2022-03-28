@@ -64,7 +64,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts system.DiskUsage
 		})
 	}
 
-	var volumes []*types.Volume
+	var volumes []*types.VolumeUsage
 	if opts.Volumes {
 		eg.Go(func() error {
 			var err error

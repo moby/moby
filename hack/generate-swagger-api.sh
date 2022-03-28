@@ -11,7 +11,9 @@ swagger generate model -f api/swagger.yaml \
 	-n Plugin -n PluginDevice -n PluginMount -n PluginEnv -n PluginInterfaceType \
 	-n Port \
 	-n ServiceUpdateResponse \
-	-n Volume
+	-n Volume \
+	-n VolumeUsageData \
+	-n VolumeUsage
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/container --skip-validator -C api/swagger-gen.yaml \

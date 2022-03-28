@@ -183,7 +183,7 @@ var acceptedListFilters = map[string]bool{
 // Note that this intentionally skips volumes which have mount options. Typically
 // volumes with mount options are not really local even if they are using the
 // local driver.
-func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume, error) {
+func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.VolumeUsage, error) {
 	ch := s.usage.DoChan("LocalVolumesSize", func() (interface{}, error) {
 		ls, _, err := s.vs.Find(ctx, And(ByDriver(volume.DefaultDriverName), CustomFilter(func(v volume.Volume) bool {
 			dv, ok := v.(volume.DetailedVolume)
@@ -192,7 +192,15 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume,
 		if err != nil {
 			return nil, err
 		}
-		return s.volumesToAPI(ctx, ls, calcSize(true)), nil
+		vs := s.volumesToAPI(ctx, ls, calcSize(true))
+		us := make([]*types.VolumeUsage, 0, len(vs))
+		for _, v := range vs {
+			us = append(us, &types.VolumeUsage{
+				Name:      v.Name,
+				UsageData: v.UsageData,
+			})
+		}
+		return us, nil
 	})
 	select {
 	case <-ctx.Done():
@@ -201,7 +209,7 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]*types.Volume,
 		if res.Err != nil {
 			return nil, res.Err
 		}
-		return res.Val.([]*types.Volume), nil
+		return res.Val.([]*types.VolumeUsage), nil
 	}
 }
 

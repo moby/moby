@@ -1856,6 +1856,30 @@ definitions:
         items:
           type: "string"
 
+  VolumeUsageData:
+    type: "object"
+    required: [Size, RefCount]
+    description: |
+      Data usage details about the volume. This information is used by the
+      `GET /system/df` endpoint, and omitted in other endpoints.
+    properties:
+      Size:
+        type: "integer"
+        default: -1
+        description: |
+          Amount of disk space used by the volume (in bytes). This information
+          is only available for volumes created with the `"local"` volume
+          driver. For volumes created with other volume drivers, this field
+          is set to `-1` ("not available")
+        x-nullable: false
+      RefCount:
+        type: "integer"
+        default: -1
+        description: |
+          The number of containers referencing this volume. This field
+          is set to `-1` if the reference-count is not available.
+        x-nullable: false
+
   Volume:
     type: "object"
     required: [Name, Driver, Mountpoint, Labels, Scope, Options]
@@ -1922,29 +1946,8 @@ definitions:
           o: "size=100m,uid=1000"
           type: "tmpfs"
       UsageData:
-        type: "object"
+        $ref: "#/definitions/VolumeUsageData"
         x-nullable: true
-        required: [Size, RefCount]
-        description: |
-          Usage details about the volume. This information is used by the
-          `GET /system/df` endpoint, and omitted in other endpoints.
-        properties:
-          Size:
-            type: "integer"
-            default: -1
-            description: |
-              Amount of disk space used by the volume (in bytes). This information
-              is only available for volumes created with the `"local"` volume
-              driver. For volumes created with other volume drivers, this field
-              is set to `-1` ("not available")
-            x-nullable: false
-          RefCount:
-            type: "integer"
-            default: -1
-            description: |
-              The number of containers referencing this volume. This field
-              is set to `-1` if the reference-count is not available.
-            x-nullable: false
 
   VolumeCreateOptions:
     description: "Volume configuration"
@@ -1983,6 +1986,22 @@ definitions:
         example:
           com.example.some-label: "some-value"
           com.example.some-other-label: "some-other-value"
+
+
+  VolumeUsage:
+    type: "object"
+    required: [Name, UsageData]
+    description: |
+      Usage details about the volume. This information is used by the
+      `GET /system/df` endpoint.
+    properties:
+      Name:
+        type: "string"
+        description: "Name of the volume."
+        x-nullable: false
+      UsageData:
+        $ref: "#/definitions/VolumeUsageData"
+        x-nullable: false
 
   Network:
     type: "object"
