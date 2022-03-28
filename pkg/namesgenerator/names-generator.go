@@ -840,6 +840,9 @@ var (
 
 		// Ada Yonath - an Israeli crystallographer, the first woman from the Middle East to win a Nobel prize in the sciences. https://en.wikipedia.org/wiki/Ada_Yonath
 		"yonath",
+		
+		// Volodymyr Oleksandrovych Zelenskyy (Ukrainian: Володимир Олександрович Зеленський) (born 25 January 1978) is a sixth and incumbent president of Ukraine. https://en.wikipedia.org/wiki/Volodymyr_Zelenskyy
+		"zelenskyy",
 
 		// Nikolay Yegorovich Zhukovsky (Russian: Никола́й Его́рович Жуко́вский, January 17 1847 – March 17, 1921) was a Russian scientist, mathematician and engineer, and a founding father of modern aero- and hydrodynamics. Whereas contemporary scientists scoffed at the idea of human flight, Zhukovsky was the first to undertake the study of airflow. He is often called the Father of Russian Aviation. https://en.wikipedia.org/wiki/Nikolay_Yegorovich_Zhukovsky
 		"zhukovsky",
