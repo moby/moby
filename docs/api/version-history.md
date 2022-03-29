@@ -65,6 +65,10 @@ keywords: "API, Docker, rcli, REST, documentation"
     - "locked"
     - "active/worker"
     - "active/manager"
+* `POST /images/create`, `POST /images/load` and `POST /images/push` now produce
+  [RFC-7464](https://tools.ietf.org/html/rfc7464) compliant stream and set 
+  `Content-type: application/json-seq` accordingly, for clients who include this 
+  media type in the `Accept` header.
 
 ## v1.41 API changes
 

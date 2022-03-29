@@ -17,6 +17,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/golang/gddo/httputil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -240,7 +241,8 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", httputil.NegotiateContentType(r,
+		[]string{"application/json-seq", "application/json"}, "application/json"))
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	output.Flush()
