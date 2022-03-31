@@ -129,7 +129,7 @@ var (
 	}
 
 	// Docker, starting from 0.7.x, generates names from notable scientists and hackers.
-	// Please, for any amazing man that you add to the list, consider adding an equally amazing woman to it, and vice versa.
+	// Please, for any amazing man that you add to the list, consider adding an equally amazing person to it, and vice versa.
 	right = [...]string{
 		// Maria Gaetana Agnesi - Italian mathematician, philosopher, theologian and humanitarian. She was the first woman to write a mathematics handbook and the first woman appointed as a Mathematics Professor at a University. https://en.wikipedia.org/wiki/Maria_Gaetana_Agnesi
 		"agnesi",
@@ -281,7 +281,7 @@ var (
 		// Seymour Roger Cray was an American electrical engineer and supercomputer architect who designed a series of computers that were the fastest in the world for decades. https://en.wikipedia.org/wiki/Seymour_Cray
 		"cray",
 
-		// This entry reflects a husband and wife team who worked together:
+		// This entry reflects a spouse and spouse team who worked together:
 		// Joan Curran was a Welsh scientist who developed radar and invented chaff, a radar countermeasure. https://en.wikipedia.org/wiki/Joan_Curran
 		// Samuel Curran was an Irish physicist who worked alongside his wife during WWII and invented the proximity fuse. https://en.wikipedia.org/wiki/Samuel_Curran
 		"curran",
@@ -361,7 +361,7 @@ var (
 		// Richard Feynman was a key contributor to quantum mechanics and particle physics. https://en.wikipedia.org/wiki/Richard_Feynman
 		"feynman",
 
-		// Benjamin Franklin is famous for his experiments in electricity and the invention of the lightning rod.
+		// Benjamin Franklin is famous for their experiments in electricity and the invention of the lightning rod.
 		"franklin",
 
 		// Yuri Alekseyevich Gagarin - Soviet pilot and cosmonaut, best known as the first human to journey into outer space. https://en.wikipedia.org/wiki/Yuri_Gagarin

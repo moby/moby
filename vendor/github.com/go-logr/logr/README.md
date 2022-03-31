@@ -77,7 +77,7 @@ probably would not be needed.  Alas, here we are.
 
 Before you consider this package, please read [this blog post by the
 inimitable Dave Cheney][warning-makes-no-sense].  We really appreciate what
-he has to say, and it largely aligns with our own experiences.
+they has to say, and it largely aligns with our own experiences.
 
 ### Differences from Dave's ideas
 

@@ -30,7 +30,7 @@ type Manifest interface {
 // Instances can be obtained from a version-specific manifest package.  Manifest
 // specific data is passed into the function which creates the builder.
 type ManifestBuilder interface {
-	// Build creates the manifest from his builder.
+	// Build creates the manifest from their builder.
 	Build(ctx context.Context) (Manifest, error)
 
 	// References returns a list of objects which have been added to this

@@ -425,7 +425,7 @@ func (h *Handle) ToByteArray() ([]byte, error) {
 	return ba, nil
 }
 
-// FromByteArray reads his handle's data from a byte array
+// FromByteArray reads their handle's data from a byte array
 func (h *Handle) FromByteArray(ba []byte) error {
 	if ba == nil {
 		return errors.New("nil byte array")

@@ -107,7 +107,7 @@ absent, and pass when present. The testcases should strive to test as many varia
 possible to ensure maximum coverage.
 
 Changes to code must be reviewed and approved (LGTM'd) by a minimum of two code maintainers. When
-the author of a PR is a maintainer, he still needs the approval of two other maintainers.
+the author of a PR is a maintainer, they still needs the approval of two other maintainers.
 
 Once code is approved according to the rules of the subsystem, a maintainer should make sure to
 remove this label and add the next one. If documentation is absent but expected, maintainers should
@@ -151,7 +151,7 @@ leave a comment to explain what documentation changes you think might be needed.
 - If the PR has the `impact/documentation` label, merging is delayed until a
   documentation maintainer acknowledges that a corresponding documentation PR
   (or issue) is opened on the documentation repository. Once a documentation
-  maintainer acknowledges the change, she/he will move the PR to `status/4-merge`
+  maintainer acknowledges the change, they/they will move the PR to `status/4-merge`
   for a code maintainer to push the green button.
 
 Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs
@@ -220,7 +220,7 @@ review session. The goal of that session is to agree on one of the following out
  * Continue, either by pushing the PR further in the workflow, or by deciding to carry the patch
    (ideally, a maintainer should be immediately assigned to make sure that the PR keeps continued
    attention)
- * Escalate to Solomon by formulating a few specific questions on which his answers will allow
+ * Escalate to Solomon by formulating a few specific questions on which their answers will allow
    maintainers to decide.
 
 ## Milestones

@@ -89,7 +89,7 @@
 			"albers",
 
 			# Andrea Luzzardi started contributing to the Docker codebase in the "dotCloud"
-			# era, even before it was called "Docker". He is one of the architects of both
+			# era, even before it was called "Docker". They is one of the architects of both
 			# Swarm and SwarmKit, and its integration into the Docker engine.
 			"aluzzardi",
 			
@@ -103,14 +103,14 @@
 			"calavera",
 
 			# Michael Crosby was "chief maintainer" of the Docker project.
-			# During his time as a maintainer, Michael contributed to many
-			# milestones of the project; he was release captain of Docker v1.0.0,
+			# During their time as a maintainer, Michael contributed to many
+			# milestones of the project; they was release captain of Docker v1.0.0,
 			# started the development of "libcontainer" (what later became runc)
 			# and containerd, as well as demoing cool hacks such as live migrating
 			# a game server container with checkpoint/restore.
 			#
 			# Michael is currently a maintainer of containerd, but you may see
-			# him around in other projects on GitHub.
+			# them around in other projects on GitHub.
 			"crosbymichael",
 
 			# Before becoming a maintainer, Daniel Nephin was a core contributor
@@ -123,7 +123,7 @@
 			# Doug Davis contributed many features and fixes for the classic builder,
 			# such as "wildcard" copy, the dockerignore file, custom paths/names
 			# for the Dockerfile, as well as enhancements to the API and documentation.
-			# Follow Doug on Twitter, where he tweets as @duginabox.
+			# Follow Doug on Twitter, where they tweets as @duginabox.
 			"duglin",
 
 			# As a maintainer, Erik was responsible for the "builder", and
@@ -131,7 +131,7 @@
 			# Docker. Erik is now working on all kinds of plugins for Docker
 			# (https://github.com/contiv) and various open source projects
 			# in his own repository https://github.com/erikh. You may
-			# still stumble into him in our issue tracker, or on IRC.
+			# still stumble into them in our issue tracker, or on IRC.
 			"erikh",
 
 			# Evan Hazlett is the creator of the Shipyard and Interlock open source projects,
@@ -141,37 +141,37 @@
 			"ehazlett",
 
 			# Arnaud Porterie (AKA "icecrime") was in charge of maintaining the maintainers.
-			# As a maintainer, he made life easier for contributors to the Docker open-source
+			# As a maintainer, they made life easier for contributors to the Docker open-source
 			# projects, bringing order in the chaos by designing a triage- and review workflow
 			# using labels (see https://icecrime.net/technology/a-structured-approach-to-labeling/),
-			# and automating the hell out of things with his buddies GordonTheTurtle and Poule
+			# and automating the hell out of things with their buddies GordonTheTurtle and Poule
 			# (a chicken!).
 			# 
-			# A lesser-known fact is that he created the first commit in the libnetwork repository
-			# even though he didn't know anything about it. Some say, he's now selling stuff on
+			# A lesser-known fact is that they created the first commit in the libnetwork repository
+			# even though they didn't know anything about it. Some say, they's now selling stuff on
 			# the internet ;-)
 			"icecrime",
 
-			# After a false start with his first PR being rejected, James Turnbull became a frequent
+			# After a false start with their first PR being rejected, James Turnbull became a frequent
 			# contributor to the documentation, and became a docs maintainer on December 5, 2013. As
 			# a maintainer, James lifted the docs to a higher standard, and introduced the community
 			# guidelines ("three strikes"). James is currently changing the world as CTO of https://www.empatico.org,
-			# meanwhile authoring various books that are worth checking out. You can find him on Twitter,
-			# rambling as @kartar, and although no longer active as a maintainer, he's always "game" to
-			# help out reviewing docs PRs, so you may still see him around in the repository.
+			# meanwhile authoring various books that are worth checking out. You can find them on Twitter,
+			# rambling as @kartar, and although no longer active as a maintainer, they's always "game" to
+			# help out reviewing docs PRs, so you may still see them around in the repository.
 			"jamtur01",
 
 			# Jessica Frazelle, also known as the "Keyser Söze of containers",
-			# runs *everything* in containers. She started contributing to
+			# runs *everything* in containers. They started contributing to
 			# Docker with a (fun fun) change involving both iptables and regular
 			# expressions (coz, YOLO!) on July 10, 2014
 			# https://github.com/docker/docker/pull/6950/commits/f3a68ffa390fb851115c77783fa4031f1d3b2995.
 			# Jess was Release Captain for Docker 1.4, 1.6 and 1.7, and contributed
 			# many features and improvement, among which "seccomp profiles" (making
-			# containers a lot more secure). Besides being a maintainer, she
+			# containers a lot more secure). Besides being a maintainer, they
 			# set up the CI infrastructure for the project, giving everyone
 			# something to shout at if a PR failed ("noooo Janky!").
-			# Be sure you don't miss her talks at a conference near you (a must-see),
+			# Be sure you don't miss them talks at a conference near you (a must-see),
 			# read her blog at https://blog.jessfraz.com (a must-read), and
 			# check out her open source projects on GitHub https://github.com/jessfraz (a must-try).
 			"jessfraz",
@@ -183,7 +183,7 @@
 			# saw the light of day in 2015.
 			#
 			# John is now enjoying life without containers: playing piano, painting,
-			# and walking his dogs, but you may occasionally see him drop by on GitHub.
+			# and walking their dogs, but you may occasionally see them drop by on GitHub.
 			"lowenna",
 
 			# Alexander Morozov contributed many features to Docker, worked on the premise of 
@@ -194,7 +194,7 @@
 			"lk4d4",
 
 			# Madhu Venugopal was part of the SocketPlane team that joined Docker.
-			# As a maintainer, he was working with Jana for the Container Network
+			# As a maintainer, they was working with Jana for the Container Network
 			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
 			# Swarm mode networking.
 			"mavenugo",
@@ -207,8 +207,8 @@
 			"mlaventure",
 
 			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
-			# docs. She wrote the Docker Contributor Guide and Getting Started
-			# Guides. She helped create a doc build system independent of
+			# docs. They wrote the Docker Contributor Guide and Getting Started
+			# Guides. They helped create a doc build system independent of
 			# docker/docker project, and implemented a new docs.docker.com theme and
 			# nav for 2015 Dockercon. Fun fact: the most inherited layer in DockerHub
 			# public repositories was originally referenced in
@@ -216,11 +216,11 @@
 			"moxiegirl",
 
 			# Jana Radhakrishnan was part of the SocketPlane team that joined Docker.
-			# As a maintainer, he was the lead architect for the Container Network
+			# As a maintainer, they was the lead architect for the Container Network
 			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
 			# Swarm mode networking.
 			#
-			# Jana started new adventures in networking, but you can find him tweeting as @mrjana,
+			# Jana started new adventures in networking, but you can find them tweeting as @mrjana,
 			# coding on GitHub https://github.com/mrjana, and he may be hiding on the Docker Community
 			# slack channel :-)
 			"mrjana",
@@ -239,24 +239,24 @@
 			# and of course on GitHub.
 			"sven",
 
-			# Vincent "vbatts!" Batts made his first contribution to the project
+			# Vincent "vbatts!" Batts made their first contribution to the project
 			# in November 2013, to become a maintainer a few months later, on
 			# May 10, 2014 (https://github.com/docker/docker/commit/d6e666a87a01a5634c250358a94c814bf26cb778).
 			# As a maintainer, Vincent made important contributions to core elements
 			# of Docker, such as "distribution" (tarsum) and graphdrivers (btrfs, devicemapper).
-			# He also contributed the "tar-split" library, an important element
+			# They also contributed the "tar-split" library, an important element
 			# for the content-addressable store.
 			# Vincent is currently a member of the Open Containers Initiative
-			# Technical Oversight Board (TOB), besides his work at Red Hat and
-			# Project Atomic. You can still find him regularly hanging out in
+			# Technical Oversight Board (TOB), besides their work at Red Hat and
+			# Project Atomic. You can still find them regularly hanging out in
 			# our repository and the #docker-dev and #docker-maintainers IRC channels
-			# for a chat, as he's always a lot of fun.
+			# for a chat, as they's always a lot of fun.
 			"vbatts",
 
 			# Vishnu became a maintainer to help out on the daemon codebase and
-			# libcontainer integration. He's currently involved in the
+			# libcontainer integration. They's currently involved in the
 			# Open Containers Initiative, working on the specifications,
-			# besides his work on cAdvisor and Kubernetes for Google.
+			# besides their work on cAdvisor and Kubernetes for Google.
 			"vishh"
 		]
 

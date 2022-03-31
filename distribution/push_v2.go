@@ -390,7 +390,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 		}
 
 		// when error is unauthorizedError and user don't hasAuthInfo that's the case user don't has right to push layer to register
-		// and he hasn't login either, in this case candidate cache should be removed
+		// and they hasn't login either, in this case candidate cache should be removed
 		if len(mountCandidate.SourceRepository) > 0 &&
 			!(isUnauthorizedError && !pd.pushState.hasAuthInfo) &&
 			(metadata.CheckV2MetadataHMAC(&mountCandidate, pd.hmacKey) ||

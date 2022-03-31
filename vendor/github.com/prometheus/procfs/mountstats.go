@@ -17,7 +17,7 @@ package procfs
 // heavily as a reference:
 //   https://utcc.utoronto.ca/~cks/space/blog/linux/NFSMountstatsIndex
 //
-// Special thanks to Chris Siebenmann for all of his posts explaining the
+// Special thanks to Chris Siebenmann for all of their posts explaining the
 // various statistics available for NFS.
 
 import (

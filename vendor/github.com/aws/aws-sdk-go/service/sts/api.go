@@ -766,8 +766,8 @@ func (c *STS) DecodeAuthorizationMessageRequest(input *DecodeAuthorizationMessag
 // Decodes additional information about the authorization status of a request
 // from an encoded message returned in response to an AWS request.
 //
-// For example, if a user is not authorized to perform an operation that he
-// or she has requested, the request returns a Client.UnauthorizedOperation
+// For example, if a user is not authorized to perform an operation that they
+// or they has requested, the request returns a Client.UnauthorizedOperation
 // response (an HTTP 403 response). Some AWS operations additionally return
 // an encoded message that can provide details about this authorization failure.
 //

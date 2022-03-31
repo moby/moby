@@ -18,7 +18,7 @@ Short term objectives are listed in
 [Issues](https://github.com/moby/moby/issues?q=is%3Aopen+is%3Aissue+label%3Aroadmap). Our
 goal is to split down the workload in such way that anybody can jump in and help. Please comment on
 issues if you want to work on it to avoid duplicating effort! Similarly, if a maintainer is already
-assigned on an issue you'd like to participate in, pinging him on GitHub to offer your help is
+assigned on an issue you'd like to participate in, pinging them on GitHub to offer your help is
 the best way to go.
 
 ### How can I add something to the roadmap?

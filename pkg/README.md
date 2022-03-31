@@ -5,7 +5,7 @@ If some utilities grow larger and their APIs stabilize, they may be moved to the
 Moby organization, to facilitate re-use by other projects. However that is not the priority.
 
 The directory `pkg` is named after the same directory in the camlistore project. Since Brad is a core
-Go maintainer, we thought it made sense to copy his methods for organizing Go code :) Thanks Brad!
+Go maintainer, we thought it made sense to copy their methods for organizing Go code :) Thanks Brad!
 
 Because utility packages are small and neatly separated from the rest of the codebase, they are a good
 place to start for aspiring maintainers and contributors. Get in touch if you want to help maintain them!

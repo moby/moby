@@ -854,7 +854,7 @@ func (s *Scheduler) scheduleNTasksOnNodes(ctx context.Context, n int, taskGroup 
 		}
 
 		log.G(ctx).WithField("task.id", t.ID).Debugf("assigning to node %s", node.ID)
-		// she turned me into a newT!
+		// they turned me into a newT!
 		newT := *t
 		newT.Volumes = attachments
 		newT.NodeID = node.ID
