@@ -540,7 +540,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
 	// filter containers by 'create' - note, no -a needed
 	out, _ = dockerCmd(c, "ps", "-q", "-f", "status=created")
 	containerOut := strings.TrimSpace(out)
-	assert.Assert(c, strings.HasPrefix(cID, containerOut))
+	assert.Assert(c, strings.Contains(containerOut, shortCID), "Should have seen '%s' in ps output:\n%s", shortCID, out)
 }
 
 // Test for GitHub issue #12595

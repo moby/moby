@@ -213,3 +213,17 @@ func WithPlatform(p *specs.Platform) func(*TestContainerConfig) {
 		c.Platform = p
 	}
 }
+
+// WithWindowsDevice specifies a Windows Device, ala `--device` on the CLI
+func WithWindowsDevice(device string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Devices = append(c.HostConfig.Devices, containertypes.DeviceMapping{PathOnHost: device})
+	}
+}
+
+// WithIsolation specifies the isolation technology to apply to the container
+func WithIsolation(isolation containertypes.Isolation) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Isolation = isolation
+	}
+}

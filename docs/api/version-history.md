@@ -65,6 +65,11 @@ keywords: "API, Docker, rcli, REST, documentation"
     - "locked"
     - "active/worker"
     - "active/manager"
+* `POST /containers/create` for Windows containers now accepts a new syntax in
+  `HostConfig.Resources.Devices.PathOnHost`. As well as the existing `class/<GUID>`
+  syntax, `<IDType>://<ID>` is now recognised. Support for specific `<IDType>` values
+  depends on the underlying implementation and Windows version. This change is not
+  versioned, and affects all API versions if the daemon has this patch.
 
 ## v1.41 API changes
 
