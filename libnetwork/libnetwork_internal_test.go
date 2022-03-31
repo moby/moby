@@ -559,6 +559,80 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 }
 
+func TestWildcardLookup(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	n, err := c.NewNetwork("bridge", "net1", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep, err := n.CreateEndpoint("testep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sb, err := c.NewSandbox("c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := sb.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	err = ep.Join(sb)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add aliases including a wildcard for one service
+	n.(*network).addSvcRecords("ep1", "foo.local", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	n.(*network).addSvcRecords("ep1", "*.bar.local", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, false, "test")
+
+	// exact match
+	ipList, _ := n.(*network).ResolveName("foo.local", types.IPv4)
+	if len(ipList) == 0 {
+		t.Fatal("There must be the VIP")
+	}
+	if len(ipList) != 1 {
+		t.Fatal("It must return only 1 VIP")
+	}
+	if ipList[0].String() != "192.168.0.1" {
+		t.Fatal("The service VIP is 192.168.0.1")
+	}
+
+	// wildcard match
+	ipList, _ = n.(*network).ResolveName("my.bar.local", types.IPv4)
+	if len(ipList) == 0 {
+		t.Fatal("There must be the VIP")
+	}
+	if len(ipList) != 1 {
+		t.Fatal("It must return only 1 VIP")
+	}
+	if ipList[0].String() != "192.168.0.1" {
+		t.Fatal("The service VIP is 192.168.0.1")
+	}
+
+	// no match
+	ipList, _ = n.(*network).ResolveName("baz.local", types.IPv4)
+	if len(ipList) != 0 {
+		t.Fatal("Invalid hostname must not resolve")
+	}
+}
+
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
