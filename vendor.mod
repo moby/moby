@@ -74,6 +74,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/tchap/go-patricia v2.3.0+incompatible
 	github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
+	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.11.2
 	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
@@ -137,7 +138,6 @@ require (
 	github.com/rexray/gocsi v1.2.2 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/tinylib/msgp v1.1.0 // indirect
-	github.com/tonistiigi/go-archvariant v1.0.0 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.2 // indirect

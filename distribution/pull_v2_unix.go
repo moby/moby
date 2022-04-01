@@ -5,6 +5,7 @@ package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"context"
+	"sort"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
@@ -20,7 +21,7 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 
 func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platform) []manifestlist.ManifestDescriptor {
 	p = platforms.Normalize(withDefault(p))
-	m := platforms.NewMatcher(p)
+	m := platforms.Only(p)
 	var matches []manifestlist.ManifestDescriptor
 	for _, desc := range manifests {
 		if m.Match(toOCIPlatform(desc.Platform)) {
@@ -28,6 +29,10 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 			logrus.Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
 		}
 	}
+
+	sort.SliceStable(matches, func(i, j int) bool {
+		return m.Less(toOCIPlatform(matches[i].Platform), toOCIPlatform(matches[j].Platform))
+	})
 
 	// deprecated: backwards compatibility with older versions that didn't compare variant
 	if len(matches) == 0 && p.Architecture == "arm" {
@@ -49,7 +54,7 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 }
 
 func withDefault(p specs.Platform) specs.Platform {
-	def := platforms.DefaultSpec()
+	def := maximumSpec()
 	if p.OS == "" {
 		p.OS = def.OS
 	}

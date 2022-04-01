@@ -22,6 +22,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	archvariant "github.com/tonistiigi/go-archvariant"
 )
 
 type createOpts struct {
@@ -68,7 +69,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
 		if img, _ := daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform); img != nil {
-			p := platforms.DefaultSpec()
+			p := maximumSpec()
 			imgPlat := v1.Platform{
 				OS:           img.OS,
 				Architecture: img.Architecture,
@@ -318,4 +319,13 @@ func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 		}
 	}
 	return nil
+}
+
+// maximumSpec returns the distribution platform with maximum compatibility for the current node.
+func maximumSpec() v1.Platform {
+	p := platforms.DefaultSpec()
+	if p.Architecture == "amd64" {
+		p.Variant = archvariant.AMD64Variant()
+	}
+	return p
 }
