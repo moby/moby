@@ -30,10 +30,10 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 		if err == nil {
 			jsonString, _ := json.Marshal(&struct {
 				*config.Config
-				config.ProxyConfig
+				config.Proxies `json:"proxies"`
 			}{
 				Config: daemon.configStore,
-				ProxyConfig: config.ProxyConfig{
+				Proxies: config.Proxies{
 					HTTPProxy:  config.MaskCredentials(daemon.configStore.HTTPProxy),
 					HTTPSProxy: config.MaskCredentials(daemon.configStore.HTTPSProxy),
 					NoProxy:    config.MaskCredentials(daemon.configStore.NoProxy),

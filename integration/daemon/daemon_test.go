@@ -253,7 +253,7 @@ func TestDaemonProxy(t *testing.T) {
 		ctx := context.Background()
 
 		configFile := filepath.Join(d.RootDir(), "daemon.json")
-		configJSON := fmt.Sprintf(`{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}`, proxyServer.URL)
+		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyServer.URL)
 		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
 
 		d.Start(t, "--config-file", configFile)
@@ -293,7 +293,7 @@ func TestDaemonProxy(t *testing.T) {
 		d := daemon.New(t)
 
 		configFile := filepath.Join(d.RootDir(), "daemon.json")
-		configJSON := fmt.Sprintf(`{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}`, proxyRawURL)
+		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyRawURL)
 		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
 
 		err := d.StartWithError("--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com", "--config-file", configFile, "--validate")
