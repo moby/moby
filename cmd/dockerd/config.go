@@ -9,12 +9,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const (
-	// defaultShutdownTimeout is the default shutdown timeout for the daemon
-	defaultShutdownTimeout = 15
-	// defaultTrustKeyFile is the default filename for the trust key
-	defaultTrustKeyFile = "key.json"
-)
+// defaultTrustKeyFile is the default filename for the trust key
+const defaultTrustKeyFile = "key.json"
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
@@ -78,7 +74,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", config.DefaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", config.DefaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
 	flags.IntVar(&maxDownloadAttempts, "max-download-attempts", config.DefaultDownloadAttempts, "Set the max download attempts for each pull")
-	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
+	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", config.DefaultShutdownTimeout, "Set the default shutdown timeout")
 	flags.IntVar(&conf.NetworkDiagnosticPort, "network-diagnostic-port", 0, "TCP port number of the network diagnostic server")
 	_ = flags.MarkHidden("network-diagnostic-port")
 

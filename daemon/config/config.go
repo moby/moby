@@ -38,6 +38,9 @@ const (
 	DefaultNetworkMtu = 1500
 	// DisableNetworkBridge is the default value of the option to disable network bridge
 	DisableNetworkBridge = "none"
+	// DefaultShutdownTimeout is the default shutdown timeout (in seconds) for
+	// the daemon for containers to stop when it is shutting down.
+	DefaultShutdownTimeout = 15
 	// DefaultInitBinary is the name of the default init binary
 	DefaultInitBinary = "docker-init"
 	// DefaultRuntimeBinary is the default runtime to be used by
