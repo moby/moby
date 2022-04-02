@@ -43,6 +43,10 @@ const (
 	// DefaultRuntimeBinary is the default runtime to be used by
 	// containerd if none is specified
 	DefaultRuntimeBinary = "runc"
+	// DefaultContainersNamespace is the name of the default containerd namespace used for users containers.
+	DefaultContainersNamespace = "moby"
+	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
+	DefaultPluginNamespace = "plugins.moby"
 
 	// LinuxV1RuntimeName is the runtime used to specify the containerd v1 shim with the runc binary
 	// Note this is different than io.containerd.runc.v1 which would be the v1 shim using the v2 shim API.

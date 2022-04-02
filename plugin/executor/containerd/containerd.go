@@ -16,9 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// PluginNamespace is the name used for the plugins namespace
-const PluginNamespace = "plugins.moby"
-
 // ExitHandler represents an object that is called when the exit event is received from containerd
 type ExitHandler interface {
 	HandleExitEvent(id string) error
