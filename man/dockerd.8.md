@@ -35,6 +35,8 @@ dockerd - Enable daemon mode
 [**-G**|**--group**[=*docker*]]
 [**-H**|**--host**[=*[]*]]
 [**--help**]
+[**--http-proxy**[*""*]]
+[**--https-proxy**[*""*]]
 [**--icc**[=*true*]]
 [**--init**[=*false*]]
 [**--init-path**[=*""*]]
@@ -54,6 +56,7 @@ dockerd - Enable daemon mode
 [**--max-concurrent-downloads**[=*3*]]
 [**--max-concurrent-uploads**[=*5*]]
 [**--max-download-attempts**[=*5*]]
+[**--no-proxy**[*""*]]
 [**--node-generic-resources**[=*[]*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--raw-logs**]
@@ -233,6 +236,12 @@ unix://[/path/to/socket] to use.
 **--help**
   Print usage statement
 
+**--http-proxy***""*
+  Proxy URL for HTTP requests unless overridden by NoProxy.
+
+**--https-proxy***""*
+  Proxy URL for HTTPS requests unless overridden by NoProxy.
+
 **--icc**=*true*|*false*
   Allow unrestricted inter\-container and Docker daemon host communication. If
   disabled, containers can still be linked together using the **--link** option
@@ -324,6 +333,9 @@ unix://[/path/to/socket] to use.
 
 **--max-download-attempts**=*5*
   Set the max download attempts for each pull. Default is `5`.
+
+**--no-proxy**=*""*"
+  Comma-separated values specifying hosts that should be excluded from proxying.
 
 **--node-generic-resources**=*[]*
   Advertise user-defined resource. Default is `[]`.
