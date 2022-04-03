@@ -20,7 +20,7 @@ const (
 func resolveListenAddr(specifiedAddr string) (string, string, error) {
 	specifiedHost, specifiedPort, err := net.SplitHostPort(specifiedAddr)
 	if err != nil {
-		return "", "", fmt.Errorf("could not parse listen address %s", specifiedAddr)
+		return "", "", configError("could not parse listen address " + specifiedAddr)
 	}
 	// Does the host component match any of the interface names on the
 	// system? If so, use the address from that interface.
