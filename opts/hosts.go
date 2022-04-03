@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -162,7 +163,11 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
 	}
 
-	return fmt.Sprintf("tcp://%s%s", net.JoinHostPort(host, port), u.Path), nil
+	if u.Path != "" {
+		return "", errors.Errorf("invalid bind address (%s): should not contain a path element", tryAddr)
+	}
+
+	return "tcp://" + net.JoinHostPort(host, port), nil
 }
 
 // ValidateExtraHost validates that the specified string is a valid extrahost and returns it.
