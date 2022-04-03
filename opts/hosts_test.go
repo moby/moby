@@ -47,15 +47,24 @@ func TestParseHost(t *testing.T) {
 	}
 
 	for _, value := range invalid {
-		if _, err := ParseHost(false, false, value); err == nil {
-			t.Errorf("Expected an error for %v, got [nil]", value)
-		}
+		t.Run(value, func(t *testing.T) {
+			_, err := ParseHost(false, false, value)
+			if err == nil {
+				t.Errorf("expected an error, got [nil]")
+			}
+		})
 	}
 
 	for value, expected := range valid {
-		if actual, err := ParseHost(false, false, value); err != nil || actual != expected {
-			t.Errorf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
-		}
+		t.Run(value, func(t *testing.T) {
+			actual, err := ParseHost(false, false, value)
+			if err != nil {
+				t.Errorf(`unexpected error: "%v"`, err)
+			}
+			if actual != expected {
+				t.Errorf(`expected "%s", got "%s""`, expected, actual)
+			}
+		})
 	}
 }
 
@@ -99,14 +108,26 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"unix:///run/docker.sock": "unix:///run/docker.sock",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := parseDaemonHost(invalidAddr); err == nil || err.Error() != expectedError {
-			t.Errorf("tcp %v address expected error %q return, got %q and addr %v", invalidAddr, expectedError, err, addr)
-		}
+		t.Run(invalidAddr, func(t *testing.T) {
+			addr, err := parseDaemonHost(invalidAddr)
+			if err == nil || err.Error() != expectedError {
+				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
+			}
+			if addr != "" {
+				t.Errorf(`expected addr to be empty, got "%s""`, addr)
+			}
+		})
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := parseDaemonHost(validAddr); err != nil || addr != expectedAddr {
-			t.Errorf("%v -> expected %v, got (%v) addr (%v)", validAddr, expectedAddr, err, addr)
-		}
+		t.Run(validAddr, func(t *testing.T) {
+			addr, err := parseDaemonHost(validAddr)
+			if err != nil {
+				t.Errorf(`unexpected error: "%v"`, err)
+			}
+			if addr != expectedAddr {
+				t.Errorf(`expected "%s", got "%s""`, expectedAddr, addr)
+			}
+		})
 	}
 }
 
@@ -146,14 +167,26 @@ func TestParseTCP(t *testing.T) {
 		"tcp://:5555":            "tcp://127.0.0.1:5555",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
-			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
-		}
+		t.Run(invalidAddr, func(t *testing.T) {
+			addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost)
+			if err == nil || err.Error() != expectedError {
+				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
+			}
+			if addr != "" {
+				t.Errorf(`expected addr to be empty, got "%s""`, addr)
+			}
+		})
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := ParseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
-			t.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
-		}
+		t.Run(validAddr, func(t *testing.T) {
+			addr, err := ParseTCPAddr(validAddr, defaultHTTPHost)
+			if err != nil {
+				t.Errorf(`unexpected error: "%v"`, err)
+			}
+			if addr != expectedAddr {
+				t.Errorf(`expected "%s", got "%s""`, expectedAddr, addr)
+			}
+		})
 	}
 }
 
