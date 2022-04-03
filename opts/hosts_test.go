@@ -7,20 +7,20 @@ import (
 )
 
 func TestParseHost(t *testing.T) {
-	invalid := []string{
-		"something with spaces",
-		"://",
-		"unknown://",
-		"tcp://:port",
-		"tcp://invalid:port",
-		"tcp://:5555/",
-		"tcp://:5555/p",
-		"tcp://0.0.0.0:5555/",
-		"tcp://0.0.0.0:5555/p",
-		"tcp://[::1]:/",
-		"tcp://[::1]:5555/",
-		"tcp://[::1]:5555/p",
-		" tcp://:5555/path ",
+	invalid := map[string]string{
+		"something with spaces": `parse "tcp://something with spaces": invalid character " " in host name`,
+		"://":                   `Invalid bind address format: ://`,
+		"unknown://":            `Invalid bind address format: unknown://`,
+		"tcp://:port":           `parse "tcp://:port": invalid port ":port" after host`,
+		"tcp://invalid:port":    `parse "tcp://invalid:port": invalid port ":port" after host`,
+		"tcp://:5555/":          `invalid bind address (:5555/): should not contain a path element`,
+		"tcp://:5555/p":         `invalid bind address (:5555/p): should not contain a path element`,
+		"tcp://0.0.0.0:5555/":   `invalid bind address (0.0.0.0:5555/): should not contain a path element`,
+		"tcp://0.0.0.0:5555/p":  `invalid bind address (0.0.0.0:5555/p): should not contain a path element`,
+		"tcp://[::1]:/":         `invalid bind address ([::1]:/): should not contain a path element`,
+		"tcp://[::1]:5555/":     `invalid bind address ([::1]:5555/): should not contain a path element`,
+		"tcp://[::1]:5555/p":    `invalid bind address ([::1]:5555/p): should not contain a path element`,
+		" tcp://:5555/path ":    `invalid bind address (:5555/path): should not contain a path element`,
 	}
 
 	valid := map[string]string{
@@ -46,11 +46,11 @@ func TestParseHost(t *testing.T) {
 		"npipe:////./pipe/foo":     "npipe:////./pipe/foo",
 	}
 
-	for _, value := range invalid {
+	for value, expectedError := range invalid {
 		t.Run(value, func(t *testing.T) {
 			_, err := ParseHost(false, false, value)
-			if err == nil {
-				t.Errorf("expected an error, got [nil]")
+			if err == nil || err.Error() != expectedError {
+				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
 			}
 		})
 	}
