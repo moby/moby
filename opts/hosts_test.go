@@ -59,9 +59,8 @@ func TestParseHost(t *testing.T) {
 
 func TestParseDockerDaemonHost(t *testing.T) {
 	invalids := map[string]string{
-
-		"tcp:a.b.c.d":                   "",
-		"tcp:a.b.c.d/path":              "",
+		"tcp:a.b.c.d":                   `parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
+		"tcp:a.b.c.d/path":              `parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,
 		"udp://127.0.0.1":               "Invalid bind address format: udp://127.0.0.1",
 		"udp://127.0.0.1:2375":          "Invalid bind address format: udp://127.0.0.1:2375",
 		"tcp://unix:///run/docker.sock": "Invalid proto, expected tcp: unix:///run/docker.sock",
@@ -90,7 +89,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"localhost:5555":          "tcp://localhost:5555",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := parseDaemonHost(invalidAddr); err == nil || expectedError != "" && err.Error() != expectedError {
+		if addr, err := parseDaemonHost(invalidAddr); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %q return, got %q and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
@@ -106,8 +105,8 @@ func TestParseTCP(t *testing.T) {
 		defaultHTTPHost = "tcp://127.0.0.1:2376"
 	)
 	invalids := map[string]string{
-		"tcp:a.b.c.d":                 "",
-		"tcp:a.b.c.d/path":            "",
+		"tcp:a.b.c.d":                 `parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
+		"tcp:a.b.c.d/path":            `parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,
 		"udp://127.0.0.1":             "Invalid proto, expected tcp: udp://127.0.0.1",
 		"udp://127.0.0.1:2375":        "Invalid proto, expected tcp: udp://127.0.0.1:2375",
 		":5555/path":                  "invalid bind address (:5555/path): should not contain a path element",
@@ -132,7 +131,7 @@ func TestParseTCP(t *testing.T) {
 		"localhost:5555":         "tcp://localhost:5555",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || expectedError != "" && err.Error() != expectedError {
+		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
