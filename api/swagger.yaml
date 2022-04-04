@@ -1154,6 +1154,13 @@ definitions:
   ContainerConfig:
     description: |
       Configuration for a container that is portable between hosts.
+
+      When used as `ContainerConfig` field in an image, `ContainerConfig` is an
+      optional field containing the configuration of the container that was last
+      committed when creating the image.
+
+      Previous versions of Docker builder used this field to store build cache,
+      and it is not in active use anymore.
     type: "object"
     properties:
       Hostname:
