@@ -446,10 +446,10 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 func TestReloadDefaultConfigNotExist(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	reloaded := false
-	configFile := "/etc/docker/daemon.json"
+	defaultConfigFile := "/tmp/blabla/not/exists/daemon.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-	flags.String("config-file", configFile, "")
-	err := Reload(configFile, flags, func(c *Config) {
+	flags.String("config-file", defaultConfigFile, "")
+	err := Reload(defaultConfigFile, flags, func(c *Config) {
 		reloaded = true
 	})
 	assert.Check(t, err)
