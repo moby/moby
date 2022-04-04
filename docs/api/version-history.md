@@ -57,6 +57,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   may take no effect, depending on the kernel version and OCI runtime in use.
 * `GET /containers/{id}/json` now omits the `KernelMemory` and `KernelMemoryTCP`
   if they are not set.
+* `GET /info` now returns a `Listeners` property, containing a list of addresses
+  on which the API is listening. This change is not versioned, and affects all
+  API versions if the daemon has this patch.
 * `GET /info` now omits the `KernelMemory` and `KernelMemoryTCP` if they are not
   supported by the host or host's configuration (if cgroups v2 are in use).
 * `GET /_ping` and `HEAD /_ping` now return `Builder-Version` by default.
