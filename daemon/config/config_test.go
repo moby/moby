@@ -336,6 +336,15 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			},
 			expectedErr: "could not parse GenericResource: mixed discrete and named resources in expression 'foo=[bar 1]'",
 		},
+		{
+			name: "with invalid hosts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Hosts: []string{"127.0.0.1:2375/path"},
+				},
+			},
+			expectedErr: "invalid bind address (127.0.0.1:2375/path): should not contain a path element",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -417,6 +426,14 @@ func TestValidateConfiguration(t *testing.T) {
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=1"},
+				},
+			},
+		},
+		{
+			name: "with hosts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Hosts: []string{"tcp://127.0.0.1:2375"},
 				},
 			},
 		},
