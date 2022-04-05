@@ -6,14 +6,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
 	gddohttputil "github.com/golang/gddo/httputil"
 )
 
@@ -26,23 +24,18 @@ func (pathError) Error() string {
 func (pathError) InvalidParameter() {}
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
+//
+// Deprecated since 1.8 (API v1.20), errors out since 1.12 (API v1.24)
 func (s *containerRouter) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	// Deprecated since 1.8, Errors out since 1.12
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.24") {
 		w.WriteHeader(http.StatusNotFound)
 		return nil
 	}
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
 
 	cfg := types.CopyConfig{}
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, &cfg); err != nil {
+		return err
 	}
 
 	if cfg.Resource == "" {

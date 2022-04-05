@@ -427,14 +427,9 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
 
 	var updateConfig container.UpdateConfig
-
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&updateConfig); err != nil {
+	if err := httputils.ReadJSON(r, &updateConfig); err != nil {
 		return err
 	}
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
