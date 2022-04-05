@@ -477,7 +477,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		resources.KernelMemory = 0
 	}
 	if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 4MB")
+		return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 6MB")
 	}
 	if resources.KernelMemory > 0 && !kernel.CheckKernelVersion(4, 0, 0) {
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
