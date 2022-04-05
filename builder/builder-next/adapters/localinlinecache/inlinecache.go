@@ -28,14 +28,14 @@ func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryH
 	upstream := registryremotecache.ResolveCacheImporterFunc(sm, cs, resolverFunc)
 
 	return func(ctx context.Context, group session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
-		if dt, err := tryImportLocal(rs, is, attrs["ref"]); err == nil {
+		if dt, err := tryImportLocal(ctx, rs, is, attrs["ref"]); err == nil {
 			return newLocalImporter(dt), specs.Descriptor{}, nil
 		}
 		return upstream(ctx, group, attrs)
 	}
 }
 
-func tryImportLocal(rs reference.Store, is imagestore.Store, refStr string) ([]byte, error) {
+func tryImportLocal(ctx context.Context, rs reference.Store, is imagestore.Store, refStr string) ([]byte, error) {
 	ref, err := distreference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func tryImportLocal(rs reference.Store, is imagestore.Store, refStr string) ([]b
 	if err != nil {
 		return nil, err
 	}
-	img, err := is.Get(imagestore.ID(dgst))
+	img, err := is.Get(ctx, imagestore.ID(dgst))
 	if err != nil {
 		return nil, err
 	}

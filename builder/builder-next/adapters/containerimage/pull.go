@@ -76,7 +76,7 @@ func (is *Source) ID() string {
 	return srctypes.DockerImageScheme
 }
 
-func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
+func (is *Source) resolveLocal(ctx context.Context, refStr string) (*image.Image, error) {
 	ref, err := distreference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	img, err := is.ImageStore.Get(image.ID(dgst))
+	img, err := is.ImageStore.Get(ctx, image.ID(dgst))
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 		// default == prefer local, but in the future could be smarter
 		fallthrough
 	case source.ResolveModePreferLocal:
-		img, err := is.resolveLocal(ref)
+		img, err := is.resolveLocal(ctx, ref)
 		if err == nil {
 			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
 				logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
@@ -242,7 +242,7 @@ func (p *puller) resolveLocal() {
 
 		if p.src.ResolveMode == source.ResolveModeDefault || p.src.ResolveMode == source.ResolveModePreferLocal {
 			ref := p.src.Reference.String()
-			img, err := p.is.resolveLocal(ref)
+			img, err := p.is.resolveLocal(context.TODO(), ref)
 			if err == nil {
 				if !platformMatches(img, &p.platform) {
 					logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, not resolving",
@@ -374,7 +374,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	}
 
 	if p.config != nil {
-		img, err := p.is.ImageStore.Get(image.ID(digest.FromBytes(p.config)))
+		img, err := p.is.ImageStore.Get(ctx, image.ID(digest.FromBytes(p.config)))
 		if err == nil {
 			if len(img.RootFS.DiffIDs) == 0 {
 				return nil, nil

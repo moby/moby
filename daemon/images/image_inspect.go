@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -12,8 +13,8 @@ import (
 
 // LookupImage looks up an image by name and returns it as an ImageInspect
 // structure.
-func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
-	img, err := i.GetImage(name, nil)
+func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.ImageInspect, error) {
+	img, err := i.GetImage(ctx, name, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "no such image: %s", name)
 	}
@@ -51,7 +52,7 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 		comment = img.History[len(img.History)-1].Comment
 	}
 
-	lastUpdated, err := i.imageStore.GetLastUpdated(img.ID())
+	lastUpdated, err := i.imageStore.GetLastUpdated(ctx, img.ID())
 	if err != nil {
 		return nil, err
 	}

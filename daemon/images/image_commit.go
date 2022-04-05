@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 
@@ -12,7 +13,7 @@ import (
 )
 
 // CommitImage creates a new image from a commit config
-func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	rwTar, err := exportContainerRw(i.layerStore, c.ContainerID, c.ContainerMountLabel)
 	if err != nil {
 		return "", err
@@ -28,7 +29,7 @@ func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 		parent = new(image.Image)
 		parent.RootFS = image.NewRootFS()
 	} else {
-		parent, err = i.imageStore.Get(image.ID(c.ParentImageID))
+		parent, err = i.imageStore.Get(ctx, image.ID(c.ParentImageID))
 		if err != nil {
 			return "", err
 		}
@@ -53,13 +54,13 @@ func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 		return "", err
 	}
 
-	id, err := i.imageStore.Create(config)
+	id, err := i.imageStore.Create(ctx, config)
 	if err != nil {
 		return "", err
 	}
 
 	if c.ParentImageID != "" {
-		if err := i.imageStore.SetParent(id, image.ID(c.ParentImageID)); err != nil {
+		if err := i.imageStore.SetParent(ctx, id, image.ID(c.ParentImageID)); err != nil {
 			return "", err
 		}
 	}
@@ -109,7 +110,7 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 //   * it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	container := i.containers.Get(c.ContainerID)
 	if container == nil {
 		// TODO: use typed error
@@ -118,5 +119,5 @@ func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error)
 	c.ContainerMountLabel = container.MountLabel
 	c.ContainerOS = container.OS
 	c.ParentImageID = string(container.ImageID)
-	return i.CommitImage(c)
+	return i.CommitImage(ctx, c)
 }

@@ -87,10 +87,10 @@ func (b *Builder) commit(ctx context.Context, dispatchState *dispatchState, comm
 		return err
 	}
 
-	return b.commitContainer(dispatchState, id, runConfigWithCommentCmd)
+	return b.commitContainer(ctx, dispatchState, id, runConfigWithCommentCmd)
 }
 
-func (b *Builder) commitContainer(dispatchState *dispatchState, id string, containerConfig *container.Config) error {
+func (b *Builder) commitContainer(ctx context.Context, dispatchState *dispatchState, id string, containerConfig *container.Config) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -103,12 +103,12 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 		ContainerID:     id,
 	}
 
-	imageID, err := b.docker.CommitBuildStep(commitCfg)
+	imageID, err := b.docker.CommitBuildStep(ctx, commitCfg)
 	dispatchState.imageID = string(imageID)
 	return err
 }
 
-func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
+func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
 	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	exportedImage, err := b.docker.CreateImage(ctx, config, state.imageID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
@@ -167,7 +167,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
 		withCmdCommentString(commentStr, state.operatingSystem))
-	hit, err := b.probeCache(state, runConfigWithCommentCmd)
+	hit, err := b.probeCache(ctx, state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
 	}
@@ -215,7 +215,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
-	return b.exportImage(state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
+	return b.exportImage(ctx, state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
 }
 
 func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
@@ -364,8 +364,8 @@ func getShell(c *container.Config, os string) []string {
 	return append([]string{}, c.Shell[:]...)
 }
 
-func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
-	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig)
+func (b *Builder) probeCache(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
+	cachedID, err := b.imageProber.Probe(ctx, dispatchState.imageID, runConfig)
 	if cachedID == "" || err != nil {
 		return false, err
 	}
@@ -378,7 +378,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
 func (b *Builder) probeAndCreate(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (string, error) {
-	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
+	if hit, err := b.probeCache(ctx, dispatchState, runConfig); err != nil || hit {
 		return "", err
 	}
 	return b.create(ctx, runConfig)

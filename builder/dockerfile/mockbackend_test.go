@@ -41,7 +41,7 @@ func (m *MockBackend) ContainerRm(ctx context.Context, name string, config *type
 	return nil
 }
 
-func (m *MockBackend) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (m *MockBackend) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	if m.commitFunc != nil {
 		return m.commitFunc(c)
 	}
@@ -76,14 +76,14 @@ func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 	return &mockImage{id: "theid"}, &mockLayer{}, nil
 }
 
-func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
+func (m *MockBackend) MakeImageCache(ctx context.Context, cacheFrom []string) (builder.ImageCache, error) {
 	if m.makeImageCacheFunc != nil {
-		return m.makeImageCacheFunc(cacheFrom)
+		return m.makeImageCacheFunc(cacheFrom), nil
 	}
-	return nil
+	return nil, nil
 }
 
-func (m *MockBackend) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (m *MockBackend) CreateImage(ctx context.Context, config []byte, parent string) (builder.Image, error) {
 	return &mockImage{id: "test"}, nil
 }
 
@@ -113,7 +113,9 @@ type mockImageCache struct {
 	getCacheFunc func(parentID string, cfg *container.Config) (string, error)
 }
 
-func (mic *mockImageCache) GetCache(parentID string, cfg *container.Config) (string, error) {
+var _ builder.ImageCache = (*mockImageCache)(nil)
+
+func (mic *mockImageCache) GetCache(ctx context.Context, parentID string, cfg *container.Config) (string, error) {
 	if mic.getCacheFunc != nil {
 		return mic.getCacheFunc(parentID, cfg)
 	}

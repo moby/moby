@@ -155,7 +155,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		return "", err
 	}
 
-	id, err := daemon.imageService.CommitImage(backend.CommitConfig{
+	id, err := daemon.imageService.CommitImage(ctx, backend.CommitConfig{
 		Author:              c.Author,
 		Comment:             c.Comment,
 		Config:              newConfig,
@@ -171,7 +171,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 
 	var imageRef string
 	if c.Repo != "" {
-		imageRef, err = daemon.imageService.TagImage(string(id), c.Repo, c.Tag)
+		imageRef, err = daemon.imageService.TagImage(ctx, string(id), c.Repo, c.Tag)
 		if err != nil {
 			return "", err
 		}

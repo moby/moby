@@ -1,6 +1,7 @@
 package cache // import "github.com/docker/docker/image/cache"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -8,6 +9,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
@@ -26,8 +28,8 @@ type LocalImageCache struct {
 }
 
 // GetCache returns the image id found in the cache
-func (lic *LocalImageCache) GetCache(imgID string, config *containertypes.Config) (string, error) {
-	return getImageIDAndError(getLocalCachedImage(lic.store, image.ID(imgID), config))
+func (lic *LocalImageCache) GetCache(ctx context.Context, imgID string, config *containertypes.Config) (string, error) {
+	return getImageIDAndError(getLocalCachedImage(ctx, lic.store, image.ID(imgID), config))
 }
 
 // New returns an image cache, based on history objects
@@ -51,14 +53,17 @@ func (ic *ImageCache) Populate(image *image.Image) {
 }
 
 // GetCache returns the image id found in the cache
-func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config) (string, error) {
-	imgID, err := ic.localImageCache.GetCache(parentID, cfg)
+func (ic *ImageCache) GetCache(ctx context.Context, parentID string, cfg *containertypes.Config) (string, error) {
+	imgID, err := ic.localImageCache.GetCache(ctx, parentID, cfg)
 	if err != nil {
 		return "", err
 	}
 	if imgID != "" {
 		for _, s := range ic.sources {
-			if ic.isParent(s.ID(), image.ID(imgID)) {
+			isParent, err := ic.isParent(ctx, s.ID(), image.ID(imgID))
+			if err != nil {
+				return "", err
+			} else if isParent {
 				return imgID, nil
 			}
 		}
@@ -67,7 +72,7 @@ func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config) (str
 	var parent *image.Image
 	lenHistory := 0
 	if parentID != "" {
-		parent, err = ic.store.Get(image.ID(parentID))
+		parent, err = ic.store.Get(ctx, image.ID(parentID))
 		if err != nil {
 			return "", errors.Wrapf(err, "unable to find image %v", parentID)
 		}
@@ -81,14 +86,14 @@ func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config) (str
 
 		if len(target.History)-1 == lenHistory { // last
 			if parent != nil {
-				if err := ic.store.SetParent(target.ID(), parent.ID()); err != nil {
+				if err := ic.store.SetParent(ctx, target.ID(), parent.ID()); err != nil {
 					return "", errors.Wrapf(err, "failed to set parent for %v to %v", target.ID(), parent.ID())
 				}
 			}
 			return target.ID().String(), nil
 		}
 
-		imgID, err := ic.restoreCachedImage(parent, target, cfg)
+		imgID, err := ic.restoreCachedImage(ctx, parent, target, cfg)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to restore cached image from %q to %v", parentID, target.ID())
 		}
@@ -100,7 +105,7 @@ func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config) (str
 	return "", nil
 }
 
-func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *containertypes.Config) (image.ID, error) {
+func (ic *ImageCache) restoreCachedImage(ctx context.Context, parent, target *image.Image, cfg *containertypes.Config) (image.ID, error) {
 	var history []image.History
 	rootFS := image.NewRootFS()
 	lenHistory := 0
@@ -132,28 +137,31 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 		return "", errors.Wrap(err, "failed to marshal image config")
 	}
 
-	imgID, err := ic.store.Create(config)
+	imgID, err := ic.store.Create(ctx, config)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create cache image")
 	}
 
 	if parent != nil {
-		if err := ic.store.SetParent(imgID, parent.ID()); err != nil {
+		if err := ic.store.SetParent(ctx, imgID, parent.ID()); err != nil {
 			return "", errors.Wrapf(err, "failed to set parent for %v to %v", target.ID(), parent.ID())
 		}
 	}
 	return imgID, nil
 }
 
-func (ic *ImageCache) isParent(imgID, parentID image.ID) bool {
-	nextParent, err := ic.store.GetParent(imgID)
+func (ic *ImageCache) isParent(ctx context.Context, imgID, parentID image.ID) (bool, error) {
+	nextParent, err := ic.store.GetParent(ctx, imgID)
 	if err != nil {
-		return false
+		if errdefs.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
 	}
 	if nextParent == parentID {
-		return true
+		return true, nil
 	}
-	return ic.isParent(nextParent, parentID)
+	return ic.isParent(ctx, nextParent, parentID)
 }
 
 func getLayerForHistoryIndex(image *image.Image, index int) layer.DiffID {
@@ -215,12 +223,12 @@ func getImageIDAndError(img *image.Image, err error) (string, error) {
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
-func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *containertypes.Config) (*image.Image, error) {
+func getLocalCachedImage(ctx context.Context, imageStore image.Store, imgID image.ID, config *containertypes.Config) (*image.Image, error) {
 	// Loop on the children of the given image and check the config
 	getMatch := func(siblings []image.ID) (*image.Image, error) {
 		var match *image.Image
 		for _, id := range siblings {
-			img, err := imageStore.Get(id)
+			img, err := imageStore.Get(ctx, id)
 			if err != nil {
 				return nil, fmt.Errorf("unable to find image %q", id)
 			}
@@ -237,7 +245,10 @@ func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *contain
 
 	// In this case, this is `FROM scratch`, which isn't an actual image.
 	if imgID == "" {
-		images := imageStore.Map()
+		images, err := imageStore.Map(ctx)
+		if err != nil {
+			return nil, err
+		}
 		var siblings []image.ID
 		for id, img := range images {
 			if img.Parent == imgID {
@@ -248,6 +259,9 @@ func getLocalCachedImage(imageStore image.Store, imgID image.ID, config *contain
 	}
 
 	// find match from child images
-	siblings := imageStore.Children(imgID)
+	siblings, err := imageStore.Children(ctx, imgID)
+	if err != nil {
+		return nil, err
+	}
 	return getMatch(siblings)
 }

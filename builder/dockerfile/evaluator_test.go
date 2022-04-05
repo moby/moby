@@ -128,7 +128,7 @@ func TestDispatch(t *testing.T) {
 				}
 			}()
 
-			b := newBuilderWithMockBackend()
+			b := newBuilderWithMockBackend(t)
 			sb := newDispatchRequest(b, '`', tarctx, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 			err = dispatch(context.Background(), sb, tc.cmd)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))

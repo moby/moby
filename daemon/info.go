@@ -31,10 +31,14 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*types.Info, error) {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
+	images, err := daemon.imageService.CountImages(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	v := &types.Info{
 		ID:                 daemon.id,
-		Images:             daemon.imageService.CountImages(),
+		Images:             images,
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,

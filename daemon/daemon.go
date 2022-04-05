@@ -969,7 +969,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	imageStore, err := image.NewImageStore(ifs, layerStore)
+	imageStore, err := image.NewImageStore(ctx, ifs, layerStore)
 	if err != nil {
 		return nil, err
 	}

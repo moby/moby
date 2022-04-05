@@ -69,7 +69,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		if img, _ := daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform); img != nil {
+		if img, _ := daemon.imageService.GetImage(ctx, opts.params.Config.Image, opts.params.Platform); img != nil {
 			p := maximumSpec()
 			imgPlat := v1.Platform{
 				OS:           img.OS,
@@ -120,7 +120,7 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 	)
 
 	if opts.params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
+		img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, opts.params.Platform)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +167,7 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 
 	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
+	rwLayer, err := daemon.imageService.CreateLayer(ctx, ctr, setupInitLayer(daemon.idMapping))
 	if err != nil {
 		return nil, errdefs.System(err)
 	}

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -112,7 +113,7 @@ func TestFSMetadataGetSet(t *testing.T) {
 	}
 
 	_, err = store.GetMetadata(id2, "tkey2")
-	assert.Check(t, is.ErrorContains(err, "failed to read metadata"))
+	assert.Check(t, errdefs.IsNotFound(err), "got error %q", err)
 
 	id3 := digest.FromBytes([]byte("baz"))
 	err = store.SetMetadata(id3, "tkey", []byte("tval"))

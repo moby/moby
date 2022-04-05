@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -160,6 +161,9 @@ func (s *fs) GetMetadata(dgst digest.Digest, key string) ([]byte, error) {
 	}
 	bytes, err := os.ReadFile(filepath.Join(s.metadataDir(dgst), key))
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, errdefs.NotFound(err)
+		}
 		return nil, errors.Wrap(err, "failed to read metadata")
 	}
 	return bytes, nil

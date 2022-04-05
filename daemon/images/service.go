@@ -57,7 +57,7 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		distributionMetadataStore: config.DistributionMetadataStore,
 		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStore, config.MaxConcurrentDownloads, xfer.WithMaxDownloadAttempts(config.MaxDownloadAttempts)),
 		eventsService:             config.EventsService,
-		imageStore:                &imageStoreWithLease{Store: config.ImageStore, leases: config.Leases, ns: config.ContentNamespace},
+		imageStore:                &imageStoreWithLease{Store: config.ImageStore, leases: config.Leases},
 		layerStore:                config.LayerStore,
 		referenceStore:            config.ReferenceStore,
 		registryService:           config.RegistryService,
@@ -110,24 +110,24 @@ func (i *ImageService) DistributionServices() DistributionServices {
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (i *ImageService) CountImages() int {
-	return i.imageStore.Len()
+func (i *ImageService) CountImages(ctx context.Context) (int, error) {
+	return i.imageStore.Len(ctx)
 }
 
 // Children returns the children image.IDs for a parent image.
 // called from list.go to filter containers
 // TODO: refactor to expose an ancestry for image.ID?
-func (i *ImageService) Children(id image.ID) []image.ID {
-	return i.imageStore.Children(id)
+func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, error) {
+	return i.imageStore.Children(ctx, id)
 }
 
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
+func (i *ImageService) CreateLayer(ctx context.Context, container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
 	var layerID layer.ChainID
 	if container.ImageID != "" {
-		img, err := i.imageStore.Get(container.ImageID)
+		img, err := i.imageStore.Get(ctx, container.ImageID)
 		if err != nil {
 			return nil, err
 		}
@@ -196,7 +196,10 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 	ch := i.usage.DoChan("LayerDiskUsage", func() (interface{}, error) {
 		var allLayersSize int64
-		layerRefs := i.getLayerRefs()
+		layerRefs, err := i.getLayerRefs(ctx)
+		if err != nil {
+			return nil, err
+		}
 		allLayers := i.layerStore.Map()
 		for _, l := range allLayers {
 			select {
@@ -222,13 +225,22 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 	}
 }
 
-func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
-	tmpImages := i.imageStore.Map()
+func (i *ImageService) getLayerRefs(ctx context.Context) (map[layer.ChainID]int, error) {
+	tmpImages, err := i.imageStore.Map(ctx)
+	if err != nil {
+		return nil, err
+	}
 	layerRefs := map[layer.ChainID]int{}
 	for id, img := range tmpImages {
 		dgst := digest.Digest(id)
-		if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
-			continue
+		if len(i.referenceStore.References(dgst)) == 0 {
+			children, err := i.imageStore.Children(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if len(children) != 0 {
+				continue
+			}
 		}
 
 		rootFS := *img.RootFS
@@ -240,7 +252,7 @@ func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
 		}
 	}
 
-	return layerRefs
+	return layerRefs, nil
 }
 
 // ImageDiskUsage returns information about image data disk usage.

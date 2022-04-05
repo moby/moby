@@ -1,10 +1,12 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/namespaces"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
@@ -59,11 +61,11 @@ const (
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
 //
-func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	img, err := i.GetImage(imageRef, nil)
+	img, err := i.GetImage(ctx, imageRef, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +157,8 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 			if !force {
 				c |= conflictSoft &^ conflictActiveReference
 			}
-			if conflict := i.checkImageDeleteConflict(imgID, c); conflict != nil {
-				return nil, conflict
+			if err := i.checkImageDeleteConflict(ctx, imgID, c); err != nil {
+				return nil, err
 			}
 
 			for _, repoRef := range repoRefs {
@@ -173,7 +175,7 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 		}
 	}
 
-	if err := i.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
+	if err := i.imageDeleteHelper(ctx, imgID, &records, force, prune, removedRepositoryRef); err != nil {
 		return nil, err
 	}
 
@@ -293,26 +295,39 @@ func (idc *imageDeleteConflict) Conflict() {}
 // conflict is encountered, it will be returned immediately without deleting
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
-func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
+func (i *ImageService) imageDeleteHelper(ctx context.Context, imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
 	if !force {
 		c |= conflictSoft
 	}
-	if conflict := i.checkImageDeleteConflict(imgID, c); conflict != nil {
-		if quiet && (!i.imageIsDangling(imgID) || conflict.used) {
+	err := i.checkImageDeleteConflict(ctx, imgID, c)
+	var conflict *imageDeleteConflict
+	if errors.As(err, &conflict) {
+		if quiet {
 			// Ignore conflicts UNLESS the image is "dangling" or not being used in
 			// which case we want the user to know.
-			return nil
+			if conflict.used {
+				return nil
+			}
+			dangling, err := i.imageIsDangling(ctx, imgID)
+			if err != nil {
+				return err
+			}
+			if !dangling {
+				return nil
+			}
 		}
 
 		// There was a conflict and it's either a hard conflict OR we are not
 		// forcing deletion on soft conflicts.
 		return conflict
+	} else if err != nil {
+		return err
 	}
 
-	parent, err := i.imageStore.GetParent(imgID)
+	parent, err := i.imageStore.GetParent(ctx, imgID)
 	if err != nil {
 		// There may be no parent
 		parent = ""
@@ -323,7 +338,7 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 		return err
 	}
 
-	removedLayers, err := i.imageStore.Delete(imgID)
+	removedLayers, err := i.imageStore.Delete(namespaces.WithNamespace(ctx, i.contentNamespace), imgID)
 	if err != nil {
 		return err
 	}
@@ -343,7 +358,7 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 	// either running or stopped).
 	// Do not force prunings, but do so quietly (stopping on any encountered
 	// conflicts).
-	return i.imageDeleteHelper(parent, records, false, true, true)
+	return i.imageDeleteHelper(ctx, parent, records, false, true, true)
 }
 
 // checkImageDeleteConflict determines whether there are any conflicts
@@ -352,13 +367,19 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 // using the image. A soft conflict is any tags/digest referencing the given
 // image or any stopped container using the image. If ignoreSoftConflicts is
 // true, this function will not check for soft conflict conditions.
-func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictType) *imageDeleteConflict {
+func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image.ID, mask conflictType) error {
 	// Check if the image has any descendant images.
-	if mask&conflictDependentChild != 0 && len(i.imageStore.Children(imgID)) > 0 {
-		return &imageDeleteConflict{
-			hard:    true,
-			imgID:   imgID,
-			message: "image has dependent child images",
+	if mask&conflictDependentChild != 0 {
+		children, err := i.imageStore.Children(ctx, imgID)
+		if err != nil {
+			return err
+		}
+		if len(children) > 0 {
+			return &imageDeleteConflict{
+				hard:    true,
+				imgID:   imgID,
+				message: "image has dependent child images",
+			}
 		}
 	}
 
@@ -405,6 +426,10 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 // imageIsDangling returns whether the given image is "dangling" which means
 // that there are no repository references to the given image and it has no
 // child images.
-func (i *ImageService) imageIsDangling(imgID image.ID) bool {
-	return !(len(i.referenceStore.References(imgID.Digest())) > 0 || len(i.imageStore.Children(imgID)) > 0)
+func (i *ImageService) imageIsDangling(ctx context.Context, imgID image.ID) (bool, error) {
+	children, err := i.imageStore.Children(ctx, imgID)
+	if err != nil {
+		return false, err
+	}
+	return !(len(i.referenceStore.References(imgID.Digest())) > 0 || len(children) > 0), nil
 }

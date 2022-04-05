@@ -62,9 +62,12 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 
 	var allImages map[image.ID]*image.Image
 	if danglingOnly {
-		allImages = i.imageStore.Heads()
+		allImages, err = i.imageStore.Heads(ctx)
 	} else {
-		allImages = i.imageStore.Map()
+		allImages, err = i.imageStore.Map(ctx)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	// Filter intermediary images and get their unique size
@@ -76,7 +79,15 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 			return nil, ctx.Err()
 		default:
 			dgst := digest.Digest(id)
-			if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
+			children, err := i.imageStore.Children(ctx, id)
+			if err != nil {
+				if errdefs.IsNotFound(err) {
+					// No need to prune an image that doesn't exist *taps forehead*
+					continue
+				}
+				return nil, err
+			}
+			if len(i.referenceStore.References(dgst)) == 0 && len(children) != 0 {
 				continue
 			}
 			if !until.IsZero() && img.Created.After(until) {
@@ -119,7 +130,7 @@ deleteImagesLoop:
 
 			if shouldDelete {
 				for _, ref := range refs {
-					imgDel, err := i.ImageDelete(ref.String(), false, true)
+					imgDel, err := i.ImageDelete(ctx, ref.String(), false, true)
 					if imageDeleteFailed(ref.String(), err) {
 						continue
 					}
@@ -128,7 +139,7 @@ deleteImagesLoop:
 			}
 		} else {
 			hex := id.Digest().Hex()
-			imgDel, err := i.ImageDelete(hex, false, true)
+			imgDel, err := i.ImageDelete(ctx, hex, false, true)
 			if imageDeleteFailed(hex, err) {
 				continue
 			}

@@ -160,7 +160,9 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 // FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
 //
 func initializeStage(ctx context.Context, d dispatchRequest, cmd *instructions.Stage) error {
-	d.builder.imageProber.Reset()
+	if err := d.builder.imageProber.Reset(ctx); err != nil {
+		return err
+	}
 
 	var platform *specs.Platform
 	if v := cmd.Platform; v != "" {
@@ -322,7 +324,7 @@ func dispatchWorkdir(ctx context.Context, d dispatchRequest, c *instructions.Wor
 		return err
 	}
 
-	return d.builder.commitContainer(d.state, containerID, runConfigWithCommentCmd)
+	return d.builder.commitContainer(ctx, d.state, containerID, runConfigWithCommentCmd)
 }
 
 // RUN some command yo
@@ -358,7 +360,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 		withCmd(saveCmd),
 		withArgsEscaped(argsEscaped),
 		withEntrypointOverride(saveCmd, nil))
-	if hit, err := d.builder.probeCache(d.state, runConfigForCacheProbe); err != nil || hit {
+	if hit, err := d.builder.probeCache(ctx, d.state, runConfigForCacheProbe); err != nil || hit {
 		return err
 	}
 
@@ -397,7 +399,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 		runConfigForCacheProbe.ArgsEscaped = stateRunConfig.ArgsEscaped
 	}
 
-	return d.builder.commitContainer(d.state, cID, runConfigForCacheProbe)
+	return d.builder.commitContainer(ctx, d.state, cID, runConfigForCacheProbe)
 }
 
 // Derive the command to use for probeCache() and to commit in this container.

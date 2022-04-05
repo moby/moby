@@ -73,5 +73,5 @@ type VolumeBackend interface {
 type ImageBackend interface {
 	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, error)
-	LookupImage(name string) (*types.ImageInspect, error)
+	LookupImage(ctx context.Context, name string) (*types.ImageInspect, error)
 }

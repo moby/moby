@@ -34,12 +34,12 @@ func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Map returns a map of all images in the ImageStore
-func (i *ImageService) Map() map[image.ID]*image.Image {
-	return i.imageStore.Map()
+func (i *ImageService) Map(ctx context.Context) (map[image.ID]*image.Image, error) {
+	return i.imageStore.Map(ctx)
 }
 
 // Images returns a filtered list of images.
-func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 		err                       error
 	)
 	err = opts.Filters.WalkValues("before", func(value string) error {
-		beforeFilter, err = i.GetImage(value, nil)
+		beforeFilter, err = i.GetImage(ctx, value, nil)
 		return err
 	})
 	if err != nil {
@@ -66,7 +66,7 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 	}
 
 	err = opts.Filters.WalkValues("since", func(value string) error {
-		sinceFilter, err = i.GetImage(value, nil)
+		sinceFilter, err = i.GetImage(ctx, value, nil)
 		return err
 	})
 	if err != nil {
@@ -75,9 +75,12 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 
 	var selectedImages map[image.ID]*image.Image
 	if danglingOnly {
-		selectedImages = i.imageStore.Heads()
+		selectedImages, err = i.imageStore.Heads(ctx)
 	} else {
-		selectedImages = i.imageStore.Map()
+		selectedImages, err = i.imageStore.Map(ctx)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	var (
@@ -159,20 +162,24 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 			}
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
-			if opts.All || len(i.imageStore.Children(id)) == 0 {
-
-				if opts.Filters.Contains("dangling") && !danglingOnly {
-					// dangling=false case, so dangling image is not needed
+			if !opts.All {
+				children, err := i.imageStore.Children(ctx, id)
+				if err != nil {
+					return nil, err
+				}
+				if len(children) != 0 {
 					continue
 				}
-				if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
-					continue
-				}
-				summary.RepoDigests = []string{"<none>@<none>"}
-				summary.RepoTags = []string{"<none>:<none>"}
-			} else {
+			}
+			if opts.Filters.Contains("dangling") && !danglingOnly {
+				// dangling=false case, so dangling image is not needed
 				continue
 			}
+			if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
+				continue
+			}
+			summary.RepoDigests = []string{"<none>@<none>"}
+			summary.RepoTags = []string{"<none>:<none>"}
 		} else if danglingOnly && len(summary.RepoTags) > 0 {
 			continue
 		}
@@ -214,7 +221,10 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 			// but we need to consider all existing images to correctly perform reference counting.
 			// If danglingOnly is false, selectedImages (and, hence, allImages) is already equal to i.imageStore.Map()
 			// and we can avoid performing an otherwise redundant method call.
-			allImages = i.imageStore.Map()
+			allImages, err = i.imageStore.Map(ctx)
+			if err != nil {
+				return nil, err
+			}
 		}
 		// Count layer references across all known images
 		for _, img := range allImages {
@@ -256,20 +266,20 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 // This new image contains only the layers from it's parent + 1 extra layer which contains the diff of all the layers in between.
 // The existing image(s) is not destroyed.
 // If no parent is specified, a new image with the diff of all the specified image's layers merged into a new layer that has no parents.
-func (i *ImageService) SquashImage(id, parent string) (string, error) {
+func (i *ImageService) SquashImage(ctx context.Context, id, parent string) (string, error) {
 
 	var (
 		img *image.Image
 		err error
 	)
-	if img, err = i.imageStore.Get(image.ID(id)); err != nil {
+	if img, err = i.imageStore.Get(ctx, image.ID(id)); err != nil {
 		return "", err
 	}
 
 	var parentImg *image.Image
 	var parentChainID layer.ChainID
 	if len(parent) != 0 {
-		parentImg, err = i.imageStore.Get(image.ID(parent))
+		parentImg, err = i.imageStore.Get(ctx, image.ID(parent))
 		if err != nil {
 			return "", errors.Wrap(err, "error getting specified parent layer")
 		}
@@ -329,7 +339,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 		return "", errors.Wrap(err, "error marshalling image config")
 	}
 
-	newImgID, err := i.imageStore.Create(b)
+	newImgID, err := i.imageStore.Create(ctx, b)
 	if err != nil {
 		return "", errors.Wrap(err, "error creating new image after squash")
 	}

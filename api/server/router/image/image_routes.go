@@ -144,7 +144,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		names = r.Form["names"]
 	}
 
-	if err := s.backend.ExportImage(names, output); err != nil {
+	if err := s.backend.ExportImage(ctx, names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -163,7 +163,7 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+	if err := s.backend.LoadImage(ctx, r.Body, output, quiet); err != nil {
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
@@ -191,7 +191,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := s.backend.ImageDelete(name, force, prune)
+	list, err := s.backend.ImageDelete(ctx, name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	imageInspect, err := s.backend.LookupImage(vars["name"])
+	imageInspect, err := s.backend.LookupImage(ctx, vars["name"])
 	if err != nil {
 		return err
 	}
@@ -247,7 +247,7 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 
 func (s *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	name := vars["name"]
-	history, err := s.backend.ImageHistory(name)
+	history, err := s.backend.ImageHistory(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (s *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter, 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if _, err := s.backend.TagImage(vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
+	if _, err := s.backend.TagImage(ctx, vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
