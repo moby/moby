@@ -294,18 +294,6 @@ func scanPriorDrivers(root string) map[string]bool {
 	return driversMap
 }
 
-// IsInitialized checks if the driver's home-directory exists and is non-empty.
-func IsInitialized(driverHome string) bool {
-	_, err := os.Stat(driverHome)
-	if os.IsNotExist(err) {
-		return false
-	}
-	if err != nil {
-		logrus.Warnf("graphdriver.IsInitialized: stat failed: %v", err)
-	}
-	return !isEmptyDir(driverHome)
-}
-
 // isEmptyDir checks if a directory is empty. It is used to check if prior
 // storage-driver directories exist. If an error occurs, it also assumes the
 // directory is not empty (which preserves the behavior _before_ this check
