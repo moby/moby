@@ -18,7 +18,7 @@ func (cli *Client) ContainerList(ctx context.Context, options types.ContainerLis
 		query.Set("all", "1")
 	}
 
-	if options.Limit != -1 {
+	if options.Limit > 0 {
 		query.Set("limit", strconv.Itoa(options.Limit))
 	}
 
