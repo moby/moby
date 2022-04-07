@@ -156,11 +156,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 	if !supportsDType {
-		if !graphdriver.IsInitialized(home) {
-			return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
-		}
-		// allow running without d_type only for existing setups (#27443)
-		logger.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
+		return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
 	}
 
 	cur := idtools.CurrentIdentity()
