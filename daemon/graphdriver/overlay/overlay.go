@@ -147,11 +147,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 	if !supportsDType {
-		if !graphdriver.IsInitialized(home) {
-			return nil, overlayutils.ErrDTypeNotSupported("overlay", backingFs)
-		}
-		// allow running without d_type only for existing setups (#27443)
-		logrus.WithField("storage-driver", "overlay").Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
+		return nil, overlayutils.ErrDTypeNotSupported("overlay", backingFs)
 	}
 
 	currentID := idtools.CurrentIdentity()
