@@ -40,7 +40,7 @@ func (r ContainerDecoder) DecodeHostConfig(src io.Reader) (*container.HostConfig
 // it's your business to do so
 func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	var w ContainerConfigWrapper
-	if err := json.NewDecoder(src).Decode(&w); err != nil {
+	if err := loadJSON(src, &w); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -71,4 +71,19 @@ func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Confi
 		w.Config.Volumes = make(map[string]struct{})
 	}
 	return w.Config, hc, w.NetworkingConfig, nil
+}
+
+// loadJSON is similar to api/server/httputils.ReadJSON()
+func loadJSON(src io.Reader, out interface{}) error {
+	dec := json.NewDecoder(src)
+	if err := dec.Decode(&out); err != nil {
+		if err == io.EOF {
+			return validationError("invalid JSON: got EOF while reading request body")
+		}
+		return validationError("invalid JSON: " + err.Error())
+	}
+	if dec.More() {
+		return validationError("unexpected content after JSON")
+	}
+	return nil
 }

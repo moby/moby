@@ -1,7 +1,6 @@
 package runconfig // import "github.com/docker/docker/runconfig"
 
 import (
-	"encoding/json"
 	"io"
 	"strings"
 
@@ -12,7 +11,7 @@ import (
 // It assumes the content of the reader will be JSON, and decodes it.
 func decodeHostConfig(src io.Reader) (*container.HostConfig, error) {
 	var w ContainerConfigWrapper
-	if err := json.NewDecoder(src).Decode(&w); err != nil {
+	if err := loadJSON(src, &w); err != nil {
 		return nil, err
 	}
 	return w.getHostConfig(), nil
