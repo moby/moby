@@ -603,6 +603,12 @@ func Validate(config *Config) error {
 		}
 	}
 
+	for _, h := range config.Hosts {
+		if _, err := opts.ValidateHost(h); err != nil {
+			return err
+		}
+	}
+
 	// validate platform-specific settings
 	return config.ValidatePlatformConfig()
 }
