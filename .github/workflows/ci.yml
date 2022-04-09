@@ -41,7 +41,7 @@ jobs:
             *.cache-to=type=gha,scope=build-${{ matrix.target }}
       -
         name: Upload build artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.target }}
           path: ${{ env.BUNDLES_OUTPUT }}/${{ matrix.target }}-daemon/*
@@ -92,7 +92,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
       -
         name: Download build artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: binary
           path: ./buildkit/build/moby/
