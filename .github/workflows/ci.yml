@@ -46,6 +46,7 @@ jobs:
           name: ${{ matrix.target }}
           path: ${{ env.BUNDLES_OUTPUT }}/${{ matrix.target }}-daemon/*
           if-no-files-found: error
+          retention-days: 7
 
   test-buildkit:
     needs:
