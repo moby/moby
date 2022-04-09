@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/urlutil"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -607,8 +606,8 @@ func parseURL(info logger.Info) (*url.URL, error) {
 		return nil, fmt.Errorf("%s: failed to parse %s as url value in %s", driverName, splunkURLStr, splunkURLKey)
 	}
 
-	if !urlutil.IsURL(splunkURLStr) ||
-		!splunkURL.IsAbs() ||
+	if !splunkURL.IsAbs() ||
+		(splunkURL.Scheme != "http" && splunkURL.Scheme != "https") ||
 		(splunkURL.Path != "" && splunkURL.Path != "/") ||
 		splunkURL.RawQuery != "" ||
 		splunkURL.Fragment != "" {
