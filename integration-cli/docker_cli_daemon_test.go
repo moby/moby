@@ -1672,14 +1672,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *testing.T) {
 }
 
 // FIXME(vdemeester) should be a unit test
-func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *testing.T) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-	assert.Assert(c, d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42") != nil)
-	expected := "syslog-address should be in form proto://address"
-	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
-}
-
-// FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *testing.T) {
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	assert.Assert(c, d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c") != nil)
