@@ -280,22 +280,22 @@ func parseAddress(address string) (*location, error) {
 	protocol := defaultProtocol
 	givenAddress := address
 	if urlutil.IsTransportURL(address) {
-		url, err := url.Parse(address)
+		addr, err := url.Parse(address)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid fluentd-address %s", givenAddress)
 		}
 		// unix and unixgram socket
-		if url.Scheme == "unix" || url.Scheme == "unixgram" {
+		if addr.Scheme == "unix" || addr.Scheme == "unixgram" {
 			return &location{
-				protocol: url.Scheme,
+				protocol: addr.Scheme,
 				host:     "",
 				port:     0,
-				path:     url.Path,
+				path:     addr.Path,
 			}, nil
 		}
 		// tcp|udp
-		protocol = url.Scheme
-		address = url.Host
+		protocol = addr.Scheme
+		address = addr.Host
 	}
 
 	host, port, err := net.SplitHostPort(address)
