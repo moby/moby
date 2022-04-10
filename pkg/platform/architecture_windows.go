@@ -30,10 +30,11 @@ type systeminfo struct {
 
 // Constants
 const (
-	ProcessorArchitecture64   = 9 // PROCESSOR_ARCHITECTURE_AMD64
-	ProcessorArchitectureIA64 = 6 // PROCESSOR_ARCHITECTURE_IA64
-	ProcessorArchitecture32   = 0 // PROCESSOR_ARCHITECTURE_INTEL
-	ProcessorArchitectureArm  = 5 // PROCESSOR_ARCHITECTURE_ARM
+	ProcessorArchitecture64    = 9  // PROCESSOR_ARCHITECTURE_AMD64
+	ProcessorArchitectureIA64  = 6  // PROCESSOR_ARCHITECTURE_IA64
+	ProcessorArchitecture32    = 0  // PROCESSOR_ARCHITECTURE_INTEL
+	ProcessorArchitectureArm   = 5  // PROCESSOR_ARCHITECTURE_ARM
+	ProcessorArchitectureArm64 = 12 // PROCESSOR_ARCHITECTURE_ARM64
 )
 
 // runtimeArchitecture gets the name of the current architecture (x86, x86_64, …)
@@ -47,8 +48,10 @@ func runtimeArchitecture() (string, error) {
 		return "i686", nil
 	case ProcessorArchitectureArm:
 		return "arm", nil
+	case ProcessorArchitectureArm64:
+		return "arm64", nil
 	default:
-		return "", fmt.Errorf("Unknown processor architecture")
+		return "", fmt.Errorf("unknown processor architecture %+v", sysinfo.wProcessorArchitecture)
 	}
 }
 
