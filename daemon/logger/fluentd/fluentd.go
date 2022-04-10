@@ -4,7 +4,6 @@ package fluentd // import "github.com/docker/docker/daemon/logger/fluentd"
 
 import (
 	"math"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/urlutil"
 	units "github.com/docker/go-units"
 	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/pkg/errors"
@@ -281,54 +279,45 @@ func parseAddress(address string) (*location, error) {
 		address = defaultProtocol + "://" + address
 	}
 
-	protocol := defaultProtocol
-	if urlutil.IsTransportURL(address) {
-		addr, err := url.Parse(address)
-		if err != nil {
-			return nil, err
-		}
-		// unix and unixgram socket
-		if addr.Scheme == "unix" || addr.Scheme == "unixgram" {
-			if strings.TrimLeft(addr.Path, "/") == "" {
-				return nil, errors.New("path is empty")
-			}
-			return &location{
-				protocol: addr.Scheme,
-				host:     "",
-				port:     0,
-				path:     addr.Path,
-			}, nil
-		}
-		// tcp|udp
-		protocol = addr.Scheme
-		address = addr.Host
-
-		if addr.Path != "" {
-			return nil, errors.New("should not contain a path element")
-		}
-	}
-
-	host, port, err := net.SplitHostPort(address)
-	if err != nil {
-		if !strings.Contains(err.Error(), "missing port in address") {
-			return nil, err
-		}
-		return &location{
-			protocol: protocol,
-			host:     host,
-			port:     defaultPort,
-			path:     "",
-		}, nil
-	}
-
-	portnum, err := strconv.Atoi(port)
+	addr, err := url.Parse(address)
 	if err != nil {
 		return nil, err
 	}
+
+	switch addr.Scheme {
+	case "unix", "unixgram":
+		if strings.TrimLeft(addr.Path, "/") == "" {
+			return nil, errors.New("path is empty")
+		}
+		return &location{protocol: addr.Scheme, path: addr.Path}, nil
+	case "tcp", "tcp+tls", "udp":
+		// continue processing below
+	default:
+		return nil, errors.Errorf("unsupported scheme: '%s'", addr.Scheme)
+	}
+
+	if addr.Path != "" {
+		return nil, errors.New("should not contain a path element")
+	}
+
+	host := defaultHost
+	port := defaultPort
+
+	if h := addr.Hostname(); h != "" {
+		host = h
+	}
+	if p := addr.Port(); p != "" {
+		// Port numbers are 16 bit: https://www.ietf.org/rfc/rfc793.html#section-3.1
+		portNum, err := strconv.ParseUint(p, 10, 16)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid port")
+		}
+		port = int(portNum)
+	}
 	return &location{
-		protocol: protocol,
+		protocol: addr.Scheme,
 		host:     host,
-		port:     portnum,
+		port:     port,
 		path:     "",
 	}, nil
 }

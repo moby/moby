@@ -25,13 +25,20 @@ func TestValidateLogOptReconnectInterval(t *testing.T) {
 }
 
 func TestValidateLogOptAddress(t *testing.T) {
-
-	// paths to try
+	// ports to try, and their results
+	validPorts := map[string]int{
+		"":       defaultPort,
+		":":      defaultPort,
+		":123":   123,
+		":65535": 65535,
+	}
+	// paths to try, which should result in an error
 	paths := []string{"/", "/some-path"}
 
 	tests := []struct {
 		addr        string
-		paths       []string // paths to append to addr, should be an error for tcp/udp
+		ports       map[string]int // combinations of addr + port -> expected port
+		paths       []string       // paths to append to addr, should be an error for tcp/udp
 		expected    location
 		expectedErr string
 	}{
@@ -45,26 +52,29 @@ func TestValidateLogOptAddress(t *testing.T) {
 		},
 		{
 			addr:  "192.168.1.1",
+			ports: validPorts,
 			paths: paths,
 			expected: location{
-				port:     defaultPort,
 				protocol: defaultProtocol,
+				host:     "192.168.1.1",
 			},
 		},
 		{
 			addr:  "[::1]",
+			ports: validPorts,
 			paths: paths,
 			expected: location{
-				port:     defaultPort,
 				protocol: defaultProtocol,
+				host:     "::1",
 			},
 		},
 		{
 			addr:  "example.com",
+			ports: validPorts,
 			paths: paths,
 			expected: location{
-				port:     defaultPort,
 				protocol: defaultProtocol,
+				host:     "example.com",
 			},
 		},
 		{
@@ -72,33 +82,26 @@ func TestValidateLogOptAddress(t *testing.T) {
 			paths: paths,
 			expected: location{
 				protocol: "tcp",
+				host:     defaultHost,
 				port:     defaultPort,
 			},
 		},
 		{
 			addr:  "tcp://example.com",
-			paths: paths,
-			expected: location{
-				protocol: "tcp",
-				port:     defaultPort,
-			},
-		},
-		{
-			addr:  "tcp://example.com:65535",
+			ports: validPorts,
 			paths: paths,
 			expected: location{
 				protocol: "tcp",
 				host:     "example.com",
-				port:     65535,
 			},
 		},
 		{
 			addr:        "://",
-			expectedErr: "invalid syntax",
+			expectedErr: "missing protocol scheme",
 		},
 		{
 			addr:        "something://",
-			expectedErr: "invalid syntax",
+			expectedErr: "unsupported scheme: 'something'",
 		},
 		{
 			addr:        "corrupted:c",
@@ -110,6 +113,10 @@ func TestValidateLogOptAddress(t *testing.T) {
 		},
 		{
 			addr:        "tcp://example.com:-1",
+			expectedErr: "invalid port",
+		},
+		{
+			addr:        "tcp://example.com:65536",
 			expectedErr: "invalid port",
 		},
 		{
@@ -133,26 +140,33 @@ func TestValidateLogOptAddress(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tc := tc
-		if len(tc.paths) == 0 {
-			tc.paths = []string{""}
+		if len(tc.ports) == 0 {
+			tc.ports = map[string]int{"": tc.expected.port}
 		}
-		for _, path := range tc.paths {
-			address := tc.addr + path
-			t.Run(address, func(t *testing.T) {
-				err := ValidateLogOpt(map[string]string{addressKey: address})
-				if path != "" {
-					assert.ErrorContains(t, err, "should not contain a path element")
-					return
-				}
-				if tc.expectedErr != "" {
-					assert.ErrorContains(t, err, tc.expectedErr)
-					return
-				}
 
-				assert.NilError(t, err)
-				addr, _ := parseAddress(address)
-				assert.DeepEqual(t, tc.expected, *addr, cmp.AllowUnexported(location{}))
-			})
+		// always try empty paths; add paths to try if the test specifies it
+		tc.paths = append([]string{""}, tc.paths...)
+		for port, expectedPort := range tc.ports {
+			for _, path := range tc.paths {
+				address := tc.addr + port + path
+				expected := tc.expected
+				expected.port = expectedPort
+				t.Run(address, func(t *testing.T) {
+					err := ValidateLogOpt(map[string]string{addressKey: address})
+					if path != "" {
+						assert.ErrorContains(t, err, "should not contain a path element")
+						return
+					}
+					if tc.expectedErr != "" {
+						assert.ErrorContains(t, err, tc.expectedErr)
+						return
+					}
+
+					assert.NilError(t, err)
+					addr, _ := parseAddress(address)
+					assert.DeepEqual(t, expected, *addr, cmp.AllowUnexported(location{}))
+				})
+			}
 		}
 	}
 }
