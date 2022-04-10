@@ -277,6 +277,10 @@ func parseAddress(address string) (*location, error) {
 		}, nil
 	}
 
+	if !strings.Contains(address, "://") {
+		address = defaultProtocol + "://" + address
+	}
+
 	protocol := defaultProtocol
 	if urlutil.IsTransportURL(address) {
 		addr, err := url.Parse(address)
@@ -285,6 +289,9 @@ func parseAddress(address string) (*location, error) {
 		}
 		// unix and unixgram socket
 		if addr.Scheme == "unix" || addr.Scheme == "unixgram" {
+			if strings.TrimLeft(addr.Path, "/") == "" {
+				return nil, errors.New("path is empty")
+			}
 			return &location{
 				protocol: addr.Scheme,
 				host:     "",
@@ -295,6 +302,10 @@ func parseAddress(address string) (*location, error) {
 		// tcp|udp
 		protocol = addr.Scheme
 		address = addr.Host
+
+		if addr.Path != "" {
+			return nil, errors.New("should not contain a path element")
+		}
 	}
 
 	host, port, err := net.SplitHostPort(address)

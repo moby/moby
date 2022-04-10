@@ -102,7 +102,7 @@ func TestValidateLogOptAddress(t *testing.T) {
 		},
 		{
 			addr:        "corrupted:c",
-			expectedErr: "invalid syntax",
+			expectedErr: "invalid port",
 		},
 		{
 			addr:        "tcp://example.com:port",
@@ -111,6 +111,10 @@ func TestValidateLogOptAddress(t *testing.T) {
 		{
 			addr:        "tcp://example.com:-1",
 			expectedErr: "invalid port",
+		},
+		{
+			addr:        "unix://",
+			expectedErr: "path is empty",
 		},
 		{
 			addr: "unix:///some/socket.sock",
@@ -136,6 +140,10 @@ func TestValidateLogOptAddress(t *testing.T) {
 			address := tc.addr + path
 			t.Run(address, func(t *testing.T) {
 				err := ValidateLogOpt(map[string]string{addressKey: address})
+				if path != "" {
+					assert.ErrorContains(t, err, "should not contain a path element")
+					return
+				}
 				if tc.expectedErr != "" {
 					assert.ErrorContains(t, err, tc.expectedErr)
 					return
