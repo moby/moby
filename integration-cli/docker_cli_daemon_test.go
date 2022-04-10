@@ -1671,14 +1671,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *testing.T) {
 	assert.NilError(c, err, out)
 }
 
-// FIXME(vdemeester) should be a unit test
-func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *testing.T) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-	assert.Assert(c, d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c") != nil)
-	expected := "invalid fluentd-address corrupted:c: "
-	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
-}
-
 // FIXME(vdemeester) Use a new daemon instance instead of the Suite one
 func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *testing.T) {
 	s.d.UseDefaultHost = true
