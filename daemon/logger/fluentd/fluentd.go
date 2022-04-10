@@ -285,12 +285,12 @@ func parseAddress(address string) (*location, error) {
 	}
 
 	switch addr.Scheme {
-	case "unix", "unixgram":
+	case "unix":
 		if strings.TrimLeft(addr.Path, "/") == "" {
 			return nil, errors.New("path is empty")
 		}
 		return &location{protocol: addr.Scheme, path: addr.Path}, nil
-	case "tcp", "tcp+tls", "udp":
+	case "tcp", "tls":
 		// continue processing below
 	default:
 		return nil, errors.Errorf("unsupported scheme: '%s'", addr.Scheme)

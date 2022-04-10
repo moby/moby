@@ -96,12 +96,42 @@ func TestValidateLogOptAddress(t *testing.T) {
 			},
 		},
 		{
+			addr:  "tls://",
+			paths: paths,
+			expected: location{
+				protocol: "tls",
+				host:     defaultHost,
+				port:     defaultPort,
+			},
+		},
+		{
+			addr:  "tls://example.com",
+			ports: validPorts,
+			paths: paths,
+			expected: location{
+				protocol: "tls",
+				host:     "example.com",
+			},
+		},
+		{
 			addr:        "://",
 			expectedErr: "missing protocol scheme",
 		},
 		{
 			addr:        "something://",
 			expectedErr: "unsupported scheme: 'something'",
+		},
+		{
+			addr:        "udp://",
+			expectedErr: "unsupported scheme: 'udp'",
+		},
+		{
+			addr:        "unixgram://",
+			expectedErr: "unsupported scheme: 'unixgram'",
+		},
+		{
+			addr:        "tcp+tls://",
+			expectedErr: "unsupported scheme: 'tcp+tls'",
 		},
 		{
 			addr:        "corrupted:c",
