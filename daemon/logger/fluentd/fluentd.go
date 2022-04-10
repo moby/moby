@@ -172,7 +172,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 
 	loc, err := parseAddress(cfg[addressKey])
 	if err != nil {
-		return config, err
+		return config, errors.Wrapf(err, "invalid fluentd-address (%s)", cfg[addressKey])
 	}
 
 	bufferLimit := defaultBufferLimit
@@ -278,11 +278,10 @@ func parseAddress(address string) (*location, error) {
 	}
 
 	protocol := defaultProtocol
-	givenAddress := address
 	if urlutil.IsTransportURL(address) {
 		addr, err := url.Parse(address)
 		if err != nil {
-			return nil, errors.Wrapf(err, "invalid fluentd-address %s", givenAddress)
+			return nil, err
 		}
 		// unix and unixgram socket
 		if addr.Scheme == "unix" || addr.Scheme == "unixgram" {
@@ -301,7 +300,7 @@ func parseAddress(address string) (*location, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		if !strings.Contains(err.Error(), "missing port in address") {
-			return nil, errors.Wrapf(err, "invalid fluentd-address %s", givenAddress)
+			return nil, err
 		}
 		return &location{
 			protocol: protocol,
@@ -313,7 +312,7 @@ func parseAddress(address string) (*location, error) {
 
 	portnum, err := strconv.Atoi(port)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid fluentd-address %s", givenAddress)
+		return nil, err
 	}
 	return &location{
 		protocol: protocol,
