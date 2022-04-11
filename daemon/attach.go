@@ -17,7 +17,7 @@ import (
 )
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
-func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerAttachConfig) error {
+func (daemon *Daemon) ContainerAttach(ctx context.Context, prefixOrName string, c *backend.ContainerAttachConfig) error {
 	keys := []byte{}
 	var err error
 	if c.DetachKeys != "" {
@@ -27,7 +27,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		}
 	}
 
-	ctr, err := daemon.GetContainer(prefixOrName)
+	ctr, err := daemon.GetContainer(ctx, prefixOrName)
 	if err != nil {
 		return err
 	}
@@ -78,8 +78,8 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 }
 
 // ContainerAttachRaw attaches the provided streams to the container's stdio
-func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
-	ctr, err := daemon.GetContainer(prefixOrName)
+func (daemon *Daemon) ContainerAttachRaw(ctx context.Context, prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
+	ctr, err := daemon.GetContainer(ctx, prefixOrName)
 	if err != nil {
 		return err
 	}

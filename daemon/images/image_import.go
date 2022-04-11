@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -29,7 +30,7 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (i *ImageService) ImportImage(src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (i *ImageService) ImportImage(ctx context.Context, src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
 		rc     io.ReadCloser
 		resp   *http.Response
@@ -62,7 +63,7 @@ func (i *ImageService) ImportImage(src string, repository string, platform *spec
 	if !system.IsOSSupported(platform.OS) {
 		return errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
 	}
-	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes, platform.OS)
+	config, err := dockerfile.BuildFromConfig(ctx, &container.Config{}, changes, platform.OS)
 	if err != nil {
 		return err
 	}
@@ -126,14 +127,14 @@ func (i *ImageService) ImportImage(src string, repository string, platform *spec
 		return err
 	}
 
-	id, err := i.imageStore.Create(imgConfig)
+	id, err := i.imageStore.Create(ctx, imgConfig)
 	if err != nil {
 		return err
 	}
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := i.TagImageWithReference(id, newRef); err != nil {
+		if err := i.TagImageWithReference(ctx, id, newRef); err != nil {
 			return err
 		}
 	}

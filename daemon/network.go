@@ -429,8 +429,8 @@ func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnet
 }
 
 // UpdateContainerServiceConfig updates a service configuration.
-func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error {
-	ctr, err := daemon.GetContainer(containerName)
+func (daemon *Daemon) UpdateContainerServiceConfig(ctx context.Context, containerName string, serviceConfig *clustertypes.ServiceConfig) error {
+	ctr, err := daemon.GetContainer(ctx, containerName)
 	if err != nil {
 		return err
 	}
@@ -442,18 +442,18 @@ func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, service
 // ConnectContainerToNetwork connects the given container to the given
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
-func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error {
-	ctr, err := daemon.GetContainer(containerName)
+func (daemon *Daemon) ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error {
+	ctr, err := daemon.GetContainer(ctx, containerName)
 	if err != nil {
 		return err
 	}
-	return daemon.ConnectToNetwork(ctr, networkName, endpointConfig)
+	return daemon.ConnectToNetwork(ctx, ctr, networkName, endpointConfig)
 }
 
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
-func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
-	ctr, err := daemon.GetContainer(containerName)
+func (daemon *Daemon) DisconnectContainerFromNetwork(ctx context.Context, containerName string, networkName string, force bool) error {
+	ctr, err := daemon.GetContainer(ctx, containerName)
 	if err != nil {
 		if force {
 			return daemon.ForceEndpointDelete(containerName, networkName)
@@ -774,7 +774,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 				continue
 			}
 			containerID := sb.ContainerID()
-			if err := daemon.DisconnectContainerFromNetwork(containerID, n.ID(), true); err != nil {
+			if err := daemon.DisconnectContainerFromNetwork(context.Background(), containerID, n.ID(), true); err != nil {
 				logrus.Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
 					containerID, n.Name(), err)
 			}

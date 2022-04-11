@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -73,7 +74,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	return nil
 }
 
-func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
+func (daemon *Daemon) setupIpcDirs(ctx context.Context, container *container.Container) error {
 	return nil
 }
 

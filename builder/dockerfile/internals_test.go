@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -219,6 +220,6 @@ func TestExportImage(t *testing.T) {
 		imageSources: getMockImageSource(nil, nil, nil),
 		docker:       getMockBuildBackend(),
 	}
-	err := b.exportImage(ds, layer, parentImage, runConfig)
+	err := b.exportImage(context.Background(), ds, layer, parentImage, runConfig)
 	assert.NilError(t, err)
 }

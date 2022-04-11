@@ -20,8 +20,8 @@ import (
 
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
-	SquashImage(from string, to string) (string, error)
-	TagImageWithReference(image.ID, reference.Named) error
+	SquashImage(ctx context.Context, from string, to string) (string, error)
+	TagImageWithReference(context.Context, image.ID, reference.Named) error
 }
 
 // Builder defines interface for running a build
@@ -78,7 +78,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 
 	var imageID = build.ImageID
 	if options.Squash {
-		if imageID, err = squashBuild(build, b.imageComponent); err != nil {
+		if imageID, err = squashBuild(ctx, build, b.imageComponent); err != nil {
 			return "", err
 		}
 		if config.ProgressWriter.AuxFormatter != nil {
@@ -93,7 +93,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
 	}
 	if imageID != "" {
-		err = tagger.TagImages(image.ID(imageID))
+		err = tagger.TagImages(ctx, image.ID(imageID))
 	}
 	return imageID, err
 }
@@ -117,12 +117,12 @@ func (b *Backend) Cancel(ctx context.Context, id string) error {
 	return b.buildkit.Cancel(ctx, id)
 }
 
-func squashBuild(build *builder.Result, imageComponent ImageComponent) (string, error) {
+func squashBuild(ctx context.Context, build *builder.Result, imageComponent ImageComponent) (string, error) {
 	var fromID string
 	if build.FromImage != nil {
 		fromID = build.FromImage.ImageID()
 	}
-	imageID, err := imageComponent.SquashImage(build.ImageID, fromID)
+	imageID, err := imageComponent.SquashImage(ctx, build.ImageID, fromID)
 	if err != nil {
 		return "", errors.Wrap(err, "error squashing image")
 	}

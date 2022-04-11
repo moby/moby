@@ -4,6 +4,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 // non-contiguous functionality. Please read the comments.
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -72,7 +73,7 @@ func (b *Builder) getArchiver(src, dst containerfs.Driver) Archiver {
 	}
 }
 
-func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
+func (b *Builder) commit(ctx context.Context, dispatchState *dispatchState, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -81,15 +82,15 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 	}
 
 	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, dispatchState.operatingSystem))
-	id, err := b.probeAndCreate(dispatchState, runConfigWithCommentCmd)
+	id, err := b.probeAndCreate(ctx, dispatchState, runConfigWithCommentCmd)
 	if err != nil || id == "" {
 		return err
 	}
 
-	return b.commitContainer(dispatchState, id, runConfigWithCommentCmd)
+	return b.commitContainer(ctx, dispatchState, id, runConfigWithCommentCmd)
 }
 
-func (b *Builder) commitContainer(dispatchState *dispatchState, id string, containerConfig *container.Config) error {
+func (b *Builder) commitContainer(ctx context.Context, dispatchState *dispatchState, id string, containerConfig *container.Config) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -102,12 +103,12 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 		ContainerID:     id,
 	}
 
-	imageID, err := b.docker.CommitBuildStep(commitCfg)
+	imageID, err := b.docker.CommitBuildStep(ctx, commitCfg)
 	dispatchState.imageID = string(imageID)
 	return err
 }
 
-func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
+func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
 	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
@@ -142,7 +143,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	exportedImage, err := b.docker.CreateImage(ctx, config, state.imageID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
@@ -152,7 +153,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 	return nil
 }
 
-func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
+func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst copyInstruction) error {
 	state := req.state
 	srcHash := getSourceHashFromInfos(inst.infos)
 
@@ -166,7 +167,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
 		withCmdCommentString(commentStr, state.operatingSystem))
-	hit, err := b.probeCache(state, runConfigWithCommentCmd)
+	hit, err := b.probeCache(ctx, state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
 	}
@@ -192,7 +193,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	// translated (if necessary because of user namespaces), and replace
 	// the root pair with the chown pair for copy operations
 	if inst.chownStr != "" {
-		identity, err = parseChownFlag(b, state, inst.chownStr, destInfo.root.Path(), b.idMapping)
+		identity, err = parseChownFlag(ctx, b, state, inst.chownStr, destInfo.root.Path(), b.idMapping)
 		if err != nil {
 			if b.options.Platform != "windows" {
 				return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
@@ -214,7 +215,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
-	return b.exportImage(state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
+	return b.exportImage(ctx, state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
 }
 
 func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
@@ -363,8 +364,8 @@ func getShell(c *container.Config, os string) []string {
 	return append([]string{}, c.Shell[:]...)
 }
 
-func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
-	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig)
+func (b *Builder) probeCache(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
+	cachedID, err := b.imageProber.Probe(ctx, dispatchState.imageID, runConfig)
 	if cachedID == "" || err != nil {
 		return false, err
 	}
@@ -376,18 +377,18 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
-func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *container.Config) (string, error) {
-	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
+func (b *Builder) probeAndCreate(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (string, error) {
+	if hit, err := b.probeCache(ctx, dispatchState, runConfig); err != nil || hit {
 		return "", err
 	}
-	return b.create(runConfig)
+	return b.create(ctx, runConfig)
 }
 
-func (b *Builder) create(runConfig *container.Config) (string, error) {
+func (b *Builder) create(ctx context.Context, runConfig *container.Config) (string, error) {
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(ctx, runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}

@@ -51,8 +51,8 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 }
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
-func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreateOptions) error {
-	container, err := daemon.GetContainer(name)
+func (daemon *Daemon) CheckpointCreate(ctx context.Context, name string, config types.CheckpointCreateOptions) error {
+	container, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return fmt.Errorf("cannot checkpoint container %s: %s", name, err)
 	}
 
-	err = daemon.containerd.CreateCheckpoint(context.Background(), container.ID, checkpointDir, config.Exit)
+	err = daemon.containerd.CreateCheckpoint(ctx, container.ID, checkpointDir, config.Exit)
 	if err != nil {
 		os.RemoveAll(checkpointDir)
 		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
@@ -82,8 +82,8 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 }
 
 // CheckpointDelete deletes the specified checkpoint
-func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDeleteOptions) error {
-	container, err := daemon.GetContainer(name)
+func (daemon *Daemon) CheckpointDelete(ctx context.Context, name string, config types.CheckpointDeleteOptions) error {
+	container, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -95,10 +95,10 @@ func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDelet
 }
 
 // CheckpointList lists all checkpoints of the specified container
-func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
+func (daemon *Daemon) CheckpointList(ctx context.Context, name string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
 	var out []types.Checkpoint
 
-	container, err := daemon.GetContainer(name)
+	container, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return nil, err
 	}

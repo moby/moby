@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"strings"
@@ -116,9 +117,9 @@ func merge(userConf, imageConf *containertypes.Config) error {
 // CreateImageFromContainer creates a new image from a container. The container
 // config will be updated by applying the change set to the custom config, then
 // applying that config over the existing container config.
-func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateImageConfig) (string, error) {
+func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string, c *backend.CreateImageConfig) (string, error) {
 	start := time.Now()
-	container, err := daemon.GetContainer(name)
+	container, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return "", err
 	}
@@ -139,14 +140,14 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 	}
 
 	if c.Pause && !container.IsPaused() {
-		daemon.containerPause(container)
-		defer daemon.containerUnpause(container)
+		daemon.containerPause(ctx, container)
+		defer daemon.containerUnpause(ctx, container)
 	}
 
 	if c.Config == nil {
 		c.Config = container.Config
 	}
-	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes, container.OS)
+	newConfig, err := dockerfile.BuildFromConfig(ctx, c.Config, c.Changes, container.OS)
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +155,7 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 		return "", err
 	}
 
-	id, err := daemon.imageService.CommitImage(backend.CommitConfig{
+	id, err := daemon.imageService.CommitImage(ctx, backend.CommitConfig{
 		Author:              c.Author,
 		Comment:             c.Comment,
 		Config:              newConfig,
@@ -170,7 +171,7 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 
 	var imageRef string
 	if c.Repo != "" {
-		imageRef, err = daemon.imageService.TagImage(string(id), c.Repo, c.Tag)
+		imageRef, err = daemon.imageService.TagImage(ctx, string(id), c.Repo, c.Tag)
 		if err != nil {
 			return "", err
 		}

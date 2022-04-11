@@ -10,7 +10,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config, p *specs.Process) error {
+func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, c *container.Container, ec *exec.Config, p *specs.Process) error {
 	if len(ec.User) > 0 {
 		var err error
 		p.User, err = getUser(c, ec.User)
@@ -51,5 +51,5 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 		p.ApparmorProfile = appArmorProfile
 	}
 	s := &specs.Spec{Process: p}
-	return WithRlimits(daemon, c)(context.Background(), nil, nil, s)
+	return WithRlimits(daemon, c)(ctx, nil, nil, s)
 }

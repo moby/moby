@@ -9,17 +9,17 @@ import (
 )
 
 // ContainerPause pauses a container
-func (daemon *Daemon) ContainerPause(name string) error {
-	ctr, err := daemon.GetContainer(name)
+func (daemon *Daemon) ContainerPause(ctx context.Context, name string) error {
+	ctr, err := daemon.GetContainer(ctx, name)
 	if err != nil {
 		return err
 	}
-	return daemon.containerPause(ctr)
+	return daemon.containerPause(ctx, ctr)
 }
 
 // containerPause pauses the container execution without stopping the process.
 // The execution can be resumed by calling containerUnpause.
-func (daemon *Daemon) containerPause(container *container.Container) error {
+func (daemon *Daemon) containerPause(ctx context.Context, container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -38,8 +38,8 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 		return errContainerIsRestarting(container.ID)
 	}
 
-	if err := daemon.containerd.Pause(context.Background(), container.ID); err != nil {
-		return fmt.Errorf("Cannot pause container %s: %s", container.ID, err)
+	if err := daemon.containerd.Pause(ctx, container.ID); err != nil {
+		return fmt.Errorf("cannot pause container %s: %s", container.ID, err)
 	}
 
 	container.Paused = true

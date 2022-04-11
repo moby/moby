@@ -59,12 +59,11 @@ func (m mounts) parts(i int) int {
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 // 4. Cleanup old volumes that are about to be reassigned.
-func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
+func (daemon *Daemon) registerMountPoints(ctx context.Context, container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volumemounts.MountPoint{}
 	parser := volumemounts.NewParser()
 
-	ctx := context.TODO()
 	defer func() {
 		// clean up the container mountpoints once return with error
 		if retErr != nil {
@@ -72,18 +71,20 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				if m.Volume == nil {
 					continue
 				}
-				daemon.volumes.Release(ctx, m.Volume.Name(), container.ID)
+				// ctx might be done so we can't use it for cleanup.
+				daemon.volumes.Release(context.TODO(), m.Volume.Name(), container.ID)
 			}
 		}
 	}()
 
-	dereferenceIfExists := func(destination string) {
+	dereferenceIfExists := func(ctx context.Context, destination string) error {
 		if v, ok := mountPoints[destination]; ok {
 			logrus.Debugf("Duplicate mount point '%s'", destination)
 			if v.Volume != nil {
-				daemon.volumes.Release(ctx, v.Volume.Name(), container.ID)
+				return daemon.volumes.Release(ctx, v.Volume.Name(), container.ID)
 			}
 		}
+		return nil
 	}
 
 	// 1. Read already configured mount points.
@@ -98,7 +99,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			return errdefs.InvalidParameter(err)
 		}
 
-		c, err := daemon.GetContainer(containerID)
+		c, err := daemon.GetContainer(ctx, containerID)
 		if err != nil {
 			return errdefs.InvalidParameter(err)
 		}
@@ -123,7 +124,9 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				}
 				cp.Volume = &volumeWrapper{v: v, s: daemon.volumes}
 			}
-			dereferenceIfExists(cp.Destination)
+			if err := dereferenceIfExists(ctx, cp.Destination); err != nil {
+				return err
+			}
 			mountPoints[cp.Destination] = cp
 		}
 	}
@@ -164,7 +167,9 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		binds[bind.Destination] = true
-		dereferenceIfExists(bind.Destination)
+		if err := dereferenceIfExists(ctx, bind.Destination); err != nil {
+			return err
+		}
 		mountPoints[bind.Destination] = bind
 	}
 
@@ -222,7 +227,9 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		binds[mp.Destination] = true
-		dereferenceIfExists(mp.Destination)
+		if err := dereferenceIfExists(ctx, mp.Destination); err != nil {
+			return err
+		}
 		mountPoints[mp.Destination] = mp
 	}
 
@@ -261,7 +268,7 @@ func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volumemounts.M
 // The container lock should not be held when calling this function.
 // Changes are only made in-memory and may make changes to containers referenced
 // by `container.HostConfig.VolumesFrom`
-func (daemon *Daemon) backportMountSpec(container *container.Container) {
+func (daemon *Daemon) backportMountSpec(ctx context.Context, container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -273,7 +280,7 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 		maybeUpdate[mp.Destination] = true
 	}
 	if len(maybeUpdate) == 0 {
-		return
+		return nil
 	}
 
 	mountSpecs := make(map[string]bool, len(container.HostConfig.Mounts))
@@ -299,14 +306,20 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 			logrus.WithError(err).WithField("id", container.ID).Error("Error reading volumes-from spec during mount spec backport")
 			continue
 		}
-		fromC, err := daemon.GetContainer(from)
+		fromC, err := daemon.GetContainer(ctx, from)
 		if err != nil {
+			if err := ctx.Err(); err != nil {
+				// Assume the error from GetContainer was a context-done error.
+				return err
+			}
 			logrus.WithError(err).WithField("from-container", from).Error("Error looking up volumes-from container")
 			continue
 		}
 
 		// make sure from container's specs have been backported
-		daemon.backportMountSpec(fromC)
+		if err := daemon.backportMountSpec(ctx, fromC); err != nil {
+			return err
+		}
 
 		fromC.Lock()
 		for t, mp := range fromC.MountPoints {
@@ -376,6 +389,7 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 		cm.Spec.Target = cm.Destination
 		cm.Spec.ReadOnly = !cm.RW
 	}
+	return nil
 }
 
 // VolumesService is used to perform volume operations

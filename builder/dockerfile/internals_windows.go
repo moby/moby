@@ -2,6 +2,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,15 +15,15 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func parseChownFlag(builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping idtools.IdentityMapping) (idtools.Identity, error) {
+func parseChownFlag(ctx context.Context, builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping idtools.IdentityMapping) (idtools.Identity, error) {
 	if builder.options.Platform == "windows" {
-		return getAccountIdentity(builder, chown, ctrRootPath, state)
+		return getAccountIdentity(ctx, builder, chown, ctrRootPath, state)
 	}
 
 	return identityMapping.RootPair(), nil
 }
 
-func getAccountIdentity(builder *Builder, accountName string, ctrRootPath string, state *dispatchState) (idtools.Identity, error) {
+func getAccountIdentity(ctx context.Context, builder *Builder, accountName string, ctrRootPath string, state *dispatchState) (idtools.Identity, error) {
 	// If this is potentially a string SID then attempt to convert it to verify
 	// this, otherwise continue looking for the account.
 	if strings.HasPrefix(accountName, "S-") || strings.HasPrefix(accountName, "s-") {
@@ -51,10 +52,10 @@ func getAccountIdentity(builder *Builder, accountName string, ctrRootPath string
 
 	// All other lookups failed, so therefore determine if the account in
 	// question exists in the container and if so, obtain its SID.
-	return lookupNTAccount(builder, accountName, state)
+	return lookupNTAccount(ctx, builder, accountName, state)
 }
 
-func lookupNTAccount(builder *Builder, accountName string, state *dispatchState) (idtools.Identity, error) {
+func lookupNTAccount(ctx context.Context, builder *Builder, accountName string, state *dispatchState) (idtools.Identity, error) {
 
 	source, _ := filepath.Split(os.Args[0])
 
@@ -81,7 +82,7 @@ func lookupNTAccount(builder *Builder, accountName string, state *dispatchState)
 	},
 	}
 
-	container, err := builder.containerManager.Create(runConfig, hostConfig)
+	container, err := builder.containerManager.Create(ctx, runConfig, hostConfig)
 	if err != nil {
 		return idtools.Identity{}, err
 	}
@@ -89,7 +90,7 @@ func lookupNTAccount(builder *Builder, accountName string, state *dispatchState)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
-	if err := builder.containerManager.Run(builder.clientCtx, container.ID, stdout, stderr); err != nil {
+	if err := builder.containerManager.Run(ctx, container.ID, stdout, stderr); err != nil {
 		if err, ok := err.(*statusCodeError); ok {
 			return idtools.Identity{}, &jsonmessage.JSONError{
 				Message: stderr.String(),

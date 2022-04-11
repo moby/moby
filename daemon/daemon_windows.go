@@ -69,7 +69,7 @@ func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.Containe
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
+func (daemon *Daemon) adaptContainerSettings(ctx context.Context, hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
 	return nil
 }
 
@@ -421,7 +421,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 
 // registerLinks sets up links between containers and writes the
 // configuration out for persistence. As of Windows TP4, links are not supported.
-func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) registerLinks(ctx context.Context, container *container.Container, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 
@@ -487,13 +487,13 @@ func driverOptions(_ *config.Config) nwconfig.Option {
 	return nil
 }
 
-func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
+func (daemon *Daemon) stats(ctx context.Context, c *container.Container) (*types.StatsJSON, error) {
 	if !c.IsRunning() {
 		return nil, errNotRunning(c.ID)
 	}
 
 	// Obtain the stats from HCS via libcontainerd
-	stats, err := daemon.containerd.Stats(context.Background(), c.ID)
+	stats, err := daemon.containerd.Stats(ctx, c.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
 			return nil, containerNotFound(c.ID)

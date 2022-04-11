@@ -57,7 +57,10 @@ func (s *systemRouter) swarmStatus() string {
 }
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	info := s.backend.SystemInfo()
+	info, err := s.backend.SystemInfo(ctx)
+	if err != nil {
+		return err
+	}
 
 	if s.cluster != nil {
 		info.Swarm = s.cluster.Info()
@@ -101,7 +104,10 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 }
 
 func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	info := s.backend.SystemVersion()
+	info, err := s.backend.SystemVersion(ctx)
+	if err != nil {
+		return err
+	}
 
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }

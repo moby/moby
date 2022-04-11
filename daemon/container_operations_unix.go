@@ -4,6 +4,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,10 +58,10 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	return env, nil
 }
 
-func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
+func (daemon *Daemon) getIpcContainer(ctx context.Context, id string) (*container.Container, error) {
 	errMsg := "can't join IPC of container " + id
 	// Check the container exists
-	ctr, err := daemon.GetContainer(id)
+	ctr, err := daemon.GetContainer(ctx, id)
 	if err != nil {
 		return nil, errors.Wrap(err, errMsg)
 	}
@@ -80,9 +81,9 @@ func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
 	return ctr, nil
 }
 
-func (daemon *Daemon) getPidContainer(ctr *container.Container) (*container.Container, error) {
+func (daemon *Daemon) getPidContainer(ctx context.Context, ctr *container.Container) (*container.Container, error) {
 	containerID := ctr.HostConfig.PidMode.Container()
-	ctr, err := daemon.GetContainer(containerID)
+	ctr, err := daemon.GetContainer(ctx, containerID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot join PID of a non running container: %s", containerID)
 	}
@@ -103,12 +104,12 @@ func containerIsNotRestarting(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
+func (daemon *Daemon) setupIpcDirs(ctx context.Context, c *container.Container) error {
 	ipcMode := c.HostConfig.IpcMode
 
 	switch {
 	case ipcMode.IsContainer():
-		ic, err := daemon.getIpcContainer(ipcMode.Container())
+		ic, err := daemon.getIpcContainer(ctx, ipcMode.Container())
 		if err != nil {
 			return err
 		}

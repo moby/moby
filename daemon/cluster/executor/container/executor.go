@@ -58,7 +58,10 @@ func NewExecutor(b executorpkg.Backend, p plugin.Backend, i executorpkg.ImageBac
 
 // Describe returns the underlying node description from the docker client.
 func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
-	info := e.backend.SystemInfo()
+	info, err := e.backend.SystemInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	plugins := map[api.PluginDescription]struct{}{}
 	addPlugins := func(typ string, names []string) {
@@ -79,7 +82,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	addPlugins("Log", info.Plugins.Log)
 
 	// add v2 plugins
-	v2Plugins, err := e.backend.PluginManager().List(filters.NewArgs())
+	v2Plugins, err := e.backend.PluginManager().List(ctx, filters.NewArgs())
 	if err == nil {
 		for _, plgn := range v2Plugins {
 			for _, typ := range plgn.Config.Interface.Types {

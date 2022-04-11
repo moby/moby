@@ -190,7 +190,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	configDigest := digest.FromBytes(config)
 
 	configDone := oneOffProgress(ctx, fmt.Sprintf("writing image %s", configDigest))
-	id, err := e.opt.ImageStore.Create(config)
+	id, err := e.opt.ImageStore.Create(ctx, config)
 	if err != nil {
 		return nil, configDone(err)
 	}

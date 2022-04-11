@@ -278,14 +278,14 @@ func (daemon *Daemon) restore() error {
 
 			log := logrus.WithField("container", c.ID)
 
-			if err := daemon.registerName(c); err != nil {
+			if err := daemon.registerName(context.Background(), c); err != nil {
 				log.WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
-			if err := daemon.Register(c); err != nil {
+			if err := daemon.Register(context.Background(), c); err != nil {
 				log.WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
@@ -305,7 +305,7 @@ func (daemon *Daemon) restore() error {
 
 			log := logrus.WithField("container", c.ID)
 
-			daemon.backportMountSpec(c)
+			daemon.backportMountSpec(context.Background(), c)
 			if err := daemon.checkpointAndSave(c); err != nil {
 				log.WithError(err).Error("error saving backported mountspec to disk")
 			}
@@ -350,7 +350,7 @@ func (daemon *Daemon) restore() error {
 				}
 			} else if !daemon.configStore.LiveRestoreEnabled {
 				logger(c).Debug("shutting down container considered alive by containerd")
-				if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
+				if err := daemon.shutdownContainer(context.Background(), c); err != nil && !errdefs.IsNotFound(err) {
 					log.WithError(err).Error("error shutting down container")
 					return
 				}
@@ -399,7 +399,7 @@ func (daemon *Daemon) restore() error {
 					logger(c).Debug("setting stopped state")
 					c.Lock()
 					c.SetStopped(&container.ExitStatus{ExitCode: int(ec), ExitedAt: exitedAt})
-					daemon.Cleanup(c)
+					daemon.Cleanup(context.Background(), c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 						log.WithError(err).Error("failed to update stopped container state")
 					}
@@ -487,7 +487,7 @@ func (daemon *Daemon) restore() error {
 		go func(c *container.Container) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			if err := daemon.registerLinks(c, c.HostConfig); err != nil {
+			if err := daemon.registerLinks(context.Background(), c, c.HostConfig); err != nil {
 				logrus.WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
 
@@ -521,7 +521,7 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			if err := daemon.containerStart(c, "", "", true); err != nil {
+			if err := daemon.containerStart(context.Background(), c, "", "", true); err != nil {
 				log.WithError(err).Error("failed to start container")
 			}
 			close(chNotify)
@@ -537,7 +537,7 @@ func (daemon *Daemon) restore() error {
 		go func(cid string) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			if err := daemon.ContainerRm(cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+			if err := daemon.ContainerRm(context.Background(), cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				logrus.WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
@@ -612,7 +612,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 						return
 					}
 
-					if err := daemon.containerStart(c, "", "", true); err != nil {
+					if err := daemon.containerStart(ctx, c, "", "", true); err != nil {
 						logrus.WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 					}
 
@@ -969,7 +969,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	imageStore, err := image.NewImageStore(ifs, layerStore)
+	imageStore, err := image.NewImageStore(ctx, ifs, layerStore)
 	if err != nil {
 		return nil, err
 	}
@@ -1086,7 +1086,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	close(d.startupDone)
 
-	info := d.SystemInfo()
+	info, err := d.SystemInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	engineInfo.WithValues(
 		dockerversion.Version,
@@ -1120,18 +1123,15 @@ func (daemon *Daemon) waitForStartupDone() {
 	<-daemon.startupDone
 }
 
-func (daemon *Daemon) shutdownContainer(c *container.Container) error {
+func (daemon *Daemon) shutdownContainer(ctx context.Context, c *container.Container) error {
 	stopTimeout := c.StopTimeout()
 
 	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, stopTimeout); err != nil {
-		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
+	if err := daemon.containerStop(ctx, c, stopTimeout); err != nil {
+		return fmt.Errorf("%s: failed to stop container: %w", c.ID, err)
 	}
 
-	// Wait without timeout for the container to exit.
-	// Ignore the result.
-	<-c.Wait(context.Background(), container.WaitConditionNotRunning)
-	return nil
+	return (<-c.Wait(ctx, container.WaitConditionNotRunning)).Err()
 }
 
 // ShutdownTimeout returns the timeout (in seconds) before containers are forcibly
@@ -1171,7 +1171,7 @@ func (daemon *Daemon) Shutdown() error {
 
 	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
-		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+		if ls, err := daemon.Containers(context.TODO(), &types.ContainerListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
 			daemon.cleanupMetricsPlugins()
 			return nil
@@ -1187,7 +1187,7 @@ func (daemon *Daemon) Shutdown() error {
 			}
 			log := logrus.WithField("container", c.ID)
 			log.Debug("shutting down container")
-			if err := daemon.shutdownContainer(c); err != nil {
+			if err := daemon.shutdownContainer(context.TODO(), c); err != nil {
 				log.WithError(err).Error("failed to shut down container")
 				return
 			}

@@ -6,6 +6,7 @@ package daemon
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
@@ -25,7 +26,7 @@ func TestExecResizeNoSuchExec(t *testing.T) {
 		ID: n,
 	}
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize("nil", 24, 8)
+	err := d.ContainerExecResize(context.Background(), "nil", 24, 8)
 	assert.ErrorContains(t, err, "No such exec instance")
 }
 
@@ -68,7 +69,7 @@ func TestExecResize(t *testing.T) {
 	}
 	d.containers.Add(n, c)
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize(n, height, width)
+	err := d.ContainerExecResize(context.Background(), n, height, width)
 	assert.NilError(t, err)
 	assert.Equal(t, mc.Width, width)
 	assert.Equal(t, mc.Height, height)
@@ -77,7 +78,6 @@ func TestExecResize(t *testing.T) {
 }
 
 // This test is to make sure that when exec context is not ready, a timeout error should happen.
-// TODO: the expect running time for this test is 10s, which would be too long for unit test.
 func TestExecResizeTimeout(t *testing.T) {
 	n := "TestExecResize"
 	width := 24
@@ -99,6 +99,9 @@ func TestExecResizeTimeout(t *testing.T) {
 	}
 	d.containers.Add(n, c)
 	d.registerExecCommand(c, ec)
-	err := d.ContainerExecResize(n, height, width)
-	assert.ErrorContains(t, err, "timeout waiting for exec session ready")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	err := d.ContainerExecResize(ctx, n, height, width)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }

@@ -25,8 +25,8 @@ type DiskUsageOptions struct {
 // Backend is the methods that need to be implemented to provide
 // system specific functionality.
 type Backend interface {
-	SystemInfo() *types.Info
-	SystemVersion() types.Version
+	SystemInfo(context.Context) (*types.Info, error)
+	SystemVersion(context.Context) (types.Version, error)
 	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*types.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})

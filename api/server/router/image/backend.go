@@ -20,18 +20,18 @@ type Backend interface {
 }
 
 type imageBackend interface {
-	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
-	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
+	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
+	ImageHistory(ctx context.Context, imageName string) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
-	LookupImage(name string) (*types.ImageInspect, error)
-	TagImage(imageName, repository, tag string) (string, error)
+	LookupImage(ctx context.Context, name string) (*types.ImageInspect, error)
+	TagImage(ctx context.Context, imageName, repository, tag string) (string, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 }
 
 type importExportBackend interface {
-	LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error
-	ImportImage(src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
-	ExportImage(names []string, outStream io.Writer) error
+	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
+	ImportImage(ctx context.Context, src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
+	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
 }
 
 type registryBackend interface {

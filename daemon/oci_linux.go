@@ -241,7 +241,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			ns := specs.LinuxNamespace{Type: "network"}
 			parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
 			if parts[0] == "container" {
-				nc, err := daemon.getNetworkedContainer(c.ID, c.HostConfig.NetworkMode.ConnectedContainer())
+				nc, err := daemon.getNetworkedContainer(ctx, c.ID, c.HostConfig.NetworkMode.ConnectedContainer())
 				if err != nil {
 					return err
 				}
@@ -263,7 +263,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		switch {
 		case ipcMode.IsContainer():
 			ns := specs.LinuxNamespace{Type: "ipc"}
-			ic, err := daemon.getIpcContainer(ipcMode.Container())
+			ic, err := daemon.getIpcContainer(ctx, ipcMode.Container())
 			if err != nil {
 				return err
 			}
@@ -290,7 +290,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// pid
 		if c.HostConfig.PidMode.IsContainer() {
-			pc, err := daemon.getPidContainer(c)
+			pc, err := daemon.getPidContainer(ctx, c)
 			if err != nil {
 				return err
 			}
@@ -489,7 +489,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			return err
 		}
 
-		if err := daemon.setupIpcDirs(c); err != nil {
+		if err := daemon.setupIpcDirs(ctx, c); err != nil {
 			return err
 		}
 
@@ -998,7 +998,7 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, err error) {
+func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (retSpec *specs.Spec, err error) {
 	var (
 		opts []coci.SpecOpts
 		s    = oci.DefaultSpec()
@@ -1034,7 +1034,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if daemon.configStore.Rootless {
 		opts = append(opts, WithRootless(daemon))
 	}
-	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
+	return &s, coci.ApplyOpts(ctx, nil, &containers.Container{
 		ID: c.ID,
 	}, &s, opts...)
 }

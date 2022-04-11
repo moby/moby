@@ -58,7 +58,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		Changes: r.Form["changes"],
 	}
 
-	imgID, err := s.backend.CreateImageFromContainer(r.Form.Get("container"), commitCfg)
+	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), commitCfg)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		config.Limit = limit
 	}
 
-	containers, err := s.backend.Containers(config)
+	containers, err := s.backend.Containers(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 }
 
 func (s *containerRouter) getContainersExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.backend.ContainerExport(vars["name"], w)
+	return s.backend.ContainerExport(ctx, vars["name"], w)
 }
 
 type bodyOnStartError struct{}
@@ -208,7 +208,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 
 	checkpoint := r.Form.Get("checkpoint")
 	checkpointDir := r.Form.Get("checkpoint-dir")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
+	if err := s.backend.ContainerStart(ctx, vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
 		return err
 	}
 
@@ -230,7 +230,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 		seconds = &valSeconds
 	}
 
-	if err := s.backend.ContainerStop(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerStop(ctx, vars["name"], seconds); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -254,7 +254,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		}
 	}
 
-	if err := s.backend.ContainerKill(name, uint64(sig)); err != nil {
+	if err := s.backend.ContainerKill(ctx, name, uint64(sig)); err != nil {
 		var isStopped bool
 		if errdefs.IsConflict(err) {
 			isStopped = true
@@ -287,7 +287,7 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		seconds = &valSeconds
 	}
 
-	if err := s.backend.ContainerRestart(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerRestart(ctx, vars["name"], seconds); err != nil {
 		return err
 	}
 
@@ -301,7 +301,7 @@ func (s *containerRouter) postContainersPause(ctx context.Context, w http.Respon
 		return err
 	}
 
-	if err := s.backend.ContainerPause(vars["name"]); err != nil {
+	if err := s.backend.ContainerPause(ctx, vars["name"]); err != nil {
 		return err
 	}
 
@@ -315,7 +315,7 @@ func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.Resp
 		return err
 	}
 
-	if err := s.backend.ContainerUnpause(vars["name"]); err != nil {
+	if err := s.backend.ContainerUnpause(ctx, vars["name"]); err != nil {
 		return err
 	}
 
@@ -388,7 +388,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 }
 
 func (s *containerRouter) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	changes, err := s.backend.ContainerChanges(vars["name"])
+	changes, err := s.backend.ContainerChanges(ctx, vars["name"])
 	if err != nil {
 		return err
 	}
@@ -401,7 +401,7 @@ func (s *containerRouter) getContainersTop(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	procList, err := s.backend.ContainerTop(vars["name"], r.Form.Get("ps_args"))
+	procList, err := s.backend.ContainerTop(ctx, vars["name"], r.Form.Get("ps_args"))
 	if err != nil {
 		return err
 	}
@@ -416,7 +416,7 @@ func (s *containerRouter) postContainerRename(ctx context.Context, w http.Respon
 
 	name := vars["name"]
 	newName := r.Form.Get("name")
-	if err := s.backend.ContainerRename(name, newName); err != nil {
+	if err := s.backend.ContainerRename(ctx, name, newName); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -460,7 +460,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	}
 
 	name := vars["name"]
-	resp, err := s.backend.ContainerUpdate(name, hostConfig)
+	resp, err := s.backend.ContainerUpdate(ctx, name, hostConfig)
 	if err != nil {
 		return err
 	}
@@ -536,7 +536,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
-	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
+	ccr, err := s.backend.ContainerCreate(ctx, types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,
 		HostConfig:       hostConfig,
@@ -563,7 +563,7 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 		RemoveLink:   httputils.BoolValue(r, "link"),
 	}
 
-	if err := s.backend.ContainerRm(name, config); err != nil {
+	if err := s.backend.ContainerRm(ctx, name, config); err != nil {
 		return err
 	}
 
@@ -586,7 +586,7 @@ func (s *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 		return errdefs.InvalidParameter(err)
 	}
 
-	return s.backend.ContainerResize(vars["name"], height, width)
+	return s.backend.ContainerResize(ctx, vars["name"], height, width)
 }
 
 func (s *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -637,7 +637,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		MuxStreams: true,
 	}
 
-	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {
+	if err = s.backend.ContainerAttach(ctx, containerName, attachConfig); err != nil {
 		logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
@@ -700,7 +700,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		MuxStreams: false, // TODO: this should be true since it's a single stream for both stdout and stderr
 	}
 
-	err = s.backend.ContainerAttach(containerName, attachConfig)
+	err = s.backend.ContainerAttach(ctx, containerName, attachConfig)
 	close(done)
 	select {
 	case <-started:

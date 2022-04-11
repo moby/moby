@@ -28,8 +28,8 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 }
 
 // Create a container
-func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
-	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(types.ContainerCreateConfig{
+func (c *containerManager) Create(ctx context.Context, runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
+	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(ctx, types.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,
 	})
@@ -47,7 +47,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 	attached := make(chan struct{})
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- c.backend.ContainerAttachRaw(cID, nil, stdout, stderr, true, attached)
+		errCh <- c.backend.ContainerAttachRaw(ctx, cID, nil, stdout, stderr, true, attached)
 	}()
 	select {
 	case err := <-errCh:
@@ -61,15 +61,15 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		select {
 		case <-ctx.Done():
 			logrus.Debugln("Build cancelled, killing and removing container:", cID)
-			c.backend.ContainerKill(cID, 0)
-			c.removeContainer(cID, stdout)
+			c.backend.ContainerKill(context.TODO(), cID, 0)
+			c.removeContainer(context.TODO(), cID, stdout)
 			cancelErrCh <- errCancelled
 		case <-finished:
 			cancelErrCh <- nil
 		}
 	}()
 
-	if err := c.backend.ContainerStart(cID, nil, "", ""); err != nil {
+	if err := c.backend.ContainerStart(ctx, cID, nil, "", ""); err != nil {
 		close(finished)
 		logCancellationError(cancelErrCh, "error from ContainerStart: "+err.Error())
 		return err
@@ -122,12 +122,12 @@ func (e *statusCodeError) StatusCode() int {
 	return e.code
 }
 
-func (c *containerManager) removeContainer(containerID string, stdout io.Writer) error {
+func (c *containerManager) removeContainer(ctx context.Context, containerID string, stdout io.Writer) error {
 	rmConfig := &types.ContainerRmConfig{
 		ForceRemove:  true,
 		RemoveVolume: true,
 	}
-	if err := c.backend.ContainerRm(containerID, rmConfig); err != nil {
+	if err := c.backend.ContainerRm(ctx, containerID, rmConfig); err != nil {
 		fmt.Fprintf(stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(containerID), err)
 		return err
 	}
@@ -135,9 +135,9 @@ func (c *containerManager) removeContainer(containerID string, stdout io.Writer)
 }
 
 // RemoveAll containers managed by this container manager
-func (c *containerManager) RemoveAll(stdout io.Writer) {
+func (c *containerManager) RemoveAll(ctx context.Context, stdout io.Writer) {
 	for containerID := range c.tmpContainers {
-		if err := c.removeContainer(containerID, stdout); err != nil {
+		if err := c.removeContainer(ctx, containerID, stdout); err != nil {
 			return
 		}
 		delete(c.tmpContainers, containerID)

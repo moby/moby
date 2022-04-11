@@ -75,7 +75,7 @@ const (
 )
 
 type containerGetter interface {
-	GetContainer(string) (*container.Container, error)
+	GetContainer(context.Context, string) (*container.Container, error)
 }
 
 func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
@@ -304,7 +304,7 @@ func adjustParallelLimit(n int, limit int) int {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
+func (daemon *Daemon) adaptContainerSettings(ctx context.Context, hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
 	if adjustCPUShares && hostConfig.CPUShares > 0 {
 		// Handle unsupported CPUShares
 		if hostConfig.CPUShares < linuxMinCPUShares {
@@ -352,10 +352,10 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		}
 	}
 
-	adaptSharedNamespaceContainer(daemon, hostConfig)
+	adaptSharedNamespaceContainer(ctx, daemon, hostConfig)
 
 	var err error
-	secOpts, err := daemon.generateSecurityOpt(hostConfig)
+	secOpts, err := daemon.generateSecurityOpt(ctx, hostConfig)
 	if err != nil {
 		return err
 	}
@@ -374,28 +374,29 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 //
 // When a container shares its namespace with another container, use ID can keep the namespace
 // sharing connection between the two containers even the another container is renamed.
-func adaptSharedNamespaceContainer(daemon containerGetter, hostConfig *containertypes.HostConfig) {
+func adaptSharedNamespaceContainer(ctx context.Context, daemon containerGetter, hostConfig *containertypes.HostConfig) error {
 	containerPrefix := "container:"
 	if hostConfig.PidMode.IsContainer() {
 		pidContainer := hostConfig.PidMode.Container()
 		// if there is any error returned here, we just ignore it and leave it to be
 		// handled in the following logic
-		if c, err := daemon.GetContainer(pidContainer); err == nil {
+		if c, err := daemon.GetContainer(ctx, pidContainer); err == nil {
 			hostConfig.PidMode = containertypes.PidMode(containerPrefix + c.ID)
 		}
 	}
 	if hostConfig.IpcMode.IsContainer() {
 		ipcContainer := hostConfig.IpcMode.Container()
-		if c, err := daemon.GetContainer(ipcContainer); err == nil {
+		if c, err := daemon.GetContainer(ctx, ipcContainer); err == nil {
 			hostConfig.IpcMode = containertypes.IpcMode(containerPrefix + c.ID)
 		}
 	}
 	if hostConfig.NetworkMode.IsContainer() {
 		netContainer := hostConfig.NetworkMode.ConnectedContainer()
-		if c, err := daemon.GetContainer(netContainer); err == nil {
+		if c, err := daemon.GetContainer(ctx, netContainer); err == nil {
 			hostConfig.NetworkMode = containertypes.NetworkMode(containerPrefix + c.ID)
 		}
 	}
+	return ctx.Err()
 }
 
 // verifyPlatformContainerResources performs platform-specific validation of the container's resource-configuration
@@ -1301,7 +1302,7 @@ func getUnmountOnShutdownPath(config *config.Config) string {
 }
 
 // registerLinks writes the links to a file.
-func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) registerLinks(ctx context.Context, container *container.Container, hostConfig *containertypes.HostConfig) error {
 	if hostConfig == nil || hostConfig.NetworkMode.IsUserDefined() {
 		return nil
 	}
@@ -1311,7 +1312,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		if err != nil {
 			return err
 		}
-		child, err := daemon.GetContainer(name)
+		child, err := daemon.GetContainer(ctx, name)
 		if err != nil {
 			if errdefs.IsNotFound(err) {
 				// Trying to link to a non-existing container is not valid, and
@@ -1324,7 +1325,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		}
 		for child.HostConfig.NetworkMode.IsContainer() {
 			parts := strings.SplitN(string(child.HostConfig.NetworkMode), ":", 2)
-			child, err = daemon.GetContainer(parts[1])
+			child, err = daemon.GetContainer(ctx, parts[1])
 			if err != nil {
 				if errdefs.IsNotFound(err) {
 					// Trying to link to a non-existing container is not valid, and
@@ -1375,11 +1376,11 @@ func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []types.BlkioStatEntry {
 	return out
 }
 
-func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
+func (daemon *Daemon) stats(ctx context.Context, c *container.Container) (*types.StatsJSON, error) {
 	if !c.IsRunning() {
 		return nil, errNotRunning(c.ID)
 	}
-	cs, err := daemon.containerd.Stats(context.Background(), c.ID)
+	cs, err := daemon.containerd.Stats(ctx, c.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
 			return nil, containerNotFound(c.ID)

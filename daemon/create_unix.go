@@ -20,7 +20,7 @@ import (
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
-func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 	if err := daemon.Mount(container); err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := daemon.volumes.Create(context.TODO(), name, hostConfig.VolumeDriver, volumeopts.WithCreateReference(container.ID))
+		v, err := daemon.volumes.Create(ctx, name, hostConfig.VolumeDriver, volumeopts.WithCreateReference(container.ID))
 		if err != nil {
 			return err
 		}
