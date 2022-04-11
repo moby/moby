@@ -2,8 +2,6 @@ package container // import "github.com/docker/docker/api/server/router/containe
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,17 +36,10 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
-	name := vars["name"]
 
 	execConfig := &types.ExecConfig{}
-	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, execConfig); err != nil {
+		return err
 	}
 
 	if len(execConfig.Cmd) == 0 {
@@ -56,9 +47,9 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	}
 
 	// Register an instance of Exec in container.
-	id, err := s.backend.ContainerExecCreate(name, execConfig)
+	id, err := s.backend.ContainerExecCreate(vars["name"], execConfig)
 	if err != nil {
-		logrus.Errorf("Error setting up exec command in container %s: %v", name, err)
+		logrus.Errorf("Error setting up exec command in container %s: %v", vars["name"], err)
 		return err
 	}
 
@@ -74,9 +65,11 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	}
 
 	version := httputils.VersionFromContext(ctx)
-	if versions.GreaterThan(version, "1.21") {
-		if err := httputils.CheckForJSON(r); err != nil {
-			return err
+	if versions.LessThan(version, "1.22") {
+		// API versions before 1.22 did not enforce application/json content-type.
+		// Allow older clients to work by patching the content-type.
+		if r.Header.Get("Content-Type") != "application/json" {
+			r.Header.Set("Content-Type", "application/json")
 		}
 	}
 
@@ -87,11 +80,8 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	)
 
 	execStartCheck := &types.ExecStartCheck{}
-	if err := json.NewDecoder(r.Body).Decode(execStartCheck); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, execStartCheck); err != nil {
+		return err
 	}
 
 	if exists, err := s.backend.ExecExists(execName); !exists {

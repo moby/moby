@@ -2,6 +2,7 @@ package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"mime"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // APIVersionKey is the client's requested API version.
@@ -49,17 +49,50 @@ func CheckForJSON(r *http.Request) error {
 	ct := r.Header.Get("Content-Type")
 
 	// No Content-Type header is ok as long as there's no Body
-	if ct == "" {
-		if r.Body == nil || r.ContentLength == 0 {
-			return nil
-		}
+	if ct == "" && (r.Body == nil || r.ContentLength == 0) {
+		return nil
 	}
 
 	// Otherwise it better be json
-	if matchesContentType(ct, "application/json") {
+	return matchesContentType(ct, "application/json")
+}
+
+// ReadJSON validates the request to have the correct content-type, and decodes
+// the request's Body into out.
+func ReadJSON(r *http.Request, out interface{}) error {
+	err := CheckForJSON(r)
+	if err != nil {
+		return err
+	}
+	if r.Body == nil || r.ContentLength == 0 {
+		// an empty body is not invalid, so don't return an error; see
+		// https://lists.w3.org/Archives/Public/ietf-http-wg/2010JulSep/0272.html
 		return nil
 	}
-	return errdefs.InvalidParameter(errors.Errorf("Content-Type specified (%s) must be 'application/json'", ct))
+
+	dec := json.NewDecoder(r.Body)
+	err = dec.Decode(out)
+	defer r.Body.Close()
+	if err != nil {
+		if err == io.EOF {
+			return errdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
+		}
+		return errdefs.InvalidParameter(errors.Wrap(err, "invalid JSON"))
+	}
+
+	if dec.More() {
+		return errdefs.InvalidParameter(errors.New("unexpected content after JSON"))
+	}
+	return nil
+}
+
+// WriteJSON writes the value v to the http response stream as json with standard json encoding.
+func WriteJSON(w http.ResponseWriter, code int, v interface{}) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(v)
 }
 
 // ParseForm ensures the request form is parsed even with invalid content types.
@@ -89,10 +122,13 @@ func VersionFromContext(ctx context.Context) string {
 }
 
 // matchesContentType validates the content type against the expected one
-func matchesContentType(contentType, expectedType string) bool {
+func matchesContentType(contentType, expectedType string) error {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		logrus.Errorf("Error parsing media type: %s error: %v", contentType, err)
+		return errdefs.InvalidParameter(errors.Wrapf(err, "malformed Content-Type header (%s)", contentType))
 	}
-	return err == nil && mimetype == expectedType
+	if mimetype != expectedType {
+		return errdefs.InvalidParameter(errors.Errorf("unsupported Content-Type header (%s): must be '%s'", contentType, expectedType))
+	}
+	return nil
 }

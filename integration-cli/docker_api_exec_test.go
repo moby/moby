@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 )
 
@@ -56,7 +57,7 @@ func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *testing.T) {
 	}
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(getErrorMessage(c, b), "Content-Type specified"), "Expected message when creating exec command with invalid Content-Type specified")
+	assert.Assert(c, is.Contains(getErrorMessage(c, b), "unsupported Content-Type header (test/plain): must be 'application/json'"))
 }
 
 func (s *DockerSuite) TestExecAPICreateContainerPaused(c *testing.T) {
