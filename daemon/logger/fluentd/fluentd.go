@@ -4,7 +4,6 @@ package fluentd // import "github.com/docker/docker/daemon/logger/fluentd"
 
 import (
 	"math"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/urlutil"
 	units "github.com/docker/go-units"
 	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/pkg/errors"
@@ -172,7 +170,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 
 	loc, err := parseAddress(cfg[addressKey])
 	if err != nil {
-		return config, err
+		return config, errors.Wrapf(err, "invalid fluentd-address (%s)", cfg[addressKey])
 	}
 
 	bufferLimit := defaultBufferLimit
@@ -277,48 +275,49 @@ func parseAddress(address string) (*location, error) {
 		}, nil
 	}
 
-	protocol := defaultProtocol
-	givenAddress := address
-	if urlutil.IsTransportURL(address) {
-		url, err := url.Parse(address)
+	if !strings.Contains(address, "://") {
+		address = defaultProtocol + "://" + address
+	}
+
+	addr, err := url.Parse(address)
+	if err != nil {
+		return nil, err
+	}
+
+	switch addr.Scheme {
+	case "unix":
+		if strings.TrimLeft(addr.Path, "/") == "" {
+			return nil, errors.New("path is empty")
+		}
+		return &location{protocol: addr.Scheme, path: addr.Path}, nil
+	case "tcp", "tls":
+		// continue processing below
+	default:
+		return nil, errors.Errorf("unsupported scheme: '%s'", addr.Scheme)
+	}
+
+	if addr.Path != "" {
+		return nil, errors.New("should not contain a path element")
+	}
+
+	host := defaultHost
+	port := defaultPort
+
+	if h := addr.Hostname(); h != "" {
+		host = h
+	}
+	if p := addr.Port(); p != "" {
+		// Port numbers are 16 bit: https://www.ietf.org/rfc/rfc793.html#section-3.1
+		portNum, err := strconv.ParseUint(p, 10, 16)
 		if err != nil {
-			return nil, errors.Wrapf(err, "invalid fluentd-address %s", givenAddress)
+			return nil, errors.Wrap(err, "invalid port")
 		}
-		// unix and unixgram socket
-		if url.Scheme == "unix" || url.Scheme == "unixgram" {
-			return &location{
-				protocol: url.Scheme,
-				host:     "",
-				port:     0,
-				path:     url.Path,
-			}, nil
-		}
-		// tcp|udp
-		protocol = url.Scheme
-		address = url.Host
-	}
-
-	host, port, err := net.SplitHostPort(address)
-	if err != nil {
-		if !strings.Contains(err.Error(), "missing port in address") {
-			return nil, errors.Wrapf(err, "invalid fluentd-address %s", givenAddress)
-		}
-		return &location{
-			protocol: protocol,
-			host:     host,
-			port:     defaultPort,
-			path:     "",
-		}, nil
-	}
-
-	portnum, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid fluentd-address %s", givenAddress)
+		port = int(portNum)
 	}
 	return &location{
-		protocol: protocol,
+		protocol: addr.Scheme,
 		host:     host,
-		port:     portnum,
+		port:     port,
 		path:     "",
 	}, nil
 }
