@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package signal // import "github.com/docker/docker/pkg/signal"

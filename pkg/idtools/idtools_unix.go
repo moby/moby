@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package idtools // import "github.com/docker/docker/pkg/idtools"

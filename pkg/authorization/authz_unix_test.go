@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 // TODO Windows: This uses a Unix socket for testing. This might be possible

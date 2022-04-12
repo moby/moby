@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package signal // import "github.com/docker/docker/pkg/signal"

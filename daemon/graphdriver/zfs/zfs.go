@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"

@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package graphtest // import "github.com/docker/docker/daemon/graphdriver/graphtest"

@@ -1,3 +1,4 @@
+//go:build darwin || linux
 // +build darwin linux
 
 package signal // import "github.com/docker/docker/pkg/signal"

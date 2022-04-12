@@ -1,3 +1,4 @@
+//go:build !linux && !windows
 // +build !linux,!windows
 
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
