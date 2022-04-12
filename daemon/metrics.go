@@ -15,34 +15,13 @@ import (
 const metricsPluginType = "MetricsCollector"
 
 var (
-	containerActions          metrics.LabeledTimer
-	networkActions            metrics.LabeledTimer
-	hostInfoFunctions         metrics.LabeledTimer
-	engineInfo                metrics.LabeledGauge
-	engineCpus                metrics.Gauge
-	engineMemory              metrics.Gauge
-	healthChecksCounter       metrics.Counter
-	healthChecksFailedCounter metrics.Counter
+	metricsNS = metrics.NewNamespace("engine", "daemon", nil)
 
-	stateCtr *stateCounter
-)
+	containerActions  = metricsNS.NewLabeledTimer("container_actions", "The number of seconds it takes to process each container action", "action")
+	networkActions    = metricsNS.NewLabeledTimer("network_actions", "The number of seconds it takes to process each network action", "action")
+	hostInfoFunctions = metricsNS.NewLabeledTimer("host_info_functions", "The number of seconds it takes to call functions gathering info about the host", "function")
 
-func init() {
-	ns := metrics.NewNamespace("engine", "daemon", nil)
-	containerActions = ns.NewLabeledTimer("container_actions", "The number of seconds it takes to process each container action", "action")
-	for _, a := range []string{
-		"start",
-		"changes",
-		"commit",
-		"create",
-		"delete",
-	} {
-		containerActions.WithValues(a).Update(0)
-	}
-	hostInfoFunctions = ns.NewLabeledTimer("host_info_functions", "The number of seconds it takes to call functions gathering info about the host", "function")
-
-	networkActions = ns.NewLabeledTimer("network_actions", "The number of seconds it takes to process each network action", "action")
-	engineInfo = ns.NewLabeledGauge("engine", "The information related to the engine and the OS it is running on", metrics.Unit("info"),
+	engineInfo = metricsNS.NewLabeledGauge("engine", "The information related to the engine and the OS it is running on", metrics.Unit("info"),
 		"version",
 		"commit",
 		"architecture",
@@ -53,15 +32,27 @@ func init() {
 		"os_version",
 		"daemon_id", // ID is a randomly generated unique identifier (e.g. UUID4)
 	)
-	engineCpus = ns.NewGauge("engine_cpus", "The number of cpus that the host system of the engine has", metrics.Unit("cpus"))
-	engineMemory = ns.NewGauge("engine_memory", "The number of bytes of memory that the host system of the engine has", metrics.Bytes)
-	healthChecksCounter = ns.NewCounter("health_checks", "The total number of health checks")
-	healthChecksFailedCounter = ns.NewCounter("health_checks_failed", "The total number of failed health checks")
+	engineCpus   = metricsNS.NewGauge("engine_cpus", "The number of cpus that the host system of the engine has", metrics.Unit("cpus"))
+	engineMemory = metricsNS.NewGauge("engine_memory", "The number of bytes of memory that the host system of the engine has", metrics.Bytes)
 
-	stateCtr = newStateCounter(ns.NewDesc("container_states", "The count of containers in various states", metrics.Unit("containers"), "state"))
-	ns.Add(stateCtr)
+	healthChecksCounter       = metricsNS.NewCounter("health_checks", "The total number of health checks")
+	healthChecksFailedCounter = metricsNS.NewCounter("health_checks_failed", "The total number of failed health checks")
 
-	metrics.Register(ns)
+	stateCtr = newStateCounter(metricsNS, metricsNS.NewDesc("container_states", "The count of containers in various states", metrics.Unit("containers"), "state"))
+)
+
+func init() {
+	for _, a := range []string{
+		"start",
+		"changes",
+		"commit",
+		"create",
+		"delete",
+	} {
+		containerActions.WithValues(a).Update(0)
+	}
+
+	metrics.Register(metricsNS)
 }
 
 type stateCounter struct {
@@ -70,11 +61,13 @@ type stateCounter struct {
 	desc   *prometheus.Desc
 }
 
-func newStateCounter(desc *prometheus.Desc) *stateCounter {
-	return &stateCounter{
+func newStateCounter(ns *metrics.Namespace, desc *prometheus.Desc) *stateCounter {
+	c := &stateCounter{
 		states: make(map[string]string),
 		desc:   desc,
 	}
+	ns.Add(c)
+	return c
 }
 
 func (ctr *stateCounter) get() (running int, paused int, stopped int) {
