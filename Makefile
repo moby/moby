@@ -166,21 +166,14 @@ default: binary
 all: build ## validate all checks, build linux binaries, run all tests,\ncross build non-linux binaries, and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
-# This is only used to work around read-only bind mounts of the source code into
-# binary build targets. We end up mounting a tmpfs over autogen which allows us
-# to write build-time generated assets even though the source is mounted read-only
-# ...But in order to do so, this dir needs to already exist.
-autogen:
-	mkdir -p autogen
-
-binary: buildx autogen ## build statically linked linux binaries
+binary: buildx ## build statically linked linux binaries
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
-dynbinary: buildx autogen ## build dynamically linked linux binaries
+dynbinary: buildx ## build dynamically linked linux binaries
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 cross: BUILD_OPTS += --build-arg CROSS=true --build-arg DOCKER_CROSSPLATFORMS
-cross: buildx autogen ## cross build the binaries for darwin, freebsd and\nwindows
+cross: buildx ## cross build the binaries for darwin, freebsd and\nwindows
 	$(BUILD_CMD) $(BUILD_OPTS) --output=bundles/ --target=$@ $(VERSION_AUTOGEN_ARGS) .
 
 bundles:

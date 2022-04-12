@@ -13,7 +13,6 @@ test.main
 .editorconfig
 .gopath/
 .go-pkg-cache/
-autogen/
 bundles/
 cli/winresources/**/winres.json
 cli/winresources/**/*.syso
@@ -26,5 +25,3 @@ junit-report.xml
 
 # top-level go.mod is not meant to be checked in
 /go.mod
-# workaround go.mod for autogen/winresources/dockerd
-/hack/make/.resources-windows/go.mod

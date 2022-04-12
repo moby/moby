@@ -168,6 +168,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 ARG GO_VERSION=1.18.0
 ARG CONTAINERD_VERSION=1.6.2
 ARG GOTESTSUM_VERSION=v1.7.0
+ARG GOWINRES_VERSION=v0.2.3
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
@@ -179,7 +180,8 @@ ENV GO_VERSION=${GO_VERSION} `
     GOPATH=C:\gopath `
     GO111MODULE=off `
     FROM_DOCKERFILE=1 `
-    GOTESTSUM_VERSION=${GOTESTSUM_VERSION}
+    GOTESTSUM_VERSION=${GOTESTSUM_VERSION} `
+    GOWINRES_VERSION=${GOWINRES_VERSION}
 
 RUN `
   Function Test-Nano() { `
@@ -288,6 +290,22 @@ RUN `
   } `
   `
   Install-GoTestSum
+
+RUN `
+  Function Install-GoWinres() { `
+    $Env:GO111MODULE = 'on'; `
+    $tmpGobin = "${Env:GOBIN_TMP}"; `
+    $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
+    Write-Host "INFO: Installing go-winres version $Env:GOWINRES_VERSION in $Env:GOBIN"; `
+    &go install "github.com/tc-hib/go-winres@${Env:GOWINRES_VERSION}"; `
+    $Env:GOBIN = "${tmpGobin}"; `
+    $Env:GO111MODULE = 'off'; `
+    if ($LASTEXITCODE -ne 0) {  `
+      Throw '"go-winres install failed..."'; `
+    } `
+  } `
+  `
+  Install-GoWinres
 
 # Make PowerShell the default entrypoint
 ENTRYPOINT ["powershell.exe"]

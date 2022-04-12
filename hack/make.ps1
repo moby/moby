@@ -168,9 +168,10 @@ Function Get-UpstreamCommit() {
 }
 
 # Build a binary (client or daemon)
-Function Execute-Build($type, $additionalBuildTags, $directory) {
+Function Execute-Build($type, $additionalBuildTags, $directory, $ldflags) {
     # Generate the build flags
-    $buildTags = "autogen"
+    $buildTags = ""
+    $ldflags = "-linkmode=internal " + $ldflags
     if ($Noisy)                     { $verboseParm=" -v" }
     if ($Race)                      { Write-Warning "Using race detector"; $raceParm=" -race"}
     if ($ForceBuildAll)             { $allParm=" -a" }
@@ -188,7 +189,7 @@ Function Execute-Build($type, $additionalBuildTags, $directory) {
                     $allParm + `
                     $optParm + `
                     " -tags """ + $buildTags + """" + `
-                    " -ldflags """ + "-linkmode=internal" + """" + `
+                    " -ldflags """ + $ldflags + """" + `
                     " -o $root\bundles\"+$directory+".exe"
     Invoke-Expression $buildCommand
     if ($LASTEXITCODE -ne 0) { Throw "Failed to compile $type" }
@@ -427,12 +428,19 @@ Try {
     # Verify GOPATH is set
     if ($env:GOPATH.Length -eq 0) { Throw "Missing GOPATH environment variable. See https://golang.org/doc/code.html#GOPATH" }
 
-    # Run autogen if building binaries or running unit tests.
-    if ($Client -or $Daemon -or $TestUnit) {
+    # Run autogen if building daemon.
+    if ($Daemon) {
         Write-Host "INFO: Invoking autogen..."
-        Try { .\hack\make\.go-autogen.ps1 -CommitString $gitCommit -DockerVersion $dockerVersion -Platform "$env:PLATFORM" -Product "$env:PRODUCT" }
+        Try { .\hack\make\.go-autogen.ps1 -CommitString $gitCommit -DockerVersion $dockerVersion -Platform "$env:PLATFORM" -Product "$env:PRODUCT" -PackagerName "$env:PACKAGER_NAME" }
         Catch [Exception] { Throw $_ }
     }
+
+    $ldflags = "-X 'github.com/docker/docker/dockerversion.Version="+$dockerVersion+"'"
+    $ldflags += " -X 'github.com/docker/docker/dockerversion.GitCommit="+$gitCommit+"'"
+    $ldflags += " -X 'github.com/docker/docker/dockerversion.BuildTime="+$env:BUILDTIME+"'"
+    $ldflags += " -X 'github.com/docker/docker/dockerversion.PlatformName="+$env:PLATFORM+"'"
+    $ldflags += " -X 'github.com/docker/docker/dockerversion.ProductName="+$env:PRODUCT+"'"
+    $ldflags += " -X 'github.com/docker/docker/dockerversion.DefaultProductLicense="+$env:DEFAULT_PRODUCT_LICENSE+"'"
 
     # DCO, Package import and Go formatting tests.
     if ($DCO -or $PkgImports -or $GoFormat) {
@@ -454,7 +462,7 @@ Try {
     if ($Client -or $Daemon) {
 
         # Perform the actual build
-        if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
+        if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" $ldflags }
         if ($Client) {
             # Get the Docker channel and version from the environment, or use the defaults.
             if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "stable" }

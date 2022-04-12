@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
-	_ "github.com/docker/docker/autogen/winresources/dockerd"
 	"github.com/sirupsen/logrus"
 )
 
