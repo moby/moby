@@ -216,7 +216,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}
 		}
 
-		if mp.Type == mounttypes.TypeBind {
+		if mp.Type == mounttypes.TypeBind && (cfg.BindOptions == nil || !cfg.BindOptions.CreateMountpoint) {
 			mp.SkipMountpointCreation = true
 		}
 
