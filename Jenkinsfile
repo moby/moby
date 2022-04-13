@@ -52,7 +52,7 @@ pipeline {
                   -v "$WORKSPACE:/workspace" \
                   -e VALIDATE_REPO=${GIT_URL} \
                   -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                  alpine sh -c 'apk add --no-cache -q bash git openssh-client && cd /workspace && hack/validate/dco'
+                  alpine sh -c 'apk add --no-cache -q bash git openssh-client && git config --system --add safe.directory /workspace && cd /workspace && hack/validate/dco'
                 '''
             }
         }
