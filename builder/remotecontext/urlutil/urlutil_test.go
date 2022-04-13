@@ -1,4 +1,4 @@
-package urlutil // import "github.com/docker/docker/pkg/urlutil"
+package urlutil // import "github.com/docker/docker/builder/remotecontext/urlutil"
 
 import "testing"
 
@@ -18,13 +18,6 @@ var (
 	invalidGitUrls = []string{
 		"http://github.com/docker/docker.git:#branch",
 	}
-	transportUrls = []string{
-		"tcp://example.com",
-		"tcp+tls://example.com",
-		"udp://example.com",
-		"unix:///example",
-		"unixgram:///example",
-	}
 )
 
 func TestIsGIT(t *testing.T) {
@@ -43,14 +36,6 @@ func TestIsGIT(t *testing.T) {
 	for _, url := range invalidGitUrls {
 		if IsGitURL(url) {
 			t.Fatalf("%q should not be detected as valid Git prefix", url)
-		}
-	}
-}
-
-func TestIsTransport(t *testing.T) {
-	for _, url := range transportUrls {
-		if !IsTransportURL(url) {
-			t.Fatalf("%q should be detected as valid Transport url", url)
 		}
 	}
 }
