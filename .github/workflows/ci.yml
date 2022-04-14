@@ -40,12 +40,62 @@ jobs:
             *.cache-from=type=gha,scope=build-${{ matrix.target }}
             *.cache-to=type=gha,scope=build-${{ matrix.target }}
       -
-        name: Upload build artifacts
-        uses: actions/upload-artifact@v2
+        name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.target }}
-          path: ${{ env.BUNDLES_OUTPUT }}/${{ matrix.target }}-daemon/*
+          path: ${{ env.BUNDLES_OUTPUT }}
           if-no-files-found: error
+          retention-days: 7
+
+  cross:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm/v5
+          - linux/arm/v6
+          - linux/arm/v7
+          - linux/arm64
+          - linux/ppc64le
+          - linux/s390x
+          - windows/amd64
+          - windows/arm64
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      -
+        name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          mkdir -p autogen
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Build
+        uses: docker/bake-action@v1
+        with:
+          targets: cross
+          set: |
+            *.cache-from=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
+            *.cache-to=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
+        env:
+          DOCKER_CROSSPLATFORMS: ${{ matrix.platform }}
+      -
+        name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: cross-${{ env.PLATFORM_PAIR }}
+          path: ${{ env.BUNDLES_OUTPUT }}
+          if-no-files-found: error
+          retention-days: 7
 
   test-buildkit:
     needs:
@@ -91,8 +141,8 @@ jobs:
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       -
-        name: Download build artifacts
-        uses: actions/download-artifact@v2
+        name: Download binary artifacts
+        uses: actions/download-artifact@v3
         with:
           name: binary
           path: ./buildkit/build/moby/
@@ -110,7 +160,7 @@ jobs:
         env:
           CONTEXT: "."
           TEST_DOCKERD: "1"
-          TEST_DOCKERD_BINARY: "./build/moby/dockerd"
+          TEST_DOCKERD_BINARY: "./build/moby/binary-daemon/dockerd"
           TESTPKGS: "${{ matrix.pkg }}"
           TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
           SKIP_INTEGRATION_TESTS: "${{ matrix.skip-integration-tests }}"
