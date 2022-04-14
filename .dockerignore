@@ -2,5 +2,6 @@
 .go-pkg-cache
 .gopath
 bundles
+cli/winresources/**/winres.json
+cli/winresources/**/*.syso
 vendor/pkg
-

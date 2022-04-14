@@ -161,6 +161,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
      && /build/tomll --help
 
+FROM base AS gowinres
+# GOWINRES_VERSION defines go-winres tool version
+ARG GOWINRES_VERSION=v0.2.3
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+        GOBIN=/build/ GO111MODULE=on go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+     && /build/go-winres --help
+
 FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
@@ -301,6 +309,7 @@ COPY --from=dockercli     /build/ /usr/local/cli
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=swagger       /build/ /usr/local/bin/
 COPY --from=tomll         /build/ /usr/local/bin/
+COPY --from=gowinres      /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
 COPY --from=criu          /build/ /usr/local/bin/
@@ -346,34 +355,42 @@ ARG PRODUCT
 ENV PRODUCT=${PRODUCT}
 ARG DEFAULT_PRODUCT_LICENSE
 ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
+ARG PACKAGER_NAME
+ENV PACKAGER_NAME=${PACKAGER_NAME}
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
 ENV PREFIX=/build
 # TODO: This is here because hack/make.sh binary copies these extras binaries
 # from $PATH into the bundles dir.
 # It would be nice to handle this in a different way.
-COPY --from=tini        /build/ /usr/local/bin/
-COPY --from=runc        /build/ /usr/local/bin/
-COPY --from=containerd  /build/ /usr/local/bin/
-COPY --from=rootlesskit /build/ /usr/local/bin/
-COPY --from=vpnkit      /build/ /usr/local/bin/
+COPY --from=tini          /build/ /usr/local/bin/
+COPY --from=runc          /build/ /usr/local/bin/
+COPY --from=containerd    /build/ /usr/local/bin/
+COPY --from=rootlesskit   /build/ /usr/local/bin/
+COPY --from=vpnkit        /build/ /usr/local/bin/
+COPY --from=gowinres      /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 
 FROM binary-base AS build-binary
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=bind,target=/go/src/github.com/docker/docker \
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=bind,target=.,ro \
+    --mount=type=tmpfs,target=cli/winresources/dockerd \
+    --mount=type=tmpfs,target=cli/winresources/docker-proxy \
         hack/make.sh binary
 
 FROM binary-base AS build-dynbinary
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=bind,target=/go/src/github.com/docker/docker \
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=bind,target=.,ro \
+    --mount=type=tmpfs,target=cli/winresources/dockerd \
+    --mount=type=tmpfs,target=cli/winresources/docker-proxy \
         hack/make.sh dynbinary
 
 FROM binary-base AS build-cross
 ARG DOCKER_CROSSPLATFORMS
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=bind,target=/go/src/github.com/docker/docker \
-    --mount=type=tmpfs,target=/go/src/github.com/docker/docker/autogen \
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=bind,target=.,ro \
+    --mount=type=tmpfs,target=cli/winresources/dockerd \
+    --mount=type=tmpfs,target=cli/winresources/docker-proxy \
         hack/make.sh cross
 
 FROM scratch AS binary

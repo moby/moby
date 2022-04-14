@@ -85,7 +85,8 @@ DOCKER_ENVS := \
 	-e VERSION \
 	-e PLATFORM \
 	-e DEFAULT_PRODUCT_LICENSE \
-	-e PRODUCT
+	-e PRODUCT \
+	-e PACKAGER_NAME
 # note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
 
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
@@ -158,7 +159,7 @@ ifdef DOCKER_CROSSPLATFORMS
 BUILD_CROSS = --build-arg CROSS=true
 endif
 
-VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE
+VERSION_AUTOGEN_ARGS = --build-arg VERSION --build-arg DOCKER_GITCOMMIT --build-arg PRODUCT --build-arg PLATFORM --build-arg DEFAULT_PRODUCT_LICENSE --build-arg PACKAGER_NAME
 
 default: binary
 
