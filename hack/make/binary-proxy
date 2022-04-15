@@ -3,6 +3,8 @@
 set -e
 
 (
+	export DOCKER_LDFLAGS='-linkmode=external'
+
 	GO_PACKAGE='github.com/docker/docker/cmd/docker-proxy'
 	BINARY_SHORT_NAME='docker-proxy'
 
