@@ -45,6 +45,11 @@ hash_files() {
 				export CC="${CC:-x86_64-w64-mingw32-gcc}"
 				export CGO_ENABLED=1
 				;;
+			windows/arm64)
+				# TODO uncomment when windows arm64 toolchain available.
+				#export CC="${CC:-aarch64-w64-mingw32-gcc}"
+				#export CGO_ENABLED=1
+				;;
 			linux/arm)
 				case "${GOARM}" in
 					5)

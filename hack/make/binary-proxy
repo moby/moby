@@ -3,7 +3,13 @@
 set -e
 
 (
-	export DOCKER_LDFLAGS='-linkmode=external'
+	case "$(go env GOOS)/$(go env GOARCH)" in
+		windows/arm64) ;;
+			# TODO remove windows/arm64 when aarch64-w64-mingw32-gcc toolchain is available
+		*)
+			export DOCKER_LDFLAGS='-linkmode=external'
+			;;
+	esac
 
 	GO_PACKAGE='github.com/docker/docker/cmd/docker-proxy'
 	BINARY_SHORT_NAME='docker-proxy'
