@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
-	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -48,8 +48,8 @@ type CommonAPIClient interface {
 type ContainerAPIClient interface {
 	ContainerAttach(ctx context.Context, container string, options types.ContainerAttachOptions) (types.HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.IDResponse, error)
-	ContainerCreate(ctx context.Context, config *containertypes.Config, hostConfig *containertypes.HostConfig, networkingConfig *networktypes.NetworkingConfig, platform *specs.Platform, containerName string) (containertypes.ContainerCreateCreatedBody, error)
-	ContainerDiff(ctx context.Context, container string) ([]containertypes.ContainerChangeResponseItem, error)
+	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.ContainerCreateCreatedBody, error)
+	ContainerDiff(ctx context.Context, container string) ([]container.ContainerChangeResponseItem, error)
 	ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error)
@@ -71,10 +71,10 @@ type ContainerAPIClient interface {
 	ContainerStatsOneShot(ctx context.Context, container string) (types.ContainerStats, error)
 	ContainerStart(ctx context.Context, container string, options types.ContainerStartOptions) error
 	ContainerStop(ctx context.Context, container string, timeout *time.Duration) error
-	ContainerTop(ctx context.Context, container string, arguments []string) (containertypes.ContainerTopOKBody, error)
+	ContainerTop(ctx context.Context, container string, arguments []string) (container.ContainerTopOKBody, error)
 	ContainerUnpause(ctx context.Context, container string) error
-	ContainerUpdate(ctx context.Context, container string, updateConfig containertypes.UpdateConfig) (containertypes.ContainerUpdateOKBody, error)
-	ContainerWait(ctx context.Context, container string, condition containertypes.WaitCondition) (<-chan containertypes.ContainerWaitOKBody, <-chan error)
+	ContainerUpdate(ctx context.Context, container string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
+	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
 	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error)
@@ -107,7 +107,7 @@ type ImageAPIClient interface {
 
 // NetworkAPIClient defines API client methods for the networks
 type NetworkAPIClient interface {
-	NetworkConnect(ctx context.Context, network, container string, config *networktypes.EndpointSettings) error
+	NetworkConnect(ctx context.Context, network, container string, config *network.EndpointSettings) error
 	NetworkCreate(ctx context.Context, name string, options types.NetworkCreate) (types.NetworkCreateResponse, error)
 	NetworkDisconnect(ctx context.Context, network, container string, force bool) error
 	NetworkInspect(ctx context.Context, network string, options types.NetworkInspectOptions) (types.NetworkResource, error)
@@ -174,10 +174,10 @@ type SystemAPIClient interface {
 
 // VolumeAPIClient defines API client methods for the volumes
 type VolumeAPIClient interface {
-	VolumeCreate(ctx context.Context, options volumetypes.VolumeCreateBody) (types.Volume, error)
+	VolumeCreate(ctx context.Context, options volume.VolumeCreateBody) (types.Volume, error)
 	VolumeInspect(ctx context.Context, volumeID string) (types.Volume, error)
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error)
-	VolumeList(ctx context.Context, filter filters.Args) (volumetypes.VolumeListOKBody, error)
+	VolumeList(ctx context.Context, filter filters.Args) (volume.VolumeListOKBody, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (types.VolumesPruneReport, error)
 }

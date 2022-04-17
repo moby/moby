@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
-	mounttypes "github.com/docker/docker/api/types/mount"
-	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	dconfig "github.com/docker/docker/daemon/config"
@@ -475,7 +475,7 @@ func (s *DockerSuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	config := containertypes.Config{
+	config := container.Config{
 		Labels: map[string]string{"key1": "value1", "key2": "value2"}}
 
 	options := types.ContainerCommitOptions{
@@ -503,12 +503,12 @@ func (s *DockerSuite) TestContainerAPIBadPort(c *testing.T) {
 	// TODO Windows to Windows CI - Port this test
 	testRequires(c, DaemonIsLinux)
 
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"/bin/sh", "-c", "echo test"},
 	}
 
-	hostConfig := containertypes.HostConfig{
+	hostConfig := container.HostConfig{
 		PortBindings: nat.PortMap{
 			"8080/tcp": []nat.PortBinding{
 				{
@@ -522,12 +522,12 @@ func (s *DockerSuite) TestContainerAPIBadPort(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.ErrorContains(c, err, `invalid port specification: "aa80"`)
 }
 
 func (s *DockerSuite) TestContainerAPICreate(c *testing.T) {
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"/bin/sh", "-c", "touch /test && ls /test"},
 	}
@@ -536,7 +536,7 @@ func (s *DockerSuite) TestContainerAPICreate(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "start", "-a", container.ID)
@@ -549,7 +549,7 @@ func (s *DockerSuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &containertypes.Config{}, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
+	_, err = cli.ContainerCreate(context.Background(), &container.Config{}, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 
 	expected := "No command specified"
 	assert.ErrorContains(c, err, expected)
@@ -557,12 +557,12 @@ func (s *DockerSuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
 
 func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *testing.T) {
 	// Container creation must fail if client specified configurations for more than one network
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 	}
 
-	networkingConfig := networktypes.NetworkingConfig{
-		EndpointsConfig: map[string]*networktypes.EndpointSettings{
+	networkingConfig := network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
 			"net1": {},
 			"net2": {},
 			"net3": {},
@@ -573,7 +573,7 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *testing.T)
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networkingConfig, nil, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &networkingConfig, nil, "")
 	msg := err.Error()
 	// network name order in error message is not deterministic
 	assert.Assert(c, strings.Contains(msg, "Container cannot be connected to network endpoints"))
@@ -595,12 +595,12 @@ func (s *DockerSuite) TestContainerAPICreateOtherNetworkModes(c *testing.T) {
 	UtilCreateNetworkMode(c, "container:web1")
 }
 
-func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode) {
-	config := containertypes.Config{
+func UtilCreateNetworkMode(c *testing.T, networkMode container.NetworkMode) {
+	config := container.Config{
 		Image: "busybox",
 	}
 
-	hostConfig := containertypes.HostConfig{
+	hostConfig := container.HostConfig{
 		NetworkMode: networkMode,
 	}
 
@@ -608,7 +608,7 @@ func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode)
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -620,12 +620,12 @@ func UtilCreateNetworkMode(c *testing.T, networkMode containertypes.NetworkMode)
 func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
 	// TODO Windows to Windows CI. The CpuShares part could be ported.
 	testRequires(c, DaemonIsLinux)
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 	}
 
-	hostConfig := containertypes.HostConfig{
-		Resources: containertypes.Resources{
+	hostConfig := container.HostConfig{
+		Resources: container.Resources{
 			CPUShares:  512,
 			CpusetCpus: "0",
 		},
@@ -635,7 +635,7 @@ func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -937,7 +937,7 @@ func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 
 func (s *DockerSuite) TestContainerAPIStart(c *testing.T) {
 	name := "testing-start"
-	config := containertypes.Config{
+	config := container.Config{
 		Image:     "busybox",
 		Cmd:       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
 		OpenStdin: true,
@@ -947,7 +947,7 @@ func (s *DockerSuite) TestContainerAPIStart(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
 	err = cli.ContainerStart(context.Background(), name, types.ContainerStartOptions{})
@@ -1261,7 +1261,7 @@ func (s *DockerSuite) TestContainerAPIPostContainerStop(c *testing.T) {
 
 // #14170
 func (s *DockerSuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c *testing.T) {
-	config := containertypes.Config{
+	config := container.Config{
 		Image:      "busybox",
 		Entrypoint: []string{"echo"},
 		Cmd:        []string{"hello", "world"},
@@ -1271,7 +1271,7 @@ func (s *DockerSuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c *t
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "echotest")
+	_, err = cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "echotest")
 	assert.NilError(c, err)
 	out, _ := dockerCmd(c, "start", "-a", "echotest")
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
@@ -1289,7 +1289,7 @@ func (s *DockerSuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c *t
 
 // #14170
 func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *testing.T) {
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"echo", "hello", "world"},
 	}
@@ -1298,7 +1298,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *testing.T)
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "echotest")
+	_, err = cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "echotest")
 	assert.NilError(c, err)
 	out, _ := dockerCmd(c, "start", "-a", "echotest")
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
@@ -1329,10 +1329,10 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *tes
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusCreated)
 
-	config2 := containertypes.Config{
+	config2 := container.Config{
 		Image: "busybox",
 	}
-	hostConfig := containertypes.HostConfig{
+	hostConfig := container.HostConfig{
 		CapAdd:  []string{"net_admin", "SYS_ADMIN"},
 		CapDrop: []string{"SETGID", "CAP_SETPCAP"},
 	}
@@ -1341,21 +1341,21 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *tes
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config2, &hostConfig, &networktypes.NetworkingConfig{}, nil, "capaddtest1")
+	_, err = cli.ContainerCreate(context.Background(), &config2, &hostConfig, &network.NetworkingConfig{}, nil, "capaddtest1")
 	assert.NilError(c, err)
 }
 
 // #14915
 func (s *DockerSuite) TestContainerAPICreateNoHostConfig118(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows only support 1.25 or later
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 	}
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.18"))
 	assert.NilError(c, err)
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 }
 
@@ -1396,27 +1396,27 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *testing.T
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 	}
-	hostConfig1 := containertypes.HostConfig{
-		Resources: containertypes.Resources{
+	hostConfig1 := container.HostConfig{
+		Resources: container.Resources{
 			CpusetCpus: "1-42,,",
 		},
 	}
 	name := "wrong-cpuset-cpus"
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig1, &networktypes.NetworkingConfig{}, nil, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig1, &network.NetworkingConfig{}, nil, name)
 	expected := "Invalid value 1-42,, for cpuset cpus"
 	assert.ErrorContains(c, err, expected)
 
-	hostConfig2 := containertypes.HostConfig{
-		Resources: containertypes.Resources{
+	hostConfig2 := container.HostConfig{
+		Resources: container.Resources{
 			CpusetMems: "42-3,1--",
 		},
 	}
 	name = "wrong-cpuset-mems"
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig2, &networktypes.NetworkingConfig{}, nil, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig2, &network.NetworkingConfig{}, nil, name)
 	expected = "Invalid value 42-3,1-- for cpuset mems"
 	assert.ErrorContains(c, err, expected)
 }
@@ -1424,10 +1424,10 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *testing.T
 func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *testing.T) {
 	// ShmSize is not supported on Windows
 	testRequires(c, DaemonIsLinux)
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 	}
-	hostConfig := containertypes.HostConfig{
+	hostConfig := container.HostConfig{
 		ShmSize: -1,
 	}
 
@@ -1435,7 +1435,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.ErrorContains(c, err, "SHM size can not be less than 0")
 }
 
@@ -1443,7 +1443,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *testin
 	// ShmSize is not supported on Windows
 	testRequires(c, DaemonIsLinux)
 
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"mount"},
 	}
@@ -1452,7 +1452,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *testin
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1470,7 +1470,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *testin
 func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
 	// ShmSize is not supported on Windows
 	testRequires(c, DaemonIsLinux)
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"mount"},
 	}
@@ -1479,7 +1479,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1497,12 +1497,12 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
 func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *testing.T) {
 	// ShmSize is not supported on Windows
 	testRequires(c, DaemonIsLinux)
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"mount"},
 	}
 
-	hostConfig := containertypes.HostConfig{
+	hostConfig := container.HostConfig{
 		ShmSize: 1073741824,
 	}
 
@@ -1510,7 +1510,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1528,7 +1528,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *testing.T) {
 func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(c *testing.T) {
 	// Swappiness is not supported on Windows
 	testRequires(c, DaemonIsLinux)
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 	}
 
@@ -1536,7 +1536,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, "")
+	container, err := cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
 	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
@@ -1554,11 +1554,11 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *tes
 	// OomScoreAdj is not supported on Windows
 	testRequires(c, DaemonIsLinux)
 
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 	}
 
-	hostConfig := containertypes.HostConfig{
+	hostConfig := container.HostConfig{
 		OomScoreAdj: 1001,
 	}
 
@@ -1567,17 +1567,17 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *tes
 	defer cli.Close()
 
 	name := "oomscoreadj-over"
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, name)
 
 	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
 	assert.ErrorContains(c, err, expected)
 
-	hostConfig = containertypes.HostConfig{
+	hostConfig = container.HostConfig{
 		OomScoreAdj: -1001,
 	}
 
 	name = "oomscoreadj-low"
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, name)
 
 	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
 	assert.ErrorContains(c, err, expected)
@@ -1599,7 +1599,7 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
 
 	name := "testing-network-disabled"
 
-	config := containertypes.Config{
+	config := container.Config{
 		Image:           "busybox",
 		Cmd:             []string{"top"},
 		NetworkDisabled: true,
@@ -1609,7 +1609,7 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, nil, name)
+	_, err = cli.ContainerCreate(context.Background(), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, name)
 	assert.NilError(c, err)
 
 	err = cli.ContainerStart(context.Background(), name, types.ContainerStartOptions{})
@@ -1644,8 +1644,8 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) {
 
 func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	type testCase struct {
-		config     containertypes.Config
-		hostConfig containertypes.HostConfig
+		config     container.Config
+		hostConfig container.HostConfig
 		msg        string
 	}
 
@@ -1655,11 +1655,11 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 
 	cases := []testCase{
 		{
-			config: containertypes.Config{
+			config: container.Config{
 				Image: "busybox",
 			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
+			hostConfig: container.HostConfig{
+				Mounts: []mount.Mount{{
 					Type:   "notreal",
 					Target: destPath,
 				},
@@ -1669,30 +1669,30 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 			msg: "mount type unknown",
 		},
 		{
-			config: containertypes.Config{
+			config: container.Config{
 				Image: "busybox",
 			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
+			hostConfig: container.HostConfig{
+				Mounts: []mount.Mount{{
 					Type: "bind"}}},
 			msg: "Target must not be empty",
 		},
 		{
-			config: containertypes.Config{
+			config: container.Config{
 				Image: "busybox",
 			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
+			hostConfig: container.HostConfig{
+				Mounts: []mount.Mount{{
 					Type:   "bind",
 					Target: destPath}}},
 			msg: "Source must not be empty",
 		},
 		{
-			config: containertypes.Config{
+			config: container.Config{
 				Image: "busybox",
 			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
+			hostConfig: container.HostConfig{
+				Mounts: []mount.Mount{{
 					Type:   "bind",
 					Source: notExistPath,
 					Target: destPath}}},
@@ -1701,36 +1701,36 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 			// msg: "source path does not exist: " + notExistPath,
 		},
 		{
-			config: containertypes.Config{
+			config: container.Config{
 				Image: "busybox",
 			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
+			hostConfig: container.HostConfig{
+				Mounts: []mount.Mount{{
 					Type: "volume"}}},
 			msg: "Target must not be empty",
 		},
 		{
-			config: containertypes.Config{
+			config: container.Config{
 				Image: "busybox",
 			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
+			hostConfig: container.HostConfig{
+				Mounts: []mount.Mount{{
 					Type:   "volume",
 					Source: "hello",
 					Target: destPath}}},
 			msg: "",
 		},
 		{
-			config: containertypes.Config{
+			config: container.Config{
 				Image: "busybox",
 			},
-			hostConfig: containertypes.HostConfig{
-				Mounts: []mounttypes.Mount{{
+			hostConfig: container.HostConfig{
+				Mounts: []mount.Mount{{
 					Type:   "volume",
 					Source: "hello2",
 					Target: destPath,
-					VolumeOptions: &mounttypes.VolumeOptions{
-						DriverConfig: &mounttypes.Driver{
+					VolumeOptions: &mount.VolumeOptions{
+						DriverConfig: &mount.Driver{
 							Name: "local"}}}}},
 			msg: "",
 		},
@@ -1742,26 +1742,26 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		cases = append(cases, []testCase{
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{{
 						Type:   "bind",
 						Source: tmpDir,
 						Target: destPath}}},
 				msg: "",
 			},
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{{
 						Type:          "bind",
 						Source:        tmpDir,
 						Target:        destPath,
-						VolumeOptions: &mounttypes.VolumeOptions{}}}},
+						VolumeOptions: &mount.VolumeOptions{}}}},
 				msg: "VolumeOptions must not be specified",
 			},
 		}...)
@@ -1770,17 +1770,17 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	if DaemonIsWindows() {
 		cases = append(cases, []testCase{
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{
 						{
 							Type:   "volume",
 							Source: "not-supported-on-windows",
 							Target: destPath,
-							VolumeOptions: &mounttypes.VolumeOptions{
-								DriverConfig: &mounttypes.Driver{
+							VolumeOptions: &mount.VolumeOptions{
+								DriverConfig: &mount.Driver{
 									Name:    "local",
 									Options: map[string]string{"type": "tmpfs"},
 								},
@@ -1796,17 +1796,17 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	if DaemonIsLinux() {
 		cases = append(cases, []testCase{
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{
 						{
 							Type:   "volume",
 							Source: "missing-device-opt",
 							Target: destPath,
-							VolumeOptions: &mounttypes.VolumeOptions{
-								DriverConfig: &mounttypes.Driver{
+							VolumeOptions: &mount.VolumeOptions{
+								DriverConfig: &mount.Driver{
 									Name:    "local",
 									Options: map[string]string{"foobar": "foobaz"},
 								},
@@ -1817,17 +1817,17 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				msg: `invalid option: "foobar"`,
 			},
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{
 						{
 							Type:   "volume",
 							Source: "missing-device-opt",
 							Target: destPath,
-							VolumeOptions: &mounttypes.VolumeOptions{
-								DriverConfig: &mounttypes.Driver{
+							VolumeOptions: &mount.VolumeOptions{
+								DriverConfig: &mount.Driver{
 									Name:    "local",
 									Options: map[string]string{"type": "tmpfs"},
 								},
@@ -1838,17 +1838,17 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				msg: `missing required option: "device"`,
 			},
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{
 						{
 							Type:   "volume",
 							Source: "missing-type-opt",
 							Target: destPath,
-							VolumeOptions: &mounttypes.VolumeOptions{
-								DriverConfig: &mounttypes.Driver{
+							VolumeOptions: &mount.VolumeOptions{
+								DriverConfig: &mount.Driver{
 									Name:    "local",
 									Options: map[string]string{"device": "tmpfs"},
 								},
@@ -1859,17 +1859,17 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				msg: `missing required option: "type"`,
 			},
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{
 						{
 							Type:   "volume",
 							Source: "hello4",
 							Target: destPath,
-							VolumeOptions: &mounttypes.VolumeOptions{
-								DriverConfig: &mounttypes.Driver{
+							VolumeOptions: &mount.VolumeOptions{
+								DriverConfig: &mount.Driver{
 									Name:    "local",
 									Options: map[string]string{"o": "size=1", "type": "tmpfs", "device": "tmpfs"},
 								},
@@ -1880,35 +1880,35 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				msg: "",
 			},
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{{
 						Type:   "tmpfs",
 						Target: destPath}}},
 				msg: "",
 			},
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{{
 						Type:   "tmpfs",
 						Target: destPath,
-						TmpfsOptions: &mounttypes.TmpfsOptions{
+						TmpfsOptions: &mount.TmpfsOptions{
 							SizeBytes: 4096 * 1024,
 							Mode:      0700,
 						}}}},
 				msg: "",
 			},
 			{
-				config: containertypes.Config{
+				config: container.Config{
 					Image: "busybox",
 				},
-				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{{
+				hostConfig: container.HostConfig{
+					Mounts: []mount.Mount{{
 						Type:   "tmpfs",
 						Source: "/shouldnotbespecified",
 						Target: destPath}}},
@@ -1925,7 +1925,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	for i, x := range cases {
 		x := x
 		c.Run(fmt.Sprintf("case %d", i), func(c *testing.T) {
-			_, err = apiClient.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, nil, "")
+			_, err = apiClient.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &network.NetworkingConfig{}, nil, "")
 			if len(x.msg) > 0 {
 				assert.ErrorContains(c, err, x.msg, "%v", cases[i].config)
 			} else {
@@ -1945,12 +1945,12 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	err = os.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0666)
 	assert.NilError(c, err)
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"/bin/sh", "-c", "cat /foo/bar"},
 	}
-	hostConfig := containertypes.HostConfig{
-		Mounts: []mounttypes.Mount{
+	hostConfig := container.HostConfig{
+		Mounts: []mount.Mount{
 			{Type: "bind", Source: tmpDir, Target: destPath},
 		},
 	}
@@ -1958,7 +1958,7 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, "test")
+	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "test")
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "start", "-a", "test")
@@ -1985,7 +1985,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 	}
 
 	type testCase struct {
-		spec     mounttypes.Mount
+		spec     mount.Mount
 		expected types.MountPoint
 	}
 
@@ -2003,23 +2003,23 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		// use literal strings here for `Type` instead of the defined constants in the volume package to keep this honest
 		// Validation of the actual `Mount` struct is done in another test is not needed here
 		{
-			spec:     mounttypes.Mount{Type: "volume", Target: destPath},
+			spec:     mount.Mount{Type: "volume", Target: destPath},
 			expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
-			spec:     mounttypes.Mount{Type: "volume", Target: destPath + slash},
+			spec:     mount.Mount{Type: "volume", Target: destPath + slash},
 			expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
-			spec:     mounttypes.Mount{Type: "volume", Target: destPath, Source: "test1"},
+			spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test1"},
 			expected: types.MountPoint{Type: "volume", Name: "test1", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
-			spec:     mounttypes.Mount{Type: "volume", Target: destPath, ReadOnly: true, Source: "test2"},
+			spec:     mount.Mount{Type: "volume", Target: destPath, ReadOnly: true, Source: "test2"},
 			expected: types.MountPoint{Type: "volume", Name: "test2", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 		{
-			spec:     mounttypes.Mount{Type: "volume", Target: destPath, Source: "test3", VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: volume.DefaultDriverName}}},
+			spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test3", VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: volume.DefaultDriverName}}},
 			expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", Name: "test3", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 		},
 	}
@@ -2031,7 +2031,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		defer os.RemoveAll(tmpDir1)
 		cases = append(cases, []testCase{
 			{
-				spec: mounttypes.Mount{
+				spec: mount.Mount{
 					Type:   "bind",
 					Source: tmpDir1,
 					Target: destPath,
@@ -2044,7 +2044,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 				},
 			},
 			{
-				spec:     mounttypes.Mount{Type: "bind", Source: tmpDir1, Target: destPath, ReadOnly: true},
+				spec:     mount.Mount{Type: "bind", Source: tmpDir1, Target: destPath, ReadOnly: true},
 				expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir1},
 			},
 		}...)
@@ -2059,15 +2059,15 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 			cases = append(cases, []testCase{
 				{
-					spec:     mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath},
+					spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath},
 					expected: types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3},
 				},
 				{
-					spec:     mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true},
+					spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true},
 					expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3},
 				},
 				{
-					spec:     mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mounttypes.BindOptions{Propagation: "shared"}},
+					spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mount.BindOptions{Propagation: "shared"}},
 					expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"},
 				},
 			}...)
@@ -2077,19 +2077,19 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 	if testEnv.OSType != "windows" { // Windows does not support volume populate
 		cases = append(cases, []testCase{
 			{
-				spec:     mounttypes.Mount{Type: "volume", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}},
+				spec:     mount.Mount{Type: "volume", Target: destPath, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
 				expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 			{
-				spec:     mounttypes.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}},
+				spec:     mount.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
 				expected: types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 			{
-				spec:     mounttypes.Mount{Type: "volume", Target: destPath, Source: "test4", VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}},
+				spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test4", VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
 				expected: types.MountPoint{Type: "volume", Name: "test4", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 			{
-				spec:     mounttypes.Mount{Type: "volume", Target: destPath, Source: "test5", ReadOnly: true, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}},
+				spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test5", ReadOnly: true, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
 				expected: types.MountPoint{Type: "volume", Name: "test5", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
 			},
 		}...)
@@ -2102,9 +2102,9 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		c.Run(fmt.Sprintf("%d config: %v", i, x.spec), func(c *testing.T) {
 			container, err := apiclient.ContainerCreate(
 				ctx,
-				&containertypes.Config{Image: testImg},
-				&containertypes.HostConfig{Mounts: []mounttypes.Mount{x.spec}},
-				&networktypes.NetworkingConfig{},
+				&container.Config{Image: testImg},
+				&container.HostConfig{Mounts: []mount.Mount{x.spec}},
+				&network.NetworkingConfig{},
 				nil,
 				"")
 			assert.NilError(c, err)
@@ -2178,22 +2178,22 @@ func containerExit(apiclient client.APIClient, name string) func(poll.LogT) poll
 func (s *DockerSuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	type testCase struct {
-		cfg             mounttypes.Mount
+		cfg             mount.Mount
 		expectedOptions []string
 	}
 	target := "/foo"
 	cases := []testCase{
 		{
-			cfg: mounttypes.Mount{
+			cfg: mount.Mount{
 				Type:   "tmpfs",
 				Target: target},
 			expectedOptions: []string{"rw", "nosuid", "nodev", "noexec", "relatime"},
 		},
 		{
-			cfg: mounttypes.Mount{
+			cfg: mount.Mount{
 				Type:   "tmpfs",
 				Target: target,
-				TmpfsOptions: &mounttypes.TmpfsOptions{
+				TmpfsOptions: &mount.TmpfsOptions{
 					SizeBytes: 4096 * 1024, Mode: 0700}},
 			expectedOptions: []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=4096k", "mode=700"},
 		},
@@ -2203,17 +2203,17 @@ func (s *DockerSuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	config := containertypes.Config{
+	config := container.Config{
 		Image: "busybox",
 		Cmd:   []string{"/bin/sh", "-c", fmt.Sprintf("mount | grep 'tmpfs on %s'", target)},
 	}
 	for i, x := range cases {
 		cName := fmt.Sprintf("test-tmpfs-%d", i)
-		hostConfig := containertypes.HostConfig{
-			Mounts: []mounttypes.Mount{x.cfg},
+		hostConfig := container.HostConfig{
+			Mounts: []mount.Mount{x.cfg},
 		}
 
-		_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &networktypes.NetworkingConfig{}, nil, cName)
+		_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, cName)
 		assert.NilError(c, err)
 		out, _ := dockerCmd(c, "start", "-a", cName)
 		for _, option := range x.expectedOptions {
