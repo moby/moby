@@ -32,11 +32,17 @@ func (pm *PortMapper) SetFirewallTablesChain(c firewallapi.FirewallChain, bridge
 
 // AppendForwardingTableEntry adds a port mapping to the forwarding table
 func (pm *PortMapper) AppendForwardingTableEntry(proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
+	if pm.table == nil {
+		return nil
+	}
 	return pm.forward(firewallapi.Action(pm.table.GetAppendAction()), proto, sourceIP, sourcePort, containerIP, containerPort)
 }
 
 // DeleteForwardingTableEntry removes a port mapping from the forwarding table
 func (pm *PortMapper) DeleteForwardingTableEntry(proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
+	if pm.table == nil {
+		return nil
+	}
 	return pm.forward(firewallapi.Action(pm.table.GetDeleteAction()), proto, sourceIP, sourcePort, containerIP, containerPort)
 }
 

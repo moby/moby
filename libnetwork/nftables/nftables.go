@@ -90,7 +90,7 @@ func (e ChainError) Error() string {
 func probe() {
 	path, err := exec.LookPath("nft")
 	if err != nil {
-		logrus.Warnf("Failed to find nftables: %v", err)
+		logrus.Debugf("Failed to find nftables: %v", err)
 		return
 	}
 	if out, err := exec.Command(path, "-n", "list", "table", "nat").CombinedOutput(); err != nil {
@@ -871,9 +871,9 @@ func (nftable NFTable) AddDNATwithPort(table Table, chain, dstIP, dstPort, proto
 }
 
 //AddSNAT adds a snat rule with a port
-func (iptable NFTable) ADDSNATwithPort(table Table, chain, srcIP, srcPort, proto, natPort string) {
+func (nftable NFTable) AddSNATwithPort(table Table, chain, srcIP, srcPort, proto, natPort string) {
 	rule := []string{"insert", "rule", "ip", string(table), chain, "ip", "saddr", srcIP, proto, "sport", srcPort, "snat", "to", ":" + natPort}
-	if iptable.RawCombinedOutputNative(rule...) != nil {
+	if nftable.RawCombinedOutputNative(rule...) != nil {
 		logrus.Errorf("set up rule failed, %v", rule)
 	}
 }
@@ -899,11 +899,11 @@ func (nftable NFTable) GetAcceptPolicy() string {
 }
 
 func (c ChainInfo) GetName() string {
-	return c.GetName()
+	return c.Name
 }
 
 func (c ChainInfo) GetTable() Table {
-	return c.GetTable()
+	return c.Table
 }
 
 func (c ChainInfo) SetTable(t Table) {

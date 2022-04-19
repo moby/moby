@@ -48,7 +48,6 @@ import (
 	"net"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -1279,7 +1278,7 @@ func (c *controller) iptablesEnabled() bool {
 	if c.cfg == nil {
 		return false
 	}
-	// parse map cfg["bridge"]["generic"]["EnableIPTable"]
+	// parse map cfg["bridge"]["generic"]["EnableIPTables"]
 	cfgBridge, ok := c.cfg.Daemon.DriverCfg["bridge"].(map[string]interface{})
 	if !ok {
 		return false
@@ -1300,12 +1299,10 @@ func (c *controller) nftablesEnabled() bool {
 	c.Lock()
 	defer c.Unlock()
 
-	debug.PrintStack()
-
 	if c.cfg == nil {
 		return false
 	}
-	// parse map cfg["bridge"]["generic"]["EnableIPTable"]
+	// parse map cfg["bridge"]["generic"]["EnableNFTables"]
 	cfgBridge, ok := c.cfg.Daemon.DriverCfg["bridge"].(map[string]interface{})
 	if !ok {
 		return false
@@ -1316,8 +1313,8 @@ func (c *controller) nftablesEnabled() bool {
 	}
 	enabled, ok := cfgGeneric["EnableNFTables"].(bool)
 	if !ok {
-		// unless user explicitly stated, assume iptable is enabled
-		enabled = true
+		// unless user explicitly stated, assume nftables is disabled
+		return false
 	}
 	return enabled
 }

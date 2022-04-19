@@ -11,6 +11,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+//export for testing
+var Reloaded = reloaded
+var CheckRunning = checkRunning
+
 // IPV defines the table string
 type IPV string
 

@@ -307,7 +307,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
 	var nftablesEnabled bool
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		table = nftables.GetTable(nftables.IPv4)
 		nftablesEnabled = true
 	} else {
@@ -501,7 +501,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 func arrangeIngressFilterRule() {
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		table = nftables.GetTable(nftables.IPv4)
 	} else {
 		table = iptables.GetTable(iptables.IPv4)
@@ -649,7 +649,7 @@ func fwMarker() {
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
 	var nftablesEnabled bool
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		table = nftables.GetTable(nftables.IPv4)
 		nftablesEnabled = true
 	} else {
@@ -778,7 +778,7 @@ func redirector() {
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
 	var nftablesEnabled bool
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		table = nftables.GetTable(nftables.IPv4)
 		nftablesEnabled = true
 	} else {

@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package firewalld
+package firewalld_test
 
 import (
 	"net"
@@ -9,14 +9,15 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/firewallapi"
+	"github.com/docker/docker/libnetwork/firewalld"
 	"github.com/docker/docker/libnetwork/iptables"
 )
 
 func TestFirewalldInit(t *testing.T) {
-	if !checkRunning() {
+	if !firewalld.CheckRunning() {
 		t.Skip("firewalld is not running")
 	}
-	if err := FirewalldInit(); err != nil {
+	if err := firewalld.FirewalldInit(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -49,7 +50,7 @@ func TestReloaded(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		// to be re-called again later
-		OnReloaded(func() { fwdChain.Link(iptables.Append, ip1, ip2, port, proto, bridgeName) })
+		firewalld.OnReloaded(func() { fwdChain.Link(iptables.Append, ip1, ip2, port, proto, bridgeName) })
 	}
 
 	rule1 := []string{
@@ -68,7 +69,7 @@ func TestReloaded(t *testing.T) {
 	// flush all rules
 	fwdChain.Remove()
 
-	reloaded()
+	firewalld.Reloaded()
 
 	// make sure the rules have been recreated
 	if !iptable.Exists(fwdChain.GetTable(), fwdChain.GetName(), rule1...) {
@@ -84,8 +85,8 @@ func TestPassthrough(t *testing.T) {
 		"-j", "ACCEPT"}
 
 	iptable := iptables.GetTable(iptables.IPv4)
-	if FirewalldRunning {
-		_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
+	if firewalld.FirewalldRunning {
+		_, err := firewalld.Passthrough(firewalld.Iptables, append([]string{"-A"}, rule1...)...)
 		if err != nil {
 			t.Fatal(err)
 		}

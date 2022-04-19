@@ -72,7 +72,7 @@ type FirewallTable interface {
 	//AddDNATwithPort sets up a DNAT rule which forward all traffic on that port
 	AddDNATwithPort(table Table, chain, dstIP, dstPort, proto, natIP string)
 	//AddSNATwithPort sets up a SNAT rule which masquerades all traffic on that port
-	ADDSNATwithPort(table Table, chain, srcIP, srcPort, proto, natPort string)
+	AddSNATwithPort(table Table, chain, srcIP, srcPort, proto, natPort string)
 	GetInsertAction() string
 	GetAppendAction() string
 	GetDeleteAction() string

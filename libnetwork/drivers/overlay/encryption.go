@@ -218,7 +218,7 @@ func programMangle(vni uint32, add bool) (err error) {
 
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		//nftables does not gracefully support this yet
 		return errors.New("nftables does not yet support vxlan packet mangling")
 	} else {
@@ -256,7 +256,7 @@ func programInput(vni uint32, add bool) (err error) {
 
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		//nftables does not gracefully support this yet
 		return errors.New("nftables does not yet support vxlan packet mangling")
 	} else {

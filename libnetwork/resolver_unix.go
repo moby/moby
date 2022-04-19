@@ -25,8 +25,8 @@ func init() {
 const (
 	// outputChain used for docker embed dns
 	outputChain = "DOCKER_OUTPUT"
-	//postroutingchain used for docker embed dns
-	postroutingchain = "DOCKER_POSTROUTING"
+	//postroutingChain used for docker embed dns
+	postroutingChain = "DOCKER_POSTROUTING"
 )
 
 func reexecSetupResolver() {
@@ -56,19 +56,19 @@ func reexecSetupResolver() {
 
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		table = nftables.GetTable(nftables.IPv4)
 	} else {
 		table = iptables.GetTable(iptables.IPv4)
 	}
 
 	table.AddJumpRuleForIP(firewallapi.Nat, "OUTPUT", outputChain, resolverIP)
-	table.AddJumpRuleForIP(firewallapi.Nat, "POSTROUTING", outputChain, resolverIP)
+	table.AddJumpRuleForIP(firewallapi.Nat, "POSTROUTING", postroutingChain, resolverIP)
 
 	table.AddDNATwithPort(firewallapi.Nat, outputChain, resolverIP, "udp", dnsPort, os.Args[2])
-	table.ADDSNATwithPort(firewallapi.Nat, postroutingchain, resolverIP, "udp", ipPort, dnsPort)
+	table.AddSNATwithPort(firewallapi.Nat, postroutingChain, resolverIP, "udp", ipPort, dnsPort)
 	table.AddDNATwithPort(firewallapi.Nat, outputChain, resolverIP, "tcp", dnsPort, os.Args[3])
-	table.ADDSNATwithPort(firewallapi.Nat, postroutingchain, resolverIP, "tcp", tcpPort, dnsPort)
+	table.AddSNATwithPort(firewallapi.Nat, postroutingChain, resolverIP, "tcp", tcpPort, dnsPort)
 }
 
 func (r *resolver) setupIPTable() error {

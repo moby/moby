@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/libnetwork/firewallapi"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -17,7 +18,7 @@ const (
 )
 
 func TestUserChain(t *testing.T) {
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable := iptables.GetTable(iptables.IPv4)
 
 	nc, err := New()
 	assert.NilError(t, err)
@@ -71,8 +72,8 @@ func TestUserChain(t *testing.T) {
 			if tc.userChain != nil {
 				assert.DeepEqual(t, getRules(t, usrChainName), tc.userChain)
 			} else {
-				_, err := iptable.Raw("-S", usrChainName)
-				assert.Assert(t, err != nil, "chain %v: created unexpectedly", usrChainName)
+				out, err := iptable.Raw("-S", usrChainName)
+				assert.Assert(t, err != nil, "chain %v: created unexpectedly. %v", usrChainName, string(out))
 			}
 		})
 		resetIptables(t)
@@ -80,7 +81,7 @@ func TestUserChain(t *testing.T) {
 }
 
 func getRules(t *testing.T, chain string) []string {
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable := iptables.GetTable(iptables.IPv4)
 
 	t.Helper()
 	output, err := iptable.Raw("-S", chain)
@@ -94,10 +95,19 @@ func getRules(t *testing.T, chain string) []string {
 }
 
 func resetIptables(t *testing.T) {
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable := iptables.GetTable(iptables.IPv4)
 
 	t.Helper()
 	_, err := iptable.Raw("-F", fwdChainName)
 	assert.NilError(t, err)
-	_ = iptable.RemoveExistingChain(usrChainName, "")
+
+	tables := []firewallapi.Table{
+		firewallapi.Filter,
+		firewallapi.Nat,
+		firewallapi.Mangle,
+	}
+
+	for _, t := range tables {
+		_ = iptable.RemoveExistingChain(usrChainName, t)
+	}
 }

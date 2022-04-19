@@ -27,7 +27,7 @@ func filterWait() func() {
 func getTable() firewallapi.FirewallTable {
 	// TODO IPv6 support
 	var table firewallapi.FirewallTable
-	if err := nftables.InitCheck(); err != nil {
+	if err := nftables.InitCheck(); err == nil {
 		table = nftables.GetTable(nftables.IPv4)
 	} else {
 		table = iptables.GetTable(iptables.IPv4)
