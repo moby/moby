@@ -15,12 +15,12 @@ type grpcRouter struct {
 
 // NewRouter initializes a new grpc http router
 func NewRouter(backends ...Backend) router.Router {
-	opts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor), grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor)}
-	server := grpc.NewServer(opts...)
-
 	r := &grpcRouter{
-		h2Server:   &http2.Server{},
-		grpcServer: server,
+		h2Server: &http2.Server{},
+		grpcServer: grpc.NewServer(
+			grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor),
+			grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor),
+		),
 	}
 	for _, b := range backends {
 		b.RegisterGRPC(r.grpcServer)
@@ -30,12 +30,12 @@ func NewRouter(backends ...Backend) router.Router {
 }
 
 // Routes returns the available routers to the session controller
-func (r *grpcRouter) Routes() []router.Route {
-	return r.routes
+func (gr *grpcRouter) Routes() []router.Route {
+	return gr.routes
 }
 
-func (r *grpcRouter) initRoutes() {
-	r.routes = []router.Route{
-		router.NewPostRoute("/grpc", r.serveGRPC),
+func (gr *grpcRouter) initRoutes() {
+	gr.routes = []router.Route{
+		router.NewPostRoute("/grpc", gr.serveGRPC),
 	}
 }
