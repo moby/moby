@@ -28,7 +28,7 @@ type RootFS struct {
 type ImageInspect struct {
 	// ID is the content-addressable ID of an image.
 	//
-	// This identified is a content-addressable digest calculated from the
+	// This identifier is a content-addressable digest calculated from the
 	// image's configuration (which includes the digests of layers used by
 	// the image).
 	//
