@@ -30,15 +30,12 @@ const (
 // Refer to https://github.com/opencontainers/runc/pull/160/ for more information
 // The docker exec-root can be specified as "-exec-root" flag. The default value is "/run/docker".
 func processSetKeyReexec() {
-	var err error
+	if err := setKey(); err != nil {
+		logrus.Fatal(err)
+	}
+}
 
-	// Return a failure to the calling process via ExitCode
-	defer func() {
-		if err != nil {
-			logrus.Fatalf("%v", err)
-		}
-	}()
-
+func setKey() error {
 	execRoot := flag.String("exec-root", defaultExecRoot, "docker exec root")
 	flag.Parse()
 
@@ -46,22 +43,21 @@ func processSetKeyReexec() {
 	// (i.e. expecting 2 flag.Args())
 	args := flag.Args()
 	if len(args) < 2 {
-		err = fmt.Errorf("Re-exec expects 2 args (after parsing flags), received : %d", len(args))
-		return
+		return fmt.Errorf("re-exec expects 2 args (after parsing flags), received : %d", len(args))
 	}
 	containerID, shortCtlrID := args[0], args[1]
 
 	// We expect specs.State as a json string in <stdin>
 	stateBuf, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		return
+		return err
 	}
 	var state specs.State
 	if err = json.Unmarshal(stateBuf, &state); err != nil {
-		return
+		return err
 	}
 
-	err = SetExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
+	return SetExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
 }
 
 // SetExternalKey provides a convenient way to set an External key to a sandbox
