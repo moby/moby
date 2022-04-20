@@ -73,8 +73,11 @@ type ImageInspect struct {
 	// Depending on how the image was created, this field may be empty.
 	Container string
 
-	// ContainerConfig is the configuration of the container that was committed
-	// into the image.
+	// ContainerConfig is an optional field containing the configuration of the
+	// container that was last committed when creating the image.
+	//
+	// Previous versions of Docker builder used this field to store build cache,
+	// and it is not in active use anymore.
 	ContainerConfig *container.Config
 
 	// DockerVersion is the version of Docker that was used to build the image.
