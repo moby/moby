@@ -1,7 +1,3 @@
-//go:build !autogen
-// +build !autogen
-
-// Package dockerversion is auto-generated at build-time
 package dockerversion // import "github.com/docker/docker/dockerversion"
 
 // Default build-time variable for library-import.

@@ -284,9 +284,6 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/docker/autogen/winresources/dockerd v0.0.0-00010101000000-000000000000 => ./hack/make/.resources-windows
-## explicit; go 1.17
-github.com/docker/docker/autogen/winresources/dockerd
 # github.com/docker/go-connections v0.4.0
 ## explicit
 github.com/docker/go-connections/nat
@@ -1132,4 +1129,3 @@ gotest.tools/v3/skip
 # github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 # go.opencensus.io => go.opencensus.io v0.22.3
 # github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
-# github.com/docker/docker/autogen/winresources/dockerd => ./hack/make/.resources-windows

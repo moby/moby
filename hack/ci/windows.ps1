@@ -551,14 +551,6 @@ Try {
         Write-Host -ForegroundColor Magenta "WARN: Skipping building the binaries"
     }
 
-    Write-Host -ForegroundColor Green "INFO: Copying dockerversion from the container..."
-    $ErrorActionPreference = "SilentlyContinue"
-    docker cp "$contPath\..\dockerversion\version_autogen.go" "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\dockerversion"
-    if (-not($LastExitCode -eq 0)) {
-         Throw "ERROR: Failed to docker cp the generated version_autogen.go to $env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\dockerversion"
-    }
-    $ErrorActionPreference = "Stop"
-
     # Grab the golang installer out of the built image. That way, we know we are consistent once extracted and paths set,
     # so there's no need to re-deploy on account of an upgrade to the version of GO being used in docker.
     if ($null -eq $env:SKIP_COPY_GO) {
@@ -854,7 +846,6 @@ Try {
             $c += "`"$env:INTEGRATION_TEST_NAME`" "
             Write-Host -ForegroundColor Magenta "WARN: Only running integration tests matching $env:INTEGRATION_TEST_NAME"
         }
-        $c += "`"-tags`" " + "`"autogen`" "
         $c += "`"-test.timeout`" " + "`"200m`" "
 
         if ($null -ne $env:INTEGRATION_IN_CONTAINER) {
