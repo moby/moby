@@ -5,20 +5,20 @@ import (
 	"net"
 
 	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
 )
 
 const (
 	// DefaultIpcMode is default for container's IpcMode, if not set otherwise
-	DefaultIpcMode = containertypes.IPCModePrivate
+	DefaultIpcMode = container.IPCModePrivate
 
 	// DefaultCgroupNamespaceMode is the default mode for containers cgroup namespace when using cgroups v2.
-	DefaultCgroupNamespaceMode = containertypes.CgroupnsModePrivate
+	DefaultCgroupNamespaceMode = container.CgroupnsModePrivate
 
 	// DefaultCgroupV1NamespaceMode is the default mode for containers cgroup namespace when using cgroups v1.
-	DefaultCgroupV1NamespaceMode = containertypes.CgroupnsModeHost
+	DefaultCgroupV1NamespaceMode = container.CgroupnsModeHost
 
 	// StockRuntimeName is the reserved name/alias used to represent the
 	// OCI runtime being shipped with the docker daemon package.
@@ -129,7 +129,7 @@ func (conf *Config) IsSwarmCompatible() error {
 func verifyDefaultIpcMode(mode string) error {
 	const hint = `use "shareable" or "private"`
 
-	dm := containertypes.IpcMode(mode)
+	dm := container.IpcMode(mode)
 	if !dm.Valid() {
 		return fmt.Errorf("default IPC mode setting (%v) is invalid; "+hint, dm)
 	}
@@ -140,7 +140,7 @@ func verifyDefaultIpcMode(mode string) error {
 }
 
 func verifyDefaultCgroupNsMode(mode string) error {
-	cm := containertypes.CgroupnsMode(mode)
+	cm := container.CgroupnsMode(mode)
 	if !cm.Valid() {
 		return fmt.Errorf(`default cgroup namespace mode (%v) is invalid; use "host" or "private"`, cm)
 	}

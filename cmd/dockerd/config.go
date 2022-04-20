@@ -3,20 +3,14 @@ package main
 import (
 	"runtime"
 
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/plugin/executor/containerd"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
 )
 
-const (
-	// defaultShutdownTimeout is the default shutdown timeout for the daemon
-	defaultShutdownTimeout = 15
-	// defaultTrustKeyFile is the default filename for the trust key
-	defaultTrustKeyFile = "key.json"
-)
+// defaultTrustKeyFile is the default filename for the trust key
+const defaultTrustKeyFile = "key.json"
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
@@ -80,7 +74,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", config.DefaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", config.DefaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
 	flags.IntVar(&maxDownloadAttempts, "max-download-attempts", config.DefaultDownloadAttempts, "Set the max download attempts for each pull")
-	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
+	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", config.DefaultShutdownTimeout, "Set the default shutdown timeout")
 	flags.IntVar(&conf.NetworkDiagnosticPort, "network-diagnostic-port", 0, "TCP port number of the network diagnostic server")
 	_ = flags.MarkHidden("network-diagnostic-port")
 
@@ -96,8 +90,8 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
 	conf.MaxDownloadAttempts = &maxDownloadAttempts
 
-	flags.StringVar(&conf.ContainerdNamespace, "containerd-namespace", daemon.ContainersNamespace, "Containerd namespace to use")
-	flags.StringVar(&conf.ContainerdPluginNamespace, "containerd-plugins-namespace", containerd.PluginNamespace, "Containerd namespace to use for plugins")
+	flags.StringVar(&conf.ContainerdNamespace, "containerd-namespace", config.DefaultContainersNamespace, "Containerd namespace to use")
+	flags.StringVar(&conf.ContainerdPluginNamespace, "containerd-plugins-namespace", config.DefaultPluginNamespace, "Containerd namespace to use for plugins")
 
 	flags.StringVar(&conf.DefaultRuntime, "default-runtime", config.StockRuntimeName, "Default OCI runtime for containers")
 
