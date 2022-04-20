@@ -115,14 +115,15 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 	}
 }
 
-// TODO TestCopyToContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
-func TestCopyToContainerNotStatusOKError(t *testing.T) {
+// TestCopyToContainerEmptyResponse verifies that no error is returned when a
+// "204 No Content" is returned by the API.
+func TestCopyToContainerEmptyResponse(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
-	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
-		t.Fatalf("expected an unexpected status code error, got %v", err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -192,14 +193,30 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 	}
 }
 
-// TODO TestCopyFromContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
-func TestCopyFromContainerNotStatusOKError(t *testing.T) {
+// TestCopyFromContainerEmptyResponse verifies that no error is returned when a
+// "204 No Content" is returned by the API.
+func TestCopyFromContainerEmptyResponse(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			content, err := json.Marshal(types.ContainerPathStat{
+				Name: "path/to/file",
+				Mode: 0700,
+			})
+			if err != nil {
+				return nil, err
+			}
+			base64PathStat := base64.StdEncoding.EncodeToString(content)
+			return &http.Response{
+				StatusCode: http.StatusNoContent,
+				Header: http.Header{
+					"X-Docker-Container-Path-Stat": []string{base64PathStat},
+				},
+			}, nil
+		}),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
-		t.Fatalf("expected an unexpected status code error, got %v", err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
