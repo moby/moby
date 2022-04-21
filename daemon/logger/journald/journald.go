@@ -14,7 +14,6 @@ import (
 	"github.com/coreos/go-systemd/v22/journal"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/sirupsen/logrus"
 )
 
 const name = "journald"
@@ -27,10 +26,10 @@ type journald struct {
 
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(name, validateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 

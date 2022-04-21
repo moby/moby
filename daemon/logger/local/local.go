@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -49,10 +48,10 @@ func ValidateLogOpt(cfg map[string]string) error {
 
 func init() {
 	if err := logger.RegisterLogDriver(Name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(Name, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 

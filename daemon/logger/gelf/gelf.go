@@ -14,7 +14,6 @@ import (
 	"github.com/Graylog2/go-gelf/gelf"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/sirupsen/logrus"
 )
 
 const name = "gelf"
@@ -28,10 +27,10 @@ type gelfLogger struct {
 
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 

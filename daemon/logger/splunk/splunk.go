@@ -142,10 +142,10 @@ const (
 
 func init() {
 	if err := logger.RegisterLogDriver(driverName, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(driverName, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 
