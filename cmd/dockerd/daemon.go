@@ -85,6 +85,11 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return err
 	}
 
+	serverConfig, err := newAPIServerConfig(cli.Config)
+	if err != nil {
+		return err
+	}
+
 	if opts.Validate {
 		// If config wasn't OK we wouldn't have made it this far.
 		fmt.Fprintln(os.Stderr, "configuration OK")
@@ -159,10 +164,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}
 	}
 
-	serverConfig, err := newAPIServerConfig(cli.Config)
-	if err != nil {
-		return errors.Wrap(err, "failed to create API server")
-	}
 	cli.api = apiserver.New(serverConfig)
 
 	hosts, err := loadListeners(cli, serverConfig)
