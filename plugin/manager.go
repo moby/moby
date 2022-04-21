@@ -14,7 +14,6 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/containerfs"
@@ -41,6 +40,11 @@ type Executor interface {
 	Signal(id string, signal int) error
 }
 
+// EndpointResolver provides looking up registry endpoints for pulling.
+type EndpointResolver interface {
+	LookupPullEndpoints(hostname string) (endpoints []registry.APIEndpoint, err error)
+}
+
 func (pm *Manager) restorePlugin(p *v2.Plugin, c *controller) error {
 	if p.IsEnabled() {
 		return pm.restore(p, c)
@@ -53,7 +57,7 @@ type eventLogger func(id, name, action string)
 // ManagerConfig defines configuration needed to start new manager.
 type ManagerConfig struct {
 	Store              *Store // remove
-	RegistryService    registry.Service
+	RegistryService    EndpointResolver
 	LiveRestoreEnabled bool // TODO: remove
 	LogPluginEvent     eventLogger
 	Root               string
@@ -83,25 +87,8 @@ type controller struct {
 	timeoutInSecs int
 }
 
-// pluginRegistryService ensures that all resolved repositories
-// are of the plugin class.
-type pluginRegistryService struct {
-	registry.Service
-}
-
-func (s pluginRegistryService) ResolveRepository(name reference.Named) (repoInfo *registry.RepositoryInfo, err error) {
-	repoInfo, err = s.Service.ResolveRepository(name)
-	if repoInfo != nil {
-		repoInfo.Class = "plugin"
-	}
-	return
-}
-
 // NewManager returns a new plugin manager.
 func NewManager(config ManagerConfig) (*Manager, error) {
-	if config.RegistryService != nil {
-		config.RegistryService = pluginRegistryService{config.RegistryService}
-	}
 	manager := &Manager{
 		config: config,
 	}
