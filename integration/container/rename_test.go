@@ -143,7 +143,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	assert.NilError(t, err)
 	// Stop/Start the container to get registered
 	// FIXME(vdemeester) this is a really weird behavior as it fails otherwise
-	err = client.ContainerStop(ctx, container1Name, nil)
+	err = client.ContainerStop(ctx, container1Name, containertypes.StopOptions{})
 	assert.NilError(t, err)
 	err = client.ContainerStart(ctx, container1Name, types.ContainerStartOptions{})
 	assert.NilError(t, err)

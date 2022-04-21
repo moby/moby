@@ -6869,6 +6869,11 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
+        - name: "signal"
+          in: "query"
+          description: |
+            Signal to send to the container as an integer or string (e.g. `SIGINT`).
+          type: "string"
         - name: "t"
           in: "query"
           description: "Number of seconds to wait before killing the container"
@@ -6897,6 +6902,11 @@ paths:
           in: "path"
           required: true
           description: "ID or name of the container"
+          type: "string"
+        - name: "signal"
+          in: "query"
+          description: |
+            Signal to send to the container as an integer or string (e.g. `SIGINT`).
           type: "string"
         - name: "t"
           in: "query"
@@ -6939,7 +6949,8 @@ paths:
           type: "string"
         - name: "signal"
           in: "query"
-          description: "Signal to send to the container as an integer or string (e.g. `SIGINT`)"
+          description: |
+            Signal to send to the container as an integer or string (e.g. `SIGINT`).
           type: "string"
           default: "SIGKILL"
       tags: ["Container"]

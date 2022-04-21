@@ -221,20 +221,31 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 		return err
 	}
 
-	var seconds *int
+	var (
+		options container.StopOptions
+		version = httputils.VersionFromContext(ctx)
+	)
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		if sig := r.Form.Get("signal"); sig != "" {
+			if _, err := signal.ParseSignal(sig); err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+			options.Signal = sig
+		}
+	}
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
 			return err
 		}
-		seconds = &valSeconds
+		options.Timeout = &valSeconds
 	}
 
-	if err := s.backend.ContainerStop(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerStop(ctx, vars["name"], options); err != nil {
 		return err
 	}
-	w.WriteHeader(http.StatusNoContent)
 
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -278,21 +289,31 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		return err
 	}
 
-	var seconds *int
+	var (
+		options container.StopOptions
+		version = httputils.VersionFromContext(ctx)
+	)
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		if sig := r.Form.Get("signal"); sig != "" {
+			if _, err := signal.ParseSignal(sig); err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+			options.Signal = sig
+		}
+	}
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
 			return err
 		}
-		seconds = &valSeconds
+		options.Timeout = &valSeconds
 	}
 
-	if err := s.backend.ContainerRestart(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerRestart(ctx, vars["name"], options); err != nil {
 		return err
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-
 	return nil
 }
 

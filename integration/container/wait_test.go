@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -86,7 +87,7 @@ func TestWaitBlocked(t *testing.T) {
 
 			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
 
-			err := cli.ContainerStop(ctx, containerID, nil)
+			err := cli.ContainerStop(ctx, containerID, containertypes.StopOptions{})
 			assert.NilError(t, err)
 
 			select {

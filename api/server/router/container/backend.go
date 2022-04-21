@@ -37,10 +37,10 @@ type stateBackend interface {
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
 	ContainerResize(name string, height, width int) error
-	ContainerRestart(name string, seconds *int) error
+	ContainerRestart(ctx context.Context, name string, options container.StopOptions) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
-	ContainerStop(name string, seconds *int) error
+	ContainerStop(ctx context.Context, name string, options container.StopOptions) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)
 	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)

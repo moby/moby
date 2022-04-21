@@ -13,6 +13,24 @@ import (
 // Docker interprets it as 3 nanoseconds.
 const MinimumDuration = 1 * time.Millisecond
 
+// StopOptions holds the options to stop or restart a container.
+type StopOptions struct {
+	// Signal (optional) is the signal to send to the container to (gracefully)
+	// stop it before forcibly terminating the container with SIGKILL after the
+	// timeout expires. If not value is set, the default (SIGTERM) is used.
+	Signal string `json:",omitempty"`
+
+	// Timeout (optional) is the timeout (in seconds) to wait for the container
+	// to stop gracefully before forcibly terminating it with SIGKILL.
+	//
+	// - Use nil to use the default timeout (10 seconds).
+	// - Use '-1' to wait indefinitely.
+	// - Use '0' to not wait for the container to exit gracefully, and
+	//   immediately proceeds to forcibly terminating the container.
+	// - Other positive values are used as timeout (in seconds).
+	Timeout *int `json:",omitempty"`
+}
+
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
 type HealthConfig struct {
 	// Test is the test to perform to check that the container is healthy.

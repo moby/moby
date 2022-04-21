@@ -153,8 +153,12 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.cleanupContainer(ctr, true, true); err != nil {
-				logrus.Errorf("failed to cleanup container on create error: %v", err)
+			err = daemon.cleanupContainer(ctr, types.ContainerRmConfig{
+				ForceRemove:  true,
+				RemoveVolume: true,
+			})
+			if err != nil {
+				logrus.WithError(err).Error("failed to cleanup container on create error")
 			}
 		}
 	}()
