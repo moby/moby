@@ -159,7 +159,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}
 	}
 
-	serverConfig, err := newAPIServerConfig(cli)
+	serverConfig, err := newAPIServerConfig(cli.Config)
 	if err != nil {
 		return errors.Wrap(err, "failed to create API server")
 	}
@@ -605,28 +605,28 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 	return opts, nil
 }
 
-func newAPIServerConfig(cli *DaemonCli) (*apiserver.Config, error) {
+func newAPIServerConfig(config *config.Config) (*apiserver.Config, error) {
 	serverConfig := &apiserver.Config{
-		SocketGroup: cli.Config.SocketGroup,
+		SocketGroup: config.SocketGroup,
 		Version:     dockerversion.Version,
-		CorsHeaders: cli.Config.CorsHeaders,
+		CorsHeaders: config.CorsHeaders,
 	}
 
-	if cli.Config.TLS != nil && *cli.Config.TLS {
+	if config.TLS != nil && *config.TLS {
 		tlsOptions := tlsconfig.Options{
-			CAFile:             cli.Config.CommonTLSOptions.CAFile,
-			CertFile:           cli.Config.CommonTLSOptions.CertFile,
-			KeyFile:            cli.Config.CommonTLSOptions.KeyFile,
+			CAFile:             config.CommonTLSOptions.CAFile,
+			CertFile:           config.CommonTLSOptions.CertFile,
+			KeyFile:            config.CommonTLSOptions.KeyFile,
 			ExclusiveRootPools: true,
 		}
 
-		if cli.Config.TLSVerify == nil || *cli.Config.TLSVerify {
+		if config.TLSVerify == nil || *config.TLSVerify {
 			// server requires and verifies client's certificate
 			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 		tlsConfig, err := tlsconfig.Server(tlsOptions)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "invalid TLS configuration")
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}
