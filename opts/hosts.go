@@ -132,13 +132,6 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// url.Parse fails for trailing colon on IPv6 brackets on Go 1.5, but
-	// not 1.4. See https://github.com/golang/go/issues/12200 and
-	// https://github.com/golang/go/issues/6530.
-	if strings.HasSuffix(addr, "]:") {
-		addr += defaultPort
-	}
-
 	u, err := url.Parse("tcp://" + addr)
 	if err != nil {
 		return "", err
