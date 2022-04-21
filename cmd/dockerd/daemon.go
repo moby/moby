@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -435,6 +436,10 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		}
 	}
 
+	if err := normalizeHosts(conf); err != nil {
+		return nil, err
+	}
+
 	if err := config.Validate(conf); err != nil {
 		return nil, err
 	}
@@ -467,6 +472,41 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	}
 
 	return conf, nil
+}
+
+// normalizeHosts normalizes the configured config.Hosts and remove duplicates.
+// It returns an error if it fails to parse a host.
+func normalizeHosts(config *config.Config) error {
+	if len(config.Hosts) == 0 {
+		// if no hosts are configured, create a single entry slice, so that the
+		// default is used.
+		//
+		// TODO(thaJeztah) implement a cleaner way for this; this depends on a
+		//                 side-effect of how we parse empty/partial hosts.
+		config.Hosts = make([]string, 1)
+	}
+	hosts := make([]string, 0, len(config.Hosts))
+	seen := make(map[string]struct{}, len(config.Hosts))
+
+	useTLS := DefaultTLSValue
+	if config.TLS != nil {
+		useTLS = *config.TLS
+	}
+
+	for _, h := range config.Hosts {
+		host, err := dopts.ParseHost(useTLS, honorXDG, h)
+		if err != nil {
+			return err
+		}
+		if _, ok := seen[host]; ok {
+			continue
+		}
+		seen[host] = struct{}{}
+		hosts = append(hosts, host)
+	}
+	sort.Strings(hosts)
+	config.Hosts = hosts
+	return nil
 }
 
 func checkDeprecatedOptions(config *config.Config) error {
@@ -591,10 +631,6 @@ func newAPIServerConfig(cli *DaemonCli) (*apiserver.Config, error) {
 		serverConfig.TLSConfig = tlsConfig
 	}
 
-	if len(cli.Config.Hosts) == 0 {
-		cli.Config.Hosts = make([]string, 1)
-	}
-
 	return serverConfig, nil
 }
 
@@ -624,32 +660,19 @@ func checkTLSAuthOK(c *config.Config) bool {
 }
 
 func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, error) {
-	var hosts []string
-	seen := make(map[string]struct{}, len(cli.Config.Hosts))
-
-	useTLS := DefaultTLSValue
-	if cli.Config.TLS != nil {
-		useTLS = *cli.Config.TLS
+	if len(cli.Config.Hosts) == 0 {
+		return nil, errors.New("no hosts configured")
 	}
+	var hosts []string
 
 	for i := 0; i < len(cli.Config.Hosts); i++ {
-		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(useTLS, honorXDG, cli.Config.Hosts[i]); err != nil {
-			return nil, errors.Wrapf(err, "error parsing -H %s", cli.Config.Hosts[i])
-		}
-		if _, ok := seen[cli.Config.Hosts[i]]; ok {
-			continue
-		}
-		seen[cli.Config.Hosts[i]] = struct{}{}
-
 		protoAddr := cli.Config.Hosts[i]
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		protoAddrParts := strings.SplitN(cli.Config.Hosts[i], "://", 2)
 		if len(protoAddrParts) != 2 {
 			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
 
-		proto := protoAddrParts[0]
-		addr := protoAddrParts[1]
+		proto, addr := protoAddrParts[0], protoAddrParts[1]
 
 		// It's a bad idea to bind to TCP without tlsverify.
 		authEnabled := serverConfig.TLSConfig != nil && serverConfig.TLSConfig.ClientAuth == tls.RequireAndVerifyClientCert
