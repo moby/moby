@@ -93,7 +93,7 @@ func (c *Config) SetExitCode(code int) {
 // Store keeps track of the exec configurations.
 type Store struct {
 	byID map[string]*Config
-	sync.RWMutex
+	mu   sync.RWMutex
 }
 
 // NewStore initializes a new exec store.
@@ -105,44 +105,44 @@ func NewStore() *Store {
 
 // Commands returns the exec configurations in the store.
 func (e *Store) Commands() map[string]*Config {
-	e.RLock()
+	e.mu.RLock()
 	byID := make(map[string]*Config, len(e.byID))
 	for id, config := range e.byID {
 		byID[id] = config
 	}
-	e.RUnlock()
+	e.mu.RUnlock()
 	return byID
 }
 
 // Add adds a new exec configuration to the store.
 func (e *Store) Add(id string, Config *Config) {
-	e.Lock()
+	e.mu.Lock()
 	e.byID[id] = Config
-	e.Unlock()
+	e.mu.Unlock()
 }
 
 // Get returns an exec configuration by its id.
 func (e *Store) Get(id string) *Config {
-	e.RLock()
+	e.mu.RLock()
 	res := e.byID[id]
-	e.RUnlock()
+	e.mu.RUnlock()
 	return res
 }
 
 // Delete removes an exec configuration from the store.
 func (e *Store) Delete(id string, pid int) {
-	e.Lock()
+	e.mu.Lock()
 	delete(e.byID, id)
-	e.Unlock()
+	e.mu.Unlock()
 }
 
 // List returns the list of exec ids in the store.
 func (e *Store) List() []string {
 	var IDs []string
-	e.RLock()
+	e.mu.RLock()
 	for id := range e.byID {
 		IDs = append(IDs, id)
 	}
-	e.RUnlock()
+	e.mu.RUnlock()
 	return IDs
 }
