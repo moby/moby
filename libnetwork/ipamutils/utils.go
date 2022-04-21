@@ -34,13 +34,11 @@ type NetworkToSplit struct {
 func init() {
 	var err error
 	if PredefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks); err != nil {
-		//we are going to panic in case of error as we should never get into this state
-		panic("InitAddressPools failed to initialize the global scope default address pool")
+		panic("failed to initialize the global scope default address pool: " + err.Error())
 	}
 
 	if PredefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks); err != nil {
-		//we are going to panic in case of error as we should never get into this state
-		panic("InitAddressPools failed to initialize the local scope default address pool")
+		panic("failed to initialize the local scope default address pool: " + err.Error())
 	}
 }
 

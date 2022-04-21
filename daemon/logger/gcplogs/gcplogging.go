@@ -43,13 +43,12 @@ var (
 )
 
 func init() {
-
 	if err := logger.RegisterLogDriver(name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 
 	if err := logger.RegisterLogOptValidator(name, ValidateLogOpts); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 

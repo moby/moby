@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Name is the name of the file that the jsonlogger logs to.
@@ -32,10 +31,10 @@ type JSONFileLogger struct {
 
 func init() {
 	if err := logger.RegisterLogDriver(Name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(Name, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 
