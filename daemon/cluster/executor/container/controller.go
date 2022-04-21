@@ -13,10 +13,10 @@ import (
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/swarmkit/agent/exec"
-	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/log"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 )

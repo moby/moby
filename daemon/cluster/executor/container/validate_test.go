@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/swarmkit/api"
+	"github.com/moby/swarmkit/v2/api"
 )
 
 func newTestControllerWithMount(m api.Mount) (*controller, error) {

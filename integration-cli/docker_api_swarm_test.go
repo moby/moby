@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
-	"github.com/docker/swarmkit/ca"
+	"github.com/moby/swarmkit/v2/ca"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"

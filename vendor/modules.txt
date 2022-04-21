@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.92.0
+# cloud.google.com/go v0.93.3
 ## explicit; go 1.11
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
@@ -57,8 +57,6 @@ github.com/RackSec/srslog
 # github.com/agext/levenshtein v1.2.3
 ## explicit
 github.com/agext/levenshtein
-# github.com/akutz/memconn v0.1.0
-## explicit
 # github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 ## explicit
 github.com/armon/circbuf
@@ -306,74 +304,6 @@ github.com/docker/libkv/store/boltdb
 # github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
 ## explicit
 github.com/docker/libtrust
-# github.com/docker/swarmkit v1.12.1-0.20220307221335-616e8db4c3b0
-## explicit
-github.com/docker/swarmkit/agent
-github.com/docker/swarmkit/agent/configs
-github.com/docker/swarmkit/agent/csi
-github.com/docker/swarmkit/agent/csi/plugin
-github.com/docker/swarmkit/agent/exec
-github.com/docker/swarmkit/agent/secrets
-github.com/docker/swarmkit/api
-github.com/docker/swarmkit/api/deepcopy
-github.com/docker/swarmkit/api/defaults
-github.com/docker/swarmkit/api/equality
-github.com/docker/swarmkit/api/genericresource
-github.com/docker/swarmkit/api/naming
-github.com/docker/swarmkit/api/validation
-github.com/docker/swarmkit/ca
-github.com/docker/swarmkit/ca/keyutils
-github.com/docker/swarmkit/ca/pkcs8
-github.com/docker/swarmkit/connectionbroker
-github.com/docker/swarmkit/identity
-github.com/docker/swarmkit/ioutils
-github.com/docker/swarmkit/log
-github.com/docker/swarmkit/manager
-github.com/docker/swarmkit/manager/allocator
-github.com/docker/swarmkit/manager/allocator/cnmallocator
-github.com/docker/swarmkit/manager/allocator/networkallocator
-github.com/docker/swarmkit/manager/constraint
-github.com/docker/swarmkit/manager/controlapi
-github.com/docker/swarmkit/manager/csi
-github.com/docker/swarmkit/manager/dispatcher
-github.com/docker/swarmkit/manager/dispatcher/heartbeat
-github.com/docker/swarmkit/manager/drivers
-github.com/docker/swarmkit/manager/encryption
-github.com/docker/swarmkit/manager/health
-github.com/docker/swarmkit/manager/keymanager
-github.com/docker/swarmkit/manager/logbroker
-github.com/docker/swarmkit/manager/metrics
-github.com/docker/swarmkit/manager/orchestrator
-github.com/docker/swarmkit/manager/orchestrator/constraintenforcer
-github.com/docker/swarmkit/manager/orchestrator/global
-github.com/docker/swarmkit/manager/orchestrator/jobs
-github.com/docker/swarmkit/manager/orchestrator/jobs/global
-github.com/docker/swarmkit/manager/orchestrator/jobs/replicated
-github.com/docker/swarmkit/manager/orchestrator/replicated
-github.com/docker/swarmkit/manager/orchestrator/restart
-github.com/docker/swarmkit/manager/orchestrator/taskinit
-github.com/docker/swarmkit/manager/orchestrator/taskreaper
-github.com/docker/swarmkit/manager/orchestrator/update
-github.com/docker/swarmkit/manager/orchestrator/volumeenforcer
-github.com/docker/swarmkit/manager/raftselector
-github.com/docker/swarmkit/manager/resourceapi
-github.com/docker/swarmkit/manager/scheduler
-github.com/docker/swarmkit/manager/state
-github.com/docker/swarmkit/manager/state/raft
-github.com/docker/swarmkit/manager/state/raft/membership
-github.com/docker/swarmkit/manager/state/raft/storage
-github.com/docker/swarmkit/manager/state/raft/transport
-github.com/docker/swarmkit/manager/state/store
-github.com/docker/swarmkit/manager/watchapi
-github.com/docker/swarmkit/node
-github.com/docker/swarmkit/protobuf/plugin
-github.com/docker/swarmkit/protobuf/ptypes
-github.com/docker/swarmkit/remotes
-github.com/docker/swarmkit/template
-github.com/docker/swarmkit/volumequeue
-github.com/docker/swarmkit/watch
-github.com/docker/swarmkit/watch/queue
-github.com/docker/swarmkit/xnet
 # github.com/dustin/go-humanize v1.0.0
 ## explicit
 github.com/dustin/go-humanize
@@ -435,7 +365,7 @@ github.com/golang/protobuf/ptypes/wrappers
 # github.com/google/btree v1.0.1
 ## explicit; go 1.12
 github.com/google/btree
-# github.com/google/certificate-transparency-go v1.0.20
+# github.com/google/certificate-transparency-go v1.1.2 => github.com/google/certificate-transparency-go v1.0.20
 ## explicit
 github.com/google/certificate-transparency-go
 github.com/google/certificate-transparency-go/asn1
@@ -482,8 +412,8 @@ github.com/hashicorp/errwrap
 # github.com/hashicorp/go-immutable-radix v1.3.1
 ## explicit
 github.com/hashicorp/go-immutable-radix
-# github.com/hashicorp/go-memdb v0.0.0-20161216180745-cb9a474f84cc
-## explicit
+# github.com/hashicorp/go-memdb v1.3.2
+## explicit; go 1.12
 github.com/hashicorp/go-memdb
 # github.com/hashicorp/go-msgpack v0.5.3 => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
 ## explicit
@@ -494,7 +424,7 @@ github.com/hashicorp/go-multierror
 # github.com/hashicorp/go-sockaddr v1.0.2
 ## explicit
 github.com/hashicorp/go-sockaddr
-# github.com/hashicorp/golang-lru v0.5.3
+# github.com/hashicorp/golang-lru v0.5.4
 ## explicit; go 1.12
 github.com/hashicorp/golang-lru/simplelru
 # github.com/hashicorp/memberlist v0.2.4
@@ -510,7 +440,7 @@ github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 ## explicit
 github.com/inconshreveable/mousetrap
-# github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee
+# github.com/ishidawataru/sctp v0.0.0-20210707070123-9a39160e9062
 ## explicit; go 1.12
 github.com/ishidawataru/sctp
 # github.com/jmespath/go-jmespath v0.3.0
@@ -655,6 +585,74 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
+# github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
+## explicit; go 1.17
+github.com/moby/swarmkit/v2/agent
+github.com/moby/swarmkit/v2/agent/configs
+github.com/moby/swarmkit/v2/agent/csi
+github.com/moby/swarmkit/v2/agent/csi/plugin
+github.com/moby/swarmkit/v2/agent/exec
+github.com/moby/swarmkit/v2/agent/secrets
+github.com/moby/swarmkit/v2/api
+github.com/moby/swarmkit/v2/api/deepcopy
+github.com/moby/swarmkit/v2/api/defaults
+github.com/moby/swarmkit/v2/api/equality
+github.com/moby/swarmkit/v2/api/genericresource
+github.com/moby/swarmkit/v2/api/naming
+github.com/moby/swarmkit/v2/api/validation
+github.com/moby/swarmkit/v2/ca
+github.com/moby/swarmkit/v2/ca/keyutils
+github.com/moby/swarmkit/v2/ca/pkcs8
+github.com/moby/swarmkit/v2/connectionbroker
+github.com/moby/swarmkit/v2/identity
+github.com/moby/swarmkit/v2/ioutils
+github.com/moby/swarmkit/v2/log
+github.com/moby/swarmkit/v2/manager
+github.com/moby/swarmkit/v2/manager/allocator
+github.com/moby/swarmkit/v2/manager/allocator/cnmallocator
+github.com/moby/swarmkit/v2/manager/allocator/networkallocator
+github.com/moby/swarmkit/v2/manager/constraint
+github.com/moby/swarmkit/v2/manager/controlapi
+github.com/moby/swarmkit/v2/manager/csi
+github.com/moby/swarmkit/v2/manager/dispatcher
+github.com/moby/swarmkit/v2/manager/dispatcher/heartbeat
+github.com/moby/swarmkit/v2/manager/drivers
+github.com/moby/swarmkit/v2/manager/encryption
+github.com/moby/swarmkit/v2/manager/health
+github.com/moby/swarmkit/v2/manager/keymanager
+github.com/moby/swarmkit/v2/manager/logbroker
+github.com/moby/swarmkit/v2/manager/metrics
+github.com/moby/swarmkit/v2/manager/orchestrator
+github.com/moby/swarmkit/v2/manager/orchestrator/constraintenforcer
+github.com/moby/swarmkit/v2/manager/orchestrator/global
+github.com/moby/swarmkit/v2/manager/orchestrator/jobs
+github.com/moby/swarmkit/v2/manager/orchestrator/jobs/global
+github.com/moby/swarmkit/v2/manager/orchestrator/jobs/replicated
+github.com/moby/swarmkit/v2/manager/orchestrator/replicated
+github.com/moby/swarmkit/v2/manager/orchestrator/restart
+github.com/moby/swarmkit/v2/manager/orchestrator/taskinit
+github.com/moby/swarmkit/v2/manager/orchestrator/taskreaper
+github.com/moby/swarmkit/v2/manager/orchestrator/update
+github.com/moby/swarmkit/v2/manager/orchestrator/volumeenforcer
+github.com/moby/swarmkit/v2/manager/raftselector
+github.com/moby/swarmkit/v2/manager/resourceapi
+github.com/moby/swarmkit/v2/manager/scheduler
+github.com/moby/swarmkit/v2/manager/state
+github.com/moby/swarmkit/v2/manager/state/raft
+github.com/moby/swarmkit/v2/manager/state/raft/membership
+github.com/moby/swarmkit/v2/manager/state/raft/storage
+github.com/moby/swarmkit/v2/manager/state/raft/transport
+github.com/moby/swarmkit/v2/manager/state/store
+github.com/moby/swarmkit/v2/manager/watchapi
+github.com/moby/swarmkit/v2/node
+github.com/moby/swarmkit/v2/protobuf/plugin
+github.com/moby/swarmkit/v2/protobuf/ptypes
+github.com/moby/swarmkit/v2/remotes
+github.com/moby/swarmkit/v2/template
+github.com/moby/swarmkit/v2/volumequeue
+github.com/moby/swarmkit/v2/watch
+github.com/moby/swarmkit/v2/watch/queue
+github.com/moby/swarmkit/v2/xnet
 # github.com/moby/sys/mount v0.3.1
 ## explicit; go 1.16
 github.com/moby/sys/mount
@@ -677,8 +675,8 @@ github.com/morikuni/aec
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
-## explicit
+# github.com/opencontainers/image-spec v1.0.3-0.20220303224323-02efb9a75ee1
+## explicit; go 1.16
 github.com/opencontainers/image-spec/identity
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
@@ -1129,3 +1127,4 @@ gotest.tools/v3/skip
 # github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 # go.opencensus.io => go.opencensus.io v0.22.3
 # github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
+# github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20

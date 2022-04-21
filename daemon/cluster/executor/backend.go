@@ -22,7 +22,7 @@ import (
 	networktypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/plugin"
 	volumeopts "github.com/docker/docker/volume/service/opts"
-	"github.com/docker/swarmkit/agent/exec"
+	"github.com/moby/swarmkit/v2/agent/exec"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

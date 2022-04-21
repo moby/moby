@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	types "github.com/docker/docker/api/types/swarm"
-	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
 // TaskFromGRPC converts a grpc Task to a Task.

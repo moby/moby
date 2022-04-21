@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
-	swarmapi "github.com/docker/swarmkit/api"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	"google.golang.org/grpc"
 )
 

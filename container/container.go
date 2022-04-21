@@ -36,7 +36,7 @@ import (
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	units "github.com/docker/go-units"
-	agentexec "github.com/docker/swarmkit/agent/exec"
+	agentexec "github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/sys/signal"
 	"github.com/moby/sys/symlink"
 	"github.com/pkg/errors"

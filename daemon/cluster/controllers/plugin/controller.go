@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/plugin"
 	v2 "github.com/docker/docker/plugin/v2"
-	"github.com/docker/swarmkit/api"
 	"github.com/gogo/protobuf/proto"
+	"github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

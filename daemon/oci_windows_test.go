@@ -11,8 +11,8 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	swarmagent "github.com/docker/swarmkit/agent"
-	swarmapi "github.com/docker/swarmkit/api"
+	swarmagent "github.com/moby/swarmkit/v2/agent"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/windows/registry"
 	"gotest.tools/v3/assert"

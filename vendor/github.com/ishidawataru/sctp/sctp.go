@@ -505,6 +505,14 @@ func (c *SCTPConn) GetDefaultSentParam() (*SndRcvInfo, error) {
 	return info, err
 }
 
+func (c *SCTPConn) Getsockopt(optname, optval, optlen uintptr) (uintptr, uintptr, error) {
+	return getsockopt(c.fd(), optname, optval, optlen)
+}
+
+func (c *SCTPConn) Setsockopt(optname, optval, optlen uintptr) (uintptr, uintptr, error) {
+	return setsockopt(c.fd(), optname, optval, optlen)
+}
+
 func resolveFromRawAddr(ptr unsafe.Pointer, n int) (*SCTPAddr, error) {
 	addr := &SCTPAddr{
 		IPAddrs: make([]net.IPAddr, n),

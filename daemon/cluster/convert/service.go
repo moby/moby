@@ -7,10 +7,10 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/pkg/namesgenerator"
-	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/pkg/errors"
 )
 
