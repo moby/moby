@@ -14,7 +14,7 @@ import (
 func TestCommonOptionsInstallFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("testing", pflag.ContinueOnError)
 	opts := newDaemonOptions(&config.Config{})
-	opts.InstallFlags(flags)
+	opts.installFlags(flags)
 
 	err := flags.Parse([]string{
 		"--tlscacert=/foo/cafile",
@@ -34,7 +34,7 @@ func defaultPath(filename string) string {
 func TestCommonOptionsInstallFlagsWithDefaults(t *testing.T) {
 	flags := pflag.NewFlagSet("testing", pflag.ContinueOnError)
 	opts := newDaemonOptions(&config.Config{})
-	opts.InstallFlags(flags)
+	opts.installFlags(flags)
 
 	err := flags.Parse([]string{})
 	assert.Check(t, err)

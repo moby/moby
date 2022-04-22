@@ -14,7 +14,7 @@ import (
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {
 	opts := newDaemonOptions(&config.Config{})
 	opts.flags = &pflag.FlagSet{}
-	opts.InstallFlags(opts.flags)
+	opts.installFlags(opts.flags)
 	if err := installConfigFlags(opts.daemonConfig, opts.flags); err != nil {
 		t.Fatal(err)
 	}

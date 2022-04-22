@@ -75,7 +75,7 @@ func NewDaemonCli() *DaemonCli {
 }
 
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	opts.SetDefaultOptions(opts.flags)
+	opts.setDefaultOptions()
 
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
