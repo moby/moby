@@ -59,6 +59,7 @@ type Opt struct {
 	ID                string
 	Labels            map[string]string
 	GCPolicy          []client.PruneInfo
+	BuildkitVersion   client.BuildkitVersion
 	Executor          executor.Executor
 	Snapshotter       snapshot.Snapshotter
 	ContentStore      content.Store
@@ -155,6 +156,11 @@ func (w *Worker) Platforms(noCache bool) []ocispec.Platform {
 // GCPolicy returns automatic GC Policy
 func (w *Worker) GCPolicy() []client.PruneInfo {
 	return w.Opt.GCPolicy
+}
+
+// BuildkitVersion returns BuildKit version
+func (w *Worker) BuildkitVersion() client.BuildkitVersion {
+	return w.Opt.BuildkitVersion
 }
 
 // ContentStore returns content store

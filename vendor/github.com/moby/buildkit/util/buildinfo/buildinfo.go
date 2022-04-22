@@ -42,7 +42,7 @@ func Encode(ctx context.Context, metadata map[string][]byte, key string, llbSour
 	} else {
 		return nil, err
 	}
-	bi.Sources = dedupSources(bi, allDepsSources(bi, nil))
+	bi.Sources = dedupSources(bi.Sources, allDepsSources(bi.Deps, nil))
 	return json.Marshal(bi)
 }
 
@@ -205,24 +205,25 @@ func decodeDeps(key string, attrs map[string]*string) (map[string]binfotypes.Bui
 }
 
 // dedupSources deduplicates regular sources from dependencies ones.
-func dedupSources(bi binfotypes.BuildInfo, depsSources []binfotypes.Source) (srcs []binfotypes.Source) {
+func dedupSources(sources []binfotypes.Source, depsSources []binfotypes.Source) (srcs []binfotypes.Source) {
 	// dedup sources from deps
-	for i, src := range bi.Sources {
-		for _, dsrc := range depsSources {
-			if src == dsrc {
-				bi.Sources = append(bi.Sources[:i], bi.Sources[i+1:]...)
-			} else if src.Type == binfotypes.SourceTypeDockerImage {
+	msrc := make(map[binfotypes.Source]struct{})
+sourcesloop:
+	for _, src := range sources {
+		for _, srcd := range depsSources {
+			if src == srcd {
+				continue sourcesloop
+			}
+			if src.Type == binfotypes.SourceTypeDockerImage && srcd.Type == binfotypes.SourceTypeDockerImage {
 				_, dgst := ctnref.SplitObject(src.Ref)
-				if dgst != "" && src.Pin == dsrc.Pin {
-					bi.Sources = append(bi.Sources[:i], bi.Sources[i+1:]...)
+				if dgst != "" && src.Pin == srcd.Pin {
+					continue sourcesloop
 				}
 			}
 		}
-	}
-	// dedup regular sources
-	msrc := make(map[binfotypes.Source]struct{})
-	for _, src := range bi.Sources {
-		msrc[src] = struct{}{}
+		if _, ok := msrc[src]; !ok {
+			msrc[src] = struct{}{}
+		}
 	}
 	for src := range msrc {
 		srcs = append(srcs, src)
@@ -234,21 +235,21 @@ func dedupSources(bi binfotypes.BuildInfo, depsSources []binfotypes.Source) (src
 }
 
 // allDepsSources gathers dependencies sources.
-func allDepsSources(bi binfotypes.BuildInfo, visited map[binfotypes.Source]struct{}) (res []binfotypes.Source) {
+func allDepsSources(deps map[string]binfotypes.BuildInfo, visited map[binfotypes.Source]struct{}) (res []binfotypes.Source) {
 	if visited == nil {
 		visited = make(map[binfotypes.Source]struct{})
 	}
-	if len(bi.Deps) == 0 {
+	if len(deps) == 0 {
 		return res
 	}
-	for _, dbi := range bi.Deps {
+	for _, dbi := range deps {
 		for _, dsrc := range dbi.Sources {
 			if _, ok := visited[dsrc]; ok {
 				continue
 			}
 			visited[dsrc] = struct{}{}
 		}
-		res = allDepsSources(dbi, visited)
+		res = allDepsSources(dbi.Deps, visited)
 	}
 	for src := range visited {
 		res = append(res, src)
@@ -262,17 +263,24 @@ type FormatOpts struct {
 }
 
 // Format formats build info.
-func Format(dt []byte, format FormatOpts) (_ []byte, err error) {
+func Format(dt []byte, opts FormatOpts) (_ []byte, err error) {
 	if len(dt) == 0 {
 		return dt, nil
 	}
+
 	var bi binfotypes.BuildInfo
 	if err := json.Unmarshal(dt, &bi); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal buildinfo for formatting")
 	}
-	if format.RemoveAttrs {
+
+	if opts.RemoveAttrs {
 		bi.Attrs = nil
+		if len(bi.Deps) > 0 {
+			bi.Sources = dedupSources(append(bi.Sources, allDepsSources(bi.Deps, nil)...), nil)
+			bi.Deps = nil
+		}
 	}
+
 	if dt, err = json.Marshal(bi); err != nil {
 		return nil, err
 	}

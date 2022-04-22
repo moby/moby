@@ -2,12 +2,9 @@ package dockerfile2llb
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
@@ -46,7 +43,7 @@ func detectRunMount(cmd *command, allDispatchStates *dispatchStates) bool {
 	return false
 }
 
-func setCacheUIDGIDFileOp(m *instructions.Mount, st llb.State) llb.State {
+func setCacheUIDGID(m *instructions.Mount, st llb.State) llb.State {
 	uid := 0
 	gid := 0
 	mode := os.FileMode(0755)
@@ -60,24 +57,6 @@ func setCacheUIDGIDFileOp(m *instructions.Mount, st llb.State) llb.State {
 		mode = os.FileMode(*m.Mode)
 	}
 	return st.File(llb.Mkdir("/cache", mode, llb.WithUIDGID(uid, gid)), llb.WithCustomName("[internal] settings cache mount permissions"))
-}
-
-func setCacheUIDGID(m *instructions.Mount, st llb.State, fileop bool) llb.State {
-	if fileop {
-		return setCacheUIDGIDFileOp(m, st)
-	}
-
-	var b strings.Builder
-	if m.UID != nil {
-		b.WriteString(fmt.Sprintf("chown %d /mnt/cache;", *m.UID))
-	}
-	if m.GID != nil {
-		b.WriteString(fmt.Sprintf("chown :%d /mnt/cache;", *m.GID))
-	}
-	if m.Mode != nil {
-		b.WriteString(fmt.Sprintf("chmod %s /mnt/cache;", strconv.FormatUint(*m.Mode, 8)))
-	}
-	return llb.Image("busybox").Run(llb.Shlex(fmt.Sprintf("sh -c 'mkdir -p /mnt/cache;%s'", b.String())), llb.WithCustomName("[internal] settings cache mount permissions")).AddMount("/mnt", st)
 }
 
 func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*dispatchState, opt dispatchOpt) ([]llb.RunOption, error) {
@@ -148,7 +127,7 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 			mountOpts = append(mountOpts, llb.SourcePath(src))
 		} else {
 			if mount.UID != nil || mount.GID != nil || mount.Mode != nil {
-				st = setCacheUIDGID(mount, st, useFileOp(opt.buildArgValues, opt.llbCaps))
+				st = setCacheUIDGID(mount, st)
 				mountOpts = append(mountOpts, llb.SourcePath("/cache"))
 			}
 		}

@@ -62,9 +62,10 @@ func (c *Controller) WorkerInfos() []client.WorkerInfo {
 	out := make([]client.WorkerInfo, 0, len(c.workers))
 	for _, w := range c.workers {
 		out = append(out, client.WorkerInfo{
-			ID:        w.ID(),
-			Labels:    w.Labels(),
-			Platforms: w.Platforms(true),
+			ID:              w.ID(),
+			Labels:          w.Labels(),
+			Platforms:       w.Platforms(true),
+			BuildkitVersion: w.BuildkitVersion(),
 		})
 	}
 	return out

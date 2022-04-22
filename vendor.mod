@@ -10,7 +10,7 @@ require (
 	cloud.google.com/go v0.92.0
 	cloud.google.com/go/logging v1.4.2
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
-	github.com/Microsoft/go-winio v0.5.1
+	github.com/Microsoft/go-winio v0.5.2
 	github.com/Microsoft/hcsshim v0.9.2
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310
@@ -18,8 +18,8 @@ require (
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.3
-	github.com/containerd/containerd v1.6.2
-	github.com/containerd/continuity v0.2.2
+	github.com/containerd/containerd v1.6.3-0.20220401172941-5ff8fce1fcc6 // release/1.6 branch
+	github.com/containerd/continuity v0.3.0
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
 	github.com/coreos/go-systemd/v22 v22.3.2
@@ -51,7 +51,7 @@ require (
 	github.com/klauspost/compress v1.15.1
 	github.com/miekg/dns v1.1.27
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
-	github.com/moby/buildkit v0.10.1-0.20220327110152-d7744bcb3532
+	github.com/moby/buildkit v0.10.1-0.20220419083859-65f494851ae3
 	github.com/moby/ipvs v1.0.1
 	github.com/moby/locker v1.0.1
 	github.com/moby/sys/mount v0.3.1
@@ -61,7 +61,7 @@ require (
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
+	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799
 	github.com/opencontainers/runc v1.1.1
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/selinux v1.10.0
@@ -73,17 +73,17 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/tchap/go-patricia v2.3.0+incompatible
-	github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
+	github.com/tonistiigi/fsutil v0.0.0-20220413024721-3c5c7e848994
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.11.2
 	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
+	golang.org/x/sys v0.0.0-20220405210540-1e041c57c461
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11
-	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
+	google.golang.org/genproto v0.0.0-20220107163113-42d7afdf6368
 	google.golang.org/grpc v1.45.0
 	gotest.tools/v3 v3.1.0
 )
@@ -101,8 +101,8 @@ require (
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-runc v1.0.0 // indirect
-	github.com/containerd/stargz-snapshotter v0.11.3 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.11.3 // indirect
+	github.com/containerd/stargz-snapshotter v0.11.4 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.11.4 // indirect
 	github.com/containerd/ttrpc v1.1.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect

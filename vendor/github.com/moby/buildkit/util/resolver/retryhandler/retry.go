@@ -60,7 +60,7 @@ func retryError(err error) bool {
 		return true
 	}
 	// catches TLS timeout or other network-related temporary errors
-	if ne, ok := errors.Cause(err).(net.Error); ok && ne.Temporary() {
+	if ne, ok := errors.Cause(err).(net.Error); ok && ne.Temporary() { //nolint:staticcheck // ignoring "SA1019: Temporary is deprecated", continue to propagate net.Error through the "temporary" status
 		return true
 	}
 	// https://github.com/containerd/containerd/pull/4724

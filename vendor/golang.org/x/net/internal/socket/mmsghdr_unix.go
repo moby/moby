@@ -9,7 +9,9 @@ package socket
 
 import (
 	"net"
+	"os"
 	"sync"
+	"syscall"
 )
 
 type mmsghdrs []mmsghdr
@@ -93,22 +95,86 @@ func (p *mmsghdrsPacker) pack(ms []Message, parseFn func([]byte, string) (net.Ad
 	return hs
 }
 
-var defaultMmsghdrsPool = mmsghdrsPool{
+// syscaller is a helper to invoke recvmmsg and sendmmsg via the RawConn.Read/Write interface.
+// It is reusable, to amortize the overhead of allocating a closure for the function passed to
+// RawConn.Read/Write.
+type syscaller struct {
+	n     int
+	operr error
+	hs    mmsghdrs
+	flags int
+
+	boundRecvmmsgF func(uintptr) bool
+	boundSendmmsgF func(uintptr) bool
+}
+
+func (r *syscaller) init() {
+	r.boundRecvmmsgF = r.recvmmsgF
+	r.boundSendmmsgF = r.sendmmsgF
+}
+
+func (r *syscaller) recvmmsg(c syscall.RawConn, hs mmsghdrs, flags int) (int, error) {
+	r.n = 0
+	r.operr = nil
+	r.hs = hs
+	r.flags = flags
+	if err := c.Read(r.boundRecvmmsgF); err != nil {
+		return r.n, err
+	}
+	if r.operr != nil {
+		return r.n, os.NewSyscallError("recvmmsg", r.operr)
+	}
+	return r.n, nil
+}
+
+func (r *syscaller) recvmmsgF(s uintptr) bool {
+	r.n, r.operr = recvmmsg(s, r.hs, r.flags)
+	return ioComplete(r.flags, r.operr)
+}
+
+func (r *syscaller) sendmmsg(c syscall.RawConn, hs mmsghdrs, flags int) (int, error) {
+	r.n = 0
+	r.operr = nil
+	r.hs = hs
+	r.flags = flags
+	if err := c.Write(r.boundSendmmsgF); err != nil {
+		return r.n, err
+	}
+	if r.operr != nil {
+		return r.n, os.NewSyscallError("sendmmsg", r.operr)
+	}
+	return r.n, nil
+}
+
+func (r *syscaller) sendmmsgF(s uintptr) bool {
+	r.n, r.operr = sendmmsg(s, r.hs, r.flags)
+	return ioComplete(r.flags, r.operr)
+}
+
+// mmsgTmps holds reusable temporary helpers for recvmmsg and sendmmsg.
+type mmsgTmps struct {
+	packer    mmsghdrsPacker
+	syscaller syscaller
+}
+
+var defaultMmsgTmpsPool = mmsgTmpsPool{
 	p: sync.Pool{
 		New: func() interface{} {
-			return new(mmsghdrsPacker)
+			tmps := new(mmsgTmps)
+			tmps.syscaller.init()
+			return tmps
 		},
 	},
 }
 
-type mmsghdrsPool struct {
+type mmsgTmpsPool struct {
 	p sync.Pool
 }
 
-func (p *mmsghdrsPool) Get() *mmsghdrsPacker {
-	return p.p.Get().(*mmsghdrsPacker)
+func (p *mmsgTmpsPool) Get() *mmsgTmps {
+	return p.p.Get().(*mmsgTmps)
 }
 
-func (p *mmsghdrsPool) Put(packer *mmsghdrsPacker) {
-	p.p.Put(packer)
+func (p *mmsgTmpsPool) Put(tmps *mmsgTmps) {
+	p.p.Put(tmps)
 }

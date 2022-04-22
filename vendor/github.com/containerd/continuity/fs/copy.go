@@ -22,6 +22,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 var bufferPool = &sync.Pool{
@@ -31,7 +33,7 @@ var bufferPool = &sync.Pool{
 	},
 }
 
-// XAttrErrorHandlers transform a non-nil xattr error.
+// XAttrErrorHandler transform a non-nil xattr error.
 // Return nil to ignore an error.
 // xattrKey can be empty for listxattr operation.
 type XAttrErrorHandler func(dst, src, xattrKey string, err error) error
@@ -152,13 +154,15 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 			if err := os.Symlink(link, target); err != nil {
 				return fmt.Errorf("failed to create symlink: %s: %w", target, err)
 			}
-		case (fi.Mode() & os.ModeDevice) == os.ModeDevice:
-			if err := copyDevice(target, fi); err != nil {
-				return fmt.Errorf("failed to create device: %w", err)
+		case (fi.Mode() & os.ModeDevice) == os.ModeDevice,
+			(fi.Mode() & os.ModeNamedPipe) == os.ModeNamedPipe,
+			(fi.Mode() & os.ModeSocket) == os.ModeSocket:
+			if err := copyIrregular(target, fi); err != nil {
+				return fmt.Errorf("failed to create irregular file: %w", err)
 			}
 		default:
-			// TODO: Support pipes and sockets
-			return fmt.Errorf("unsupported mode %s: %w", fi.Mode(), err)
+			logrus.Warnf("unsupported mode: %s: %s", source, fi.Mode())
+			continue
 		}
 
 		if err := copyFileInfo(fi, source, target); err != nil {

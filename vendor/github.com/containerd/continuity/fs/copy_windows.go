@@ -85,6 +85,6 @@ func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAtt
 	return nil
 }
 
-func copyDevice(dst string, fi os.FileInfo) error {
-	return errors.New("device copy not supported")
+func copyIrregular(dst string, fi os.FileInfo) error {
+	return errors.New("irregular copy not supported")
 }

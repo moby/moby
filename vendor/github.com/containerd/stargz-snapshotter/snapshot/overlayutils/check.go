@@ -23,7 +23,6 @@ package overlayutils
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -41,7 +40,7 @@ import (
 //
 // Ported from moby overlay2.
 func SupportsMultipleLowerDir(d string) error {
-	td, err := ioutil.TempDir(d, "multiple-lowerdir-check")
+	td, err := os.MkdirTemp(d, "multiple-lowerdir-check")
 	if err != nil {
 		return err
 	}
@@ -136,7 +135,7 @@ func NeedsUserXAttr(d string) (bool, error) {
 		}
 	}()
 
-	td, err := ioutil.TempDir(tdRoot, "")
+	td, err := os.MkdirTemp(tdRoot, "")
 	if err != nil {
 		return false, err
 	}

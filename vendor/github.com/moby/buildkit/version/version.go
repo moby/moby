@@ -45,18 +45,18 @@ var (
 )
 
 func UserAgent() string {
-	version := defaultVersion
+	uaVersion := defaultVersion
 
 	reOnce.Do(func() {
 		reRelease = regexp.MustCompile(`^(v[0-9]+\.[0-9]+)\.[0-9]+$`)
 		reDev = regexp.MustCompile(`^(v[0-9]+\.[0-9]+)\.[0-9]+`)
 	})
 
-	if matches := reRelease.FindAllStringSubmatch(version, 1); len(matches) > 0 {
-		version = matches[0][1]
-	} else if matches := reDev.FindAllStringSubmatch(version, 1); len(matches) > 0 {
-		version = matches[0][1] + "-dev"
+	if matches := reRelease.FindAllStringSubmatch(Version, 1); len(matches) > 0 {
+		uaVersion = matches[0][1]
+	} else if matches := reDev.FindAllStringSubmatch(Version, 1); len(matches) > 0 {
+		uaVersion = matches[0][1] + "-dev"
 	}
 
-	return "buildkit/" + version
+	return "buildkit/" + uaVersion
 }

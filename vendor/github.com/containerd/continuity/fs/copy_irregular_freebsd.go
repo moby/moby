@@ -1,6 +1,3 @@
-//go:build darwin
-// +build darwin
-
 /*
    Copyright The containerd Authors.
 
@@ -20,17 +17,20 @@
 package fs
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
-func copyDevice(dst string, fi os.FileInfo) error {
-	st, ok := fi.Sys().(*syscall.Stat_t)
+// copyIrregular covers devices, pipes, and sockets
+func copyIrregular(dst string, fi os.FileInfo) error {
+	st, ok := fi.Sys().(*syscall.Stat_t) // not *unix.Stat_t
 	if !ok {
-		return errors.New("unsupported stat type")
+		return fmt.Errorf("unsupported stat type: %s: %v", dst, fi.Mode())
 	}
-	return unix.Mknod(dst, uint32(fi.Mode()), int(st.Rdev))
+	var rDev uint64 // uint64 on FreeBSD, int on other unixen
+	if fi.Mode()&os.ModeDevice == os.ModeDevice {
+		rDev = st.Rdev
+	}
+	return syscall.Mknod(dst, uint32(st.Mode), rDev)
 }

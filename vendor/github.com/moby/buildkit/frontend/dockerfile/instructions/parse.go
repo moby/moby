@@ -725,7 +725,7 @@ func errExactlyOneArgument(command string) error {
 }
 
 func errNoDestinationArgument(command string) error {
-	return errors.Errorf("%s requires at least two arguments, but only one was provided. Destination could not be determined.", command)
+	return errors.Errorf("%s requires at least two arguments, but only one was provided. Destination could not be determined", command)
 }
 
 func errBadHeredoc(command string, option string) error {
