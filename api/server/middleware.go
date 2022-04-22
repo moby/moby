@@ -16,7 +16,7 @@ func (s *Server) handlerWithGlobalMiddlewares(handler httputils.APIFunc) httputi
 		next = m.WrapHandler(next)
 	}
 
-	if s.cfg.Logging && logrus.GetLevel() == logrus.DebugLevel {
+	if logrus.GetLevel() == logrus.DebugLevel {
 		next = middleware.DebugRequestMiddleware(next)
 	}
 

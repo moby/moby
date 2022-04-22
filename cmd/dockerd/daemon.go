@@ -569,7 +569,6 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 
 func newAPIServerConfig(cli *DaemonCli) (*apiserver.Config, error) {
 	serverConfig := &apiserver.Config{
-		Logging:     true,
 		SocketGroup: cli.Config.SocketGroup,
 		Version:     dockerversion.Version,
 		CorsHeaders: cli.Config.CorsHeaders,
