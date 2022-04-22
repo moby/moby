@@ -390,21 +390,26 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.Hosts = opts.Hosts
 	conf.LogLevel = opts.LogLevel
 
-	if opts.flags.Changed(FlagTLS) {
+	if flags.Changed("graph") && flags.Changed("data-root") {
+		return nil, errors.New(`cannot specify both "--graph" and "--data-root" option`)
+	}
+	if flags.Changed(FlagTLS) {
 		conf.TLS = &opts.TLS
 	}
-	if opts.flags.Changed(FlagTLSVerify) {
+	if flags.Changed(FlagTLSVerify) {
 		conf.TLSVerify = &opts.TLSVerify
 		v := true
 		conf.TLS = &v
 	}
 
-	conf.CommonTLSOptions = config.CommonTLSOptions{}
-
 	if opts.TLSOptions != nil {
-		conf.CommonTLSOptions.CAFile = opts.TLSOptions.CAFile
-		conf.CommonTLSOptions.CertFile = opts.TLSOptions.CertFile
-		conf.CommonTLSOptions.KeyFile = opts.TLSOptions.KeyFile
+		conf.CommonTLSOptions = config.CommonTLSOptions{
+			CAFile:   opts.TLSOptions.CAFile,
+			CertFile: opts.TLSOptions.CertFile,
+			KeyFile:  opts.TLSOptions.KeyFile,
+		}
+	} else {
+		conf.CommonTLSOptions = config.CommonTLSOptions{}
 	}
 
 	if conf.TrustKeyPath == "" {
@@ -413,10 +418,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 			return nil, err
 		}
 		conf.TrustKeyPath = filepath.Join(daemonConfDir, defaultTrustKeyFile)
-	}
-
-	if flags.Changed("graph") && flags.Changed("data-root") {
-		return nil, errors.New(`cannot specify both "--graph" and "--data-root" option`)
 	}
 
 	if opts.configFile != "" {
