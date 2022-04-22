@@ -558,6 +558,13 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
+	// validate log-level
+	if config.LogLevel != "" {
+		if _, err := logrus.ParseLevel(config.LogLevel); err != nil {
+			return fmt.Errorf("invalid logging level: %s", config.LogLevel)
+		}
+	}
+
 	// validate DNS
 	for _, dns := range config.DNS {
 		if _, err := opts.ValidateIPAddress(dns); err != nil {

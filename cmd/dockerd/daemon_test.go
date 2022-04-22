@@ -186,19 +186,15 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 
 func TestConfigureDaemonLogs(t *testing.T) {
 	conf := &config.Config{}
-	err := configureDaemonLogs(conf)
-	assert.NilError(t, err)
+	configureDaemonLogs(conf)
 	assert.Check(t, is.Equal(logrus.InfoLevel, logrus.GetLevel()))
 
 	conf.LogLevel = "warn"
-	err = configureDaemonLogs(conf)
-	assert.NilError(t, err)
+	configureDaemonLogs(conf)
 	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
 
+	// log level should not be changed when passing an invalid value
 	conf.LogLevel = "foobar"
-	err = configureDaemonLogs(conf)
-	assert.Error(t, err, "unable to parse logging level: foobar")
-
-	// log level should not be changed after a failure
+	configureDaemonLogs(conf)
 	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
 }

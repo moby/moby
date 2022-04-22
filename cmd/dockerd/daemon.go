@@ -91,10 +91,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	configureProxyEnv(cli.Config)
-
-	if err := configureDaemonLogs(cli.Config); err != nil {
-		return err
-	}
+	configureDaemonLogs(cli.Config)
 
 	logrus.Info("Starting up")
 
@@ -764,14 +761,14 @@ func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 	return addr, err == nil, nil
 }
 
-// configureDaemonLogs sets the logrus logging level and formatting
-func configureDaemonLogs(conf *config.Config) error {
+// configureDaemonLogs sets the logrus logging level and formatting. It expects
+// the passed configuration to already be validated, and ignores invalid options.
+func configureDaemonLogs(conf *config.Config) {
 	if conf.LogLevel != "" {
 		lvl, err := logrus.ParseLevel(conf.LogLevel)
-		if err != nil {
-			return fmt.Errorf("unable to parse logging level: %s", conf.LogLevel)
+		if err == nil {
+			logrus.SetLevel(lvl)
 		}
-		logrus.SetLevel(lvl)
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
@@ -780,7 +777,6 @@ func configureDaemonLogs(conf *config.Config) error {
 		DisableColors:   conf.RawLogs,
 		FullTimestamp:   true,
 	})
-	return nil
 }
 
 func configureProxyEnv(conf *config.Config) {
