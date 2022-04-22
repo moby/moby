@@ -101,3 +101,67 @@ jobs:
           path: ${{ env.BIN_OUT }}/*
           if-no-files-found: error
           retention-days: 2
+
+  unit-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - windows-2022
+    env:
+      GOPATH: ${{ github.workspace }}\go
+      GOBIN: ${{ github.workspace }}\go\bin
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: ${{ env.GOPATH }}/src/github.com/docker/docker
+      -
+        name: Env
+        run: |
+          Get-ChildItem Env: | Out-String
+      -
+        name: Init
+        run: |
+          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
+          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
+          If ("${{ matrix.os }}" -eq "windows-2019") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          } ElseIf ("${{ matrix.os }}" -eq "windows-2022") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
+      -
+        name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~\AppData\Local\go-build
+            ~\go\pkg\mod
+            ${{ github.workspace }}\go-build
+            ${{ env.GOPATH }}\pkg\mod
+          key: ${{ matrix.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ github.job }}-
+      -
+        name: Docker info
+        run: |
+          docker info
+      -
+        name: Build base image
+        run: |
+          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
+          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
+          docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
+      -
+        name: Test
+        run: |
+          & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
+              -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
+              -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
+              ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
