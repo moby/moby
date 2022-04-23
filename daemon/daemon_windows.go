@@ -236,8 +236,8 @@ func configureMaxThreads(config *config.Config) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(config *config.Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
-	netOptions, err := daemon.networkOptions(config, nil, nil)
+func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+	netOptions, err := daemon.networkOptions(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -253,8 +253,7 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 
 	// Remove networks not present in HNS
 	for _, v := range controller.Networks() {
-		options := v.Info().DriverOptions()
-		hnsid := options[winlibnetwork.HNSID]
+		hnsid := v.Info().DriverOptions()[winlibnetwork.HNSID]
 		found := false
 
 		for _, v := range hnsresponse {
@@ -283,9 +282,9 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 	defaultNetworkExists := false
 
 	if network, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
-		options := network.Info().DriverOptions()
+		hnsid := network.Info().DriverOptions()[winlibnetwork.HNSID]
 		for _, v := range hnsresponse {
-			if options[winlibnetwork.HNSID] == v.Id {
+			if hnsid == v.Id {
 				defaultNetworkExists = true
 				break
 			}
@@ -301,8 +300,8 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		}
 		var n libnetwork.Network
 		s := func(current libnetwork.Network) bool {
-			options := current.Info().DriverOptions()
-			if options[winlibnetwork.HNSID] == v.Id {
+			hnsid := current.Info().DriverOptions()[winlibnetwork.HNSID]
+			if hnsid == v.Id {
 				n = current
 				return true
 			}
@@ -372,9 +371,10 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		}
 	}
 
-	if !config.DisableBridge {
+	conf := daemon.configStore
+	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, config); err != nil {
+		if err := initBridgeDriver(controller, conf); err != nil {
 			return nil, err
 		}
 	}

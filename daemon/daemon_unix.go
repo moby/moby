@@ -836,8 +836,8 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(config *config.Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
-	netOptions, err := daemon.networkOptions(config, daemon.PluginStore, activeSandboxes)
+func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+	netOptions, err := daemon.networkOptions(daemon.PluginStore, activeSandboxes)
 	if err != nil {
 		return nil, err
 	}
@@ -847,9 +847,10 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
 	}
 
+	conf := daemon.configStore
 	if len(activeSandboxes) > 0 {
 		logrus.Info("There are old running containers, the network config will not take affect")
-		setHostGatewayIP(daemon.configStore, controller)
+		setHostGatewayIP(conf, controller)
 		return controller, nil
 	}
 
@@ -872,14 +873,14 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		if err = n.Delete(); err != nil {
 			return nil, fmt.Errorf("could not delete the default bridge network: %v", err)
 		}
-		if len(config.NetworkConfig.DefaultAddressPools.Value()) > 0 && !daemon.configStore.LiveRestoreEnabled {
+		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
 			removeDefaultBridgeInterface()
 		}
 	}
 
-	if !config.DisableBridge {
+	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, config); err != nil {
+		if err := initBridgeDriver(controller, conf); err != nil {
 			return nil, err
 		}
 	} else {
@@ -887,7 +888,7 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 	}
 
 	// Set HostGatewayIP to the default bridge's IP  if it is empty
-	setHostGatewayIP(daemon.configStore, controller)
+	setHostGatewayIP(conf, controller)
 
 	return controller, nil
 }
