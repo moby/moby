@@ -27,7 +27,14 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 		return err
 	}
 
-	installRegistryServiceFlags(&conf.ServiceOptions, flags)
+	var (
+		allowNonDistributable = opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &conf.AllowNondistributableArtifacts, registry.ValidateIndexName)
+		registryMirrors       = opts.NewNamedListOptsRef("registry-mirrors", &conf.Mirrors, registry.ValidateMirror)
+		insecureRegistries    = opts.NewNamedListOptsRef("insecure-registries", &conf.InsecureRegistries, registry.ValidateIndexName)
+	)
+	flags.Var(allowNonDistributable, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
+	flags.Var(registryMirrors, "registry-mirror", "Preferred Docker registry mirror")
+	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
 
 	flags.Var(opts.NewNamedListOptsRef("storage-opts", &conf.GraphOptions, nil), "storage-opt", "Storage driver options")
 	flags.Var(opts.NewNamedListOptsRef("authorization-plugins", &conf.AuthorizationPlugins, nil), "authorization-plugin", "Authorization plugins to load")
@@ -91,14 +98,4 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	_ = flags.MarkDeprecated("cluster-store-opt", "Swarm classic is deprecated. Please use Swarm-mode (docker swarm init)")
 
 	return nil
-}
-
-func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.FlagSet) {
-	ana := opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &options.AllowNondistributableArtifacts, registry.ValidateIndexName)
-	mirrors := opts.NewNamedListOptsRef("registry-mirrors", &options.Mirrors, registry.ValidateMirror)
-	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, registry.ValidateIndexName)
-
-	flags.Var(ana, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
-	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
-	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
 }
