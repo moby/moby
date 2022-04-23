@@ -35,6 +35,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	conf.ShmSize = opts.MemBytes(config.DefaultShmSize)
 
 	// Then platform-specific install flags
+	flags.StringVarP(&conf.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
 	flags.BoolVar(&conf.EnableSelinuxSupport, "selinux-enabled", false, "Enable selinux support")
 	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", &conf.Ulimits), "default-ulimit", "Default ulimits for containers")
 	flags.BoolVar(&conf.BridgeConfig.EnableIPTables, "iptables", true, "Enable addition of iptables rules")

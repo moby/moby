@@ -1,8 +1,6 @@
 package main
 
 import (
-	"runtime"
-
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
@@ -47,11 +45,6 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	_ = flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
-
-	// Windows doesn't support setting the storage driver - there is no choice as to which ones to use.
-	if runtime.GOOS != "windows" {
-		flags.StringVarP(&conf.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
-	}
 
 	flags.IntVar(&conf.Mtu, "mtu", 0, "Set the containers network MTU")
 	flags.BoolVar(&conf.RawLogs, "raw-logs", false, "Full timestamps without ANSI coloring")
