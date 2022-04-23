@@ -54,7 +54,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.Var(opts.NewListOptsRef(&conf.DNS, opts.ValidateIPAddress), "dns", "DNS server to use")
 	flags.Var(opts.NewNamedListOptsRef("dns-opts", &conf.DNSOptions, nil), "dns-opt", "DNS options to use")
 	flags.Var(opts.NewListOptsRef(&conf.DNSSearch, opts.ValidateDNSSearch), "dns-search", "DNS search domains to use")
-	flags.Var(opts.NewIPOpt(&conf.HostGatewayIP, ""), "host-gateway-ip", "IP address that the special 'host-gateway' string in --add-host resolves to. Defaults to the IP address of the default bridge")
+	flags.IPVar(&conf.HostGatewayIP, "host-gateway-ip", nil, "IP address that the special 'host-gateway' string in --add-host resolves to. Defaults to the IP address of the default bridge")
 	flags.Var(opts.NewNamedListOptsRef("labels", &conf.Labels, opts.ValidateLabel), "label", "Set key=value labels to the daemon")
 	flags.StringVar(&conf.LogConfig.Type, "log-driver", "json-file", "Default driver for container logs")
 	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "Default log driver options for containers")

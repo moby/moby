@@ -4,6 +4,7 @@
 package main
 
 import (
+	"net"
 	"os/exec"
 	"path/filepath"
 
@@ -48,10 +49,10 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVarP(&conf.BridgeConfig.Iface, "bridge", "b", "", "Attach containers to a network bridge")
 	flags.StringVar(&conf.BridgeConfig.FixedCIDR, "fixed-cidr", "", "IPv4 subnet for fixed IPs")
 	flags.StringVar(&conf.BridgeConfig.FixedCIDRv6, "fixed-cidr-v6", "", "IPv6 subnet for fixed IPs")
-	flags.Var(opts.NewIPOpt(&conf.BridgeConfig.DefaultGatewayIPv4, ""), "default-gateway", "Container default gateway IPv4 address")
-	flags.Var(opts.NewIPOpt(&conf.BridgeConfig.DefaultGatewayIPv6, ""), "default-gateway-v6", "Container default gateway IPv6 address")
+	flags.IPVar(&conf.BridgeConfig.DefaultGatewayIPv4, "default-gateway", nil, "Container default gateway IPv4 address")
+	flags.IPVar(&conf.BridgeConfig.DefaultGatewayIPv6, "default-gateway-v6", nil, "Container default gateway IPv6 address")
 	flags.BoolVar(&conf.BridgeConfig.InterContainerCommunication, "icc", true, "Enable inter-container communication")
-	flags.Var(opts.NewIPOpt(&conf.BridgeConfig.DefaultIP, "0.0.0.0"), "ip", "Default IP when binding container ports")
+	flags.IPVar(&conf.BridgeConfig.DefaultIP, "ip", net.IPv4zero, "Default IP when binding container ports")
 	flags.BoolVar(&conf.BridgeConfig.EnableUserlandProxy, "userland-proxy", true, "Use userland proxy for loopback traffic")
 	defaultUserlandProxyPath := ""
 	if rootless.RunningWithRootlessKit() {
