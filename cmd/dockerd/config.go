@@ -13,15 +13,16 @@ const defaultTrustKeyFile = "key.json"
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	var maxConcurrentDownloads, maxConcurrentUploads, maxDownloadAttempts int
-	defaultPidFile, err := getDefaultPidFile()
+	var err error
+	conf.Pidfile, err = getDefaultPidFile()
 	if err != nil {
 		return err
 	}
-	defaultDataRoot, err := getDefaultDataRoot()
+	conf.Root, err = getDefaultDataRoot()
 	if err != nil {
 		return err
 	}
-	defaultExecRoot, err := getDefaultExecRoot()
+	conf.ExecRoot, err = getDefaultExecRoot()
 	if err != nil {
 		return err
 	}
@@ -31,9 +32,9 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.Var(opts.NewNamedListOptsRef("storage-opts", &conf.GraphOptions, nil), "storage-opt", "Storage driver options")
 	flags.Var(opts.NewNamedListOptsRef("authorization-plugins", &conf.AuthorizationPlugins, nil), "authorization-plugin", "Authorization plugins to load")
 	flags.Var(opts.NewNamedListOptsRef("exec-opts", &conf.ExecOptions, nil), "exec-opt", "Runtime execution options")
-	flags.StringVarP(&conf.Pidfile, "pidfile", "p", defaultPidFile, "Path to use for daemon PID file")
-	flags.StringVar(&conf.Root, "data-root", defaultDataRoot, "Root directory of persistent Docker state")
-	flags.StringVar(&conf.ExecRoot, "exec-root", defaultExecRoot, "Root directory for execution state files")
+	flags.StringVarP(&conf.Pidfile, "pidfile", "p", conf.Pidfile, "Path to use for daemon PID file")
+	flags.StringVar(&conf.Root, "data-root", conf.Root, "Root directory of persistent Docker state")
+	flags.StringVar(&conf.ExecRoot, "exec-root", conf.ExecRoot, "Root directory for execution state files")
 	flags.StringVar(&conf.ContainerdAddr, "containerd", "", "containerd grpc address")
 	flags.BoolVar(&conf.CriContainerd, "cri-containerd", false, "start containerd with cri")
 
@@ -78,7 +79,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	// "--graph" is "soft-deprecated" in favor of "data-root". This flag was added
 	// before Docker 1.0, so won't be removed, only hidden, to discourage its usage.
-	flags.StringVarP(&conf.Root, "graph", "g", defaultDataRoot, "Root of the Docker runtime")
+	flags.StringVarP(&conf.Root, "graph", "g", conf.Root, "Root of the Docker runtime")
 	_ = flags.MarkHidden("graph")
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	_ = flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
