@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -189,7 +188,7 @@ func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
 	assert.Check(t, is.Equal(client.ClientVersion(), api.DefaultVersion))
 
 	const expected = "1.22"
-	_ = os.Setenv("DOCKER_API_VERSION", expected)
+	t.Setenv("DOCKER_API_VERSION", expected)
 	client, err = NewClientWithOpts(FromEnv)
 	if err != nil {
 		t.Fatal(err)

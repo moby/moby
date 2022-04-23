@@ -15,16 +15,14 @@ import (
 func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.T) {
 	s.d.StartWithBusybox(c)
 
-	osPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", osPath)
-
 	workingDir, err := os.Getwd()
 	assert.NilError(c, err)
 	absolute, err := filepath.Abs(filepath.Join(workingDir, "fixtures", "auth"))
 	assert.NilError(c, err)
-	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
 
-	os.Setenv("PATH", testPath)
+	osPath := os.Getenv("PATH")
+	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
+	c.Setenv("PATH", testPath)
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
@@ -65,16 +63,14 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.
 
 // #23100
 func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *testing.T) {
-	osPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", osPath)
-
 	workingDir, err := os.Getwd()
 	assert.NilError(c, err)
 	absolute, err := filepath.Abs(filepath.Join(workingDir, "fixtures", "auth"))
 	assert.NilError(c, err)
-	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
 
-	os.Setenv("PATH", testPath)
+	osPath := os.Getenv("PATH")
+	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
+	c.Setenv("PATH", testPath)
 
 	cmd := exec.Command("docker-credential-shell-test", "store")
 	stdin := bytes.NewReader([]byte(fmt.Sprintf(`{"ServerURL": "https://%s", "Username": "%s", "Secret": "%s"}`, privateRegistryURL, s.reg.Username(), s.reg.Password())))
