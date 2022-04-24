@@ -600,16 +600,16 @@ func Validate(config *Config) error {
 			return err
 		}
 	}
-	// validate MaxConcurrentDownloads
+
+	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
 	if config.MaxConcurrentDownloads != nil && *config.MaxConcurrentDownloads < 0 {
 		return fmt.Errorf("invalid max concurrent downloads: %d", *config.MaxConcurrentDownloads)
 	}
-	// validate MaxConcurrentUploads
 	if config.MaxConcurrentUploads != nil && *config.MaxConcurrentUploads < 0 {
 		return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxConcurrentUploads)
 	}
-	if err := ValidateMaxDownloadAttempts(config); err != nil {
-		return err
+	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts < 0 {
+		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
 	}
 
 	// validate that "default" runtime is not reset
@@ -640,14 +640,6 @@ func Validate(config *Config) error {
 
 	// validate platform-specific settings
 	return config.ValidatePlatformConfig()
-}
-
-// ValidateMaxDownloadAttempts validates if the max-download-attempts is within the valid range
-func ValidateMaxDownloadAttempts(config *Config) error {
-	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts <= 0 {
-		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
-	}
-	return nil
 }
 
 // GetDefaultRuntimeName returns the current default runtime
