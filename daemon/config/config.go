@@ -343,16 +343,16 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 		newConfig = New()
 	}
 
-	if err := Validate(newConfig); err != nil {
-		return errors.Wrap(err, "file configuration validation failed")
-	}
-
 	// Check if duplicate label-keys with different values are found
 	newLabels, err := GetConflictFreeLabels(newConfig.Labels)
 	if err != nil {
 		return err
 	}
 	newConfig.Labels = newLabels
+
+	if err := Validate(newConfig); err != nil {
+		return errors.Wrap(err, "file configuration validation failed")
+	}
 
 	reload(newConfig)
 	return nil
