@@ -350,6 +350,26 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 	}
 	newConfig.Labels = newLabels
 
+	// TODO(thaJeztah) This logic is problematic and needs a rewrite;
+	// This is validating newConfig before the "reload()" callback is executed.
+	// At this point, newConfig may be a partial configuration, to be merged
+	// with the existing configuration in the "reload()" callback. Validating
+	// this config before it's merged can result in incorrect validation errors.
+	//
+	// However, the current "reload()" callback we use is DaemonCli.reloadConfig(),
+	// which includes a call to Daemon.Reload(), which both performs "merging"
+	// and validation, as well as actually updating the daemon configuration.
+	// Calling DaemonCli.reloadConfig() *before* validation, could thus lead to
+	// a failure in that function (making the reload non-atomic).
+	//
+	// While *some* errors could always occur when applying/updating the config,
+	// we should make it more atomic, and;
+	//
+	// 1. get (a copy of) the active configuration
+	// 2. get the new configuration
+	// 3. apply the (reloadable) options from the new configuration
+	// 4. validate the merged results
+	// 5. apply the new configuration.
 	if err := Validate(newConfig); err != nil {
 		return errors.Wrap(err, "file configuration validation failed")
 	}
