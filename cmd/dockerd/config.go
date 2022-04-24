@@ -12,7 +12,6 @@ const defaultTrustKeyFile = "key.json"
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
-	var maxConcurrentDownloads, maxConcurrentUploads, maxDownloadAttempts int
 	var err error
 	conf.Pidfile, err = getDefaultPidFile()
 	if err != nil {
@@ -60,19 +59,15 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "Default log driver options for containers")
 
 	flags.StringVar(&conf.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API")
-	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", config.DefaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
-	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", config.DefaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
-	flags.IntVar(&maxDownloadAttempts, "max-download-attempts", config.DefaultDownloadAttempts, "Set the max download attempts for each pull")
+	flags.IntVar(&conf.MaxConcurrentDownloads, "max-concurrent-downloads", config.DefaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
+	flags.IntVar(&conf.MaxConcurrentUploads, "max-concurrent-uploads", config.DefaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
+	flags.IntVar(&conf.MaxDownloadAttempts, "max-download-attempts", config.DefaultDownloadAttempts, "Set the max download attempts for each pull")
 	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", config.DefaultShutdownTimeout, "Set the default shutdown timeout")
 
 	flags.StringVar(&conf.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
 	flags.BoolVar(&conf.Experimental, "experimental", false, "Enable experimental features")
 	flags.StringVar(&conf.MetricsAddress, "metrics-addr", "", "Set default address and port to serve the metrics api on")
 	flags.Var(opts.NewNamedListOptsRef("node-generic-resources", &conf.NodeGenericResources, opts.ValidateSingleGenericResource), "node-generic-resource", "Advertise user-defined resource")
-
-	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
-	conf.MaxConcurrentUploads = &maxConcurrentUploads
-	conf.MaxDownloadAttempts = &maxDownloadAttempts
 
 	flags.StringVar(&conf.ContainerdNamespace, "containerd-namespace", config.DefaultContainersNamespace, "Containerd namespace to use")
 	flags.StringVar(&conf.ContainerdPluginNamespace, "containerd-plugins-namespace", config.DefaultPluginNamespace, "Containerd namespace to use for plugins")

@@ -200,15 +200,15 @@ type CommonConfig struct {
 
 	// MaxConcurrentDownloads is the maximum number of downloads that
 	// may take place at a time for each pull.
-	MaxConcurrentDownloads *int `json:"max-concurrent-downloads,omitempty"`
+	MaxConcurrentDownloads int `json:"max-concurrent-downloads,omitempty"`
 
 	// MaxConcurrentUploads is the maximum number of uploads that
 	// may take place at a time for each push.
-	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty"`
+	MaxConcurrentUploads int `json:"max-concurrent-uploads,omitempty"`
 
 	// MaxDownloadAttempts is the maximum number of attempts that
 	// may take place at a time for each push.
-	MaxDownloadAttempts *int `json:"max-download-attempts,omitempty"`
+	MaxDownloadAttempts int `json:"max-download-attempts,omitempty"`
 
 	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
 	// to stop when daemon is being shutdown
@@ -602,14 +602,14 @@ func Validate(config *Config) error {
 	}
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.MaxConcurrentDownloads != nil && *config.MaxConcurrentDownloads < 0 {
-		return fmt.Errorf("invalid max concurrent downloads: %d", *config.MaxConcurrentDownloads)
+	if config.MaxConcurrentDownloads < 0 {
+		return fmt.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
-	if config.MaxConcurrentUploads != nil && *config.MaxConcurrentUploads < 0 {
-		return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxConcurrentUploads)
+	if config.MaxConcurrentUploads < 0 {
+		return fmt.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
-	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts < 0 {
-		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
+	if config.MaxDownloadAttempts < 0 {
+		return fmt.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
 	// validate that "default" runtime is not reset

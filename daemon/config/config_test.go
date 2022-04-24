@@ -213,8 +213,6 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 }
 
 func TestValidateConfigurationErrors(t *testing.T) {
-	intPtr := func(i int) *int { return &i }
-
 	testCases := []struct {
 		name        string
 		config      *Config
@@ -286,7 +284,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			name: "negative max-concurrent-downloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentDownloads: intPtr(-10),
+					MaxConcurrentDownloads: -10,
 				},
 			},
 			expectedErr: "invalid max concurrent downloads: -10",
@@ -295,7 +293,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			name: "negative max-concurrent-uploads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentUploads: intPtr(-10),
+					MaxConcurrentUploads: -10,
 				},
 			},
 			expectedErr: "invalid max concurrent uploads: -10",
@@ -304,7 +302,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			name: "negative max-download-attempts",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxDownloadAttempts: intPtr(-10),
+					MaxDownloadAttempts: -10,
 				},
 			},
 			expectedErr: "invalid max download attempts: -10",
@@ -315,7 +313,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 				name: "zero max-download-attempts",
 				config: &Config{
 					CommonConfig: CommonConfig{
-						MaxDownloadAttempts: intPtr(0),
+						MaxDownloadAttempts: 0,
 					},
 				},
 				expectedErr: "invalid max download attempts: 0",
@@ -367,8 +365,6 @@ func TestValidateConfigurationErrors(t *testing.T) {
 }
 
 func TestValidateConfiguration(t *testing.T) {
-	intPtr := func(i int) *int { return &i }
-
 	testCases := []struct {
 		name   string
 		config *Config
@@ -405,7 +401,7 @@ func TestValidateConfiguration(t *testing.T) {
 			name: "with max-concurrent-downloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentDownloads: intPtr(4),
+					MaxConcurrentDownloads: 4,
 				},
 			},
 		},
@@ -413,7 +409,7 @@ func TestValidateConfiguration(t *testing.T) {
 			name: "with max-concurrent-uploads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentUploads: intPtr(4),
+					MaxConcurrentUploads: 4,
 				},
 			},
 		},
@@ -421,7 +417,7 @@ func TestValidateConfiguration(t *testing.T) {
 			name: "with max-download-attempts",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxDownloadAttempts: intPtr(4),
+					MaxDownloadAttempts: 4,
 				},
 			},
 		},

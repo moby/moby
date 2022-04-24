@@ -271,11 +271,11 @@ func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummar
 // UpdateConfig values
 //
 // called from reload.go
-func (i *ImageService) UpdateConfig(maxDownloads, maxUploads *int) {
-	if i.downloadManager != nil && maxDownloads != nil {
-		i.downloadManager.SetConcurrency(*maxDownloads)
+func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
+	if i.downloadManager != nil && maxDownloads != 0 {
+		i.downloadManager.SetConcurrency(maxDownloads)
 	}
-	if i.uploadManager != nil && maxUploads != nil {
-		i.uploadManager.SetConcurrency(*maxUploads)
+	if i.uploadManager != nil && maxUploads != 0 {
+		i.uploadManager.SetConcurrency(maxUploads)
 	}
 }
