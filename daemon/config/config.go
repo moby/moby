@@ -374,17 +374,12 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 		return nil, err
 	}
 
-	if err := Validate(fileConfig); err != nil {
-		return nil, errors.Wrap(err, "configuration validation from file failed")
-	}
-
 	// merge flags configuration on top of the file configuration
 	if err := mergo.Merge(fileConfig, flagsConfig); err != nil {
 		return nil, err
 	}
 
-	// We need to validate again once both fileConfig and flagsConfig
-	// have been merged
+	// validate the merged fileConfig and flagsConfig
 	if err := Validate(fileConfig); err != nil {
 		return nil, errors.Wrap(err, "merged configuration validation from file and command line flags failed")
 	}
