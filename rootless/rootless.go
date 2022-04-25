@@ -3,29 +3,17 @@ package rootless // import "github.com/docker/docker/rootless"
 import (
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/rootless-containers/rootlesskit/pkg/api/client"
 )
 
-const (
-	// RootlessKitDockerProxyBinary is the binary name of rootlesskit-docker-proxy
-	RootlessKitDockerProxyBinary = "rootlesskit-docker-proxy"
-)
-
-var (
-	runningWithRootlessKit     bool
-	runningWithRootlessKitOnce sync.Once
-)
+// RootlessKitDockerProxyBinary is the binary name of rootlesskit-docker-proxy
+const RootlessKitDockerProxyBinary = "rootlesskit-docker-proxy"
 
 // RunningWithRootlessKit returns true if running under RootlessKit namespaces.
 func RunningWithRootlessKit() bool {
-	runningWithRootlessKitOnce.Do(func() {
-		u := os.Getenv("ROOTLESSKIT_STATE_DIR")
-		runningWithRootlessKit = u != ""
-	})
-	return runningWithRootlessKit
+	return os.Getenv("ROOTLESSKIT_STATE_DIR") != ""
 }
 
 // GetRootlessKitClient returns RootlessKit client
