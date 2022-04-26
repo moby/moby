@@ -52,11 +52,6 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 		if err != nil {
 			return errors.Wrapf(err, "running with RootlessKit, but %s not installed", rootless.RootlessKitDockerProxyBinary)
 		}
-
-		configHome, err := homedir.GetConfigHome()
-		if err == nil {
-			registry.SetCertsDir(filepath.Join(configHome, "docker/certs.d"))
-		}
 	}
 	flags.StringVar(&conf.BridgeConfig.UserlandProxyPath, "userland-proxy-path", defaultUserlandProxyPath, "Path to the userland proxy binary")
 	flags.StringVar(&conf.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
