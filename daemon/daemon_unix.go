@@ -836,42 +836,50 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+// initNetworkController initializes the libnetwork controller and configures
+// network settings. If there's active sandboxes, configuration changes will not
+// take effect.
+func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) error {
 	netOptions, err := daemon.networkOptions(daemon.PluginStore, activeSandboxes)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	controller, err := libnetwork.New(netOptions...)
+	daemon.netController, err = libnetwork.New(netOptions...)
 	if err != nil {
-		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
+		return fmt.Errorf("error obtaining controller instance: %v", err)
 	}
 
-	conf := daemon.configStore
 	if len(activeSandboxes) > 0 {
-		logrus.Info("There are old running containers, the network config will not take affect")
-		setHostGatewayIP(conf, controller)
-		return controller, nil
+		logrus.Info("there are running containers, updated network configuration will not take affect")
+	} else if err := configureNetworking(daemon.netController, daemon.configStore); err != nil {
+		return err
 	}
 
+	// Set HostGatewayIP to the default bridge's IP if it is empty
+	setHostGatewayIP(daemon.netController, daemon.configStore)
+	return nil
+}
+
+func configureNetworking(controller libnetwork.NetworkController, conf *config.Config) error {
 	// Initialize default network on "null"
 	if n, _ := controller.NetworkByName("none"); n == nil {
 		if _, err := controller.NewNetwork("null", "none", "", libnetwork.NetworkOptionPersist(true)); err != nil {
-			return nil, fmt.Errorf("Error creating default \"null\" network: %v", err)
+			return errors.Wrap(err, `error creating default "null" network`)
 		}
 	}
 
 	// Initialize default network on "host"
 	if n, _ := controller.NetworkByName("host"); n == nil {
 		if _, err := controller.NewNetwork("host", "host", "", libnetwork.NetworkOptionPersist(true)); err != nil {
-			return nil, fmt.Errorf("Error creating default \"host\" network: %v", err)
+			return errors.Wrap(err, `error creating default "host" network`)
 		}
 	}
 
 	// Clear stale bridge network
 	if n, err := controller.NetworkByName("bridge"); err == nil {
 		if err = n.Delete(); err != nil {
-			return nil, fmt.Errorf("could not delete the default bridge network: %v", err)
+			return errors.Wrap(err, `could not delete the default "bridge"" network`)
 		}
 		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
 			removeDefaultBridgeInterface()
@@ -881,20 +889,17 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
 		if err := initBridgeDriver(controller, conf); err != nil {
-			return nil, err
+			return err
 		}
 	} else {
 		removeDefaultBridgeInterface()
 	}
 
-	// Set HostGatewayIP to the default bridge's IP  if it is empty
-	setHostGatewayIP(conf, controller)
-
-	return controller, nil
+	return nil
 }
 
 // setHostGatewayIP sets cfg.HostGatewayIP to the default bridge's IP if it is empty.
-func setHostGatewayIP(config *config.Config, controller libnetwork.NetworkController) {
+func setHostGatewayIP(controller libnetwork.NetworkController, config *config.Config) {
 	if config.HostGatewayIP != nil {
 		return
 	}

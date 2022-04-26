@@ -236,23 +236,23 @@ func configureMaxThreads(config *config.Config) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
+func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) error {
 	netOptions, err := daemon.networkOptions(nil, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	controller, err := libnetwork.New(netOptions...)
+	daemon.netController, err = libnetwork.New(netOptions...)
 	if err != nil {
-		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
+		return errors.Wrap(err, "error obtaining controller instance")
 	}
 
 	hnsresponse, err := hcsshim.HNSListNetworkRequest("GET", "", "")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Remove networks not present in HNS
-	for _, v := range controller.Networks() {
+	for _, v := range daemon.netController.Networks() {
 		hnsid := v.Info().DriverOptions()[winlibnetwork.HNSID]
 		found := false
 
@@ -274,14 +274,14 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 		}
 	}
 
-	_, err = controller.NewNetwork("null", "none", "", libnetwork.NetworkOptionPersist(false))
+	_, err = daemon.netController.NewNetwork("null", "none", "", libnetwork.NetworkOptionPersist(false))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	defaultNetworkExists := false
 
-	if network, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
+	if network, err := daemon.netController.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
 		hnsid := network.Info().DriverOptions()[winlibnetwork.HNSID]
 		for _, v := range hnsresponse {
 			if hnsid == v.Id {
@@ -308,7 +308,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 			return false
 		}
 
-		controller.WalkNetworks(s)
+		daemon.netController.WalkNetworks(s)
 
 		drvOptions := make(map[string]string)
 		nid := ""
@@ -359,7 +359,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 		}
 
 		v6Conf := []*libnetwork.IpamConf{}
-		_, err := controller.NewNetwork(strings.ToLower(v.Type), name, nid,
+		_, err := daemon.netController.NewNetwork(strings.ToLower(v.Type), name, nid,
 			libnetwork.NetworkOptionGeneric(options.Generic{
 				netlabel.GenericData: netOption,
 			}),
@@ -371,15 +371,14 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 		}
 	}
 
-	conf := daemon.configStore
-	if !conf.DisableBridge {
+	if !daemon.configStore.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, conf); err != nil {
-			return nil, err
+		if err := initBridgeDriver(daemon.netController, daemon.configStore); err != nil {
+			return err
 		}
 	}
 
-	return controller, nil
+	return nil
 }
 
 func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
@@ -411,9 +410,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		}),
 		ipamOption,
 	)
-
 	if err != nil {
-		return fmt.Errorf("Error creating default network: %v", err)
+		return errors.Wrap(err, "error creating default network")
 	}
 
 	return nil
