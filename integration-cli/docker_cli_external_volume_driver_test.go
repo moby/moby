@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/pkg/stringid"
 	testdaemon "github.com/docker/docker/testutil/daemon"
@@ -565,7 +566,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *t
 	out, err = s.d.Cmd("volume", "inspect", "test")
 	assert.NilError(c, err, out)
 
-	var vs []types.Volume
+	var vs []volumetypes.Volume
 	err = json.Unmarshal([]byte(out), &vs)
 	assert.NilError(c, err)
 	assert.Equal(c, len(vs), 1)

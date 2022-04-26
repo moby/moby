@@ -8,10 +8,13 @@ swagger generate model -f api/swagger.yaml \
 	-n IdResponse \
 	-n ImageDeleteResponseItem \
 	-n ImageSummary \
-	-n Plugin -n PluginDevice -n PluginMount -n PluginEnv -n PluginInterfaceType \
+	-n Plugin \
+	-n PluginDevice \
+	-n PluginMount \
+	-n PluginEnv \
+	-n PluginInterfaceType \
 	-n Port \
-	-n ServiceUpdateResponse \
-	-n Volume
+	-n ServiceUpdateResponse
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/container --skip-validator -C api/swagger-gen.yaml \
@@ -20,7 +23,9 @@ swagger generate model -f api/swagger.yaml \
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/volume --skip-validator -C api/swagger-gen.yaml \
-	-n VolumeCreateOptions
+	-n Volume \
+	-n VolumeCreateOptions \
+	-n VolumeListResponse
 
 swagger generate operation -f api/swagger.yaml \
 	-t api -a types -m types -C api/swagger-gen.yaml \
@@ -30,5 +35,4 @@ swagger generate operation -f api/swagger.yaml \
 	-n ContainerCreate \
 	-n ContainerTop \
 	-n ContainerUpdate \
-	-n ImageHistory \
-	-n VolumeList
+	-n ImageHistory

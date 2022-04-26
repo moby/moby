@@ -2069,6 +2069,25 @@ definitions:
           com.example.some-label: "some-value"
           com.example.some-other-label: "some-other-value"
 
+  VolumeListResponse:
+    type: "object"
+    title: "VolumeListResponse"
+    x-go-name: "VolumeListOKBody"
+    description: "Volume list response"
+    properties:
+      Volumes:
+        type: "array"
+        description: "List of volumes"
+        items:
+          $ref: "#/definitions/Volume"
+      Warnings:
+        type: "array"
+        description: |
+          Warnings that occurred when fetching the list of volumes.
+        items:
+          type: "string"
+        example: []
+
   Network:
     type: "object"
     properties:
@@ -9145,24 +9164,7 @@ paths:
         200:
           description: "Summary volume data that matches the query"
           schema:
-            type: "object"
-            title: "VolumeListResponse"
-            description: "Volume list response"
-            required: [Volumes, Warnings]
-            properties:
-              Volumes:
-                type: "array"
-                x-nullable: false
-                description: "List of volumes"
-                items:
-                  $ref: "#/definitions/Volume"
-              Warnings:
-                type: "array"
-                x-nullable: false
-                description: |
-                  Warnings that occurred when fetching the list of volumes.
-                items:
-                  type: "string"
+            $ref: "#/definitions/VolumeListResponse"
         500:
           description: "Server error"
           schema:

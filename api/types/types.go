@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -686,7 +687,7 @@ type DiskUsage struct {
 	LayersSize  int64
 	Images      []*ImageSummary
 	Containers  []*Container
-	Volumes     []*Volume
+	Volumes     []*volume.Volume
 	BuildCache  []*BuildCache
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
 }
