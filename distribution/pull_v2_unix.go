@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
+func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
 	blobs := ld.repo.Blobs(ctx)
 	return blobs.Open(ctx, ld.digest)
 }

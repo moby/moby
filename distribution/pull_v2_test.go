@@ -322,7 +322,7 @@ func TestPullSchema2Config(t *testing.T) {
 	}
 }
 
-func testNewPuller(t *testing.T, rawurl string) *v2Puller {
+func testNewPuller(t *testing.T, rawurl string) *puller {
 	t.Helper()
 
 	uri, err := url.Parse(rawurl)
@@ -356,16 +356,10 @@ func testNewPuller(t *testing.T, rawurl string) *v2Puller {
 				RegistryToken: secretRegistryToken,
 			},
 		},
-		Schema2Types: ImageTypes,
 	}
 
-	puller, err := newPuller(endpoint, repoInfo, imagePullConfig, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := puller.(*v2Puller)
-
-	p.repo, err = NewV2Repository(context.Background(), p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p := newPuller(endpoint, repoInfo, imagePullConfig, nil)
+	p.repo, err = newRepository(context.Background(), p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}

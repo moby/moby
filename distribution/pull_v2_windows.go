@@ -22,16 +22,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var _ distribution.Describable = &v2LayerDescriptor{}
+var _ distribution.Describable = &layerDescriptor{}
 
-func (ld *v2LayerDescriptor) Descriptor() distribution.Descriptor {
+func (ld *layerDescriptor) Descriptor() distribution.Descriptor {
 	if ld.src.MediaType == schema2.MediaTypeForeignLayer && len(ld.src.URLs) > 0 {
 		return ld.src
 	}
 	return distribution.Descriptor{}
 }
 
-func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
+func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
 	blobs := ld.repo.Blobs(ctx)
 	rsc, err := blobs.Open(ctx, ld.digest)
 
