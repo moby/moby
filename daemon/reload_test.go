@@ -343,22 +343,19 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	}
 	daemon := &Daemon{
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
+		configStore:  &config.Config{},
 	}
-	daemon.configStore = &config.Config{}
 
-	valuesSet := make(map[string]interface{})
-	valuesSet["network-diagnostic-port"] = 2000
 	enableConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
 			NetworkDiagnosticPort: 2000,
-			ValuesSet:             valuesSet,
+			ValuesSet: map[string]interface{}{
+				"network-diagnostic-port": 2000,
+			},
 		},
 	}
-	disableConfig := &config.Config{
-		CommonConfig: config.CommonConfig{},
-	}
 
-	netOptions, err := daemon.networkOptions(enableConfig, nil, nil)
+	netOptions, err := daemon.networkOptions(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,16 +373,16 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		}
 		// Check that the diagnostic is enabled
 		if !daemon.netController.IsDiagnosticEnabled() {
-			t.Fatalf("diagnostic should be enable")
+			t.Fatalf("diagnostic should be enabled")
 		}
 
 		// Reload
-		if err := daemon.Reload(disableConfig); err != nil {
+		if err := daemon.Reload(&config.Config{}); err != nil {
 			t.Fatal(err)
 		}
 		// Check that the diagnostic is disabled
 		if daemon.netController.IsDiagnosticEnabled() {
-			t.Fatalf("diagnostic should be disable")
+			t.Fatalf("diagnostic should be disabled")
 		}
 	}
 
