@@ -33,7 +33,6 @@ type EventInfo struct {
 	Pid         uint32
 	ExitCode    uint32
 	ExitedAt    time.Time
-	OOMKilled   bool
 	Error       error
 }
 

@@ -53,9 +53,6 @@ type ExitStatus struct {
 	// The exit code with which the container exited.
 	ExitCode int
 
-	// Whether the container encountered an OOM.
-	OOMKilled bool
-
 	// Time at which the container died
 	ExitedAt time.Time
 }
