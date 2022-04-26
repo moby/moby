@@ -270,6 +270,7 @@ func (s *State) SetRunning(pid int, initial bool) {
 	}
 	s.ExitCodeValue = 0
 	s.Pid = pid
+	s.OOMKilled = false
 	if initial {
 		s.StartedAt = time.Now().UTC()
 	}
@@ -287,7 +288,6 @@ func (s *State) SetStopped(exitStatus *ExitStatus) {
 		s.FinishedAt = exitStatus.ExitedAt
 	}
 	s.ExitCodeValue = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
 
 	s.notifyAndClear(&s.stopWaiters)
 }
@@ -303,7 +303,6 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.ExitCodeValue = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
 
 	s.notifyAndClear(&s.stopWaiters)
 }

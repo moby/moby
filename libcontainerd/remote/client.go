@@ -47,8 +47,6 @@ type client struct {
 
 	backend         libcontainerdtypes.Backend
 	eventQ          queue.Queue
-	oomMu           sync.Mutex
-	oom             map[string]bool
 	v2runcoptionsMu sync.Mutex
 	// v2runcoptions is used for copying options specified on Create() to Start()
 	v2runcoptions map[string]v2runcoptions.Options
@@ -62,7 +60,6 @@ func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string,
 		logger:        logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
 		ns:            ns,
 		backend:       b,
-		oom:           make(map[string]bool),
 		v2runcoptions: make(map[string]v2runcoptions.Options),
 	}
 
@@ -475,9 +472,6 @@ func (c *client) Delete(ctx context.Context, containerID string) error {
 	if err := ctr.Delete(ctx); err != nil {
 		return wrapError(err)
 	}
-	c.oomMu.Lock()
-	delete(c.oom, containerID)
-	c.oomMu.Unlock()
 	c.v2runcoptionsMu.Lock()
 	delete(c.v2runcoptions, containerID)
 	c.v2runcoptionsMu.Unlock()
@@ -767,7 +761,6 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 	c.logger.Debug("processing event stream")
 
 	for {
-		var oomKilled bool
 		select {
 		case err = <-errC:
 			if err != nil {
@@ -825,9 +818,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 				et = libcontainerdtypes.EventOOM
 				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
-					OOMKilled:   true,
 				}
-				oomKilled = true
 			case *apievents.TaskExecAdded:
 				et = libcontainerdtypes.EventExecAdded
 				ei = libcontainerdtypes.EventInfo{
@@ -865,13 +856,6 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 				).Info("ignoring event")
 				continue
 			}
-
-			c.oomMu.Lock()
-			if oomKilled {
-				c.oom[ei.ContainerID] = true
-			}
-			ei.OOMKilled = c.oom[ei.ContainerID]
-			c.oomMu.Unlock()
 
 			c.processEvent(ctx, et, ei)
 		}

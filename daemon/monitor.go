@@ -46,7 +46,6 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	if e != nil {
 		exitStatus.ExitCode = int(e.ExitCode)
 		exitStatus.ExitedAt = e.ExitedAt
-		exitStatus.OOMKilled = e.OOMKilled
 		if e.Error != nil {
 			c.SetError(e.Error)
 		}
@@ -141,6 +140,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 
 		c.Lock()
 		defer c.Unlock()
+		c.OOMKilled = true
 		daemon.updateHealthMonitor(c)
 		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
