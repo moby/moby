@@ -46,7 +46,7 @@ func newDaemonCommand() (*cobra.Command, error) {
 	}
 	flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "Daemon configuration file")
 	configureCertsDir()
-	opts.InstallFlags(flags)
+	opts.installFlags(flags)
 	if err := installConfigFlags(opts.daemonConfig, flags); err != nil {
 		return nil, err
 	}
