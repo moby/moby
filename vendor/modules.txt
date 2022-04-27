@@ -151,7 +151,7 @@ github.com/containerd/cgroups/v2/stats
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.6.2
+# github.com/containerd/containerd v1.6.3
 ## explicit; go 1.17
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
@@ -200,6 +200,7 @@ github.com/containerd/containerd/oci
 github.com/containerd/containerd/pkg/apparmor
 github.com/containerd/containerd/pkg/cap
 github.com/containerd/containerd/pkg/dialer
+github.com/containerd/containerd/pkg/kmutex
 github.com/containerd/containerd/pkg/seccomp
 github.com/containerd/containerd/pkg/userns
 github.com/containerd/containerd/platforms
