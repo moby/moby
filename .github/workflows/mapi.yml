@@ -1,5 +1,15 @@
 name: 'Mayhem for API'
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_run:
+    workflows: ["Scheduled Merge Remote Action"]
+    types:
+      - completed
+
 jobs:
   test:
     runs-on: ubuntu-latest

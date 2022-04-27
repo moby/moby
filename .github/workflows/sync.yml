@@ -1,0 +1,22 @@
+name: Scheduled Merge Remote Action
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  merge-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: master                   # set the branch to merge to
+          fetch-depth: 0
+
+      - name: Merge Upstream
+        uses: ethan42/merge-upstream@v4
+        with:
+          upstream: moby/moby      # set the upstream repo manually
+          upstream-branch: master  # set the upstream branch to merge from
+          branch: master           # set the branch to merge to
