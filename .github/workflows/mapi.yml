@@ -1,0 +1,40 @@
+name: 'Mayhem for API'
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    steps:
+    - uses: actions/checkout@v2
+    - run: make build binary
+    - run: make run DOCKER_PORT=3333 &
+    - run: while [ -z $(docker ps -q --filter "expose=3333") ]; do echo "waiting for container"; sleep 1; done
+    - run: echo "API_URL=http://$(docker port $(docker ps -q -f expose=3333) 3333 | head -1)/" >> $GITHUB_ENV
+    - run: while ! curl -s ${{ env.API_URL }}; do echo "waiting for api server"; sleep 1; done
+
+    # Run Mayhem for API
+    - name: Run Mayhem for API
+      uses: ForAllSecure/mapi-action@v1
+      continue-on-error: true
+      with:
+        mapi-token: ${{ secrets.MAPI_TOKEN }}
+        api-url: ${{ env.API_URL }}
+        api-spec: api/swagger.yaml
+        target: makesoftwaresafe/moby
+        duration: 1min
+        sarif-report: mapi.sarif
+        html-report: mapi.html
+
+    # Archive HTML report
+    - name: Archive Mayhem for API report
+      uses: actions/upload-artifact@v2
+      with:
+        name: mapi-report
+        path: mapi.html
+
+    # Upload SARIF file (only available on public repos or github enterprise)
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v1
+      with:
+        sarif_file: mapi.sarif
