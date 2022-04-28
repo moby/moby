@@ -1693,12 +1693,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *testing.T) {
 		"--tlskey", "fixtures/https/server-key.pem")
 
 	// The client with --tlsverify should also use default host localhost:2376
-	tmpHost := os.Getenv("DOCKER_HOST")
-	defer func() {
-		os.Setenv("DOCKER_HOST", tmpHost)
-	}()
-
-	os.Setenv("DOCKER_HOST", "")
+	c.Setenv("DOCKER_HOST", "")
 
 	out, _ := dockerCmd(
 		c,

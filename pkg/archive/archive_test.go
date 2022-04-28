@@ -1372,8 +1372,7 @@ func TestDisablePigz(t *testing.T) {
 		t.Log("Test will not check full path when Pigz not installed")
 	}
 
-	os.Setenv("MOBY_DISABLE_PIGZ", "true")
-	defer os.Unsetenv("MOBY_DISABLE_PIGZ")
+	t.Setenv("MOBY_DISABLE_PIGZ", "true")
 
 	r := testDecompressStream(t, "gz", "gzip -f")
 	// For the bufio pool

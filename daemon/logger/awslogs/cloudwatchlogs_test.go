@@ -1654,8 +1654,7 @@ func BenchmarkUnwrapEvents(b *testing.B) {
 
 func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	// required for the cloudwatchlogs client
-	os.Setenv("AWS_REGION", "us-west-2")
-	defer os.Unsetenv("AWS_REGION")
+	t.Setenv("AWS_REGION", "us-west-2")
 
 	credsResp := `{
 		"AccessKeyId" :    "test-access-key-id",
@@ -1694,17 +1693,13 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 
 func TestNewAWSLogsClientCredentialEnvironmentVariable(t *testing.T) {
 	// required for the cloudwatchlogs client
-	os.Setenv("AWS_REGION", "us-west-2")
-	defer os.Unsetenv("AWS_REGION")
+	t.Setenv("AWS_REGION", "us-west-2")
 
 	expectedAccessKeyID := "test-access-key-id"
 	expectedSecretAccessKey := "test-secret-access-key"
 
-	os.Setenv("AWS_ACCESS_KEY_ID", expectedAccessKeyID)
-	defer os.Unsetenv("AWS_ACCESS_KEY_ID")
-
-	os.Setenv("AWS_SECRET_ACCESS_KEY", expectedSecretAccessKey)
-	defer os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+	t.Setenv("AWS_ACCESS_KEY_ID", expectedAccessKeyID)
+	t.Setenv("AWS_SECRET_ACCESS_KEY", expectedSecretAccessKey)
 
 	info := logger.Info{
 		Config: map[string]string{},
@@ -1724,8 +1719,7 @@ func TestNewAWSLogsClientCredentialEnvironmentVariable(t *testing.T) {
 
 func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
 	// required for the cloudwatchlogs client
-	os.Setenv("AWS_REGION", "us-west-2")
-	defer os.Unsetenv("AWS_REGION")
+	t.Setenv("AWS_REGION", "us-west-2")
 
 	expectedAccessKeyID := "test-access-key-id"
 	expectedSecretAccessKey := "test-secret-access-key"
@@ -1750,8 +1744,7 @@ func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
 	os.Unsetenv("AWS_ACCESS_KEY_ID")
 	os.Unsetenv("AWS_SECRET_ACCESS_KEY")
 
-	os.Setenv("AWS_SHARED_CREDENTIALS_FILE", tmpfile.Name())
-	defer os.Unsetenv("AWS_SHARED_CREDENTIALS_FILE")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", tmpfile.Name())
 
 	info := logger.Info{
 		Config: map[string]string{},

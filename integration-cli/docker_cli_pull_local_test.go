@@ -367,16 +367,14 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 
 // #23100
 func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithScheme(c *testing.T) {
-	osPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", osPath)
-
 	workingDir, err := os.Getwd()
 	assert.NilError(c, err)
 	absolute, err := filepath.Abs(filepath.Join(workingDir, "fixtures", "auth"))
 	assert.NilError(c, err)
-	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
 
-	os.Setenv("PATH", testPath)
+	osPath := os.Getenv("PATH")
+	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
+	c.Setenv("PATH", testPath)
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
@@ -411,16 +409,14 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuthLoginWithSchem
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *testing.T) {
-	osPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", osPath)
-
 	workingDir, err := os.Getwd()
 	assert.NilError(c, err)
 	absolute, err := filepath.Abs(filepath.Join(workingDir, "fixtures", "auth"))
 	assert.NilError(c, err)
-	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
 
-	os.Setenv("PATH", testPath)
+	osPath := os.Getenv("PATH")
+	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
+	c.Setenv("PATH", testPath)
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
