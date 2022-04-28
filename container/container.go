@@ -263,7 +263,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity) error {
+func (container *Container) SetupWorkingDirectory(owner idtools.Identity) error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
@@ -274,7 +274,7 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 		return err
 	}
 
-	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIdentity); err != nil {
+	if err := idtools.MkdirAllAndChownNew(pth, 0755, owner); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)

@@ -13,6 +13,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -26,8 +27,16 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 	}
 	defer daemon.Unmount(container)
 
-	rootIDs := daemon.idMapping.RootPair()
-	if err := container.SetupWorkingDirectory(rootIDs); err != nil {
+	user, err := getUser(container, config.User)
+	if err != nil {
+		return err
+	}
+	owner := idtools.Identity{UID: int(user.UID), GID: int(user.GID)}
+	owner, err = daemon.idMapping.ToHost(owner)
+	if err != nil {
+		return err
+	}
+	if err := container.SetupWorkingDirectory(owner); err != nil {
 		return err
 	}
 
