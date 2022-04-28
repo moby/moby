@@ -1,7 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"github.com/docker/swarmkit/agent/exec"
+	"github.com/moby/swarmkit/v2/agent/exec"
 )
 
 // SetContainerDependencyStore sets the dependency store backend for the container

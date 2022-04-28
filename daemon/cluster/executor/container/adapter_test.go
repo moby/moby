@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon"
-	"github.com/docker/swarmkit/api"
+	"github.com/moby/swarmkit/v2/api"
 )
 
 // TestWaitNodeAttachment tests that the waitNodeAttachment method successfully

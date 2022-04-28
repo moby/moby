@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/errdefs"
-	swarmapi "github.com/docker/swarmkit/api"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 )
 
