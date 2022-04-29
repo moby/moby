@@ -343,16 +343,36 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 		newConfig = New()
 	}
 
-	if err := Validate(newConfig); err != nil {
-		return errors.Wrap(err, "file configuration validation failed")
-	}
-
 	// Check if duplicate label-keys with different values are found
 	newLabels, err := GetConflictFreeLabels(newConfig.Labels)
 	if err != nil {
 		return err
 	}
 	newConfig.Labels = newLabels
+
+	// TODO(thaJeztah) This logic is problematic and needs a rewrite;
+	// This is validating newConfig before the "reload()" callback is executed.
+	// At this point, newConfig may be a partial configuration, to be merged
+	// with the existing configuration in the "reload()" callback. Validating
+	// this config before it's merged can result in incorrect validation errors.
+	//
+	// However, the current "reload()" callback we use is DaemonCli.reloadConfig(),
+	// which includes a call to Daemon.Reload(), which both performs "merging"
+	// and validation, as well as actually updating the daemon configuration.
+	// Calling DaemonCli.reloadConfig() *before* validation, could thus lead to
+	// a failure in that function (making the reload non-atomic).
+	//
+	// While *some* errors could always occur when applying/updating the config,
+	// we should make it more atomic, and;
+	//
+	// 1. get (a copy of) the active configuration
+	// 2. get the new configuration
+	// 3. apply the (reloadable) options from the new configuration
+	// 4. validate the merged results
+	// 5. apply the new configuration.
+	if err := Validate(newConfig); err != nil {
+		return errors.Wrap(err, "file configuration validation failed")
+	}
 
 	reload(newConfig)
 	return nil
@@ -374,17 +394,12 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 		return nil, err
 	}
 
-	if err := Validate(fileConfig); err != nil {
-		return nil, errors.Wrap(err, "configuration validation from file failed")
-	}
-
 	// merge flags configuration on top of the file configuration
 	if err := mergo.Merge(fileConfig, flagsConfig); err != nil {
 		return nil, err
 	}
 
-	// We need to validate again once both fileConfig and flagsConfig
-	// have been merged
+	// validate the merged fileConfig and flagsConfig
 	if err := Validate(fileConfig); err != nil {
 		return nil, errors.Wrap(err, "merged configuration validation from file and command line flags failed")
 	}
@@ -585,16 +600,16 @@ func Validate(config *Config) error {
 			return err
 		}
 	}
-	// validate MaxConcurrentDownloads
+
+	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
 	if config.MaxConcurrentDownloads != nil && *config.MaxConcurrentDownloads < 0 {
 		return fmt.Errorf("invalid max concurrent downloads: %d", *config.MaxConcurrentDownloads)
 	}
-	// validate MaxConcurrentUploads
 	if config.MaxConcurrentUploads != nil && *config.MaxConcurrentUploads < 0 {
 		return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxConcurrentUploads)
 	}
-	if err := ValidateMaxDownloadAttempts(config); err != nil {
-		return err
+	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts < 0 {
+		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
 	}
 
 	// validate that "default" runtime is not reset
@@ -625,14 +640,6 @@ func Validate(config *Config) error {
 
 	// validate platform-specific settings
 	return config.ValidatePlatformConfig()
-}
-
-// ValidateMaxDownloadAttempts validates if the max-download-attempts is within the valid range
-func ValidateMaxDownloadAttempts(config *Config) error {
-	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts <= 0 {
-		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
-	}
-	return nil
 }
 
 // GetDefaultRuntimeName returns the current default runtime
