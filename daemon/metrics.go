@@ -37,6 +37,7 @@ var (
 
 	healthChecksCounter       = metricsNS.NewCounter("health_checks", "The total number of health checks")
 	healthChecksFailedCounter = metricsNS.NewCounter("health_checks_failed", "The total number of failed health checks")
+	healthCheckStartDuration  = metricsNS.NewTimer("health_check_start_duration", "The number of seconds it takes to prepare to run health checks")
 
 	stateCtr = newStateCounter(metricsNS, metricsNS.NewDesc("container_states", "The count of containers in various states", metrics.Unit("containers"), "state"))
 )

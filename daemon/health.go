@@ -62,6 +62,7 @@ type cmdProbe struct {
 // exec the healthcheck command in the container.
 // Returns the exit code and probe output (if any)
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*types.HealthcheckResult, error) {
+	startTime := time.Now()
 	cmdSlice := strslice.StrSlice(cntr.Config.Healthcheck.Test)[1:]
 	if p.shell {
 		cmdSlice = append(getShell(cntr), cmdSlice...)
@@ -93,10 +94,52 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	d.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), attributes)
 
 	output := &limitedBuffer{}
-	err = d.ContainerExecStart(ctx, execConfig.ID, nil, output, output)
-	if err != nil {
-		return nil, err
+	probeCtx, cancelProbe := context.WithCancel(ctx)
+	defer cancelProbe()
+	execErr := make(chan error, 1)
+	go func() { execErr <- d.ContainerExecStart(probeCtx, execConfig.ID, nil, output, output) }()
+
+	// Starting an exec can take a significant amount of time: on the order
+	// of 1s in extreme cases. The time it takes dockerd and containerd to
+	// start the exec is time that the probe process is not running, and so
+	// should not count towards the health check's timeout. Apply a separate
+	// timeout to abort if the exec request is wedged.
+	tm := time.NewTimer(30 * time.Second)
+	defer tm.Stop()
+	select {
+	case <-tm.C:
+		return nil, fmt.Errorf("timed out starting health check for container %s", cntr.ID)
+	case err := <-execErr:
+		if err != nil {
+			return nil, err
+		}
+	case <-execConfig.Started:
+		healthCheckStartDuration.UpdateSince(startTime)
 	}
+
+	if !tm.Stop() {
+		<-tm.C
+	}
+	probeTimeout := timeoutWithDefault(cntr.Config.Healthcheck.Timeout, defaultProbeTimeout)
+	tm.Reset(probeTimeout)
+	select {
+	case <-tm.C:
+		cancelProbe()
+		logrus.WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
+		// Wait for probe to exit (it might take a while to respond to the TERM
+		// signal and we don't want dying probes to pile up).
+		<-execErr
+		return &types.HealthcheckResult{
+			ExitCode: -1,
+			Output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),
+			End:      time.Now(),
+		}, nil
+	case err := <-execErr:
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	info, err := d.getExecConfig(execConfig.ID)
 	if err != nil {
 		return nil, err
@@ -184,7 +227,6 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 // Run the container's monitoring thread until notified via "stop".
 // There is never more than one monitor thread running per container at a time.
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
-	probeTimeout := timeoutWithDefault(c.Config.Healthcheck.Timeout, defaultProbeTimeout)
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
 
 	intervalTimer := time.NewTimer(probeInterval)
@@ -200,7 +242,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 		case <-intervalTimer.C:
 			logrus.Debugf("Running health check for container %s ...", c.ID)
 			startTime := time.Now()
-			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)
+			ctx, cancelProbe := context.WithCancel(context.Background())
 			results := make(chan *types.HealthcheckResult, 1)
 			go func() {
 				healthChecksCounter.Inc()
@@ -231,20 +273,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 				return
 			case result := <-results:
 				handleProbeResult(d, c, result, stop)
-				// Stop timeout
 				cancelProbe()
-			case <-ctx.Done():
-				logrus.Debugf("Health check for container %s taking too long", c.ID)
-				handleProbeResult(d, c, &types.HealthcheckResult{
-					ExitCode: -1,
-					Output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),
-					Start:    startTime,
-					End:      time.Now(),
-				}, stop)
-				cancelProbe()
-				// Wait for probe to exit (it might take a while to respond to the TERM
-				// signal and we don't want dying probes to pile up).
-				<-results
 			}
 		}
 	}
