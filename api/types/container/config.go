@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/api/types/container"
 
 import (
+	"os"
 	"time"
 
 	"github.com/docker/docker/api/types/strslice"
@@ -52,6 +53,16 @@ type HealthConfig struct {
 	Retries int `json:",omitempty"`
 }
 
+// SecretConfig holds self-sufficient data about a secret of a container.
+type SecretConfig struct {
+	ID     string      `json:",omitempty"` // Unique identifier of the secret
+	Data   []byte      `json:",omitempty"` // Raw content of the secret file
+	UID    string      `json:",omitempty"` // User ID of the secret file in the container
+	GID    string      `json:",omitempty"` // Group ID of the secret file in the container
+	Mode   os.FileMode `json:",omitempty"` // Permission of the secret file in the container
+	Target string      `json:",omitempty"` // Path to the secret file in the container
+}
+
 // Config contains the configuration data about a container.
 // It should hold only portable information about the container.
 // Here, "portable" means "independent from the host we are running on".
@@ -84,4 +95,5 @@ type Config struct {
 	StopSignal      string              `json:",omitempty"` // Signal to stop a container
 	StopTimeout     *int                `json:",omitempty"` // Timeout (in seconds) to stop a container
 	Shell           strslice.StrSlice   `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
+	Secrets         []SecretConfig      `json:",omitempty"` // List of non-Swarm secrets of the container
 }
