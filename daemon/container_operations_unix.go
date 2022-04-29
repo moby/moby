@@ -161,7 +161,7 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 }
 
 func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
-	if len(c.SecretReferences) == 0 && len(c.ConfigReferences) == 0 {
+	if len(c.SecretReferences) == 0 && len(c.ConfigReferences) == 0 && len(c.Config.Secrets) == 0 {
 		return nil
 	}
 
@@ -174,12 +174,45 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		}
 	}()
 
+	// retrieve possible remapped range start for root UID, GID
+	rootIDs := daemon.idMapping.RootPair()
+
+	secretMountPath, err := c.SecretMountPath()
+	if nil != err {
+		return err
+	}
+
+	for _, secret := range c.Config.Secrets {
+		fPath := filepath.Join(secretMountPath, secret.ID)
+
+		if err := os.WriteFile(fPath, secret.Data, secret.Mode); err != nil {
+			return err
+		}
+
+		uid, err := strconv.Atoi(secret.UID)
+		if err != nil {
+			return err
+		}
+		gid, err := strconv.Atoi(secret.GID)
+		if err != nil {
+			return err
+		}
+
+		if err := os.Chown(fPath, rootIDs.UID+uid, rootIDs.GID+gid); err != nil {
+			return errors.Wrap(err, "error setting ownership for secret")
+		}
+		if err := os.Chmod(fPath, secret.Mode); err != nil {
+			return errors.Wrap(err, "error setting file mode for secret")
+		}
+	}
+
+	if len(c.SecretReferences) == 0 && len(c.ConfigReferences) == 0 {
+		return nil
+	}
+
 	if c.DependencyStore == nil {
 		return fmt.Errorf("secret store is not initialized")
 	}
-
-	// retrieve possible remapped range start for root UID, GID
-	rootIDs := daemon.idMapping.RootPair()
 
 	for _, s := range c.SecretReferences {
 		// TODO (ehazlett): use type switch when more are supported
