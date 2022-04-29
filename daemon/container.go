@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/swarmkit/identity"
 	"github.com/moby/sys/signal"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -146,6 +147,8 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	}
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
+	daemon.assignConfigSecretIDs(config)
+
 	base := daemon.newBaseContainer(id)
 	base.Created = time.Now().UTC()
 	base.Managed = managed
@@ -159,6 +162,12 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Driver = daemon.imageService.GraphDriverName()
 	base.OS = operatingSystem
 	return base, err
+}
+
+func (daemon *Daemon) assignConfigSecretIDs(config *containertypes.Config) {
+	for i := 0; i < len(config.Secrets); i++ {
+		config.Secrets[i].ID = identity.NewID()
+	}
 }
 
 // GetByName returns a container given a name.

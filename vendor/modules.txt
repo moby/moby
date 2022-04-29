@@ -305,6 +305,9 @@ github.com/docker/libkv/store/boltdb
 # github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4
 ## explicit
 github.com/docker/libtrust
+# github.com/docker/swarmkit v1.12.0
+## explicit
+github.com/docker/swarmkit/identity
 # github.com/dustin/go-humanize v1.0.0
 ## explicit
 github.com/dustin/go-humanize

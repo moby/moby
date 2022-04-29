@@ -371,6 +371,8 @@ github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1/go.mod h1:cyGadeNE
 github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4 h1:k8TfKGeAcDQFFQOGCQMRN04N4a9YrPlRMMKnzAuvM9Q=
 github.com/docker/libtrust v0.0.0-20150526203908-9cbd2a1374f4/go.mod h1:cyGadeNEkKy96OOhEzfZl+yxihPEzKnqJwvfuSUqbZE=
 github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96/go.mod h1:Qh8CwZgvJUkLughtfhJv5dyTYa91l1fOUCrgjqmcifM=
+github.com/docker/swarmkit v1.12.0 h1:vcbNXevt9xOod0miQxkp9WZ70IsOCe8geXkmFnXP2e0=
+github.com/docker/swarmkit v1.12.0/go.mod h1:n3Z4lIEl7g261ptkGDBcYi/3qBMDl9csaAhwi2MPejs=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/dperny/gocsi v1.2.3-pre h1:GRTvl8G6yEXYPyul1h6YAqtyxzUHTrQHo6G3xZpb9oM=
 github.com/dperny/gocsi v1.2.3-pre/go.mod h1:qQw5mIunz1RqMUfZcGJ9/Lt9EDaL0N3wPNYxFTuyLQo=
