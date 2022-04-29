@@ -14,21 +14,20 @@
    limitations under the License.
 */
 
-package version
+package kmutex
 
-import "runtime"
+import "context"
 
-var (
-	// Package is filled at linking time
-	Package = "github.com/containerd/containerd"
+func NewNoop() KeyedLocker {
+	return &noopMutex{}
+}
 
-	// Version holds the complete version number. Filled in at linking time.
-	Version = "1.6.3+unknown"
+type noopMutex struct {
+}
 
-	// Revision is filled with the VCS (e.g. git) revision being used to build
-	// the program at linking time.
-	Revision = ""
+func (*noopMutex) Lock(_ context.Context, _ string) error {
+	return nil
+}
 
-	// GoVersion is Go tree's version.
-	GoVersion = runtime.Version()
-)
+func (*noopMutex) Unlock(_ string) {
+}
