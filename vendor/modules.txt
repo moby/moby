@@ -937,7 +937,7 @@ golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/singleflight
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
+# golang.org/x/sys v0.0.0-20220405210540-1e041c57c461
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs

@@ -240,6 +240,10 @@ type EpollEvent struct {
 }
 
 const (
+	OPEN_TREE_CLOEXEC = 0x400000
+)
+
+const (
 	POLLRDHUP = 0x800
 )
 

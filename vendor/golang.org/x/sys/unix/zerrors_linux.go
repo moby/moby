@@ -2135,6 +2135,10 @@ const (
 	PTRACE_SYSCALL_INFO_NONE                    = 0x0
 	PTRACE_SYSCALL_INFO_SECCOMP                 = 0x3
 	PTRACE_TRACEME                              = 0x0
+	P_ALL                                       = 0x0
+	P_PGID                                      = 0x2
+	P_PID                                       = 0x1
+	P_PIDFD                                     = 0x3
 	QNX4_SUPER_MAGIC                            = 0x2f
 	QNX6_SUPER_MAGIC                            = 0x68191122
 	RAMFS_MAGIC                                 = 0x858458f6
