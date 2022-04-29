@@ -35,3 +35,5 @@ type NeedsRemoteProviderError []digest.Digest //nolint:errname
 func (m NeedsRemoteProviderError) Error() string {
 	return fmt.Sprintf("missing descriptor handlers for lazy blobs %+v", []digest.Digest(m))
 }
+
+type ProgressKey struct{}

@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -109,7 +110,7 @@ func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *cop
 		return err
 	}
 
-	if err := os.WriteFile(p, action.Data, os.FileMode(action.Mode)&0777); err != nil {
+	if err := ioutil.WriteFile(p, action.Data, os.FileMode(action.Mode)&0777); err != nil {
 		return err
 	}
 

@@ -88,7 +88,7 @@ func getVirtualDiskPhysicalPath(handle syscall.Handle, diskPathSizeInBytes *uint
 	return
 }
 
-func openVirtualDisk(virtualStorageType *VirtualStorageType, path string, virtualDiskAccessMask uint32, openVirtualDiskFlags uint32, parameters *OpenVirtualDiskParameters, handle *syscall.Handle) (win32err error) {
+func openVirtualDisk(virtualStorageType *VirtualStorageType, path string, virtualDiskAccessMask uint32, openVirtualDiskFlags uint32, parameters *openVirtualDiskParameters, handle *syscall.Handle) (win32err error) {
 	var _p0 *uint16
 	_p0, win32err = syscall.UTF16PtrFromString(path)
 	if win32err != nil {
@@ -97,7 +97,7 @@ func openVirtualDisk(virtualStorageType *VirtualStorageType, path string, virtua
 	return _openVirtualDisk(virtualStorageType, _p0, virtualDiskAccessMask, openVirtualDiskFlags, parameters, handle)
 }
 
-func _openVirtualDisk(virtualStorageType *VirtualStorageType, path *uint16, virtualDiskAccessMask uint32, openVirtualDiskFlags uint32, parameters *OpenVirtualDiskParameters, handle *syscall.Handle) (win32err error) {
+func _openVirtualDisk(virtualStorageType *VirtualStorageType, path *uint16, virtualDiskAccessMask uint32, openVirtualDiskFlags uint32, parameters *openVirtualDiskParameters, handle *syscall.Handle) (win32err error) {
 	r0, _, _ := syscall.Syscall6(procOpenVirtualDisk.Addr(), 6, uintptr(unsafe.Pointer(virtualStorageType)), uintptr(unsafe.Pointer(path)), uintptr(virtualDiskAccessMask), uintptr(openVirtualDiskFlags), uintptr(unsafe.Pointer(parameters)), uintptr(unsafe.Pointer(handle)))
 	if r0 != 0 {
 		win32err = syscall.Errno(r0)

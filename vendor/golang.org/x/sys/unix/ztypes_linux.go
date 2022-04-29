@@ -754,6 +754,8 @@ const (
 	AT_SYMLINK_NOFOLLOW = 0x100
 
 	AT_EACCESS = 0x200
+
+	OPEN_TREE_CLONE = 0x1
 )
 
 type OpenHow struct {

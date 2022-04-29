@@ -4,6 +4,7 @@
 package snapshot
 
 import (
+	"io/ioutil"
 	"os"
 	"syscall"
 
@@ -37,7 +38,7 @@ func (lm *localMounter) Mount() (string, error) {
 		}
 	}
 
-	dir, err := os.MkdirTemp("", "buildkit-mount")
+	dir, err := ioutil.TempDir("", "buildkit-mount")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create temp dir")
 	}

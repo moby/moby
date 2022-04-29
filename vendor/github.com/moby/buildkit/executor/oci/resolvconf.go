@@ -2,6 +2,7 @@ package oci
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -100,7 +101,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 		}
 
 		tmpPath := p + ".tmp"
-		if err := os.WriteFile(tmpPath, f.Content, 0644); err != nil {
+		if err := ioutil.WriteFile(tmpPath, f.Content, 0644); err != nil {
 			return "", err
 		}
 

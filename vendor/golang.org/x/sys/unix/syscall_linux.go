@@ -366,6 +366,8 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
+//sys	Waitid(idType int, id int, info *Siginfo, options int, rusage *Rusage) (err error)
+
 func Mkfifo(path string, mode uint32) error {
 	return Mknod(path, mode|S_IFIFO, 0)
 }
@@ -1858,6 +1860,7 @@ func Getpgrp() (pid int) {
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+//sys	OpenTree(dfd int, fileName string, flags uint) (r int, err error)
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
 //sysnb	Prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
@@ -2446,5 +2449,4 @@ func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
 // Vfork
 // Vhangup
 // Vserver
-// Waitid
 // _Sysctl

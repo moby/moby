@@ -10,7 +10,7 @@ require (
 	cloud.google.com/go v0.93.3
 	cloud.google.com/go/logging v1.4.2
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
-	github.com/Microsoft/go-winio v0.5.1
+	github.com/Microsoft/go-winio v0.5.2
 	github.com/Microsoft/hcsshim v0.9.2
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310
@@ -19,7 +19,7 @@ require (
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.3
 	github.com/containerd/containerd v1.6.3
-	github.com/containerd/continuity v0.2.2
+	github.com/containerd/continuity v0.3.0
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
 	github.com/coreos/go-systemd/v22 v22.3.2
@@ -49,7 +49,7 @@ require (
 	github.com/klauspost/compress v1.15.1
 	github.com/miekg/dns v1.1.27
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
-	github.com/moby/buildkit v0.10.1-0.20220327110152-d7744bcb3532
+	github.com/moby/buildkit v0.10.2
 	github.com/moby/ipvs v1.0.1
 	github.com/moby/locker v1.0.1
 	github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
@@ -80,7 +80,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
+	golang.org/x/sys v0.0.0-20220405210540-1e041c57c461
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
 	google.golang.org/grpc v1.45.0

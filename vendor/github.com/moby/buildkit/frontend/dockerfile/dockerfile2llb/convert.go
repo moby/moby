@@ -158,6 +158,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		st.BaseName = name
 
 		ds := &dispatchState{
+			stage:          st,
 			deps:           make(map[*dispatchState]struct{}),
 			ctxPaths:       make(map[string]struct{}),
 			stageName:      st.Name,
@@ -174,6 +175,13 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 				ds.state = *s
 				if img != nil {
 					ds.image = *img
+					if img.Architecture != "" && img.OS != "" {
+						ds.platform = &ocispecs.Platform{
+							OS:           img.OS,
+							Architecture: img.Architecture,
+							Variant:      img.Variant,
+						}
+					}
 				}
 				if bi != nil {
 					ds.buildInfo = *bi
@@ -182,8 +190,6 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 				continue
 			}
 		}
-
-		ds.stage = st
 
 		if st.Name == "" {
 			ds.stageName = fmt.Sprintf("stage-%d", i)
@@ -320,7 +326,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 						if bi != nil {
 							d.buildInfo = *bi
 						}
-						d.state = *st
+						d.state = st.Platform(*platform)
 						d.platform = platform
 						return nil
 					}
@@ -403,7 +409,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 	ctxPaths := map[string]struct{}{}
 
 	for _, d := range allDispatchStates.states {
-		if !isReachable(target, d) {
+		if !isReachable(target, d) || d.noinit {
 			continue
 		}
 

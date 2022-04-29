@@ -3,6 +3,7 @@ package resolver
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -66,7 +67,7 @@ func fillInsecureOpts(host string, c config.RegistryConfig, h docker.RegistryHos
 
 func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 	for _, d := range c.TLSConfigDir {
-		fs, err := os.ReadDir(d)
+		fs, err := ioutil.ReadDir(d)
 		if err != nil && !errors.Is(err, os.ErrNotExist) && !errors.Is(err, os.ErrPermission) {
 			return nil, errors.WithStack(err)
 		}
@@ -97,7 +98,7 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 	}
 
 	for _, p := range c.RootCAs {
-		dt, err := os.ReadFile(p)
+		dt, err := ioutil.ReadFile(p)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to read %s", p)
 		}

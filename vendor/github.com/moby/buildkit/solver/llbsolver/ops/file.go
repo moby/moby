@@ -19,6 +19,8 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -35,6 +37,7 @@ type fileOp struct {
 	solver      *FileOpSolver
 	numInputs   int
 	parallelism *semaphore.Weighted
+	vtx         solver.Vertex
 }
 
 func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, parallelism *semaphore.Weighted, w worker.Worker) (solver.Op, error) {
@@ -48,6 +51,7 @@ func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, parallelism *s
 		w:           w,
 		solver:      NewFileOpSolver(w, &file.Backend{}, file.NewRefManager(cm)),
 		parallelism: parallelism,
+		vtx:         v,
 	}, nil
 }
 
@@ -134,6 +138,14 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
 		}, f.numInputs),
+		Opts: solver.CacheOpts(map[interface{}]interface{}{
+			cache.ProgressKey{}: &controller.Controller{
+				WriterFactory: progress.FromContext(ctx),
+				Digest:        f.vtx.Digest(),
+				Name:          f.vtx.Name(),
+				ProgressGroup: f.vtx.Options().ProgressGroup,
+			},
+		}),
 	}
 
 	for idx, m := range selectors {

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +23,7 @@ func withChroot(cmd *exec.Cmd, dir string) {
 }
 
 func check(arch, bin string) (string, error) {
-	tmpdir, err := os.MkdirTemp("", "qemu-check")
+	tmpdir, err := ioutil.TempDir("", "qemu-check")
 	if err != nil {
 		return "", err
 	}

@@ -1038,7 +1038,7 @@ func (m *SecretOpt) GetOptional() bool {
 	return false
 }
 
-// SSHOpt defines options describing ssh mounts
+// SSHOpt defines options describing secret mounts
 type SSHOpt struct {
 	// ID of exposed ssh rule. Used for quering the value.
 	ID string `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`

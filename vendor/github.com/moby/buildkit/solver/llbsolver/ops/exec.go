@@ -21,6 +21,8 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/util/progress/logs"
 	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
@@ -43,6 +45,7 @@ type execOp struct {
 	platform    *pb.Platform
 	numInputs   int
 	parallelism *semaphore.Weighted
+	vtx         solver.Vertex
 }
 
 func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, parallelism *semaphore.Weighted, sm *session.Manager, exec executor.Executor, w worker.Worker) (solver.Op, error) {
@@ -60,6 +63,7 @@ func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.
 		w:           w,
 		platform:    platform,
 		parallelism: parallelism,
+		vtx:         v,
 	}, nil
 }
 
@@ -141,6 +145,14 @@ func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
 		}, e.numInputs),
+		Opts: solver.CacheOpts(map[interface{}]interface{}{
+			cache.ProgressKey{}: &controller.Controller{
+				WriterFactory: progress.FromContext(ctx),
+				Digest:        e.vtx.Digest(),
+				Name:          e.vtx.Name(),
+				ProgressGroup: e.vtx.Options().ProgressGroup,
+			},
+		}),
 	}
 
 	deps, err := e.getMountDeps()
