@@ -13,7 +13,6 @@ import (
 	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/progress"
-	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/util/tracing"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -782,15 +781,6 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 		}
 		if complete {
 			if err == nil {
-				if res.Opts == nil {
-					res.Opts = CacheOpts(make(map[interface{}]interface{}))
-				}
-				res.Opts[progressKey{}] = &controller.Controller{
-					WriterFactory: progress.FromContext(ctx),
-					Digest:        s.st.vtx.Digest(),
-					Name:          s.st.vtx.Name(),
-					ProgressGroup: s.st.vtx.Options().ProgressGroup,
-				}
 				s.cacheRes = append(s.cacheRes, res)
 				s.cacheDone = done
 			}

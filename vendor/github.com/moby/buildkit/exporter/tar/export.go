@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -82,7 +83,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 		var err error
 		var idmap *idtools.IdentityMapping
 		if ref == nil {
-			src, err = os.MkdirTemp("", "buildkit")
+			src, err = ioutil.TempDir("", "buildkit")
 			if err != nil {
 				return nil, err
 			}

@@ -4,14 +4,11 @@ import (
 	"context"
 
 	"github.com/moby/buildkit/util/bklog"
-	"github.com/moby/buildkit/util/progress"
 
 	digest "github.com/opencontainers/go-digest"
 )
 
 type CacheOpts map[interface{}]interface{}
-
-type progressKey struct{}
 
 type cacheOptGetterKey struct{}
 
@@ -93,16 +90,4 @@ func walkAncestors(ctx context.Context, start *state, f func(*state) bool) {
 			stack[len(stack)-1] = append(stack[len(stack)-1], parent)
 		}
 	}
-}
-
-func ProgressControllerFromContext(ctx context.Context) progress.Controller {
-	var pg progress.Controller
-	if optGetter := CacheOptGetterOf(ctx); optGetter != nil {
-		if kv := optGetter(false, progressKey{}); kv != nil {
-			if v, ok := kv[progressKey{}].(progress.Controller); ok {
-				pg = v
-			}
-		}
-	}
-	return pg
 }

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,7 +114,7 @@ func GetOverlayLayers(m mount.Mount) ([]string, error) {
 // WriteUpperdir writes a layer tar archive into the specified writer, based on
 // the diff information stored in the upperdir.
 func WriteUpperdir(ctx context.Context, w io.Writer, upperdir string, lower []mount.Mount) error {
-	emptyLower, err := os.MkdirTemp("", "buildkit") // empty directory used for the lower of diff view
+	emptyLower, err := ioutil.TempDir("", "buildkit") // empty directory used for the lower of diff view
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp dir")
 	}

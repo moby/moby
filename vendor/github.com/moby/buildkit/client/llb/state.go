@@ -230,13 +230,7 @@ func (s State) WithOutput(o Output) State {
 }
 
 func (s State) WithImageConfig(c []byte) (State, error) {
-	var img struct {
-		Config struct {
-			Env        []string `json:"Env,omitempty"`
-			WorkingDir string   `json:"WorkingDir,omitempty"`
-			User       string   `json:"User,omitempty"`
-		} `json:"config,omitempty"`
-	}
+	var img ocispecs.Image
 	if err := json.Unmarshal(c, &img); err != nil {
 		return State{}, err
 	}
@@ -251,6 +245,13 @@ func (s State) WithImageConfig(c []byte) (State, error) {
 		}
 	}
 	s = s.Dir(img.Config.WorkingDir)
+	if img.Architecture != "" && img.OS != "" {
+		s = s.Platform(ocispecs.Platform{
+			OS:           img.OS,
+			Architecture: img.Architecture,
+			Variant:      img.Variant,
+		})
+	}
 	return s, nil
 }
 

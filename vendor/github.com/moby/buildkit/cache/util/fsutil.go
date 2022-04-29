@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -58,7 +59,7 @@ func ReadFile(ctx context.Context, mount snapshot.Mountable, req ReadRequest) ([
 		}
 
 		if req.Range == nil {
-			dt, err = os.ReadFile(fp)
+			dt, err = ioutil.ReadFile(fp)
 			if err != nil {
 				return errors.WithStack(err)
 			}
@@ -67,7 +68,7 @@ func ReadFile(ctx context.Context, mount snapshot.Mountable, req ReadRequest) ([
 			if err != nil {
 				return errors.WithStack(err)
 			}
-			dt, err = io.ReadAll(io.NewSectionReader(f, int64(req.Range.Offset), int64(req.Range.Length)))
+			dt, err = ioutil.ReadAll(io.NewSectionReader(f, int64(req.Range.Offset), int64(req.Range.Length)))
 			f.Close()
 			if err != nil {
 				return errors.WithStack(err)

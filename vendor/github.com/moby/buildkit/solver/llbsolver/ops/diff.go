@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
 
@@ -21,6 +23,7 @@ type diffOp struct {
 	op     *pb.DiffOp
 	worker worker.Worker
 	vtx    solver.Vertex
+	pg     progress.Controller
 }
 
 func NewDiffOp(v solver.Vertex, op *pb.Op_Diff, w worker.Worker) (solver.Op, error) {
@@ -61,7 +64,16 @@ func (d *diffOp) CacheMap(ctx context.Context, group session.Group, index int) (
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
 		}, depCount),
+		Opts: solver.CacheOpts(make(map[interface{}]interface{})),
 	}
+
+	d.pg = &controller.Controller{
+		WriterFactory: progress.FromContext(ctx),
+		Digest:        d.vtx.Digest(),
+		Name:          d.vtx.Name(),
+		ProgressGroup: d.vtx.Options().ProgressGroup,
+	}
+	cm.Opts[cache.ProgressKey{}] = d.pg
 
 	return cm, true, nil
 }
@@ -109,7 +121,7 @@ func (d *diffOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		return []solver.Result{worker.NewWorkerRefResult(nil, d.worker)}, nil
 	}
 
-	diffRef, err := d.worker.CacheManager().Diff(ctx, lowerRef, upperRef, solver.ProgressControllerFromContext(ctx),
+	diffRef, err := d.worker.CacheManager().Diff(ctx, lowerRef, upperRef, d.pg,
 		cache.WithDescription(d.vtx.Name()))
 	if err != nil {
 		return nil, err

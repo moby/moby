@@ -157,7 +157,7 @@ message SecretOpt {
 	bool optional = 5;
 }
 
-// SSHOpt defines options describing ssh mounts
+// SSHOpt defines options describing secret mounts
 message SSHOpt {
 	// ID of exposed ssh rule. Used for quering the value.
 	string ID = 1;

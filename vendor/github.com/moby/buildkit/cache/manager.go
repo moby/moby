@@ -458,6 +458,13 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, opts ...RefOpt
 		cacheMetadata: md,
 	}
 
+	// TODO:(sipsma) this is kludge to deal with a bug in v0.10.{0,1} where
+	// merge and diff refs didn't have committed set to true:
+	// https://github.com/moby/buildkit/issues/2740
+	if kind := rec.kind(); kind == Merge || kind == Diff {
+		rec.mutable = false
+	}
+
 	// the record was deleted but we crashed before data on disk was removed
 	if md.getDeleted() {
 		if err := rec.remove(ctx, true); err != nil {
@@ -496,6 +503,11 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, opts ...RefOpt
 }
 
 func (cm *cacheManager) parentsOf(ctx context.Context, md *cacheMetadata, opts ...RefOption) (ps parentRefs, rerr error) {
+	defer func() {
+		if rerr != nil {
+			ps.release(context.TODO())
+		}
+	}()
 	if parentID := md.getParent(); parentID != "" {
 		p, err := cm.get(ctx, parentID, nil, append(opts, NoUpdateLastUsed))
 		if err != nil {
@@ -794,7 +806,7 @@ func (cm *cacheManager) createMergeRef(ctx context.Context, parents parentRefs, 
 	}
 
 	rec.queueSnapshotID(snapshotID)
-
+	rec.queueCommitted(true)
 	if err := rec.commitMetadata(); err != nil {
 		return nil, err
 	}
@@ -969,6 +981,7 @@ func (cm *cacheManager) createDiffRef(ctx context.Context, parents parentRefs, d
 	}
 
 	rec.queueSnapshotID(snapshotID)
+	rec.queueCommitted(true)
 	if err := rec.commitMetadata(); err != nil {
 		return nil, err
 	}
