@@ -691,12 +691,12 @@ func (container *Container) SecretMountPath() (string, error) {
 }
 
 // SecretFilePath returns the path to the location of a secret on the host.
-func (container *Container) SecretFilePath(secretRef swarmtypes.SecretReference) (string, error) {
+func (container *Container) SecretFilePath(secretID string) (string, error) {
 	secrets, err := container.SecretMountPath()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(secrets, secretRef.SecretID), nil
+	return filepath.Join(secrets, secretID), nil
 }
 
 func getSecretTargetPath(r *swarmtypes.SecretReference) string {

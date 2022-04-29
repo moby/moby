@@ -229,7 +229,7 @@ func (container *Container) SecretMounts() ([]Mount, error) {
 		if r.File == nil {
 			continue
 		}
-		src, err := container.SecretFilePath(*r)
+		src, err := container.SecretFilePath(r.SecretID)
 		if err != nil {
 			return nil, err
 		}

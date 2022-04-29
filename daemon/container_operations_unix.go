@@ -190,7 +190,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 
 		// secrets are created in the SecretMountPath on the host, at a
 		// single level
-		fPath, err := c.SecretFilePath(*s)
+		fPath, err := c.SecretFilePath(s.SecretID)
 		if err != nil {
 			return errors.Wrap(err, "error getting secret file path")
 		}
