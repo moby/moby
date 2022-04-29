@@ -28,7 +28,7 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 }
 
 // Create a container
-func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
+func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.CreateResponse, error) {
 	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(types.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,

@@ -76,7 +76,7 @@ func TestVolumeInspect(t *testing.T) {
 		}),
 	}
 
-	volume, err := client.VolumeInspect(context.Background(), "volume_id")
+	vol, err := client.VolumeInspect(context.Background(), "volume_id")
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(expected, volume))
+	assert.Check(t, is.DeepEqual(expected, vol))
 }

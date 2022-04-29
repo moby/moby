@@ -19,7 +19,7 @@ func TestVolumeCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.VolumeCreate(context.Background(), volume.VolumeCreateBody{})
+	_, err := client.VolumeCreate(context.Background(), volume.CreateOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -53,7 +53,7 @@ func TestVolumeCreate(t *testing.T) {
 		}),
 	}
 
-	vol, err := client.VolumeCreate(context.Background(), volume.VolumeCreateBody{
+	vol, err := client.VolumeCreate(context.Background(), volume.CreateOptions{
 		Name:   "myvolume",
 		Driver: "mydriver",
 		DriverOpts: map[string]string{

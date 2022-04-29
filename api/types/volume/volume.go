@@ -47,14 +47,14 @@ type Volume struct {
 	Status map[string]interface{} `json:"Status,omitempty"`
 
 	// usage data
-	UsageData *VolumeUsageData `json:"UsageData,omitempty"`
+	UsageData *UsageData `json:"UsageData,omitempty"`
 }
 
-// VolumeUsageData Usage details about the volume. This information is used by the
+// UsageData Usage details about the volume. This information is used by the
 // `GET /system/df` endpoint, and omitted in other endpoints.
 //
-// swagger:model VolumeUsageData
-type VolumeUsageData struct {
+// swagger:model UsageData
+type UsageData struct {
 
 	// The number of containers referencing this volume. This field
 	// is set to `-1` if the reference-count is not available.

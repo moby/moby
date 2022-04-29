@@ -8,7 +8,7 @@ import (
 )
 
 // VolumeCreate creates a volume in the docker host.
-func (cli *Client) VolumeCreate(ctx context.Context, options volume.VolumeCreateBody) (volume.Volume, error) {
+func (cli *Client) VolumeCreate(ctx context.Context, options volume.CreateOptions) (volume.Volume, error) {
 	var vol volume.Volume
 	resp, err := cli.post(ctx, "/volumes/create", nil, options, nil)
 	defer ensureReaderClosed(resp)

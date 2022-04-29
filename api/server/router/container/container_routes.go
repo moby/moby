@@ -397,12 +397,12 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		return nil
 	}
 
-	var waitError *container.ContainerWaitOKBodyError
+	var waitError *container.WaitExitError
 	if status.Err() != nil {
-		waitError = &container.ContainerWaitOKBodyError{Message: status.Err().Error()}
+		waitError = &container.WaitExitError{Message: status.Err().Error()}
 	}
 
-	return json.NewEncoder(w).Encode(&container.ContainerWaitOKBody{
+	return json.NewEncoder(w).Encode(&container.WaitResponse{
 		StatusCode: int64(status.ExitCode()),
 		Error:      waitError,
 	})

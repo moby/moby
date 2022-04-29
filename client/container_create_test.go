@@ -54,7 +54,7 @@ func TestContainerCreateWithName(t *testing.T) {
 			if name != "container_name" {
 				return nil, fmt.Errorf("container name not set in URL query properly. Expected `container_name`, got %s", name)
 			}
-			b, err := json.Marshal(container.ContainerCreateCreatedBody{
+			b, err := json.Marshal(container.CreateResponse{
 				ID: "container_id",
 			})
 			if err != nil {
@@ -89,7 +89,7 @@ func TestContainerCreateAutoRemove(t *testing.T) {
 			if config.HostConfig.AutoRemove != expectedValue {
 				return nil, fmt.Errorf("expected AutoRemove to be %v, got %v", expectedValue, config.HostConfig.AutoRemove)
 			}
-			b, err := json.Marshal(container.ContainerCreateCreatedBody{
+			b, err := json.Marshal(container.CreateResponse{
 				ID: "container_id",
 			})
 			if err != nil {

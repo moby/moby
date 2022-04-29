@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
@@ -16,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	enginemount "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -28,6 +26,7 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/moby/swarmkit/v2/template"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -406,7 +405,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 }
 
 // This handles the case of volumes that are defined inside a service Mount
-func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.VolumeCreateBody {
+func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOptions {
 	var (
 		driverName string
 		driverOpts map[string]string
@@ -420,7 +419,7 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.Vol
 	}
 
 	if mount.VolumeOptions != nil {
-		return &volumetypes.VolumeCreateBody{
+		return &volume.CreateOptions{
 			Name:       mount.Source,
 			Driver:     driverName,
 			DriverOpts: driverOpts,

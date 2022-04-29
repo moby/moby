@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 )
@@ -24,7 +24,7 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, &volumetypes.VolumeListOKBody{Volumes: volumes, Warnings: warnings})
+	return httputils.WriteJSON(w, http.StatusOK, &volume.ListResponse{Volumes: volumes, Warnings: warnings})
 }
 
 func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -32,11 +32,11 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	volume, err := v.backend.Get(ctx, vars["name"], opts.WithGetResolveStatus)
+	vol, err := v.backend.Get(ctx, vars["name"], opts.WithGetResolveStatus)
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, volume)
+	return httputils.WriteJSON(w, http.StatusOK, vol)
 }
 
 func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -44,16 +44,16 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	var req volumetypes.VolumeCreateBody
+	var req volume.CreateOptions
 	if err := httputils.ReadJSON(r, &req); err != nil {
 		return err
 	}
 
-	volume, err := v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
+	vol, err := v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusCreated, volume)
+	return httputils.WriteJSON(w, http.StatusCreated, vol)
 }
 
 func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
