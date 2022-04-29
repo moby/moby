@@ -10,7 +10,7 @@ require (
 	cloud.google.com/go v0.93.3
 	cloud.google.com/go/logging v1.4.2
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
-	github.com/Microsoft/go-winio v0.5.1
+	github.com/Microsoft/go-winio v0.5.2
 	github.com/Microsoft/hcsshim v0.9.2
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310
