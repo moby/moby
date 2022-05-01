@@ -226,12 +226,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 		version = httputils.VersionFromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
-		if sig := r.Form.Get("signal"); sig != "" {
-			if _, err := signal.ParseSignal(sig); err != nil {
-				return errdefs.InvalidParameter(err)
-			}
-			options.Signal = sig
-		}
+		options.Signal = r.Form.Get("signal")
 	}
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
@@ -294,12 +289,7 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		version = httputils.VersionFromContext(ctx)
 	)
 	if versions.GreaterThanOrEqualTo(version, "1.42") {
-		if sig := r.Form.Get("signal"); sig != "" {
-			if _, err := signal.ParseSignal(sig); err != nil {
-				return errdefs.InvalidParameter(err)
-			}
-			options.Signal = sig
-		}
+		options.Signal = r.Form.Get("signal")
 	}
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
