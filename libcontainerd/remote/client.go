@@ -333,12 +333,12 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	return int(p.Pid()), nil
 }
 
-func (c *client) SignalProcess(ctx context.Context, containerID, processID string, signal int) error {
+func (c *client) SignalProcess(ctx context.Context, containerID, processID string, signal syscall.Signal) error {
 	p, err := c.getProcess(ctx, containerID, processID)
 	if err != nil {
 		return err
 	}
-	return wrapError(p.Kill(ctx, syscall.Signal(signal)))
+	return wrapError(p.Kill(ctx, signal))
 }
 
 func (c *client) ResizeTerminal(ctx context.Context, containerID, processID string, width, height int) error {

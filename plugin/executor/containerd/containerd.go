@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"syscall"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
@@ -113,7 +114,7 @@ func (e *Executor) IsRunning(id string) (bool, error) {
 
 // Signal sends the specified signal to the container
 func (e *Executor) Signal(id string, signal int) error {
-	return e.client.SignalProcess(context.Background(), id, libcontainerdtypes.InitProcessName, signal)
+	return e.client.SignalProcess(context.Background(), id, libcontainerdtypes.InitProcessName, syscall.Signal(signal))
 }
 
 // ProcessEvent handles events from containerd

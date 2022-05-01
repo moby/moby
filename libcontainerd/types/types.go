@@ -2,6 +2,7 @@ package types // import "github.com/docker/docker/libcontainerd/types"
 
 import (
 	"context"
+	"syscall"
 	"time"
 
 	"github.com/containerd/containerd"
@@ -54,7 +55,7 @@ type Client interface {
 
 	Create(ctx context.Context, containerID string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error
 	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio StdioCallback) (pid int, err error)
-	SignalProcess(ctx context.Context, containerID, processID string, signal int) error
+	SignalProcess(ctx context.Context, containerID, processID string, signal syscall.Signal) error
 	Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio StdioCallback) (int, error)
 	ResizeTerminal(ctx context.Context, containerID, processID string, width, height int) error
 	CloseStdin(ctx context.Context, containerID, processID string) error

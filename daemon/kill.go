@@ -60,7 +60,8 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 // or not running, or if there is a problem returned from the
 // underlying kill command.
 func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int) error {
-	logrus.Debugf("Sending kill signal %d to container %s", sig, container.ID)
+	var stopSignal = syscall.Signal(sig)
+	logrus.Debugf("Sending kill signal %d to container %s", stopSignal, container.ID)
 	container.Lock()
 	defer container.Unlock()
 
@@ -69,12 +70,12 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	}
 
 	var unpause bool
-	if container.Config.StopSignal != "" && syscall.Signal(sig) != syscall.SIGKILL {
+	if container.Config.StopSignal != "" && stopSignal != syscall.SIGKILL {
 		containerStopSignal, err := signal.ParseSignal(container.Config.StopSignal)
 		if err != nil {
 			return err
 		}
-		if containerStopSignal == syscall.Signal(sig) {
+		if containerStopSignal == stopSignal {
 			container.ExitOnNext()
 			unpause = container.Paused
 		}
@@ -95,7 +96,8 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 		return nil
 	}
 
-	if err := daemon.kill(container, sig); err != nil {
+	err := daemon.containerd.SignalProcess(context.Background(), container.ID, libcontainerdtypes.InitProcessName, stopSignal)
+	if err != nil {
 		if errdefs.IsNotFound(err) {
 			unpause = false
 			logrus.WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
@@ -125,7 +127,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	}
 
 	attributes := map[string]string{
-		"signal": fmt.Sprintf("%d", sig),
+		"signal": fmt.Sprintf("%d", stopSignal),
 	}
 	daemon.LogContainerEventWithAttributes(container, "kill", attributes)
 	return nil
@@ -181,8 +183,4 @@ func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container,
 		return e
 	}
 	return err
-}
-
-func (daemon *Daemon) kill(c *containerpkg.Container, sig int) error {
-	return daemon.containerd.SignalProcess(context.Background(), c.ID, libcontainerdtypes.InitProcessName, sig)
 }
