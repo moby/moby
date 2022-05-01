@@ -24,7 +24,7 @@ func TestContainerStopSignal(t *testing.T) {
 	}
 
 	s := c.StopSignal()
-	if s != int(def) {
+	if s != def {
 		t.Fatalf("Expected %v, got %v", def, s)
 	}
 

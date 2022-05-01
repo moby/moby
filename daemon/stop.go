@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"syscall"
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -43,7 +42,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	}
 
 	var (
-		stopSignal  = syscall.Signal(ctr.StopSignal())
+		stopSignal  = ctr.StopSignal()
 		stopTimeout = ctr.StopTimeout()
 	)
 	if options.Signal != "" {
