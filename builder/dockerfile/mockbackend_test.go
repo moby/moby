@@ -46,7 +46,7 @@ func (m *MockBackend) CommitBuildStep(c backend.CommitConfig) (image.ID, error) 
 	return "", nil
 }
 
-func (m *MockBackend) ContainerKill(containerID string, sig uint64) error {
+func (m *MockBackend) ContainerKill(containerID string, sig string) error {
 	return nil
 }
 
@@ -129,7 +129,7 @@ func (l *mockLayer) NewRWLayer() (builder.RWLayer, error) {
 }
 
 func (l *mockLayer) DiffID() layer.DiffID {
-	return layer.DiffID("abcdef")
+	return "abcdef"
 }
 
 type mockRWLayer struct {

@@ -34,22 +34,29 @@ func isErrNoSuchProcess(err error) bool {
 }
 
 // ContainerKill sends signal to the container
-// If no signal is given (sig 0), then Kill with SIGKILL and wait
+// If no signal is given, then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
-func (daemon *Daemon) ContainerKill(name string, stopSignal uint64) error {
-	sig := syscall.Signal(stopSignal)
+func (daemon *Daemon) ContainerKill(name, stopSignal string) error {
+	var (
+		err error
+		sig = syscall.SIGKILL
+	)
+	if stopSignal != "" {
+		sig, err = signal.ParseSignal(stopSignal)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if !signal.ValidSignalForPlatform(sig) {
+			return errdefs.InvalidParameter(errors.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+		}
+	}
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
-
-	if sig != 0 && !signal.ValidSignalForPlatform(sig) {
-		return fmt.Errorf("The %s daemon does not support signal %d", runtime.GOOS, sig)
-	}
-
-	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
-	if sig == 0 || sig == syscall.SIGKILL {
+	if sig == syscall.SIGKILL {
+		// perform regular Kill (SIGKILL + wait())
 		return daemon.Kill(container)
 	}
 	return daemon.killWithSignal(container, sig)
