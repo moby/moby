@@ -17,7 +17,7 @@ import (
 
 type errNoSuchProcess struct {
 	pid    int
-	signal int
+	signal syscall.Signal
 }
 
 func (e errNoSuchProcess) Error() string {
@@ -37,21 +37,22 @@ func isErrNoSuchProcess(err error) bool {
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
-func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
+func (daemon *Daemon) ContainerKill(name string, stopSignal uint64) error {
+	sig := syscall.Signal(stopSignal)
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
 
-	if sig != 0 && !signal.ValidSignalForPlatform(syscall.Signal(sig)) {
+	if sig != 0 && !signal.ValidSignalForPlatform(sig) {
 		return fmt.Errorf("The %s daemon does not support signal %d", runtime.GOOS, sig)
 	}
 
 	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
-	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
+	if sig == 0 || sig == syscall.SIGKILL {
 		return daemon.Kill(container)
 	}
-	return daemon.killWithSignal(container, int(sig))
+	return daemon.killWithSignal(container, sig)
 }
 
 // killWithSignal sends the container the given signal. This wrapper for the
@@ -59,8 +60,7 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 // to send the signal. An error is returned if the container is paused
 // or not running, or if there is a problem returned from the
 // underlying kill command.
-func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int) error {
-	var stopSignal = syscall.Signal(sig)
+func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSignal syscall.Signal) error {
 	logrus.Debugf("Sending kill signal %d to container %s", stopSignal, container.ID)
 	container.Lock()
 	defer container.Unlock()
@@ -140,7 +140,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	}
 
 	// 1. Send SIGKILL
-	if err := daemon.killPossiblyDeadProcess(container, int(syscall.SIGKILL)); err != nil {
+	if err := daemon.killPossiblyDeadProcess(container, syscall.SIGKILL); err != nil {
 		// kill failed, check if process is no longer running.
 		if isErrNoSuchProcess(err) {
 			return nil
@@ -175,12 +175,12 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 }
 
 // killPossibleDeadProcess is a wrapper around killSig() suppressing "no such process" error.
-func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig int) error {
+func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig syscall.Signal) error {
 	err := daemon.killWithSignal(container, sig)
 	if errdefs.IsNotFound(err) {
-		e := errNoSuchProcess{container.GetPID(), sig}
-		logrus.Debug(e)
-		return e
+		err = errNoSuchProcess{container.GetPID(), sig}
+		logrus.Debug(err)
+		return err
 	}
 	return err
 }

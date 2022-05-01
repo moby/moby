@@ -33,6 +33,7 @@ func IsProcessZombie(pid int) (bool, error) {
 	statPath := fmt.Sprintf("/proc/%d/stat", pid)
 	dataBytes, err := os.ReadFile(statPath)
 	if err != nil {
+		// TODO(thaJeztah) should we ignore os.IsNotExist() here? ("/proc/<pid>/stat" will be gone if the process exited)
 		return false, err
 	}
 	data := string(dataBytes)
