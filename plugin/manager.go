@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
@@ -37,7 +38,7 @@ type Executor interface {
 	Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error
 	IsRunning(id string) (bool, error)
 	Restore(id string, stdout, stderr io.WriteCloser) (alive bool, err error)
-	Signal(id string, signal int) error
+	Signal(id string, signal syscall.Signal) error
 }
 
 // EndpointResolver provides looking up registry endpoints for pulling.

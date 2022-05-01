@@ -113,8 +113,8 @@ func (e *Executor) IsRunning(id string) (bool, error) {
 }
 
 // Signal sends the specified signal to the container
-func (e *Executor) Signal(id string, signal int) error {
-	return e.client.SignalProcess(context.Background(), id, libcontainerdtypes.InitProcessName, syscall.Signal(signal))
+func (e *Executor) Signal(id string, signal syscall.Signal) error {
+	return e.client.SignalProcess(context.Background(), id, libcontainerdtypes.InitProcessName, signal)
 }
 
 // ProcessEvent handles events from containerd

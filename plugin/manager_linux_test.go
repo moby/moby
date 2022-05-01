@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -87,22 +88,11 @@ func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
 }
 
 type simpleExecutor struct {
+	Executor
 }
 
 func (e *simpleExecutor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
 	return errors.New("Create failed")
-}
-
-func (e *simpleExecutor) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
-	return false, nil
-}
-
-func (e *simpleExecutor) IsRunning(id string) (bool, error) {
-	return false, nil
-}
-
-func (e *simpleExecutor) Signal(id string, signal int) error {
-	return nil
 }
 
 func TestCreateFailed(t *testing.T) {
@@ -165,7 +155,7 @@ func (e *executorWithRunning) Restore(id string, stdout, stderr io.WriteCloser) 
 	return true, nil
 }
 
-func (e *executorWithRunning) Signal(id string, signal int) error {
+func (e *executorWithRunning) Signal(id string, signal syscall.Signal) error {
 	ch := e.exitChans[id]
 	ch <- struct{}{}
 	<-ch
