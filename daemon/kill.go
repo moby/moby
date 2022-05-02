@@ -21,17 +21,10 @@ type errNoSuchProcess struct {
 }
 
 func (e errNoSuchProcess) Error() string {
-	return fmt.Sprintf("Cannot kill process (pid=%d) with signal %d: no such process.", e.pid, e.signal)
+	return fmt.Sprintf("cannot kill process (pid=%d) with signal %d: no such process", e.pid, e.signal)
 }
 
 func (errNoSuchProcess) NotFound() {}
-
-// isErrNoSuchProcess returns true if the error
-// is an instance of errNoSuchProcess.
-func isErrNoSuchProcess(err error) bool {
-	_, ok := err.(errNoSuchProcess)
-	return ok
-}
 
 // ContainerKill sends signal to the container
 // If no signal is given, then Kill with SIGKILL and wait
@@ -149,7 +142,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	// 1. Send SIGKILL
 	if err := daemon.killPossiblyDeadProcess(container, syscall.SIGKILL); err != nil {
 		// kill failed, check if process is no longer running.
-		if isErrNoSuchProcess(err) {
+		if errors.As(err, &errNoSuchProcess{}) {
 			return nil
 		}
 	}
@@ -165,7 +158,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	logrus.WithError(status.Err()).WithField("container", container.ID).Error("Container failed to exit within 10 seconds of kill - trying direct SIGKILL")
 
 	if err := killProcessDirectly(container); err != nil {
-		if isErrNoSuchProcess(err) {
+		if errors.As(err, &errNoSuchProcess{}) {
 			return nil
 		}
 		return err
