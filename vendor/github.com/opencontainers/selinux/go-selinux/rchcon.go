@@ -12,7 +12,7 @@ import (
 
 func rchcon(fpath, label string) error {
 	return pwalkdir.Walk(fpath, func(p string, _ fs.DirEntry, _ error) error {
-		e := setFileLabel(p, label)
+		e := lSetFileLabel(p, label)
 		// Walk a file tree can race with removal, so ignore ENOENT.
 		if errors.Is(e, os.ErrNotExist) {
 			return nil
