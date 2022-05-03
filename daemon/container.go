@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/swarmkit/identity"
+	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/sys/signal"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
