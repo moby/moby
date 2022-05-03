@@ -977,6 +977,14 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	// Try to preserve the daemon ID (which is the trust-key's ID) when upgrading
+	// an existing installation; this is a "best-effort".
+	idPath := filepath.Join(config.Root, "engine-id")
+	err = migrateTrustKeyID(config.TrustKeyPath, idPath)
+	if err != nil {
+		logrus.WithError(err).Warnf("unable to migrate engine ID; a new engine ID will be generated")
+	}
+
 	trustKey, err := loadOrCreateTrustKey(config.TrustKeyPath)
 	if err != nil {
 		return nil, err
@@ -1019,7 +1027,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.id = trustKey.PublicKey().KeyID()
+	d.id, err = loadOrCreateID(idPath)
+	if err != nil {
+		return nil, err
+	}
 	d.repository = daemonRepo
 	d.containers = container.NewMemoryStore()
 	if d.containersReplica, err = container.NewViewDB(); err != nil {
