@@ -559,6 +559,7 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *testing.T) {
 func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *testing.T) {
 	// TODO: skip or update for Windows daemon
 	os.Remove("/etc/docker/key.json")
+	c.Setenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE", "1")
 	s.d.Start(c)
 	s.d.Stop(c)
 
@@ -1212,6 +1213,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *testing.T) {
 	}
 
 	os.Remove("/etc/docker/key.json")
+	c.Setenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE", "1")
 	s.d.Start(c)
 	s.d.Stop(c)
 
