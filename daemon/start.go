@@ -9,6 +9,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -178,16 +179,9 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	ctx := context.TODO()
 
-	ctr, err := daemon.containerd.NewContainer(ctx, container.ID, spec, shim, createOptions)
+	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions)
 	if err != nil {
-		if errdefs.IsConflict(err) {
-			logrus.WithError(err).WithField("container", container.ID).Error("Container not cleaned up from containerd from previous run")
-			daemon.cleanupStaleContainer(ctx, container.ID)
-			ctr, err = daemon.containerd.NewContainer(ctx, container.ID, spec, shim, createOptions)
-		}
-		if err != nil {
-			return translateContainerdStartErr(container.Path, container.SetExitCode, err)
-		}
+		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
 	}
 
 	// TODO(mlaventure): we need to specify checkpoint options here
@@ -218,31 +212,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	containerActions.WithValues("start").UpdateSince(start)
 
 	return nil
-}
-
-func (daemon *Daemon) cleanupStaleContainer(ctx context.Context, id string) {
-	// best effort to clean up old container object
-	log := logrus.WithContext(ctx).WithField("container", id)
-	ctr, err := daemon.containerd.LoadContainer(ctx, id)
-	if err != nil {
-		// Log an error no matter the kind. A container existed with the
-		// ID, so a NotFound error would be an exceptional situation
-		// worth logging.
-		log.WithError(err).Error("Error loading stale containerd container object")
-		return
-	}
-	if tsk, err := ctr.Task(ctx); err != nil {
-		if !errdefs.IsNotFound(err) {
-			log.WithError(err).Error("Error loading stale containerd task object")
-		}
-	} else {
-		if err := tsk.ForceDelete(ctx); err != nil {
-			log.WithError(err).Error("Error cleaning up stale containerd task object")
-		}
-	}
-	if err := ctr.Delete(ctx); err != nil && !errdefs.IsNotFound(err) {
-		log.WithError(err).Error("Error cleaning up stale containerd container object")
-	}
 }
 
 // Cleanup releases any network resources allocated to the container along with any rules

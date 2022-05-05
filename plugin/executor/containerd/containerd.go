@@ -75,39 +75,9 @@ func (p c8dPlugin) deleteTaskAndContainer(ctx context.Context) {
 func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
 	ctx := context.Background()
 	log := logrus.WithField("plugin", id)
-	ctr, err := e.client.NewContainer(ctx, id, &spec, e.runtime.Shim.Binary, e.runtime.Shim.Opts)
+	ctr, err := libcontainerd.ReplaceContainer(ctx, e.client, id, &spec, e.runtime.Shim.Binary, e.runtime.Shim.Opts)
 	if err != nil {
-		ctr2, err2 := e.client.LoadContainer(ctx, id)
-		if err2 != nil {
-			if !errdefs.IsNotFound(err2) {
-				log.WithError(err2).Warn("Received an error while attempting to load containerd container for plugin")
-			}
-		} else {
-			status := containerd.Unknown
-			t, err2 := ctr2.Task(ctx)
-			if err2 != nil {
-				if !errdefs.IsNotFound(err2) {
-					log.WithError(err2).Warn("Received an error while attempting to load containerd task for plugin")
-				}
-			} else {
-				s, err2 := t.Status(ctx)
-				if err2 != nil {
-					log.WithError(err2).Warn("Received an error while attempting to read plugin status")
-				} else {
-					status = s.Status
-				}
-			}
-			if status != containerd.Running && status != containerd.Unknown {
-				if err2 := ctr2.Delete(ctx); err2 != nil && !errdefs.IsNotFound(err2) {
-					log.WithError(err2).Error("Error cleaning up containerd container")
-				}
-				ctr, err = e.client.NewContainer(ctx, id, &spec, e.runtime.Shim.Binary, e.runtime.Shim.Opts)
-			}
-		}
-
-		if err != nil {
-			return errors.Wrap(err, "error creating containerd container")
-		}
+		return errors.Wrap(err, "error creating containerd container for plugin")
 	}
 
 	p := c8dPlugin{log: log, ctr: ctr}
