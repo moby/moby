@@ -130,7 +130,6 @@ else
 		mount --rbind ${realpath_etc_ssl} /etc/ssl
 	fi
 
-	# shellcheck disable=SC2068
 	# shellcheck disable=SC2086
-	exec $dockerd $@
+	exec $dockerd "$@"
 fi

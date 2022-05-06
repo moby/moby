@@ -8,6 +8,8 @@ if ! command -v dockerd &> /dev/null; then
 	false
 fi
 
+DOCKER_COMMAND="$(command -v dockerd)"
+
 DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
@@ -23,13 +25,11 @@ fi
 
 listen_port=2375
 if [ -n "$DOCKER_PORT" ]; then
-	IFS=':' read -r -a ports <<< "$DOCKER_PORT"
-	listen_port="${ports[-1]}"
+	listen_port="${DOCKER_PORT##*:}"
 fi
 
 if [ -n "$DELVE_PORT" ]; then
-	IFS=':' read -r -a ports <<< "$DELVE_PORT"
-	delve_listen_port="${ports[-1]}"
+	delve_listen_port="${DELVE_PORT##*:}"
 fi
 
 extra_params="$DOCKERD_ARGS"
@@ -41,7 +41,6 @@ if [ -n "$DOCKER_EXPERIMENTAL" ]; then
 	extra_params="$extra_params --experimental"
 fi
 
-dockerd="$(command -v dockerd)"
 socket=/var/run/docker.sock
 if [ -n "$DOCKER_ROOTLESS" ]; then
 	user="unprivilegeduser"
@@ -52,36 +51,45 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	socket=/tmp/docker-${uid}/docker.sock
 fi
 
-args="--debug \
-	--host "tcp://0.0.0.0:${listen_port}" --host "unix://${socket}" \
-	--storage-driver "${DOCKER_GRAPHDRIVER}" \
-	--userland-proxy="${DOCKER_USERLANDPROXY}" \
-	$storage_params \
-	$extra_params"
+# shellcheck disable=SC2206
+args=(
+	--debug
+	--host="tcp://0.0.0.0:${listen_port}"
+	--host="unix://${socket}"
+	--storage-driver="${DOCKER_GRAPHDRIVER}"
+	--userland-proxy="${DOCKER_USERLANDPROXY}"
+	$storage_params
+	$extra_params
+)
+
+dockerd=("$DOCKER_COMMAND")
 
 if [ -n "$DELVE_PORT" ]; then
-	dockerd="dlv --listen=0.0.0.0:$delve_listen_port \
-		--headless=true \
-		--log \
-		--api-version=2 \
-		--only-same-user=false \
-		--check-go-version=false \
-		--accept-multiclient \
-		exec ${dockerd} --"
+	dockerd=(
+		dlv
+		--listen="0.0.0.0:$delve_listen_port"
+		--headless=true
+		--log
+		--api-version=2
+		--only-same-user=false
+		--check-go-version=false
+		--accept-multiclient
+		exec "${dockerd[@]}" --
+	)
 fi
-
-echo "${dockerd} ${args}"
 
 if [ -n "$DOCKER_ROOTLESS" ]; then
-	# shellcheck disable=SC2068
-	# shellcheck disable=SC2086
-	exec sudo -u $user \
-		-E DOCKERD="$dockerd" \
-		-E XDG_RUNTIME_DIR=/tmp/docker-${uid} \
-		-E XDG_CONFIG_HOME=/home/${user}/.config \
-		-E HOME=/home/${user} \
-		-- /go/src/github.com/docker/docker/contrib/dockerd-rootless.sh ${args}
-else
-	# shellcheck disable=SC2086
-	exec ${dockerd} ${args}
+	dockerd=(
+		sudo -u "$user"
+		-E DOCKERD="${dockerd[*]}"
+		-E XDG_RUNTIME_DIR="/tmp/docker-${uid}"
+		-E XDG_CONFIG_HOME="/home/${user}/.config"
+		-E HOME="/home/${user}"
+		--
+		dockerd-rootless.sh
+	)
 fi
+
+set -x
+# shellcheck disable=SC2086
+exec "${dockerd[@]}" "${args[@]}"
