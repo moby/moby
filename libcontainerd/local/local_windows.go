@@ -688,7 +688,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 // SignalProcess handles `docker stop` on Windows. While Linux has support for
 // the full range of signals, signals aren't really implemented on Windows.
 // We fake supporting regular stop and -9 to force kill.
-func (c *client) SignalProcess(_ context.Context, containerID, processID string, signal int) error {
+func (c *client) SignalProcess(_ context.Context, containerID, processID string, signal syscall.Signal) error {
 	ctr, p, err := c.getProcess(containerID, processID)
 	if err != nil {
 		return err

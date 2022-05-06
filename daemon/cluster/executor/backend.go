@@ -45,7 +45,7 @@ type Backend interface {
 	ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error)
 	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
 	ContainerRm(name string, config *types.ContainerRmConfig) error
-	ContainerKill(name string, sig uint64) error
+	ContainerKill(name string, sig string) error
 	SetContainerDependencyStore(name string, store exec.DependencyGetter) error
 	SetContainerSecretReferences(name string, refs []*swarmtypes.SecretReference) error
 	SetContainerConfigReferences(name string, refs []*swarmtypes.ConfigReference) error

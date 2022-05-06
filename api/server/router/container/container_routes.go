@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"syscall"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/server/httpstatus"
@@ -254,18 +253,8 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		return err
 	}
 
-	var sig syscall.Signal
 	name := vars["name"]
-
-	// If we have a signal, look at it. Otherwise, do nothing
-	if sigStr := r.Form.Get("signal"); sigStr != "" {
-		var err error
-		if sig, err = signal.ParseSignal(sigStr); err != nil {
-			return errdefs.InvalidParameter(err)
-		}
-	}
-
-	if err := s.backend.ContainerKill(name, uint64(sig)); err != nil {
+	if err := s.backend.ContainerKill(name, r.Form.Get("signal")); err != nil {
 		var isStopped bool
 		if errdefs.IsConflict(err) {
 			isStopped = true

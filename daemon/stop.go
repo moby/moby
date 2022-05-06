@@ -50,7 +50,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 		if err != nil {
 			return errdefs.InvalidParameter(err)
 		}
-		stopSignal = int(sig)
+		stopSignal = sig
 	}
 	if options.Timeout != nil {
 		stopTimeout = *options.Timeout

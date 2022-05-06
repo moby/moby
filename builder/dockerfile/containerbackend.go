@@ -61,7 +61,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		select {
 		case <-ctx.Done():
 			logrus.Debugln("Build cancelled, killing and removing container:", cID)
-			c.backend.ContainerKill(cID, 0)
+			c.backend.ContainerKill(cID, "")
 			c.removeContainer(cID, stdout)
 			cancelErrCh <- errCancelled
 		case <-finished:

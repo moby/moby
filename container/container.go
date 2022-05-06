@@ -511,16 +511,16 @@ func (container *Container) IsDestinationMounted(destination string) bool {
 }
 
 // StopSignal returns the signal used to stop the container.
-func (container *Container) StopSignal() int {
+func (container *Container) StopSignal() syscall.Signal {
 	var stopSignal syscall.Signal
 	if container.Config.StopSignal != "" {
 		stopSignal, _ = signal.ParseSignal(container.Config.StopSignal)
 	}
 
-	if int(stopSignal) == 0 {
+	if stopSignal == 0 {
 		stopSignal, _ = signal.ParseSignal(defaultStopSignal)
 	}
-	return int(stopSignal)
+	return stopSignal
 }
 
 // StopTimeout returns the timeout (in seconds) used to stop the container.
