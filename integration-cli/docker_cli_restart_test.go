@@ -11,6 +11,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
+	"gotest.tools/v3/skip"
 )
 
 func (s *DockerSuite) TestRestartStoppedContainer(c *testing.T) {
@@ -171,6 +172,7 @@ func (s *DockerSuite) TestRestartContainerSuccess(c *testing.T) {
 	// such that it assumes there is a host process to kill. In Hyper-V
 	// containers, the process is inside the utility VM, not on the host.
 	if DaemonIsWindows() {
+		skip.If(c, testEnv.GitHubActions())
 		testRequires(c, testEnv.DaemonInfo.Isolation.IsProcess)
 	}
 
@@ -247,7 +249,7 @@ func (s *DockerSuite) TestRestartPolicyAfterRestart(c *testing.T) {
 	// such that it assumes there is a host process to kill. In Hyper-V
 	// containers, the process is inside the utility VM, not on the host.
 	if DaemonIsWindows() {
-		testRequires(c, testEnv.DaemonInfo.Isolation.IsProcess)
+		testRequires(c, testEnv.DaemonInfo.Isolation.IsProcess, testEnv.NotGitHubActions)
 	}
 
 	out := runSleepingContainer(c, "-d", "--restart=always")

@@ -221,3 +221,8 @@ func EnsureFrozenImagesLinux(testEnv *Execution) error {
 	}
 	return nil
 }
+
+// GitHubActions is true if test is executed on a GitHub Runner.
+func (e *Execution) GitHubActions() bool {
+	return os.Getenv("GITHUB_ACTIONS") == "true"
+}
