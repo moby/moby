@@ -249,7 +249,8 @@ func (s *DockerSuite) TestRestartPolicyAfterRestart(c *testing.T) {
 	// such that it assumes there is a host process to kill. In Hyper-V
 	// containers, the process is inside the utility VM, not on the host.
 	if DaemonIsWindows() {
-		testRequires(c, testEnv.DaemonInfo.Isolation.IsProcess, testEnv.NotGitHubActions)
+		skip.If(c, testEnv.GitHubActions())
+		testRequires(c, testEnv.DaemonInfo.Isolation.IsProcess)
 	}
 
 	out := runSleepingContainer(c, "-d", "--restart=always")

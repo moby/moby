@@ -186,14 +186,8 @@ func (s *DockerSuite) TestStartAttachWithRename(c *testing.T) {
 }
 
 func (s *DockerSuite) TestStartReturnCorrectExitCode(c *testing.T) {
-	dockerCmd(c, "create", "--restart=on-failure:2", "--name", "withRestart", "busybox", "sh", "-c", "exit 11")
-	dockerCmd(c, "create", "--rm", "--name", "withRm", "busybox", "sh", "-c", "exit 12")
-
-	out, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
-	assert.ErrorContains(c, err, "")
-	assert.Equal(c, exitCode, 11, fmt.Sprintf("out: %s", out))
-
-	out, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
-	assert.ErrorContains(c, err, "")
-	assert.Equal(c, exitCode, 12, fmt.Sprintf("out: %s", out))
+	cli.DockerCmd(c, "create", "--restart=on-failure:2", "--name", "withRestart", "busybox", "sh", "-c", "exit 11")
+	cli.DockerCmd(c, "create", "--rm", "--name", "withRm", "busybox", "sh", "-c", "exit 12")
+	cli.Docker(cli.Args("start", "-a", "withRestart")).Assert(c, icmd.Expected{ExitCode: 11})
+	cli.Docker(cli.Args("start", "-a", "withRm")).Assert(c, icmd.Expected{ExitCode: 12})
 }
