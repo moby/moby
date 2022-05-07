@@ -3,22 +3,29 @@
 package unix
 
 import (
+	"bytes"
 	"syscall"
 
 	linux "golang.org/x/sys/unix"
 )
 
 const (
-	ENOENT                   = linux.ENOENT
-	EEXIST                   = linux.EEXIST
-	EAGAIN                   = linux.EAGAIN
-	ENOSPC                   = linux.ENOSPC
-	EINVAL                   = linux.EINVAL
-	EPOLLIN                  = linux.EPOLLIN
-	EINTR                    = linux.EINTR
-	EPERM                    = linux.EPERM
-	ESRCH                    = linux.ESRCH
-	ENODEV                   = linux.ENODEV
+	ENOENT  = linux.ENOENT
+	EEXIST  = linux.EEXIST
+	EAGAIN  = linux.EAGAIN
+	ENOSPC  = linux.ENOSPC
+	EINVAL  = linux.EINVAL
+	EPOLLIN = linux.EPOLLIN
+	EINTR   = linux.EINTR
+	EPERM   = linux.EPERM
+	ESRCH   = linux.ESRCH
+	ENODEV  = linux.ENODEV
+	// ENOTSUPP is not the same as ENOTSUP or EOPNOTSUP
+	ENOTSUPP = syscall.Errno(0x20c)
+
+	EBADF                    = linux.EBADF
+	BPF_F_NO_PREALLOC        = linux.BPF_F_NO_PREALLOC
+	BPF_F_NUMA_NODE          = linux.BPF_F_NUMA_NODE
 	BPF_F_RDONLY_PROG        = linux.BPF_F_RDONLY_PROG
 	BPF_F_WRONLY_PROG        = linux.BPF_F_WRONLY_PROG
 	BPF_OBJ_NAME_LEN         = linux.BPF_OBJ_NAME_LEN
@@ -39,6 +46,7 @@ const (
 	PERF_FLAG_FD_CLOEXEC     = linux.PERF_FLAG_FD_CLOEXEC
 	RLIM_INFINITY            = linux.RLIM_INFINITY
 	RLIMIT_MEMLOCK           = linux.RLIMIT_MEMLOCK
+	BPF_STATS_RUN_TIME       = linux.BPF_STATS_RUN_TIME
 )
 
 // Statfs_t is a wrapper
@@ -147,4 +155,16 @@ func Gettid() int {
 // Tgkill is a wrapper
 func Tgkill(tgid int, tid int, sig syscall.Signal) (err error) {
 	return linux.Tgkill(tgid, tid, sig)
+}
+
+func KernelRelease() (string, error) {
+	var uname Utsname
+	err := Uname(&uname)
+	if err != nil {
+		return "", err
+	}
+
+	end := bytes.IndexByte(uname.Release[:], 0)
+	release := string(uname.Release[:end])
+	return release, nil
 }

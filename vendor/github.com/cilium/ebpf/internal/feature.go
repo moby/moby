@@ -20,6 +20,9 @@ type UnsupportedFeatureError struct {
 }
 
 func (ufe *UnsupportedFeatureError) Error() string {
+	if ufe.MinimumVersion.Unspecified() {
+		return fmt.Sprintf("%s not supported", ufe.Name)
+	}
 	return fmt.Sprintf("%s not supported (requires >= %s)", ufe.Name, ufe.MinimumVersion)
 }
 
@@ -29,7 +32,7 @@ func (ufe *UnsupportedFeatureError) Is(target error) bool {
 }
 
 type featureTest struct {
-	sync.Mutex
+	sync.RWMutex
 	successful bool
 	result     error
 }
@@ -39,10 +42,10 @@ type featureTest struct {
 //
 // The return values have the following semantics:
 //
+//   err == ErrNotSupported: the feature is not available
+//   err == nil: the feature is available
 //   err != nil: the test couldn't be executed
-//   err == nil && available: the feature is available
-//   err == nil && !available: the feature isn't available
-type FeatureTestFn func() (available bool, err error)
+type FeatureTestFn func() error
 
 // FeatureTest wraps a function so that it is run at most once.
 //
@@ -58,32 +61,40 @@ func FeatureTest(name, version string, fn FeatureTestFn) func() error {
 
 	ft := new(featureTest)
 	return func() error {
+		ft.RLock()
+		if ft.successful {
+			defer ft.RUnlock()
+			return ft.result
+		}
+		ft.RUnlock()
 		ft.Lock()
 		defer ft.Unlock()
-
+		// check one more time on the off
+		// chance that two go routines
+		// were able to call into the write
+		// lock
 		if ft.successful {
 			return ft.result
 		}
-
-		available, err := fn()
-		if errors.Is(err, ErrNotSupported) {
-			// The feature test aborted because a dependent feature
-			// is missing, which we should cache.
-			available = false
-		} else if err != nil {
-			// We couldn't execute the feature test to a point
-			// where it could make a determination.
-			// Don't cache the result, just return it.
-			return fmt.Errorf("can't detect support for %s: %w", name, err)
-		}
-
-		ft.successful = true
-		if !available {
+		err := fn()
+		switch {
+		case errors.Is(err, ErrNotSupported):
 			ft.result = &UnsupportedFeatureError{
 				MinimumVersion: v,
 				Name:           name,
 			}
+			fallthrough
+
+		case err == nil:
+			ft.successful = true
+
+		default:
+			// We couldn't execute the feature test to a point
+			// where it could make a determination.
+			// Don't cache the result, just return it.
+			return fmt.Errorf("detect support for %s: %w", name, err)
 		}
+
 		return ft.result
 	}
 }
@@ -119,4 +130,9 @@ func (v Version) Less(other Version) bool {
 		return a < other[i]
 	}
 	return false
+}
+
+// Unspecified returns true if the version is all zero.
+func (v Version) Unspecified() bool {
+	return v[0] == 0 && v[1] == 0 && v[2] == 0
 }
