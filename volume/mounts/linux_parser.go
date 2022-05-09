@@ -36,14 +36,14 @@ func linuxSplitRawSpec(raw string) ([]string, error) {
 }
 
 func linuxValidateNotRoot(p string) error {
-	p = path.Clean(strings.Replace(p, `\`, `/`, -1))
+	p = path.Clean(strings.ReplaceAll(p, `\`, `/`))
 	if p == "/" {
 		return ErrVolumeTargetIsRoot
 	}
 	return nil
 }
 func linuxValidateAbsolute(p string) error {
-	p = strings.Replace(p, `\`, `/`, -1)
+	p = strings.ReplaceAll(p, `\`, `/`)
 	if path.IsAbs(p) {
 		return nil
 	}

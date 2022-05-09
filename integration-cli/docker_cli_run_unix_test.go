@@ -1215,7 +1215,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *testing.T) {
 // sysctlExists checks if a sysctl exists; runc will error if we add any that do not actually
 // exist, so do not add the default ones if running on an old kernel.
 func sysctlExists(s string) bool {
-	f := filepath.Join("/proc", "sys", strings.Replace(s, ".", "/", -1))
+	f := filepath.Join("/proc", "sys", strings.ReplaceAll(s, ".", "/"))
 	_, err := os.Stat(f)
 	return err == nil
 }

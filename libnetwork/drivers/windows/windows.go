@@ -633,7 +633,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	macAddress := ifInfo.MacAddress()
 	// Use the macaddress if it was provided
 	if macAddress != nil {
-		endpointStruct.MacAddress = strings.Replace(macAddress.String(), ":", "-", -1)
+		endpointStruct.MacAddress = strings.ReplaceAll(macAddress.String(), ":", "-")
 	}
 
 	portMapping := epConnectivity.PortBindings

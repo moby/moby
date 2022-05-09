@@ -103,7 +103,7 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 // Make sure in context of daemon, not the local platform. Note we can't
 // use filepath.FromSlash or ToSlash here as they are a no-op on Unix.
 func toSlash(path string) string {
-	return strings.Replace(path, `\`, `/`, -1)
+	return strings.ReplaceAll(path, `\`, `/`)
 }
 
 // IsLocalDaemon is true if the daemon under test is on the same

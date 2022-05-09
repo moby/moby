@@ -16,5 +16,5 @@ var defaultCertsDir = os.Getenv("programdata") + `\docker\certs.d`
 // https:\index.docker.io\v1. Not all platforms support directory names
 // which contain those characters (such as : on Windows)
 func cleanPath(s string) string {
-	return filepath.FromSlash(strings.Replace(s, ":", "", -1))
+	return filepath.FromSlash(strings.ReplaceAll(s, ":", ""))
 }

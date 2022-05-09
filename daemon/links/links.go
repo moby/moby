@@ -50,7 +50,7 @@ func (l *Link) ToEnv() []string {
 	env := []string{}
 
 	_, n := path.Split(l.Name)
-	alias := strings.Replace(strings.ToUpper(n), "-", "_", -1)
+	alias := strings.ReplaceAll(strings.ToUpper(n), "-", "_")
 
 	if p := l.getDefaultPort(); p != nil {
 		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
