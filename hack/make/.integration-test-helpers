@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
-# to run certain tests on your local host, you should run with command:
+# If you want to run only certain tests, you should run with $TEST_FILTER set:
 #
-#     TESTFLAGS='-test.run TestDockerSuite/TestBuild*' ./hack/make.sh binary test-integration
+#     TEST_FILTER='TestBuild' ./hack/make.sh binary test-integration
 #
 
 if [ -z "${MAKEDIR}" ]; then

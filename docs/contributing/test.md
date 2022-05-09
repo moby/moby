@@ -141,8 +141,7 @@ Try this now.
 
 ## Run unit tests
 
-We use golang standard [testing](https://golang.org/pkg/testing/)
-package or [gocheck](https://labix.org/gocheck) for our unit tests.
+We use the golang standard [testing](https://golang.org/pkg/testing/) package.
 
 You can use the `TESTDIRS` environment variable to run unit tests for
 a single package.
@@ -168,19 +167,20 @@ $ TESTDIRS='github.com/docker/docker/opts' TESTFLAGS='-test.run ^TestValidateIPA
 
 ## Run integration tests
 
-We use [gocheck](https://labix.org/gocheck) for our integration-cli tests.
-You can use the `TESTFLAGS` environment variable to run a single test. The
-flag's value is passed as arguments to the `go test` command. For example, from
-your local host you can run the `TestBuild` test with this command:
+We use the golang standard [testing](https://golang.org/pkg/testing/) package
+for our integration tests as well. You can use the `TEST_FILTER` environment
+variable to run a subset of tests. The filter value is a regular expression
+passed to the `go test -test.run` command. For example, from your local host
+you can run the `TestBuild`-prefixed tests with this command:
 
 ```bash
-$ TESTFLAGS='-test.run TestDockerSuite/TestBuild*' make test-integration
+$ TEST_FILTER='TestBuild' make test-integration
 ```
 
 To run the same test inside your Docker development container, you do this:
 
 ```bash
-# TESTFLAGS='-test.run TestDockerSuite/TestBuild*' hack/make.sh binary test-integration
+# TEST_FILTER='TestBuild' hack/make.sh binary test-integration
 ```
 
 ## Test the Windows binary against a Linux daemon
