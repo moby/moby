@@ -26,7 +26,7 @@ import (
 )
 
 func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, w worker.Infos, sid string, sm *session.Manager) (*bridgeClient, error) {
-	return &bridgeClient{
+	bc := &bridgeClient{
 		opts:              opts,
 		inputs:            inputs,
 		FrontendLLBBridge: llbBridge,
@@ -35,7 +35,9 @@ func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLL
 		workers:           w,
 		final:             map[*ref]struct{}{},
 		workerRefByID:     make(map[string]*worker.WorkerRef),
-	}, nil
+	}
+	bc.buildOpts = bc.loadBuildOpts()
+	return bc, nil
 }
 
 type bridgeClient struct {
@@ -49,6 +51,7 @@ type bridgeClient struct {
 	refs          []*ref
 	workers       worker.Infos
 	workerRefByID map[string]*worker.WorkerRef
+	buildOpts     client.BuildOpts
 }
 
 func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
@@ -87,14 +90,15 @@ func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 
 	return cRes, nil
 }
-func (c *bridgeClient) BuildOpts() client.BuildOpts {
-	workers := make([]client.WorkerInfo, 0, len(c.workers.WorkerInfos()))
-	for _, w := range c.workers.WorkerInfos() {
-		workers = append(workers, client.WorkerInfo{
+func (c *bridgeClient) loadBuildOpts() client.BuildOpts {
+	wis := c.workers.WorkerInfos()
+	workers := make([]client.WorkerInfo, len(wis))
+	for i, w := range wis {
+		workers[i] = client.WorkerInfo{
 			ID:        w.ID,
 			Labels:    w.Labels,
 			Platforms: w.Platforms,
-		})
+		}
 	}
 
 	return client.BuildOpts{
@@ -105,6 +109,10 @@ func (c *bridgeClient) BuildOpts() client.BuildOpts {
 		Caps:      gwpb.Caps.CapSet(gwpb.Caps.All()),
 		LLBCaps:   opspb.Caps.CapSet(opspb.Caps.All()),
 	}
+}
+
+func (c *bridgeClient) BuildOpts() client.BuildOpts {
+	return c.buildOpts
 }
 
 func (c *bridgeClient) Inputs(ctx context.Context) (map[string]llb.State, error) {

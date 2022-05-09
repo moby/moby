@@ -812,8 +812,8 @@ func warnOpts(sm *llb.SourceMap, r *parser.Range, detail [][]byte, url string) c
 	return opts
 }
 
-func contextByNameFunc(c client.Client, p *ocispecs.Platform) func(context.Context, string) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
-	return func(ctx context.Context, name string) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
+func contextByNameFunc(c client.Client, p *ocispecs.Platform) func(context.Context, string, string) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
+	return func(ctx context.Context, name, resolveMode string) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
 		named, err := reference.ParseNormalizedNamed(name)
 		if err != nil {
 			return nil, nil, nil, errors.Wrapf(err, "invalid context name %s", name)
@@ -826,7 +826,7 @@ func contextByNameFunc(c client.Client, p *ocispecs.Platform) func(context.Conte
 		}
 		if p != nil {
 			name := name + "::" + platforms.Format(platforms.Normalize(*p))
-			st, img, bi, err := contextByName(ctx, c, name, p)
+			st, img, bi, err := contextByName(ctx, c, name, p, resolveMode)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -834,11 +834,11 @@ func contextByNameFunc(c client.Client, p *ocispecs.Platform) func(context.Conte
 				return st, img, bi, nil
 			}
 		}
-		return contextByName(ctx, c, name, p)
+		return contextByName(ctx, c, name, p, resolveMode)
 	}
 }
 
-func contextByName(ctx context.Context, c client.Client, name string, platform *ocispecs.Platform) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
+func contextByName(ctx context.Context, c client.Client, name string, platform *ocispecs.Platform, resolveMode string) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
 	opts := c.BuildOpts().Opts
 	v, ok := opts["context:"+name]
 	if !ok {
@@ -854,13 +854,38 @@ func contextByName(ctx context.Context, c client.Client, name string, platform *
 		ref := strings.TrimPrefix(vv[1], "//")
 		imgOpt := []llb.ImageOption{
 			llb.WithCustomName("[context " + name + "] " + ref),
-			llb.WithMetaResolver(c),
 		}
 		if platform != nil {
 			imgOpt = append(imgOpt, llb.Platform(*platform))
 		}
+
+		named, err := reference.ParseNormalizedNamed(ref)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		named = reference.TagNameOnly(named)
+
+		_, data, err := c.ResolveImageConfig(ctx, named.String(), llb.ResolveImageConfigOpt{
+			Platform:    platform,
+			ResolveMode: resolveMode,
+			LogName:     fmt.Sprintf("[context %s] load metadata for %s", name, ref),
+		})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		var img dockerfile2llb.Image
+		if err := json.Unmarshal(data, &img); err != nil {
+			return nil, nil, nil, err
+		}
+
 		st := llb.Image(ref, imgOpt...)
-		return &st, nil, nil, nil
+		st, err = st.WithImageConfig(data)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return &st, &img, nil, nil
 	case "git":
 		st, ok := detectGitContext(v, "1")
 		if !ok {

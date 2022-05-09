@@ -64,7 +64,7 @@ func (c *Controller) WorkerInfos() []client.WorkerInfo {
 		out = append(out, client.WorkerInfo{
 			ID:        w.ID(),
 			Labels:    w.Labels(),
-			Platforms: w.Platforms(true),
+			Platforms: w.Platforms(false),
 		})
 	}
 	return out

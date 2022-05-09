@@ -70,16 +70,16 @@ type ConvertOpt struct {
 	SourceMap         *llb.SourceMap
 	Hostname          string
 	Warn              func(short, url string, detail [][]byte, location *parser.Range)
-	ContextByName     func(context.Context, string) (*llb.State, *Image, *binfotypes.BuildInfo, error)
+	ContextByName     func(ctx context.Context, name, resolveMode string) (*llb.State, *Image, *binfotypes.BuildInfo, error)
 }
 
 func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State, *Image, *binfotypes.BuildInfo, error) {
 	buildInfo := &binfotypes.BuildInfo{}
 	contextByName := opt.ContextByName
-	opt.ContextByName = func(ctx context.Context, name string) (*llb.State, *Image, *binfotypes.BuildInfo, error) {
+	opt.ContextByName = func(ctx context.Context, name, resolveMode string) (*llb.State, *Image, *binfotypes.BuildInfo, error) {
 		if !strings.EqualFold(name, "scratch") && !strings.EqualFold(name, "context") {
 			if contextByName != nil {
-				st, img, bi, err := contextByName(ctx, name)
+				st, img, bi, err := contextByName(ctx, name, resolveMode)
 				if err != nil {
 					return nil, nil, nil, err
 				}
@@ -166,7 +166,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		}
 
 		if st.Name != "" {
-			s, img, bi, err := opt.ContextByName(ctx, st.Name)
+			s, img, bi, err := opt.ContextByName(ctx, st.Name, opt.ImageResolveMode.String())
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -313,7 +313,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 					d.stage.BaseName = reference.TagNameOnly(ref).String()
 
 					var isScratch bool
-					st, img, bi, err := opt.ContextByName(ctx, d.stage.BaseName)
+					st, img, bi, err := opt.ContextByName(ctx, d.stage.BaseName, opt.ImageResolveMode.String())
 					if err != nil {
 						return err
 					}
