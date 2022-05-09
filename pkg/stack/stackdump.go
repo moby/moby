@@ -24,7 +24,7 @@ func Dump() {
 func DumpToFile(dir string) (string, error) {
 	var f *os.File
 	if dir != "" {
-		path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, strings.Replace(time.Now().Format(time.RFC3339), ":", "", -1)))
+		path := filepath.Join(dir, fmt.Sprintf(stacksLogNameTemplate, strings.ReplaceAll(time.Now().Format(time.RFC3339), ":", "")))
 		var err error
 		f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {

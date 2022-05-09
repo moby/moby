@@ -34,8 +34,8 @@ func normalizeWorkdirUnix(current string, requested string) (string, error) {
 	if requested == "" {
 		return "", errors.New("cannot normalize nothing")
 	}
-	current = strings.Replace(current, string(os.PathSeparator), "/", -1)
-	requested = strings.Replace(requested, string(os.PathSeparator), "/", -1)
+	current = strings.ReplaceAll(current, string(os.PathSeparator), "/")
+	requested = strings.ReplaceAll(requested, string(os.PathSeparator), "/")
 	if !path.IsAbs(requested) {
 		return path.Join(`/`, current, requested), nil
 	}

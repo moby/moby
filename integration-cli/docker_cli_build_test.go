@@ -3814,7 +3814,7 @@ func (s *DockerSuite) TestBuildSpaces(c *testing.T) {
 	e2 := removeLogTimestamps(result2.Error.Error())
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
-	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
+	if strings.ReplaceAll(e1, " ", "") != strings.ReplaceAll(e2, " ", "") {
 		c.Fatalf("Build 2's error wasn't the same as build 1's\n1:%s\n2:%s", result1.Error, result2.Error)
 	}
 
@@ -3829,7 +3829,7 @@ func (s *DockerSuite) TestBuildSpaces(c *testing.T) {
 	e2 = removeLogTimestamps(result2.Error.Error())
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
-	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
+	if strings.ReplaceAll(e1, " ", "") != strings.ReplaceAll(e2, " ", "") {
 		c.Fatalf("Build 3's error wasn't the same as build 1's\n1:%s\n3:%s", result1.Error, result2.Error)
 	}
 
@@ -3844,7 +3844,7 @@ func (s *DockerSuite) TestBuildSpaces(c *testing.T) {
 	e2 = removeLogTimestamps(result2.Error.Error())
 
 	// Ignore whitespace since that's what were verifying doesn't change stuff
-	if strings.Replace(e1, " ", "", -1) != strings.Replace(e2, " ", "", -1) {
+	if strings.ReplaceAll(e1, " ", "") != strings.ReplaceAll(e2, " ", "") {
 		c.Fatalf("Build 4's error wasn't the same as build 1's\n1:%s\n4:%s", result1.Error, result2.Error)
 	}
 

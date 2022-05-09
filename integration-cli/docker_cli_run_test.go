@@ -1292,14 +1292,14 @@ func (s *DockerSuite) TestRunDNSOptions(c *testing.T) {
 		c.Fatalf("Expected warning on stderr about localhost resolver, but got %q", result.Stderr())
 	}
 
-	actual := strings.Replace(strings.Trim(result.Stdout(), "\r\n"), "\n", " ", -1)
+	actual := strings.ReplaceAll(strings.Trim(result.Stdout(), "\r\n"), "\n", " ")
 	if actual != "search mydomain nameserver 127.0.0.1 options ndots:9" {
 		c.Fatalf("expected 'search mydomain nameserver 127.0.0.1 options ndots:9', but says: %q", actual)
 	}
 
 	out := cli.DockerCmd(c, "run", "--dns=1.1.1.1", "--dns-search=.", "--dns-opt=ndots:3", "busybox", "cat", "/etc/resolv.conf").Combined()
 
-	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
+	actual = strings.ReplaceAll(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ")
 	if actual != "nameserver 1.1.1.1 options ndots:3" {
 		c.Fatalf("expected 'nameserver 1.1.1.1 options ndots:3', but says: %q", actual)
 	}
@@ -1309,7 +1309,7 @@ func (s *DockerSuite) TestRunDNSRepeatOptions(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out := cli.DockerCmd(c, "run", "--dns=1.1.1.1", "--dns=2.2.2.2", "--dns-search=mydomain", "--dns-search=mydomain2", "--dns-opt=ndots:9", "--dns-opt=timeout:3", "busybox", "cat", "/etc/resolv.conf").Stdout()
 
-	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
+	actual := strings.ReplaceAll(strings.Trim(out, "\r\n"), "\n", " ")
 	if actual != "search mydomain mydomain2 nameserver 1.1.1.1 nameserver 2.2.2.2 options ndots:9 timeout:3" {
 		c.Fatalf("expected 'search mydomain mydomain2 nameserver 1.1.1.1 nameserver 2.2.2.2 options ndots:9 timeout:3', but says: %q", actual)
 	}
@@ -1982,7 +1982,7 @@ func (s *DockerSuite) TestRunSetMacAddress(c *testing.T) {
 	var out string
 	if testEnv.OSType == "windows" {
 		out, _ = dockerCmd(c, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "sh", "-c", "ipconfig /all | grep 'Physical Address' | awk '{print $12}'")
-		mac = strings.Replace(strings.ToUpper(mac), ":", "-", -1) // To Windows-style MACs
+		mac = strings.ReplaceAll(strings.ToUpper(mac), ":", "-") // To Windows-style MACs
 	} else {
 		out, _ = dockerCmd(c, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "/bin/sh", "-c", "ip link show eth0 | tail -1 | awk '{print $2}'")
 	}
@@ -2156,7 +2156,7 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *testing.T) {
 	}
 
 	out, _ = dockerCmd(c, "run", "--add-host=test:192.168.0.1", "-v", "/etc", "busybox", "cat", "/etc/hosts")
-	out = strings.Replace(out, "\n", " ", -1)
+	out = strings.ReplaceAll(out, "\n", " ")
 	if !strings.Contains(out, "192.168.0.1\ttest") || !strings.Contains(out, "127.0.0.1\tlocalhost") {
 		c.Fatal("/etc volume mount hides /etc/hosts")
 	}
@@ -2532,7 +2532,7 @@ func (s *DockerSuite) TestRunNonLocalMacAddress(c *testing.T) {
 		args = append(args, "busybox", "ifconfig")
 	} else {
 		args = append(args, testEnv.PlatformDefaults.BaseImage, "ipconfig", "/all")
-		expected = strings.Replace(strings.ToUpper(addr), ":", "-", -1)
+		expected = strings.ReplaceAll(strings.ToUpper(addr), ":", "-")
 	}
 
 	if out, _ := dockerCmd(c, args...); !strings.Contains(out, expected) {

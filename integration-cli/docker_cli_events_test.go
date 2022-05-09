@@ -117,7 +117,7 @@ func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *testing.T) {
 func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *testing.T) {
 	dockerCmd(c, "run", "--rm", "--name", "since-epoch-test", "busybox", "true")
 	timeBeginning := time.Unix(0, 0).Format(time.RFC3339Nano)
-	timeBeginning = strings.Replace(timeBeginning, "Z", ".000000000Z", -1)
+	timeBeginning = strings.ReplaceAll(timeBeginning, "Z", ".000000000Z")
 	out, _ := dockerCmd(c, "events", "--since", timeBeginning, "--until", daemonUnixTime(c))
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
