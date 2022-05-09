@@ -119,6 +119,28 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		return err
 	}
 
+	// (daemon *).mountVolumes() is called by various functions in
+	// daemon/archive, any time the container's filesystem needs to be
+	// accessed. There is an edge-case triggered by mounting the host
+	// filesystem into the container when the daemon root is in the tree,
+	// e.g. `-v /var:/hostvar`, which can cause mounts to replicate from
+	// the root namespace into the container in a multiplicative fashion.
+	// This will result in quadratic growth of the mount table until the
+	// kernel returns ENOSPC on subsequent mount operations.
+	//
+	// To avoid this, mark the container root as UNBINDABLE. This will be
+	// undone in (container *).DetachAndUnmount(). We can get away with
+	// this as the container will be locked for the entire duration of the
+	// archive operation.
+	root, err := container.GetResourcePath("")
+	if err != nil {
+		return err
+	}
+	err = mount.MakeRUnbindable(root)
+	if err != nil {
+		return err
+	}
+
 	for _, m := range mounts {
 		dest, err := container.GetResourcePath(m.Destination)
 		if err != nil {

@@ -391,7 +391,21 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 				Warn("Unable to unmount")
 		}
 	}
-	return container.UnmountVolumes(volumeEventLog)
+
+	err := container.UnmountVolumes(volumeEventLog)
+	if err != nil {
+		return err
+	}
+
+	// In (daemon *).mountVolumes() we marked the root of the container as
+	// UNBINDABLE to avoid propagating mounts recursively when the daemon
+	// root is mounted from the root namespace into the container
+	// namespace. We undo that here with MakeRShrared.
+	root, err := container.GetResourcePath("")
+	if err != nil {
+		return err
+	}
+	return mount.MakeRShared(root)
 }
 
 // ignoreUnsupportedXAttrs ignores errors when extended attributes

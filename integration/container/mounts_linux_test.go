@@ -391,3 +391,45 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Regression test for #38995 and #43390. See also (daemon *).mountVolumes()
+// and (container *).UnmountVolumes(). This currently does not work in the
+// Docker-in-Docker test environment.
+func TestContainerCopyLeaksMounts(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+
+	defer setupTest(t)()
+
+	bindMount := mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: "/var",
+		Target: "/hostvar",
+		BindOptions: &mounttypes.BindOptions{
+			Propagation: mounttypes.PropagationRSlave,
+		},
+	}
+
+	sleepCmd := []string{"sleep", "1d"}
+
+	ctx := context.Background()
+	client := testEnv.APIClient()
+	cid := container.Run(ctx, t, client, container.WithMount(bindMount), container.WithCmd(sleepCmd...))
+
+	catCmd := []string{"cat", "/proc/self/mountinfo"}
+
+	getMounts := func() string {
+		res, err := container.Exec(ctx, client, cid, catCmd)
+		assert.NilError(t, err)
+		assert.Equal(t, res.ExitCode, 0)
+		return res.Stdout()
+	}
+
+	mountsBefore := getMounts()
+
+	_, _, err := client.CopyFromContainer(ctx, cid, "/etc/passwd")
+	assert.NilError(t, err)
+
+	mountsAfter := getMounts()
+
+	assert.Equal(t, mountsBefore, mountsAfter)
+}
