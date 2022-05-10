@@ -7,3 +7,4 @@
  * [Configure Git for contributing](set-up-git.md)
  * [Work with a development container](set-up-dev-env.md)
  * [Run tests and test documentation](test.md)
+ * [Debugging the daemon](debug.md)

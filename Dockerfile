@@ -148,6 +148,18 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
+FROM base AS delve
+# DELVE_VERSION specifies the version of the Delve debugger binary
+# from the https://github.com/go-delve/delve repository.
+# It can be used to run Docker with a possibility of
+# attaching debugger to it.
+#
+ARG DELVE_VERSION=v1.8.1
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+        GOBIN=/build/ GO111MODULE=on go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}" \
+     && /build/dlv --help
+
 FROM base AS tomll
 # GOTOML_VERSION specifies the version of the tomll binary to build and install
 # from the https://github.com/pelletier/go-toml repository. This binary is used
@@ -308,6 +320,7 @@ RUN pip3 install yamllint==1.26.1
 COPY --from=dockercli     /build/ /usr/local/cli
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=swagger       /build/ /usr/local/bin/
+COPY --from=delve         /build/ /usr/local/bin/
 COPY --from=tomll         /build/ /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
