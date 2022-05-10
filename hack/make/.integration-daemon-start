@@ -79,14 +79,22 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'
 		exit 1
 	fi
-	ln -sf "$(command -v vpnkit."$(uname -m)")" /usr/local/bin/vpnkit
+
 	user="unprivilegeduser"
 	uid=$(id -u $user)
-	# shellcheck disable=SC2174
-	mkdir -p -m 700 "/tmp/docker-${uid}"
-	chown "$user" "/tmp/docker-${uid}"
+
+	ln -sf "$(command -v vpnkit."$(uname -m)")" /usr/local/bin/vpnkit
 	chmod -R o+w "$DEST"
-	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
+
+	HOST_DIR="/tmp/docker-${uid}"
+	mkdir -p "$HOST_DIR"
+	chmod 700 "$HOST_DIR"
+	chown "$user" "$HOST_DIR"
+
+	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=${HOST_DIR} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
+else
+	HOST_DIR=$(mktemp -d)
+	trap 'rm -rf -- "$HOST_DIR"' EXIT
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
@@ -101,8 +109,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		)
 	fi
 
-	# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
-	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	export DOCKER_HOST="unix://$HOST_DIR/docker.sock"
 	(
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
