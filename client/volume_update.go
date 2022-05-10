@@ -3,7 +3,6 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"net/url"
-	"strconv"
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
@@ -17,7 +16,7 @@ func (cli *Client) VolumeUpdate(ctx context.Context, volumeID string, version sw
 	}
 
 	query := url.Values{}
-	query.Set("version", strconv.FormatUint(version.Index, 10))
+	query.Set("version", version.String())
 
 	resp, err := cli.put(ctx, "/volumes/"+volumeID, query, options, nil)
 	ensureReaderClosed(resp)
