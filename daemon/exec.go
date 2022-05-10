@@ -2,18 +2,19 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
-	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/moby/sys/signal"
@@ -23,7 +24,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (daemon *Daemon) registerExecCommand(container *container.Container, config *exec.Config) {
+func (daemon *Daemon) registerExecCommand(container *container.Container, config *container.ExecConfig) {
 	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
 	container.ExecCommands.Add(config.ID, config)
 	// Storing execs in daemon for easy access via Engine API.
@@ -41,7 +42,7 @@ func (daemon *Daemon) ExecExists(name string) (bool, error) {
 
 // getExecConfig looks up the exec instance by name. If the container associated
 // with the exec instance is stopped or paused, it will return an error.
-func (daemon *Daemon) getExecConfig(name string) (*exec.Config, error) {
+func (daemon *Daemon) getExecConfig(name string) (*container.ExecConfig, error) {
 	ec := daemon.execCommands.Get(name)
 	if ec == nil {
 		return nil, errExecNotFound(name)
@@ -52,7 +53,7 @@ func (daemon *Daemon) getExecConfig(name string) (*exec.Config, error) {
 	// saying the container isn't running, we should return a 404 so that
 	// the user sees the same error now that they will after the
 	// 5 minute clean-up loop is run which erases old/dead execs.
-	ctr := daemon.containers.Get(ec.ContainerID)
+	ctr := daemon.containers.Get(ec.Container.ID)
 	if ctr == nil {
 		return nil, containerNotFound(name)
 	}
@@ -68,9 +69,9 @@ func (daemon *Daemon) getExecConfig(name string) (*exec.Config, error) {
 	return ec, nil
 }
 
-func (daemon *Daemon) unregisterExecCommand(container *container.Container, execConfig *exec.Config) {
-	container.ExecCommands.Delete(execConfig.ID, execConfig.Pid)
-	daemon.execCommands.Delete(execConfig.ID, execConfig.Pid)
+func (daemon *Daemon) unregisterExecCommand(container *container.Container, execConfig *container.ExecConfig) {
+	container.ExecCommands.Delete(execConfig.ID)
+	daemon.execCommands.Delete(execConfig.ID)
 }
 
 func (daemon *Daemon) getActiveContainer(name string) (*container.Container, error) {
@@ -110,11 +111,10 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 		}
 	}
 
-	execConfig := exec.NewConfig()
+	execConfig := container.NewExecConfig(cntr)
 	execConfig.OpenStdin = config.AttachStdin
 	execConfig.OpenStdout = config.AttachStdout
 	execConfig.OpenStderr = config.AttachStderr
-	execConfig.ContainerID = cntr.ID
 	execConfig.DetachKeys = keys
 	execConfig.Entrypoint = entrypoint
 	execConfig.Args = args
@@ -174,15 +174,11 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Running = true
 	ec.Unlock()
 
-	c := daemon.containers.Get(ec.ContainerID)
-	if c == nil {
-		return containerNotFound(ec.ContainerID)
-	}
-	logrus.Debugf("starting exec command %s in container %s", ec.ID, c.ID)
+	logrus.Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
 	attributes := map[string]string{
 		"execID": ec.ID,
 	}
-	daemon.LogContainerEventWithAttributes(c, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "), attributes)
+	daemon.LogContainerEventWithAttributes(ec.Container, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "), attributes)
 
 	defer func() {
 		if err != nil {
@@ -191,10 +187,10 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			exitCode := 126
 			ec.ExitCode = &exitCode
 			if err := ec.CloseStreams(); err != nil {
-				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
+				logrus.Errorf("failed to cleanup exec %s streams: %s", ec.Container.ID, err)
 			}
 			ec.Unlock()
-			c.ExecCommands.Delete(ec.ID, ec.Pid)
+			ec.Container.ExecCommands.Delete(ec.ID)
 		}
 	}()
 
@@ -222,15 +218,18 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 
 	p := &specs.Process{}
 	if runtime.GOOS != "windows" {
-		ctr, err := daemon.containerdCli.LoadContainer(ctx, ec.ContainerID)
+		ctr, err := daemon.containerdCli.LoadContainer(ctx, ec.Container.ID)
 		if err != nil {
 			return err
 		}
-		spec, err := ctr.Spec(ctx)
+		md, err := ctr.Info(ctx, containerd.WithoutRefreshedMetadata)
 		if err != nil {
 			return err
 		}
-		p = spec.Process
+		spec := specs.Spec{Process: p}
+		if err := json.Unmarshal(md.Spec.GetValue(), &spec); err != nil {
+			return err
+		}
 	}
 	p.Args = append([]string{ec.Entrypoint}, ec.Args...)
 	p.Env = ec.Env
@@ -253,7 +252,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		p.Cwd = "/"
 	}
 
-	if err := daemon.execSetPlatformOpt(c, ec, p); err != nil {
+	if err := daemon.execSetPlatformOpt(ctx, ec, p); err != nil {
 		return err
 	}
 
@@ -274,9 +273,16 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	defer cancel()
 	attachErr := ec.StreamConfig.CopyStreams(copyCtx, &attachConfig)
 
+	ec.Container.Lock()
+	tsk, err := ec.Container.GetRunningTask()
+	ec.Container.Unlock()
+	if err != nil {
+		return err
+	}
+
 	// Synchronize with libcontainerd event loop
 	ec.Lock()
-	systemPid, err := daemon.containerd.Exec(ctx, c.ID, ec.ID, p, cStdin != nil, ec.InitializeStdio)
+	ec.Process, err = tsk.Exec(ctx, ec.ID, p, cStdin != nil, ec.InitializeStdio)
 	// the exec context should be ready, or error happened.
 	// close the chan to notify readiness
 	close(ec.Started)
@@ -284,18 +290,17 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		ec.Unlock()
 		return translateContainerdStartErr(ec.Entrypoint, ec.SetExitCode, err)
 	}
-	ec.Pid = systemPid
 	ec.Unlock()
 
 	select {
 	case <-ctx.Done():
 		log := logrus.
-			WithField("container", c.ID).
-			WithField("exec", name)
+			WithField("container", ec.Container.ID).
+			WithField("exec", ec.ID)
 		log.Debug("Sending KILL signal to container process")
 		sigCtx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancelFunc()
-		err := daemon.containerd.SignalProcess(sigCtx, c.ID, name, signal.SignalMap["KILL"])
+		err := ec.Process.Kill(sigCtx, signal.SignalMap["KILL"])
 		if err != nil {
 			log.WithError(err).Error("Could not send KILL signal to container process")
 		}
@@ -308,7 +313,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			attributes := map[string]string{
 				"execID": ec.ID,
 			}
-			daemon.LogContainerEventWithAttributes(c, "exec_detach", attributes)
+			daemon.LogContainerEventWithAttributes(ec.Container, "exec_detach", attributes)
 		}
 	}
 	return nil
@@ -325,7 +330,7 @@ func (daemon *Daemon) execCommandGC() {
 		for id, config := range daemon.execCommands.Commands() {
 			if config.CanRemove {
 				cleaned++
-				daemon.execCommands.Delete(id, config.Pid)
+				daemon.execCommands.Delete(id)
 			} else {
 				if _, exists := liveExecCommands[id]; !exists {
 					config.CanRemove = true

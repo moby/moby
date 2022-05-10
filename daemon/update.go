@@ -74,19 +74,28 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		ctr.UpdateMonitor(hostConfig.RestartPolicy)
 	}
 
+	defer daemon.LogContainerEvent(ctr, "update")
+
 	// If container is not running, update hostConfig struct is enough,
 	// resources will be updated when the container is started again.
 	// If container is running (including paused), we need to update configs
 	// to the real world.
-	if ctr.IsRunning() && !ctr.IsRestarting() {
-		if err := daemon.containerd.UpdateResources(context.Background(), ctr.ID, toContainerdResources(hostConfig.Resources)); err != nil {
-			restoreConfig = true
-			// TODO: it would be nice if containerd responded with better errors here so we can classify this better.
-			return errCannotUpdate(ctr.ID, errdefs.System(err))
-		}
+	ctr.Lock()
+	isRestarting := ctr.Restarting
+	tsk, err := ctr.GetRunningTask()
+	ctr.Unlock()
+	if errdefs.IsConflict(err) || isRestarting {
+		return nil
+	}
+	if err != nil {
+		return err
 	}
 
-	daemon.LogContainerEvent(ctr, "update")
+	if err := tsk.UpdateResources(context.TODO(), toContainerdResources(hostConfig.Resources)); err != nil {
+		restoreConfig = true
+		// TODO: it would be nice if containerd responded with better errors here so we can classify this better.
+		return errCannotUpdate(ctr.ID, errdefs.System(err))
+	}
 
 	return nil
 }

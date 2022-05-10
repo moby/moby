@@ -4,7 +4,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/exec"
 )
 
 // This sets platform-specific fields
@@ -17,7 +16,7 @@ func (daemon *Daemon) containerInspectPre120(name string) (*types.ContainerJSON,
 	return daemon.ContainerInspectCurrent(name, false)
 }
 
-func inspectExecProcessConfig(e *exec.Config) *backend.ExecProcessConfig {
+func inspectExecProcessConfig(e *container.ExecConfig) *backend.ExecProcessConfig {
 	return &backend.ExecProcessConfig{
 		Tty:        e.Tty,
 		Entrypoint: e.Entrypoint,

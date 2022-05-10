@@ -1,20 +1,20 @@
-package exec // import "github.com/docker/docker/daemon/exec"
+package container // import "github.com/docker/docker/container"
 
 import (
-	"context"
 	"runtime"
 	"sync"
 
 	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/container/stream"
+	"github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/sirupsen/logrus"
 )
 
-// Config holds the configurations for execs. The Daemon keeps
+// ExecConfig holds the configurations for execs. The Daemon keeps
 // track of both running and finished execs so that they can be
 // examined both during and after completion.
-type Config struct {
+type ExecConfig struct {
 	sync.Mutex
 	Started      chan struct{}
 	StreamConfig *stream.Config
@@ -25,7 +25,7 @@ type Config struct {
 	OpenStderr   bool
 	OpenStdout   bool
 	CanRemove    bool
-	ContainerID  string
+	Container    *Container
 	DetachKeys   []byte
 	Entrypoint   string
 	Args         []string
@@ -34,39 +34,22 @@ type Config struct {
 	User         string
 	WorkingDir   string
 	Env          []string
-	Pid          int
+	Process      types.Process
 	ConsoleSize  *[2]uint
 }
 
-// NewConfig initializes the a new exec configuration
-func NewConfig() *Config {
-	return &Config{
+// NewExecConfig initializes the a new exec configuration
+func NewExecConfig(c *Container) *ExecConfig {
+	return &ExecConfig{
 		ID:           stringid.GenerateRandomID(),
+		Container:    c,
 		StreamConfig: stream.NewConfig(),
 		Started:      make(chan struct{}),
 	}
 }
 
-type rio struct {
-	cio.IO
-
-	sc *stream.Config
-}
-
-func (i *rio) Close() error {
-	i.IO.Close()
-
-	return i.sc.CloseStreams()
-}
-
-func (i *rio) Wait() {
-	i.sc.Wait(context.Background())
-
-	i.IO.Wait()
-}
-
 // InitializeStdio is called by libcontainerd to connect the stdio.
-func (c *Config) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
+func (c *ExecConfig) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 	c.StreamConfig.CopyToPipe(iop)
 
 	if c.StreamConfig.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
@@ -81,32 +64,32 @@ func (c *Config) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 }
 
 // CloseStreams closes the stdio streams for the exec
-func (c *Config) CloseStreams() error {
+func (c *ExecConfig) CloseStreams() error {
 	return c.StreamConfig.CloseStreams()
 }
 
 // SetExitCode sets the exec config's exit code
-func (c *Config) SetExitCode(code int) {
+func (c *ExecConfig) SetExitCode(code int) {
 	c.ExitCode = &code
 }
 
-// Store keeps track of the exec configurations.
-type Store struct {
-	byID map[string]*Config
+// ExecStore keeps track of the exec configurations.
+type ExecStore struct {
+	byID map[string]*ExecConfig
 	mu   sync.RWMutex
 }
 
-// NewStore initializes a new exec store.
-func NewStore() *Store {
-	return &Store{
-		byID: make(map[string]*Config),
+// NewExecStore initializes a new exec store.
+func NewExecStore() *ExecStore {
+	return &ExecStore{
+		byID: make(map[string]*ExecConfig),
 	}
 }
 
 // Commands returns the exec configurations in the store.
-func (e *Store) Commands() map[string]*Config {
+func (e *ExecStore) Commands() map[string]*ExecConfig {
 	e.mu.RLock()
-	byID := make(map[string]*Config, len(e.byID))
+	byID := make(map[string]*ExecConfig, len(e.byID))
 	for id, config := range e.byID {
 		byID[id] = config
 	}
@@ -115,14 +98,14 @@ func (e *Store) Commands() map[string]*Config {
 }
 
 // Add adds a new exec configuration to the store.
-func (e *Store) Add(id string, Config *Config) {
+func (e *ExecStore) Add(id string, Config *ExecConfig) {
 	e.mu.Lock()
 	e.byID[id] = Config
 	e.mu.Unlock()
 }
 
 // Get returns an exec configuration by its id.
-func (e *Store) Get(id string) *Config {
+func (e *ExecStore) Get(id string) *ExecConfig {
 	e.mu.RLock()
 	res := e.byID[id]
 	e.mu.RUnlock()
@@ -130,14 +113,14 @@ func (e *Store) Get(id string) *Config {
 }
 
 // Delete removes an exec configuration from the store.
-func (e *Store) Delete(id string, pid int) {
+func (e *ExecStore) Delete(id string) {
 	e.mu.Lock()
 	delete(e.byID, id)
 	e.mu.Unlock()
 }
 
 // List returns the list of exec ids in the store.
-func (e *Store) List() []string {
+func (e *ExecStore) List() []string {
 	var IDs []string
 	e.mu.RLock()
 	for id := range e.byID {
