@@ -11,15 +11,21 @@ import (
 var errNonLinux = fmt.Errorf("unsupported platform %s/%s", runtime.GOOS, runtime.GOARCH)
 
 const (
-	ENOENT                   = syscall.ENOENT
-	EEXIST                   = syscall.EEXIST
-	EAGAIN                   = syscall.EAGAIN
-	ENOSPC                   = syscall.ENOSPC
-	EINVAL                   = syscall.EINVAL
-	EINTR                    = syscall.EINTR
-	EPERM                    = syscall.EPERM
-	ESRCH                    = syscall.ESRCH
-	ENODEV                   = syscall.ENODEV
+	ENOENT = syscall.ENOENT
+	EEXIST = syscall.EEXIST
+	EAGAIN = syscall.EAGAIN
+	ENOSPC = syscall.ENOSPC
+	EINVAL = syscall.EINVAL
+	EINTR  = syscall.EINTR
+	EPERM  = syscall.EPERM
+	ESRCH  = syscall.ESRCH
+	ENODEV = syscall.ENODEV
+	EBADF  = syscall.Errno(0)
+	// ENOTSUPP is not the same as ENOTSUP or EOPNOTSUP
+	ENOTSUPP = syscall.Errno(0x20c)
+
+	BPF_F_NO_PREALLOC        = 0
+	BPF_F_NUMA_NODE          = 0
 	BPF_F_RDONLY_PROG        = 0
 	BPF_F_WRONLY_PROG        = 0
 	BPF_OBJ_NAME_LEN         = 0x10
@@ -41,6 +47,7 @@ const (
 	PERF_FLAG_FD_CLOEXEC     = 0x8
 	RLIM_INFINITY            = 0x7fffffffffffffff
 	RLIMIT_MEMLOCK           = 8
+	BPF_STATS_RUN_TIME       = 0
 )
 
 // Statfs_t is a wrapper
@@ -214,4 +221,8 @@ func Gettid() int {
 // Tgkill is a wrapper
 func Tgkill(tgid int, tid int, sig syscall.Signal) (err error) {
 	return errNonLinux
+}
+
+func KernelRelease() (string, error) {
+	return "", errNonLinux
 }

@@ -55,3 +55,7 @@ func (n *netclsController) Create(path string, resources *specs.LinuxResources) 
 	}
 	return nil
 }
+
+func (n *netclsController) Update(path string, resources *specs.LinuxResources) error {
+	return n.Create(path, resources)
+}

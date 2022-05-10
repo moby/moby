@@ -9,6 +9,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -22,7 +23,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type Metrics struct {
 	Pids                 *PidsStat      `protobuf:"bytes,1,opt,name=pids,proto3" json:"pids,omitempty"`
@@ -50,7 +51,7 @@ func (m *Metrics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Metrics.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +91,7 @@ func (m *PidsStat) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_PidsStat.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +135,7 @@ func (m *CPUStat) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_CPUStat.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -207,7 +208,7 @@ func (m *MemoryStat) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_MemoryStat.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +251,7 @@ func (m *MemoryEvents) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_MemoryEvents.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -290,7 +291,7 @@ func (m *RdmaStat) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_RdmaStat.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +332,7 @@ func (m *RdmaEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_RdmaEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -370,7 +371,7 @@ func (m *IOStat) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_IOStat.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -414,7 +415,7 @@ func (m *IOEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_IOEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -455,7 +456,7 @@ func (m *HugeTlbStat) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_HugeTlbStat.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -573,7 +574,7 @@ var fileDescriptor_2fc6005842049e6b = []byte{
 func (m *Metrics) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -581,92 +582,112 @@ func (m *Metrics) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Metrics) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Metrics) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Pids != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pids.Size()))
-		n1, err := m.Pids.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.CPU != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.CPU.Size()))
-		n2, err := m.CPU.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
-	}
-	if m.Memory != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Memory.Size()))
-		n3, err := m.Memory.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n3
-	}
-	if m.Rdma != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Rdma.Size()))
-		n4, err := m.Rdma.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n4
-	}
-	if m.Io != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Io.Size()))
-		n5, err := m.Io.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n5
-	}
-	if len(m.Hugetlb) > 0 {
-		for _, msg := range m.Hugetlb {
-			dAtA[i] = 0x3a
-			i++
-			i = encodeVarintMetrics(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.MemoryEvents != nil {
+		{
+			size, err := m.MemoryEvents.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintMetrics(dAtA, i, uint64(size))
 		}
-	}
-	if m.MemoryEvents != nil {
+		i--
 		dAtA[i] = 0x42
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.MemoryEvents.Size()))
-		n6, err := m.MemoryEvents.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	}
+	if len(m.Hugetlb) > 0 {
+		for iNdEx := len(m.Hugetlb) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Hugetlb[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMetrics(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x3a
 		}
-		i += n6
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.Io != nil {
+		{
+			size, err := m.Io.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMetrics(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	if m.Rdma != nil {
+		{
+			size, err := m.Rdma.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMetrics(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.Memory != nil {
+		{
+			size, err := m.Memory.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMetrics(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	if m.CPU != nil {
+		{
+			size, err := m.CPU.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMetrics(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Pids != nil {
+		{
+			size, err := m.Pids.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintMetrics(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PidsStat) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -674,30 +695,36 @@ func (m *PidsStat) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PidsStat) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PidsStat) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Current != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Current))
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if m.Limit != 0 {
-		dAtA[i] = 0x10
-		i++
 		i = encodeVarintMetrics(dAtA, i, uint64(m.Limit))
+		i--
+		dAtA[i] = 0x10
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.Current != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Current))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *CPUStat) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -705,50 +732,56 @@ func (m *CPUStat) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *CPUStat) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *CPUStat) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.UsageUsec != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.UsageUsec))
-	}
-	if m.UserUsec != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.UserUsec))
-	}
-	if m.SystemUsec != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.SystemUsec))
-	}
-	if m.NrPeriods != 0 {
-		dAtA[i] = 0x20
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.NrPeriods))
-	}
-	if m.NrThrottled != 0 {
-		dAtA[i] = 0x28
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.NrThrottled))
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if m.ThrottledUsec != 0 {
-		dAtA[i] = 0x30
-		i++
 		i = encodeVarintMetrics(dAtA, i, uint64(m.ThrottledUsec))
+		i--
+		dAtA[i] = 0x30
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.NrThrottled != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.NrThrottled))
+		i--
+		dAtA[i] = 0x28
 	}
-	return i, nil
+	if m.NrPeriods != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.NrPeriods))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.SystemUsec != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.SystemUsec))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.UserUsec != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.UserUsec))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.UsageUsec != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.UsageUsec))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *MemoryStat) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -756,235 +789,241 @@ func (m *MemoryStat) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *MemoryStat) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MemoryStat) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Anon != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Anon))
-	}
-	if m.File != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.File))
-	}
-	if m.KernelStack != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.KernelStack))
-	}
-	if m.Slab != 0 {
-		dAtA[i] = 0x20
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Slab))
-	}
-	if m.Sock != 0 {
-		dAtA[i] = 0x28
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Sock))
-	}
-	if m.Shmem != 0 {
-		dAtA[i] = 0x30
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Shmem))
-	}
-	if m.FileMapped != 0 {
-		dAtA[i] = 0x38
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.FileMapped))
-	}
-	if m.FileDirty != 0 {
-		dAtA[i] = 0x40
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.FileDirty))
-	}
-	if m.FileWriteback != 0 {
-		dAtA[i] = 0x48
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.FileWriteback))
-	}
-	if m.AnonThp != 0 {
-		dAtA[i] = 0x50
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.AnonThp))
-	}
-	if m.InactiveAnon != 0 {
-		dAtA[i] = 0x58
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.InactiveAnon))
-	}
-	if m.ActiveAnon != 0 {
-		dAtA[i] = 0x60
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.ActiveAnon))
-	}
-	if m.InactiveFile != 0 {
-		dAtA[i] = 0x68
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.InactiveFile))
-	}
-	if m.ActiveFile != 0 {
-		dAtA[i] = 0x70
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.ActiveFile))
-	}
-	if m.Unevictable != 0 {
-		dAtA[i] = 0x78
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Unevictable))
-	}
-	if m.SlabReclaimable != 0 {
-		dAtA[i] = 0x80
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.SlabReclaimable))
-	}
-	if m.SlabUnreclaimable != 0 {
-		dAtA[i] = 0x88
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.SlabUnreclaimable))
-	}
-	if m.Pgfault != 0 {
-		dAtA[i] = 0x90
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgfault))
-	}
-	if m.Pgmajfault != 0 {
-		dAtA[i] = 0x98
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgmajfault))
-	}
-	if m.WorkingsetRefault != 0 {
-		dAtA[i] = 0xa0
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.WorkingsetRefault))
-	}
-	if m.WorkingsetActivate != 0 {
-		dAtA[i] = 0xa8
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.WorkingsetActivate))
-	}
-	if m.WorkingsetNodereclaim != 0 {
-		dAtA[i] = 0xb0
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.WorkingsetNodereclaim))
-	}
-	if m.Pgrefill != 0 {
-		dAtA[i] = 0xb8
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgrefill))
-	}
-	if m.Pgscan != 0 {
-		dAtA[i] = 0xc0
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgscan))
-	}
-	if m.Pgsteal != 0 {
-		dAtA[i] = 0xc8
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgsteal))
-	}
-	if m.Pgactivate != 0 {
-		dAtA[i] = 0xd0
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgactivate))
-	}
-	if m.Pgdeactivate != 0 {
-		dAtA[i] = 0xd8
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgdeactivate))
-	}
-	if m.Pglazyfree != 0 {
-		dAtA[i] = 0xe0
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pglazyfree))
-	}
-	if m.Pglazyfreed != 0 {
-		dAtA[i] = 0xe8
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Pglazyfreed))
-	}
-	if m.ThpFaultAlloc != 0 {
-		dAtA[i] = 0xf0
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.ThpFaultAlloc))
-	}
-	if m.ThpCollapseAlloc != 0 {
-		dAtA[i] = 0xf8
-		i++
-		dAtA[i] = 0x1
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.ThpCollapseAlloc))
-	}
-	if m.Usage != 0 {
-		dAtA[i] = 0x80
-		i++
-		dAtA[i] = 0x2
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Usage))
-	}
-	if m.UsageLimit != 0 {
-		dAtA[i] = 0x88
-		i++
-		dAtA[i] = 0x2
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.UsageLimit))
-	}
-	if m.SwapUsage != 0 {
-		dAtA[i] = 0x90
-		i++
-		dAtA[i] = 0x2
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.SwapUsage))
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if m.SwapLimit != 0 {
-		dAtA[i] = 0x98
-		i++
-		dAtA[i] = 0x2
-		i++
 		i = encodeVarintMetrics(dAtA, i, uint64(m.SwapLimit))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x98
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.SwapUsage != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.SwapUsage))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x90
 	}
-	return i, nil
+	if m.UsageLimit != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.UsageLimit))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x88
+	}
+	if m.Usage != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Usage))
+		i--
+		dAtA[i] = 0x2
+		i--
+		dAtA[i] = 0x80
+	}
+	if m.ThpCollapseAlloc != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.ThpCollapseAlloc))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xf8
+	}
+	if m.ThpFaultAlloc != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.ThpFaultAlloc))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xf0
+	}
+	if m.Pglazyfreed != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pglazyfreed))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xe8
+	}
+	if m.Pglazyfree != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pglazyfree))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xe0
+	}
+	if m.Pgdeactivate != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgdeactivate))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xd8
+	}
+	if m.Pgactivate != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgactivate))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xd0
+	}
+	if m.Pgsteal != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgsteal))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xc8
+	}
+	if m.Pgscan != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgscan))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xc0
+	}
+	if m.Pgrefill != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgrefill))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb8
+	}
+	if m.WorkingsetNodereclaim != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.WorkingsetNodereclaim))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb0
+	}
+	if m.WorkingsetActivate != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.WorkingsetActivate))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa8
+	}
+	if m.WorkingsetRefault != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.WorkingsetRefault))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa0
+	}
+	if m.Pgmajfault != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgmajfault))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x98
+	}
+	if m.Pgfault != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Pgfault))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x90
+	}
+	if m.SlabUnreclaimable != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.SlabUnreclaimable))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x88
+	}
+	if m.SlabReclaimable != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.SlabReclaimable))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x80
+	}
+	if m.Unevictable != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Unevictable))
+		i--
+		dAtA[i] = 0x78
+	}
+	if m.ActiveFile != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.ActiveFile))
+		i--
+		dAtA[i] = 0x70
+	}
+	if m.InactiveFile != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.InactiveFile))
+		i--
+		dAtA[i] = 0x68
+	}
+	if m.ActiveAnon != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.ActiveAnon))
+		i--
+		dAtA[i] = 0x60
+	}
+	if m.InactiveAnon != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.InactiveAnon))
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.AnonThp != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.AnonThp))
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.FileWriteback != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.FileWriteback))
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.FileDirty != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.FileDirty))
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.FileMapped != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.FileMapped))
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.Shmem != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Shmem))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.Sock != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Sock))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.Slab != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Slab))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.KernelStack != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.KernelStack))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.File != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.File))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Anon != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Anon))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *MemoryEvents) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -992,45 +1031,51 @@ func (m *MemoryEvents) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *MemoryEvents) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MemoryEvents) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Low != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Low))
-	}
-	if m.High != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.High))
-	}
-	if m.Max != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Max))
-	}
-	if m.Oom != 0 {
-		dAtA[i] = 0x20
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Oom))
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if m.OomKill != 0 {
-		dAtA[i] = 0x28
-		i++
 		i = encodeVarintMetrics(dAtA, i, uint64(m.OomKill))
+		i--
+		dAtA[i] = 0x28
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.Oom != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Oom))
+		i--
+		dAtA[i] = 0x20
 	}
-	return i, nil
+	if m.Max != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Max))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.High != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.High))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Low != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Low))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *RdmaStat) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1038,44 +1083,54 @@ func (m *RdmaStat) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *RdmaStat) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RdmaStat) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Current) > 0 {
-		for _, msg := range m.Current {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintMetrics(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if len(m.Limit) > 0 {
-		for _, msg := range m.Limit {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintMetrics(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Limit) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Limit[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMetrics(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if len(m.Current) > 0 {
+		for iNdEx := len(m.Current) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Current[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMetrics(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *RdmaEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1083,36 +1138,43 @@ func (m *RdmaEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *RdmaEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RdmaEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Device) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(len(m.Device)))
-		i += copy(dAtA[i:], m.Device)
-	}
-	if m.HcaHandles != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.HcaHandles))
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if m.HcaObjects != 0 {
-		dAtA[i] = 0x18
-		i++
 		i = encodeVarintMetrics(dAtA, i, uint64(m.HcaObjects))
+		i--
+		dAtA[i] = 0x18
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.HcaHandles != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.HcaHandles))
+		i--
+		dAtA[i] = 0x10
 	}
-	return i, nil
+	if len(m.Device) > 0 {
+		i -= len(m.Device)
+		copy(dAtA[i:], m.Device)
+		i = encodeVarintMetrics(dAtA, i, uint64(len(m.Device)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *IOStat) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1120,32 +1182,40 @@ func (m *IOStat) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *IOStat) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *IOStat) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
 	if len(m.Usage) > 0 {
-		for _, msg := range m.Usage {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintMetrics(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Usage) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Usage[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMetrics(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *IOEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1153,50 +1223,56 @@ func (m *IOEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *IOEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *IOEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Major != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Major))
-	}
-	if m.Minor != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Minor))
-	}
-	if m.Rbytes != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Rbytes))
-	}
-	if m.Wbytes != 0 {
-		dAtA[i] = 0x20
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Wbytes))
-	}
-	if m.Rios != 0 {
-		dAtA[i] = 0x28
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Rios))
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if m.Wios != 0 {
-		dAtA[i] = 0x30
-		i++
 		i = encodeVarintMetrics(dAtA, i, uint64(m.Wios))
+		i--
+		dAtA[i] = 0x30
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.Rios != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Rios))
+		i--
+		dAtA[i] = 0x28
 	}
-	return i, nil
+	if m.Wbytes != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Wbytes))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Rbytes != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Rbytes))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Minor != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Minor))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Major != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Major))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *HugeTlbStat) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1204,40 +1280,49 @@ func (m *HugeTlbStat) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *HugeTlbStat) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *HugeTlbStat) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Current != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Current))
-	}
-	if m.Max != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintMetrics(dAtA, i, uint64(m.Max))
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if len(m.Pagesize) > 0 {
-		dAtA[i] = 0x1a
-		i++
+		i -= len(m.Pagesize)
+		copy(dAtA[i:], m.Pagesize)
 		i = encodeVarintMetrics(dAtA, i, uint64(len(m.Pagesize)))
-		i += copy(dAtA[i:], m.Pagesize)
+		i--
+		dAtA[i] = 0x1a
 	}
-	if m.XXX_unrecognized != nil {
-		i += copy(dAtA[i:], m.XXX_unrecognized)
+	if m.Max != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Max))
+		i--
+		dAtA[i] = 0x10
 	}
-	return i, nil
+	if m.Current != 0 {
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Current))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintMetrics(dAtA []byte, offset int, v uint64) int {
+	offset -= sovMetrics(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *Metrics) Size() (n int) {
 	if m == nil {
@@ -1590,14 +1675,7 @@ func (m *HugeTlbStat) Size() (n int) {
 }
 
 func sovMetrics(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozMetrics(x uint64) (n int) {
 	return sovMetrics(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -1606,14 +1684,19 @@ func (this *Metrics) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForHugetlb := "[]*HugeTlbStat{"
+	for _, f := range this.Hugetlb {
+		repeatedStringForHugetlb += strings.Replace(f.String(), "HugeTlbStat", "HugeTlbStat", 1) + ","
+	}
+	repeatedStringForHugetlb += "}"
 	s := strings.Join([]string{`&Metrics{`,
-		`Pids:` + strings.Replace(fmt.Sprintf("%v", this.Pids), "PidsStat", "PidsStat", 1) + `,`,
-		`CPU:` + strings.Replace(fmt.Sprintf("%v", this.CPU), "CPUStat", "CPUStat", 1) + `,`,
-		`Memory:` + strings.Replace(fmt.Sprintf("%v", this.Memory), "MemoryStat", "MemoryStat", 1) + `,`,
-		`Rdma:` + strings.Replace(fmt.Sprintf("%v", this.Rdma), "RdmaStat", "RdmaStat", 1) + `,`,
-		`Io:` + strings.Replace(fmt.Sprintf("%v", this.Io), "IOStat", "IOStat", 1) + `,`,
-		`Hugetlb:` + strings.Replace(fmt.Sprintf("%v", this.Hugetlb), "HugeTlbStat", "HugeTlbStat", 1) + `,`,
-		`MemoryEvents:` + strings.Replace(fmt.Sprintf("%v", this.MemoryEvents), "MemoryEvents", "MemoryEvents", 1) + `,`,
+		`Pids:` + strings.Replace(this.Pids.String(), "PidsStat", "PidsStat", 1) + `,`,
+		`CPU:` + strings.Replace(this.CPU.String(), "CPUStat", "CPUStat", 1) + `,`,
+		`Memory:` + strings.Replace(this.Memory.String(), "MemoryStat", "MemoryStat", 1) + `,`,
+		`Rdma:` + strings.Replace(this.Rdma.String(), "RdmaStat", "RdmaStat", 1) + `,`,
+		`Io:` + strings.Replace(this.Io.String(), "IOStat", "IOStat", 1) + `,`,
+		`Hugetlb:` + repeatedStringForHugetlb + `,`,
+		`MemoryEvents:` + strings.Replace(this.MemoryEvents.String(), "MemoryEvents", "MemoryEvents", 1) + `,`,
 		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -1711,9 +1794,19 @@ func (this *RdmaStat) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForCurrent := "[]*RdmaEntry{"
+	for _, f := range this.Current {
+		repeatedStringForCurrent += strings.Replace(f.String(), "RdmaEntry", "RdmaEntry", 1) + ","
+	}
+	repeatedStringForCurrent += "}"
+	repeatedStringForLimit := "[]*RdmaEntry{"
+	for _, f := range this.Limit {
+		repeatedStringForLimit += strings.Replace(f.String(), "RdmaEntry", "RdmaEntry", 1) + ","
+	}
+	repeatedStringForLimit += "}"
 	s := strings.Join([]string{`&RdmaStat{`,
-		`Current:` + strings.Replace(fmt.Sprintf("%v", this.Current), "RdmaEntry", "RdmaEntry", 1) + `,`,
-		`Limit:` + strings.Replace(fmt.Sprintf("%v", this.Limit), "RdmaEntry", "RdmaEntry", 1) + `,`,
+		`Current:` + repeatedStringForCurrent + `,`,
+		`Limit:` + repeatedStringForLimit + `,`,
 		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -1736,8 +1829,13 @@ func (this *IOStat) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForUsage := "[]*IOEntry{"
+	for _, f := range this.Usage {
+		repeatedStringForUsage += strings.Replace(f.String(), "IOEntry", "IOEntry", 1) + ","
+	}
+	repeatedStringForUsage += "}"
 	s := strings.Join([]string{`&IOStat{`,
-		`Usage:` + strings.Replace(fmt.Sprintf("%v", this.Usage), "IOEntry", "IOEntry", 1) + `,`,
+		`Usage:` + repeatedStringForUsage + `,`,
 		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -2065,10 +2163,7 @@ func (m *Metrics) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -2157,10 +2252,7 @@ func (m *PidsStat) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -2325,10 +2417,7 @@ func (m *CPUStat) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3044,10 +3133,7 @@ func (m *MemoryStat) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3193,10 +3279,7 @@ func (m *MemoryEvents) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3315,10 +3398,7 @@ func (m *RdmaStat) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3439,10 +3519,7 @@ func (m *RdmaEntry) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3527,10 +3604,7 @@ func (m *IOStat) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3695,10 +3769,7 @@ func (m *IOEntry) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3819,10 +3890,7 @@ func (m *HugeTlbStat) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthMetrics
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthMetrics
 			}
 			if (iNdEx + skippy) > l {
@@ -3841,6 +3909,7 @@ func (m *HugeTlbStat) Unmarshal(dAtA []byte) error {
 func skipMetrics(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -3872,10 +3941,8 @@ func skipMetrics(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -3896,55 +3963,30 @@ func skipMetrics(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthMetrics
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthMetrics
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowMetrics
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipMetrics(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthMetrics
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupMetrics
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthMetrics
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthMetrics = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowMetrics   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthMetrics        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowMetrics          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupMetrics = fmt.Errorf("proto: unexpected end of group")
 )
