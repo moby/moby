@@ -9,7 +9,6 @@ import (
 
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/moby/sys/signal"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -65,8 +64,9 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 	container.Lock()
 	defer container.Unlock()
 
-	if !container.Running {
-		return errNotRunning(container.ID)
+	task, err := container.GetRunningTask()
+	if err != nil {
+		return err
 	}
 
 	var unpause bool
@@ -96,8 +96,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 		return nil
 	}
 
-	err := daemon.containerd.SignalProcess(context.Background(), container.ID, libcontainerdtypes.InitProcessName, stopSignal)
-	if err != nil {
+	if err := task.Kill(context.Background(), stopSignal); err != nil {
 		if errdefs.IsNotFound(err) {
 			unpause = false
 			logrus.WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
@@ -121,7 +120,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 
 	if unpause {
 		// above kill signal will be sent once resume is finished
-		if err := daemon.containerd.Resume(context.Background(), container.ID); err != nil {
+		if err := task.Resume(context.Background()); err != nil {
 			logrus.Warnf("Cannot unpause container %s: %s", container.ID, err)
 		}
 	}

@@ -43,32 +43,58 @@ type Backend interface {
 
 // Process of a container
 type Process interface {
-	Delete(context.Context) (uint32, time.Time, error)
+	// Pid is the system specific process id
+	Pid() uint32
+	// Kill sends the provided signal to the process
+	Kill(ctx context.Context, signal syscall.Signal) error
+	// Resize changes the width and height of the process's terminal
+	Resize(ctx context.Context, width, height uint32) error
+	// Delete removes the process and any resources allocated returning the exit status
+	Delete(context.Context) (*containerd.ExitStatus, error)
 }
 
 // Client provides access to containerd features.
 type Client interface {
 	Version(ctx context.Context) (containerd.Version, error)
+	// LoadContainer loads the metadata for a container from containerd.
+	LoadContainer(ctx context.Context, containerID string) (Container, error)
+	// NewContainer creates a new containerd container.
+	NewContainer(ctx context.Context, containerID string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (Container, error)
+}
 
-	Restore(ctx context.Context, containerID string, attachStdio StdioCallback) (alive bool, pid int, p Process, err error)
+// Container provides access to a containerd container.
+type Container interface {
+	Start(ctx context.Context, checkpointDir string, withStdin bool, attachStdio StdioCallback) (Task, error)
+	Task(ctx context.Context) (Task, error)
+	// AttachTask returns the current task for the container and reattaches
+	// to the IO for the running task. If no task exists for the container
+	// a NotFound error is returned.
+	//
+	// Clients must make sure that only one reader is attached to the task.
+	AttachTask(ctx context.Context, attachStdio StdioCallback) (Task, error)
+	// Delete removes the container and associated resources
+	Delete(context.Context) error
+}
 
-	Create(ctx context.Context, containerID string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error
-	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio StdioCallback) (pid int, err error)
-	SignalProcess(ctx context.Context, containerID, processID string, signal syscall.Signal) error
-	Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio StdioCallback) (int, error)
-	ResizeTerminal(ctx context.Context, containerID, processID string, width, height int) error
-	CloseStdin(ctx context.Context, containerID, processID string) error
-	Pause(ctx context.Context, containerID string) error
-	Resume(ctx context.Context, containerID string) error
-	Stats(ctx context.Context, containerID string) (*Stats, error)
-	ListPids(ctx context.Context, containerID string) ([]uint32, error)
-	Summary(ctx context.Context, containerID string) ([]Summary, error)
-	DeleteTask(ctx context.Context, containerID string) (uint32, time.Time, error)
-	Delete(ctx context.Context, containerID string) error
-	Status(ctx context.Context, containerID string) (containerd.ProcessStatus, error)
-
-	UpdateResources(ctx context.Context, containerID string, resources *Resources) error
-	CreateCheckpoint(ctx context.Context, containerID, checkpointDir string, exit bool) error
+// Task provides access to a running containerd container.
+type Task interface {
+	Process
+	// Pause suspends the execution of the task
+	Pause(context.Context) error
+	// Resume the execution of the task
+	Resume(context.Context) error
+	Stats(ctx context.Context) (*Stats, error)
+	// Pids returns a list of system specific process ids inside the task
+	Pids(context.Context) ([]containerd.ProcessInfo, error)
+	Summary(ctx context.Context) ([]Summary, error)
+	// ForceDelete forcefully kills the task's processes and deletes the task
+	ForceDelete(context.Context) error
+	// Status returns the executing status of the task
+	Status(ctx context.Context) (containerd.Status, error)
+	// Exec creates and starts a new process inside the task
+	Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio StdioCallback) (Process, error)
+	UpdateResources(ctx context.Context, resources *Resources) error
+	CreateCheckpoint(ctx context.Context, checkpointDir string, exit bool) error
 }
 
 // StdioCallback is called to connect a container or process stdio.

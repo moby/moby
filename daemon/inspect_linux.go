@@ -5,7 +5,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/versions/v1p19"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/exec"
 )
 
 // This sets platform-specific fields
@@ -62,7 +61,7 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 	}, nil
 }
 
-func inspectExecProcessConfig(e *exec.Config) *backend.ExecProcessConfig {
+func inspectExecProcessConfig(e *container.ExecConfig) *backend.ExecProcessConfig {
 	return &backend.ExecProcessConfig{
 		Tty:        e.Tty,
 		Entrypoint: e.Entrypoint,

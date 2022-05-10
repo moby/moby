@@ -4,13 +4,13 @@
 package daemon
 
 import (
+	"context"
 	"testing"
 
 	"github.com/containerd/containerd/pkg/apparmor"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/exec"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
 )
@@ -79,10 +79,10 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 						Privileged: tc.privileged,
 					},
 				}
-				ec := &exec.Config{Privileged: execPrivileged}
+				ec := &container.ExecConfig{Container: c, Privileged: execPrivileged}
 				p := &specs.Process{}
 
-				err := d.execSetPlatformOpt(c, ec, p)
+				err := d.execSetPlatformOpt(context.Background(), ec, p)
 				assert.NilError(t, err)
 				assert.Equal(t, p.ApparmorProfile, tc.expectedProfile)
 			})

@@ -6,7 +6,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/exec"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -16,7 +15,7 @@ func TestGetInspectData(t *testing.T) {
 		ID:           "inspect-me",
 		HostConfig:   &containertypes.HostConfig{},
 		State:        container.NewState(),
-		ExecCommands: exec.NewStore(),
+		ExecCommands: container.NewExecStore(),
 	}
 
 	d := &Daemon{

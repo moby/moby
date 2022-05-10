@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	units "github.com/docker/go-units"
 )
 
@@ -36,6 +37,14 @@ type State struct {
 
 	stopWaiters       []chan<- StateStatus
 	removeOnlyWaiters []chan<- StateStatus
+
+	// The libcontainerd reference fields are unexported to force consumers
+	// to access them through the getter methods with multi-valued returns
+	// so that they can't forget to nil-check: the code won't compile unless
+	// the nil-check result is explicitly consumed or discarded.
+
+	ctr  libcontainerdtypes.Container
+	task libcontainerdtypes.Task
 }
 
 // StateStatus is used to return container wait results.
@@ -260,7 +269,7 @@ func (s *State) SetExitCode(ec int) {
 }
 
 // SetRunning sets the state of the container to "running".
-func (s *State) SetRunning(pid int, initial bool) {
+func (s *State) SetRunning(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task, initial bool) {
 	s.ErrorMsg = ""
 	s.Paused = false
 	s.Running = true
@@ -269,7 +278,13 @@ func (s *State) SetRunning(pid int, initial bool) {
 		s.Paused = false
 	}
 	s.ExitCodeValue = 0
-	s.Pid = pid
+	s.ctr = ctr
+	s.task = tsk
+	if tsk != nil {
+		s.Pid = int(tsk.Pid())
+	} else {
+		s.Pid = 0
+	}
 	s.OOMKilled = false
 	if initial {
 		s.StartedAt = time.Now().UTC()
@@ -403,4 +418,22 @@ func (s *State) notifyAndClear(waiters *[]chan<- StateStatus) {
 		c <- result
 	}
 	*waiters = nil
+}
+
+// C8dContainer returns a reference to the libcontainerd Container object for
+// the container and whether the reference is valid.
+//
+// The container lock must be held when calling this method.
+func (s *State) C8dContainer() (_ libcontainerdtypes.Container, ok bool) {
+	return s.ctr, s.ctr != nil
+}
+
+// Task returns a reference to the libcontainerd Task object for the container
+// and whether the reference is valid.
+//
+// The container lock must be held when calling this method.
+//
+// See also: (*Container).GetRunningTask().
+func (s *State) Task() (_ libcontainerdtypes.Task, ok bool) {
+	return s.task, s.task != nil
 }

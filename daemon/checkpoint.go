@@ -57,8 +57,11 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return err
 	}
 
-	if !container.IsRunning() {
-		return fmt.Errorf("Container %s not running", name)
+	container.Lock()
+	tsk, err := container.GetRunningTask()
+	container.Unlock()
+	if err != nil {
+		return err
 	}
 
 	if !validCheckpointNamePattern.MatchString(config.CheckpointID) {
@@ -70,7 +73,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return fmt.Errorf("cannot checkpoint container %s: %s", name, err)
 	}
 
-	err = daemon.containerd.CreateCheckpoint(context.Background(), container.ID, checkpointDir, config.Exit)
+	err = tsk.CreateCheckpoint(context.Background(), checkpointDir, config.Exit)
 	if err != nil {
 		os.RemoveAll(checkpointDir)
 		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
