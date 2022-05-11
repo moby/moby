@@ -48,6 +48,8 @@ type Snapshot struct {
 	HostConfig   struct {
 		Isolation string
 	}
+	MountLabel string
+	OS         string
 }
 
 // nameAssociation associates a container id with a name.
@@ -68,9 +70,13 @@ type ViewDB interface {
 	ReleaseName(name string) error
 }
 
+// Predicate allows to check a Container match some criteria
+type Predicate func(c *Container) bool
+
 // View can be used by readers to avoid locking
 type View interface {
-	All() ([]Snapshot, error)
+	All(predicates ...Predicate) ([]Snapshot, error)
+	First(predicates ...Predicate) (*Snapshot, error)
 	Get(id string) (*Snapshot, error)
 
 	GetID(name string) (string, error)
@@ -206,8 +212,26 @@ type memdbView struct {
 	txn *memdb.Txn
 }
 
+func (v *memdbView) First(predicates ...Predicate) (*Snapshot, error) {
+	iter, err := v.txn.Get(memdbContainersTable, memdbIDIndex)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		item := iter.Next()
+		if item == nil {
+			break
+		}
+		container := item.(*Container)
+		if match(container, predicates...) {
+			return v.transform(container), nil
+		}
+	}
+	return nil, nil
+}
+
 // All returns a all items in this snapshot. Returned objects must never be modified.
-func (v *memdbView) All() ([]Snapshot, error) {
+func (v *memdbView) All(predicates ...Predicate) ([]Snapshot, error) {
 	var all []Snapshot
 	iter, err := v.txn.Get(memdbContainersTable, memdbIDIndex)
 	if err != nil {
@@ -218,10 +242,22 @@ func (v *memdbView) All() ([]Snapshot, error) {
 		if item == nil {
 			break
 		}
-		snapshot := v.transform(item.(*Container))
-		all = append(all, *snapshot)
+		container := item.(*Container)
+		if match(container, predicates...) {
+			snapshot := v.transform(container)
+			all = append(all, *snapshot)
+		}
 	}
 	return all, nil
+}
+
+func match(c *Container, predicates ...Predicate) bool {
+	for _, predicate := range predicates {
+		if !predicate(c) {
+			return false
+		}
+	}
+	return true
 }
 
 // Get returns an item by id. Returned objects must never be modified.
@@ -316,6 +352,8 @@ func (v *memdbView) transform(container *Container) *Snapshot {
 		Running:      container.Running,
 		Paused:       container.Paused,
 		ExitCode:     container.ExitCode(),
+		MountLabel:   container.MountLabel,
+		OS:           container.OS,
 	}
 
 	if snapshot.Names == nil {

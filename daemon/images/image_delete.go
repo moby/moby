@@ -82,7 +82,11 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 		// true, there are multiple repository references to this
 		// image, or there are no containers using the given reference.
 		if !force && isSingleReference(repoRefs) {
-			if container := i.containers.First(using); container != nil {
+			container, err := i.containers.Snapshot().First(using)
+			if err != nil {
+				return nil, err
+			}
+			if container != nil {
 				// If we removed the repository reference then
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
@@ -367,7 +371,11 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 		running := func(c *container.Container) bool {
 			return c.ImageID == imgID && c.IsRunning()
 		}
-		if container := i.containers.First(running); container != nil {
+		container, err := i.containers.Snapshot().First(running)
+		if err != nil {
+			return nil // FIXME
+		}
+		if container != nil {
 			return &imageDeleteConflict{
 				imgID:   imgID,
 				hard:    true,
@@ -390,7 +398,11 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 		stopped := func(c *container.Container) bool {
 			return !c.IsRunning() && c.ImageID == imgID
 		}
-		if container := i.containers.First(stopped); container != nil {
+		container, err := i.containers.Snapshot().First(stopped)
+		if err != nil {
+			return nil // FIXME
+		}
+		if container != nil {
 			return &imageDeleteConflict{
 				imgID:   imgID,
 				used:    true,

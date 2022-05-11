@@ -83,7 +83,7 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 	var (
 		summaries     = make([]*types.ImageSummary, 0, len(selectedImages))
 		summaryMap    map[*image.Image]*types.ImageSummary
-		allContainers []*container.Container
+		allContainers []container.Snapshot
 	)
 	for id, img := range selectedImages {
 		if beforeFilter != nil {
@@ -180,18 +180,16 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 		if opts.ContainerCount {
 			// Lazily init allContainers.
 			if allContainers == nil {
-				allContainers = i.containers.List()
-			}
-
-			// Get container count
-			var containers int64
-			for _, c := range allContainers {
-				if c.ImageID == id {
-					containers++
+				predicate := func(c *container.Container) bool {
+					return c.ImageID == id
+				}
+				allContainers, err = i.containers.Snapshot().All(predicate)
+				if err != nil {
+					return nil, err
 				}
 			}
 			// NOTE: By default, Containers is -1, or "not set"
-			summary.Containers = containers
+			summary.Containers = int64(len(allContainers))
 		}
 
 		if opts.ContainerCount || opts.SharedSize {
