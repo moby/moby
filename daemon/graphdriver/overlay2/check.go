@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
+	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -126,6 +127,17 @@ func doesSupportNativeDiff(d string) error {
 // metacopy. Nonetheless, a user or kernel distributor may enable metacopy, so
 // we should report in the daemon whether or not we detect its use.
 func usingMetacopy(d string) (bool, error) {
+	userxattr := false
+	if userns.RunningInUserNS() {
+		needed, err := overlayutils.NeedsUserXAttr(d)
+		if err != nil {
+			return false, err
+		}
+		if needed {
+			userxattr = true
+		}
+	}
+
 	td, err := os.MkdirTemp(d, "metacopy-check")
 	if err != nil {
 		return false, err
@@ -148,11 +160,15 @@ func usingMetacopy(d string) (bool, error) {
 		return false, err
 	}
 
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", l1, l2, work)
+	opts := []string{fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", l1, l2, work)}
+	if userxattr {
+		opts = append(opts, "userxattr")
+	}
+
 	m := mount.Mount{
 		Type:    "overlay",
 		Source:  "overlay",
-		Options: []string{opts},
+		Options: opts,
 	}
 
 	if err := m.Mount(merged); err != nil {
@@ -170,7 +186,7 @@ func usingMetacopy(d string) (bool, error) {
 	}
 
 	// ...and check if the pulled-up copy is marked as metadata-only
-	xattr, err := system.Lgetxattr(filepath.Join(l2, "f"), "trusted.overlay.metacopy")
+	xattr, err := system.Lgetxattr(filepath.Join(l2, "f"), overlayutils.GetOverlayXattr("metacopy"))
 	if err != nil {
 		return false, errors.Wrap(err, "metacopy flag was not set on file in the upperdir")
 	}
