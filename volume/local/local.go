@@ -366,3 +366,15 @@ func getAddress(opts string) string {
 	}
 	return ""
 }
+
+// getPassword finds out a password from options
+func getPassword(opts string) string {
+	optsList := strings.Split(opts, ",")
+	for i := 0; i < len(optsList); i++ {
+		if strings.HasPrefix(optsList[i], "password=") {
+			passwd := strings.SplitN(optsList[i], "=", 2)[1]
+			return passwd
+		}
+	}
+	return ""
+}
