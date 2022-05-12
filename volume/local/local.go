@@ -47,25 +47,23 @@ type activeMount struct {
 // is the base path that the Root instance uses to store its
 // volumes. The base path is created here if it does not exist.
 func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
-	rootDirectory := filepath.Join(scope, volumesPathName)
-
-	if err := idtools.MkdirAllAndChown(rootDirectory, 0701, idtools.CurrentIdentity()); err != nil {
-		return nil, err
-	}
-
 	r := &Root{
-		path:         rootDirectory,
+		path:         filepath.Join(scope, volumesPathName),
 		volumes:      make(map[string]*localVolume),
 		rootIdentity: rootIdentity,
 	}
 
-	dirs, err := os.ReadDir(rootDirectory)
+	if err := idtools.MkdirAllAndChown(r.path, 0701, idtools.CurrentIdentity()); err != nil {
+		return nil, err
+	}
+
+	dirs, err := os.ReadDir(r.path)
 	if err != nil {
 		return nil, err
 	}
 
-	if r.quotaCtl, err = quota.NewControl(rootDirectory); err != nil {
-		logrus.Debugf("No quota support for local volumes in %s: %v", rootDirectory, err)
+	if r.quotaCtl, err = quota.NewControl(r.path); err != nil {
+		logrus.Debugf("No quota support for local volumes in %s: %v", r.path, err)
 	}
 
 	for _, d := range dirs {
@@ -81,8 +79,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			quotaCtl:   r.quotaCtl,
 		}
 		r.volumes[name] = v
-		optsFilePath := filepath.Join(rootDirectory, name, "opts.json")
-		if b, err := os.ReadFile(optsFilePath); err == nil {
+		if b, err := os.ReadFile(filepath.Join(r.path, name, "opts.json")); err == nil {
 			opts := optsConfig{}
 			if err := json.Unmarshal(b, &opts); err != nil {
 				return nil, errors.Wrapf(err, "error while unmarshaling volume options for volume: %s", name)
