@@ -54,7 +54,6 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 	}
 
 	r := &Root{
-		scope:        scope,
 		path:         rootDirectory,
 		volumes:      make(map[string]*localVolume),
 		rootIdentity: rootIdentity,
@@ -107,7 +106,6 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 // commands to create/remove dirs within its provided scope.
 type Root struct {
 	m            sync.Mutex
-	scope        string
 	path         string
 	quotaCtl     *quota.Control
 	volumes      map[string]*localVolume
@@ -224,8 +222,8 @@ func (r *Root) Remove(v volume.Volume) error {
 		realPath = filepath.Dir(lv.path)
 	}
 
-	if !r.scopedPath(realPath) {
-		return errdefs.System(errors.Errorf("Unable to remove a directory outside of the local volume root %s: %s", r.scope, realPath))
+	if realPath == r.path || !strings.HasPrefix(realPath, r.path) {
+		return errdefs.System(errors.Errorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath))
 	}
 
 	if err := removePath(realPath); err != nil {
