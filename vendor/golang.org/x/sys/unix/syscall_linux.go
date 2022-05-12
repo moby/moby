@@ -1829,6 +1829,9 @@ func Dup2(oldfd, newfd int) error {
 //sys	Fremovexattr(fd int, attr string) (err error)
 //sys	Fsetxattr(fd int, attr string, dest []byte, flags int) (err error)
 //sys	Fsync(fd int) (err error)
+//sys	Fsmount(fd int, flags int, mountAttrs int) (fsfd int, err error)
+//sys	Fsopen(fsName string, flags int) (fd int, err error)
+//sys	Fspick(dirfd int, pathName string, flags int) (fd int, err error)
 //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, err error)
 
@@ -1859,6 +1862,7 @@ func Getpgrp() (pid int) {
 //sys	MemfdCreate(name string, flags int) (fd int, err error)
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+//sys	MoveMount(fromDirfd int, fromPathName string, toDirfd int, toPathName string, flags int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	OpenTree(dfd int, fileName string, flags uint) (r int, err error)
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
@@ -2185,7 +2189,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 			gid = Getgid()
 		}
 
-		if uint32(gid) == st.Gid || isGroupMember(gid) {
+		if uint32(gid) == st.Gid || isGroupMember(int(st.Gid)) {
 			fmode = (st.Mode >> 3) & 7
 		} else {
 			fmode = st.Mode & 7
