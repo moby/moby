@@ -73,6 +73,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   syntax, `<IDType>://<ID>` is now recognised. Support for specific `<IDType>` values
   depends on the underlying implementation and Windows version. This change is not
   versioned, and affects all API versions if the daemon has this patch.
+* `GET /containers/{id}/attach`, `GET /exec/{id}/start`, `GET /containers/{id}/logs`
+  `GET /services/{id}/logs` and `GET /tasks/{id}/logs` now set Content-Type header
+  to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr 
+  stream is sent to client, `application/vnd.docker.raw-stream` otherwise.
 
 ## v1.41 API changes
 

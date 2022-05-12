@@ -10,7 +10,7 @@ import (
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
 type ContainerAttachConfig struct {
-	GetStreams func() (io.ReadCloser, io.Writer, io.Writer, error)
+	GetStreams func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error)
 	UseStdin   bool
 	UseStdout  bool
 	UseStderr  bool

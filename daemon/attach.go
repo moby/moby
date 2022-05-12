@@ -50,13 +50,14 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	}
 	ctr.StreamConfig.AttachStreams(&cfg)
 
-	inStream, outStream, errStream, err := c.GetStreams()
+	multiplexed := !ctr.Config.Tty && c.MuxStreams
+	inStream, outStream, errStream, err := c.GetStreams(multiplexed)
 	if err != nil {
 		return err
 	}
 	defer inStream.Close()
 
-	if !ctr.Config.Tty && c.MuxStreams {
+	if multiplexed {
 		errStream = stdcopy.NewStdWriter(errStream, stdcopy.Stderr)
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}
