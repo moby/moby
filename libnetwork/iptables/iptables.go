@@ -641,16 +641,11 @@ func (iptable IPTable) EnsureJumpRule(fromChain, toChain string) error {
 		args  = []string{"-j", toChain}
 	)
 
-	if iptable.Exists(table, fromChain, args...) {
-		err := iptable.RawCombinedOutput(append([]string{"-D", fromChain}, args...)...)
+	if !iptable.Exists(table, fromChain, args...) {
+		err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, args...)...)
 		if err != nil {
-			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+			return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
 		}
-	}
-
-	err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, args...)...)
-	if err != nil {
-		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
 	}
 
 	return nil
