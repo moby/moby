@@ -165,3 +165,210 @@ jobs:
               -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
               -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
               ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
+
+  integration-test:
+    runs-on: ${{ matrix.os }}
+    needs:
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - windows-2022
+        runtime:
+          - builtin
+          - containerd
+    env:
+      GOPATH: ${{ github.workspace }}\go
+      GOBIN: ${{ github.workspace }}\go\bin
+      BIN_OUT: ${{ github.workspace }}\out
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: ${{ env.GOPATH }}/src/github.com/docker/docker
+      -
+        name: Env
+        run: |
+          Get-ChildItem Env: | Out-String
+      -
+        name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-${{ matrix.os }}
+          path: ${{ env.BIN_OUT }}
+      -
+        name: Init
+        run: |
+          If ("${{ matrix.os }}" -eq "windows-2019") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          } ElseIf ("${{ matrix.os }}" -eq "windows-2022") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
+          Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      -
+        # removes docker service that is currently installed on the runner. we
+        # could use Uninstall-Package but not yet available on Windows runners.
+        # more info: https://github.com/actions/virtual-environments/blob/d3a5bad25f3b4326c5666bab0011ac7f1beec95e/images/win/scripts/Installers/Install-Docker.ps1#L11
+        name: Removing current daemon
+        run: |
+          if (Get-Service docker -ErrorAction SilentlyContinue) {
+            $dockerVersion = (docker version -f "{{.Server.Version}}")
+            Write-Host "Current installed Docker version: $dockerVersion"
+            # remove service
+            Stop-Service -Force -Name docker
+            Remove-Service -Name docker
+            # removes event log entry. we could use "Remove-EventLog -LogName -Source docker"
+            # but this cmd is only available since windows-2022
+            $ErrorActionPreference = "SilentlyContinue"
+            & reg delete "HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Application\docker" /f 2>&1 | Out-Null
+            $ErrorActionPreference = "Stop"
+            Write-Host "Service removed"
+          }
+      -
+        name: Starting containerd
+        if: matrix.runtime == 'containerd'
+        run: |
+          Write-Host "Generating config"
+          & "${{ env.BIN_OUT }}\containerd.exe" config default | Out-File "$env:TEMP\ctn.toml" -Encoding ascii
+          Write-Host "Creating service"
+          New-Item -ItemType Directory "$env:TEMP\ctn-root" -ErrorAction SilentlyContinue | Out-Null
+          New-Item -ItemType Directory "$env:TEMP\ctn-state" -ErrorAction SilentlyContinue | Out-Null
+          Start-Process -Wait "${{ env.BIN_OUT }}\containerd.exe" `
+            -ArgumentList "--log-level=debug", `
+              "--config=$env:TEMP\ctn.toml", `
+              "--address=\\.\pipe\containerd-containerd", `
+              "--root=$env:TEMP\ctn-root", `
+              "--state=$env:TEMP\ctn-state", `
+              "--log-file=$env:TEMP\ctn.log", `
+              "--register-service"
+          Write-Host "Starting service"
+          Start-Service -Name containerd
+          Start-Sleep -Seconds 5
+          Write-Host "Service started successfully!"
+      -
+        name: Starting test daemon
+        run: |
+          Write-Host "Creating service"
+          If ("${{ matrix.runtime }}" -eq "containerd") {
+            $runtimeArg="--containerd=\\.\pipe\containerd-containerd"
+            echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
+          New-Item -ItemType Directory "$env:TEMP\moby-root" -ErrorAction SilentlyContinue | Out-Null
+          New-Item -ItemType Directory "$env:TEMP\moby-exec" -ErrorAction SilentlyContinue | Out-Null
+          Start-Process -Wait -NoNewWindow "${{ env.BIN_OUT }}\dockerd" `
+            -ArgumentList $runtimeArg, "--debug", `
+              "--host=npipe:////./pipe/docker_engine", `
+              "--data-root=$env:TEMP\moby-root", `
+              "--exec-root=$env:TEMP\moby-exec", `
+              "--pidfile=$env:TEMP\docker.pid", `
+              "--register-service"
+          Write-Host "Starting service"
+          Start-Service -Name docker
+          Write-Host "Service started successfully!"
+      -
+        name: Waiting for test daemon to start
+        run: |
+          $tries=20
+          Write-Host "Waiting for the test daemon to start..."
+          While ($true) {
+            $ErrorActionPreference = "SilentlyContinue"
+            & "${{ env.BIN_OUT }}\docker" version
+            $ErrorActionPreference = "Stop"
+            If ($LastExitCode -eq 0) {
+              break
+            }
+            $tries--
+            If ($tries -le 0) {
+              Throw "Failed to get a response from the daemon"
+            }
+            Write-Host -NoNewline "."
+            Start-Sleep -Seconds 1
+          }
+          Write-Host "Test daemon started and replied!"
+        env:
+          DOCKER_HOST: npipe:////./pipe/docker_engine
+      -
+        name: Docker info
+        run: |
+          & "${{ env.BIN_OUT }}\docker" info
+        env:
+          DOCKER_HOST: npipe:////./pipe/docker_engine
+      -
+        name: Building contrib/busybox
+        run: |
+          & "${{ env.BIN_OUT }}\docker" build -t busybox `
+            --build-arg WINDOWS_BASE_IMAGE `
+            --build-arg WINDOWS_BASE_IMAGE_TAG `
+            .\contrib\busybox\
+        env:
+          DOCKER_HOST: npipe:////./pipe/docker_engine
+      -
+        name: List images
+        run: |
+          & "${{ env.BIN_OUT }}\docker" images
+        env:
+          DOCKER_HOST: npipe:////./pipe/docker_engine
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Test API
+        run: |
+          .\hack\make.ps1 -TestIntegration
+        env:
+          DOCKER_HOST: npipe:////./pipe/docker_engine
+          GO111MODULE: "off"
+          TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
+      -
+        name: Test CLI
+        run: |
+          gotestsum --format=standard-verbose -- "-tags" "autogen" "-test.timeout" "200m"
+        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker/integration-cli
+        env:
+          DOCKER_HOST: npipe:////./pipe/docker_engine
+          GO111MODULE: "off"
+          TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
+      -
+        name: Docker info
+        run: |
+          & "${{ env.BIN_OUT }}\docker" info
+        env:
+          DOCKER_HOST: npipe:////./pipe/docker_engine
+      -
+        name: Stop containerd
+        if: always() && matrix.runtime == 'containerd'
+        run: |
+          $ErrorActionPreference = "SilentlyContinue"
+          Stop-Service -Force -Name containerd
+          $ErrorActionPreference = "Stop"
+      -
+        name: Containerd logs
+        if: always() && matrix.runtime == 'containerd'
+        run: |
+          Get-Content "$env:TEMP\ctn.log" | Out-Host
+      -
+        name: Stop daemon
+        if: always()
+        run: |
+          $ErrorActionPreference = "SilentlyContinue"
+          Stop-Service -Force -Name docker
+          $ErrorActionPreference = "Stop"
+      -
+        # as the daemon is registered as a service we have to check the event
+        # logs against the docker provider.
+        name: Daemon event logs
+        if: always()
+        run: |
+          Get-WinEvent -ea SilentlyContinue `
+            -FilterHashtable @{ProviderName= "docker"; LogName = "application"} |
+              Select-Object -Property TimeCreated, @{N='Detailed Message'; E={$_.Message}} |
+              Sort-Object @{Expression="TimeCreated";Descending=$false} |
+              Select-Object -ExpandProperty 'Detailed Message'
