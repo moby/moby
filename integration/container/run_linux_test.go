@@ -1,13 +1,16 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
@@ -182,4 +185,32 @@ func TestPrivilegedHostDevices(t *testing.T) {
 		assert.Equal(t, 0, res.ExitCode)
 		assert.Check(t, is.Equal(strings.TrimSpace(res.Stdout()), devRootOnlyTest))
 	}
+}
+
+func TestConsoleSize(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
+
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	cID := container.Run(ctx, t, client,
+		container.WithTty(true),
+		container.WithImage("busybox"),
+		container.WithCmd("stty", "size"),
+		container.WithConsoleSize(57, 123),
+	)
+
+	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+
+	out, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{ShowStdout: true})
+	assert.NilError(t, err)
+	defer out.Close()
+
+	var b bytes.Buffer
+	_, err = io.Copy(&b, out)
+	assert.NilError(t, err)
+
+	assert.Equal(t, strings.TrimSpace(b.String()), "123 57")
 }

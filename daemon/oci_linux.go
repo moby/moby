@@ -1023,7 +1023,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if c.NoNewPrivileges {
 		opts = append(opts, coci.WithNoNewPrivileges)
 	}
-
+	if c.Config.Tty {
+		opts = append(opts, WithConsoleSize(c))
+	}
 	// Set the masked and readonly paths with regard to the host config options if they are set.
 	if c.HostConfig.MaskedPaths != nil {
 		opts = append(opts, coci.WithMaskedPaths(c.HostConfig.MaskedPaths))

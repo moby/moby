@@ -27,9 +27,16 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		return response, err
 	}
 
+	clientVersion := cli.ClientVersion()
+
 	// When using API 1.24 and under, the client is responsible for removing the container
-	if hostConfig != nil && versions.LessThan(cli.ClientVersion(), "1.25") {
+	if hostConfig != nil && versions.LessThan(clientVersion, "1.25") {
 		hostConfig.AutoRemove = false
+	}
+
+	// When using API under 1.42, the Linux daemon doesn't respect the ConsoleSize
+	if hostConfig != nil && platform != nil && platform.OS == "linux" && versions.LessThan(clientVersion, "1.42") {
+		hostConfig.ConsoleSize = [2]uint{0, 0}
 	}
 
 	if err := cli.NewVersionError("1.41", "specify container image platform"); platform != nil && err != nil {

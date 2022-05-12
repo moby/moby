@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 
 	"github.com/containerd/containerd/platforms"
@@ -515,6 +516,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if hostConfig != nil && versions.GreaterThanOrEqualTo(version, "1.42") {
 		// Ignore KernelMemory removed in API 1.42.
 		hostConfig.KernelMemory = 0
+	}
+
+	if hostConfig != nil && runtime.GOOS == "linux" && versions.LessThan(version, "1.42") {
+		// ConsoleSize is not respected by Linux daemon before API 1.42
+		hostConfig.ConsoleSize = [2]uint{0, 0}
 	}
 
 	var platform *specs.Platform

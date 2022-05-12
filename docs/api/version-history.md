@@ -94,6 +94,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   actually supported. API versions before v1.42 continue to ignore these parameters
   and default to attaching to all streams. To preserve the pre-v1.42 behavior,
   set all three query parameters (`?stdin=1,stdout=1,stderr=1`).
+* `POST /containers/create` on Linux now respects the `HostConfig.ConsoleSize` property.
+  Container is immediately created with the desired terminal size and clients no longer
+  need to set the desired size on their own.
 
 ## v1.41 API changes
 
