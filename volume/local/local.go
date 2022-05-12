@@ -21,11 +21,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// VolumeDataPathName is the name of the directory where the volume data is stored.
-// It uses a very distinctive name to avoid collisions migrating data between
-// Docker versions.
 const (
-	VolumeDataPathName = "_data"
+	// volumeDataPathName is the name of the directory where the volume data is stored.
+	// It uses a very distinctive name to avoid collisions migrating data between
+	// Docker versions.
+	volumeDataPathName = "_data"
 	volumesPathName    = "volumes"
 )
 
@@ -127,7 +127,7 @@ func (r *Root) List() ([]volume.Volume, error) {
 
 // DataPath returns the constructed path of this volume.
 func (r *Root) DataPath(volumeName string) string {
-	return filepath.Join(r.path, volumeName, VolumeDataPathName)
+	return filepath.Join(r.path, volumeName, volumeDataPathName)
 }
 
 // Name returns the name of Root, defined in the volume package in the DefaultDriverName constant.
