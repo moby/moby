@@ -1,6 +1,3 @@
-//go:build linux && seccomp
-// +build linux,seccomp
-
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
