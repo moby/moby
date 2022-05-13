@@ -21,11 +21,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// VolumeDataPathName is the name of the directory where the volume data is stored.
-// It uses a very distinctive name to avoid collisions migrating data between
-// Docker versions.
 const (
-	VolumeDataPathName = "_data"
+	// volumeDataPathName is the name of the directory where the volume data is stored.
+	// It uses a very distinctive name to avoid collisions migrating data between
+	// Docker versions.
+	volumeDataPathName = "_data"
 	volumesPathName    = "volumes"
 )
 
@@ -47,26 +47,23 @@ type activeMount struct {
 // is the base path that the Root instance uses to store its
 // volumes. The base path is created here if it does not exist.
 func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
-	rootDirectory := filepath.Join(scope, volumesPathName)
-
-	if err := idtools.MkdirAllAndChown(rootDirectory, 0701, idtools.CurrentIdentity()); err != nil {
-		return nil, err
-	}
-
 	r := &Root{
-		scope:        scope,
-		path:         rootDirectory,
+		path:         filepath.Join(scope, volumesPathName),
 		volumes:      make(map[string]*localVolume),
 		rootIdentity: rootIdentity,
 	}
 
-	dirs, err := os.ReadDir(rootDirectory)
+	if err := idtools.MkdirAllAndChown(r.path, 0701, idtools.CurrentIdentity()); err != nil {
+		return nil, err
+	}
+
+	dirs, err := os.ReadDir(r.path)
 	if err != nil {
 		return nil, err
 	}
 
-	if r.quotaCtl, err = quota.NewControl(rootDirectory); err != nil {
-		logrus.Debugf("No quota support for local volumes in %s: %v", rootDirectory, err)
+	if r.quotaCtl, err = quota.NewControl(r.path); err != nil {
+		logrus.Debugf("No quota support for local volumes in %s: %v", r.path, err)
 	}
 
 	for _, d := range dirs {
@@ -74,7 +71,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			continue
 		}
 
-		name := filepath.Base(d.Name())
+		name := d.Name()
 		v := &localVolume{
 			driverName: r.Name(),
 			name:       name,
@@ -82,8 +79,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			quotaCtl:   r.quotaCtl,
 		}
 		r.volumes[name] = v
-		optsFilePath := filepath.Join(rootDirectory, name, "opts.json")
-		if b, err := os.ReadFile(optsFilePath); err == nil {
+		if b, err := os.ReadFile(filepath.Join(r.path, name, "opts.json")); err == nil {
 			opts := optsConfig{}
 			if err := json.Unmarshal(b, &opts); err != nil {
 				return nil, errors.Wrapf(err, "error while unmarshaling volume options for volume: %s", name)
@@ -107,7 +103,6 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 // commands to create/remove dirs within its provided scope.
 type Root struct {
 	m            sync.Mutex
-	scope        string
 	path         string
 	quotaCtl     *quota.Control
 	volumes      map[string]*localVolume
@@ -127,7 +122,7 @@ func (r *Root) List() ([]volume.Volume, error) {
 
 // DataPath returns the constructed path of this volume.
 func (r *Root) DataPath(volumeName string) string {
-	return filepath.Join(r.path, volumeName, VolumeDataPathName)
+	return filepath.Join(r.path, volumeName, volumeDataPathName)
 }
 
 // Name returns the name of Root, defined in the volume package in the DefaultDriverName constant.
@@ -224,8 +219,8 @@ func (r *Root) Remove(v volume.Volume) error {
 		realPath = filepath.Dir(lv.path)
 	}
 
-	if !r.scopedPath(realPath) {
-		return errdefs.System(errors.Errorf("Unable to remove a directory outside of the local volume root %s: %s", r.scope, realPath))
+	if realPath == r.path || !strings.HasPrefix(realPath, r.path) {
+		return errdefs.System(errors.Errorf("unable to remove a directory outside of the local volume root %s: %s", r.path, realPath))
 	}
 
 	if err := removePath(realPath); err != nil {

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -24,8 +23,6 @@ import (
 )
 
 var (
-	oldVfsDir = filepath.Join("vfs", "dir")
-
 	validOpts = map[string]struct{}{
 		"type":   {}, // specify the filesystem type for mount, e.g. nfs
 		"o":      {}, // generic mount options
@@ -48,22 +45,6 @@ type optsConfig struct {
 
 func (o *optsConfig) String() string {
 	return fmt.Sprintf("type='%s' device='%s' o='%s' size='%d'", o.MountType, o.MountDevice, o.MountOpts, o.Quota.Size)
-}
-
-// scopedPath verifies that the path where the volume is located
-// is under Docker's root and the valid local paths.
-func (r *Root) scopedPath(realPath string) bool {
-	// Volumes path for Docker version >= 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) && realPath != filepath.Join(r.scope, volumesPathName) {
-		return true
-	}
-
-	// Volumes path for Docker version < 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, oldVfsDir)) {
-		return true
-	}
-
-	return false
 }
 
 func setOpts(v *localVolume, opts map[string]string) error {

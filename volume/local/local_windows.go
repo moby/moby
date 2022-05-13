@@ -5,8 +5,6 @@ package local // import "github.com/docker/docker/volume/local"
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -15,15 +13,6 @@ import (
 )
 
 type optsConfig struct{}
-
-// scopedPath verifies that the path where the volume is located
-// is under Docker's root and the valid local paths.
-func (r *Root) scopedPath(realPath string) bool {
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) && realPath != filepath.Join(r.scope, volumesPathName) {
-		return true
-	}
-	return false
-}
 
 func setOpts(v *localVolume, opts map[string]string) error {
 	if len(opts) > 0 {
