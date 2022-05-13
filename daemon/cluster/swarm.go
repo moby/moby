@@ -52,7 +52,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 
 	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
 	if err != nil {
-		return "", err
+		return "", errdefs.InvalidParameter(err)
 	}
 
 	advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
@@ -549,6 +549,7 @@ func validateAddr(addr string) (string, error) {
 	}
 	newaddr, err := opts.ParseTCPAddr(addr, defaultAddr)
 	if err != nil {
+		// TODO(thaJeztah) why are we ignoring the error here? Is this to allow "non-tcp" addresses?
 		return addr, nil
 	}
 	return strings.TrimPrefix(newaddr, "tcp://"), nil
