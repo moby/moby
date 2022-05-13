@@ -7,8 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const userlandProxyCommandName = "docker-proxy"
@@ -46,7 +49,11 @@ func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 // proxyCommand wraps an exec.Cmd to run the userland TCP and UDP
 // proxies as separate processes.
 type proxyCommand struct {
-	cmd *exec.Cmd
+	waitMu     sync.Mutex
+	waitCond   sync.Cond
+	exitedWait bool
+	waitError  error
+	cmd        *exec.Cmd
 }
 
 func (p *proxyCommand) Start() error {
@@ -60,6 +67,22 @@ func (p *proxyCommand) Start() error {
 		return err
 	}
 	w.Close()
+
+	go func() {
+		p.waitMu.Lock()
+		if p.waitCond.L == nil {
+			p.waitCond.L = &p.waitMu
+		}
+		p.waitError = p.cmd.Wait()
+		p.waitCond.Broadcast()
+		p.exitedWait = true
+		p.waitMu.Unlock()
+		if p.waitError != nil {
+			logrus.Warnf("docker-proxy pid:%d run error: %v", p.cmd.Process.Pid, p.waitError)
+		} else {
+			logrus.Debugf("docker-proxy pid:%d exited successfully", p.cmd.Process.Pid)
+		}
+	}()
 
 	errchan := make(chan error, 1)
 	go func() {
@@ -92,7 +115,20 @@ func (p *proxyCommand) Stop() error {
 		if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
 			return err
 		}
-		return p.cmd.Wait()
+		p.waitMu.Lock()
+		if p.waitCond.L == nil {
+			p.waitCond.L = &p.waitMu
+		}
+		for !p.exitedWait {
+			p.waitCond.Wait()
+		}
+		p.waitMu.Unlock()
+		if p.waitError != nil {
+			logrus.Warnf("docker-proxy pid:%d stop error: %v", p.cmd.Process.Pid, p.waitError)
+		} else {
+			logrus.Debugf("docker-proxy pid:%d stop successfully", p.cmd.Process.Pid)
+		}
+		return p.waitError
 	}
 	return nil
 }
