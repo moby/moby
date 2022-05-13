@@ -211,7 +211,7 @@ func (pm *Manager) reload() error { // todo: restore
 
 			// We should only enable rootfs propagation for certain plugin types that need it.
 			for _, typ := range p.PluginObj.Config.Interface.Types {
-				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
+				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver" || typ.Capability == "csinode" || typ.Capability == "csicontroller") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
 					if p.PluginObj.Config.PropagatedMount != "" {
 						propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
 

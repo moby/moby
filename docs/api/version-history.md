@@ -77,6 +77,16 @@ keywords: "API, Docker, rcli, REST, documentation"
   `GET /services/{id}/logs` and `GET /tasks/{id}/logs` now set Content-Type header
   to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr 
   stream is sent to client, `application/vnd.docker.raw-stream` otherwise.
+* `POST /volumes/create` now accepts a new `ClusterVolumeSpec` to create a cluster
+  volume (CNI). This option can only be used if the daemon is a Swarm manager.
+  The Volume response on creation now also can contain a `ClusterVolume` field
+  with information about the created volume.
+* Volume information returned by `GET /volumes/{name}`, `GET /volumes` and
+  `GET /system/df` can now contain a `ClusterVolume` if the volume is a cluster
+  volume (requires the daemon to be a Swarm manager).
+* The `Volume` type, as returned by `Added new `ClusterVolume` fields 
+* Added a new `PUT /volumes{name}` endpoint to update cluster volumes (CNI).
+  Cluster volumes are only supported if the daemon is a Swarm manager.
 
 ## v1.41 API changes
 

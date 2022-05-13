@@ -56,6 +56,18 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 			node.Description.TLSInfo.CertIssuerPublicKey = n.Description.TLSInfo.CertIssuerPublicKey
 			node.Description.TLSInfo.CertIssuerSubject = n.Description.TLSInfo.CertIssuerSubject
 		}
+		for _, csi := range n.Description.CSIInfo {
+			if csi != nil {
+				node.Description.CSIInfo = append(
+					node.Description.CSIInfo,
+					types.NodeCSIInfo{
+						PluginName:        csi.PluginName,
+						NodeID:            csi.NodeID,
+						MaxVolumesPerNode: csi.MaxVolumesPerNode,
+					},
+				)
+			}
+		}
 	}
 
 	// Manager

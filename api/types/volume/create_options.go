@@ -9,6 +9,9 @@ package volume
 // swagger:model CreateOptions
 type CreateOptions struct {
 
+	// cluster volume spec
+	ClusterVolumeSpec *ClusterVolumeSpec `json:"ClusterVolumeSpec,omitempty"`
+
 	// Name of the volume driver to use.
 	Driver string `json:"Driver,omitempty"`
 
