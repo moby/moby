@@ -300,7 +300,6 @@ func (daemon *Daemon) restore() error {
 
 			log := logrus.WithField("container", c.ID)
 
-			daemon.backportMountSpec(c)
 			if err := daemon.checkpointAndSave(c); err != nil {
 				log.WithError(err).Error("error saving backported mountspec to disk")
 			}
