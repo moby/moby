@@ -5,7 +5,6 @@ package local // import "github.com/docker/docker/volume/local"
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -31,7 +30,7 @@ const (
 
 var (
 	// ErrNotFound is the typed error returned when the requested volume name can't be found
-	ErrNotFound = fmt.Errorf("volume not found")
+	ErrNotFound = errors.New("volume not found")
 	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
@@ -137,6 +136,9 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	if err := r.validateName(name); err != nil {
 		return nil, err
 	}
+	if err := validateOpts(opts); err != nil {
+		return nil, err
+	}
 
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -204,7 +206,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if lv.active.count > 0 {
-		return errdefs.System(errors.Errorf("volume has active mounts"))
+		return errdefs.System(errors.New("volume has active mounts"))
 	}
 
 	if err := lv.unmount(); err != nil {

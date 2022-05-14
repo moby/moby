@@ -51,10 +51,6 @@ func (v *localVolume) setOpts(opts map[string]string) error {
 	if len(opts) == 0 {
 		return nil
 	}
-	err := validateOpts(opts)
-	if err != nil {
-		return err
-	}
 	v.opts = &optsConfig{
 		MountType:   opts["type"],
 		MountOpts:   opts["o"],
@@ -63,10 +59,10 @@ func (v *localVolume) setOpts(opts map[string]string) error {
 	if val, ok := opts["size"]; ok {
 		size, err := units.RAMInBytes(val)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(err)
 		}
 		if size > 0 && v.quotaCtl == nil {
-			return errdefs.InvalidParameter(errors.Errorf("quota size requested but no quota support"))
+			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
 		}
 		v.opts.Quota.Size = uint64(size)
 	}
@@ -80,6 +76,12 @@ func validateOpts(opts map[string]string) error {
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
 			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+		}
+	}
+	if val, ok := opts["size"]; ok {
+		_, err := units.RAMInBytes(val)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
 		}
 	}
 	for opt, reqopts := range mandatoryOpts {
@@ -143,7 +145,7 @@ func (v *localVolume) postMount() error {
 				return err
 			}
 		} else {
-			return fmt.Errorf("size quota requested for volume but no quota support")
+			return errors.New("size quota requested for volume but no quota support")
 		}
 	}
 	return nil

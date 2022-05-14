@@ -135,6 +135,16 @@ func TestVolCreateValidation(t *testing.T) {
 			expectedErr: `"hello world" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path`,
 		},
 		{
+			doc:         "invalid: unknown option",
+			opts:        map[string]string{"hello": "world"},
+			expectedErr: `invalid option: "hello"`,
+		},
+		{
+			doc:         "invalid: invalid size",
+			opts:        map[string]string{"size": "hello"},
+			expectedErr: `invalid size: 'hello'`,
+		},
+		{
 			doc:         "invalid: size, but no quotactl",
 			opts:        map[string]string{"size": "1234"},
 			expectedErr: `quota size requested but no quota support`,
