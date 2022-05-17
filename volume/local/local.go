@@ -74,10 +74,11 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 		v := &localVolume{
 			driverName: r.Name(),
 			name:       name,
-			path:       r.DataPath(name),
+			rootPath:   filepath.Join(r.path, name),
+			path:       filepath.Join(r.path, name, volumeDataPathName),
 			quotaCtl:   r.quotaCtl,
 		}
-		if b, err := os.ReadFile(filepath.Join(r.path, name, "opts.json")); err == nil {
+		if b, err := os.ReadFile(filepath.Join(v.rootPath, "opts.json")); err == nil {
 			opts := optsConfig{}
 			if err := json.Unmarshal(b, &opts); err != nil {
 				return nil, errors.Wrapf(err, "error while unmarshaling volume options for volume: %s", name)
@@ -119,11 +120,6 @@ func (r *Root) List() ([]volume.Volume, error) {
 	return ls, nil
 }
 
-// DataPath returns the constructed path of this volume.
-func (r *Root) DataPath(volumeName string) string {
-	return filepath.Join(r.path, volumeName, volumeDataPathName)
-}
-
 // Name returns the name of Root, defined in the volume package in the DefaultDriverName constant.
 func (r *Root) Name() string {
 	return volume.DefaultDriverName
@@ -148,31 +144,30 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		return v, nil
 	}
 
-	path := r.DataPath(name)
-	volRoot := filepath.Dir(path)
+	v = &localVolume{
+		driverName: r.Name(),
+		name:       name,
+		rootPath:   filepath.Join(r.path, name),
+		path:       filepath.Join(r.path, name, volumeDataPathName),
+		quotaCtl:   r.quotaCtl,
+	}
+
 	// Root dir does not need to be accessed by the remapped root
-	if err := idtools.MkdirAllAndChown(volRoot, 0701, idtools.CurrentIdentity()); err != nil {
-		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume root path '%s'", volRoot)
+	if err := idtools.MkdirAllAndChown(v.rootPath, 0701, idtools.CurrentIdentity()); err != nil {
+		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume root path '%s'", v.rootPath)
 	}
 
 	// Remapped root does need access to the data path
-	if err := idtools.MkdirAllAndChown(path, 0755, r.rootIdentity); err != nil {
-		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume data path '%s'", path)
+	if err := idtools.MkdirAllAndChown(v.path, 0755, r.rootIdentity); err != nil {
+		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume data path '%s'", v.path)
 	}
 
 	var err error
 	defer func() {
 		if err != nil {
-			os.RemoveAll(filepath.Dir(path))
+			os.RemoveAll(v.rootPath)
 		}
 	}()
-
-	v = &localVolume{
-		driverName: r.Name(),
-		name:       name,
-		path:       path,
-		quotaCtl:   r.quotaCtl,
-	}
 
 	if len(opts) != 0 {
 		if err = v.setOpts(opts); err != nil {
@@ -183,7 +178,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		if err != nil {
 			return nil, err
 		}
-		if err = os.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 0600); err != nil {
+		if err = os.WriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0600); err != nil {
 			return nil, errdefs.System(errors.Wrap(err, "error while persisting volume options"))
 		}
 	}
@@ -213,12 +208,15 @@ func (r *Root) Remove(v volume.Volume) error {
 		return err
 	}
 
+	// TODO(thaJeztah) is there a reason we're evaluating the data-path here, and not the volume's rootPath?
 	realPath, err := filepath.EvalSymlinks(lv.path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		realPath = filepath.Dir(lv.path)
+		// if the volume's data-directory wasn't found, fall back to using the
+		// volume's root path (see 8d27417bfeff316346d00c07a456b0e1b056e788)
+		realPath = lv.rootPath
 	}
 
 	if realPath == r.path || !strings.HasPrefix(realPath, r.path) {
@@ -230,7 +228,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	delete(r.volumes, lv.name)
-	return removePath(filepath.Dir(lv.path))
+	return removePath(lv.rootPath)
 }
 
 func removePath(path string) error {
@@ -275,6 +273,8 @@ type localVolume struct {
 	m sync.Mutex
 	// unique name of the volume
 	name string
+	// rootPath is the volume's root path, where the volume's metadata is stored.
+	rootPath string
 	// path is the path on the host where the data lives
 	path string
 	// driverName is the name of the driver that created the volume.
