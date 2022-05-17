@@ -12,9 +12,6 @@ dockerd - Enable daemon mode
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
 [**--cgroup-parent**[=*[]*]]
-[**--cluster-store**[=*[]*]]
-[**--cluster-advertise**[=*[]*]]
-[**--cluster-store-opt**[=*map[]*]]
 [**--config-file**[=*/etc/docker/daemon.json*]]
 [**--containerd**[=*SOCKET-PATH*]]
 [**--data-root**[=*/var/lib/docker*]]
@@ -153,17 +150,6 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 **--cgroup-parent**=""
   Set parent cgroup for all containers. Default is "/docker" for fs cgroup
   driver and "system.slice" for systemd cgroup driver.
-
-**--cluster-store**=""
-  URL of the distributed storage backend
-
-**--cluster-advertise**=""
-  Specifies the 'host:port' or `interface:port` combination that this
-  particular daemon instance should use when advertising itself to the cluster.
-  The daemon is reached through this value.
-
-**--cluster-store-opt**=""
-  Specifies options for the Key/Value store.
 
 **--config-file**="/etc/docker/daemon.json"
   Specifies the JSON file path to load the configuration from.
@@ -779,29 +765,6 @@ container with **--storage-opt size** option, docker should ensure the **size**
 cannot be smaller than **btrfs.min_space**.
 
 Example use: `docker daemon -s btrfs --storage-opt btrfs.min_space=10G`
-
-# CLUSTER STORE OPTIONS
-
-The daemon uses libkv to advertise the node within the cluster.  Some Key/Value
-backends support mutual TLS, and the client TLS settings used by the daemon can
-be configured using the **--cluster-store-opt** flag, specifying the paths to
-PEM encoded files.
-
-#### kv.cacertfile
-
-Specifies the path to a local file with PEM encoded CA certificates to trust
-
-#### kv.certfile
-
-Specifies the path to a local file with a PEM encoded certificate.  This
-certificate is used as the client cert for communication with the Key/Value
-store.
-
-#### kv.keyfile
-
-Specifies the path to a local file with a PEM encoded private key.  This
-private key is used as the client key for communication with the Key/Value
-store.
 
 # Access authorization
 
