@@ -173,7 +173,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	}
 
 	if len(opts) != 0 {
-		if err = setOpts(v, opts); err != nil {
+		if err = v.setOpts(opts); err != nil {
 			return nil, err
 		}
 		var b []byte

@@ -47,7 +47,7 @@ func (o *optsConfig) String() string {
 	return fmt.Sprintf("type='%s' device='%s' o='%s' size='%d'", o.MountType, o.MountDevice, o.MountOpts, o.Quota.Size)
 }
 
-func setOpts(v *localVolume, opts map[string]string) error {
+func (v *localVolume) setOpts(opts map[string]string) error {
 	if len(opts) == 0 {
 		return nil
 	}

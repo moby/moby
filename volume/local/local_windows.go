@@ -14,7 +14,7 @@ import (
 
 type optsConfig struct{}
 
-func setOpts(v *localVolume, opts map[string]string) error {
+func (v *localVolume) setOpts(opts map[string]string) error {
 	if len(opts) > 0 {
 		return errdefs.InvalidParameter(errors.New("options are not supported on this platform"))
 	}
