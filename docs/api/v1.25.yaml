@@ -1939,7 +1939,7 @@ definitions:
                 description: "Memory limit in Bytes."
                 type: "integer"
                 format: "int64"
-          Reservation:
+          Reservations:
             description: "Define resources reservation."
             properties:
               NanoCPUs:
