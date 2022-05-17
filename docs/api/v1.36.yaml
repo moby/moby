@@ -2737,7 +2737,7 @@ definitions:
           Limits:
             description: "Define resources limits."
             $ref: "#/definitions/ResourceObject"
-          Reservation:
+          Reservations:
             description: "Define resources reservation."
             $ref: "#/definitions/ResourceObject"
       RestartPolicy:
