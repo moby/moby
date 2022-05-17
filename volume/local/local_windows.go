@@ -14,15 +14,15 @@ import (
 
 type optsConfig struct{}
 
-func (v *localVolume) setOpts(opts map[string]string) error {
-	// Windows does not support any options currently
-	return nil
+func (r *Root) validateOpts(opts map[string]string) error {
+	if len(opts) == 0 {
+		return nil
+	}
+	return errdefs.InvalidParameter(errors.New("options are not supported on this platform"))
 }
 
-func validateOpts(opts map[string]string) error {
-	if len(opts) > 0 {
-		return errdefs.InvalidParameter(errors.New("options are not supported on this platform"))
-	}
+func (v *localVolume) setOpts(opts map[string]string) error {
+	// Windows does not support any options currently
 	return nil
 }
 

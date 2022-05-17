@@ -47,6 +47,36 @@ func (o *optsConfig) String() string {
 	return fmt.Sprintf("type='%s' device='%s' o='%s' size='%d'", o.MountType, o.MountDevice, o.MountOpts, o.Quota.Size)
 }
 
+func (r *Root) validateOpts(opts map[string]string) error {
+	if len(opts) == 0 {
+		return nil
+	}
+	for opt := range opts {
+		if _, ok := validOpts[opt]; !ok {
+			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+		}
+	}
+	if val, ok := opts["size"]; ok {
+		size, err := units.RAMInBytes(val)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if size > 0 && r.quotaCtl == nil {
+			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
+		}
+	}
+	for opt, reqopts := range mandatoryOpts {
+		if _, ok := opts[opt]; ok {
+			for _, reqopt := range reqopts {
+				if _, ok := opts[reqopt]; !ok {
+					return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", reqopt))
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (v *localVolume) setOpts(opts map[string]string) error {
 	if len(opts) == 0 {
 		return nil
@@ -65,33 +95,6 @@ func (v *localVolume) setOpts(opts map[string]string) error {
 			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
 		}
 		v.opts.Quota.Size = uint64(size)
-	}
-	return nil
-}
-
-func validateOpts(opts map[string]string) error {
-	if len(opts) == 0 {
-		return nil
-	}
-	for opt := range opts {
-		if _, ok := validOpts[opt]; !ok {
-			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
-		}
-	}
-	if val, ok := opts["size"]; ok {
-		_, err := units.RAMInBytes(val)
-		if err != nil {
-			return errdefs.InvalidParameter(err)
-		}
-	}
-	for opt, reqopts := range mandatoryOpts {
-		if _, ok := opts[opt]; ok {
-			for _, reqopt := range reqopts {
-				if _, ok := opts[reqopt]; !ok {
-					return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", reqopt))
-				}
-			}
-		}
 	}
 	return nil
 }

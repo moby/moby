@@ -136,7 +136,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	if err := r.validateName(name); err != nil {
 		return nil, err
 	}
-	if err := validateOpts(opts); err != nil {
+	if err := r.validateOpts(opts); err != nil {
 		return nil, err
 	}
 
