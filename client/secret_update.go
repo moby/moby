@@ -3,7 +3,6 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"net/url"
-	"strconv"
 
 	"github.com/docker/docker/api/types/swarm"
 )
@@ -14,7 +13,7 @@ func (cli *Client) SecretUpdate(ctx context.Context, id string, version swarm.Ve
 		return err
 	}
 	query := url.Values{}
-	query.Set("version", strconv.FormatUint(version.Index, 10))
+	query.Set("version", version.String())
 	resp, err := cli.post(ctx, "/secrets/"+id+"/update", query, secret, nil)
 	ensureReaderClosed(resp)
 	return err
