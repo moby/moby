@@ -693,15 +693,22 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		return conn, conn, conn, nil
 	}
 
+	useStdin, useStdout, useStderr := true, true, true
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		useStdin = httputils.BoolValue(r, "stdin")
+		useStdout = httputils.BoolValue(r, "stdout")
+		useStderr = httputils.BoolValue(r, "stderr")
+	}
+
 	attachConfig := &backend.ContainerAttachConfig{
 		GetStreams: setupStreams,
+		UseStdin:   useStdin,
+		UseStdout:  useStdout,
+		UseStderr:  useStderr,
 		Logs:       httputils.BoolValue(r, "logs"),
 		Stream:     httputils.BoolValue(r, "stream"),
 		DetachKeys: detachKeys,
-		UseStdin:   true,
-		UseStdout:  true,
-		UseStderr:  true,
-		MuxStreams: false, // TODO: this should be true since it's a single stream for both stdout and stderr
+		MuxStreams: false, // never multiplex, as we rely on websocket to manage distinct streams
 	}
 
 	err = s.backend.ContainerAttach(containerName, attachConfig)

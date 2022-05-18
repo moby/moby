@@ -17,11 +17,8 @@ type ContainerAttachConfig struct {
 	Logs       bool
 	Stream     bool
 	DetachKeys string
-
-	// Used to signify that streams are multiplexed and therefore need a StdWriter to encode stdout/stderr messages accordingly.
-	// TODO @cpuguy83: This shouldn't be needed. It was only added so that http and websocket endpoints can use the same function, and the websocket function was not using a stdwriter prior to this change...
-	// HOWEVER, the websocket endpoint is using a single stream and SHOULD be encoded with stdout/stderr as is done for HTTP since it is still just a single stream.
-	// Since such a change is an API change unrelated to the current changeset we'll keep it as is here and change separately.
+	// Used to signify that streams must be multiplexed by producer as endpoint can't manage multiple streams.
+	// This is typically set by HTTP endpoint, while websocket can transport raw streams
 	MuxStreams bool
 }
 
