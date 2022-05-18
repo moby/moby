@@ -87,8 +87,13 @@ keywords: "API, Docker, rcli, REST, documentation"
 * The `Volume` type, as returned by `Added new `ClusterVolume` fields 
 * Added a new `PUT /volumes{name}` endpoint to update cluster volumes (CNI).
   Cluster volumes are only supported if the daemon is a Swarm manager.
-* `/containers/{name}/attach/ws` endpoint only attach to configured streams
-  according to `stdin`, `stdout` and `stderr` parameters.
+* `GET /containers/{name}/attach/ws` endpoint now accepts `stdin`, `stdout` and
+  `stderr` query parameters to only attach to configured streams.
+
+  NOTE: These parameters were documented before in older API versions, but not
+  actually supported. API versions before v1.42 continue to ignore these parameters
+  and default to attaching to all streams. To preserve the pre-v1.42 behavior,
+  set all three query parameters (`?stdin=1,stdout=1,stderr=1`).
 
 ## v1.41 API changes
 
