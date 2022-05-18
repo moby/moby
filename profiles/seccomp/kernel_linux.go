@@ -1,7 +1,6 @@
 package seccomp
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -22,7 +21,7 @@ func getKernelVersion() (*KernelVersion, error) {
 			return
 		}
 		// Remove the \x00 from the release for Atoi to parse correctly
-		currentKernelVersion, kernelVersionError = parseRelease(string(uts.Release[:bytes.IndexByte(uts.Release[:], 0)]))
+		currentKernelVersion, kernelVersionError = parseRelease(unix.ByteSliceToString(uts.Release[:]))
 	})
 	return currentKernelVersion, kernelVersionError
 }
