@@ -28,7 +28,6 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
-	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -509,6 +508,47 @@ func (d *Driver) Remove(id string) error {
 	return nil
 }
 
+func (d *Driver) genMountData(id, context string, readonly, relative bool) (string, error) {
+	var builder strings.Builder
+	if d.indexOff {
+		builder.WriteString("index=off,")
+	}
+	if d.needsUserXattr {
+		builder.WriteString("userxattr,")
+	}
+
+	lowersArray, err := d.getLowerDirs(id)
+	if err != nil {
+		return "", err
+	}
+
+	baseDir := id
+	if !relative {
+		baseDir = d.dir(id)
+		for i, s := range lowersArray {
+			lowersArray[i] = path.Join(d.home, s)
+		}
+	}
+
+	lowerDirs := strings.Join(lowersArray, ":")
+	diffDir := path.Join(baseDir, diffDirName)
+	workDir := path.Join(baseDir, workDirName)
+
+	if readonly {
+		builder.WriteString(fmt.Sprintf("lowerdir=%s:%s", diffDir, lowerDirs))
+	} else {
+		builder.WriteString(fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDirs, diffDir, workDir))
+	}
+
+	if context != "" {
+		builder.WriteString(fmt.Sprintf(",context=%q", context))
+	}
+
+	return builder.String(), nil
+}
+
+var pageSize = unix.Getpagesize()
+
 // Get creates and mounts the required file system for the given id and returns the mount path.
 func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
 	d.locker.Lock(id)
@@ -518,16 +558,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		return nil, err
 	}
 
-	diffDir := path.Join(dir, diffDirName)
-	rawLowers, err := os.ReadFile(path.Join(dir, lowerFile))
+	_, err := os.Stat(path.Join(dir, lowerFile))
 	if err != nil {
 		// If no lower, just return diff directory
 		if os.IsNotExist(err) {
-			return containerfs.NewLocalContainerFS(diffDir), nil
+			return containerfs.NewLocalContainerFS(path.Join(dir, diffDirName)), nil
 		}
 		return nil, err
 	}
-	lowers := string(rawLowers)
 
 	mergedDir := path.Join(dir, mergedDirName)
 	if count := d.ctr.Increment(mergedDir); count > 1 {
@@ -547,12 +585,6 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		}
 	}()
 
-	workDir := path.Join(dir, workDirName)
-	splitLowers := strings.Split(lowers, ":")
-	absLowers := make([]string, len(splitLowers))
-	for i, s := range splitLowers {
-		absLowers[i] = path.Join(d.home, s)
-	}
 	var readonly bool
 	if _, err := os.Stat(path.Join(dir, "committed")); err == nil {
 		readonly = true
@@ -560,65 +592,43 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		return nil, err
 	}
 
-	var baseOpts []string
-	if d.indexOff {
-		baseOpts = append(baseOpts, "index=off")
-	}
-	if d.needsUserXattr {
-		baseOpts = append(baseOpts, "userxattr")
-	}
-
-	var opts []string
-	if readonly {
-		opts = append(baseOpts, fmt.Sprintf("lowerdir=%s:%s", diffDir, strings.Join(absLowers, ":")))
-	} else {
-		opts = append(baseOpts, fmt.Sprintf("lowerdir=%s", strings.Join(absLowers, ":")),
-			fmt.Sprintf("upperdir=%s", diffDir),
-			fmt.Sprintf("workdir=%s", workDir))
-	}
-
-	mountData := label.FormatMountLabel(strings.Join(opts, ","), mountLabel)
-	mount := unix.Mount
+	mountFn := unix.Mount
 	mountTarget := mergedDir
+	mountData, err := d.genMountData(id, mountLabel, readonly, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(mountData) > pageSize-1 {
+		// Use relative paths and mountFrom when the mount data has exceeded
+		// the page size. The mount syscall fails if the mount data cannot
+		// fit within a page and relative links make the mount data much
+		// smaller at the expense of requiring a fork exec to chroot.
+		mountFn = func(source string, target string, mType string, flags uintptr, label string) error {
+			return mountFrom(d.home, source, target, mType, flags, label)
+		}
+		mountTarget = path.Join(id, mergedDirName)
+		mountData, err = d.genMountData(id, mountLabel, readonly, true)
+		if err != nil {
+			return nil, err
+		}
+		if len(mountData) > pageSize-1 {
+			return nil, fmt.Errorf("cannot create overlay mount, mount data too large: %d", len(mountData))
+		}
+	}
 
 	root := d.idMap.RootPair()
 	if err := idtools.MkdirAndChown(mergedDir, 0700, root); err != nil {
 		return nil, err
 	}
 
-	pageSize := unix.Getpagesize()
-
-	// Use relative paths and mountFrom when the mount data has exceeded
-	// the page size. The mount syscall fails if the mount data cannot
-	// fit within a page and relative links make the mount data much
-	// smaller at the expense of requiring a fork exec to chroot.
-	if len(mountData) > pageSize-1 {
-		var opts []string
-		if readonly {
-			opts = append(baseOpts, fmt.Sprintf("lowerdir=%s:%s", path.Join(id, diffDirName), lowers))
-		} else {
-			opts = append(baseOpts, fmt.Sprintf("lowerdir=%s", lowers),
-				fmt.Sprintf("upperdir=%s", path.Join(id, diffDirName)),
-				fmt.Sprintf("workdir=%s", path.Join(id, workDirName)))
-		}
-		mountData = label.FormatMountLabel(strings.Join(opts, ","), mountLabel)
-		if len(mountData) > pageSize-1 {
-			return nil, fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
-		}
-
-		mount = func(source string, target string, mType string, flags uintptr, label string) error {
-			return mountFrom(d.home, source, target, mType, flags, label)
-		}
-		mountTarget = path.Join(id, mergedDirName)
-	}
-
-	if err := mount("overlay", mountTarget, "overlay", 0, mountData); err != nil {
+	if err := mountFn("overlay", mountTarget, "overlay", 0, mountData); err != nil {
 		return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 
 	if !readonly {
 		// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 		// user namespace requires this to move a directory from lower to upper.
+		workDir := path.Join(dir, workDirName)
 		if err := root.Chown(path.Join(workDir, workDirName)); err != nil {
 			return nil, err
 		}
