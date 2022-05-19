@@ -6,9 +6,8 @@
 package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 
 import (
-	"bytes"
-
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // GetKernelVersion gets the current kernel version.
@@ -19,7 +18,7 @@ func GetKernelVersion() (*VersionInfo, error) {
 	}
 
 	// Remove the \x00 from the release for Atoi to parse correctly
-	return ParseRelease(string(uts.Release[:bytes.IndexByte(uts.Release[:], 0)]))
+	return ParseRelease(unix.ByteSliceToString(uts.Release[:]))
 }
 
 // CheckKernelVersion checks if current kernel is newer than (or equal to)

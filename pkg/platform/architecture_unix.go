@@ -6,8 +6,6 @@
 package platform // import "github.com/docker/docker/pkg/platform"
 
 import (
-	"bytes"
-
 	"golang.org/x/sys/unix"
 )
 
@@ -17,5 +15,5 @@ func runtimeArchitecture() (string, error) {
 	if err := unix.Uname(utsname); err != nil {
 		return "", err
 	}
-	return string(utsname.Machine[:bytes.IndexByte(utsname.Machine[:], 0)]), nil
+	return unix.ByteSliceToString(utsname.Machine[:]), nil
 }
