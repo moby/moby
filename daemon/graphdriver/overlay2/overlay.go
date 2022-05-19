@@ -34,6 +34,7 @@ import (
 )
 
 var (
+	logger = logrus.WithField("storage-driver", "overlay2")
 	// untar defines the untar method
 	untar = chrootarchive.UntarUncompressed
 )
@@ -92,27 +93,23 @@ type overlayOptions struct {
 // Driver contains information about the home directory and the list of active
 // mounts that are created using this driver.
 type Driver struct {
-	home          string
-	idMap         idtools.IdentityMapping
-	ctr           *graphdriver.RefCounter
-	quotaCtl      *quota.Control
-	options       overlayOptions
-	naiveDiff     graphdriver.DiffDriver
-	supportsDType bool
-	usingMetacopy bool
-	locker        *locker.Locker
+	home           string
+	backingFs      string
+	idMap          idtools.IdentityMapping
+	ctr            *graphdriver.RefCounter
+	quotaCtl       *quota.Control
+	options        overlayOptions
+	naiveDiff      graphdriver.DiffDriver
+	supportsDType  bool
+	usingMetacopy  bool
+	indexOff       bool
+	needsUserXattr bool
+	locker         *locker.Locker
 }
 
 var (
-	logger                = logrus.WithField("storage-driver", "overlay2")
-	backingFs             = "<unknown>"
-	projectQuotaSupported = false
-
 	useNaiveDiffLock sync.Once
 	useNaiveDiffOnly bool
-
-	indexOff  string
-	userxattr string
 )
 
 func init() {
@@ -148,8 +145,9 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	if err != nil {
 		return nil, err
 	}
-	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
-		backingFs = fsName
+	backingFs, ok := graphdriver.FsNames[fsMagic]
+	if !ok {
+		backingFs = "<unknown>"
 	}
 
 	supportsDType, err := fsutils.SupportsDType(testdir)
@@ -177,23 +175,39 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 
-	d := &Driver{
-		home:          home,
-		idMap:         idMap,
-		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
-		supportsDType: supportsDType,
-		usingMetacopy: usingMetacopy,
-		locker:        locker.New(),
-		options:       *opts,
+	needsUserXattr, err := overlayutils.NeedsUserXAttr(home)
+	if err != nil {
+		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
 	}
 
-	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
+	indexOff := false
+	// figure out whether "index=off" option is recognized by the kernel
+	_, err = os.Stat("/sys/module/overlay/parameters/index")
+	switch {
+	case err == nil:
+		indexOff = true
+	case os.IsNotExist(err):
+		// old kernel, no index -- do nothing
+	default:
+		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
+	}
+
+	d := &Driver{
+		home:           home,
+		backingFs:      backingFs,
+		idMap:          idMap,
+		ctr:            graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
+		supportsDType:  supportsDType,
+		usingMetacopy:  usingMetacopy,
+		indexOff:       indexOff,
+		needsUserXattr: needsUserXattr,
+		locker:         locker.New(),
+		options:        *opts,
+	}
 
 	if backingFs == "xfs" {
 		// Try to enable project quota support over xfs.
-		if d.quotaCtl, err = quota.NewControl(home); err == nil {
-			projectQuotaSupported = true
-		} else if opts.quota.Size > 0 {
+		if d.quotaCtl, err = quota.NewControl(home); err != nil && opts.quota.Size > 0 {
 			return nil, fmt.Errorf("Storage option overlay2.size not supported. Filesystem does not support Project Quota: %v", err)
 		}
 	} else if opts.quota.Size > 0 {
@@ -201,27 +215,10 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, fmt.Errorf("Storage Option overlay2.size only supported for backingFS XFS. Found %v", backingFs)
 	}
 
-	// figure out whether "index=off" option is recognized by the kernel
-	_, err = os.Stat("/sys/module/overlay/parameters/index")
-	switch {
-	case err == nil:
-		indexOff = "index=off,"
-	case os.IsNotExist(err):
-		// old kernel, no index -- do nothing
-	default:
-		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
-	}
+	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
 
-	needsUserXattr, err := overlayutils.NeedsUserXAttr(home)
-	if err != nil {
-		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
-	}
-	if needsUserXattr {
-		userxattr = "userxattr,"
-	}
-
-	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, usingMetacopy=%v, indexOff=%q, userxattr=%q",
-		backingFs, projectQuotaSupported, usingMetacopy, indexOff, userxattr)
+	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, usingMetacopy=%v, indexOff=%v, userxattr=%v",
+		backingFs, d.quotaCtl != nil, usingMetacopy, indexOff, needsUserXattr)
 
 	return d, nil
 }
@@ -271,11 +268,11 @@ func (d *Driver) String() string {
 // Output contains "Backing Filesystem" used in this implementation.
 func (d *Driver) Status() [][2]string {
 	return [][2]string{
-		{"Backing Filesystem", backingFs},
+		{"Backing Filesystem", d.backingFs},
 		{"Supports d_type", strconv.FormatBool(d.supportsDType)},
 		{"Using metacopy", strconv.FormatBool(d.usingMetacopy)},
 		{"Native Overlay Diff", strconv.FormatBool(!useNaiveDiff(d.home))},
-		{"userxattr", strconv.FormatBool(userxattr != "")},
+		{"userxattr", strconv.FormatBool(d.needsUserXattr)},
 	}
 }
 
@@ -327,7 +324,7 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 		opts.StorageOpt["size"] = strconv.FormatUint(d.options.quota.Size, 10)
 	}
 
-	if _, ok := opts.StorageOpt["size"]; ok && !projectQuotaSupported {
+	if _, ok := opts.StorageOpt["size"]; ok && d.quotaCtl == nil {
 		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
 	}
 
@@ -560,6 +557,16 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		readonly = true
 	} else if !os.IsNotExist(err) {
 		return nil, err
+	}
+
+	indexOff := ""
+	if d.indexOff {
+		indexOff = "index=off,"
+	}
+
+	userxattr := ""
+	if d.needsUserXattr {
+		userxattr = "userxattr,"
 	}
 
 	var opts string
