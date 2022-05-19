@@ -1,211 +1,165 @@
 package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/filenotify"
-	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-var errRetry = errors.New("retry")
-var errDone = errors.New("done")
-
 type follow struct {
-	file                      *os.File
-	dec                       Decoder
-	fileWatcher               filenotify.FileWatcher
-	logWatcher                *logger.LogWatcher
-	notifyRotate, notifyEvict chan interface{}
-	oldSize                   int64
-	retries                   int
+	LogFile      *LogFile
+	Watcher      *logger.LogWatcher
+	Decoder      Decoder
+	Since, Until time.Time
+
+	log *logrus.Entry
+	c   chan logPos
 }
 
-func (fl *follow) handleRotate() error {
-	name := fl.file.Name()
+// Do follows the log file as it is written, starting from f at read.
+func (fl *follow) Do(f *os.File, read logPos) {
+	fl.log = logrus.WithFields(logrus.Fields{
+		"module": "logger",
+		"file":   f.Name(),
+	})
+	// Optimization: allocate the write-notifications channel only once and
+	// reuse it for multiple invocations of nextPos().
+	fl.c = make(chan logPos, 1)
 
-	fl.file.Close()
-	fl.fileWatcher.Remove(name)
-
-	// retry when the file doesn't exist
-	var err error
-	for retries := 0; retries <= 5; retries++ {
-		f, err := open(name)
-		if err == nil || !os.IsNotExist(err) {
-			fl.file = f
-			break
+	defer func() {
+		if err := f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			fl.log.WithError(err).Warn("error closing current log file")
 		}
-	}
-	if err != nil {
-		return err
-	}
-	if err := fl.fileWatcher.Add(name); err != nil {
-		return err
-	}
-	fl.dec.Reset(fl.file)
-	return nil
-}
-
-func (fl *follow) handleMustClose(evictErr error) {
-	fl.file.Close()
-	fl.dec.Close()
-	fl.logWatcher.Err <- errors.Wrap(evictErr, "log reader evicted due to errors")
-	logrus.WithField("file", fl.file.Name()).Error("Log reader notified that it must re-open log file, some log data may not be streamed to the client.")
-}
-
-func (fl *follow) waitRead() error {
-	select {
-	case e := <-fl.notifyEvict:
-		if e != nil {
-			err := e.(error)
-			fl.handleMustClose(err)
-		}
-		return errDone
-	case e := <-fl.fileWatcher.Events():
-		switch e.Op {
-		case fsnotify.Write:
-			fl.dec.Reset(fl.file)
-			return nil
-		case fsnotify.Rename, fsnotify.Remove:
-			select {
-			case <-fl.notifyRotate:
-			case <-fl.logWatcher.WatchProducerGone():
-				return errDone
-			case <-fl.logWatcher.WatchConsumerGone():
-				return errDone
-			}
-			if err := fl.handleRotate(); err != nil {
-				return err
-			}
-			return nil
-		}
-		return errRetry
-	case err := <-fl.fileWatcher.Errors():
-		logrus.Debugf("logger got error watching file: %v", err)
-		// Something happened, let's try and stay alive and create a new watcher
-		if fl.retries <= 5 {
-			fl.fileWatcher.Close()
-			fl.fileWatcher, err = watchFile(fl.file.Name())
-			if err != nil {
-				return err
-			}
-			fl.retries++
-			return errRetry
-		}
-		return err
-	case <-fl.logWatcher.WatchProducerGone():
-		return errDone
-	case <-fl.logWatcher.WatchConsumerGone():
-		return errDone
-	}
-}
-
-func (fl *follow) handleDecodeErr(err error) error {
-	if !errors.Is(err, io.EOF) {
-		return err
-	}
-
-	// Handle special case (#39235): max-file=1 and file was truncated
-	st, stErr := fl.file.Stat()
-	if stErr == nil {
-		size := st.Size()
-		defer func() { fl.oldSize = size }()
-		if size < fl.oldSize { // truncated
-			fl.file.Seek(0, 0)
-			fl.dec.Reset(fl.file)
-			return nil
-		}
-	} else {
-		logrus.WithError(stErr).Warn("logger: stat error")
-	}
+	}()
 
 	for {
-		err := fl.waitRead()
-		if err == nil {
-			break
-		}
-		if err == errRetry {
-			continue
-		}
-		return err
-	}
-	return nil
-}
-
-func (fl *follow) mainLoop(since, until time.Time) {
-	for {
-		select {
-		case err := <-fl.notifyEvict:
-			if err != nil {
-				fl.handleMustClose(err.(error))
-			}
+		wrote, ok := fl.nextPos(read)
+		if !ok {
 			return
-		default:
 		}
-		msg, err := fl.dec.Decode()
-		if err != nil {
-			if err := fl.handleDecodeErr(err); err != nil {
-				if err == errDone {
-					return
-				}
-				// we got an unrecoverable error, so return
-				fl.logWatcher.Err <- err
+
+		if wrote.rotation != read.rotation {
+			// Flush the current file before moving on to the next.
+			if _, err := f.Seek(read.size, io.SeekStart); err != nil {
+				fl.Watcher.Err <- err
 				return
 			}
-			// ready to try again
-			continue
+			if fl.decode(f) {
+				return
+			}
+
+			// Open the new file, which has the same name as the old
+			// file thanks to file rotation. Make no mistake: they
+			// are different files, with distinct identities.
+			// Atomically capture the wrote position to make
+			// absolutely sure that the position corresponds to the
+			// file we have opened; more rotations could have
+			// occurred since we previously received it.
+			if err := f.Close(); err != nil {
+				fl.log.WithError(err).Warn("error closing rotated log file")
+			}
+			var err error
+			func() {
+				fl.LogFile.fsopMu.RLock()
+				st := <-fl.LogFile.read
+				defer func() {
+					fl.LogFile.read <- st
+					fl.LogFile.fsopMu.RUnlock()
+				}()
+				f, err = open(f.Name())
+				wrote = st.pos
+			}()
+			// We tried to open the file inside a critical section
+			// so we shouldn't have been racing the rotation of the
+			// file. Any error, even fs.ErrNotFound, is exceptional.
+			if err != nil {
+				fl.Watcher.Err <- fmt.Errorf("logger: error opening log file for follow after rotation: %w", err)
+				return
+			}
+
+			if nrot := wrote.rotation - read.rotation; nrot > 1 {
+				fl.log.WithField("missed-rotations", nrot).
+					Warn("file rotations were missed while following logs; some log messages have been skipped over")
+			}
+
+			// Set up our read position to start from the top of the file.
+			read.size = 0
 		}
 
-		fl.retries = 0 // reset retries since we've succeeded
-		if !since.IsZero() && msg.Timestamp.Before(since) {
+		if fl.decode(io.NewSectionReader(f, read.size, wrote.size-read.size)) {
+			return
+		}
+		read = wrote
+	}
+}
+
+// nextPos waits until the write position of the LogFile being followed has
+// advanced from current and returns the new position.
+func (fl *follow) nextPos(current logPos) (next logPos, ok bool) {
+	var st logReadState
+	select {
+	case <-fl.Watcher.WatchConsumerGone():
+		return current, false
+	case st = <-fl.LogFile.read:
+	}
+
+	// Have any any logs been written since we last checked?
+	if st.pos == current { // Nope.
+		// Add ourself to the notify list.
+		st.wait = append(st.wait, fl.c)
+	} else { // Yes.
+		// "Notify" ourself immediately.
+		fl.c <- st.pos
+	}
+	fl.LogFile.read <- st
+
+	select {
+	case <-fl.LogFile.closed: // No more logs will be written.
+		select { // Have we followed to the end?
+		case next = <-fl.c: // No: received a new position.
+		default: // Yes.
+			return current, false
+		}
+	case <-fl.Watcher.WatchConsumerGone():
+		return current, false
+	case next = <-fl.c:
+	}
+	return next, true
+}
+
+// decode decodes log messages from r and sends messages with timestamps between
+// Since and Until to the log watcher.
+//
+// The return value, done, signals whether following should end due to a
+// condition encountered during decode.
+func (fl *follow) decode(r io.Reader) (done bool) {
+	fl.Decoder.Reset(r)
+	for {
+		msg, err := fl.Decoder.Decode()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return false
+			}
+			fl.Watcher.Err <- err
+			return true
+		}
+
+		if !fl.Since.IsZero() && msg.Timestamp.Before(fl.Since) {
 			continue
 		}
-		if !until.IsZero() && msg.Timestamp.After(until) {
-			return
+		if !fl.Until.IsZero() && msg.Timestamp.After(fl.Until) {
+			return true
 		}
 		// send the message, unless the consumer is gone
 		select {
-		case e := <-fl.notifyEvict:
-			if e != nil {
-				err := e.(error)
-				logrus.WithError(err).Debug("Reader evicted while sending log message")
-				fl.logWatcher.Err <- err
-			}
-			return
-		case fl.logWatcher.Msg <- msg:
-		case <-fl.logWatcher.WatchConsumerGone():
-			return
+		case fl.Watcher.Msg <- msg:
+		case <-fl.Watcher.WatchConsumerGone():
+			return true
 		}
 	}
-}
-
-func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate, notifyEvict chan interface{}, dec Decoder, since, until time.Time) {
-	dec.Reset(f)
-
-	name := f.Name()
-	fileWatcher, err := watchFile(name)
-	if err != nil {
-		logWatcher.Err <- err
-		return
-	}
-	defer func() {
-		f.Close()
-		dec.Close()
-		fileWatcher.Close()
-	}()
-
-	fl := &follow{
-		file:         f,
-		oldSize:      -1,
-		logWatcher:   logWatcher,
-		fileWatcher:  fileWatcher,
-		notifyRotate: notifyRotate,
-		notifyEvict:  notifyEvict,
-		dec:          dec,
-	}
-	fl.mainLoop(since, until)
 }

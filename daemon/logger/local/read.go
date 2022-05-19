@@ -19,24 +19,7 @@ import (
 const maxMsgLen int = 1e6 // 1MB.
 
 func (d *driver) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	logWatcher := logger.NewLogWatcher()
-
-	go d.readLogs(logWatcher, config)
-	return logWatcher
-}
-
-func (d *driver) readLogs(watcher *logger.LogWatcher, config logger.ReadConfig) {
-	defer close(watcher.Msg)
-
-	d.mu.Lock()
-	d.readers[watcher] = struct{}{}
-	d.mu.Unlock()
-
-	d.logfile.ReadLogs(config, watcher)
-
-	d.mu.Lock()
-	delete(d.readers, watcher)
-	d.mu.Unlock()
+	return d.logfile.ReadLogs(config)
 }
 
 func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
@@ -219,7 +202,7 @@ func (d *decoder) decodeLogEntry() (*logger.Message, error) {
 	}
 
 	msg := protoToMessage(d.proto)
-	if msg.PLogMetaData == nil {
+	if msg.PLogMetaData == nil || msg.PLogMetaData.Last {
 		msg.Line = append(msg.Line, '\n')
 	}
 

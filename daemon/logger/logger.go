@@ -97,8 +97,6 @@ type LogWatcher struct {
 	Msg chan *Message
 	// For sending error messages that occur while reading logs.
 	Err          chan error
-	producerOnce sync.Once
-	producerGone chan struct{}
 	consumerOnce sync.Once
 	consumerGone chan struct{}
 }
@@ -108,24 +106,8 @@ func NewLogWatcher() *LogWatcher {
 	return &LogWatcher{
 		Msg:          make(chan *Message, logWatcherBufferSize),
 		Err:          make(chan error, 1),
-		producerGone: make(chan struct{}),
 		consumerGone: make(chan struct{}),
 	}
-}
-
-// ProducerGone notifies the underlying log reader that
-// the logs producer (a container) is gone.
-func (w *LogWatcher) ProducerGone() {
-	// only close if not already closed
-	w.producerOnce.Do(func() {
-		close(w.producerGone)
-	})
-}
-
-// WatchProducerGone returns a channel receiver that receives notification
-// once the logs producer (a container) is gone.
-func (w *LogWatcher) WatchProducerGone() <-chan struct{} {
-	return w.producerGone
 }
 
 // ConsumerGone notifies that the logs consumer is gone.
