@@ -48,7 +48,7 @@ require (
 	github.com/klauspost/compress v1.15.1
 	github.com/miekg/dns v1.1.27
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
-	github.com/moby/buildkit v0.10.3
+	github.com/moby/buildkit v0.10.3 // FIXME(thaJeztah) when updating, remove the temporary override in /.github/workflows/ci.yml
 	github.com/moby/ipvs v1.0.1
 	github.com/moby/locker v1.0.1
 	github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
