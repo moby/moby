@@ -124,6 +124,11 @@ func (v *localVolume) mount() error {
 		}
 	}
 	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
+	if err != nil {
+		if password := getPassword(v.opts.MountOpts); password != "" {
+			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
+		}
+	}
 	return errors.Wrap(err, "failed to mount local volume")
 }
 

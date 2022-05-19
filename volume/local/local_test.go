@@ -29,6 +29,25 @@ func TestGetAddress(t *testing.T) {
 
 }
 
+func TestGetPassword(t *testing.T) {
+	cases := map[string]string{
+		"password=secret":                       "secret",
+		" ":                                     "",
+		"password=":                             "",
+		"password=Tr0ub4dor&3":                  "Tr0ub4dor&3",
+		"password=correcthorsebatterystaple":    "correcthorsebatterystaple",
+		"username=moby,password=secret":         "secret",
+		"username=moby,password=secret,addr=11": "secret",
+		"username=moby,addr=11":                 "",
+	}
+	for optsstring, success := range cases {
+		v := getPassword(optsstring)
+		if v != success {
+			t.Errorf("Test case failed for %s actual: %s expected : %s", optsstring, v, success)
+		}
+	}
+}
+
 func TestRemove(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "FIXME: investigate why this test fails on CI")
 	rootDir, err := os.MkdirTemp("", "local-volume-test")
