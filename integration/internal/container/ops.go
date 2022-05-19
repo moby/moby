@@ -227,3 +227,10 @@ func WithIsolation(isolation containertypes.Isolation) func(*TestContainerConfig
 		c.HostConfig.Isolation = isolation
 	}
 }
+
+// WithConsoleSize sets the initial console size of the container
+func WithConsoleSize(width, height uint) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.ConsoleSize = [2]uint{height, width}
+	}
+}

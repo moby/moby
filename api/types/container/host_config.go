@@ -417,6 +417,7 @@ type HostConfig struct {
 	AutoRemove      bool          // Automatically remove container when it exits
 	VolumeDriver    string        // Name of the volume driver used to mount volumes
 	VolumesFrom     []string      // List of volumes to take from other container
+	ConsoleSize     [2]uint       // Initial console size (height,width)
 
 	// Applicable to UNIX platforms
 	CapAdd          strslice.StrSlice // List of kernel capabilities to add to the container
@@ -445,8 +446,7 @@ type HostConfig struct {
 	Runtime         string            `json:",omitempty"` // Runtime to use with this container
 
 	// Applicable to Windows
-	ConsoleSize [2]uint   // Initial console size (height,width)
-	Isolation   Isolation // Isolation technology of the container (e.g. default, hyperv)
+	Isolation Isolation // Isolation technology of the container (e.g. default, hyperv)
 
 	// Contains container's resources (cgroups, ulimits)
 	Resources

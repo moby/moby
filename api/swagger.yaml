@@ -955,6 +955,15 @@ definitions:
             type: "array"
             items:
               $ref: "#/definitions/Mount"
+          ConsoleSize:
+            type: "array"
+            description: |
+              Initial console size, as an `[height, width]` array.
+            minItems: 2
+            maxItems: 2
+            items:
+              type: "integer"
+              minimum: 0
 
           # Applicable to UNIX platforms
           CapAdd:
@@ -1119,15 +1128,6 @@ definitions:
             type: "string"
             description: "Runtime to use with this container."
           # Applicable to Windows
-          ConsoleSize:
-            type: "array"
-            description: |
-              Initial console size, as an `[height, width]` array. (Windows only)
-            minItems: 2
-            maxItems: 2
-            items:
-              type: "integer"
-              minimum: 0
           Isolation:
             type: "string"
             description: |
