@@ -107,11 +107,6 @@ type Driver struct {
 	locker         *locker.Locker
 }
 
-var (
-	useNaiveDiffLock sync.Once
-	useNaiveDiffOnly bool
-)
-
 func init() {
 	graphdriver.Register(driverName, Init)
 }
@@ -158,11 +153,6 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
 	}
 
-	usingMetacopy, err := usingMetacopy(testdir)
-	if err != nil {
-		return nil, err
-	}
-
 	cur := idtools.CurrentIdentity()
 	dirID := idtools.Identity{
 		UID: cur.UID,
@@ -178,6 +168,11 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	needsUserXattr, err := overlayutils.NeedsUserXAttr(home)
 	if err != nil {
 		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
+	}
+
+	usingMetacopy, err := usingMetacopy(testdir, needsUserXattr)
+	if err != nil {
+		return nil, err
 	}
 
 	indexOff := false
@@ -249,6 +244,11 @@ func parseOptions(options []string) (*overlayOptions, error) {
 	}
 	return o, nil
 }
+
+var (
+	useNaiveDiffLock sync.Once
+	useNaiveDiffOnly bool
+)
 
 func useNaiveDiff(home string) bool {
 	useNaiveDiffLock.Do(func() {
@@ -519,7 +519,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	}
 
 	diffDir := path.Join(dir, diffDirName)
-	lowers, err := os.ReadFile(path.Join(dir, lowerFile))
+	rawLowers, err := os.ReadFile(path.Join(dir, lowerFile))
 	if err != nil {
 		// If no lower, just return diff directory
 		if os.IsNotExist(err) {
@@ -527,6 +527,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		}
 		return nil, err
 	}
+	lowers := string(rawLowers)
 
 	mergedDir := path.Join(dir, mergedDirName)
 	if count := d.ctr.Increment(mergedDir); count > 1 {
@@ -547,7 +548,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	}()
 
 	workDir := path.Join(dir, workDirName)
-	splitLowers := strings.Split(string(lowers), ":")
+	splitLowers := strings.Split(lowers, ":")
 	absLowers := make([]string, len(splitLowers))
 	for i, s := range splitLowers {
 		absLowers[i] = path.Join(d.home, s)
@@ -559,24 +560,24 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		return nil, err
 	}
 
-	indexOff := ""
+	var baseOpts []string
 	if d.indexOff {
-		indexOff = "index=off,"
+		baseOpts = append(baseOpts, "index=off")
 	}
-
-	userxattr := ""
 	if d.needsUserXattr {
-		userxattr = "userxattr,"
+		baseOpts = append(baseOpts, "userxattr")
 	}
 
-	var opts string
+	var opts []string
 	if readonly {
-		opts = indexOff + userxattr + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
+		opts = append(baseOpts, fmt.Sprintf("lowerdir=%s:%s", diffDir, strings.Join(absLowers, ":")))
 	} else {
-		opts = indexOff + userxattr + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
+		opts = append(baseOpts, fmt.Sprintf("lowerdir=%s", strings.Join(absLowers, ":")),
+			fmt.Sprintf("upperdir=%s", diffDir),
+			fmt.Sprintf("workdir=%s", workDir))
 	}
 
-	mountData := label.FormatMountLabel(opts, mountLabel)
+	mountData := label.FormatMountLabel(strings.Join(opts, ","), mountLabel)
 	mount := unix.Mount
 	mountTarget := mergedDir
 
@@ -592,12 +593,15 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	// fit within a page and relative links make the mount data much
 	// smaller at the expense of requiring a fork exec to chroot.
 	if len(mountData) > pageSize-1 {
+		var opts []string
 		if readonly {
-			opts = indexOff + userxattr + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
+			opts = append(baseOpts, fmt.Sprintf("lowerdir=%s:%s", path.Join(id, diffDirName), lowers))
 		} else {
-			opts = indexOff + userxattr + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
+			opts = append(baseOpts, fmt.Sprintf("lowerdir=%s", lowers),
+				fmt.Sprintf("upperdir=%s", path.Join(id, diffDirName)),
+				fmt.Sprintf("workdir=%s", path.Join(id, workDirName)))
 		}
-		mountData = label.FormatMountLabel(opts, mountLabel)
+		mountData = label.FormatMountLabel(strings.Join(opts, ","), mountLabel)
 		if len(mountData) > pageSize-1 {
 			return nil, fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
 		}

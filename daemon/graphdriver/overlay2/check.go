@@ -126,18 +126,7 @@ func doesSupportNativeDiff(d string) error {
 // daemon has control over all of its own mounts and presently does not request
 // metacopy. Nonetheless, a user or kernel distributor may enable metacopy, so
 // we should report in the daemon whether or not we detect its use.
-func usingMetacopy(d string) (bool, error) {
-	userxattr := false
-	if userns.RunningInUserNS() {
-		needed, err := overlayutils.NeedsUserXAttr(d)
-		if err != nil {
-			return false, err
-		}
-		if needed {
-			userxattr = true
-		}
-	}
-
+func usingMetacopy(d string, userxattr bool) (bool, error) {
 	td, err := os.MkdirTemp(d, "metacopy-check")
 	if err != nil {
 		return false, err
