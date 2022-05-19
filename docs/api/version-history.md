@@ -97,6 +97,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/create` on Linux now respects the `HostConfig.ConsoleSize` property.
   Container is immediately created with the desired terminal size and clients no longer
   need to set the desired size on their own.
+* `POST /containers/create` allow to set `CreateMountpoint` for host path to be
+  created if missing. This brings parity with `Binds`
+* `POST /containers/create` rejects request if BindOptions|VolumeOptions|TmpfsOptions
+  is set with a non-matching mount Type.
 
 ## v1.41 API changes
 

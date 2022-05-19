@@ -380,6 +380,10 @@ definitions:
             description: "Disable recursive bind mount."
             type: "boolean"
             default: false
+          CreateMountpoint:
+            description: "Create mount point on host if missing"
+            type: "boolean"
+            default: false
       VolumeOptions:
         description: "Optional configuration for the `volume` type."
         type: "object"
