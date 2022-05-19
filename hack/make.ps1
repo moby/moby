@@ -328,7 +328,10 @@ Function Run-UnitTests() {
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
     $pkgList = $pkgList -replace "`r`n", " "
 
-    $goTestArg = "--format=standard-verbose --jsonfile=bundles\go-test-report-unit-tests.json --junitfile=bundles\junit-report-unit-tests.xml -- " + $raceParm + " -cover -ldflags -w -a """ + "-test.timeout=10m" + """ $pkgList"
+    $jsonFilePath = $bundlesDir + "\go-test-report-unit-tests.json"
+    $xmlFilePath = $bundlesDir + "\junit-report-unit-tests.xml"
+    $coverageFilePath = $bundlesDir + "\coverage-report-unit-tests.txt"
+    $goTestArg = "--format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a """ + "-test.timeout=10m" + """ $pkgList"
     Write-Host "INFO: Invoking unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
     $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
@@ -364,13 +367,14 @@ Function Run-IntegrationTests() {
         }
         $jsonFilePath = $bundlesDir + "\go-test-report-int-tests-$normDir" + ".json"
         $xmlFilePath = $bundlesDir + "\junit-report-int-tests-$normDir" + ".xml"
+        $coverageFilePath = $bundlesDir + "\coverage-report-int-tests-$normDir" + ".txt"
         Set-Location $dir
         Write-Host "Running $($PWD.Path)"
         $pinfo = New-Object System.Diagnostics.ProcessStartInfo
         $pinfo.FileName = "gotestsum.exe"
         $pinfo.WorkingDirectory = "$($PWD.Path)"
         $pinfo.UseShellExecute = $false
-        $pinfo.Arguments = "--format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -test.timeout=60m $env:INTEGRATION_TESTFLAGS"
+        $pinfo.Arguments = "--format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -test.timeout=60m $env:INTEGRATION_TESTFLAGS"
         $p = New-Object System.Diagnostics.Process
         $p.StartInfo = $pinfo
         $p.Start() | Out-Null

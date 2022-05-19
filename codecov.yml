@@ -1,5 +1,8 @@
-comment:
-  layout: header, changes, diff, sunburst
+comment: false
+
+github_checks:
+  annotations: false
+
 coverage:
   status:
     patch:
@@ -13,5 +16,6 @@ coverage:
         target: auto
         threshold: "15%"
     changes: false
+
 ignore:
-  - "vendor/*"
+  - "vendor/**/*"
