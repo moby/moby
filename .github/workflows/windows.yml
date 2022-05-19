@@ -1,0 +1,103 @@
+name: windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]{2}'
+    tags:
+      - 'v*'
+  pull_request:
+
+env:
+  GO_VERSION: 1.18.2
+  WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
+  WINDOWS_BASE_TAG_2019: ltsc2019
+  WINDOWS_BASE_TAG_2022: ltsc2022
+  TEST_IMAGE_NAME: moby:test
+  TEST_CTN_NAME: moby
+  DOCKER_BUILDKIT: 0
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - windows-2022
+    env:
+      GOPATH: ${{ github.workspace }}\go
+      GOBIN: ${{ github.workspace }}\go\bin
+      BIN_OUT: ${{ github.workspace }}\out
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: ${{ env.GOPATH }}/src/github.com/docker/docker
+      -
+        name: Env
+        run: |
+          Get-ChildItem Env: | Out-String
+      -
+        name: Init
+        run: |
+          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
+          New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
+          If ("${{ matrix.os }}" -eq "windows-2019") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          } ElseIf ("${{ matrix.os }}" -eq "windows-2022") {
+            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
+      -
+        name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~\AppData\Local\go-build
+            ~\go\pkg\mod
+            ${{ github.workspace }}\go-build
+            ${{ env.GOPATH }}\pkg\mod
+          key: ${{ matrix.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ github.job }}-
+      -
+        name: Docker info
+        run: |
+          docker info
+      -
+        name: Build base image
+        run: |
+          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
+          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
+          docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
+      -
+        name: Build binaries
+        run: |
+          & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
+              -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
+              -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
+              ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -Daemon -Client
+      -
+        name: Copy artifacts
+        run: |
+          New-Item -ItemType "directory" -Path "${{ env.BIN_OUT }}"
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\docker.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\bin\gotestsum.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
+      -
+        name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ matrix.os }}
+          path: ${{ env.BIN_OUT }}/*
+          if-no-files-found: error
+          retention-days: 2
