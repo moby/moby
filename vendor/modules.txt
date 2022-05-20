@@ -744,9 +744,6 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/tchap/go-patricia v2.3.0+incompatible
-## explicit
-github.com/tchap/go-patricia/patricia
 # github.com/tinylib/msgp v1.1.0
 ## explicit
 github.com/tinylib/msgp/msgp

@@ -49,7 +49,6 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/plugin"
 	pluginexec "github.com/docker/docker/plugin/executor/containerd"
 	refstore "github.com/docker/docker/reference"
@@ -81,7 +80,6 @@ type Daemon struct {
 	containersReplica     container.ViewDB
 	execCommands          *exec.Store
 	imageService          *images.ImageService
-	idIndex               *truncindex.TruncIndex
 	configStore           *config.Config
 	statsCollector        *stats.Collector
 	defaultLogConfig      containertypes.LogConfig
@@ -1025,7 +1023,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 	d.execCommands = exec.NewStore()
-	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()

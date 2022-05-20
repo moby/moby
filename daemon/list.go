@@ -130,7 +130,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 	matches := make(map[string]bool)
 	// find ID matches; errors represent "not found" and can be ignored
 	for _, id := range ids {
-		if fullID, err := daemon.idIndex.Get(id); err == nil {
+		if fullID, err := daemon.containersReplica.GetByPrefix(id); err == nil {
 			matches[fullID] = true
 		}
 	}
