@@ -30,8 +30,11 @@ func validateNetMode(c *container.Config, hc *container.HostConfig) error {
 	if err != nil {
 		return err
 	}
-	if hc.UTSMode.IsHost() && c.Hostname != "" {
+	if (hc.UTSMode.IsHost() || hc.UTSMode.IsContainer()) && c.Hostname != "" {
 		return ErrConflictUTSHostname
+	}
+	if (hc.UTSMode.IsHost() || hc.UTSMode.IsContainer()) && c.Domainname != "" {
+		return ErrConflictUTSDomainname
 	}
 	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
 		return ErrConflictHostNetworkAndLinks

@@ -1106,7 +1106,12 @@ definitions:
               type: "string"
           UTSMode:
             type: "string"
-            description: "UTS namespace to use for the container."
+            description: |
+              Set the UTS (UNIX Time-Sharing) Namespace mode for the container. It can be
+              either:
+
+              - `"container:<name|id>"`: joins another container's UTS namespace
+              - `"host"`: use the host's UTS namespace inside the container
           UsernsMode:
             type: "string"
             description: |

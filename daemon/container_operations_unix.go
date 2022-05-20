@@ -90,6 +90,15 @@ func (daemon *Daemon) getPidContainer(ctr *container.Container) (*container.Cont
 	return ctr, daemon.checkContainer(ctr, containerIsRunning, containerIsNotRestarting)
 }
 
+func (daemon *Daemon) getUtsContainer(ctr *container.Container) (*container.Container, error) {
+	containerID := ctr.HostConfig.UTSMode.Container()
+	ctr, err := daemon.GetContainer(containerID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot join UTS of a non running container: %s", containerID)
+	}
+	return ctr, daemon.checkContainer(ctr, containerIsRunning, containerIsNotRestarting)
+}
+
 func containerIsRunning(c *container.Container) error {
 	if !c.IsRunning() {
 		return errdefs.Conflict(errors.Errorf("container %s is not running", c.ID))
