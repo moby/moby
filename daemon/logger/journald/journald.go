@@ -81,6 +81,18 @@ func New(info logger.Info) (logger.Logger, error) {
 	for k, v := range extraAttrs {
 		vars[k] = v
 	}
+	if info.ContainerLabels["com.docker.stack.namespace"] != "" {
+		vars["SWARM_STACK"] = info.ContainerLabels["com.docker.stack.namespace"]
+	}
+	if info.ContainerLabels["com.docker.swarm.service.name"] != "" {
+		vars["SWARM_SERVICE"] = info.ContainerLabels["com.docker.swarm.service.name"]
+	}
+	if info.ContainerLabels["com.docker.compose.project"] != "" {
+		vars["COMPOSE_PROJECT"] = info.ContainerLabels["com.docker.compose.project"]
+	}
+	if info.ContainerLabels["com.docker.compose.service"] != "" {
+		vars["COMPOSE_SERVICE"] = info.ContainerLabels["com.docker.compose.service"]
+	}
 	return &journald{vars: vars, readers: make(map[*logger.LogWatcher]struct{})}, nil
 }
 
