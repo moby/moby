@@ -174,15 +174,8 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 
-	indexOff := false
-	// figure out whether "index=off" option is recognized by the kernel
-	_, err = os.Stat("/sys/module/overlay/parameters/index")
-	switch {
-	case err == nil:
-		indexOff = true
-	case os.IsNotExist(err):
-		// old kernel, no index -- do nothing
-	default:
+	indexOff, err := supportsIndexOff()
+	if err != nil {
 		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
 	}
 
@@ -272,6 +265,7 @@ func (d *Driver) Status() [][2]string {
 		{"Using metacopy", strconv.FormatBool(d.usingMetacopy)},
 		{"Native Overlay Diff", strconv.FormatBool(!useNaiveDiff(d.home))},
 		{"userxattr", strconv.FormatBool(d.needsUserXattr)},
+		{"index=off", strconv.FormatBool(d.indexOff)},
 	}
 }
 
