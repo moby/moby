@@ -773,11 +773,13 @@ definitions:
           The time to wait between checks in nanoseconds. It should be 0 or at
           least 1000000 (1 ms). 0 means inherit.
         type: "integer"
+        format: "int64"
       Timeout:
         description: |
           The time to wait before considering the check to have hung. It should
           be 0 or at least 1000000 (1 ms). 0 means inherit.
         type: "integer"
+        format: "int64"
       Retries:
         description: |
           The number of consecutive failures needed to consider a container as
@@ -789,6 +791,7 @@ definitions:
           health-retries countdown in nanoseconds. It should be 0 or at least
           1000000 (1 ms). 0 means inherit.
         type: "integer"
+        format: "int64"
 
   Health:
     description: |
@@ -1107,6 +1110,7 @@ definitions:
               remapping option is enabled.
           ShmSize:
             type: "integer"
+            format: "int64"
             description: |
               Size of `/dev/shm` in bytes. If omitted, the system uses 64MB.
             minimum: 0
@@ -1627,7 +1631,7 @@ definitions:
           List of image names/tags in the local image cache that reference this
           image.
 
-          Multiple image tags can refer to the same imagem and this list may be
+          Multiple image tags can refer to the same image, and this list may be
           empty if no tags reference the image, in which case the image is
           "untagged", in which case it can still be referenced by its ID.
         type: "array"
@@ -1828,7 +1832,7 @@ definitions:
           List of image names/tags in the local image cache that reference this
           image.
 
-          Multiple image tags can refer to the same imagem and this list may be
+          Multiple image tags can refer to the same image, and this list may be
           empty if no tags reference the image, in which case the image is
           "untagged", in which case it can still be referenced by its ID.
         type: "array"
@@ -1878,6 +1882,7 @@ definitions:
           This size is not calculated by default. `-1` indicates that the value
           has not been set / calculated.
         type: "integer"
+        format: "int64"
         x-nullable: false
         example: 1239828
       VirtualSize:
@@ -2022,6 +2027,7 @@ definitions:
         properties:
           Size:
             type: "integer"
+            format: "int64"
             default: -1
             description: |
               Amount of disk space used by the volume (in bytes). This information
@@ -2031,6 +2037,7 @@ definitions:
             x-nullable: false
           RefCount:
             type: "integer"
+            format: "int64"
             default: -1
             description: |
               The number of containers referencing this volume. This field
@@ -4632,6 +4639,7 @@ definitions:
       StatusCode:
         description: "Exit code of the container"
         type: "integer"
+        format: "int64"
         x-nullable: false
       Error:
         $ref: "#/definitions/ContainerWaitExitError"
