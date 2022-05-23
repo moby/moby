@@ -176,6 +176,13 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			builderSize += b.Size
 		}
 	}
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		for _, b := range buildCache {
+			// Parent field is deprecated in API v1.42 and up, as it is deprecated
+			// in BuildKit. Empty the field to omit it in the API response.
+			b.Parent = "" //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
+		}
+	}
 
 	du := types.DiskUsage{
 		BuildCache:  buildCache,

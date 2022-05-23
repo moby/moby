@@ -777,7 +777,9 @@ type BuildCache struct {
 	// ID is the unique ID of the build cache record.
 	ID string
 	// Parent is the ID of the parent build cache record.
-	Parent string
+	//
+	// Deprecated: deprecated in API v1.42 and up, as it was deprecated in BuildKit.
+	Parent string `json:"Parent,omitempty"`
 	// Type is the cache record type.
 	Type string
 	// Description is a description of the build-step that produced the build cache.
