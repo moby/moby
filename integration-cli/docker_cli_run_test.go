@@ -4151,6 +4151,9 @@ func (s *DockerSuite) TestRunEmptyEnv(c *testing.T) {
 
 // #28658
 func (s *DockerSuite) TestSlowStdinClosing(c *testing.T) {
+	if DaemonIsWindows() {
+		skip.If(c, testEnv.GitHubActions())
+	}
 	const repeat = 3 // regression happened 50% of the time
 	for i := 0; i < repeat; i++ {
 		c.Run(strconv.Itoa(i), func(c *testing.T) {
