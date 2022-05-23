@@ -123,13 +123,13 @@ func (v *localVolume) mount() error {
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
 	}
-	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
-	if err != nil {
+	if err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
 		if password := getPassword(v.opts.MountOpts); password != "" {
 			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
 		}
+		return errors.Wrap(err, "failed to mount local volume")
 	}
-	return errors.Wrap(err, "failed to mount local volume")
+	return nil
 }
 
 func (v *localVolume) postMount() error {
