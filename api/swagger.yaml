@@ -2247,23 +2247,52 @@ definitions:
 
   BuildCache:
     type: "object"
+    description: |
+      BuildCache contains information about a build cache record.
     properties:
       ID:
         type: "string"
+        description: |
+          Unique ID of the build cache record.
+        example: "ndlpt0hhvkqcdfkputsk4cq9c"
       Parent:
+        description: |
+          ID of the parent build cache record.
         type: "string"
+        example: "hw53o5aio51xtltp5xjp8v7fx"
       Type:
         type: "string"
+        description: |
+          Cache record type.
+        example: "regular"
+        # see https://github.com/moby/buildkit/blob/fce4a32258dc9d9664f71a4831d5de10f0670677/client/diskusage.go#L75-L84
+        enum:
+          - "internal"
+          - "frontend"
+          - "source.local"
+          - "source.git.checkout"
+          - "exec.cachemount"
+          - "regular"
       Description:
         type: "string"
+        description: |
+          Description of the build-step that produced the build cache.
+        example: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
       InUse:
         type: "boolean"
+        description: |
+          Indicates if the build cache is in use.
+        example: false
       Shared:
         type: "boolean"
+        description: |
+          Indicates if the build cache is shared.
+        example: true
       Size:
         description: |
           Amount of disk space used by the build cache (in bytes).
         type: "integer"
+        example: 51
       CreatedAt:
         description: |
           Date and time at which the build cache was created in
@@ -2281,6 +2310,7 @@ definitions:
         example: "2017-08-09T07:09:37.632105588Z"
       UsageCount:
         type: "integer"
+        example: 26
 
   ImageID:
     type: "object"
