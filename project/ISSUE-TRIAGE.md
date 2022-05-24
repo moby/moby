@@ -71,7 +71,6 @@ have:
 | area/security/trust       |
 | area/storage              |
 | area/storage/btrfs        |
-| area/storage/devicemapper |
 | area/storage/overlay      |
 | area/storage/zfs          |
 | area/swarm                |

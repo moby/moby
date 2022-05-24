@@ -316,18 +316,14 @@ func isEmptyDir(name string) bool {
 
 // isDeprecated checks if a storage-driver is marked "deprecated"
 func isDeprecated(name string) bool {
-	switch name {
 	// NOTE: when deprecating a driver, update daemon.fillDriverInfo() accordingly
-	case "devicemapper":
-		return true
-	}
 	return false
 }
 
 // checkRemoved checks if a storage-driver has been deprecated (and removed)
 func checkRemoved(name string) error {
 	switch name {
-	case "aufs", "overlay":
+	case "aufs", "devicemapper", "overlay":
 		return NotSupportedError(fmt.Sprintf("[graphdriver] ERROR: the %s storage-driver has been deprecated and removed; visit https://docs.docker.com/go/storage-driver/ for more information", name))
 	}
 	return nil

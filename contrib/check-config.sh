@@ -374,11 +374,6 @@ check_flags BTRFS_FS_POSIX_ACL | sed 's/^/    /'
 [ "$EXITCODE" = 0 ] && STORAGE=0
 EXITCODE=0
 
-echo "  - \"$(wrap_color 'devicemapper' blue)\":"
-check_flags BLK_DEV_DM DM_THIN_PROVISIONING | sed 's/^/    /'
-[ "$EXITCODE" = 0 ] && STORAGE=0
-EXITCODE=0
-
 echo "  - \"$(wrap_color 'overlay' blue)\":"
 check_flags OVERLAY_FS | sed 's/^/    /'
 [ "$EXITCODE" = 0 ] && STORAGE=0

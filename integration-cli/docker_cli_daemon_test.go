@@ -34,7 +34,6 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/opts"
 	testdaemon "github.com/docker/docker/testutil/daemon"
-	units "github.com/docker/go-units"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -201,77 +200,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartOnFailure(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestDaemonStartIptablesFalse(c *testing.T) {
 	s.d.Start(c, "--iptables=false")
-}
-
-// Make sure we cannot shrink base device at daemon restart.
-func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *testing.T) {
-	testRequires(c, Devicemapper)
-	s.d.Start(c)
-
-	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
-	var newBasesizeBytes int64 = 1073741824 // 1GB in bytes
-
-	if newBasesizeBytes < oldBasesizeBytes {
-		err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
-		assert.Assert(c, err != nil, "daemon should not have started as new base device size is less than existing base device size: %v", err)
-		// 'err != nil' is expected behaviour, no new daemon started,
-		// so no need to stop daemon.
-		if err != nil {
-			return
-		}
-	}
-	s.d.Stop(c)
-}
-
-// Make sure we can grow base device at daemon restart.
-func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *testing.T) {
-	testRequires(c, Devicemapper)
-	s.d.Start(c)
-
-	oldBasesizeBytes := getBaseDeviceSize(c, s.d)
-
-	var newBasesizeBytes int64 = 53687091200 // 50GB in bytes
-
-	if newBasesizeBytes < oldBasesizeBytes {
-		c.Skipf("New base device size (%v) must be greater than (%s)", units.HumanSize(float64(newBasesizeBytes)), units.HumanSize(float64(oldBasesizeBytes)))
-	}
-
-	err := s.d.RestartWithError("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
-	assert.Assert(c, err == nil, "we should have been able to start the daemon with increased base device size: %v", err)
-
-	basesizeAfterRestart := getBaseDeviceSize(c, s.d)
-	newBasesize, err := convertBasesize(newBasesizeBytes)
-	assert.Assert(c, err == nil, "Error in converting base device size: %v", err)
-	assert.Equal(c, newBasesize, basesizeAfterRestart, "Basesize passed is not equal to Basesize set")
-	s.d.Stop(c)
-}
-
-func getBaseDeviceSize(c *testing.T, d *daemon.Daemon) int64 {
-	info := d.Info(c)
-	for _, statusLine := range info.DriverStatus {
-		key, value := statusLine[0], statusLine[1]
-		if key == "Base Device Size" {
-			return parseDeviceSize(c, value)
-		}
-	}
-	c.Fatal("failed to parse Base Device Size from info")
-	return int64(0)
-}
-
-func parseDeviceSize(c *testing.T, raw string) int64 {
-	size, err := units.RAMInBytes(strings.TrimSpace(raw))
-	assert.NilError(c, err)
-	return size
-}
-
-func convertBasesize(basesizeBytes int64) (int64, error) {
-	basesize := units.HumanSize(float64(basesizeBytes))
-	basesize = strings.Trim(basesize, " ")[:len(basesize)-3]
-	basesizeFloat, err := strconv.ParseFloat(strings.Trim(basesize, " "), 64)
-	if err != nil {
-		return 0, err
-	}
-	return int64(basesizeFloat) * 1024 * 1024 * 1024, nil
 }
 
 // Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
