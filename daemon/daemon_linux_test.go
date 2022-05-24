@@ -145,22 +145,6 @@ func TestCleanupMountsByID(t *testing.T) {
 	d := &Daemon{
 		root: "/var/lib/docker/",
 	}
-
-	t.Run("aufs", func(t *testing.T) {
-		expected := "/var/lib/docker/aufs/mnt/03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d"
-		var unmounted int
-		unmount := func(target string) error {
-			if target == expected {
-				unmounted++
-			}
-			return nil
-		}
-
-		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d", unmount)
-		assert.NilError(t, err)
-		assert.Equal(t, unmounted, 1, "Expected to unmount the root (and that only)")
-	})
-
 	t.Run("overlay2", func(t *testing.T) {
 		expected := "/var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/merged"
 		var unmounted int

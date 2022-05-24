@@ -70,7 +70,6 @@ have:
 | area/security/selinux     |
 | area/security/trust       |
 | area/storage              |
-| area/storage/aufs         |
 | area/storage/btrfs        |
 | area/storage/devicemapper |
 | area/storage/overlay      |

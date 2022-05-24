@@ -1,6 +1,7 @@
 package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -192,6 +193,9 @@ type Options struct {
 func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if name != "" {
 		logrus.Infof("[graphdriver] trying configured driver: %s", name)
+		if err := checkRemoved(name); err != nil {
+			return nil, err
+		}
 		if isDeprecated(name) {
 			logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated and will be removed in a future release; visit https://docs.docker.com/go/storage-driver/ for more information", name)
 		}
@@ -314,8 +318,17 @@ func isEmptyDir(name string) bool {
 func isDeprecated(name string) bool {
 	switch name {
 	// NOTE: when deprecating a driver, update daemon.fillDriverInfo() accordingly
-	case "aufs", "devicemapper", "overlay":
+	case "devicemapper", "overlay":
 		return true
 	}
 	return false
+}
+
+// checkRemoved checks if a storage-driver has been deprecated (and removed)
+func checkRemoved(name string) error {
+	switch name {
+	case "aufs":
+		return NotSupportedError(fmt.Sprintf("[graphdriver] ERROR: the %s storage-driver has been deprecated and removed; visit https://docs.docker.com/go/storage-driver/ for more information", name))
+	}
+	return nil
 }

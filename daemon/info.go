@@ -128,7 +128,7 @@ WARNING: The %s storage-driver is deprecated, and will be removed in a future re
          Refer to the documentation for more information: https://docs.docker.com/go/storage-driver/`
 
 	switch v.Driver {
-	case "aufs", "devicemapper", "overlay":
+	case "devicemapper", "overlay":
 		v.Warnings = append(v.Warnings, fmt.Sprintf(warnMsg, v.Driver))
 	}
 
