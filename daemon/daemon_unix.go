@@ -660,8 +660,17 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, err
 	}
 
+	if !hostConfig.IpcMode.Valid() {
+		return warnings, errors.Errorf("invalid IPC mode: %v", hostConfig.IpcMode)
+	}
+	if !hostConfig.PidMode.Valid() {
+		return warnings, errors.Errorf("invalid PID mode: %v", hostConfig.PidMode)
+	}
 	if hostConfig.ShmSize < 0 {
 		return warnings, fmt.Errorf("SHM size can not be less than 0")
+	}
+	if !hostConfig.UTSMode.Valid() {
+		return warnings, errors.Errorf("invalid UTS mode: %v", hostConfig.UTSMode)
 	}
 
 	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {

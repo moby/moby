@@ -18,6 +18,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/idtools"
@@ -260,12 +261,15 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// ipc
 		ipcMode := c.HostConfig.IpcMode
+		if !ipcMode.Valid() {
+			return errdefs.InvalidParameter(errors.Errorf("invalid IPC mode: %v", ipcMode))
+		}
 		switch {
 		case ipcMode.IsContainer():
 			ns := specs.LinuxNamespace{Type: "ipc"}
 			ic, err := daemon.getIpcContainer(ipcMode.Container())
 			if err != nil {
-				return err
+				return errdefs.InvalidParameter(errors.Wrapf(err, "invalid IPC mode: %v", ipcMode))
 			}
 			ns.Path = fmt.Sprintf("/proc/%d/ns/ipc", ic.State.GetPID())
 			setNamespace(s, ns)
@@ -284,11 +288,12 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		case ipcMode.IsPrivate(), ipcMode.IsShareable(), ipcMode.IsNone():
 			ns := specs.LinuxNamespace{Type: "ipc"}
 			setNamespace(s, ns)
-		default:
-			return fmt.Errorf("Invalid IPC mode: %v", ipcMode)
 		}
 
 		// pid
+		if !c.HostConfig.PidMode.Valid() {
+			return errdefs.InvalidParameter(errors.Errorf("invalid PID mode: %v", c.HostConfig.PidMode))
+		}
 		if c.HostConfig.PidMode.IsContainer() {
 			pc, err := daemon.getPidContainer(c)
 			if err != nil {
@@ -314,18 +319,20 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			setNamespace(s, ns)
 		}
 		// uts
+		if !c.HostConfig.UTSMode.Valid() {
+			return errdefs.InvalidParameter(errors.Errorf("invalid UTS mode: %v", c.HostConfig.UTSMode))
+		}
 		if c.HostConfig.UTSMode.IsHost() {
 			oci.RemoveNamespace(s, "uts")
 			s.Hostname = ""
 		}
 
 		// cgroup
+		if !c.HostConfig.CgroupnsMode.Valid() {
+			return errdefs.InvalidParameter(errors.Errorf("invalid cgroup namespace mode: %v", c.HostConfig.CgroupnsMode))
+		}
 		if !c.HostConfig.CgroupnsMode.IsEmpty() {
-			cgroupNsMode := c.HostConfig.CgroupnsMode
-			if !cgroupNsMode.Valid() {
-				return fmt.Errorf("invalid cgroup namespace mode: %v", cgroupNsMode)
-			}
-			if cgroupNsMode.IsPrivate() {
+			if c.HostConfig.CgroupnsMode.IsPrivate() {
 				nsCgroup := specs.LinuxNamespace{Type: "cgroup"}
 				setNamespace(s, nsCgroup)
 			}
