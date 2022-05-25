@@ -23,7 +23,7 @@ import (
 //
 // When running in a user namespace, returns errRunningInUserNS
 // immediately.
-func (h *Hodor) SupportsNativeDiff(d string) error {
+func SupportsNativeDiff(ctx *Context, d string) error {
 	if userns.RunningInUserNS() {
 		return errors.New("running in a user namespace")
 	}
@@ -34,7 +34,7 @@ func (h *Hodor) SupportsNativeDiff(d string) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			h.logger.Warnf("Failed to remove check directory %v: %v", td, err)
+			ctx.logger.Warnf("Failed to remove check directory %v: %v", td, err)
 		}
 	}()
 
@@ -69,7 +69,7 @@ func (h *Hodor) SupportsNativeDiff(d string) error {
 	}
 	defer func() {
 		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
-			h.logger.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
+			ctx.logger.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
 		}
 	}()
 

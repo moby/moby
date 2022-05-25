@@ -30,14 +30,14 @@ import (
 // daemon has control over all of its own mounts and presently does not request
 // metacopy. Nonetheless, a user or kernel distributor may enable metacopy, so
 // we should report in the daemon whether or not we detect its use.
-func (h *Hodor) IsUsingMetacopy(d string, userxattr bool) (bool, error) {
+func IsUsingMetacopy(ctx *Context, d string, userxattr bool) (bool, error) {
 	td, err := os.MkdirTemp(d, "metacopy-check")
 	if err != nil {
 		return false, err
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			h.logger.WithError(err).Warnf("failed to remove check directory %v", td)
+			ctx.logger.WithError(err).Warnf("failed to remove check directory %v", td)
 		}
 	}()
 
@@ -69,7 +69,7 @@ func (h *Hodor) IsUsingMetacopy(d string, userxattr bool) (bool, error) {
 	}
 	defer func() {
 		if err := mount.UnmountAll(merged, 0); err != nil {
-			h.logger.WithError(err).Warnf("failed to unmount check directory %v", merged)
+			ctx.logger.WithError(err).Warnf("failed to unmount check directory %v", merged)
 		}
 	}()
 
@@ -85,7 +85,7 @@ func (h *Hodor) IsUsingMetacopy(d string, userxattr bool) (bool, error) {
 	}
 	usingMetacopy := xattr != nil
 
-	h.logger.WithField("usingMetacopy", usingMetacopy).Debug("successfully detected metacopy status")
+	ctx.logger.WithField("usingMetacopy", usingMetacopy).Debug("successfully detected metacopy status")
 	return usingMetacopy, nil
 }
 
