@@ -16,9 +16,21 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+type Context struct {
+	driver string
+	logger *logrus.Entry
+}
+
+func NewContext(driver string, logger *logrus.Entry) *Context {
+	return &Context{
+		driver: driver,
+		logger: logger,
+	}
+}
+
 // ErrDTypeNotSupported denotes that the backing filesystem doesn't support d_type.
-func ErrDTypeNotSupported(driver, backingFs string) error {
-	msg := fmt.Sprintf("%s: the backing %s filesystem is formatted without d_type support, which leads to incorrect behavior.", driver, backingFs)
+func ErrDTypeNotSupported(ctx *Context, backingFs string) error {
+	msg := fmt.Sprintf("%s: the backing %s filesystem is formatted without d_type support, which leads to incorrect behavior.", ctx.driver, backingFs)
 	if backingFs == "xfs" {
 		msg += " Reformat the filesystem with ftype=1 to enable d_type support."
 	}
@@ -37,7 +49,7 @@ func ErrDTypeNotSupported(driver, backingFs string) error {
 //
 // checkMultipleLowers parameter enables check for multiple lowerdirs,
 // which is required for the overlay2 driver.
-func SupportsOverlay(d string, checkMultipleLowers bool) error {
+func SupportsOverlay(ctx *Context, d string, checkMultipleLowers bool) error {
 	// We can't rely on go-selinux.GetEnabled() to detect whether SELinux is enabled,
 	// because RootlessKit doesn't mount /sys/fs/selinux in the child: https://github.com/rootless-containers/rootlesskit/issues/94
 	// So we check $_DOCKERD_ROOTLESS_SELINUX, which is set by dockerd-rootless.sh .
@@ -54,7 +66,7 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			logrus.Warnf("Failed to remove check directory %v: %v", td, err)
+			ctx.logger.Warnf("Failed to remove check directory %v: %v", td, err)
 		}
 	}()
 
@@ -74,7 +86,7 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
 	if err := unix.Unmount(mnt, 0); err != nil {
-		logrus.Warnf("Failed to unmount check directory %v: %v", mnt, err)
+		ctx.logger.Warnf("Failed to unmount check directory %v: %v", mnt, err)
 	}
 	return nil
 }

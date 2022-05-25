@@ -28,7 +28,6 @@ import (
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/sirupsen/logrus"
 )
 
 // NeedsUserXAttr returns whether overlayfs should be mounted with the "userxattr" mount option.
@@ -50,7 +49,7 @@ import (
 // > ...
 //
 // The "userxattr" support is not exposed in "/sys/module/overlay/parameters".
-func NeedsUserXAttr(d string) (bool, error) {
+func NeedsUserXAttr(ctx *Context, d string) (bool, error) {
 	if !userns.RunningInUserNS() {
 		// we are the real root (i.e., the root in the initial user NS),
 		// so we do never need "userxattr" opt.
@@ -67,7 +66,7 @@ func NeedsUserXAttr(d string) (bool, error) {
 
 	tdRoot := filepath.Join(d, "userxattr-check")
 	if err := os.RemoveAll(tdRoot); err != nil {
-		logrus.WithError(err).Warnf("Failed to remove check directory %v", tdRoot)
+		ctx.logger.WithError(err).Warnf("Failed to remove check directory %v", tdRoot)
 	}
 
 	if err := os.MkdirAll(tdRoot, 0700); err != nil {
@@ -76,7 +75,7 @@ func NeedsUserXAttr(d string) (bool, error) {
 
 	defer func() {
 		if err := os.RemoveAll(tdRoot); err != nil {
-			logrus.WithError(err).Warnf("Failed to remove check directory %v", tdRoot)
+			ctx.logger.WithError(err).Warnf("Failed to remove check directory %v", tdRoot)
 		}
 	}()
 
@@ -106,11 +105,11 @@ func NeedsUserXAttr(d string) (bool, error) {
 	if err := m.Mount(dest); err != nil {
 		// Probably the host is running Ubuntu/Debian kernel (< 5.11) with the userns patch but without the userxattr patch.
 		// Return false without error.
-		logrus.WithError(err).Debugf("cannot mount overlay with \"userxattr\", probably the kernel does not support userxattr")
+		ctx.logger.WithError(err).Debugf("cannot mount overlay with \"userxattr\", probably the kernel does not support userxattr")
 		return false, nil
 	}
 	if err := mount.UnmountAll(dest, 0); err != nil {
-		logrus.WithError(err).Warnf("Failed to unmount check directory %v", dest)
+		ctx.logger.WithError(err).Warnf("Failed to unmount check directory %v", dest)
 	}
 	return true, nil
 }

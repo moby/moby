@@ -33,7 +33,6 @@ import (
 )
 
 var (
-	logger = logrus.WithField("storage-driver", "overlay2")
 	// untar defines the untar method
 	untar = chrootarchive.UntarUncompressed
 )
@@ -106,6 +105,11 @@ type Driver struct {
 	locker         *locker.Locker
 }
 
+var (
+	logger = logrus.WithField("storage-driver", driverName)
+	ctx    = overlayutils.NewContext(driverName, logger)
+)
+
 func init() {
 	graphdriver.Register(driverName, Init)
 }
@@ -130,7 +134,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		testdir = filepath.Dir(testdir)
 	}
 
-	if err := overlayutils.SupportsOverlay(testdir, true); err != nil {
+	if err := overlayutils.SupportsOverlay(ctx, testdir, true); err != nil {
 		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported
 	}
@@ -149,7 +153,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 	if !supportsDType {
-		return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
+		return nil, overlayutils.ErrDTypeNotSupported(ctx, backingFs)
 	}
 
 	cur := idtools.CurrentIdentity()
@@ -164,7 +168,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 
-	needsUserXattr, err := overlayutils.NeedsUserXAttr(home)
+	needsUserXattr, err := overlayutils.NeedsUserXAttr(ctx, home)
 	if err != nil {
 		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
 	}
@@ -376,7 +380,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	lid := overlayutils.GenerateID(idLength, logger)
+	lid := overlayutils.GenerateID(ctx, idLength)
 	if err := os.Symlink(path.Join("..", id, diffDirName), path.Join(d.home, linkDir, lid)); err != nil {
 		return err
 	}

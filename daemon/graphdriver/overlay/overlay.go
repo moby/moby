@@ -105,6 +105,11 @@ type Driver struct {
 	locker        *locker.Locker
 }
 
+var (
+	logger = logrus.WithField("storage-driver", "overlay")
+	ctx    = overlayutils.NewContext("overlay", logger)
+)
+
 func init() {
 	graphdriver.Register("overlay", Init)
 }
@@ -129,8 +134,8 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		testdir = filepath.Dir(testdir)
 	}
 
-	if err := overlayutils.SupportsOverlay(testdir, false); err != nil {
-		logrus.WithField("storage-driver", "overlay").Error(err)
+	if err := overlayutils.SupportsOverlay(ctx, testdir, false); err != nil {
+		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported
 	}
 
@@ -147,7 +152,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, err
 	}
 	if !supportsDType {
-		return nil, overlayutils.ErrDTypeNotSupported("overlay", backingFs)
+		return nil, overlayutils.ErrDTypeNotSupported(ctx, backingFs)
 	}
 
 	currentID := idtools.CurrentIdentity()
@@ -360,11 +365,11 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 		if err != nil {
 			if c := d.ctr.Decrement(mergedDir); c <= 0 {
 				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
-					logrus.WithField("storage-driver", "overlay").Debugf("Failed to unmount %s: %v: %v", id, mntErr, err)
+					logger.Debugf("Failed to unmount %s: %v: %v", id, mntErr, err)
 				}
 				// Cleanup the created merged directory; see the comment in Put's rmdir
 				if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
-					logrus.WithField("storage-driver", "overlay").Warnf("Failed to remove %s: %v: %v", id, rmErr, err)
+					logger.Warnf("Failed to remove %s: %v: %v", id, rmErr, err)
 				}
 			}
 		}
@@ -405,7 +410,6 @@ func (d *Driver) Put(id string) error {
 		return nil
 	}
 	mountpoint := path.Join(d.dir(id), "merged")
-	logger := logrus.WithField("storage-driver", "overlay")
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}

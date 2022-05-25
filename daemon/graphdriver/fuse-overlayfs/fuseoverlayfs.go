@@ -68,6 +68,7 @@ type Driver struct {
 
 var (
 	logger = logrus.WithField("storage-driver", driverName)
+	ctx    = overlayutils.NewContext(driverName, logger)
 )
 
 func init() {
@@ -196,7 +197,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	lid := overlayutils.GenerateID(idLength, logger)
+	lid := overlayutils.GenerateID(ctx, idLength)
 	if err := os.Symlink(path.Join("..", id, diffDirName), path.Join(d.home, linkDir, lid)); err != nil {
 		return err
 	}

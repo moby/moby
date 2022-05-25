@@ -12,12 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
 // GenerateID creates a new random string identifier with the given length
-func GenerateID(l int, logger *logrus.Entry) string {
+func GenerateID(ctx *Context, l int) string {
 	const (
 		// ensures we backoff for less than 450ms total. Use the following to
 		// select new value, in units of 10ms:
@@ -48,7 +47,7 @@ func GenerateID(l int, logger *logrus.Entry) string {
 			if retryOnError(err) && retries < maxretries {
 				count += n
 				retries++
-				logger.Errorf("error generating version 4 uuid, retrying: %v", err)
+				ctx.logger.Errorf("error generating version 4 uuid, retrying: %v", err)
 				continue
 			}
 
