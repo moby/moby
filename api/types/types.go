@@ -48,7 +48,7 @@ type ImageInspect struct {
 	// RepoTags is a list of image names/tags in the local image cache that
 	// reference this image.
 	//
-	// Multiple image tags can refer to the same imagem and this list may be
+	// Multiple image tags can refer to the same image, and this list may be
 	// empty if no tags reference the image, in which case the image is
 	// "untagged", in which case it can still be referenced by its ID.
 	RepoTags []string
