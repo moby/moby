@@ -528,3 +528,46 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 	)
 	assert.NilError(t, err)
 }
+
+func TestCreateWorkingDirForUser(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "on windows we do not setup WorkingDirectory")
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	id := ctr.Create(ctx, t, client,
+		ctr.WithWorkingDir("/foo"),
+		ctr.WithUser("1000:1000"),
+		ctr.WithCmd("touch", "/foo/bar"),
+	)
+
+	defer func() {
+		err := client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
+		assert.NilError(t, err)
+	}()
+
+	inspect, err := client.ContainerInspect(ctx, id)
+	assert.NilError(t, err)
+	// tmpfs do not currently get added to inspect.Mounts
+	// Normally an anonymous volume would, except now tmpfs should prevent that.
+	assert.Assert(t, is.Len(inspect.Mounts, 0))
+
+	chWait, chErr := client.ContainerWait(ctx, id, container.WaitConditionNextExit)
+	assert.NilError(t, client.ContainerStart(ctx, id, types.ContainerStartOptions{}))
+
+	timeout := time.NewTimer(30 * time.Second)
+	defer timeout.Stop()
+
+	select {
+	case <-timeout.C:
+		t.Fatal("timeout waiting for container to exit")
+	case status := <-chWait:
+		var errMsg string
+		if status.Error != nil {
+			errMsg = status.Error.Message
+		}
+		assert.Equal(t, int(status.StatusCode), 0, errMsg)
+	case err := <-chErr:
+		assert.NilError(t, err)
+	}
+}
