@@ -173,12 +173,12 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
 	}
 
-	usingMetacopy, err := usingMetacopy(testdir, needsUserXattr)
+	usingMetacopy, err := hodor.IsUsingMetacopy(testdir, needsUserXattr)
 	if err != nil {
 		return nil, err
 	}
 
-	indexOff, err := supportsIndexOff()
+	indexOff, err := overlayutils.SupportsIndexOff()
 	if err != nil {
 		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
 	}
@@ -248,7 +248,7 @@ var (
 
 func useNaiveDiff(home string) bool {
 	useNaiveDiffLock.Do(func() {
-		if err := doesSupportNativeDiff(home); err != nil {
+		if err := hodor.SupportsNativeDiff(home); err != nil {
 			logger.Warnf("Not using native diff for overlay2, this may cause degraded performance for building images: %v", err)
 			useNaiveDiffOnly = true
 		}

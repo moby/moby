@@ -9,7 +9,6 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -26,22 +25,6 @@ func NewContext(driver string, logger *logrus.Entry) *Context {
 		driver: driver,
 		logger: logger,
 	}
-}
-
-// ErrDTypeNotSupported denotes that the backing filesystem doesn't support d_type.
-func ErrDTypeNotSupported(ctx *Context, backingFs string) error {
-	msg := fmt.Sprintf("%s: the backing %s filesystem is formatted without d_type support, which leads to incorrect behavior.", ctx.driver, backingFs)
-	if backingFs == "xfs" {
-		msg += " Reformat the filesystem with ftype=1 to enable d_type support."
-	}
-
-	if backingFs == "extfs" {
-		msg += " Reformat the filesystem (or use tune2fs) with -O filetype flag to enable d_type support."
-	}
-
-	msg += " Backing filesystems without d_type support are not supported."
-
-	return graphdriver.NotSupportedError(msg)
 }
 
 // SupportsOverlay checks if the system supports overlay filesystem
@@ -91,13 +74,18 @@ func SupportsOverlay(ctx *Context, d string, checkMultipleLowers bool) error {
 	return nil
 }
 
-// GetOverlayXattr combines the overlay module's xattr class with the named
-// xattr -- `user` when mounted inside a user namespace, and `trusted` when
-// mounted in the 'root' namespace.
-func GetOverlayXattr(name string) string {
-	class := "trusted"
-	if userns.RunningInUserNS() {
-		class = "user"
+// ErrDTypeNotSupported denotes that the backing filesystem doesn't support d_type.
+func ErrDTypeNotSupported(ctx *Context, backingFs string) error {
+	msg := fmt.Sprintf("%s: the backing %s filesystem is formatted without d_type support, which leads to incorrect behavior.", h.driver, backingFs)
+	if backingFs == "xfs" {
+		msg += " Reformat the filesystem with ftype=1 to enable d_type support."
 	}
-	return fmt.Sprintf("%s.overlay.%s", class, name)
+
+	if backingFs == "extfs" {
+		msg += " Reformat the filesystem (or use tune2fs) with -O filetype flag to enable d_type support."
+	}
+
+	msg += " Backing filesystems without d_type support are not supported."
+
+	return graphdriver.NotSupportedError(msg)
 }
