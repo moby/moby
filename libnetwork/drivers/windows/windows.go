@@ -490,10 +490,11 @@ func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 		}
 
 		encodedPolicy, err := json.Marshal(hcsshim.NatPolicy{
-			Type:         "NAT",
-			ExternalPort: elem.HostPort,
-			InternalPort: elem.Port,
-			Protocol:     elem.Proto.String(),
+			Type:                 "NAT",
+			ExternalPort:         elem.HostPort,
+			InternalPort:         elem.Port,
+			Protocol:             elem.Proto.String(),
+			ExternalPortReserved: true,
 		})
 
 		if err != nil {
