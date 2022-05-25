@@ -528,3 +528,52 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 	)
 	assert.NilError(t, err)
 }
+
+func TestCreateInvalidHostConfig(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	defer setupTest(t)()
+	apiClient := testEnv.APIClient()
+	ctx := context.Background()
+
+	testCases := []struct {
+		doc         string
+		hc          containertypes.HostConfig
+		expectedErr string
+	}{
+		{
+			doc:         "invalid IpcMode",
+			hc:          containertypes.HostConfig{IpcMode: "invalid"},
+			expectedErr: "Error response from daemon: invalid IPC mode: invalid",
+		},
+		{
+			doc:         "invalid PidMode",
+			hc:          containertypes.HostConfig{PidMode: "invalid"},
+			expectedErr: "Error response from daemon: invalid PID mode: invalid",
+		},
+		{
+			doc:         "invalid PidMode without container ID",
+			hc:          containertypes.HostConfig{PidMode: "container"},
+			expectedErr: "Error response from daemon: invalid PID mode: container",
+		},
+		{
+			doc:         "invalid UTSMode",
+			hc:          containertypes.HostConfig{UTSMode: "invalid"},
+			expectedErr: "Error response from daemon: invalid UTS mode: invalid",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			cfg := container.Config{
+				Image: "busybox",
+			}
+			resp, err := apiClient.ContainerCreate(ctx, &cfg, &tc.hc, nil, nil, "")
+			assert.Check(t, is.Equal(len(resp.Warnings), 0))
+			assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T", err)
+			assert.Error(t, err, tc.expectedErr)
+		})
+	}
+}
