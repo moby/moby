@@ -4,16 +4,13 @@
 package overlayutils
 
 import (
-	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"syscall"
 
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 // SupportsNativeDiff checks whether the filesystem has a bug
@@ -28,58 +25,49 @@ func SupportsNativeDiff(ctx *Context, d string) error {
 		return errors.New("running in a user namespace")
 	}
 
-	td, err := os.MkdirTemp(d, "opaque-bug-check")
+	td, err := os.MkdirTemp(d, "opaque-bug-check-")
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			ctx.logger.Warnf("Failed to remove check directory %v: %v", td, err)
+			ctx.logger.WithError(err).Warnf("failed to remove check directory %v", td)
 		}
 	}()
 
-	// Make directories l1/d, l1/d1, l2/d, l3, work, merged
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d"), 0755); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Join(td, "l1", "d1"), 0755); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Join(td, "l2", "d"), 0755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(filepath.Join(td, "l3"), 0755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(filepath.Join(td, "work"), 0755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(filepath.Join(td, "merged"), 0755); err != nil {
+	tm, err := makeTestMount(td, 2)
+	if err != nil {
 		return err
 	}
 
-	// Mark l2/d as opaque
-	if err := system.Lsetxattr(filepath.Join(td, "l2", "d"), "trusted.overlay.opaque", []byte("y"), 0); err != nil {
+	// Make directories lower1/d, lower1/d1, lower2/d
+	for _, dir := range []string{filepath.Join(tm.lowerDirs[0], "d"), filepath.Join(tm.lowerDirs[0], "d1"), filepath.Join(tm.lowerDirs[1], "d")} {
+		if err := os.Mkdir(filepath.Join(d, dir), 0755); err != nil {
+			return err
+		}
+	}
+
+	// Mark lower2/d as opaque
+	if err := system.Lsetxattr(filepath.Join(tm.lowerDirs[1], "d"), "trusted.overlay.opaque", []byte("y"), 0); err != nil {
 		return errors.Wrap(err, "failed to set opaque flag on middle layer")
 	}
 
-	opts := fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", path.Join(td, "l2"), path.Join(td, "l1"), path.Join(td, "l3"), path.Join(td, "work"))
-	if err := unix.Mount("overlay", filepath.Join(td, "merged"), "overlay", 0, opts); err != nil {
+	if err := tm.mount(nil); err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
 	defer func() {
-		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
-			ctx.logger.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
+		if err := tm.unmount(); err != nil {
+			ctx.logger.WithError(err).Warnf("failed to unmount check directory %v: %v", tm.mergedDir)
 		}
 	}()
 
-	// Touch file in d to force copy up of opaque directory "d" from "l2" to "l3"
-	if err := os.WriteFile(filepath.Join(td, "merged", "d", "f"), []byte{}, 0644); err != nil {
+	// Touch file in d to force copy up of opaque directory "d" from "lower2" to "upper"
+	if err := os.WriteFile(filepath.Join(tm.mergedDir, "d", "f"), []byte{}, 0644); err != nil {
 		return errors.Wrap(err, "failed to write to merged directory")
 	}
 
-	// Check l3/d does not have opaque flag
-	xattrOpaque, err := system.Lgetxattr(filepath.Join(td, "l3", "d"), "trusted.overlay.opaque")
+	// Check upper/d does not have opaque flag
+	xattrOpaque, err := system.Lgetxattr(filepath.Join(tm.upperDir, "d"), "trusted.overlay.opaque")
 	if err != nil {
 		return errors.Wrap(err, "failed to read opaque flag on upper layer")
 	}
@@ -88,7 +76,7 @@ func SupportsNativeDiff(ctx *Context, d string) error {
 	}
 
 	// rename "d1" to "d2"
-	if err := os.Rename(filepath.Join(td, "merged", "d1"), filepath.Join(td, "merged", "d2")); err != nil {
+	if err := os.Rename(filepath.Join(tm.mergedDir, "d1"), filepath.Join(tm.mergedDir, "d2")); err != nil {
 		// if rename failed with syscall.EXDEV, the kernel doesn't have CONFIG_OVERLAY_FS_REDIRECT_DIR enabled
 		if err.(*os.LinkError).Err == syscall.EXDEV {
 			return nil
@@ -96,7 +84,7 @@ func SupportsNativeDiff(ctx *Context, d string) error {
 		return errors.Wrap(err, "failed to rename dir in merged directory")
 	}
 	// get the xattr of "d2"
-	xattrRedirect, err := system.Lgetxattr(filepath.Join(td, "l3", "d2"), "trusted.overlay.redirect")
+	xattrRedirect, err := system.Lgetxattr(filepath.Join(tm.upperDir, "d2"), "trusted.overlay.redirect")
 	if err != nil {
 		return errors.Wrap(err, "failed to read redirect flag on upper layer")
 	}

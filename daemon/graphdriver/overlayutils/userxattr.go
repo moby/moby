@@ -21,13 +21,9 @@
 package overlayutils
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
-	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"os"
 )
 
 // NeedsUserXAttr returns whether overlayfs should be mounted with the "userxattr" mount option.
@@ -64,52 +60,29 @@ func NeedsUserXAttr(ctx *Context, d string) (bool, error) {
 		return true, nil
 	}
 
-	tdRoot := filepath.Join(d, "userxattr-check")
-	if err := os.RemoveAll(tdRoot); err != nil {
-		ctx.logger.WithError(err).Warnf("Failed to remove check directory %v", tdRoot)
-	}
-
-	if err := os.MkdirAll(tdRoot, 0700); err != nil {
+	td, err := os.MkdirTemp(d, "userxattr-")
+	if err != nil {
 		return false, err
 	}
-
 	defer func() {
-		if err := os.RemoveAll(tdRoot); err != nil {
-			ctx.logger.WithError(err).Warnf("Failed to remove check directory %v", tdRoot)
+		if err := os.RemoveAll(td); err != nil {
+			ctx.logger.WithError(err).Warnf("Failed to remove check directory %v", td)
 		}
 	}()
 
-	td, err := os.MkdirTemp(tdRoot, "")
+	tm, err := makeTestMount(td, 2)
 	if err != nil {
 		return false, err
 	}
 
-	for _, dir := range []string{"lower1", "lower2", "upper", "work", "merged"} {
-		if err := os.Mkdir(filepath.Join(td, dir), 0755); err != nil {
-			return false, err
-		}
-	}
-
-	opts := []string{
-		fmt.Sprintf("lowerdir=%s:%s,upperdir=%s,workdir=%s", filepath.Join(td, "lower2"), filepath.Join(td, "lower1"), filepath.Join(td, "upper"), filepath.Join(td, "work")),
-		"userxattr",
-	}
-
-	m := mount.Mount{
-		Type:    "overlay",
-		Source:  "overlay",
-		Options: opts,
-	}
-
-	dest := filepath.Join(td, "merged")
-	if err := m.Mount(dest); err != nil {
+	if err := tm.mount([]string{"userxattr"}); err != nil {
 		// Probably the host is running Ubuntu/Debian kernel (< 5.11) with the userns patch but without the userxattr patch.
 		// Return false without error.
 		ctx.logger.WithError(err).Debugf("cannot mount overlay with \"userxattr\", probably the kernel does not support userxattr")
 		return false, nil
 	}
-	if err := mount.UnmountAll(dest, 0); err != nil {
-		ctx.logger.WithError(err).Warnf("Failed to unmount check directory %v", dest)
+	if err := tm.unmount(); err != nil {
+		ctx.logger.WithError(err).Warnf("failed to unmount check directory %v", tm.mergedDir)
 	}
 	return true, nil
 }

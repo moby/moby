@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
@@ -31,7 +30,7 @@ import (
 // metacopy. Nonetheless, a user or kernel distributor may enable metacopy, so
 // we should report in the daemon whether or not we detect its use.
 func IsUsingMetacopy(ctx *Context, d string, userxattr bool) (bool, error) {
-	td, err := os.MkdirTemp(d, "metacopy-check")
+	td, err := os.MkdirTemp(d, "metacopy-check-")
 	if err != nil {
 		return false, err
 	}
@@ -41,45 +40,37 @@ func IsUsingMetacopy(ctx *Context, d string, userxattr bool) (bool, error) {
 		}
 	}()
 
-	l1, l2, work, merged := filepath.Join(td, "l1"), filepath.Join(td, "l2"), filepath.Join(td, "work"), filepath.Join(td, "merged")
-	for _, dir := range []string{l1, l2, work, merged} {
-		if err := os.Mkdir(dir, 0755); err != nil {
-			return false, err
-		}
-	}
-
-	// Create empty file in l1 with 0700 permissions for metacopy test
-	if err := os.WriteFile(filepath.Join(l1, "f"), []byte{}, 0700); err != nil {
+	tm, err := makeTestMount(td, 1)
+	if err != nil {
 		return false, err
 	}
 
-	opts := []string{fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", l1, l2, work)}
+	// Create empty file in lower1 with 0700 permissions for metacopy test
+	if err := os.WriteFile(filepath.Join(tm.lowerDirs[0], "f"), []byte{}, 0700); err != nil {
+		return false, err
+	}
+
+	var opts []string
 	if userxattr {
 		opts = append(opts, "userxattr")
 	}
 
-	m := mount.Mount{
-		Type:    "overlay",
-		Source:  "overlay",
-		Options: opts,
-	}
-
-	if err := m.Mount(merged); err != nil {
+	if err := tm.mount(opts); err != nil {
 		return false, errors.Wrap(err, "failed to mount overlay for metacopy check")
 	}
 	defer func() {
-		if err := mount.UnmountAll(merged, 0); err != nil {
-			ctx.logger.WithError(err).Warnf("failed to unmount check directory %v", merged)
+		if err := tm.unmount(); err != nil {
+			ctx.logger.WithError(err).Warnf("failed to unmount check directory %v", tm.mergedDir)
 		}
 	}()
 
 	// Make a change that only impacts the inode, in the upperdir
-	if err := os.Chmod(filepath.Join(merged, "f"), 0600); err != nil {
+	if err := os.Chmod(filepath.Join(tm.mergedDir, "f"), 0600); err != nil {
 		return false, errors.Wrap(err, "error changing permissions on file for metacopy check")
 	}
 
 	// ...and check if the pulled-up copy is marked as metadata-only
-	xattr, err := system.Lgetxattr(filepath.Join(l2, "f"), getOverlayXattr("metacopy"))
+	xattr, err := system.Lgetxattr(filepath.Join(tm.upperDir, "f"), getOverlayXattr("metacopy"))
 	if err != nil {
 		return false, errors.Wrap(err, "metacopy flag was not set on file in the upperdir")
 	}

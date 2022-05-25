@@ -6,13 +6,10 @@ package overlayutils // import "github.com/docker/docker/daemon/graphdriver/over
 import (
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 )
 
 type Context struct {
@@ -40,36 +37,35 @@ func SupportsOverlay(ctx *Context, d string, checkMultipleLowers bool) error {
 		// Kernel 5.11 introduced support for rootless overlayfs, but incompatible with SELinux,
 		// so fallback to fuse-overlayfs.
 		// https://github.com/moby/moby/issues/42333
-		return errors.New("overlay is not supported for Rootless with SELinux")
+		return fmt.Errorf("%s: driver is not supported for Rootless with SELinux", ctx.driver)
 	}
 
-	td, err := os.MkdirTemp(d, "check-overlayfs-support")
+	td, err := os.MkdirTemp(d, "overlay-check-")
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			ctx.logger.Warnf("Failed to remove check directory %v: %v", td, err)
+			ctx.logger.WithError(err).Warnf("failed to remove check directory %v", td)
 		}
 	}()
 
-	for _, dir := range []string{"lower1", "lower2", "upper", "work", "merged"} {
-		if err := os.Mkdir(filepath.Join(td, dir), 0755); err != nil {
-			return err
-		}
+	lowerCount := 1
+	if checkMultipleLowers {
+		lowerCount = 2
 	}
 
-	mnt := filepath.Join(td, "merged")
-	lowerDir := path.Join(td, "lower2")
-	if checkMultipleLowers {
-		lowerDir += ":" + path.Join(td, "lower1")
+	tm, err := makeTestMount(td, lowerCount)
+	if err != nil {
+		return err
 	}
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, path.Join(td, "upper"), path.Join(td, "work"))
-	if err := unix.Mount("overlay", mnt, "overlay", 0, opts); err != nil {
+
+	if err := tm.mount(nil); err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
-	if err := unix.Unmount(mnt, 0); err != nil {
-		ctx.logger.Warnf("Failed to unmount check directory %v: %v", mnt, err)
+
+	if err := tm.unmount(); err != nil {
+		ctx.logger.WithError(err).Warnf("failed to unmount check directory %v: %v", tm.mergedDir)
 	}
 	return nil
 }
