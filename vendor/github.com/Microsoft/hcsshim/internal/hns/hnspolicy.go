@@ -21,10 +21,11 @@ const (
 )
 
 type NatPolicy struct {
-	Type         PolicyType `json:"Type"`
-	Protocol     string
-	InternalPort uint16
-	ExternalPort uint16
+	Type                 PolicyType `json:"Type"`
+	Protocol             string
+	InternalPort         uint16
+	ExternalPort         uint16
+	ExternalPortReserved bool       `json:",omitempty"`
 }
 
 type QosPolicy struct {
