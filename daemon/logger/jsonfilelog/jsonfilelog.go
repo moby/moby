@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
@@ -21,8 +22,10 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	writer *loggerutils.LogFile
-	tag    string // tag values requested by the user to log
+	writer      *loggerutils.LogFile
+	tag         string // tag values requested by the user to log
+	extra       json.RawMessage
+	buffersPool sync.Pool
 }
 
 func init() {
@@ -86,7 +89,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		attrs["tag"] = tag
 	}
 
-	var extra []byte
+	var extra json.RawMessage
 	if len(attrs) > 0 {
 		var err error
 		extra, err = json.Marshal(attrs)
@@ -95,30 +98,40 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	buf := bytes.NewBuffer(nil)
-	marshalFunc := func(msg *logger.Message) ([]byte, error) {
-		if err := marshalMessage(msg, extra, buf); err != nil {
-			return nil, err
-		}
-		b := buf.Bytes()
-		buf.Reset()
-		return b, nil
-	}
-
-	writer, err := loggerutils.NewLogFile(info.LogPath, capval, maxFiles, compress, marshalFunc, decodeFunc, 0640, getTailReader)
+	writer, err := loggerutils.NewLogFile(info.LogPath, capval, maxFiles, compress, decodeFunc, 0640, getTailReader)
 	if err != nil {
 		return nil, err
 	}
 
 	return &JSONFileLogger{
-		writer: writer,
-		tag:    tag,
+		writer:      writer,
+		tag:         tag,
+		extra:       extra,
+		buffersPool: makePool(),
 	}, nil
+}
+
+func makePool() sync.Pool {
+	// Every buffer will have to store the same constant json structure and the message
+	// len(`{"log":"","stream:"stdout","time":"2000-01-01T00:00:00.000000000Z"}\n`) = 68
+	// So let's start with a buffer bigger than this
+	const initialBufSize = 128
+
+	return sync.Pool{New: func() any { return bytes.NewBuffer(make([]byte, 0, initialBufSize)) }}
 }
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
-	return l.writer.WriteLogEntry(msg)
+	defer logger.PutMessage(msg)
+	buf := l.buffersPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer l.buffersPool.Put(buf)
+
+	if err := marshalMessage(msg, l.extra, buf); err != nil {
+		return err
+	}
+
+	return l.writer.WriteLogEntry(msg.Timestamp, buf.Bytes())
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {

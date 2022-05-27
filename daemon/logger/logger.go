@@ -131,6 +131,3 @@ type Capability struct {
 	// Determines if a log driver can read back logs
 	ReadLogs bool
 }
-
-// MarshalFunc is a func that marshals a message into an arbitrary format
-type MarshalFunc func(*Message) ([]byte, error)

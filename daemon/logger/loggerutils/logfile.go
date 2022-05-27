@@ -44,7 +44,6 @@ type LogFile struct {
 
 	// Log file codec
 
-	marshal       logger.MarshalFunc
 	createDecoder MakeDecoderFn
 	getTailReader GetTailReaderFunc
 
@@ -120,7 +119,7 @@ type readAtCloser interface {
 type GetTailReaderFunc func(ctx context.Context, f SizeReaderAt, nLogLines int) (rdr io.Reader, nLines int, err error)
 
 // NewLogFile creates new LogFile
-func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, marshaller logger.MarshalFunc, decodeFunc MakeDecoderFn, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
+func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, decodeFunc MakeDecoderFn, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
 	log, err := openFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
 	if err != nil {
 		return nil, err
@@ -149,7 +148,6 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 		maxFiles:      maxFiles,
 		compress:      compress,
 		decompress:    newSharedTempFileConverter(decompress),
-		marshal:       marshaller,
 		createDecoder: decodeFunc,
 		perms:         perms,
 		getTailReader: getTailReader,
@@ -158,16 +156,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 
 // WriteLogEntry writes the provided log message to the current log file.
 // This may trigger a rotation event if the max file/capacity limits are hit.
-func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
-	b, err := w.marshal(msg)
-	if err != nil {
-		return errors.Wrap(err, "error marshalling log message")
-	}
-
-	ts := msg.Timestamp
-	logger.PutMessage(msg)
-	msg = nil // Turn use-after-put bugs into panics.
-
+func (w *LogFile) WriteLogEntry(timestamp time.Time, marshalled []byte) error {
 	select {
 	case <-w.closed:
 		return errors.New("cannot write because the output file was closed")
@@ -183,12 +172,12 @@ func (w *LogFile) WriteLogEntry(msg *logger.Message) error {
 		}
 	}
 
-	n, err := w.f.Write(b)
+	n, err := w.f.Write(marshalled)
 	if err != nil {
 		return errors.Wrap(err, "error writing log entry")
 	}
 	w.pos.size += int64(n)
-	w.lastTimestamp = ts
+	w.lastTimestamp = timestamp
 
 	// Notify any waiting readers that there is a new log entry to read.
 	st := <-w.read
