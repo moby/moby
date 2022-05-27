@@ -1,32 +1,24 @@
 package icmd
 
 import (
-	"syscall"
+	"errors"
 
-	"github.com/pkg/errors"
 	exec "golang.org/x/sys/execabs"
 )
 
-// getExitCode returns the ExitStatus of a process from the error returned by
-// exec.Run(). If the exit status could not be parsed an error is returned.
-func getExitCode(err error) (int, error) {
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return procExit.ExitStatus(), nil
-		}
-	}
-	return 0, errors.Wrap(err, "failed to get exit code")
-}
-
-func processExitCode(err error) (exitCode int) {
+func processExitCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	exitCode, exiterr := getExitCode(err)
-	if exiterr != nil {
-		// TODO: Fix this so we check the error's text.
-		// we've failed to retrieve exit code, so we set it to 127
-		return 127
+
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		if exitErr.ProcessState == nil {
+			return 0
+		}
+		if code := exitErr.ProcessState.ExitCode(); code != -1 {
+			return code
+		}
 	}
-	return exitCode
+	return 127
 }

@@ -77,7 +77,6 @@ func (r *Result) Compare(exp Expected) error {
 	return r.match(exp)
 }
 
-// nolint: gocyclo
 func (r *Result) match(exp Expected) error {
 	errors := []string{}
 	add := func(format string, args ...interface{}) {
