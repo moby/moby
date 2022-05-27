@@ -167,7 +167,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 
 ARG GO_VERSION=1.18.2
 ARG CONTAINERD_VERSION=1.6.4
-ARG GOTESTSUM_VERSION=v1.7.0
+ARG GOTESTSUM_VERSION=v1.8.1
 ARG GOWINRES_VERSION=v0.2.3
 
 # Environment variable notes:
