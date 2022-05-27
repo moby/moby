@@ -227,7 +227,7 @@ func ToResources(spec *specs.LinuxResources) *Resources {
 	if i := spec.Rdma; i != nil {
 		resources.RDMA = &RDMA{}
 		for device, value := range spec.Rdma {
-			if device != "" && (value.HcaHandles != nil || value.HcaObjects != nil) {
+			if device != "" && (value.HcaHandles != nil && value.HcaObjects != nil) {
 				resources.RDMA.Limit = append(resources.RDMA.Limit, RDMAEntry{
 					Device:     device,
 					HcaHandles: *value.HcaHandles,
