@@ -11,9 +11,9 @@ import (
 )
 
 func TestDecode(t *testing.T) {
-	marshal := makeMarshaller()
+	buf := make([]byte, 0)
 
-	buf, err := marshal(&logger.Message{Line: []byte("hello")})
+	err := marshal(&logger.Message{Line: []byte("hello")}, &buf)
 	assert.NilError(t, err)
 
 	for i := 0; i < len(buf); i++ {
