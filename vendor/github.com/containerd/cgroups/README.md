@@ -26,7 +26,7 @@ uses the v1 implementation of cgroups.
 ```go
 shares := uint64(100)
 control, err := cgroups.New(cgroups.V1, cgroups.StaticPath("/test"), &specs.LinuxResources{
-    CPU: &specs.CPU{
+    CPU: &specs.LinuxCPU{
         Shares: &shares,
     },
 })

@@ -56,12 +56,11 @@ func newV2(options ...Opt) *SysInfo {
 }
 
 func getSwapLimitV2() bool {
-	groups, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
+	_, g, err := cgroups.ParseCgroupFileUnified("/proc/self/cgroup")
 	if err != nil {
 		return false
 	}
 
-	g := groups[""]
 	if g == "" {
 		return false
 	}

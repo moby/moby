@@ -18,6 +18,7 @@ package v2
 
 type Memory struct {
 	Swap *int64
+	Min  *int64
 	Max  *int64
 	Low  *int64
 	High *int64
@@ -28,6 +29,12 @@ func (r *Memory) Values() (o []Value) {
 		o = append(o, Value{
 			filename: "memory.swap.max",
 			value:    *r.Swap,
+		})
+	}
+	if r.Min != nil {
+		o = append(o, Value{
+			filename: "memory.min",
+			value:    *r.Min,
 		})
 	}
 	if r.Max != nil {

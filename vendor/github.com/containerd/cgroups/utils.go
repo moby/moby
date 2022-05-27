@@ -261,21 +261,28 @@ func parseKV(raw string) (string, uint64, error) {
 //   "pids": "/user.slice/user-1000.slice"
 // etc.
 //
-// Note that for cgroup v2 unified hierarchy, there are no per-controller
-// cgroup paths, so the resulting map will have a single element where the key
-// is empty string ("") and the value is the cgroup path the <pid> is in.
+// The resulting map does not have an element for cgroup v2 unified hierarchy.
+// Use ParseCgroupFileUnified to get the unified path.
 func ParseCgroupFile(path string) (map[string]string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return parseCgroupFromReader(f)
+	x, _, err := ParseCgroupFileUnified(path)
+	return x, err
 }
 
-func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
+// ParseCgroupFileUnified returns legacy subsystem paths as the first value,
+// and returns the unified path as the second value.
+func ParseCgroupFileUnified(path string) (map[string]string, string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, "", err
+	}
+	defer f.Close()
+	return parseCgroupFromReaderUnified(f)
+}
+
+func parseCgroupFromReaderUnified(r io.Reader) (map[string]string, string, error) {
 	var (
 		cgroups = make(map[string]string)
+		unified = ""
 		s       = bufio.NewScanner(r)
 	)
 	for s.Scan() {
@@ -284,18 +291,20 @@ func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
 			parts = strings.SplitN(text, ":", 3)
 		)
 		if len(parts) < 3 {
-			return nil, fmt.Errorf("invalid cgroup entry: %q", text)
+			return nil, unified, fmt.Errorf("invalid cgroup entry: %q", text)
 		}
 		for _, subs := range strings.Split(parts[1], ",") {
-			if subs != "" {
+			if subs == "" {
+				unified = parts[2]
+			} else {
 				cgroups[subs] = parts[2]
 			}
 		}
 	}
 	if err := s.Err(); err != nil {
-		return nil, err
+		return nil, unified, err
 	}
-	return cgroups, nil
+	return cgroups, unified, nil
 }
 
 func getCgroupDestination(subsystem string) (string, error) {
