@@ -120,15 +120,11 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 	createDecoder := func(io.Reader) Decoder {
 		return dummyDecoder{}
 	}
-	marshal := func(msg *logger.Message) ([]byte, error) {
-		return msg.Line, nil
-	}
 	l, err := NewLogFile(
 		logPath,
 		5,    // capacity
 		3,    // maxFiles
 		true, // compress
-		marshal,
 		createDecoder,
 		0600, // perms
 		getTailReader,
@@ -138,14 +134,16 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 
 	ls := dirStringer{dir}
 
-	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+	timestamp := time.Time{}
+
+	assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
 	_, err = os.Stat(logPath + ".1")
 	assert.Assert(t, os.IsNotExist(err), ls)
 
-	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+	assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
 	poll.WaitOn(t, checkFileExists(logPath+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
-	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+	assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
 	poll.WaitOn(t, checkFileExists(logPath+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 	poll.WaitOn(t, checkFileExists(logPath+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
@@ -154,7 +152,7 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 		// down the line.
 		// We want to make sure that we can recover in the case that `l.f` was closed while attempting a rotation.
 		l.f.Close()
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
 		assert.NilError(t, os.Remove(logPath+".2.gz"))
 	})
 
@@ -163,14 +161,14 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 		lw := l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000})
 		defer lw.ConsumerGone()
 
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 0!")}), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 0!")), ls)
 		// make sure the log reader is primed
 		waitForMsg(t, lw, 30*time.Second)
 
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 1!")}), ls)
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 2!")}), ls)
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 3!")}), ls)
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 4!")}), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 1!")), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 2!")), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 3!")), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 4!")), ls)
 		poll.WaitOn(t, checkFileExists(logPath+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 	})
 }
