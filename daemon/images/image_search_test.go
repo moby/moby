@@ -3,7 +3,6 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -11,6 +10,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/registry"
+	"gotest.tools/v3/assert"
 )
 
 type fakeService struct {
@@ -80,43 +80,40 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 			expectedError: "invalid filter 'stars=invalid'",
 		},
 	}
-	for index, e := range errorCases {
-		daemon := &ImageService{
-			registryService: &fakeService{
-				shouldReturnError: e.shouldReturnError,
-			},
-		}
-		_, err := daemon.SearchRegistryForImages(context.Background(), e.filtersArgs, "term", 0, nil, map[string][]string{})
-		if err == nil {
-			t.Errorf("%d: expected an error, got nothing", index)
-		}
-		if !strings.Contains(err.Error(), e.expectedError) {
-			t.Errorf("%d: expected error to contain %s, got %s", index, e.expectedError, err.Error())
-		}
-		if e.shouldReturnError {
-			if !errdefs.IsUnknown(err) {
-				t.Errorf("%d: expected expected an errdefs.ErrUnknown, got: %T: %v", index, err, err)
+	for _, tc := range errorCases {
+		tc := tc
+		t.Run(tc.expectedError, func(t *testing.T) {
+			daemon := &ImageService{
+				registryService: &fakeService{
+					shouldReturnError: tc.shouldReturnError,
+				},
 			}
-			continue
-		}
-		if !errdefs.IsInvalidParameter(err) {
-			t.Errorf("%d: expected expected an errdefs.ErrInvalidParameter, got: %T: %v", index, err, err)
-		}
+			_, err := daemon.SearchRegistryForImages(context.Background(), tc.filtersArgs, "term", 0, nil, map[string][]string{})
+			assert.ErrorContains(t, err, tc.expectedError)
+			if tc.shouldReturnError {
+				assert.Check(t, errdefs.IsUnknown(err), "got: %T: %v", err, err)
+				return
+			}
+			assert.Check(t, errdefs.IsInvalidParameter(err), "got: %T: %v", err, err)
+		})
 	}
 }
 
 func TestSearchRegistryForImages(t *testing.T) {
 	term := "term"
 	successCases := []struct {
+		name            string
 		filtersArgs     filters.Args
 		registryResults []registrytypes.SearchResult
 		expectedResults []registrytypes.SearchResult
 	}{
 		{
+			name:            "empty results",
 			registryResults: []registrytypes.SearchResult{},
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
+			name: "no filter",
 			registryResults: []registrytypes.SearchResult{
 				{
 					Name:        "name",
@@ -131,6 +128,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
+			name:        "is-automated=true, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -141,6 +139,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
+			name:        "is-automated=true",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -158,6 +157,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
+			name:        "is-automated=false, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -169,6 +169,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
+			name:        "is-automated=false",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -186,6 +187,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
+			name:        "is-official=true, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -196,6 +198,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
+			name:        "is-official=true",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "true")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -213,6 +216,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
+			name:        "is-official=false, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -224,6 +228,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
+			name:        "is-official=false",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "false")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -241,6 +246,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
+			name:        "stars=0",
 			filtersArgs: filters.NewArgs(filters.Arg("stars", "0")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -258,6 +264,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
+			name:        "stars=0, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("stars", "1")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -269,6 +276,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			expectedResults: []registrytypes.SearchResult{},
 		},
 		{
+			name:        "stars=1",
 			filtersArgs: filters.NewArgs(filters.Arg("stars", "1")),
 			registryResults: []registrytypes.SearchResult{
 				{
@@ -291,6 +299,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 		{
+			name: "stars=1, is-official=true, is-automated=true",
 			filtersArgs: filters.NewArgs(
 				filters.Arg("stars", "1"),
 				filters.Arg("is-official", "true"),
@@ -337,38 +346,20 @@ func TestSearchRegistryForImages(t *testing.T) {
 			},
 		},
 	}
-	for index, s := range successCases {
-		daemon := &ImageService{
-			registryService: &fakeService{
-				term:    term,
-				results: s.registryResults,
-			},
-		}
-		results, err := daemon.SearchRegistryForImages(context.Background(), s.filtersArgs, term, 0, nil, map[string][]string{})
-		if err != nil {
-			t.Errorf("%d: %v", index, err)
-		}
-		if results.Query != term {
-			t.Errorf("%d: expected Query to be %s, got %s", index, term, results.Query)
-		}
-		if results.NumResults != len(s.expectedResults) {
-			t.Errorf("%d: expected NumResults to be %d, got %d", index, len(s.expectedResults), results.NumResults)
-		}
-		for _, result := range results.Results {
-			found := false
-			for _, expectedResult := range s.expectedResults {
-				if expectedResult.Name == result.Name &&
-					expectedResult.Description == result.Description &&
-					expectedResult.IsAutomated == result.IsAutomated &&
-					expectedResult.IsOfficial == result.IsOfficial &&
-					expectedResult.StarCount == result.StarCount {
-					found = true
-					break
-				}
+	for _, tc := range successCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			daemon := &ImageService{
+				registryService: &fakeService{
+					term:    term,
+					results: tc.registryResults,
+				},
 			}
-			if !found {
-				t.Errorf("%d: expected results %v, got %v", index, s.expectedResults, results.Results)
-			}
-		}
+			results, err := daemon.SearchRegistryForImages(context.Background(), tc.filtersArgs, term, 0, nil, map[string][]string{})
+			assert.NilError(t, err)
+			assert.Equal(t, results.Query, term)
+			assert.Equal(t, results.NumResults, len(tc.expectedResults))
+			assert.DeepEqual(t, results.Results, tc.expectedResults)
+		})
 	}
 }
