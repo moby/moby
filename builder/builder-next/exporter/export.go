@@ -54,7 +54,13 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 	for k, v := range opt {
 		switch k {
 		case keyImageName:
-			i.targetName = v
+			for _, v := range strings.Split(v, ",") {
+				ref, err := distref.ParseNormalizedNamed(v)
+				if err != nil {
+					return nil, err
+				}
+				i.targetNames = append(i.targetNames, ref)
+			}
 		case keyBuildInfo:
 			if v == "" {
 				i.buildInfo = true
@@ -87,7 +93,7 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 
 type imageExporterInstance struct {
 	*imageExporter
-	targetName     string
+	targetNames    []distref.Named
 	meta           map[string][]byte
 	buildInfo      bool
 	buildInfoAttrs bool
@@ -197,14 +203,9 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	_ = configDone(nil)
 
 	if e.opt.ReferenceStore != nil {
-		targetNames := strings.Split(e.targetName, ",")
-		for _, targetName := range targetNames {
-			tagDone := oneOffProgress(ctx, "naming to "+targetName)
-			tref, err := distref.ParseNormalizedNamed(targetName)
-			if err != nil {
-				return nil, err
-			}
-			if err := e.opt.ReferenceStore.AddTag(tref, digest.Digest(id), true); err != nil {
+		for _, targetName := range e.targetNames {
+			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
+			if err := e.opt.ReferenceStore.AddTag(targetName, digest.Digest(id), true); err != nil {
 				return nil, tagDone(err)
 			}
 			_ = tagDone(nil)
