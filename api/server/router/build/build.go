@@ -1,6 +1,8 @@
 package build // import "github.com/docker/docker/api/server/router/build"
 
 import (
+	"runtime"
+
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types"
 )
@@ -37,17 +39,24 @@ func (r *buildRouter) initRoutes() {
 	}
 }
 
-// BuilderVersion derives the default docker builder version from the config
-// Note: it is valid to have BuilderVersion unset which means it is up to the
-// client to choose which builder to use.
+// BuilderVersion derives the default docker builder version from the config.
+//
+// The default on Linux is version "2" (BuildKit), but the daemon can be
+// configured to recommend version "1" (classic Builder). Windows does not
+// yet support BuildKit for native Windows images, and uses "1" (classic builder)
+// as a default.
+//
+// This value is only a recommendation as advertised by the daemon, and it is
+// up to the client to choose which builder to use.
 func BuilderVersion(features map[string]bool) types.BuilderVersion {
-	var bv types.BuilderVersion
-	if v, ok := features["buildkit"]; ok {
-		if v {
-			bv = types.BuilderBuildKit
-		} else {
-			bv = types.BuilderV1
-		}
+	// TODO(thaJeztah) move the default to daemon/config
+	if runtime.GOOS == "windows" {
+		return types.BuilderV1
+	}
+
+	bv := types.BuilderBuildKit
+	if v, ok := features["buildkit"]; ok && !v {
+		bv = types.BuilderV1
 	}
 	return bv
 }
