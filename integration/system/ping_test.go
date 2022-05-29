@@ -66,30 +66,30 @@ func TestPingSwarmHeader(t *testing.T) {
 	ctx := context.TODO()
 
 	t.Run("before swarm init", func(t *testing.T) {
-		res, _, err := request.Get("/_ping")
+		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
-		assert.Equal(t, res.StatusCode, http.StatusOK)
-		assert.Equal(t, hdr(res, "Swarm"), "inactive")
+		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
+		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
 	})
 
 	_, err := client.SwarmInit(ctx, swarm.InitRequest{ListenAddr: "127.0.0.1", AdvertiseAddr: "127.0.0.1:2377"})
 	assert.NilError(t, err)
 
 	t.Run("after swarm init", func(t *testing.T) {
-		res, _, err := request.Get("/_ping", request.Host(d.Sock()))
+		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
-		assert.Equal(t, res.StatusCode, http.StatusOK)
-		assert.Equal(t, hdr(res, "Swarm"), "active/manager")
+		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateActive)
+		assert.Equal(t, p.SwarmStatus.ControlAvailable, true)
 	})
 
 	err = client.SwarmLeave(ctx, true)
 	assert.NilError(t, err)
 
 	t.Run("after swarm leave", func(t *testing.T) {
-		res, _, err := request.Get("/_ping", request.Host(d.Sock()))
+		p, err := client.Ping(ctx)
 		assert.NilError(t, err)
-		assert.Equal(t, res.StatusCode, http.StatusOK)
-		assert.Equal(t, hdr(res, "Swarm"), "inactive")
+		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
+		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
 	})
 }
 
