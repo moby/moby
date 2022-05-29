@@ -4,8 +4,11 @@ import (
 	"io"
 	"sync"
 
+	ctdmount "github.com/containerd/containerd/mount"
+	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
+	"github.com/pkg/errors"
 )
 
 type mountedLayer struct {
@@ -113,4 +116,22 @@ func (rl *referencedRWLayer) Unmount() error {
 // ApplyDiff applies specified diff to the layer
 func (rl *referencedRWLayer) ApplyDiff(diff io.Reader) (int64, error) {
 	return rl.layerStore.driver.ApplyDiff(rl.mountID, rl.cacheParent(), diff)
+}
+
+func (rl *referencedRWLayer) GetDirectMounts(mountLabel string) ([]ctdmount.Mount, error) {
+	if driver, ok := rl.layerStore.driver.(graphdriver.DirectMountDriver); ok {
+		mnts, err := driver.GetDirectMounts(rl.mountedLayer.mountID, mountLabel)
+		if err != nil {
+			return nil, err
+		}
+		return mnts, nil
+	}
+	return nil, errors.New("driver does not support GetDirectMounts")
+}
+
+func (rl *referencedRWLayer) PutDirectMounts() error {
+	if driver, ok := rl.layerStore.driver.(graphdriver.DirectMountDriver); ok {
+		return driver.PutDirectMounts(rl.mountedLayer.mountID)
+	}
+	return errors.New("driver does not support PutDirectMounts")
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	ctdmount "github.com/containerd/containerd/mount"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
@@ -102,6 +103,22 @@ type DiffDriver interface {
 type Driver interface {
 	ProtoDriver
 	DiffDriver
+}
+
+// DirectMountDriver defines a driver that can return the underlying
+// mounts to be performed (as opposed to the default Get and Put methods
+// which do the mount and then return a ContainerFS).
+// It's currently only intended to be used with the BuildKit adapter to
+// enable optimizations that require knowing the actual underlying mount.
+type DirectMountDriver interface {
+	// Get the direct mounts for the filesystem referred to by this id.
+	// This will cause calls to Get on the same id in the same driver to
+	// return an error (until all direct mounts have been released with the
+	// PutDirectMounts method).
+	GetDirectMounts(id, mountLabel string) ([]ctdmount.Mount, error)
+	// Release a mount returned by GetDirectMounts. When all direct mounts
+	// have been released, the underlying filesystem directories are cleaned up.
+	PutDirectMounts(id string) error
 }
 
 // Capabilities defines a list of capabilities a driver may implement.

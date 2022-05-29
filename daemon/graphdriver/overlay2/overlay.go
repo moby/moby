@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	ctdmount "github.com/containerd/containerd/mount"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
@@ -101,6 +102,12 @@ type Driver struct {
 	supportsDType bool
 	usingMetacopy bool
 	locker        *locker.Locker
+	// getMountCount is incremented when GetMounts is called, decremented when
+	// PutMounts is called. It doesn't use RefCounter because we don't want the
+	// logic of only incrementing when its actually mounted. Instead, it just
+	// relies on locker for synchronization.
+	getMountCounts map[string]int
+	directMounts   map[string][]ctdmount.Mount
 }
 
 var (
@@ -178,13 +185,15 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 	}
 
 	d := &Driver{
-		home:          home,
-		idMap:         idMap,
-		ctr:           graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
-		supportsDType: supportsDType,
-		usingMetacopy: usingMetacopy,
-		locker:        locker.New(),
-		options:       *opts,
+		home:           home,
+		idMap:          idMap,
+		ctr:            graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
+		supportsDType:  supportsDType,
+		usingMetacopy:  usingMetacopy,
+		locker:         locker.New(),
+		options:        *opts,
+		getMountCounts: make(map[string]int),
+		directMounts:   make(map[string][]ctdmount.Mount),
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
@@ -520,6 +529,9 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if _, err := os.Stat(dir); err != nil {
 		return nil, err
 	}
+	if d.getMountCounts[id] > 0 {
+		return nil, fmt.Errorf("overlay mount %q has open direct mounts", id)
+	}
 
 	diffDir := path.Join(dir, diffDirName)
 	lowers, err := os.ReadFile(path.Join(dir, lowerFile))
@@ -738,4 +750,113 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 // parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	return d.naiveDiff.Changes(id, parent)
+}
+
+func (d *Driver) GetDirectMounts(id, mountLabel string) (_ []ctdmount.Mount, retErr error) {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
+	dir := d.dir(id)
+	if _, err := os.Stat(dir); err != nil {
+		return nil, err
+	}
+
+	diffDir := path.Join(dir, diffDirName)
+	lowers, err := os.ReadFile(path.Join(dir, lowerFile))
+	if err != nil {
+		// If no lower, just return diff directory
+		if os.IsNotExist(err) {
+			return []ctdmount.Mount{{
+				Type:   "bind",
+				Source: diffDir,
+				Options: []string{
+					"rbind",
+				},
+			}}, nil
+		}
+		return nil, err
+	}
+
+	mergedDir := path.Join(dir, mergedDirName)
+	d.getMountCounts[id]++
+	if d.getMountCounts[id] > 1 {
+		return d.directMounts[id], nil
+	}
+	defer func() {
+		if retErr != nil {
+			d.getMountCounts[id]--
+			if d.getMountCounts[id] == 0 {
+				// Cleanup the created merged directory; see the comment in Put's rmdir
+				if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
+					logger.Debugf("Failed to remove %s: %v: %v", id, rmErr, err)
+				}
+			}
+		}
+	}()
+
+	splitLowers := strings.Split(string(lowers), ":")
+	absLowers := make([]string, len(splitLowers))
+	for i, s := range splitLowers {
+		absLowers[i] = path.Join(d.home, s)
+	}
+
+	var readonly bool
+	if _, err := os.Stat(path.Join(dir, "committed")); err == nil {
+		readonly = true
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	workDir := path.Join(dir, workDirName)
+	var opts string
+	if readonly {
+		opts = indexOff + userxattr + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
+	} else {
+		opts = indexOff + userxattr + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
+	}
+
+	mountData := label.FormatMountLabel(opts, mountLabel)
+
+	root := d.idMap.RootPair()
+	if err := idtools.MkdirAndChown(mergedDir, 0700, root); err != nil {
+		return nil, err
+	}
+
+	// TODO: It's not possible to chown workdir/work here as in the Get method because
+	// it doesn't exist yet. I'm not sure what kernels that is needed in either, a very
+	// quick test on my local kernel (5.17) didn't error out when causing a copy-up to happen
+	// from an unprivileged user namespace. This is far from an exhaustive test, but may be
+	// worth figuring out if/when that chown is actually needed.
+
+	d.directMounts[id] = []ctdmount.Mount{{
+		Type:    "overlay",
+		Source:  "overlay",
+		Options: strings.Split(mountData, ","),
+	}}
+	return d.directMounts[id], nil
+}
+
+func (d *Driver) PutDirectMounts(id string) error {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
+	d.getMountCounts[id]--
+	if d.getMountCounts[id] > 0 {
+		return nil
+	}
+	delete(d.getMountCounts, id)
+	delete(d.directMounts, id)
+
+	dir := d.dir(id)
+	mountpoint := path.Join(dir, mergedDirName)
+
+	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
+	// will cause all other instances of this mount in other mount namespaces
+	// to be unmounted. This is necessary to avoid cases where an overlay mount
+	// that is present in another namespace will cause subsequent mounts
+	// operations to fail with ebusy.  We ignore any errors here because this may
+	// fail on older kernels which don't have
+	// torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe applied.
+	if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
+		logger.Debugf("Failed to remove %s overlay: %v", id, err)
+	}
+	return nil
 }
