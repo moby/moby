@@ -147,15 +147,17 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Log(msg *logger.Message) error {
-	defer logger.PutMessage(msg)
 	buf := buffersPool.Get().(*[]byte)
 	defer buffersPool.Put(buf)
 
+	timestamp := msg.Timestamp
 	err := marshal(msg, buf)
+	logger.PutMessage(msg)
+
 	if err != nil {
 		return errors.Wrap(err, "error marshalling logger.Message")
 	}
-	return d.logfile.WriteLogEntry(msg.Timestamp, *buf)
+	return d.logfile.WriteLogEntry(timestamp, *buf)
 }
 
 func (d *driver) Close() error {

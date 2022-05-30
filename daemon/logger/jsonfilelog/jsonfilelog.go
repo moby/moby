@@ -118,16 +118,19 @@ func New(info logger.Info) (logger.Logger, error) {
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
-	defer logger.PutMessage(msg)
 	buf := buffersPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer buffersPool.Put(buf)
 
-	if err := marshalMessage(msg, l.extra, buf); err != nil {
+	timestamp := msg.Timestamp
+	err := marshalMessage(msg, l.extra, buf)
+	logger.PutMessage(msg)
+
+	if err != nil {
 		return err
 	}
 
-	return l.writer.WriteLogEntry(msg.Timestamp, buf.Bytes())
+	return l.writer.WriteLogEntry(timestamp, buf.Bytes())
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
