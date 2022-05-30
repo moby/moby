@@ -3,6 +3,7 @@ package local // import "github.com/docker/docker/daemon/logger/local"
 import (
 	"encoding/binary"
 	"io"
+	"math/bits"
 	"strconv"
 	"sync"
 	"time"
@@ -110,7 +111,11 @@ func marshal(m *logger.Message, buffer *[]byte) error {
 
 	buf := *buffer
 	if writeLen > cap(buf) {
-		buf = make([]byte, writeLen)
+		// If we already need to reallocate the buffer, make it larger to be more reusable.
+		// Round to the next power of two.
+		capacity := 1 << (bits.Len(uint(writeLen)) + 1)
+
+		buf = make([]byte, writeLen, capacity)
 	} else {
 		buf = buf[:writeLen]
 	}

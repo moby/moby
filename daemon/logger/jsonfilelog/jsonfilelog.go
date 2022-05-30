@@ -23,7 +23,7 @@ const Name = "json-file"
 // Every buffer will have to store the same constant json structure with the message
 // len(`{"log":"","stream:"stdout","time":"2000-01-01T00:00:00.000000000Z"}\n`) = 68.
 // So let's start with a buffer bigger than this.
-const initialBufSize = 128
+const initialBufSize = 256
 
 var buffersPool = sync.Pool{New: func() interface{} { return bytes.NewBuffer(make([]byte, 0, initialBufSize)) }}
 
