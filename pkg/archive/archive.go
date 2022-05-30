@@ -18,12 +18,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/klauspost/compress/zstd"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	exec "golang.org/x/sys/execabs"
 )
@@ -766,7 +768,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 			chownOpts = &idtools.Identity{UID: hdr.Uid, GID: hdr.Gid}
 		}
 		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
-			return err
+			msg := "failed to Lchown %q for UID %d, GID %d"
+			if errors.Is(err, syscall.EINVAL) && userns.RunningInUserNS() {
+				msg += " (try increasing the number of subordinate IDs in /etc/subuid and /etc/subgid)"
+			}
+			return errors.Wrapf(err, msg, path, hdr.Uid, hdr.Gid)
 		}
 	}
 
