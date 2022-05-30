@@ -29,6 +29,11 @@ const (
 	defaultCompressLogs       = true
 )
 
+var buffersPool = sync.Pool{New: func() interface{} {
+	b := make([]byte, initialBufSize)
+	return &b
+}}
+
 // LogOptKeys are the keys names used for log opts passed in to initialize the driver.
 var LogOptKeys = map[string]bool{
 	"max-file": true,
@@ -56,8 +61,7 @@ func init() {
 }
 
 type driver struct {
-	logfile     *loggerutils.LogFile
-	buffersPool sync.Pool
+	logfile *loggerutils.LogFile
 }
 
 // New creates a new local logger
@@ -135,10 +139,6 @@ func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
 	}
 	return &driver{
 		logfile: lf,
-		buffersPool: sync.Pool{New: func() interface{} {
-			b := make([]byte, initialBufSize)
-			return &b
-		}},
 	}, nil
 }
 
@@ -148,8 +148,8 @@ func (d *driver) Name() string {
 
 func (d *driver) Log(msg *logger.Message) error {
 	defer logger.PutMessage(msg)
-	buf := d.buffersPool.Get().(*[]byte)
-	defer d.buffersPool.Put(buf)
+	buf := buffersPool.Get().(*[]byte)
+	defer buffersPool.Put(buf)
 
 	err := marshal(msg, buf)
 	if err != nil {
