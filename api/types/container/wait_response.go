@@ -10,8 +10,7 @@ package container
 type WaitResponse struct {
 
 	// error
-	// Required: true
-	Error *WaitExitError `json:"Error"`
+	Error *WaitExitError `json:"Error,omitempty"`
 
 	// Exit code of the container
 	// Required: true
