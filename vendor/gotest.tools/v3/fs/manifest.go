@@ -1,12 +1,12 @@
 package fs
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )
 
@@ -75,7 +75,7 @@ func manifestFromDir(path string) (Manifest, error) {
 	case err != nil:
 		return Manifest{}, err
 	case !info.IsDir():
-		return Manifest{}, errors.Errorf("path %s must be a directory", path)
+		return Manifest{}, fmt.Errorf("path %s must be a directory", path)
 	}
 
 	directory, err := newDirectory(path, info)

@@ -2,6 +2,7 @@ package source // import "gotest.tools/v3/internal/source"
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -11,8 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 const baseStackIndex = 1
@@ -52,7 +51,7 @@ func getNodeAtLine(filename string, lineNum int) (ast.Node, error) {
 	fileset := token.NewFileSet()
 	astFile, err := parser.ParseFile(fileset, filename, nil, parser.AllErrors)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse source file: %s", filename)
+		return nil, fmt.Errorf("failed to parse source file %s: %w", filename, err)
 	}
 
 	if node := scanToLine(fileset, astFile, lineNum); node != nil {
@@ -64,7 +63,7 @@ func getNodeAtLine(filename string, lineNum int) (ast.Node, error) {
 			return node, err
 		}
 	}
-	return nil, errors.Errorf(
+	return nil, fmt.Errorf(
 		"failed to find an expression on line %d in %s", lineNum, filename)
 }
 

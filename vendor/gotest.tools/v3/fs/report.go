@@ -72,7 +72,6 @@ func removeCarriageReturn(in []byte) []byte {
 	return bytes.Replace(in, []byte("\r\n"), []byte("\n"), -1)
 }
 
-// nolint: gocyclo
 func eqFile(x, y *file) []problem {
 	p := eqResource(x.resource, y.resource)
 
@@ -159,7 +158,7 @@ func eqSymlink(x, y *symlink) []problem {
 
 func eqDirectory(path string, x, y *directory) []failure {
 	p := eqResource(x.resource, y.resource)
-	var f []failure // nolint: prealloc
+	var f []failure
 	matchedFiles := make(map[string]bool)
 
 	for _, name := range sortedKeys(x.items) {

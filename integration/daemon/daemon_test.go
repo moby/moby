@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/env"
 	"gotest.tools/v3/skip"
 )
 
@@ -213,9 +212,9 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Configure proxy through env-vars
 	t.Run("environment variables", func(t *testing.T) {
-		defer env.Patch(t, "HTTP_PROXY", proxyServer.URL)()
-		defer env.Patch(t, "HTTPS_PROXY", proxyServer.URL)()
-		defer env.Patch(t, "NO_PROXY", "example.com")()
+		t.Setenv("HTTP_PROXY", proxyServer.URL)
+		t.Setenv("HTTPS_PROXY", proxyServer.URL)
+		t.Setenv("NO_PROXY", "example.com")
 
 		d := daemon.New(t)
 		c := d.NewClientT(t)
@@ -241,12 +240,12 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Configure proxy through command-line flags
 	t.Run("command-line options", func(t *testing.T) {
-		defer env.Patch(t, "HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")()
-		defer env.Patch(t, "http_proxy", "http://"+userPass+"from-env-http.invalid")()
-		defer env.Patch(t, "HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
-		defer env.Patch(t, "https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
-		defer env.Patch(t, "NO_PROXY", "ignore.invalid")()
-		defer env.Patch(t, "no_proxy", "ignore.invalid")()
+		t.Setenv("HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")
+		t.Setenv("http_proxy", "http://"+userPass+"from-env-http.invalid")
+		t.Setenv("HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
+		t.Setenv("https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
+		t.Setenv("NO_PROXY", "ignore.invalid")
+		t.Setenv("no_proxy", "ignore.invalid")
 
 		d := daemon.New(t)
 		d.Start(t, "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
@@ -282,12 +281,12 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Configure proxy through configuration file
 	t.Run("configuration file", func(t *testing.T) {
-		defer env.Patch(t, "HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")()
-		defer env.Patch(t, "http_proxy", "http://"+userPass+"from-env-http.invalid")()
-		defer env.Patch(t, "HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
-		defer env.Patch(t, "https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")()
-		defer env.Patch(t, "NO_PROXY", "ignore.invalid")()
-		defer env.Patch(t, "no_proxy", "ignore.invalid")()
+		t.Setenv("HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")
+		t.Setenv("http_proxy", "http://"+userPass+"from-env-http.invalid")
+		t.Setenv("HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
+		t.Setenv("https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
+		t.Setenv("NO_PROXY", "ignore.invalid")
+		t.Setenv("no_proxy", "ignore.invalid")
 
 		d := daemon.New(t)
 		c := d.NewClientT(t)

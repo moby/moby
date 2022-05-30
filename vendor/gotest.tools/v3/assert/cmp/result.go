@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"reflect"
 	"text/template"
 
 	"gotest.tools/v3/internal/source"
@@ -84,6 +85,11 @@ func renderMessage(result templatedResult, args []ast.Expr) (string, error) {
 				return nil
 			}
 			return args[index]
+		},
+		// TODO: any way to include this from ErrorIS instead of here?
+		"notStdlibErrorType": func(typ interface{}) bool {
+			r := reflect.TypeOf(typ)
+			return r != stdlibFmtErrorType && r != stdlibErrorNewType
 		},
 	})
 	var err error
