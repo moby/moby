@@ -121,6 +121,7 @@ func TestList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer s.Shutdown()
 	ls, _, err = s.Find(ctx, nil)
 	if err != nil {
 		t.Fatal(err)

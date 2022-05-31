@@ -40,6 +40,7 @@ func TestRestore(t *testing.T) {
 
 	s, err = NewStore(dir, drivers)
 	assert.NilError(t, err)
+	defer s.Shutdown()
 
 	v, err := s.Get(ctx, "test1")
 	assert.NilError(t, err)

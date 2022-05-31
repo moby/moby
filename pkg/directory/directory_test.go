@@ -35,6 +35,7 @@ func TestSizeEmptyFile(t *testing.T) {
 	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
+	defer file.Close()
 
 	var size int64
 	if size, _ = Size(context.Background(), file.Name()); size != 0 {
@@ -54,6 +55,7 @@ func TestSizeNonemptyFile(t *testing.T) {
 	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
+	defer file.Close()
 
 	d := []byte{97, 98, 99, 100, 101}
 	file.Write(d)
@@ -96,6 +98,7 @@ func TestSizeFileAndNestedDirectoryEmpty(t *testing.T) {
 	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
+	defer file.Close()
 
 	d := []byte{100, 111, 99, 107, 101, 114}
 	file.Write(d)
@@ -121,6 +124,7 @@ func TestSizeFileAndNestedDirectoryNonempty(t *testing.T) {
 	if file, err = os.CreateTemp(dir, "file"); err != nil {
 		t.Fatalf("failed to create file: %s", err)
 	}
+	defer file.Close()
 
 	data := []byte{100, 111, 99, 107, 101, 114}
 	file.Write(data)
@@ -129,6 +133,7 @@ func TestSizeFileAndNestedDirectoryNonempty(t *testing.T) {
 	if nestedFile, err = os.CreateTemp(dirNested, "file"); err != nil {
 		t.Fatalf("failed to create file in nested directory: %s", err)
 	}
+	defer nestedFile.Close()
 
 	nestedData := []byte{100, 111, 99, 107, 101, 114}
 	nestedFile.Write(nestedData)
