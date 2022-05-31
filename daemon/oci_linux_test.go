@@ -11,9 +11,10 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
+	"github.com/docker/docker/plugin"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/sys/mount"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -31,11 +32,13 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	assert.NilError(t, err)
 
 	d := &Daemon{
+		root: root,
 		// some empty structs to avoid getting a panic
 		// caused by a null pointer dereference
 		linkIndex:     newLinkIndex(),
 		netController: netController,
 		imageService:  &fakeImageService{},
+		PluginStore:   plugin.NewStore(),
 	}
 
 	c.Root = root
@@ -55,11 +58,19 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	// offending tests would fail due to the mounts blocking the temporary
 	// directory from being cleaned up.
 	t.Cleanup(func() {
+		err := d.Shutdown(context.TODO())
+		if err != nil {
+			t.Log(err)
+		}
 		if c.ShmPath != "" {
 			var err error
 			for err == nil { // Some tests over-mount over the same path multiple times.
-				err = unix.Unmount(c.ShmPath, unix.MNT_DETACH)
+				err = mount.Unmount(c.ShmPath)
 			}
+		}
+		err = os.RemoveAll(c.Root)
+		if err != nil {
+			t.Log(err)
 		}
 	})
 
