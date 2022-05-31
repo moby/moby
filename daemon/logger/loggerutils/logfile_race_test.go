@@ -34,18 +34,18 @@ func TestConcurrentLogging(t *testing.T) {
 	createDecoder := func(io.Reader) Decoder {
 		return dummyDecoder{}
 	}
-	marshal := func(msg *logger.Message) ([]byte, error) {
+	marshal := func(msg *logger.Message) []byte {
 		return []byte(fmt.Sprintf(
 			"Line=%q Source=%q Timestamp=%v Attrs=%v PLogMetaData=%#v Err=%v",
 			msg.Line, msg.Source, msg.Timestamp, msg.Attrs, msg.PLogMetaData, msg.Err,
-		)), nil
+		))
 	}
 	g, ctx := errgroup.WithContext(context.Background())
 	for ct := 0; ct < containers; ct++ {
 		ct := ct
 		dir := t.TempDir()
 		g.Go(func() (err error) {
-			logfile, err := NewLogFile(filepath.Join(dir, "log.log"), capacity, maxFiles, compress, marshal, createDecoder, 0644, getTailReader)
+			logfile, err := NewLogFile(filepath.Join(dir, "log.log"), capacity, maxFiles, compress, createDecoder, 0644, getTailReader)
 			if err != nil {
 				return err
 			}
@@ -64,13 +64,16 @@ func TestConcurrentLogging(t *testing.T) {
 							return ctx.Err()
 						default:
 						}
+						timestamp := time.Now()
 						msg := logger.NewMessage()
 						msg.Line = append(msg.Line, fmt.Sprintf("container=%v logger=%v msg=%v", ct, ln, m)...)
 						msg.Source = "stdout"
-						msg.Timestamp = time.Now()
+						msg.Timestamp = timestamp
 						msg.Attrs = append(msg.Attrs, backend.LogAttr{Key: "foo", Value: "bar"})
 						msg.PLogMetaData = &backend.PartialLogMetaData{ID: fmt.Sprintf("%v %v %v", ct, ln, m), Ordinal: 1, Last: true}
-						if err := logfile.WriteLogEntry(msg); err != nil {
+						marshalled := marshal(msg)
+						logger.PutMessage(msg)
+						if err := logfile.WriteLogEntry(timestamp, marshalled); err != nil {
 							return err
 						}
 					}
