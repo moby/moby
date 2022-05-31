@@ -1971,22 +1971,22 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.NilError(c, err)
 			defer os.RemoveAll(tmpDir3)
 
-			assert.Assert(c, mountWrapper(tmpDir3, tmpDir3, "none", "bind,shared") == nil)
-
-			cases = append(cases, []testCase{
-				{
-					spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath},
-					expected: types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3},
-				},
-				{
-					spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true},
-					expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3},
-				},
-				{
-					spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mount.BindOptions{Propagation: "shared"}},
-					expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"},
-				},
-			}...)
+			if assert.Check(c, mountWrapper(c, tmpDir3, tmpDir3, "none", "bind,shared")) {
+				cases = append(cases, []testCase{
+					{
+						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath},
+						expected: types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3},
+					},
+					{
+						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true},
+						expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3},
+					},
+					{
+						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mount.BindOptions{Propagation: "shared"}},
+						expected: types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"},
+					},
+				}...)
+			}
 		}
 	}
 
