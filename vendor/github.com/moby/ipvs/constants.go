@@ -88,20 +88,20 @@ const (
 	ipvsDestAttrAddressFamily
 )
 
-// IPVS Svc Statistics constancs
+// IPVS Statistics constants
 
 const (
-	ipvsSvcStatsUnspec int = iota
-	ipvsSvcStatsConns
-	ipvsSvcStatsPktsIn
-	ipvsSvcStatsPktsOut
-	ipvsSvcStatsBytesIn
-	ipvsSvcStatsBytesOut
-	ipvsSvcStatsCPS
-	ipvsSvcStatsPPSIn
-	ipvsSvcStatsPPSOut
-	ipvsSvcStatsBPSIn
-	ipvsSvcStatsBPSOut
+	ipvsStatsUnspec int = iota
+	ipvsStatsConns
+	ipvsStatsPktsIn
+	ipvsStatsPktsOut
+	ipvsStatsBytesIn
+	ipvsStatsBytesOut
+	ipvsStatsCPS
+	ipvsStatsPPSIn
+	ipvsStatsPPSOut
+	ipvsStatsBPSIn
+	ipvsStatsBPSOut
 )
 
 // Destination forwarding methods
