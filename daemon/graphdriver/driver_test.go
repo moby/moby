@@ -28,8 +28,9 @@ func TestIsEmptyDir(t *testing.T) {
 	d = filepath.Join(tmp, "dir-with-empty-file")
 	err = os.Mkdir(d, 0755)
 	assert.NilError(t, err)
-	_, err = os.CreateTemp(d, "file")
+	f, err := os.CreateTemp(d, "file")
 	assert.NilError(t, err)
+	defer f.Close()
 	empty = isEmptyDir(d)
 	assert.Check(t, !empty)
 }

@@ -22,6 +22,7 @@ func TestSetGetMeta(t *testing.T) {
 	assert.NilError(t, err)
 
 	store := &VolumeStore{db: db}
+	defer store.Shutdown()
 
 	_, err = store.getMeta("test")
 	assert.Assert(t, is.ErrorContains(err, ""))

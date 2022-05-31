@@ -18,6 +18,7 @@ func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
 
 	tmpKeyFile, err := os.CreateTemp(tmpKeyFolderPath, "keyfile")
 	assert.NilError(t, err)
+	defer tmpKeyFile.Close()
 
 	_, err = loadOrCreateTrustKey(tmpKeyFile.Name())
 	assert.Check(t, is.ErrorContains(err, "Error loading key file"))
