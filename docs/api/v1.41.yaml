@@ -4634,7 +4634,7 @@ definitions:
     type: "object"
     x-go-name: "ContainerWaitOKBody"
     title: "ContainerWaitResponse"
-    required: [StatusCode, Error]
+    required: [StatusCode]
     properties:
       StatusCode:
         description: "Exit code of the container"
