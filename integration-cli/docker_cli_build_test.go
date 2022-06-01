@@ -1014,7 +1014,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 	defer ctx.Close()
 	fooPath := filepath.Join(ctx.Dir, targetFile)
 
-	err = os.WriteFile(fooPath, []byte("test"), 0o666)
+	err := os.WriteFile(fooPath, []byte("test"), 0o666)
 	if err != nil {
 		c.Fatal(err)
 	}
