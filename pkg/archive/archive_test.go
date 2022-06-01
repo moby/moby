@@ -303,8 +303,8 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	t.Log("srcFile:", srcFile)
 	t.Log("tarFile:", tarFile)
 	if runtime.GOOS == "windows" {
-		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
-		tarFileU = "/tmp/" + filepath.Base(filepath.Dir(tarFile)) + "/src.tar"
+		srcFileU = "/tmp/src"
+		tarFileU = "/tmp/src.tar"
 	}
 	t.Log("srcFileU:", srcFileU)
 	t.Log("tarFileU:", tarFileU)
