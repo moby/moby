@@ -24,7 +24,7 @@ import (
 func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	t.Helper()
 	rootDir := t.TempDir()
-
+	cRoot := filepath.Join(rootDir, "containers", "fakecontainer")
 	rootfs := filepath.Join(rootDir, "rootfs")
 	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
@@ -42,7 +42,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 		PluginStore:   plugin.NewStore(),
 	}
 
-	c.Root = rootDir
+	c.Root = cRoot
 	c.BaseFS = rootfs
 
 	if c.Config == nil {
