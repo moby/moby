@@ -2074,13 +2074,10 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
+	daemonConfig := `{ "max-concurrent-downloads" : 8 }`
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
-
-	daemonConfig := `{ "max-concurrent-downloads" : 8 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
@@ -2089,12 +2086,9 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
-
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
@@ -2114,13 +2108,11 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
+	daemonConfig := `{ "max-concurrent-uploads" : null }`
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
-	daemonConfig := `{ "max-concurrent-uploads" : null }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
@@ -2129,11 +2121,9 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
@@ -2146,11 +2136,9 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "labels":["foo=bar"] }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 
@@ -2480,20 +2468,16 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *testing.T
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
+	daemonConfig := `{ "shutdown-timeout" : 8 }`
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
-	daemonConfig := `{ "shutdown-timeout" : 8 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "shutdown-timeout" : 5 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 
