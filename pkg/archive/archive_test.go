@@ -291,25 +291,29 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	tarFile := filepath.Join(tempFolder, "src.tar")
 	f, err := os.Create(srcFile)
 	if assert.Check(t, err) {
-		_ = f.Close()
+		defer f.Close()
 	}
 
 	d, err := os.Create(invalidDestFolder) // being a file (not dir) should cause an error
 	if assert.Check(t, err) {
-		_ = d.Close()
+		defer d.Close()
 	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
 	srcFileU := srcFile
 	tarFileU := tarFile
+	t.Log("srcFile:", srcFile)
+	t.Log("tarFile:", tarFile)
 	if runtime.GOOS == "windows" {
-		tarFileU = "/tmp/" + filepath.Base(filepath.Dir(tarFile)) + "/src.tar"
 		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
+		tarFileU = "/tmp/" + filepath.Base(filepath.Dir(tarFile)) + "/src.tar"
 	}
+	t.Log("srcFileU:", srcFileU)
+	t.Log("tarFileU:", tarFileU)
 
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
-	_, err = cmd.CombinedOutput()
-	assert.NilError(t, err)
+	out, err := cmd.CombinedOutput()
+	assert.NilError(t, err, string(out))
 
 	err = defaultUntarPath(tarFile, invalidDestFolder)
 	if err == nil {
@@ -332,7 +336,7 @@ func TestUntarPath(t *testing.T) {
 	tarFile := filepath.Join(tmpFolder, "src.tar")
 	f, err := os.Create(filepath.Join(tmpFolder, "src"))
 	if assert.Check(t, err) {
-		_ = f.Close()
+		defer f.Close()
 	}
 
 	destFolder := filepath.Join(tmpFolder, "dest")
@@ -349,8 +353,8 @@ func TestUntarPath(t *testing.T) {
 		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
 	}
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
-	_, err = cmd.CombinedOutput()
-	assert.NilError(t, err)
+	out, err := cmd.CombinedOutput()
+	assert.NilError(t, err, string(out))
 
 	err = defaultUntarPath(tarFile, destFolder)
 	if err != nil {
@@ -370,7 +374,7 @@ func TestUntarPathWithDestinationFile(t *testing.T) {
 	tarFile := filepath.Join(tmpFolder, "src.tar")
 	f, err := os.Create(filepath.Join(tmpFolder, "src"))
 	if assert.Check(t, err) {
-		_ = f.Close()
+		defer f.Close()
 	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
@@ -381,14 +385,13 @@ func TestUntarPathWithDestinationFile(t *testing.T) {
 		srcFileU = "/tmp/" + filepath.Base(filepath.Dir(srcFile)) + "/src"
 	}
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
-	_, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
+	out, err := cmd.CombinedOutput()
+	assert.NilError(t, err, string(out))
+
 	destFile := filepath.Join(tmpFolder, "dest")
 	f, err = os.Create(destFile)
 	if assert.Check(t, err) {
-		_ = f.Close()
+		defer f.Close()
 	}
 	err = defaultUntarPath(tarFile, destFile)
 	if err == nil {
@@ -405,7 +408,7 @@ func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
 	tarFile := filepath.Join(tmpFolder, "src.tar")
 	f, err := os.Create(srcFile)
 	if assert.Check(t, err) {
-		_ = f.Close()
+		defer f.Close()
 	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
@@ -417,10 +420,9 @@ func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
 	}
 
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
-	_, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
+	out, err := cmd.CombinedOutput()
+	assert.NilError(t, err, string(out))
+
 	destFolder := filepath.Join(tmpFolder, "dest")
 	err = os.MkdirAll(destFolder, 0o740)
 	if err != nil {
@@ -542,7 +544,7 @@ func TestCopyFileWithTarInexistentDestWillCreateIt(t *testing.T) {
 	inexistentDestFolder := filepath.Join(tempFolder, "doesnotexists")
 	f, err := os.Create(srcFile)
 	if assert.Check(t, err) {
-		_ = f.Close()
+		defer f.Close()
 	}
 	err = defaultCopyFileWithTar(srcFile, inexistentDestFolder)
 	if err != nil {
