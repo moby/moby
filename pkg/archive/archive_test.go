@@ -306,7 +306,7 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	}
 
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
-	_, err := cmd.CombinedOutput()
+	_, err = cmd.CombinedOutput()
 	assert.NilError(t, err)
 
 	err = defaultUntarPath(tarFile, invalidDestFolder)
@@ -388,7 +388,6 @@ func TestUntarPathWithDestinationFile(t *testing.T) {
 	if assert.Check(t, err) {
 		_ = f.Close()
 	}
-	defer f.Close()
 	err = defaultUntarPath(tarFile, destFile)
 	if err == nil {
 		t.Fatalf("UntarPath should throw an error if the destination if a file")
@@ -543,7 +542,6 @@ func TestCopyFileWithTarInexistentDestWillCreateIt(t *testing.T) {
 	if assert.Check(t, err) {
 		_ = f.Close()
 	}
-	defer f.Close()
 	err = defaultCopyFileWithTar(srcFile, inexistentDestFolder)
 	if err != nil {
 		t.Fatalf("CopyWithTar with an inexistent folder shouldn't fail.")
