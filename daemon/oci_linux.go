@@ -195,6 +195,7 @@ func getUser(c *container.Container, username string) (specs.User, error) {
 	}
 	usr.UID = uint32(execUser.Uid)
 	usr.GID = uint32(execUser.Gid)
+	usr.AdditionalGids = []uint32{usr.GID}
 
 	var addGroups []int
 	if len(c.HostConfig.GroupAdd) > 0 {
