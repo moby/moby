@@ -833,64 +833,65 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 
 	manifestMatches := filterManifests(mfstList.Manifests, platform)
 
-	if len(manifestMatches) == 0 {
-		errMsg := fmt.Sprintf("no matching manifest for %s in the manifest list entries", formatPlatform(platform))
-		logrus.Debugf(errMsg)
-		return "", "", errors.New(errMsg)
-	}
+	for _, match := range manifestMatches {
+		if err := checkImageCompatibility(match.Platform.OS, match.Platform.OSVersion); err != nil {
+			return "", "", err
+		}
 
-	if len(manifestMatches) > 1 {
-		logrus.Debugf("found multiple matches in manifest list, choosing best match %s", manifestMatches[0].Digest.String())
-	}
-	match := manifestMatches[0]
-
-	if err := checkImageCompatibility(match.Platform.OS, match.Platform.OSVersion); err != nil {
-		return "", "", err
-	}
-
-	desc := specs.Descriptor{
-		Digest:    match.Digest,
-		Size:      match.Size,
-		MediaType: match.MediaType,
-	}
-	manifest, err := p.manifestStore.Get(ctx, desc)
-	if err != nil {
-		return "", "", err
-	}
-
-	manifestRef, err := reference.WithDigest(reference.TrimNamed(ref), match.Digest)
-	if err != nil {
-		return "", "", err
-	}
-
-	switch v := manifest.(type) {
-	case *schema1.SignedManifest:
-		msg := fmt.Sprintf("[DEPRECATION NOTICE] v2 schema1 manifests in manifest lists are not supported and will break in a future release. Suggest author of %s to upgrade to v2 schema2. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", ref)
-		logrus.Warn(msg)
-		progress.Message(p.config.ProgressOutput, "", msg)
-
-		platform := toOCIPlatform(manifestMatches[0].Platform)
-		id, _, err = p.pullSchema1(ctx, manifestRef, v, &platform)
+		desc := specs.Descriptor{
+			Digest:    match.Digest,
+			Size:      match.Size,
+			MediaType: match.MediaType,
+		}
+		manifest, err := p.manifestStore.Get(ctx, desc)
 		if err != nil {
 			return "", "", err
 		}
-	case *schema2.DeserializedManifest:
-		platform := toOCIPlatform(manifestMatches[0].Platform)
-		id, _, err = p.pullSchema2(ctx, manifestRef, v, &platform)
-		if err != nil {
-			return "", "", err
-		}
-	case *ocischema.DeserializedManifest:
-		platform := toOCIPlatform(manifestMatches[0].Platform)
-		id, _, err = p.pullOCI(ctx, manifestRef, v, &platform)
-		if err != nil {
-			return "", "", err
-		}
-	default:
-		return "", "", errors.New("unsupported manifest format")
-	}
 
-	return id, manifestListDigest, err
+		manifestRef, err := reference.WithDigest(reference.TrimNamed(ref), match.Digest)
+		if err != nil {
+			return "", "", err
+		}
+
+		switch v := manifest.(type) {
+		case *schema1.SignedManifest:
+			msg := fmt.Sprintf("[DEPRECATION NOTICE] v2 schema1 manifests in manifest lists are not supported and will break in a future release. Suggest author of %s to upgrade to v2 schema2. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", ref)
+			logrus.Warn(msg)
+			progress.Message(p.config.ProgressOutput, "", msg)
+
+			platform := toOCIPlatform(match.Platform)
+			id, _, err = p.pullSchema1(ctx, manifestRef, v, platform)
+			if err != nil {
+				return "", "", err
+			}
+		case *schema2.DeserializedManifest:
+			platform := toOCIPlatform(match.Platform)
+			id, _, err = p.pullSchema2(ctx, manifestRef, v, platform)
+			if err != nil {
+				return "", "", err
+			}
+		case *ocischema.DeserializedManifest:
+			platform := toOCIPlatform(match.Platform)
+			id, _, err = p.pullOCI(ctx, manifestRef, v, platform)
+			if err != nil {
+				return "", "", err
+			}
+		case *manifestlist.DeserializedManifestList:
+			id, _, err = p.pullManifestList(ctx, manifestRef, v, pp)
+			if err != nil {
+				var noMatches noMatchesErr
+				if !errors.As(err, &noMatches) {
+					// test the next match
+					continue
+				}
+			}
+		default:
+			// OCI spec requires to skip unknown manifest types
+			continue
+		}
+		return id, manifestListDigest, err
+	}
+	return "", "", noMatchesErr{platform: platform}
 }
 
 const (
@@ -920,6 +921,14 @@ func (p *puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (con
 	}
 
 	return configJSON, nil
+}
+
+type noMatchesErr struct {
+	platform specs.Platform
+}
+
+func (e noMatchesErr) Error() string {
+	return fmt.Sprintf("no matching manifest for %s in the manifest list entries", formatPlatform(e.platform))
 }
 
 func retry(ctx context.Context, maxAttempts int, sleep time.Duration, f func(ctx context.Context) error) (err error) {
@@ -1054,8 +1063,13 @@ func createDownloadFile() (*os.File, error) {
 	return os.CreateTemp("", "GetImageBlob")
 }
 
-func toOCIPlatform(p manifestlist.PlatformSpec) specs.Platform {
-	return specs.Platform{
+func toOCIPlatform(p manifestlist.PlatformSpec) *specs.Platform {
+	// distribution pkg does define platform as pointer so this hack for empty struct
+	// is necessary. This is temporary until correct OCI image-spec package is used.
+	if p.OS == "" && p.Architecture == "" && p.Variant == "" && p.OSVersion == "" && p.OSFeatures == nil && p.Features == nil {
+		return nil
+	}
+	return &specs.Platform{
 		OS:           p.OS,
 		Architecture: p.Architecture,
 		Variant:      p.Variant,

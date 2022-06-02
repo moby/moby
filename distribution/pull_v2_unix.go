@@ -24,14 +24,25 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 	m := platforms.Only(p)
 	var matches []manifestlist.ManifestDescriptor
 	for _, desc := range manifests {
-		if m.Match(toOCIPlatform(desc.Platform)) {
+		descP := toOCIPlatform(desc.Platform)
+		if descP == nil || m.Match(*descP) {
 			matches = append(matches, desc)
-			logrus.Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
+			if descP != nil {
+				logrus.Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
+			}
 		}
 	}
 
 	sort.SliceStable(matches, func(i, j int) bool {
-		return m.Less(toOCIPlatform(matches[i].Platform), toOCIPlatform(matches[j].Platform))
+		p1 := toOCIPlatform(matches[i].Platform)
+		if p1 == nil {
+			return false
+		}
+		p2 := toOCIPlatform(matches[j].Platform)
+		if p2 == nil {
+			return true
+		}
+		return m.Less(*p1, *p2)
 	})
 
 	// deprecated: backwards compatibility with older versions that didn't compare variant
