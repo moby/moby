@@ -17,6 +17,10 @@ rc_ulimit="${DOCKER_ULIMIT:--c unlimited -n 1048576 -u unlimited}"
 
 retry="${DOCKER_RETRY:-TERM/60/KILL/10}"
 
+depend() {
+	need containerd
+}
+
 start_pre() {
 	checkpath -f -m 0644 -o root:docker "$DOCKER_LOGFILE"
 }
