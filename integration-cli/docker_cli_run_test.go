@@ -2745,30 +2745,29 @@ func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *testing.T) {
 
 // run container with --rm should remove container if exit code != 0
 func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *testing.T) {
-	existingContainers := ExistingContainerIDs(c)
 	name := "flowers"
 	cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "ls", "/notexists")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
 
-	out := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
-	out = RemoveOutputForExistingElements(out, existingContainers)
-	if out != "" {
-		c.Fatal("Expected not to have containers", out)
-	}
+	cli.Docker(cli.Args("container", "inspect", name)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Out:      "[]\n",
+		Err:      "o such container", // (N|n)o such container
+	})
 }
 
 func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *testing.T) {
-	existingContainers := ExistingContainerIDs(c)
 	name := "sparkles"
 	cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "commandNotFound")).Assert(c, icmd.Expected{
 		ExitCode: 127,
 	})
-	out := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
-	out = RemoveOutputForExistingElements(out, existingContainers)
-	if out != "" {
-		c.Fatal("Expected not to have containers", out)
-	}
+
+	cli.Docker(cli.Args("container", "inspect", name)).Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Out:      "[]\n",
+		Err:      "o such container", // (N|n)o such container
+	})
 }
 
 func (s *DockerSuite) TestRunPIDHostWithChildIsKillable(c *testing.T) {
