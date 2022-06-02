@@ -2,17 +2,28 @@ package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
+	"github.com/docker/docker/reference"
 )
 
 // imageRouter is a router to talk with the image controller
 type imageRouter struct {
-	backend Backend
-	routes  []router.Route
+	backend          Backend
+	referenceBackend reference.Store
+	imageStore       image.Store
+	layerStore       layer.Store
+	routes           []router.Route
 }
 
 // NewRouter initializes a new image router
-func NewRouter(backend Backend) router.Router {
-	r := &imageRouter{backend: backend}
+func NewRouter(backend Backend, referenceBackend reference.Store, imageStore image.Store, layerStore layer.Store) router.Router {
+	r := &imageRouter{
+		backend:          backend,
+		referenceBackend: referenceBackend,
+		imageStore:       imageStore,
+		layerStore:       layerStore,
+	}
 	r.initRoutes()
 	return r
 }

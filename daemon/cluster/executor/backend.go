@@ -18,6 +18,7 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networkSettings "github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
 	networktypes "github.com/docker/docker/libnetwork/types"
@@ -74,5 +75,5 @@ type VolumeBackend interface {
 type ImageBackend interface {
 	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, error)
-	LookupImage(name string) (*types.ImageInspect, error)
+	GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error)
 }
