@@ -3,7 +3,7 @@
 ARG CROSS="false"
 ARG SYSTEMD="false"
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ARG GO_VERSION=1.17.10
+ARG GO_VERSION=1.17.11
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.5.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp"
