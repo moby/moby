@@ -91,8 +91,8 @@ func Get() *PortAllocator {
 func newInstance() *PortAllocator {
 	start, end, err := getDynamicPortRange()
 	if err != nil {
-		logrus.WithError(err).Infof("falling back to default port range %d-%d", DefaultPortRangeStart, DefaultPortRangeEnd)
-		start, end = DefaultPortRangeStart, DefaultPortRangeEnd
+		logrus.WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
+		start, end = defaultPortRangeStart, defaultPortRangeEnd
 	}
 	return &PortAllocator{
 		ipMap: ipMapping{},
