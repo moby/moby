@@ -598,8 +598,8 @@ func (daemon *Daemon) loadRuntimes() error {
 
 func setupResolvConf(config *config.Config) {}
 
-func (daemon *Daemon) loadSysInfo() {
-	daemon.sysInfo = sysinfo.New()
+func getSysInfo(daemon *Daemon) *sysinfo.SysInfo {
+	return sysinfo.New()
 }
 
 func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {

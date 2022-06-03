@@ -1005,13 +1005,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	sysInfo := d.RawSysInfo()
-	for _, w := range sysInfo.Warnings {
-		logrus.Warn(w)
-	}
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
-	if runtime.GOOS == "linux" && !sysInfo.CgroupDevicesEnabled && !userns.RunningInUserNS() {
+	//
+	// Important: we call getSysInfo() directly here, without storing the results,
+	// as networking has not yet been set up, so we only have partial system info
+	// at this point.
+	//
+	// TODO(thaJeztah) add a utility to only collect the CgroupDevicesEnabled information
+	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(d).CgroupDevicesEnabled {
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
@@ -1096,6 +1098,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	close(d.startupDone)
 
 	info := d.SystemInfo()
+	for _, w := range info.Warnings {
+		logrus.Warn(w)
+	}
 
 	engineInfo.WithValues(
 		dockerversion.Version,
@@ -1487,7 +1492,7 @@ func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 		// We check if sysInfo is not set here, to allow some test to
 		// override the actual sysInfo.
 		if daemon.sysInfo == nil {
-			daemon.loadSysInfo()
+			daemon.sysInfo = getSysInfo(daemon)
 		}
 	})
 
