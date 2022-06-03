@@ -169,6 +169,10 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if err := i.NewDestination(s, d); err != nil && err != syscall.EEXIST {
 		logrus.Errorf("Failed to create real server %s for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 	}
+
+	// Ensure that kernel tweaks are applied in case this is the first time
+	// we've initialized ip_vs
+	sb.osSbox.ApplyOSTweaks(sb.oslTypes)
 }
 
 // Remove loadbalancer backend the load balancing endpoint for this

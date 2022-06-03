@@ -1175,6 +1175,14 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	if sb.osSbox != nil {
 		// Apply operating specific knobs on the load balancer sandbox
+		err := sb.osSbox.InvokeFunc(func() {
+			sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+		})
+
+		if err != nil {
+			logrus.Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
+		}
+		// Keep this just so performance is not changed
 		sb.osSbox.ApplyOSTweaks(sb.oslTypes)
 	}
 
