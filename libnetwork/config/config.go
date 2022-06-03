@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
-	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libkv/store"
 	"github.com/pelletier/go-toml"
@@ -160,23 +158,6 @@ func OptionExperimental(exp bool) Option {
 	return func(c *Config) {
 		logrus.Debugf("Option Experimental: %v", exp)
 		c.Daemon.Experimental = exp
-	}
-}
-
-// OptionDynamicPortRange function returns an option setter for service port allocation range
-func OptionDynamicPortRange(in string) Option {
-	return func(c *Config) {
-		start, end := 0, 0
-		if len(in) > 0 {
-			n, err := fmt.Sscanf(in, "%d-%d", &start, &end)
-			if n != 2 || err != nil {
-				logrus.Errorf("Failed to parse range string with err %v", err)
-				return
-			}
-		}
-		if err := portallocator.Get().SetPortRange(start, end); err != nil {
-			logrus.Errorf("Failed to set port range with err %v", err)
-		}
 	}
 }
 
