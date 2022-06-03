@@ -1726,14 +1726,14 @@ func (daemon *Daemon) setupSeccompProfile() error {
 	return nil
 }
 
-func (daemon *Daemon) loadSysInfo() {
+func getSysInfo(daemon *Daemon) *sysinfo.SysInfo {
 	var siOpts []sysinfo.Opt
 	if daemon.getCgroupDriver() == cgroupSystemdDriver {
 		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
 			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
 		}
 	}
-	daemon.sysInfo = sysinfo.New(siOpts...)
+	return sysinfo.New(siOpts...)
 }
 
 func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
