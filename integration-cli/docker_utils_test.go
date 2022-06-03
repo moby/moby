@@ -132,6 +132,8 @@ func inspectMountSourceField(name, destination string) (string, error) {
 	return m.Source, nil
 }
 
+var errMountNotFound = errors.New("mount point not found")
+
 // Deprecated: use cli.Docker
 func inspectMountPoint(name, destination string) (types.MountPoint, error) {
 	out, err := inspectFilter(name, "json .Mounts")
@@ -139,15 +141,8 @@ func inspectMountPoint(name, destination string) (types.MountPoint, error) {
 		return types.MountPoint{}, err
 	}
 
-	return inspectMountPointJSON(out, destination)
-}
-
-var errMountNotFound = errors.New("mount point not found")
-
-// Deprecated: use cli.Docker
-func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 	var mp []types.MountPoint
-	if err := json.Unmarshal([]byte(j), &mp); err != nil {
+	if err := json.Unmarshal([]byte(out), &mp); err != nil {
 		return types.MountPoint{}, err
 	}
 
