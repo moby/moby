@@ -51,3 +51,9 @@ func TestDecodeAuthConfigBody(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, *token, expected)
 }
+
+func TestEncodeAuthConfig(t *testing.T) {
+	token, err := EncodeAuthConfig(expected)
+	assert.NilError(t, err)
+	assert.Equal(t, token, encoded)
+}

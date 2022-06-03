@@ -33,6 +33,19 @@ type AuthConfig struct {
 	RegistryToken string `json:"registrytoken,omitempty"`
 }
 
+// EncodeAuthConfig serializes the auth configuration as a base64url encoded
+// RFC4648, section 5) JSON string for sending through the X-Registry-Auth header.
+//
+// For details on base64url encoding, see:
+// - RFC4648, section 5:   https://tools.ietf.org/html/rfc4648#section-5
+func EncodeAuthConfig(authConfig AuthConfig) (string, error) {
+	buf, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", errInvalidParameter{err}
+	}
+	return base64.URLEncoding.EncodeToString(buf), nil
+}
+
 // DecodeAuthConfig decodes base64url encoded (RFC4648, section 5) JSON
 // authentication information as sent through the X-Registry-Auth header.
 //
