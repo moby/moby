@@ -81,7 +81,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 				}, nil
 			}
 			if auth != "IAmValid" {
-				return nil, fmt.Errorf("Invalid auth header : expected 'IAmValid', got %s", auth)
+				return nil, fmt.Errorf("invalid auth header: expected 'IAmValid', got %s", auth)
 			}
 			query := req.URL.Query()
 			term := query.Get("term")
