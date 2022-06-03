@@ -97,7 +97,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 				}, nil
 			}
 			if auth != "IAmValid" {
-				return nil, fmt.Errorf("Invalid auth header : expected %s, got %s", "IAmValid", auth)
+				return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
 			}
 			query := req.URL.Query()
 			tag := query.Get("tag")
