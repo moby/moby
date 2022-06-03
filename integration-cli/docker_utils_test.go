@@ -311,7 +311,7 @@ func createTmpFile(c *testing.T, content string) string {
 // waitRun will wait for the specified container to be running, maximum 5 seconds.
 // Deprecated: use cli.WaitFor
 func waitRun(contID string) error {
-	return waitInspect(contID, "{{.State.Running}}", "true", 5*time.Second)
+	return daemon.WaitInspectWithArgs(dockerBinary, contID, "{{.State.Running}}", "true", 5*time.Second)
 }
 
 // waitInspect will wait for the specified container to have the specified string
@@ -319,12 +319,7 @@ func waitRun(contID string) error {
 // is reached.
 // Deprecated: use cli.WaitFor
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
-	return waitInspectWithArgs(name, expr, expected, timeout)
-}
-
-// Deprecated: use cli.WaitFor
-func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
-	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout, arg...)
+	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout)
 }
 
 func getInspectBody(c *testing.T, version, id string) []byte {
