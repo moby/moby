@@ -61,8 +61,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 	go func() {
 		select {
 		case <-ctx.Done():
-			log.G(ctx).Debugln("Build cancelled, killing and removing container:", cID)
-			c.backend.ContainerKill(cID, "")
+			log.G(ctx).Debugln("Build cancelled, removing container:", cID)
 			err = c.backend.ContainerRm(cID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
 			if err != nil {
 				_, _ = fmt.Fprintf(stdout, "Removing container %s: %v\n", stringid.TruncateID(cID), err)
