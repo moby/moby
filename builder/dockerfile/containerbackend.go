@@ -62,7 +62,10 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		case <-ctx.Done():
 			log.G(ctx).Debugln("Build cancelled, killing and removing container:", cID)
 			c.backend.ContainerKill(cID, "")
-			c.removeContainer(cID, stdout)
+			err = c.backend.ContainerRm(cID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+			if err != nil {
+				_, _ = fmt.Fprintf(stdout, "Removing container %s: %v\n", stringid.TruncateID(cID), err)
+			}
 			cancelErrCh <- errCancelled
 		case <-finished:
 			cancelErrCh <- nil
@@ -122,22 +125,11 @@ func (e *statusCodeError) StatusCode() int {
 	return e.code
 }
 
-func (c *containerManager) removeContainer(containerID string, stdout io.Writer) error {
-	rmConfig := &backend.ContainerRmConfig{
-		ForceRemove:  true,
-		RemoveVolume: true,
-	}
-	if err := c.backend.ContainerRm(containerID, rmConfig); err != nil {
-		fmt.Fprintf(stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(containerID), err)
-		return err
-	}
-	return nil
-}
-
 // RemoveAll containers managed by this container manager
 func (c *containerManager) RemoveAll(stdout io.Writer) {
 	for containerID := range c.tmpContainers {
-		if err := c.removeContainer(containerID, stdout); err != nil {
+		if err := c.backend.ContainerRm(containerID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+			_, _ = fmt.Fprintf(stdout, "Removing intermediate container %s: %v\n", stringid.TruncateID(containerID), err)
 			return
 		}
 		delete(c.tmpContainers, containerID)
