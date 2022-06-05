@@ -36,7 +36,6 @@ install_containerd() (
 	make
 
 	install -D bin/containerd "${PREFIX}/containerd"
-	install -D bin/containerd-shim "${PREFIX}/containerd-shim"
 	install -D bin/containerd-shim-runc-v2 "${PREFIX}/containerd-shim-runc-v2"
 	install -D bin/ctr "${PREFIX}/ctr"
 )
