@@ -91,7 +91,7 @@ EOF
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.upload_path = "/tmp/vagrant-install-golang"
     sh.env = {
-        'GO_VERSION': ENV['GO_VERSION'] || "1.17.9",
+        'GO_VERSION': ENV['GO_VERSION'] || "1.17.11",
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash
@@ -101,6 +101,7 @@ EOF
 GOPATH=\\$HOME/go
 PATH=\\$GOPATH/bin:\\$PATH
 export GOPATH PATH
+git config --global --add safe.directory /vagrant
 EOF
     source /etc/profile.d/sh.local
     SHELL
@@ -264,7 +265,7 @@ EOF
         fi
         trap cleanup EXIT
         ctr version
-        critest --parallel=$(nproc) --report-dir="${REPORT_DIR}" --ginkgo.skip='HostIpc is true'
+        critest --parallel=$[$(nproc)+2] --ginkgo.skip='HostIpc is true' --report-dir="${REPORT_DIR}"
     SHELL
   end
 
