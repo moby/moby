@@ -51,10 +51,6 @@ const (
 	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
 	DefaultPluginNamespace = "plugins.moby"
 
-	// LinuxV1RuntimeName is the runtime used to specify the containerd v1 shim with the runc binary
-	// Note this is different than io.containerd.runc.v1 which would be the v1 shim using the v2 shim API.
-	// This is specifically for the v1 shim using the v1 shim API.
-	LinuxV1RuntimeName = "io.containerd.runtime.v1.linux"
 	// LinuxV2RuntimeName is the runtime used to specify the containerd v2 runc shim
 	LinuxV2RuntimeName = "io.containerd.runc.v2"
 
@@ -67,7 +63,6 @@ const (
 
 var builtinRuntimes = map[string]bool{
 	StockRuntimeName:   true,
-	LinuxV1RuntimeName: true,
 	LinuxV2RuntimeName: true,
 }
 

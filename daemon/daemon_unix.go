@@ -727,10 +727,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		}
 	}
 
-	if hostConfig.Runtime == config.LinuxV1RuntimeName || (hostConfig.Runtime == "" && daemon.configStore.DefaultRuntime == config.LinuxV1RuntimeName) {
-		warnings = append(warnings, fmt.Sprintf("Configured runtime %q is deprecated and will be removed in the next release.", config.LinuxV1RuntimeName))
-	}
-
 	return warnings, nil
 }
 
@@ -769,9 +765,6 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if rtName := conf.GetDefaultRuntimeName(); rtName != "" {
 		if conf.GetRuntime(rtName) == nil {
 			return fmt.Errorf("specified default runtime '%s' does not exist", rtName)
-		}
-		if rtName == config.LinuxV1RuntimeName {
-			logrus.Warnf("Configured default runtime %q is deprecated and will be removed in the next release.", config.LinuxV1RuntimeName)
 		}
 	}
 	return nil

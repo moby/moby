@@ -72,10 +72,6 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	daemon.fillLicense(v)
 	daemon.fillDefaultAddressPools(v)
 
-	if v.DefaultRuntime == config.LinuxV1RuntimeName {
-		v.Warnings = append(v.Warnings, fmt.Sprintf("Configured default runtime %q is deprecated and will be removed in the next release.", config.LinuxV1RuntimeName))
-	}
-
 	return v
 }
 
