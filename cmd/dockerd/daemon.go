@@ -612,32 +612,34 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 }
 
 func newAPIServerConfig(config *config.Config) (*apiserver.Config, error) {
-	serverConfig := &apiserver.Config{
-		SocketGroup: config.SocketGroup,
-		Version:     dockerversion.Version,
-		CorsHeaders: config.CorsHeaders,
-	}
-
+	var tlsConfig *tls.Config
 	if config.TLS != nil && *config.TLS {
-		tlsOptions := tlsconfig.Options{
+		var (
+			clientAuth tls.ClientAuthType
+			err        error
+		)
+		if config.TLSVerify == nil || *config.TLSVerify {
+			// server requires and verifies client's certificate
+			clientAuth = tls.RequireAndVerifyClientCert
+		}
+		tlsConfig, err = tlsconfig.Server(tlsconfig.Options{
 			CAFile:             config.CommonTLSOptions.CAFile,
 			CertFile:           config.CommonTLSOptions.CertFile,
 			KeyFile:            config.CommonTLSOptions.KeyFile,
 			ExclusiveRootPools: true,
-		}
-
-		if config.TLSVerify == nil || *config.TLSVerify {
-			// server requires and verifies client's certificate
-			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-		tlsConfig, err := tlsconfig.Server(tlsOptions)
+			ClientAuth:         clientAuth,
+		})
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid TLS configuration")
 		}
-		serverConfig.TLSConfig = tlsConfig
 	}
 
-	return serverConfig, nil
+	return &apiserver.Config{
+		SocketGroup: config.SocketGroup,
+		Version:     dockerversion.Version,
+		CorsHeaders: config.CorsHeaders,
+		TLSConfig:   tlsConfig,
+	}, nil
 }
 
 // checkTLSAuthOK checks basically for an explicitly disabled TLS/TLSVerify
