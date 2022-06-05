@@ -639,6 +639,7 @@ func newAPIServerConfig(config *config.Config) (*apiserver.Config, error) {
 		Version:     dockerversion.Version,
 		CorsHeaders: config.CorsHeaders,
 		TLSConfig:   tlsConfig,
+		Hosts:       config.Hosts,
 	}, nil
 }
 
@@ -668,14 +669,14 @@ func checkTLSAuthOK(c *config.Config) bool {
 }
 
 func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, error) {
-	if len(cli.Config.Hosts) == 0 {
+	if len(serverConfig.Hosts) == 0 {
 		return nil, errors.New("no hosts configured")
 	}
 	var hosts []string
 
-	for i := 0; i < len(cli.Config.Hosts); i++ {
-		protoAddr := cli.Config.Hosts[i]
-		protoAddrParts := strings.SplitN(cli.Config.Hosts[i], "://", 2)
+	for i := 0; i < len(serverConfig.Hosts); i++ {
+		protoAddr := serverConfig.Hosts[i]
+		protoAddrParts := strings.SplitN(serverConfig.Hosts[i], "://", 2)
 		if len(protoAddrParts) != 2 {
 			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
