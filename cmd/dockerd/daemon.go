@@ -719,15 +719,15 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 				}
 			}
 		}
-		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
-		if err != nil {
-			return nil, err
-		}
 		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
 		if proto == "tcp" {
 			if err := allocateDaemonPort(addr); err != nil {
 				return nil, err
 			}
+		}
+		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
+		if err != nil {
+			return nil, err
 		}
 		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
 		hosts = append(hosts, protoAddrParts[1])
