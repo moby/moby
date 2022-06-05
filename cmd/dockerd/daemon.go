@@ -76,8 +76,6 @@ func NewDaemonCli() *DaemonCli {
 }
 
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	opts.setDefaultOptions()
-
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
@@ -92,7 +90,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	if opts.Validate {
 		// If config wasn't OK we wouldn't have made it this far.
-		fmt.Fprintln(os.Stderr, "configuration OK")
+		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
 		return nil
 	}
 
@@ -386,6 +384,8 @@ func shutdownDaemon(d *daemon.Daemon) {
 }
 
 func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
+	opts.setDefaultOptions()
+
 	conf := opts.daemonConfig
 	flags := opts.flags
 	conf.Debug = opts.Debug
