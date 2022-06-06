@@ -384,6 +384,9 @@ func shutdownDaemon(d *daemon.Daemon) {
 }
 
 func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
+	if !opts.flags.Parsed() {
+		return nil, errors.New(`cannot load CLI config before flags are parsed`)
+	}
 	opts.setDefaultOptions()
 
 	conf := opts.daemonConfig

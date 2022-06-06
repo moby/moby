@@ -22,6 +22,8 @@ func defaultOptions(t *testing.T, configFile string) *daemonOptions {
 	assert.NilError(t, err)
 	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
 	opts.configFile = configFile
+	err = opts.flags.Parse([]string{})
+	assert.NilError(t, err)
 	return opts
 }
 
