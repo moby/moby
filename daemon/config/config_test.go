@@ -338,13 +338,14 @@ func TestValidateConfigurationErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := New()
+			cfg, err := New()
+			assert.NilError(t, err)
 			if tc.field != "" {
 				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride, withForceOverwrite(tc.field)))
 			} else {
 				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
 			}
-			err := Validate(cfg)
+			err = Validate(cfg)
 			assert.Error(t, err, tc.expectedErr)
 		})
 	}
@@ -481,12 +482,13 @@ func TestValidateConfiguration(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Start with a config with all defaults set, so that we only
-			cfg := New()
+			cfg, err := New()
+			assert.NilError(t, err)
 			assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
 
 			// Check that the override happened :)
 			assert.Check(t, is.DeepEqual(cfg, tc.config, field(tc.field)))
-			err := Validate(cfg)
+			err = Validate(cfg)
 			assert.NilError(t, err)
 		})
 	}
