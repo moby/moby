@@ -495,10 +495,10 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 // doesn't exist the daemon still will be reloaded.
 func TestReloadDefaultConfigNotExist(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	reloaded := false
 	defaultConfigFile := "/tmp/blabla/not/exists/daemon.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", defaultConfigFile, "")
+	reloaded := false
 	err := Reload(defaultConfigFile, flags, func(c *Config) {
 		reloaded = true
 	})
@@ -520,8 +520,12 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
-	err = Reload(configFile, flags, func(c *Config) {})
+	reloaded := false
+	err = Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+	})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
+	assert.Check(t, reloaded == false)
 }
 
 func TestReloadWithConflictingLabels(t *testing.T) {
@@ -533,8 +537,12 @@ func TestReloadWithConflictingLabels(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	flags.StringSlice("labels", lbls, "")
-	err := Reload(configFile, flags, func(c *Config) {})
+	reloaded := false
+	err := Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+	})
 	assert.Check(t, is.ErrorContains(err, "conflict labels for foo=baz and foo=bar"))
+	assert.Check(t, reloaded == false)
 }
 
 func TestReloadWithDuplicateLabels(t *testing.T) {
@@ -546,8 +554,13 @@ func TestReloadWithDuplicateLabels(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	flags.StringSlice("labels", lbls, "")
-	err := Reload(configFile, flags, func(c *Config) {})
+	reloaded := false
+	err := Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+		assert.Check(t, is.DeepEqual(c.Labels, []string{"foo=the-same"}))
+	})
 	assert.Check(t, err)
+	assert.Check(t, reloaded)
 }
 
 func TestMaskURLCredentials(t *testing.T) {
