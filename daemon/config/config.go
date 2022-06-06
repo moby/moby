@@ -299,6 +299,7 @@ func New() *Config {
 			LogConfig: LogConfig{
 				Config: make(map[string]string),
 			},
+			Mtu: DefaultNetworkMtu,
 		},
 	}
 }

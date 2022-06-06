@@ -2,11 +2,15 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/imdario/mergo"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -215,6 +219,7 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 func TestValidateConfigurationErrors(t *testing.T) {
 	testCases := []struct {
 		name        string
+		field       string
 		config      *Config
 		expectedErr string
 	}{
@@ -319,7 +324,8 @@ func TestValidateConfigurationErrors(t *testing.T) {
 		// TODO(thaJeztah) temporarily excluding this test as it assumes defaults are set before validating and applying updated configs
 		/*
 			{
-				name: "zero max-download-attempts",
+				name:  "zero max-download-attempts",
+				field: "MaxDownloadAttempts",
 				config: &Config{
 					CommonConfig: CommonConfig{
 						MaxDownloadAttempts: 0,
@@ -367,19 +373,45 @@ func TestValidateConfigurationErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := Validate(tc.config)
+			cfg := New()
+			if tc.field != "" {
+				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride, withForceOverwrite(tc.field)))
+			} else {
+				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
+			}
+			err := Validate(cfg)
 			assert.Error(t, err, tc.expectedErr)
 		})
 	}
 }
 
+func withForceOverwrite(fieldName string) func(config *mergo.Config) {
+	return mergo.WithTransformers(overwriteTransformer{fieldName: fieldName})
+}
+
+type overwriteTransformer struct {
+	fieldName string
+}
+
+func (tf overwriteTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	if typ == reflect.TypeOf(CommonConfig{}) {
+		return func(dst, src reflect.Value) error {
+			dst.FieldByName(tf.fieldName).Set(src.FieldByName(tf.fieldName))
+			return nil
+		}
+	}
+	return nil
+}
+
 func TestValidateConfiguration(t *testing.T) {
 	testCases := []struct {
 		name   string
+		field  string
 		config *Config
 	}{
 		{
-			name: "with label",
+			name:  "with label",
+			field: "Labels",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Labels: []string{"one=two"},
@@ -387,7 +419,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with dns",
+			name:  "with dns",
+			field: "DNSConfig",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -397,7 +430,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with dns-search",
+			name:  "with dns-search",
+			field: "DNSConfig",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -407,7 +441,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with mtu",
+			name:  "with mtu",
+			field: "Mtu",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Mtu: 1234,
@@ -415,7 +450,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with max-concurrent-downloads",
+			name:  "with max-concurrent-downloads",
+			field: "MaxConcurrentDownloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					MaxConcurrentDownloads: 4,
@@ -423,7 +459,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with max-concurrent-uploads",
+			name:  "with max-concurrent-uploads",
+			field: "MaxConcurrentUploads",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					MaxConcurrentUploads: 4,
@@ -431,7 +468,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with max-download-attempts",
+			name:  "with max-download-attempts",
+			field: "MaxDownloadAttempts",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					MaxDownloadAttempts: 4,
@@ -439,7 +477,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with multiple node generic resources",
+			name:  "with multiple node generic resources",
+			field: "NodeGenericResources",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=bar", "foo=baz"},
@@ -447,7 +486,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with node generic resources",
+			name:  "with node generic resources",
+			field: "NodeGenericResources",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=1"},
@@ -455,7 +495,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with hosts",
+			name:  "with hosts",
+			field: "Hosts",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Hosts: []string{"tcp://127.0.0.1:2375"},
@@ -463,7 +504,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with log-level warn",
+			name:  "with log-level warn",
+			field: "LogLevel",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					LogLevel: "warn",
@@ -473,10 +515,27 @@ func TestValidateConfiguration(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := Validate(tc.config)
+			// Start with a config with all defaults set, so that we only
+			cfg := New()
+			assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
+
+			// Check that the override happened :)
+			assert.Check(t, is.DeepEqual(cfg, tc.config, field(tc.field)))
+			err := Validate(cfg)
 			assert.NilError(t, err)
 		})
 	}
+}
+
+func field(field string) cmp.Option {
+	tmp := reflect.TypeOf(Config{})
+	ignoreFields := make([]string, 0, tmp.NumField())
+	for i := 0; i < tmp.NumField(); i++ {
+		if tmp.Field(i).Name != field {
+			ignoreFields = append(ignoreFields, tmp.Field(i).Name)
+		}
+	}
+	return cmpopts.IgnoreFields(Config{}, ignoreFields...)
 }
 
 // TestReloadSetConfigFileNotExist tests that when `--config-file` is set
