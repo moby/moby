@@ -296,10 +296,20 @@ func (conf *Config) IsValueSet(name string) bool {
 func New() *Config {
 	return &Config{
 		CommonConfig: CommonConfig{
+			ShutdownTimeout: DefaultShutdownTimeout,
 			LogConfig: LogConfig{
 				Config: make(map[string]string),
 			},
-			Mtu: DefaultNetworkMtu,
+			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
+			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
+			MaxDownloadAttempts:    DefaultDownloadAttempts,
+			Mtu:                    DefaultNetworkMtu,
+			NetworkConfig: NetworkConfig{
+				NetworkControlPlaneMTU: DefaultNetworkMtu,
+			},
+			ContainerdNamespace:       DefaultContainersNamespace,
+			ContainerdPluginNamespace: DefaultPluginNamespace,
+			DefaultRuntime:            StockRuntimeName,
 		},
 	}
 }

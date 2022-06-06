@@ -28,7 +28,6 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	}
 
 	conf.Ulimits = make(map[string]*units.Ulimit)
-	conf.NetworkConfig.DefaultAddressPools = opts.PoolsOpt{}
 
 	// Set default value for `--default-shm-size`
 	conf.ShmSize = opts.MemBytes(config.DefaultShmSize)
