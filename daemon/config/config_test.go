@@ -281,6 +281,15 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "123456 is not a valid domain",
 		},
 		{
+			name: "negative MTU",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Mtu: -10,
+				},
+			},
+			expectedErr: "invalid default MTU: -10",
+		},
+		{
 			name: "negative max-concurrent-downloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -394,6 +403,14 @@ func TestValidateConfiguration(t *testing.T) {
 					DNSConfig: DNSConfig{
 						DNSSearch: []string{"a.b.c"},
 					},
+				},
+			},
+		},
+		{
+			name: "with mtu",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Mtu: 1234,
 				},
 			},
 		},
