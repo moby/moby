@@ -17,6 +17,7 @@ on:
 env:
   GO_VERSION: 1.18.3
   GOTESTLIST_VERSION: v0.2.0
+  TESTSTAT_VERSION: v0.1.3
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
   WINDOWS_BASE_TAG_2019: ltsc2019
   WINDOWS_BASE_TAG_2022: ltsc2022
@@ -188,6 +189,38 @@ jobs:
         with:
           name: ${{ matrix.os }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+
+  unit-test-report:
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - unit-test
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - windows-2022
+    steps:
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.os }}-unit-reports
+          path: /tmp/artifacts
+      -
+        name: Install teststat
+        run: |
+          go install github.com/vearutop/teststat@${{ env.TESTSTAT_VERSION }}
+      -
+        name: Create summary
+        run: |
+          teststat -markdown $(find /tmp/artifacts -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
 
   integration-test-prepare:
     runs-on: ubuntu-latest
@@ -449,3 +482,38 @@ jobs:
         with:
           name: ${{ matrix.os }}-integration-reports-${{ matrix.runtime }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+
+  integration-test-report:
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - integration-test
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2019
+          - windows-2022
+        runtime:
+          - builtin
+          - containerd
+    steps:
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.os }}-integration-reports-${{ matrix.runtime }}
+          path: /tmp/artifacts
+      -
+        name: Install teststat
+        run: |
+          go install github.com/vearutop/teststat@${{ env.TESTSTAT_VERSION }}
+      -
+        name: Create summary
+        run: |
+          teststat -markdown $(find /tmp/artifacts -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
