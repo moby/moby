@@ -1,6 +1,9 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/docker/docker/api/types"
 )
 
@@ -60,4 +63,11 @@ func (conf *Config) ValidatePlatformConfig() error {
 // IsRootless returns conf.Rootless on Linux but false on Windows
 func (conf *Config) IsRootless() bool {
 	return false
+}
+
+func setPlatformDefaults(cfg *Config) error {
+	cfg.Root = filepath.Join(os.Getenv("programdata"), "docker")
+	cfg.ExecRoot = filepath.Join(os.Getenv("programdata"), "docker", "exec-root")
+	cfg.Pidfile = filepath.Join(cfg.Root, "docker.pid")
+	return nil
 }

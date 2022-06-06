@@ -21,7 +21,11 @@ var (
 )
 
 func newDaemonCommand() (*cobra.Command, error) {
-	opts := newDaemonOptions(config.New())
+	cfg, err := config.New()
+	if err != nil {
+		return nil, err
+	}
+	opts := newDaemonOptions(cfg)
 
 	cmd := &cobra.Command{
 		Use:           "dockerd [OPTIONS]",

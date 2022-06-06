@@ -294,9 +294,10 @@ func (conf *Config) IsValueSet(name string) bool {
 	return ok
 }
 
-// New returns a new fully initialized Config struct
-func New() *Config {
-	return &Config{
+// New returns a new fully initialized Config struct with default values set.
+func New() (*Config, error) {
+	// platform-agnostic default values for the Config.
+	cfg := &Config{
 		CommonConfig: CommonConfig{
 			ShutdownTimeout: DefaultShutdownTimeout,
 			LogConfig: LogConfig{
@@ -314,6 +315,12 @@ func New() *Config {
 			DefaultRuntime:            StockRuntimeName,
 		},
 	}
+
+	if err := setPlatformDefaults(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
 // GetConflictFreeLabels validates Labels for conflict
@@ -348,7 +355,10 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 		if flags.Changed("config-file") || !os.IsNotExist(err) {
 			return errors.Wrapf(err, "unable to configure the Docker daemon with file %s", configFile)
 		}
-		newConfig = New()
+		newConfig, err = New()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Check if duplicate label-keys with different values are found
