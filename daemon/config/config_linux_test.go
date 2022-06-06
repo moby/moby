@@ -63,33 +63,25 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 					"Hard": 2048,
 					"Soft": 1024
 				}
-			},
-			"log-opts": {
-				"tag": "test_tag"
 			}
 		}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
 	defer file.Remove()
 
-	c := &Config{
-		CommonConfig: CommonConfig{
-			AutoRestart: true,
-			LogConfig: LogConfig{
-				Type:   "syslog",
-				Config: map[string]string{"tag": "test"},
-			},
-		},
-	}
+	conf := New()
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.BoolVarP(&conf.Debug, "debug", "D", false, "")
+	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "")
+	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", &conf.Ulimits), "default-ulimit", "")
+	flags.StringVar(&conf.LogConfig.Type, "log-driver", "json-file", "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "")
+	assert.Check(t, flags.Set("restart", "true"))
+	assert.Check(t, flags.Set("log-driver", "syslog"))
+	assert.Check(t, flags.Set("log-opt", "tag=from_flag"))
 
-	var debug bool
-	flags.BoolVarP(&debug, "debug", "D", false, "")
-	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", nil), "default-ulimit", "")
-	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
-
-	cc, err := MergeDaemonConfigurations(c, flags, file.Path())
+	cc, err := MergeDaemonConfigurations(conf, flags, file.Path())
 	assert.NilError(t, err)
 
 	assert.Check(t, cc.Debug)
@@ -97,7 +89,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 
 	expectedLogConfig := LogConfig{
 		Type:   "syslog",
-		Config: map[string]string{"tag": "test_tag"},
+		Config: map[string]string{"tag": "from_flag"},
 	}
 
 	assert.Check(t, is.DeepEqual(expectedLogConfig, cc.LogConfig))
