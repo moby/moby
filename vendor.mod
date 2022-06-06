@@ -18,7 +18,7 @@ require (
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.4
-	github.com/containerd/containerd v1.6.5
+	github.com/containerd/containerd v1.6.6
 	github.com/containerd/continuity v0.3.0
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
