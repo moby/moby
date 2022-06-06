@@ -390,21 +390,12 @@ jobs:
         name: Test integration-cli
         if: matrix.test != './...'
         run: |
-          & gotestsum `
-            --format=standard-verbose `
-            --jsonfile="./bundles/go-test-report-int-cli-tests.json" `
-            --junitfile="./bundles/junit-report-int-cli-tests.xml" `
-            --packages="./integration-cli/..." `
-            -- `
-              "-coverprofile" "./bundles/coverage-report-int-cli-tests.txt" `
-              "-covermode" "atomic" `
-              "-tags" "autogen" `
-              "-test.run" "(${{ matrix.test }})/" `
-              "-test.timeout" "200m"
+          .\hack\make.ps1 -TestIntegrationCli
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
           GO111MODULE: "off"
           TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
+          INTEGRATION_TESTRUN: ${{ matrix.test }}
       -
         name: Send to Codecov
         if: matrix.os == 'windows-2022'
