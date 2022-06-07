@@ -739,11 +739,13 @@ func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size
 func (ls *layerStore) Cleanup() error {
 	orphanLayers, err := ls.store.getOrphan()
 	if err != nil {
-		logrus.Errorf("Cannot get orphan layers: %v", err)
+		logrus.WithError(err).Error("cannot get orphan layers")
 	}
-	logrus.Debugf("found %v orphan layers", len(orphanLayers))
+	if len(orphanLayers) > 0 {
+		logrus.Debugf("found %v orphan layers", len(orphanLayers))
+	}
 	for _, orphan := range orphanLayers {
-		logrus.Debugf("removing orphan layer, chain ID: %v , cache ID: %v", orphan.chainID, orphan.cacheID)
+		logrus.WithField("cache-id", orphan.cacheID).Debugf("removing orphan layer, chain ID: %v", orphan.chainID)
 		err = ls.driver.Remove(orphan.cacheID)
 		if err != nil && !os.IsNotExist(err) {
 			logrus.WithError(err).WithField("cache-id", orphan.cacheID).Error("cannot remove orphan layer")
