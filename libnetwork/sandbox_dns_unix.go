@@ -176,8 +176,9 @@ func (sb *sandbox) setExternalResolvers(content []byte, addrType int, checkLoopb
 		}
 		sb.extDNS = append(sb.extDNS, extDNSEntry{
 			IPStr:        ip,
-			HostLoopback: hostLoopback,
+			HostLoopback: hostLoopback || isSystemdResolvedIPv4Loopback(ip),
 		})
+		logrus.Infof("Added external resolver IP: %s, HostLoopback: %t", ip, hostLoopback)
 	}
 }
 
@@ -188,6 +189,15 @@ func isIPv4Loopback(ipAddress string) bool {
 	if ip := net.ParseIP(ipAddress); ip != nil {
 		if ip4 := ip.To4(); ip4 != nil {
 			return ip4[0] == 127
+		}
+	}
+	return false
+}
+
+func isSystemdResolvedIPv4Loopback(ipAddress string) bool {
+	if ip := net.ParseIP(ipAddress); ip != nil {
+		if ip4 := ip.To4(); ip4 != nil {
+			return ip4[0] == 127 && ip4[3] == 53
 		}
 	}
 	return false
