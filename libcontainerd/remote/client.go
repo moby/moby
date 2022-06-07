@@ -22,7 +22,6 @@ import (
 	containerderrors "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
@@ -217,12 +216,6 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 				opts.IoUid = uint32(uid)
 				opts.IoGid = uint32(gid)
 				info.Options = &opts
-			} else {
-				info.Options = &runctypes.CreateOptions{
-					IoUid:       uint32(uid),
-					IoGid:       uint32(gid),
-					NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
-				}
 			}
 			return nil
 		})
@@ -515,21 +508,16 @@ func (c *client) getCheckpointOptions(id string, exit bool) containerd.Checkpoin
 	return func(r *containerd.CheckpointTaskInfo) error {
 		if r.Options == nil {
 			c.v2runcoptionsMu.Lock()
-			_, isV2 := c.v2runcoptions[id]
+			_, ok := c.v2runcoptions[id]
 			c.v2runcoptionsMu.Unlock()
-
-			if isV2 {
+			if ok {
 				r.Options = &v2runcoptions.CheckpointOptions{Exit: exit}
-			} else {
-				r.Options = &runctypes.CheckpointOptions{Exit: exit}
 			}
 			return nil
 		}
 
 		switch opts := r.Options.(type) {
 		case *v2runcoptions.CheckpointOptions:
-			opts.Exit = exit
-		case *runctypes.CheckpointOptions:
 			opts.Exit = exit
 		}
 

@@ -20,7 +20,6 @@ fi
 	# Always run cleanup, even if the subshell fails
 	bundle .integration-daemon-stop
 	cleanup_test_suite_binaries
-	error_on_leaked_containerd_shims
 
 	echo exiting test-integration
 	set -x

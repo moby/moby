@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/cgroups"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
@@ -24,7 +22,6 @@ import (
 const (
 	defaultRuntimeName = "runc"
 
-	linuxShimV1 = "io.containerd.runtime.v1.linux"
 	linuxShimV2 = "io.containerd.runc.v2"
 )
 
@@ -35,7 +32,6 @@ func configureRuntimes(conf *config.Config) {
 	if conf.Runtimes == nil {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
-	conf.Runtimes[config.LinuxV1RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV1ShimConfig(conf, defaultRuntimeName)}
 	conf.Runtimes[config.LinuxV2RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV2ShimConfig(conf, defaultRuntimeName)}
 	conf.Runtimes[config.StockRuntimeName] = conf.Runtimes[config.LinuxV2RuntimeName]
 }
@@ -48,17 +44,6 @@ func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimCon
 			Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
 			SystemdCgroup: UsingSystemd(conf),
 			NoPivotRoot:   os.Getenv("DOCKER_RAMDISK") != "",
-		},
-	}
-}
-
-func defaultV1ShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
-	return &types.ShimConfig{
-		Binary: linuxShimV1,
-		Opts: &runctypes.RuncOptions{
-			Runtime:       runtimePath,
-			RuntimeRoot:   filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
-			SystemdCgroup: UsingSystemd(conf),
 		},
 	}
 }
@@ -145,13 +130,6 @@ func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
 
 	if rt.Shim == nil {
 		rt.Shim = defaultV2ShimConfig(daemon.configStore, rt.Path)
-	}
-
-	if rt.Shim.Binary == linuxShimV1 {
-		if cgroups.Mode() == cgroups.Unified {
-			return nil, errdefs.InvalidParameter(errors.Errorf("runtime %q is not supported while cgroups v2 (unified hierarchy) is being used", name))
-		}
-		logrus.Warnf("Configured runtime %q is deprecated and will be removed in the next release", name)
 	}
 
 	return rt, nil
