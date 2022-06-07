@@ -5,10 +5,7 @@ github_checks:
 
 coverage:
   status:
-    patch:
-      default:
-        target: 50%
-        only_pulls: true
+    patch: false
     # project will give us the diff in the total code coverage between a commit
     # and its parent
     project:
