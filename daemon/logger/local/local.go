@@ -3,6 +3,7 @@ package local // import "github.com/docker/docker/daemon/logger/local"
 import (
 	"encoding/binary"
 	"io"
+	"math/bits"
 	"strconv"
 	"sync"
 	"time"
@@ -28,6 +29,11 @@ const (
 	defaultMaxFileCount       = 5
 	defaultCompressLogs       = true
 )
+
+var buffersPool = sync.Pool{New: func() interface{} {
+	b := make([]byte, initialBufSize)
+	return &b
+}}
 
 // LogOptKeys are the keys names used for log opts passed in to initialize the driver.
 var LogOptKeys = map[string]bool{
@@ -56,8 +62,7 @@ func init() {
 }
 
 type driver struct {
-	logfile     *loggerutils.LogFile
-	buffersPool sync.Pool
+	logfile *loggerutils.LogFile
 }
 
 // New creates a new local logger
@@ -106,7 +111,11 @@ func marshal(m *logger.Message, buffer *[]byte) error {
 
 	buf := *buffer
 	if writeLen > cap(buf) {
-		buf = make([]byte, writeLen)
+		// If we already need to reallocate the buffer, make it larger to be more reusable.
+		// Round to the next power of two.
+		capacity := 1 << (bits.Len(uint(writeLen)) + 1)
+
+		buf = make([]byte, writeLen, capacity)
 	} else {
 		buf = buf[:writeLen]
 	}
@@ -135,10 +144,6 @@ func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
 	}
 	return &driver{
 		logfile: lf,
-		buffersPool: sync.Pool{New: func() interface{} {
-			b := make([]byte, initialBufSize)
-			return &b
-		}},
 	}, nil
 }
 
@@ -147,15 +152,17 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Log(msg *logger.Message) error {
-	defer logger.PutMessage(msg)
-	buf := d.buffersPool.Get().(*[]byte)
-	defer d.buffersPool.Put(buf)
+	buf := buffersPool.Get().(*[]byte)
+	defer buffersPool.Put(buf)
 
+	timestamp := msg.Timestamp
 	err := marshal(msg, buf)
+	logger.PutMessage(msg)
+
 	if err != nil {
 		return errors.Wrap(err, "error marshalling logger.Message")
 	}
-	return d.logfile.WriteLogEntry(msg.Timestamp, *buf)
+	return d.logfile.WriteLogEntry(timestamp, *buf)
 }
 
 func (d *driver) Close() error {

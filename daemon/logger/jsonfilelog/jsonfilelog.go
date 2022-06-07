@@ -20,12 +20,18 @@ import (
 // Name is the name of the file that the jsonlogger logs to.
 const Name = "json-file"
 
+// Every buffer will have to store the same constant json structure with the message
+// len(`{"log":"","stream:"stdout","time":"2000-01-01T00:00:00.000000000Z"}\n`) = 68.
+// So let's start with a buffer bigger than this.
+const initialBufSize = 256
+
+var buffersPool = sync.Pool{New: func() interface{} { return bytes.NewBuffer(make([]byte, 0, initialBufSize)) }}
+
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	writer      *loggerutils.LogFile
-	tag         string // tag values requested by the user to log
-	extra       json.RawMessage
-	buffersPool sync.Pool
+	writer *loggerutils.LogFile
+	tag    string // tag values requested by the user to log
+	extra  json.RawMessage
 }
 
 func init() {
@@ -104,34 +110,27 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	return &JSONFileLogger{
-		writer:      writer,
-		tag:         tag,
-		extra:       extra,
-		buffersPool: makePool(),
+		writer: writer,
+		tag:    tag,
+		extra:  extra,
 	}, nil
-}
-
-func makePool() sync.Pool {
-	// Every buffer will have to store the same constant json structure and the message
-	// len(`{"log":"","stream:"stdout","time":"2000-01-01T00:00:00.000000000Z"}\n`) = 68
-	// So let's start with a buffer bigger than this
-	const initialBufSize = 128
-
-	return sync.Pool{New: func() interface{} { return bytes.NewBuffer(make([]byte, 0, initialBufSize)) }}
 }
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
-	defer logger.PutMessage(msg)
-	buf := l.buffersPool.Get().(*bytes.Buffer)
+	buf := buffersPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer l.buffersPool.Put(buf)
+	defer buffersPool.Put(buf)
 
-	if err := marshalMessage(msg, l.extra, buf); err != nil {
+	timestamp := msg.Timestamp
+	err := marshalMessage(msg, l.extra, buf)
+	logger.PutMessage(msg)
+
+	if err != nil {
 		return err
 	}
 
-	return l.writer.WriteLogEntry(msg.Timestamp, buf.Bytes())
+	return l.writer.WriteLogEntry(timestamp, buf.Bytes())
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
