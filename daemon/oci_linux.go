@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/rootless/specconv"
-	"github.com/docker/docker/pkg/stringid"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -68,8 +67,8 @@ func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Cont
 			return nil
 		}
 		var (
-			target         = filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
-			shortNetCtlrID = stringid.TruncateID(daemon.netController.ID())
+			target = filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
+			sock   = daemon.netController.ControlSocket()
 		)
 		for _, ns := range s.Linux.Namespaces {
 			if ns.Type == specs.NetworkNamespace && ns.Path == "" {
@@ -78,7 +77,7 @@ func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Cont
 				}
 				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
 					Path: target,
-					Args: []string{"libnetwork-setkey", "-exec-root=" + daemonCfg.GetExecRoot(), c.ID, shortNetCtlrID},
+					Args: []string{"libnetwork-setkey", "-sock=" + sock, c.ID},
 				})
 			}
 		}
