@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -27,11 +28,6 @@ const (
 func init() {
 	// TODO(thaJeztah): should this actually be registered on FreeBSD, or only on Linux?
 	reexec.Register("libnetwork-setkey", processSetKeyReexec)
-}
-
-type setKeyData struct {
-	ContainerID string
-	Key         string
 }
 
 // shallowState holds information about the runtime state of the container.
@@ -81,10 +77,7 @@ func setExternalKey(sockPath string, containerID string, key string) error {
 	}
 	defer c.Close()
 
-	err = json.NewEncoder(c).Encode(setKeyData{
-		ContainerID: containerID,
-		Key:         key,
-	})
+	_, err = c.Write([]byte(containerID + "=" + key))
 	if err != nil {
 		return fmt.Errorf("sendKey failed: %v", err)
 	}
@@ -165,15 +158,18 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	var s setKeyData
-	if err = json.Unmarshal(buf[0:nr], &s); err != nil {
-		return err
+
+	parts := bytes.SplitN(buf[0:nr], []byte("="), 2)
+	if len(parts) != 2 {
+		return types.InvalidParameterErrorf("invalid key data (%s): should be formatted as <container-ID>=<key>", string(buf[0:nr]))
 	}
-	sb, err := c.GetSandbox(s.ContainerID)
+
+	containerID, key := string(parts[0]), string(parts[1])
+	sb, err := c.GetSandbox(containerID)
 	if err != nil {
-		return types.InvalidParameterErrorf("failed to get sandbox for %s", s.ContainerID)
+		return types.InvalidParameterErrorf("failed to get sandbox for %s", containerID)
 	}
-	return sb.SetKey(s.Key)
+	return sb.SetKey(key)
 }
 
 func (c *Controller) stopExternalKeyListener() {
