@@ -108,8 +108,7 @@ func (c *Controller) startExternalKeyListener() error {
 	if err := os.MkdirAll(udsBase, 0o600); err != nil {
 		return err
 	}
-	shortCtlrID := stringid.TruncateID(c.id)
-	uds := filepath.Join(udsBase, shortCtlrID+".sock")
+	uds := filepath.Join(udsBase, stringid.TruncateID(c.id)+".sock")
 	l, err := net.Listen("unix", uds)
 	if err != nil {
 		return err
@@ -119,6 +118,7 @@ func (c *Controller) startExternalKeyListener() error {
 		return err
 	}
 	c.mu.Lock()
+	c.controlSocket = uds
 	c.extKeyListener = l
 	c.mu.Unlock()
 

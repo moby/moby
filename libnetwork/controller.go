@@ -86,6 +86,7 @@ type Controller struct {
 	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
+	controlSocket    string
 	extKeyListener   net.Listener
 	watchCh          chan *Endpoint
 	unWatchCh        chan *Endpoint
@@ -354,6 +355,11 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 // ID returns the controller's unique identity.
 func (c *Controller) ID() string {
 	return c.id
+}
+
+// ControlSocket returns the path of the controller's control-socket.
+func (c *Controller) ControlSocket() string {
+	return c.controlSocket
 }
 
 // BuiltinDrivers returns the list of builtin network drivers.
