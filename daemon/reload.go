@@ -42,10 +42,6 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 			})
 			logrus.Infof("Reloaded configuration: %s", jsonString)
 		}
-
-		// we're unlocking here, because
-		// LogDaemonEventWithAttributes() -> SystemInfo() -> GetAllRuntimes()
-		// holds that lock too.
 		daemon.configStore.Unlock()
 		if err == nil {
 			daemon.LogDaemonEventWithAttributes("reload", attributes)
