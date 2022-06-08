@@ -77,7 +77,7 @@ func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Cont
 				}
 				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
 					Path: target,
-					Args: []string{"libnetwork-setkey", "-sock=" + sock, c.ID},
+					Args: []string{"libnetwork-setkey", "-sock=" + sock},
 				})
 			}
 		}

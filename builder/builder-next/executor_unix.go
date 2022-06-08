@@ -130,7 +130,7 @@ func (iface *lnInterface) Set(s *specs.Spec) error {
 	s.Hooks = &specs.Hooks{
 		Prestart: []specs.Hook{{
 			Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
-			Args: []string{"libnetwork-setkey", "-sock=" + iface.provider.ControlSocket(), iface.sbx.ContainerID()},
+			Args: []string{"libnetwork-setkey", "-sock=" + iface.provider.ControlSocket()},
 		}},
 	}
 	return nil

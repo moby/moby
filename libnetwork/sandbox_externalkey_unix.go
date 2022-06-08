@@ -55,19 +55,13 @@ func setKey() error {
 		return fmt.Errorf("libnetwork-setkey: missing '-sock' option")
 	}
 
-	args := flag.Args()
-	if len(args) < 1 || args[0] == "" {
-		return fmt.Errorf("libnetwork-setkey: no containerID passed as argument")
-	}
-	containerID := args[0]
-
-	// We expect specs.State as a json string in <stdin>
+	// OCI runtime hooks send specs.State as a json string in <stdin>
 	var state specs.State
 	if err := json.NewDecoder(os.Stdin).Decode(&state); err != nil {
 		return err
 	}
 
-	return setExternalKey(*sockPath, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid))
+	return setExternalKey(*sockPath, state.ID, fmt.Sprintf("/proc/%d/ns/net", state.Pid))
 }
 
 // setExternalKey provides a convenient way to set an External key to a sandbox
