@@ -21,7 +21,7 @@ import (
 
 const (
 	execSubdir      = "libnetwork"
-	defaultExecRoot = "/run/docker"
+	defaultExecRoot = "/var/run/docker"
 	success         = "success"
 )
 
@@ -101,6 +101,7 @@ func processReturn(r io.Reader) error {
 }
 
 func (c *Controller) startExternalKeyListener() error {
+	// TODO(thaJeztah) should this be an error-condition if we don't have the daemon's actual exec-root?
 	execRoot := defaultExecRoot
 	if v := c.Config().ExecRoot; v != "" {
 		execRoot = v
