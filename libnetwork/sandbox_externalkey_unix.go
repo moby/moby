@@ -55,7 +55,7 @@ func setKey() error {
 	// (i.e. expecting 2 flag.Args())
 	args := flag.Args()
 	if len(args) < 2 {
-		return fmt.Errorf("re-exec expects 2 args (after parsing flags), received : %d", len(args))
+		return fmt.Errorf("re-exec expects 2 args (after parsing flags), received: %d", len(args))
 	}
 	containerID, shortCtlrID := args[0], args[1]
 
@@ -82,7 +82,7 @@ func setExternalKey(sockPath string, containerID string, key string) error {
 		Key:         key,
 	})
 	if err != nil {
-		return fmt.Errorf("sendKey failed with : %v", err)
+		return fmt.Errorf("sendKey failed: %v", err)
 	}
 	return processReturn(c)
 }
@@ -91,7 +91,7 @@ func processReturn(r io.Reader) error {
 	buf := make([]byte, 1024)
 	n, err := r.Read(buf[:])
 	if err != nil {
-		return fmt.Errorf("failed to read buf in processReturn : %v", err)
+		return fmt.Errorf("failed to read buf in processReturn: %v", err)
 	}
 	if string(buf[0:n]) != success {
 		return fmt.Errorf(string(buf[0:n]))
@@ -172,5 +172,5 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 }
 
 func (c *Controller) stopExternalKeyListener() {
-	c.extKeyListener.Close()
+	_ = c.extKeyListener.Close()
 }
