@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const (
@@ -33,6 +32,16 @@ func init() {
 type setKeyData struct {
 	ContainerID string
 	Key         string
+}
+
+// shallowState holds information about the runtime state of the container.
+// It's a reduced version of github.com/opencontainers/runtime-spec Spec
+// to only contain the field(s) we're interested in.
+type shallowState struct {
+	// ID is the container ID
+	ID string `json:"id"`
+	// Pid is the process ID for the container process.
+	Pid int `json:"pid,omitempty"`
 }
 
 // processSetKeyReexec is a private function that must be called only on an reexec path
@@ -56,7 +65,7 @@ func setKey() error {
 	}
 
 	// OCI runtime hooks send specs.State as a json string in <stdin>
-	var state specs.State
+	var state shallowState
 	if err := json.NewDecoder(os.Stdin).Decode(&state); err != nil {
 		return err
 	}
