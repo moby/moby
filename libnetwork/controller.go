@@ -183,13 +183,14 @@ func (c *Controller) SetClusterProvider(provider cluster.Provider) {
 }
 
 // SetKeys configures the encryption key for gossip and overlay data path.
+//
+// If an agent is available, it starts handling key changes.libnetwork side
+// of agent depends on the keys. On the first receipt of keys setup the agent.
+// For subsequent key set handle the key change
 func (c *Controller) SetKeys(keys []*types.EncryptionKey) error {
-	// libnetwork side of agent depends on the keys. On the first receipt of
-	// keys setup the agent. For subsequent key set handle the key change
 	subsysKeys := make(map[string]int)
 	for _, key := range keys {
-		if key.Subsystem != subsysGossip &&
-			key.Subsystem != subsysIPSec {
+		if key.Subsystem != subsysGossip && key.Subsystem != subsysIPSec {
 			return fmt.Errorf("key received for unrecognized subsystem")
 		}
 		subsysKeys[key.Subsystem]++
