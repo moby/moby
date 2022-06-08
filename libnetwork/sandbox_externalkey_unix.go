@@ -65,13 +65,13 @@ func setKey() error {
 		return err
 	}
 
-	return setExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
+	sockPath := filepath.Join(*execRoot, execSubdir, shortCtlrID+".sock")
+	return setExternalKey(sockPath, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid))
 }
 
 // setExternalKey provides a convenient way to set an External key to a sandbox
-func setExternalKey(shortCtlrID string, containerID string, key string, execRoot string) error {
-	uds := filepath.Join(execRoot, execSubdir, shortCtlrID+".sock")
-	c, err := net.Dial("unix", uds)
+func setExternalKey(sockPath string, containerID string, key string) error {
+	c, err := net.Dial("unix", sockPath)
 	if err != nil {
 		return err
 	}
