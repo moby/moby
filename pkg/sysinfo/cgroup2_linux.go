@@ -55,8 +55,8 @@ func newV2(options ...Opt) *SysInfo {
 	return sysInfo
 }
 
-func getSwapLimitV2() bool {
-	_, g, err := cgroups.ParseCgroupFileUnified("/proc/self/cgroup")
+func getSwapLimitV2(swap ResourceSupport) bool {
+	_, g, err := cgroups.ParseCgroupFileUnified(swap.procCg())
 	if err != nil {
 		return false
 	}
@@ -65,11 +65,9 @@ func getSwapLimitV2() bool {
 		return false
 	}
 
-	cGroupPath := path.Join("/sys/fs/cgroup", g, "memory.swap.max")
-	if _, err = os.Stat(cGroupPath); os.IsNotExist(err) {
-		return false
-	}
-	return true
+	cGroupPath := path.Join(swap.cgMntPoint(), g, "memory.swap.max")
+	/* In case cGroupPath is the root cgroup, detect swap another way */
+	return exists(cGroupPath) || swap.enabled()
 }
 
 func applyMemoryCgroupInfoV2(info *SysInfo) {
@@ -78,8 +76,16 @@ func applyMemoryCgroupInfoV2(info *SysInfo) {
 		return
 	}
 
+	swap := &SwapSupport{
+		procSelfCg: "/proc/self/cgroup",
+		swapon:     "/sbin/swapon",
+		swaps:      "/proc/swaps",
+		swappiness: "/proc/sys/vm/swappiness",
+		mntPoint:   "/sys/fs/cgroup",
+	}
+
 	info.MemoryLimit = true
-	info.SwapLimit = getSwapLimitV2()
+	info.SwapLimit = getSwapLimitV2(swap)
 	info.MemoryReservation = true
 	info.OomKillDisable = false
 	info.MemorySwappiness = false
@@ -141,4 +147,37 @@ func applyPIDSCgroupInfoV2(info *SysInfo) {
 
 func applyDevicesCgroupInfoV2(info *SysInfo) {
 	info.CgroupDevicesEnabled = !userns.RunningInUserNS()
+}
+
+func exists(atPath string) bool {
+	if _, err := os.Stat(atPath); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
+type ResourceSupport interface {
+	enabled() bool
+	procCg() string
+	cgMntPoint() string
+}
+
+type SwapSupport struct {
+	procSelfCg string
+	swapon     string
+	swaps      string
+	swappiness string
+	mntPoint   string
+}
+
+func (has *SwapSupport) enabled() bool {
+	return exists(has.swapon) || exists(has.swappiness) || exists(has.swaps)
+}
+
+func (detect *SwapSupport) procCg() string {
+	return detect.procSelfCg
+}
+
+func (cg *SwapSupport) cgMntPoint() string {
+	return cg.mntPoint
 }

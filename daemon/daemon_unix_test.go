@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -18,6 +19,22 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+var withMemoryLimit = func(si *sysinfo.SysInfo) {
+	si.MemoryLimit = true
+}
+
+var withSwapLimit = func(si *sysinfo.SysInfo) {
+	si.SwapLimit = true
+}
+
+var withOomKillDisable = func(si *sysinfo.SysInfo) {
+	si.OomKillDisable = true
+}
+
+var withoutSwapLimit = func(si *sysinfo.SysInfo) {
+	si.SwapLimit = false
+}
 
 type fakeContainerGetter struct {
 	containers map[string]*container.Container
@@ -257,16 +274,6 @@ func TestVerifyPlatformContainerResources(t *testing.T) {
 		yes = true
 	)
 
-	withMemoryLimit := func(si *sysinfo.SysInfo) {
-		si.MemoryLimit = true
-	}
-	withSwapLimit := func(si *sysinfo.SysInfo) {
-		si.SwapLimit = true
-	}
-	withOomKillDisable := func(si *sysinfo.SysInfo) {
-		si.OomKillDisable = true
-	}
-
 	tests := []struct {
 		name             string
 		resources        containertypes.Resources
@@ -414,4 +421,58 @@ func TestGetBlkioThrottleDevices(t *testing.T) {
 		assert.Check(t, retDevs[0].Minor == MINOR, "get minor device type")
 		assert.Check(t, retDevs[0].Rate == WEIGHT, "get device rate")
 	})
+}
+
+func TestVerifyPlatformContainerSettingsSwap(t *testing.T) {
+
+	rts := make(map[string]types.Runtime)
+
+	rts["runc"] = types.Runtime{Path: "/usr/bin/runc"}
+
+	spuriousWarning := "Your kernel does not support swap limit capabilities or the cgroup is not mounted. Memory limited without swap."
+
+	sysInfo := sysInfo(t, withMemoryLimit, withoutSwapLimit)
+
+	tests := []struct {
+		name             string
+		cmnConf          config.CommonConfig
+		runtimes         map[string]types.Runtime
+		hostConf         *containertypes.HostConfig
+		si               *sysinfo.SysInfo
+		expectedWarnings []string
+	}{
+		{
+			name:             "systemded_spurious_warning_expected",
+			cmnConf:          config.CommonConfig{DefaultRuntime: "runc", ExecOptions: []string{"native.cgroupdriver=systemd"}},
+			runtimes:         rts,
+			hostConf:         &containertypes.HostConfig{Cgroup: "", Resources: containertypes.Resources{Memory: 6291456, MemorySwap: 6291456}, NetworkMode: "host"},
+			si:               &sysInfo,
+			expectedWarnings: []string{spuriousWarning},
+		},
+		{
+			name:             "desystemded_no_warnings_expected",
+			cmnConf:          config.CommonConfig{DefaultRuntime: "runc", ExecOptions: []string{"native.cgroupdriver=cgroupfs"}},
+			runtimes:         rts,
+			hostConf:         &containertypes.HostConfig{Cgroup: "", Resources: containertypes.Resources{Memory: 6291456, MemorySwap: 6291456}, NetworkMode: "host"},
+			expectedWarnings: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := &Daemon{configStore: &config.Config{
+				CommonConfig: tc.cmnConf,
+				Runtimes:     tc.runtimes,
+				Rootless:     false,
+			}, sysInfo: tc.si}
+			warnings, err := verifyPlatformContainerSettings(d, tc.hostConf, false)
+			assert.NilError(t, err)
+			for _, w := range tc.expectedWarnings {
+				assert.Assert(t, is.Contains(warnings, w))
+
+			}
+		})
+	}
 }
