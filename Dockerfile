@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.3
 
 ARG CROSS="false"
+ARG CROSS_ARCH="arm64,armel,armhf,ppc64el,s390x"
 ARG SYSTEMD="false"
 ARG GO_VERSION=1.18.3
 ARG DEBIAN_FRONTEND=noninteractive
@@ -97,19 +98,12 @@ FROM base AS cross-false
 
 FROM --platform=linux/amd64 base AS cross-true
 ARG DEBIAN_FRONTEND
-RUN dpkg --add-architecture arm64
-RUN dpkg --add-architecture armel
-RUN dpkg --add-architecture armhf
-RUN dpkg --add-architecture ppc64el
-RUN dpkg --add-architecture s390x
+ARG CROSS_ARCH
+RUN for arch in $(bash -c "echo {${CROSS_ARCH}}"); do dpkg --add-architecture $arch; done
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
-            crossbuild-essential-arm64 \
-            crossbuild-essential-armel \
-            crossbuild-essential-armhf \
-            crossbuild-essential-ppc64el \
-            crossbuild-essential-s390x
+            $(bash -c "echo crossbuild-essential-{${CROSS_ARCH}}")
 
 FROM cross-${CROSS} AS dev-base
 
@@ -129,21 +123,13 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib
 
 FROM --platform=linux/amd64 runtime-dev-cross-false AS runtime-dev-cross-true
 ARG DEBIAN_FRONTEND
+ARG CROSS_ARCH
 # These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
 # on non-amd64 systems, so other architectures cannot crossbuild amd64.
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
-            libapparmor-dev:arm64 \
-            libapparmor-dev:armel \
-            libapparmor-dev:armhf \
-            libapparmor-dev:ppc64el \
-            libapparmor-dev:s390x \
-            libseccomp-dev:arm64 \
-            libseccomp-dev:armel \
-            libseccomp-dev:armhf \
-            libseccomp-dev:ppc64el \
-            libseccomp-dev:s390x
+            $(bash -c "echo lib{apparmor,seccomp}-dev:{${CROSS_ARCH}}")
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
