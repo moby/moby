@@ -254,6 +254,31 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 COPY ./contrib/dockerd-rootless.sh /build
 COPY ./contrib/dockerd-rootless-setuptool.sh /build
 
+FROM base AS crun
+ARG CRUN_VERSION=1.4.5
+RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
+        apt-get update && apt-get install -y --no-install-recommends \
+            autoconf \
+            automake \
+            build-essential \
+            libcap-dev \
+            libprotobuf-c-dev \
+            libseccomp-dev \
+            libsystemd-dev \
+            libtool \
+            libudev-dev \
+            libyajl-dev \
+            python3 \
+            ;
+RUN --mount=type=tmpfs,target=/tmp/crun-build \
+    git clone https://github.com/containers/crun.git /tmp/crun-build && \
+    cd /tmp/crun-build && \
+    git checkout -q "${CRUN_VERSION}" && \
+    ./autogen.sh && \
+    ./configure --bindir=/build && \
+    make -j install
+
 FROM --platform=amd64 djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-amd64
 
 FROM --platform=arm64 djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-arm64
@@ -291,6 +316,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libnet1 \
             libnl-3-200 \
             libprotobuf-c1 \
+            libyajl2 \
             net-tools \
             patch \
             pigz \
@@ -332,6 +358,8 @@ COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /build/ /usr/local/bin/
+COPY --from=crun          /build/ /usr/local/bin/
+COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
