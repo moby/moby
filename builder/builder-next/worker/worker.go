@@ -228,7 +228,7 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 }
 
 // GetRemote returns a remote snapshot reference for a local one
-func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, _ session.Group) (*solver.Remote, error) {
+func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, s session.Group) (*solver.Remote, error) {
 	var diffIDs []layer.DiffID
 	var err error
 	if !createIfNeeded {
@@ -238,6 +238,9 @@ func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIf
 		}
 	} else {
 		if err := ref.Finalize(ctx); err != nil {
+			return nil, err
+		}
+		if err := ref.Extract(ctx, s); err != nil {
 			return nil, err
 		}
 		diffIDs, err = w.Layers.EnsureLayer(ctx, ref.ID())

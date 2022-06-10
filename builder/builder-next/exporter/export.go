@@ -160,6 +160,10 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 			return nil, layersDone(err)
 		}
 
+		if err := ref.Extract(ctx, nil); err != nil {
+			return nil, err
+		}
+
 		diffIDs, err := e.opt.Differ.EnsureLayer(ctx, ref.ID())
 		if err != nil {
 			return nil, layersDone(err)
