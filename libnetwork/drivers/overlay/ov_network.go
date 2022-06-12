@@ -436,7 +436,7 @@ func populateVNITbl() {
 				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
 				return nil
 			}
-			defer nlh.Delete()
+			defer nlh.Close()
 
 			err = nlh.SetSocketTimeout(soTimeout)
 			if err != nil {

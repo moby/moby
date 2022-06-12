@@ -21,7 +21,7 @@ func TestSetupIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	config, br := setupTestInterface(t, nh)
 	if err := setupBridgeIPv6(config, br); err != nil {
@@ -71,7 +71,7 @@ func TestSetupGatewayIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	br := &bridgeInterface{nlh: nh}
 
