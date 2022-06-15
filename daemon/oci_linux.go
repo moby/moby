@@ -996,15 +996,6 @@ func WithSysctls(c *container.Container) coci.SpecOpts {
 	}
 }
 
-// WithUser sets the container's user
-func WithUser(c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		var err error
-		s.Process.User, err = getUser(c, c.Config.User)
-		return err
-	}
-}
-
 func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, err error) {
 	var (
 		opts []coci.SpecOpts
@@ -1016,7 +1007,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		WithResources(c),
 		WithSysctls(c),
 		WithDevices(daemon, c),
-		WithUser(c),
 		WithRlimits(daemon, c),
 		WithNamespaces(daemon, c),
 		WithCapabilities(c),
@@ -1032,6 +1022,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	}
 	if c.Config.Tty {
 		opts = append(opts, WithConsoleSize(c))
+	}
+	if c.Config.User != "" {
+		opts = append(opts, coci.WithUser(c.Config.User), coci.WithAdditionalGIDs(c.Config.User))
 	}
 	// Set the masked and readonly paths with regard to the host config options if they are set.
 	if c.HostConfig.MaskedPaths != nil {
