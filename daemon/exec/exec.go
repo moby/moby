@@ -35,6 +35,7 @@ type Config struct {
 	WorkingDir   string
 	Env          []string
 	Pid          int
+	ConsoleSize  *[2]uint
 }
 
 // NewConfig initializes the a new exec configuration

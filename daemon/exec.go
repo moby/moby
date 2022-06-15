@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
@@ -121,6 +122,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 	execConfig.Entrypoint = entrypoint
 	execConfig.Args = args
 	execConfig.Tty = config.Tty
+	execConfig.ConsoleSize = config.ConsoleSize
 	execConfig.Privileged = config.Privileged
 	execConfig.User = config.User
 	execConfig.WorkingDir = config.WorkingDir
@@ -150,7 +152,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, config *types.ExecConfig)
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 // If ctx is cancelled, the process is terminated.
-func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (err error) {
+func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, options containertypes.ExecStartOptions) (err error) {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
@@ -199,20 +201,20 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		}
 	}()
 
-	if ec.OpenStdin && stdin != nil {
+	if ec.OpenStdin && options.Stdin != nil {
 		r, w := io.Pipe()
 		go func() {
 			defer w.Close()
 			defer logrus.Debug("Closing buffered stdin pipe")
-			pools.Copy(w, stdin)
+			pools.Copy(w, options.Stdin)
 		}()
 		cStdin = r
 	}
 	if ec.OpenStdout {
-		cStdout = stdout
+		cStdout = options.Stdout
 	}
 	if ec.OpenStderr {
-		cStderr = stderr
+		cStderr = options.Stderr
 	}
 
 	if ec.OpenStdin {
@@ -237,6 +239,18 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 	p.Env = ec.Env
 	p.Cwd = ec.WorkingDir
 	p.Terminal = ec.Tty
+
+	consoleSize := options.ConsoleSize
+	// If size isn't specified for start, use the one provided for create
+	if consoleSize == nil {
+		consoleSize = ec.ConsoleSize
+	}
+	if p.Terminal && consoleSize != nil {
+		p.ConsoleSize = &specs.Box{
+			Height: consoleSize[0],
+			Width:  consoleSize[1],
+		}
+	}
 
 	if p.Cwd == "" {
 		p.Cwd = "/"

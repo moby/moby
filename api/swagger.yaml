@@ -966,6 +966,7 @@ definitions:
             type: "array"
             description: |
               Initial console size, as an `[height, width]` array.
+            x-nullable: true
             minItems: 2
             maxItems: 2
             items:
@@ -9207,6 +9208,15 @@ paths:
               AttachStderr:
                 type: "boolean"
                 description: "Attach to `stderr` of the exec command."
+              ConsoleSize:
+                type: "array"
+                description: "Initial console size, as an `[height, width]` array."
+                x-nullable: true
+                minItems: 2
+                maxItems: 2
+                items:
+                  type: "integer"
+                  minimum: 0
               DetachKeys:
                 type: "string"
                 description: |
@@ -9296,9 +9306,19 @@ paths:
               Tty:
                 type: "boolean"
                 description: "Allocate a pseudo-TTY."
+              ConsoleSize:
+                type: "array"
+                description: "Initial console size, as an `[height, width]` array."
+                x-nullable: true
+                minItems: 2
+                maxItems: 2
+                items:
+                  type: "integer"
+                  minimum: 0
             example:
               Detach: false
-              Tty: false
+              Tty: true
+              ConsoleSize: [80, 64]
         - name: "id"
           in: "path"
           description: "Exec instance ID"

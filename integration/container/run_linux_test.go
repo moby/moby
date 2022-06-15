@@ -187,7 +187,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	}
 }
 
-func TestConsoleSize(t *testing.T) {
+func TestRunConsoleSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
 

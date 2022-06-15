@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
@@ -97,7 +98,13 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	probeCtx, cancelProbe := context.WithCancel(ctx)
 	defer cancelProbe()
 	execErr := make(chan error, 1)
-	go func() { execErr <- d.ContainerExecStart(probeCtx, execConfig.ID, nil, output, output) }()
+
+	options := containertypes.ExecStartOptions{
+		Stdout: output,
+		Stderr: output,
+	}
+
+	go func() { execErr <- d.ContainerExecStart(probeCtx, execConfig.ID, options) }()
 
 	// Starting an exec can take a significant amount of time: on the order
 	// of 1s in extreme cases. The time it takes dockerd and containerd to
