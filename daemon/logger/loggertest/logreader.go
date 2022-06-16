@@ -3,6 +3,7 @@ package loggertest // import "github.com/docker/docker/daemon/logger/loggertest"
 import (
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -381,6 +382,81 @@ func (tr Reader) TestFollow(t *testing.T) {
 		<-doneReading
 		assert.DeepEqual(t, logs, expected, compareLog)
 	})
+
+	t.Run("Concurrent", tr.TestConcurrent)
+}
+
+// TestConcurrent tests the Logger and its LogReader implementation for
+// race conditions when logging from multiple goroutines concurrently.
+func (tr Reader) TestConcurrent(t *testing.T) {
+	t.Parallel()
+	l := tr.Factory(t, logger.Info{
+		ContainerID:   "logconcurrent0",
+		ContainerName: "logconcurrent123",
+	})(t)
+
+	// Split test messages
+	stderrMessages := []*logger.Message{}
+	stdoutMessages := []*logger.Message{}
+	for _, m := range makeTestMessages() {
+		if m.Source == "stdout" {
+			stdoutMessages = append(stdoutMessages, m)
+		} else if m.Source == "stderr" {
+			stderrMessages = append(stderrMessages, m)
+		}
+	}
+
+	// Follow all logs
+	lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Follow: true, Tail: -1})
+	defer lw.ConsumerGone()
+
+	// Log concurrently from two sources and close log
+	wg := &sync.WaitGroup{}
+	logAll := func(msgs []*logger.Message) {
+		defer wg.Done()
+		for _, m := range msgs {
+			l.Log(copyLogMessage(m))
+		}
+	}
+
+	closed := make(chan struct{})
+	wg.Add(2)
+	go logAll(stdoutMessages)
+	go logAll(stderrMessages)
+	go func() {
+		defer close(closed)
+		defer l.Close()
+		wg.Wait()
+	}()
+
+	// Check if the message count, order and content is equal to what was logged
+	for {
+		l := readMessage(t, lw)
+		if l == nil {
+			break
+		}
+
+		var messages *[]*logger.Message
+		if l.Source == "stdout" {
+			messages = &stdoutMessages
+		} else if l.Source == "stderr" {
+			messages = &stderrMessages
+		} else {
+			t.Fatalf("Corrupted message.Source = %q", l.Source)
+		}
+
+		expectedMsg := transformToExpected((*messages)[0])
+
+		assert.DeepEqual(t, *expectedMsg, *l, compareLog)
+		*messages = (*messages)[1:]
+	}
+
+	assert.Equal(t, len(stdoutMessages), 0)
+	assert.Equal(t, len(stderrMessages), 0)
+
+	// Make sure log gets closed before we return
+	// so the temporary dir can be deleted
+	<-closed
 }
 
 // logMessages logs messages to l and returns a slice of messages as would be
@@ -395,17 +471,23 @@ func logMessages(t *testing.T, l logger.Logger, messages []*logger.Message) []*l
 		assert.NilError(t, l.Log(copyLogMessage(m)))
 		runtime.Gosched()
 
-		// Copy the log message again so as not to mutate the input.
-		expect := copyLogMessage(m)
-		// Existing API consumers expect a newline to be appended to
-		// messages other than nonterminal partials as that matches the
-		// existing behavior of the json-file log driver.
-		if m.PLogMetaData == nil || m.PLogMetaData.Last {
-			expect.Line = append(expect.Line, '\n')
-		}
+		expect := transformToExpected(m)
 		expected = append(expected, expect)
 	}
 	return expected
+}
+
+// Existing API consumers expect a newline to be appended to
+// messages other than nonterminal partials as that matches the
+// existing behavior of the json-file log driver.
+func transformToExpected(m *logger.Message) *logger.Message {
+	// Copy the log message again so as not to mutate the input.
+	copy := copyLogMessage(m)
+	if m.PLogMetaData == nil || m.PLogMetaData.Last {
+		copy.Line = append(copy.Line, '\n')
+	}
+
+	return copy
 }
 
 func copyLogMessage(src *logger.Message) *logger.Message {
