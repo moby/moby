@@ -1026,6 +1026,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if c.Config.User != "" {
 		opts = append(opts, coci.WithUser(c.Config.User), coci.WithAdditionalGIDs(c.Config.User))
 	}
+	if len(c.HostConfig.GroupAdd) != 0 {
+		opts = append(opts, WithAdditionalGroups(c))
+	}
 	// Set the masked and readonly paths with regard to the host config options if they are set.
 	if c.HostConfig.MaskedPaths != nil {
 		opts = append(opts, coci.WithMaskedPaths(c.HostConfig.MaskedPaths))
@@ -1065,4 +1068,28 @@ func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
 		}
 	}
 	c.Ulimits = ulimits
+}
+
+// WithAdditionalGroups configure additional groups
+func WithAdditionalGroups(container *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, client coci.Client, c *containers.Container, s *coci.Spec) error {
+		f := func(root string) error {
+			groupPath, err := resourcePath(container, user.GetGroupPath)
+			if err != nil {
+				return err
+			}
+			gids, err := user.GetAdditionalGroupsPath(container.HostConfig.GroupAdd, groupPath)
+			if err != nil {
+				return err
+			}
+			for _, gid := range gids {
+				s.Process.User.AdditionalGids = append(s.Process.User.AdditionalGids, uint32(gid))
+			}
+			return nil
+		}
+		if !filepath.IsAbs(s.Root.Path) {
+			return errors.New("rootfs absolute path is required")
+		}
+		return f(s.Root.Path)
+	}
 }
