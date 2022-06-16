@@ -16,6 +16,7 @@ on:
 
 env:
   GO_VERSION: 1.18.3
+  GOTESTLIST_VERSION: v0.2.0
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
   WINDOWS_BASE_TAG_2019: ltsc2019
   WINDOWS_BASE_TAG_2022: ltsc2022
@@ -188,10 +189,43 @@ jobs:
           name: ${{ matrix.os }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
 
+  integration-test-prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.tests.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Install gotestlist
+        run:
+          go install github.com/crazy-max/gotestlist/cmd/gotestlist@${{ env.GOTESTLIST_VERSION }}
+      -
+        name: Create matrix
+        id: tests
+        working-directory: ./integration-cli
+        run: |
+          # Distribute integration-cli tests for the matrix in integration-test job.
+          # Also prepend ./... to the matrix. This is a special case to run "Test integration" step exclusively.
+          matrix="$(gotestlist -d 4 ./...)"
+          matrix="$(echo "$matrix" | jq -c '. |= ["./..."] + .')"
+          echo "::set-output name=matrix::$matrix"
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.tests.outputs.matrix }}
+
   integration-test:
     runs-on: ${{ matrix.os }}
     needs:
       - build
+      - integration-test-prepare
     strategy:
       fail-fast: false
       matrix:
@@ -201,6 +235,7 @@ jobs:
         runtime:
           - builtin
           - containerd
+        test: ${{ fromJson(needs.integration-test-prepare.outputs.matrix) }}
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -343,7 +378,8 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       -
-        name: Test API
+        name: Test integration
+        if: matrix.test == './...'
         run: |
           .\hack\make.ps1 -TestIntegration
         env:
@@ -351,7 +387,8 @@ jobs:
           GO111MODULE: "off"
           TEST_CLIENT_BINARY: ${{ env.BIN_OUT }}\docker
       -
-        name: Test CLI
+        name: Test integration-cli
+        if: matrix.test != './...'
         run: |
           & gotestsum `
             --format=standard-verbose `
@@ -362,6 +399,7 @@ jobs:
               "-coverprofile" "./bundles/coverage-report-int-cli-tests.txt" `
               "-covermode" "atomic" `
               "-tags" "autogen" `
+              "-test.run" "(${{ matrix.test }})/" `
               "-test.timeout" "200m"
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine

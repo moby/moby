@@ -3,7 +3,7 @@
 # For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
 # to run certain tests on your local host, you should run with command:
 #
-#     TESTFLAGS='-test.run TestDockerSuite/TestBuild*' ./hack/make.sh binary test-integration
+#     TESTFLAGS='-test.run TestDockerCLIBuildSuite' ./hack/make.sh binary test-integration
 #
 
 if [ -z "${MAKEDIR}" ]; then
