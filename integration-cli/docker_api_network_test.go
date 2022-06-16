@@ -17,7 +17,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestAPINetworkGetDefaults(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkGetDefaults(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// By default docker daemon creates 3 networks. check if they are present
 	defaults := []string{"bridge", "host", "none"}
@@ -26,7 +26,7 @@ func (s *DockerSuite) TestAPINetworkGetDefaults(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkCreateCheckDuplicate(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	name := "testcheckduplicate"
 	configOnCheck := types.NetworkCreateRequest{
@@ -64,13 +64,13 @@ func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *testing.T) {
 	createNetwork(c, configNotCheck, http.StatusCreated)
 }
 
-func (s *DockerSuite) TestAPINetworkFilter(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkFilter(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
 	assert.Equal(c, nr.Name, "bridge")
 }
 
-func (s *DockerSuite) TestAPINetworkInspectBridge(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
@@ -96,7 +96,7 @@ func (s *DockerSuite) TestAPINetworkInspectBridge(c *testing.T) {
 	assert.Equal(c, ip.String(), containerIP)
 }
 
-func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// IPAM configuration inspect
 	ipam := &network.IPAM{
@@ -127,7 +127,7 @@ func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	assert.Assert(c, !isNetworkAvailable(c, "br0"))
 }
 
-func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
@@ -169,7 +169,7 @@ func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	deleteNetwork(c, nr.ID, true)
 }
 
-func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
+func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
 	ipam0 := &network.IPAM{
@@ -238,7 +238,7 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
+func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, SwarmInactive)
 	createDeletePredefinedNetwork(c, "bridge")
 	createDeletePredefinedNetwork(c, "none")

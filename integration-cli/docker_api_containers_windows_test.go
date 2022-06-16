@@ -20,7 +20,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T) {
+func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T) {
 	// Create a host pipe to map into the container
 	hostPipeName := fmt.Sprintf(`\\.\pipe\docker-cli-test-pipe-%x`, rand.Uint64())
 	pc := &winio.PipeConfig{

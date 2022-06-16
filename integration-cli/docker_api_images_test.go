@@ -16,7 +16,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestAPIImagesFilter(c *testing.T) {
+func (s *DockerAPISuite) TestAPIImagesFilter(c *testing.T) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -54,7 +54,7 @@ func (s *DockerSuite) TestAPIImagesFilter(c *testing.T) {
 	assert.Equal(c, len(images[0].RepoTags), 1)
 }
 
-func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
+func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	testRequires(c, Network)
 	buildImageSuccessfully(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, "saveandload")
@@ -75,7 +75,7 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(inspectOut), id, "load did not work properly")
 }
 
-func (s *DockerSuite) TestAPIImagesDelete(c *testing.T) {
+func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -99,7 +99,7 @@ func (s *DockerSuite) TestAPIImagesDelete(c *testing.T) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerSuite) TestAPIImagesHistory(c *testing.T) {
+func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -125,7 +125,7 @@ func (s *DockerSuite) TestAPIImagesHistory(c *testing.T) {
 	assert.Assert(c, found)
 }
 
-func (s *DockerSuite) TestAPIImagesImportBadSrc(c *testing.T) {
+func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	testRequires(c, Network, testEnv.IsLocalDaemon)
 
 	server := httptest.NewServer(http.NewServeMux())
@@ -151,7 +151,7 @@ func (s *DockerSuite) TestAPIImagesImportBadSrc(c *testing.T) {
 }
 
 // #14846
-func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
+func (s *DockerAPISuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
 	testRequires(c, Network)
 
 	res, b, err := request.Get("/images/search?term=test", request.JSON)
@@ -163,7 +163,7 @@ func (s *DockerSuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
 
 // Test case for 30027: image size reported as -1 in v1.12 client against v1.13 daemon.
 // This test checks to make sure both v1.12 and v1.13 client against v1.13 daemon get correct `Size` after the fix.
-func (s *DockerSuite) TestAPIImagesSizeCompatibility(c *testing.T) {
+func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	apiclient := testEnv.APIClient()
 	defer apiclient.Close()
 

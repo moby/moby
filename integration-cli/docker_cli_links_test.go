@@ -13,7 +13,19 @@ import (
 	"gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *testing.T) {
+type DockerCLILinksSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLILinksSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLILinksSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLILinksSuite) TestLinksPingUnlinkedContainers(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	_, exitCode, err := dockerCmdWithError("run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 
@@ -22,7 +34,7 @@ func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *testing.T) {
 }
 
 // Test for appropriate error when calling --link with an invalid target container
-func (s *DockerSuite) TestLinksInvalidContainerTarget(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksInvalidContainerTarget(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--link", "bogus:alias", "busybox", "true")
 
@@ -34,7 +46,7 @@ func (s *DockerSuite) TestLinksInvalidContainerTarget(c *testing.T) {
 	assert.Assert(c, strings.Contains(strings.ToLower(out), "could not get container"))
 }
 
-func (s *DockerSuite) TestLinksPingLinkedContainers(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksPingLinkedContainers(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Test with the three different ways of specifying the default network on Linux
 	testLinkPingOnNetwork(c, "")
@@ -78,7 +90,7 @@ func testLinkPingOnNetwork(c *testing.T, network string) {
 	dockerCmd(c, "rm", "-f", "container2")
 }
 
-func (s *DockerSuite) TestLinksPingLinkedContainersAfterRename(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksPingLinkedContainersAfterRename(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	idA := strings.TrimSpace(out)
@@ -91,7 +103,7 @@ func (s *DockerSuite) TestLinksPingLinkedContainersAfterRename(c *testing.T) {
 
 }
 
-func (s *DockerSuite) TestLinksInspectLinksStarted(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksInspectLinksStarted(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
@@ -110,7 +122,7 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *testing.T) {
 	assert.DeepEqual(c, result, expected)
 }
 
-func (s *DockerSuite) TestLinksInspectLinksStopped(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksInspectLinksStopped(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
@@ -130,7 +142,7 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *testing.T) {
 	assert.DeepEqual(c, result, expected)
 }
 
-func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksNotStartedParentNotFail(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name=first", "busybox", "top")
 	dockerCmd(c, "create", "--name=second", "--link=first:first", "busybox", "top")
@@ -138,7 +150,7 @@ func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *testing.T) {
 
 }
 
-func (s *DockerSuite) TestLinksHostsFilesInject(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksHostsFilesInject(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon)
 
@@ -156,7 +168,7 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *testing.T) {
 	assert.Assert(c, strings.Contains(string(contentTwo), "onetwo"))
 }
 
-func (s *DockerSuite) TestLinksUpdateOnRestart(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksUpdateOnRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon)
 	dockerCmd(c, "run", "-d", "--name", "one", "busybox", "top")
@@ -189,7 +201,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *testing.T) {
 	assert.Equal(c, ip, realIP)
 }
 
-func (s *DockerSuite) TestLinksEnvs(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksEnvs(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
@@ -198,7 +210,7 @@ func (s *DockerSuite) TestLinksEnvs(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "FIRST_ENV_e3=v3=v3"))
 }
 
-func (s *DockerSuite) TestLinkShortDefinition(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinkShortDefinition(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
 
@@ -214,7 +226,7 @@ func (s *DockerSuite) TestLinkShortDefinition(c *testing.T) {
 	assert.Equal(c, links, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }
 
-func (s *DockerSuite) TestLinksNetworkHostContainer(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksNetworkHostContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "run", "-d", "--net", "host", "--name", "host_container", "busybox", "top")
 	out, _, err := dockerCmdWithError("run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true")
@@ -225,14 +237,14 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, runconfig.ErrConflictHostNetworkAndLinks.Error()))
 }
 
-func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksEtcHostsRegularFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	// /etc/hosts should be a regular file
 	assert.Assert(c, cmp.Regexp("^-.+\n$", out))
 }
 
-func (s *DockerSuite) TestLinksMultipleWithSameName(c *testing.T) {
+func (s *DockerCLILinksSuite) TestLinksMultipleWithSameName(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name=upstream-a", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name=upstream-b", "busybox", "top")

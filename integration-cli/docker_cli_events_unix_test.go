@@ -22,7 +22,7 @@ import (
 )
 
 // #5979
-func (s *DockerSuite) TestEventsRedirectStdout(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsRedirectStdout(c *testing.T) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "busybox", "true")
 
@@ -48,7 +48,7 @@ func (s *DockerSuite) TestEventsRedirectStdout(c *testing.T) {
 	assert.NilError(c, scanner.Err(), "Scan err for command %q", command)
 }
 
-func (s *DockerSuite) TestEventsOOMDisableFalse(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsOOMDisableFalse(c *testing.T) {
 	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, swapMemorySupport, NotPpc64le)
 
 	errChan := make(chan error, 1)
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *testing.T) {
 	assert.Equal(c, parseEventAction(c, events[nEvents-1]), "die")
 }
 
-func (s *DockerSuite) TestEventsOOMDisableTrue(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsOOMDisableTrue(c *testing.T) {
 	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotArm, swapMemorySupport, NotPpc64le)
 
 	errChan := make(chan error, 1)
@@ -126,7 +126,7 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *testing.T) {
 }
 
 // #18453
-func (s *DockerSuite) TestEventsContainerFilterByName(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsContainerFilterByName(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cOut, _ := dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
 	c1 := strings.TrimSpace(cOut)
@@ -140,7 +140,7 @@ func (s *DockerSuite) TestEventsContainerFilterByName(c *testing.T) {
 }
 
 // #18453
-func (s *DockerSuite) TestEventsContainerFilterBeforeCreate(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsContainerFilterBeforeCreate(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	buf := &bytes.Buffer{}
 	cmd := exec.Command(dockerBinary, "events", "-f", "container=foo", "--since=0")
@@ -165,7 +165,7 @@ func (s *DockerSuite) TestEventsContainerFilterBeforeCreate(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestVolumeEvents(c *testing.T) {
+func (s *DockerCLIEventSuite) TestVolumeEvents(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	since := daemonUnixTime(c)
@@ -192,7 +192,7 @@ func (s *DockerSuite) TestVolumeEvents(c *testing.T) {
 	assert.Equal(c, volumeEvents[3], "destroy")
 }
 
-func (s *DockerSuite) TestNetworkEvents(c *testing.T) {
+func (s *DockerCLIEventSuite) TestNetworkEvents(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	since := daemonUnixTime(c)
@@ -219,7 +219,7 @@ func (s *DockerSuite) TestNetworkEvents(c *testing.T) {
 	assert.Equal(c, netEvents[3], "destroy")
 }
 
-func (s *DockerSuite) TestEventsContainerWithMultiNetwork(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsContainerWithMultiNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	// Observe create/connect network actions
@@ -247,7 +247,7 @@ func (s *DockerSuite) TestEventsContainerWithMultiNetwork(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "test-event-network-local-2"))
 }
 
-func (s *DockerSuite) TestEventsStreaming(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsStreaming(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	observer, err := newEventObserver(c)
@@ -301,7 +301,7 @@ func (s *DockerSuite) TestEventsStreaming(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestEventsImageUntagDelete(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsImageUntagDelete(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	observer, err := newEventObserver(c)
@@ -340,7 +340,7 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestEventsFilterVolumeAndNetworkType(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterVolumeAndNetworkType(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	since := daemonUnixTime(c)
@@ -359,7 +359,7 @@ func (s *DockerSuite) TestEventsFilterVolumeAndNetworkType(c *testing.T) {
 	assert.Equal(c, networkActions[0], "create")
 }
 
-func (s *DockerSuite) TestEventsFilterVolumeID(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterVolumeID(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	since := daemonUnixTime(c)
@@ -374,7 +374,7 @@ func (s *DockerSuite) TestEventsFilterVolumeID(c *testing.T) {
 	assert.Assert(c, strings.Contains(events[0], "driver=local"))
 }
 
-func (s *DockerSuite) TestEventsFilterNetworkID(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterNetworkID(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	since := daemonUnixTime(c)

@@ -24,7 +24,19 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-func (s *DockerSuite) TestEventsTimestampFormats(c *testing.T) {
+type DockerCLIEventSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIEventSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIEventSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIEventSuite) TestEventsTimestampFormats(c *testing.T) {
 	name := "events-time-format-test"
 
 	// Start stopwatch, generate an event
@@ -53,7 +65,7 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestEventsUntag(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsUntag(c *testing.T) {
 	image := "busybox"
 	dockerCmd(c, "tag", image, "utest:tag1")
 	dockerCmd(c, "tag", image, "utest:tag2")
@@ -76,7 +88,7 @@ func (s *DockerSuite) TestEventsUntag(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestEventsContainerEvents(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsContainerEvents(c *testing.T) {
 	dockerCmd(c, "run", "--rm", "--name", "container-events-test", "busybox", "true")
 
 	out, _ := dockerCmd(c, "events", "--until", daemonUnixTime(c))
@@ -90,7 +102,7 @@ func (s *DockerSuite) TestEventsContainerEvents(c *testing.T) {
 	assert.Assert(c, is.DeepEqual(containerEvents, []string{"create", "attach", "start", "die", "destroy"}), out)
 }
 
-func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsContainerEventsAttrSort(c *testing.T) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--rm", "--name", "container-events-test", "busybox", "true")
 
@@ -114,7 +126,7 @@ func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *testing.T) {
 	assert.Equal(c, matchedEvents, 2, "missing events for container container-events-test:\n%s", out)
 }
 
-func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsContainerEventsSinceUnixEpoch(c *testing.T) {
 	dockerCmd(c, "run", "--rm", "--name", "since-epoch-test", "busybox", "true")
 	timeBeginning := time.Unix(0, 0).Format(time.RFC3339Nano)
 	timeBeginning = strings.ReplaceAll(timeBeginning, "Z", ".000000000Z")
@@ -128,7 +140,7 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *testing.T) {
 	assert.Assert(c, is.DeepEqual(containerEvents, []string{"create", "attach", "start", "die", "destroy"}), out)
 }
 
-func (s *DockerSuite) TestEventsImageTag(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsImageTag(c *testing.T) {
 	time.Sleep(1 * time.Second) // because API has seconds granularity
 	since := daemonUnixTime(c)
 	image := "testimageevents:tag"
@@ -146,7 +158,7 @@ func (s *DockerSuite) TestEventsImageTag(c *testing.T) {
 	assert.Equal(c, matches["action"], "tag")
 }
 
-func (s *DockerSuite) TestEventsImagePull(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsImagePull(c *testing.T) {
 	// TODO Windows: Enable this test once pull and reliable image names are available
 	testRequires(c, DaemonIsLinux)
 	since := daemonUnixTime(c)
@@ -164,7 +176,7 @@ func (s *DockerSuite) TestEventsImagePull(c *testing.T) {
 	assert.Equal(c, matches["action"], "pull")
 }
 
-func (s *DockerSuite) TestEventsImageImport(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsImageImport(c *testing.T) {
 	// TODO Windows CI. This should be portable once export/import are
 	// more reliable (@swernli)
 	testRequires(c, DaemonIsLinux)
@@ -188,7 +200,7 @@ func (s *DockerSuite) TestEventsImageImport(c *testing.T) {
 	assert.Equal(c, matches["action"], "import", "matches: %v\nout:\n%s\n", matches, out)
 }
 
-func (s *DockerSuite) TestEventsImageLoad(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsImageLoad(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	myImageName := "footest:v1"
 	dockerCmd(c, "tag", "busybox", myImageName)
@@ -227,7 +239,7 @@ func (s *DockerSuite) TestEventsImageLoad(c *testing.T) {
 	assert.Equal(c, matches["action"], "save", "matches: %v\nout:\n%s\n", matches, out)
 }
 
-func (s *DockerSuite) TestEventsPluginOps(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsPluginOps(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 
 	since := daemonUnixTime(c)
@@ -246,7 +258,7 @@ func (s *DockerSuite) TestEventsPluginOps(c *testing.T) {
 	assert.Assert(c, is.DeepEqual(pluginEvents, []string{"pull", "enable", "disable", "remove"}), out)
 }
 
-func (s *DockerSuite) TestEventsFilters(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilters(c *testing.T) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--rm", "busybox", "true")
 	dockerCmd(c, "run", "--rm", "busybox", "true")
@@ -261,7 +273,7 @@ func (s *DockerSuite) TestEventsFilters(c *testing.T) {
 	assert.Assert(c, count >= 2, "should have had 2 start events but had %d, out: %s", count, out)
 }
 
-func (s *DockerSuite) TestEventsFilterImageName(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterImageName(c *testing.T) {
 	since := daemonUnixTime(c)
 
 	out, _ := dockerCmd(c, "run", "--name", "container_1", "-d", "busybox:latest", "true")
@@ -289,7 +301,7 @@ func (s *DockerSuite) TestEventsFilterImageName(c *testing.T) {
 	assert.Assert(c, count2 != 0, "Expected event from container but got %d from %s", count2, container2)
 }
 
-func (s *DockerSuite) TestEventsFilterLabels(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterLabels(c *testing.T) {
 	since := strconv.FormatUint(uint64(daemonTime(c).Unix()), 10)
 	label := "io.docker.testing=foo"
 
@@ -324,7 +336,7 @@ func (s *DockerSuite) TestEventsFilterLabels(c *testing.T) {
 	assert.Assert(c, found)
 }
 
-func (s *DockerSuite) TestEventsFilterImageLabels(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterImageLabels(c *testing.T) {
 	since := daemonUnixTime(c)
 	name := "labelfiltertest"
 	label := "io.docker.testing=image"
@@ -354,7 +366,7 @@ func (s *DockerSuite) TestEventsFilterImageLabels(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestEventsFilterContainer(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterContainer(c *testing.T) {
 	since := daemonUnixTime(c)
 	nameID := make(map[string]string)
 
@@ -392,7 +404,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestEventsCommit(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsCommit(c *testing.T) {
 	// Problematic on Windows as cannot commit a running container
 	testRequires(c, DaemonIsLinux)
 
@@ -409,7 +421,7 @@ func (s *DockerSuite) TestEventsCommit(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "commit"), "Missing 'commit' log event")
 }
 
-func (s *DockerSuite) TestEventsCopy(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsCopy(c *testing.T) {
 	// Build a test image.
 	buildImageSuccessfully(c, "cpimg", build.WithDockerfile(`
 		  FROM busybox
@@ -438,7 +450,7 @@ func (s *DockerSuite) TestEventsCopy(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "extract-to-dir"), "Missing 'extract-to-dir' log event")
 }
 
-func (s *DockerSuite) TestEventsResize(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 	out := runSleepingContainer(c, "-d", "-t")
 	cID := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(cID))
@@ -461,7 +473,7 @@ func (s *DockerSuite) TestEventsResize(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "resize"), "Missing 'resize' log event")
 }
 
-func (s *DockerSuite) TestEventsAttach(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsAttach(c *testing.T) {
 	// TODO Windows CI: Figure out why this test fails intermittently (TP5).
 	testRequires(c, DaemonIsLinux)
 
@@ -499,7 +511,7 @@ func (s *DockerSuite) TestEventsAttach(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "attach"), "Missing 'attach' log event")
 }
 
-func (s *DockerSuite) TestEventsRename(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsRename(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "--name", "oldName", "busybox", "true")
 	cID := strings.TrimSpace(out)
 	dockerCmd(c, "rename", "oldName", "newName")
@@ -510,7 +522,7 @@ func (s *DockerSuite) TestEventsRename(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "rename"), "Missing 'rename' log event")
 }
 
-func (s *DockerSuite) TestEventsTop(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsTop(c *testing.T) {
 	// Problematic on Windows as Windows does not support top
 	testRequires(c, DaemonIsLinux)
 
@@ -547,7 +559,7 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, repoName), "Missing 'push' log event for %s", repoName)
 }
 
-func (s *DockerSuite) TestEventsFilterType(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterType(c *testing.T) {
 	// FIXME(vdemeester) fails on e2e run
 	testRequires(c, testEnv.IsLocalDaemon)
 	since := daemonUnixTime(c)
@@ -601,7 +613,7 @@ func (s *DockerSuite) TestEventsFilterType(c *testing.T) {
 }
 
 // #25798
-func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsSpecialFiltersWithExecCreate(c *testing.T) {
 	since := daemonUnixTime(c)
 	runSleepingContainer(c, "--name", "test-container", "-d")
 	waitRun("test-container")
@@ -631,7 +643,7 @@ func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *testing.T) {
 	assert.Equal(c, len(events), 1, out)
 }
 
-func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFilterImageInContainerAction(c *testing.T) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--name", "test-container", "-d", "busybox", "true")
 	waitRun("test-container")
@@ -641,7 +653,7 @@ func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *testing.T) {
 	assert.Assert(c, len(events) > 1, out)
 }
 
-func (s *DockerSuite) TestEventsContainerRestart(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsContainerRestart(c *testing.T) {
 	dockerCmd(c, "run", "-d", "--name=testEvent", "--restart=on-failure:3", "busybox", "false")
 
 	// wait until test2 is auto removed.
@@ -681,7 +693,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *testing.T) {
 	assert.Equal(c, dieCount, 4, "testEvent should die 4 times: %v", actions)
 }
 
-func (s *DockerSuite) TestEventsSinceInTheFuture(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsSinceInTheFuture(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test-container", "-d", "busybox", "true")
 	waitRun("test-container")
 
@@ -693,7 +705,7 @@ func (s *DockerSuite) TestEventsSinceInTheFuture(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "cannot be after `until`"))
 }
 
-func (s *DockerSuite) TestEventsUntilInThePast(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsUntilInThePast(c *testing.T) {
 	since := daemonUnixTime(c)
 
 	dockerCmd(c, "run", "--name", "test-container", "-d", "busybox", "true")
@@ -710,7 +722,7 @@ func (s *DockerSuite) TestEventsUntilInThePast(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "test-container"))
 }
 
-func (s *DockerSuite) TestEventsFormat(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFormat(c *testing.T) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--rm", "busybox", "true")
 	dockerCmd(c, "run", "--rm", "busybox", "true")
@@ -733,7 +745,7 @@ func (s *DockerSuite) TestEventsFormat(c *testing.T) {
 	assert.Equal(c, startCount, 2, "should have had 2 start events but had %d, out: %s", startCount, out)
 }
 
-func (s *DockerSuite) TestEventsFormatBadFunc(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFormatBadFunc(c *testing.T) {
 	// make sure it fails immediately, without receiving any event
 	result := dockerCmdWithResult("events", "--format", "{{badFuncString .}}")
 	result.Assert(c, icmd.Expected{
@@ -743,7 +755,7 @@ func (s *DockerSuite) TestEventsFormatBadFunc(c *testing.T) {
 	})
 }
 
-func (s *DockerSuite) TestEventsFormatBadField(c *testing.T) {
+func (s *DockerCLIEventSuite) TestEventsFormatBadField(c *testing.T) {
 	// make sure it fails immediately, without receiving any event
 	result := dockerCmdWithResult("events", "--format", "{{.badFieldString}}")
 	result.Assert(c, icmd.Expected{

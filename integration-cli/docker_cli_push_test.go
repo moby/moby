@@ -17,6 +17,18 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
+type DockerCLIPushSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIPushSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPushSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
 func (s *DockerRegistrySuite) TestPushBusyboxImage(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
@@ -26,7 +38,7 @@ func (s *DockerRegistrySuite) TestPushBusyboxImage(c *testing.T) {
 }
 
 // pushing an image without a prefix should throw an error
-func (s *DockerSuite) TestPushUnprefixedRepo(c *testing.T) {
+func (s *DockerCLIPushSuite) TestPushUnprefixedRepo(c *testing.T) {
 	out, _, err := dockerCmdWithError("push", "busybox")
 	assert.ErrorContains(c, err, "", "pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
 }
@@ -208,7 +220,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *testin
 }
 
 // This may be flaky but it's needed not to regress on unauthorized push, see #21054
-func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *testing.T) {
+func (s *DockerCLIPushSuite) TestPushToCentralRegistryUnauthorized(c *testing.T) {
 	testRequires(c, Network)
 	repoName := "test/busybox"
 	dockerCmd(c, "tag", "busybox", repoName)

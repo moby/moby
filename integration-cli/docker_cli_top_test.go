@@ -8,7 +8,19 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-func (s *DockerSuite) TestTopMultipleArgs(c *testing.T) {
+type DockerCLITopSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLITopSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLITopSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLITopSuite) TestTopMultipleArgs(c *testing.T) {
 	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -23,7 +35,7 @@ func (s *DockerSuite) TestTopMultipleArgs(c *testing.T) {
 	result.Assert(c, expected)
 }
 
-func (s *DockerSuite) TestTopNonPrivileged(c *testing.T) {
+func (s *DockerCLITopSuite) TestTopNonPrivileged(c *testing.T) {
 	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -47,7 +59,7 @@ func (s *DockerSuite) TestTopNonPrivileged(c *testing.T) {
 // TestTopWindowsCoreProcesses validates that there are lines for the critical
 // processes which are found in a Windows container. Note Windows is architecturally
 // very different to Linux in this regard.
-func (s *DockerSuite) TestTopWindowsCoreProcesses(c *testing.T) {
+func (s *DockerCLITopSuite) TestTopWindowsCoreProcesses(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
 	out := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -58,7 +70,7 @@ func (s *DockerSuite) TestTopWindowsCoreProcesses(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestTopPrivileged(c *testing.T) {
+func (s *DockerCLITopSuite) TestTopPrivileged(c *testing.T) {
 	// Windows does not support --privileged
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--privileged", "-i", "-d", "busybox", "top")

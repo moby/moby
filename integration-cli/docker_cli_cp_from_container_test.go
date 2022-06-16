@@ -21,7 +21,7 @@ import (
 // Check that copying from a container to a local symlink copies to the symlink
 // target and does not overwrite the local symlink itself.
 // TODO: move to docker/cli and/or integration/container/copy_test.go
-func (s *DockerSuite) TestCpFromSymlinkDestination(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromSymlinkDestination(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
@@ -96,7 +96,7 @@ func (s *DockerSuite) TestCpFromSymlinkDestination(c *testing.T) {
 // A. SRC specifies a file and DST (no trailing path separator) doesn't
 //    exist. This should create a file with the name DST and copy the
 //    contents of the source file into it.
-func (s *DockerSuite) TestCpFromCaseA(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseA(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
@@ -115,7 +115,7 @@ func (s *DockerSuite) TestCpFromCaseA(c *testing.T) {
 // B. SRC specifies a file and DST (with trailing path separator) doesn't
 //    exist. This should cause an error because the copy operation cannot
 //    create a directory when copying a single file.
-func (s *DockerSuite) TestCpFromCaseB(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseB(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
@@ -132,7 +132,7 @@ func (s *DockerSuite) TestCpFromCaseB(c *testing.T) {
 
 // C. SRC specifies a file and DST exists as a file. This should overwrite
 //    the file at DST with the contents of the source file.
-func (s *DockerSuite) TestCpFromCaseC(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseC(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
@@ -155,7 +155,7 @@ func (s *DockerSuite) TestCpFromCaseC(c *testing.T) {
 // D. SRC specifies a file and DST exists as a directory. This should place
 //    a copy of the source file inside it using the basename from SRC. Ensure
 //    this works whether DST has a trailing path separator or not.
-func (s *DockerSuite) TestCpFromCaseD(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseD(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
@@ -190,7 +190,7 @@ func (s *DockerSuite) TestCpFromCaseD(c *testing.T) {
 //    directory at DST and copy the contents of the SRC directory into the DST
 //    directory. Ensure this works whether DST has a trailing path separator or
 //    not.
-func (s *DockerSuite) TestCpFromCaseE(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseE(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
@@ -216,7 +216,7 @@ func (s *DockerSuite) TestCpFromCaseE(c *testing.T) {
 
 // F. SRC specifies a directory and DST exists as a file. This should cause an
 //    error as it is not possible to overwrite a file with a directory.
-func (s *DockerSuite) TestCpFromCaseF(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseF(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
@@ -238,7 +238,7 @@ func (s *DockerSuite) TestCpFromCaseF(c *testing.T) {
 // G. SRC specifies a directory and DST exists as a directory. This should copy
 //    the SRC directory and all its contents to the DST directory. Ensure this
 //    works whether DST has a trailing path separator or not.
-func (s *DockerSuite) TestCpFromCaseG(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseG(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
@@ -272,7 +272,7 @@ func (s *DockerSuite) TestCpFromCaseG(c *testing.T) {
 //    should create a directory at DST and copy the contents of the SRC
 //    directory (but not the directory itself) into the DST directory. Ensure
 //    this works whether DST has a trailing path separator or not.
-func (s *DockerSuite) TestCpFromCaseH(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseH(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
@@ -299,7 +299,7 @@ func (s *DockerSuite) TestCpFromCaseH(c *testing.T) {
 // I. SRC specifies a directory's contents only and DST exists as a file. This
 //    should cause an error as it is not possible to overwrite a file with a
 //    directory.
-func (s *DockerSuite) TestCpFromCaseI(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseI(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
@@ -322,7 +322,7 @@ func (s *DockerSuite) TestCpFromCaseI(c *testing.T) {
 //    This should copy the contents of the SRC directory (but not the directory
 //    itself) into the DST directory. Ensure this works whether DST has a
 //    trailing path separator or not.
-func (s *DockerSuite) TestCpFromCaseJ(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromCaseJ(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",

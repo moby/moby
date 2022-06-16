@@ -9,7 +9,19 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-func (s *DockerSuite) TestCLIProxyDisableProxyUnixSock(c *testing.T) {
+type DockerCLIProxySuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIProxySuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIProxySuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIProxySuite) TestCLIProxyDisableProxyUnixSock(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
 	icmd.RunCmd(icmd.Cmd{
