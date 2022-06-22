@@ -20,25 +20,19 @@ import (
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
 	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
-	if err == nil || !os.IsNotExist(err) {
-		t.Fatalf("expected does not exist error, got %v", err)
-	}
+	assert.Check(t, os.IsNotExist(err), "got: %[1]T: %[1]v", err)
 }
 
 func TestDaemonBrokenConfiguration(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"Debug": tru`))
 	f.Close()
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
-	if err == nil {
-		t.Fatalf("expected error, got %v", err)
-	}
+	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
@@ -63,9 +57,7 @@ func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
 
 func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"debug": true}`))
@@ -86,41 +78,31 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 
 func TestDaemonConfigurationMergeConcurrent(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"max-concurrent-downloads": 1}`))
 	f.Close()
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
-	if err != nil {
-		t.Fatal("expected error, got nil")
-	}
+	assert.NilError(t, err)
 }
 
 func TestDaemonConfigurationMergeConcurrentError(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"max-concurrent-downloads": -1}`))
 	f.Close()
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
-	if err == nil {
-		t.Fatalf("expected no error, got error %v", err)
-	}
+	assert.ErrorContains(t, err, `invalid max concurrent downloads: -1`)
 }
 
 func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"tlscacert": "/etc/certificates/ca.pem"}`))
@@ -131,12 +113,7 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	assert.Check(t, flags.Set("tlscacert", "~/.docker/ca.pem"))
 
 	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "tlscacert") {
-		t.Fatalf("expected tlscacert conflict, got %v", err)
-	}
+	assert.ErrorContains(t, err, `the following directives are specified both as a flag and in the configuration file: tlscacert`)
 }
 
 // Test for #40711
@@ -187,12 +164,7 @@ func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 
 	flags.Bool("tlsverify", false, "")
 	err := findConfigurationConflicts(config, flags)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "the following directives don't match any configuration option: tls-verify") {
-		t.Fatalf("expected tls-verify conflict, got %v", err)
-	}
+	assert.ErrorContains(t, err, "the following directives don't match any configuration option: tls-verify")
 }
 
 func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
@@ -202,18 +174,11 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 	flags.VarP(opts.NewNamedListOptsRef("hosts", &hosts, nil), "host", "H", "")
 
 	err := findConfigurationConflicts(config, flags)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	assert.Check(t, flags.Set("host", "unix:///var/run/docker.sock"))
 	err = findConfigurationConflicts(config, flags)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "hosts: (from flag: [unix:///var/run/docker.sock], from file: tcp://127.0.0.1:2345)") {
-		t.Fatalf("expected hosts conflict, got %v", err)
-	}
+	assert.ErrorContains(t, err, "hosts: (from flag: [unix:///var/run/docker.sock], from file: tcp://127.0.0.1:2345)")
 }
 
 func TestValidateConfigurationErrors(t *testing.T) {
@@ -569,9 +534,7 @@ func TestReloadDefaultConfigNotExist(t *testing.T) {
 // and the default configuration file exists and is bad return an error
 func TestReloadBadDefaultConfig(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{wrong: "configuration"}`))

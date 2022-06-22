@@ -191,9 +191,6 @@ func TestUnixGetInitPath(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		initPath := tc.config.GetInitPath()
-		if initPath != tc.expectedInitPath {
-			t.Fatalf("expected initPath to be %v, got %v", tc.expectedInitPath, initPath)
-		}
+		assert.Equal(t, tc.config.GetInitPath(), tc.expectedInitPath)
 	}
 }

@@ -12,9 +12,7 @@ import (
 
 func TestDaemonConfigurationMerge(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 
