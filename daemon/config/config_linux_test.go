@@ -126,18 +126,21 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 
 func TestUnixValidateConfigurationErrors(t *testing.T) {
 	testCases := []struct {
-		config *Config
+		doc         string
+		config      *Config
+		expectedErr string
 	}{
-		// Can't override the stock runtime
 		{
+			doc: `cannot override the stock runtime`,
 			config: &Config{
 				Runtimes: map[string]types.Runtime{
 					StockRuntimeName: {},
 				},
 			},
+			expectedErr: `runtime name 'runc' is reserved`,
 		},
-		// Default runtime should be present in runtimes
 		{
+			doc: `default runtime should be present in runtimes`,
 			config: &Config{
 				Runtimes: map[string]types.Runtime{
 					"foo": {},
@@ -146,13 +149,15 @@ func TestUnixValidateConfigurationErrors(t *testing.T) {
 					DefaultRuntime: "bar",
 				},
 			},
+			expectedErr: `specified default runtime 'bar' does not exist`,
 		},
 	}
 	for _, tc := range testCases {
-		err := Validate(tc.config)
-		if err == nil {
-			t.Fatalf("expected error, got nil for config %v", tc.config)
-		}
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			err := Validate(tc.config)
+			assert.ErrorContains(t, err, tc.expectedErr)
+		})
 	}
 }
 
