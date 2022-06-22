@@ -5484,6 +5484,16 @@ definitions:
         items:
           type: "string"
         example: ["--debug", "--systemd-cgroup=false"]
+      shim:
+        description: |
+          Specify the containerd shim v2 name or binary when invoked.
+        type: "object"
+        properties:
+          binary:
+            description: |
+              A containerd shim v2 name or the absolute path of the binary.
+            type: "string"
+            example: "io.containerd.kata.v2"
 
   Commit:
     description: |

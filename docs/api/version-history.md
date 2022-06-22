@@ -17,6 +17,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* `GET /info` now returns a shim's binary field that identifies shim's name or binary.
 * Removed the `BuilderSize` field on the `GET /system/df` endpoint. This field
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.

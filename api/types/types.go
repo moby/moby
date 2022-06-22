@@ -654,18 +654,19 @@ type Checkpoint struct {
 
 // Runtime describes an OCI runtime
 type Runtime struct {
-	Path string   `json:"path"`
+	Path string   `json:"path,omitempty"`
 	Args []string `json:"runtimeArgs,omitempty"`
 
-	// This is exposed here only for internal use
-	// It is not currently supported to specify custom shim configs
-	Shim *ShimConfig `json:"-"`
+	Shim *ShimConfig `json:"shim,omitempty"`
 }
 
 // ShimConfig is used by runtime to configure containerd shims
 type ShimConfig struct {
-	Binary string
-	Opts   interface{}
+	Binary string `json:"binary"`
+
+	// This is exposed here only for internal use
+	// It is not currently supported to specify custom shim options
+	Opts interface{} `json:"-"`
 }
 
 // DiskUsageObject represents an object type used for disk usage query filtering.
