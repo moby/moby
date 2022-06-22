@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	dockerimage "github.com/docker/docker/image"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -23,7 +24,7 @@ type imageBackend interface {
 	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
 	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
-	LookupImage(name string) (*types.ImageInspect, error)
+	GetImage(refOrID string, platform *specs.Platform) (retImg *dockerimage.Image, retErr error)
 	TagImage(imageName, repository, tag string) (string, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 }

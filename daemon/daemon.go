@@ -105,6 +105,7 @@ type Daemon struct {
 	cluster               Cluster
 	genericResources      []swarm.GenericResource
 	metricsPluginListener net.Listener
+	ReferenceStore        refstore.Store
 
 	machineMemory uint64
 
@@ -999,6 +1000,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
 	}
+	d.ReferenceStore = rs
 
 	distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
 	if err != nil {
