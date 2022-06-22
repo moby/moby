@@ -20,7 +20,7 @@ func TestSetupNewBridge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	br := &bridgeInterface{nlh: nh}
@@ -46,7 +46,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	config := &networkConfiguration{BridgeName: "test0", DefaultBridge: true}
 	br := &bridgeInterface{nlh: nh}
@@ -68,7 +68,7 @@ func TestSetupDeviceUp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	br := &bridgeInterface{nlh: nh}

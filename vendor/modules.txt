@@ -768,7 +768,7 @@ github.com/tonistiigi/units
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5 => github.com/vishvananda/netlink v1.1.0
+# github.com/vishvananda/netlink v1.2.1-beta.2
 ## explicit; go 1.12
 github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
@@ -1126,7 +1126,6 @@ gotest.tools/v3/skip
 # github.com/matttproud/golang_protobuf_extensions => github.com/matttproud/golang_protobuf_extensions v1.0.1
 # github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.6.0
 # github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
-# github.com/vishvananda/netlink => github.com/vishvananda/netlink v1.1.0
 # go.opencensus.io => go.opencensus.io v0.22.3
 # github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
