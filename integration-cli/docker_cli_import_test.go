@@ -14,7 +14,19 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-func (s *DockerSuite) TestImportDisplay(c *testing.T) {
+type DockerCLIImportSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIImportSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIImportSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIImportSuite) TestImportDisplay(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -32,7 +44,7 @@ func (s *DockerSuite) TestImportDisplay(c *testing.T) {
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
-func (s *DockerSuite) TestImportBadURL(c *testing.T) {
+func (s *DockerCLIImportSuite) TestImportBadURL(c *testing.T) {
 	out, _, err := dockerCmdWithError("import", "https://nosuchdomain.invalid/bad")
 	assert.Assert(c, err != nil, "import was supposed to fail but didn't")
 	// Depending on your system you can get either of these errors
@@ -43,7 +55,7 @@ func (s *DockerSuite) TestImportBadURL(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestImportFile(c *testing.T) {
+func (s *DockerCLIImportSuite) TestImportFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
@@ -64,7 +76,7 @@ func (s *DockerSuite) TestImportFile(c *testing.T) {
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
-func (s *DockerSuite) TestImportGzipped(c *testing.T) {
+func (s *DockerCLIImportSuite) TestImportGzipped(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
@@ -87,7 +99,7 @@ func (s *DockerSuite) TestImportGzipped(c *testing.T) {
 	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
-func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
+func (s *DockerCLIImportSuite) TestImportFileWithMessage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
@@ -118,12 +130,12 @@ func (s *DockerSuite) TestImportFileWithMessage(c *testing.T) {
 	assert.Equal(c, out, "", "command output should've been nothing")
 }
 
-func (s *DockerSuite) TestImportFileNonExistentFile(c *testing.T) {
+func (s *DockerCLIImportSuite) TestImportFileNonExistentFile(c *testing.T) {
 	_, _, err := dockerCmdWithError("import", "example.com/myImage.tar")
 	assert.Assert(c, err != nil, "import non-existing file must failed")
 }
 
-func (s *DockerSuite) TestImportWithQuotedChanges(c *testing.T) {
+func (s *DockerCLIImportSuite) TestImportWithQuotedChanges(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cli.DockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 

@@ -18,7 +18,19 @@ import (
 
 const attachWait = 5 * time.Second
 
-func (s *DockerSuite) TestAttachMultipleAndRestart(c *testing.T) {
+type DockerCLIAttachSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIAttachSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIAttachSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIAttachSuite) TestAttachMultipleAndRestart(c *testing.T) {
 	endGroup := &sync.WaitGroup{}
 	startGroup := &sync.WaitGroup{}
 	endGroup.Add(3)
@@ -88,7 +100,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestAttachTTYWithoutStdin(c *testing.T) {
+func (s *DockerCLIAttachSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 	// TODO: Figure out how to get this running again reliable on Windows.
 	// It works by accident at the moment. Sometimes. I've gone back to v1.13.0 and see the same.
 	// On Windows, docker run -d -ti busybox causes the container to exit immediately.
@@ -133,7 +145,7 @@ func (s *DockerSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestAttachDisconnect(c *testing.T) {
+func (s *DockerCLIAttachSuite) TestAttachDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
 	id := strings.TrimSpace(out)
@@ -166,7 +178,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *testing.T) {
 	assert.Equal(c, running, "true")
 }
 
-func (s *DockerSuite) TestAttachPausedContainer(c *testing.T) {
+func (s *DockerCLIAttachSuite) TestAttachPausedContainer(c *testing.T) {
 	testRequires(c, IsPausable)
 	runSleepingContainer(c, "-d", "--name=test")
 	dockerCmd(c, "pause", "test")

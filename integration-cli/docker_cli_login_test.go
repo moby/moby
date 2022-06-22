@@ -9,7 +9,19 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestLoginWithoutTTY(c *testing.T) {
+type DockerCLILoginSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLILoginSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLILoginSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLILoginSuite) TestLoginWithoutTTY(c *testing.T) {
 	cmd := exec.Command(dockerBinary, "login")
 
 	// Send to stdin so the process does not get the TTY

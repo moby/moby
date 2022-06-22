@@ -13,7 +13,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestInfoSecurityOptions(c *testing.T) {
+func (s *DockerCLIInfoSuite) TestInfoSecurityOptions(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 	if !seccompEnabled() && !Apparmor() {
 		c.Skip("test requires Seccomp and/or AppArmor")

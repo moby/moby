@@ -16,7 +16,7 @@ import (
 )
 
 // regression test for #12546
-func (s *DockerSuite) TestExecInteractiveStdinClose(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecInteractiveStdinClose(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)
@@ -45,7 +45,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestExecTTY(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecTTY(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	dockerCmd(c, "run", "-d", "--name=test", "busybox", "sh", "-c", "echo hello > /foo && top")
 
@@ -75,7 +75,7 @@ func (s *DockerSuite) TestExecTTY(c *testing.T) {
 }
 
 // Test the TERM env var is set when -t is provided on exec
-func (s *DockerSuite) TestExecWithTERM(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecWithTERM(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	out, _ := dockerCmd(c, "run", "-id", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)
@@ -87,7 +87,7 @@ func (s *DockerSuite) TestExecWithTERM(c *testing.T) {
 
 // Test that the TERM env var is not set on exec when -t is not provided, even if it was set
 // on run
-func (s *DockerSuite) TestExecWithNoTERM(c *testing.T) {
+func (s *DockerCLIExecSuite) TestExecWithNoTERM(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)

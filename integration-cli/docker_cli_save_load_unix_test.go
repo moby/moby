@@ -19,7 +19,7 @@ import (
 )
 
 // save a repo and try to load it using stdout
-func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
+func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	name := "test-save-and-load-repo-stdout"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
@@ -70,7 +70,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	assert.Assert(c, strings.Contains(string(buf[:n]), "cowardly refusing"), "help output is not being yielded")
 }
 
-func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
+func (s *DockerCLISaveLoadSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
 	name := "test-load"
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 	RUN touch aa
@@ -88,7 +88,7 @@ func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
 }
 
 // fail because load didn't receive data from stdin
-func (s *DockerSuite) TestLoadNoStdinFail(c *testing.T) {
+func (s *DockerCLISaveLoadSuite) TestLoadNoStdinFail(c *testing.T) {
 	pty, tty, err := pty.Open()
 	assert.NilError(c, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

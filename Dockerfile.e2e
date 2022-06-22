@@ -31,7 +31,7 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-# Build DockerSuite.TestBuild* dependency
+# TestDockerCLIBuildSuite dependency
 FROM base AS contrib
 COPY contrib/syscall-test           /build/syscall-test
 COPY contrib/httpserver/Dockerfile  /build/httpserver/Dockerfile

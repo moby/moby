@@ -63,6 +63,9 @@
 .PARAMETER TestIntegration
      Runs integration tests.
 
+.PARAMETER TestIntegrationCli
+     Runs integration-cli tests.
+
 .PARAMETER All
      Runs everything this script knows about that can run in a container.
 
@@ -88,6 +91,7 @@ param(
     [Parameter(Mandatory=$False)][switch]$GoFormat,
     [Parameter(Mandatory=$False)][switch]$TestUnit,
     [Parameter(Mandatory=$False)][switch]$TestIntegration,
+    [Parameter(Mandatory=$False)][switch]$TestIntegrationCli,
     [Parameter(Mandatory=$False)][switch]$All
 )
 
@@ -383,6 +387,36 @@ Function Run-IntegrationTests() {
     }
 }
 
+# Run the integration-cli tests
+Function Run-IntegrationCliTests() {
+    Write-Host "INFO: Running integration-cli tests..."
+
+    $goTestRun = ""
+    $reportSuffix = ""
+    if ($env:INTEGRATION_TESTRUN.Length -ne 0)
+    {
+        $goTestRun = "-test.run=($env:INTEGRATION_TESTRUN)/"
+        $reportSuffixStream = [IO.MemoryStream]::new([byte[]][char[]]$env:INTEGRATION_TESTRUN)
+        $reportSuffix = "-" + (Get-FileHash -InputStream $reportSuffixStream -Algorithm SHA256).Hash
+    }
+
+    $jsonFilePath = $bundlesDir + "\go-test-report-int-cli-tests$reportSuffix.json"
+    $xmlFilePath = $bundlesDir + "\junit-report-int-cli-tests$reportSuffix.xml"
+    $coverageFilePath = $bundlesDir + "\coverage-report-int-cli-tests$reportSuffix.txt"
+    $goTestArg = "--format=standard-verbose --packages=./integration-cli/... --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -tags=autogen -test.timeout=200m $goTestRun $env:INTEGRATION_TESTFLAGS"
+    Write-Host "INFO: Invoking integration-cli tests run with gotestsum.exe $goTestArg"
+    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+    $pinfo.FileName = "gotestsum.exe"
+    $pinfo.WorkingDirectory = "$($PWD.Path)"
+    $pinfo.UseShellExecute = $false
+    $pinfo.Arguments = $goTestArg
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo = $pinfo
+    $p.Start() | Out-Null
+    $p.WaitForExit()
+    if ($p.ExitCode -ne 0) { Throw "integration-cli tests failed" }
+}
+
 # Start of main code.
 Try {
     Write-Host -ForegroundColor Cyan "INFO: make.ps1 starting at $(Get-Date)"
@@ -405,7 +439,7 @@ Try {
     if ($Binary) { $Client = $True; $Daemon = $True }
 
     # Default to building the daemon if not asked for anything explicitly.
-    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit) -and -not($TestIntegration)) { $Daemon=$True }
+    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit) -and -not($TestIntegration) -and -not($TestIntegrationCli)) { $Daemon=$True }
 
     # Verify git is installed
     if ($(Get-Command git -ErrorAction SilentlyContinue) -eq $nil) { Throw "Git does not appear to be installed" }
@@ -500,6 +534,9 @@ Try {
 
     # Run integration tests
     if ($TestIntegration) { Run-IntegrationTests }
+
+    # Run integration-cli tests
+    if ($TestIntegrationCli) { Run-IntegrationCliTests }
 
     # Gratuitous ASCII art.
     if ($Daemon -or $Client) {

@@ -16,7 +16,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestCpToContainerWithPermissions(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpToContainerWithPermissions(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	tmpDir := getTestDir(c, "test-cp-to-host-with-permissions")
@@ -43,7 +43,7 @@ func (s *DockerSuite) TestCpToContainerWithPermissions(c *testing.T) {
 }
 
 // Check ownership is root, both in non-userns and userns enabled modes
-func (s *DockerSuite) TestCpCheckDestOwnership(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpCheckDestOwnership(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	tmpVolDir := getTestDir(c, "test-cp-tmpvol")
 	containerID := makeTestContainer(c,

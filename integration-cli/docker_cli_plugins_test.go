@@ -28,6 +28,18 @@ var (
 	npNameWithTag     = npName + ":" + pTag
 )
 
+type DockerCLIPluginsSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIPluginsSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPluginsSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
 func (ps *DockerPluginSuite) TestPluginBasicOps(c *testing.T) {
 	plugin := ps.getPluginRepoWithTag()
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", plugin)
@@ -69,7 +81,7 @@ func (ps *DockerPluginSuite) TestPluginForceRemove(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, pNameWithTag))
 }
 
-func (s *DockerSuite) TestPluginActive(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginActive(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
@@ -91,7 +103,7 @@ func (s *DockerSuite) TestPluginActive(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, pNameWithTag))
 }
 
-func (s *DockerSuite) TestPluginActiveNetwork(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginActiveNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", npNameWithTag)
 	assert.NilError(c, err)
@@ -136,7 +148,7 @@ func (ps *DockerPluginSuite) TestPluginInstallDisable(c *testing.T) {
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), pName))
 }
 
-func (s *DockerSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pName)
 	assert.NilError(c, err)
@@ -316,7 +328,7 @@ func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
 }
 
 // Test case for https://github.com/docker/docker/pull/29186#discussion_r91277345
-func (s *DockerSuite) TestPluginInspectOnWindows(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginInspectOnWindows(c *testing.T) {
 	// This test should work on Windows only
 	testRequires(c, DaemonIsWindows)
 
@@ -411,7 +423,7 @@ enabled: false`, id, name)
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expectedOutput))
 }
 
-func (s *DockerSuite) TestPluginUpgrade(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginUpgrade(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network, testEnv.IsLocalDaemon, IsAmd64, NotUserNamespace)
 	plugin := "cpuguy83/docker-volume-driver-plugin-local:latest"
 	pluginV2 := "cpuguy83/docker-volume-driver-plugin-local:v2"
@@ -442,7 +454,7 @@ func (s *DockerSuite) TestPluginUpgrade(c *testing.T) {
 	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "ls -lh /apple/core")
 }
 
-func (s *DockerSuite) TestPluginMetricsCollector(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginMetricsCollector(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network, testEnv.IsLocalDaemon, IsAmd64)
 	d := daemon.New(c, dockerBinary, dockerdBinary)
 	d.Start(c)

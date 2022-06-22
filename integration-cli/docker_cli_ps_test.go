@@ -18,7 +18,19 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func (s *DockerSuite) TestPsListContainersBase(c *testing.T) {
+type DockerCLIPsSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIPsSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPsSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIPsSuite) TestPsListContainersBase(c *testing.T) {
 	existingContainers := ExistingContainerIDs(c)
 
 	out := runSleepingContainer(c, "-d")
@@ -139,7 +151,7 @@ func assertContainerList(out string, expected []string) bool {
 	return true
 }
 
-func (s *DockerSuite) TestPsListContainersSize(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersSize(c *testing.T) {
 	// Problematic on Windows as it doesn't report the size correctly @swernli
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "busybox")
@@ -179,7 +191,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *testing.T) {
 	assert.Assert(c, strings.Contains(foundSize, expectedSize), "Expected size %q, got %q", expectedSize, foundSize)
 }
 
-func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterStatus(c *testing.T) {
 	existingContainers := ExistingContainerIDs(c)
 
 	// start exited container
@@ -226,7 +238,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestPsListContainersFilterHealth(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterHealth(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME. Hang on Windows + containerd combination")
 	existingContainers := ExistingContainerIDs(c)
 	// Test legacy no health check
@@ -270,7 +282,7 @@ func (s *DockerSuite) TestPsListContainersFilterHealth(c *testing.T) {
 	assert.Equal(c, containerOut, containerID, fmt.Sprintf("Expected containerID %s, got %s for healthy filter, output: %q", containerID, containerOut, out))
 }
 
-func (s *DockerSuite) TestPsListContainersFilterID(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterID(c *testing.T) {
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -284,7 +296,7 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *testing.T) {
 	assert.Equal(c, containerOut, firstID[:12], fmt.Sprintf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
 }
 
-func (s *DockerSuite) TestPsListContainersFilterName(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterName(c *testing.T) {
 	// start container
 	dockerCmd(c, "run", "--name=a_name_to_match", "busybox")
 	id := getIDByName(c, "a_name_to_match")
@@ -306,7 +318,7 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *testing.T) {
 // - Create an image based on the previous image (images_ps_filter_test2)
 // - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
 // - Filter them out :P
-func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterAncestorImage(c *testing.T) {
 	existingContainers := ExistingContainerIDs(c)
 
 	// Build images
@@ -401,7 +413,7 @@ func checkPsAncestorFilterOutput(c *testing.T, out string, filterName string, ex
 	}
 }
 
-func (s *DockerSuite) TestPsListContainersFilterLabel(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterLabel(c *testing.T) {
 	// start container
 	dockerCmd(c, "run", "--name=first", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID := getIDByName(c, "first")
@@ -437,7 +449,7 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *testing.T) {
 	assert.Assert(c, !strings.Contains(containerOut, thirdID))
 }
 
-func (s *DockerSuite) TestPsListContainersFilterExited(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterExited(c *testing.T) {
 	// TODO Flaky on  Windows CI [both RS1 and RS5]
 	// On slower machines the container may not have exited
 	// yet when we filter below by exit status/exit value.
@@ -468,7 +480,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, strings.TrimSpace(secondZero)))
 }
 
-func (s *DockerSuite) TestPsRightTagName(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsRightTagName(c *testing.T) {
 	// TODO Investigate further why this fails on Windows to Windows CI
 	testRequires(c, DaemonIsLinux)
 
@@ -514,7 +526,7 @@ func (s *DockerSuite) TestPsRightTagName(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterCreated(c *testing.T) {
 	// create a container
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
@@ -544,7 +556,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *testing.T) {
 }
 
 // Test for GitHub issue #12595
-func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 	// TODO: Investigate why this fails on Windows to Windows CI further.
 	testRequires(c, DaemonIsLinux)
 	originalImageName := "busybox:TestPsImageIDAfterUpdate-original"
@@ -593,7 +605,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *testing.T) {
 
 }
 
-func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name=foo", "-d", "-p", "6000:5000", "busybox", "top")
 	assert.Assert(c, waitRun("foo") == nil)
@@ -607,7 +619,7 @@ func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 	assert.Equal(c, ports, "", "Should not got %v", expected)
 }
 
-func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	existingContainers := ExistingContainerNames(c)
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
@@ -707,7 +719,7 @@ func (s *DockerSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, len(strings.TrimSpace(out)), 0)
 }
 
-func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	existing := ExistingContainerIDs(c)
 
 	// TODO default network on Windows is not called "bridge", and creating a
@@ -784,7 +796,7 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *testing.T) {
 	assert.Assert(c, strings.Contains(containerOut, "onbridgenetwork"), "Missing the container on network\n")
 }
 
-func (s *DockerSuite) TestPsByOrder(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsByOrder(c *testing.T) {
 	out := runSleepingContainer(c, "--name", "xyz-abc")
 	container1 := strings.TrimSpace(out)
 
@@ -803,7 +815,7 @@ func (s *DockerSuite) TestPsByOrder(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), fmt.Sprintf("%s\n%s", container2, container1))
 }
 
-func (s *DockerSuite) TestPsListContainersFilterPorts(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	existingContainers := ExistingContainerIDs(c)
 
@@ -853,7 +865,7 @@ func (s *DockerSuite) TestPsListContainersFilterPorts(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(out) != id3)
 }
 
-func (s *DockerSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T) {
+func (s *DockerCLIPsSuite) TestPsNotShowLinknamesOfDeletedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux, MinimumAPIVersion("1.31"))
 	existingContainers := ExistingContainerNames(c)
 

@@ -15,13 +15,25 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestAPIOptionsRoute(c *testing.T) {
+type DockerAPISuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerAPISuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerAPISuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerAPISuite) TestAPIOptionsRoute(c *testing.T) {
 	resp, _, err := request.Do("/", request.Method(http.MethodOptions))
 	assert.NilError(c, err)
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
 }
 
-func (s *DockerSuite) TestAPIGetEnabledCORS(c *testing.T) {
+func (s *DockerAPISuite) TestAPIGetEnabledCORS(c *testing.T) {
 	res, body, err := request.Get("/version")
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusOK)
@@ -33,7 +45,7 @@ func (s *DockerSuite) TestAPIGetEnabledCORS(c *testing.T) {
 	//assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
 }
 
-func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
+func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	if testEnv.OSType != runtime.GOOS {
 		c.Skip("Daemon platform doesn't match test platform")
 	}
@@ -57,7 +69,7 @@ func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(string(content)), expected)
 }
 
-func (s *DockerSuite) TestAPIErrorJSON(c *testing.T) {
+func (s *DockerAPISuite) TestAPIErrorJSON(c *testing.T) {
 	httpResp, body, err := request.Post("/containers/create", request.JSONBody(struct{}{}))
 	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
@@ -71,7 +83,7 @@ func (s *DockerSuite) TestAPIErrorJSON(c *testing.T) {
 	assert.Equal(c, getErrorMessage(c, b), "Config cannot be empty in order to create a container")
 }
 
-func (s *DockerSuite) TestAPIErrorPlainText(c *testing.T) {
+func (s *DockerAPISuite) TestAPIErrorPlainText(c *testing.T) {
 	// Windows requires API 1.25 or later. This test is validating a behaviour which was present
 	// in v1.23, but changed in 1.24, hence not applicable on Windows. See apiVersionSupportsJSONErrors
 	testRequires(c, DaemonIsLinux)
@@ -88,7 +100,7 @@ func (s *DockerSuite) TestAPIErrorPlainText(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(string(b)), "Config cannot be empty in order to create a container")
 }
 
-func (s *DockerSuite) TestAPIErrorNotFoundJSON(c *testing.T) {
+func (s *DockerAPISuite) TestAPIErrorNotFoundJSON(c *testing.T) {
 	// 404 is a different code path to normal errors, so test separately
 	httpResp, body, err := request.Get("/notfound", request.JSON)
 	assert.NilError(c, err)
@@ -99,7 +111,7 @@ func (s *DockerSuite) TestAPIErrorNotFoundJSON(c *testing.T) {
 	assert.Equal(c, getErrorMessage(c, b), "page not found")
 }
 
-func (s *DockerSuite) TestAPIErrorNotFoundPlainText(c *testing.T) {
+func (s *DockerAPISuite) TestAPIErrorNotFoundPlainText(c *testing.T) {
 	httpResp, body, err := request.Get("/v1.23/notfound", request.JSON)
 	assert.NilError(c, err)
 	assert.Equal(c, httpResp.StatusCode, http.StatusNotFound)
