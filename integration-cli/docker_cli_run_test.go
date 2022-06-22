@@ -34,6 +34,7 @@ import (
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -2750,11 +2751,7 @@ func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *testin
 		ExitCode: 1,
 	})
 
-	cli.Docker(cli.Args("container", "inspect", name)).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Out:      "[]\n",
-		Err:      "o such container", // (N|n)o such container
-	})
+	poll.WaitOn(c, containerRemoved(name))
 }
 
 func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *testing.T) {
@@ -2763,11 +2760,21 @@ func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *testing.
 		ExitCode: 127,
 	})
 
-	cli.Docker(cli.Args("container", "inspect", name)).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Out:      "[]\n",
-		Err:      "o such container", // (N|n)o such container
-	})
+	poll.WaitOn(c, containerRemoved(name))
+}
+
+func containerRemoved(name string) poll.Check {
+	return func(l poll.LogT) poll.Result {
+		err := cli.Docker(cli.Args("container", "inspect", "--format='{{.ID}}'", name)).Compare(icmd.Expected{
+			ExitCode: 1,
+			Out:      "",
+			Err:      "o such container", // (N|n)o such container
+		})
+		if err != nil {
+			return poll.Continue("waiting for container '%s' to be removed", name)
+		}
+		return poll.Success()
+	}
 }
 
 func (s *DockerSuite) TestRunPIDHostWithChildIsKillable(c *testing.T) {
