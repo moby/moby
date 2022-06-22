@@ -73,7 +73,7 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.Bool("debug", false, "")
-	flags.Set("debug", "false")
+	assert.Check(t, flags.Set("debug", "false"))
 
 	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
 	if err == nil {
@@ -128,7 +128,7 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("tlscacert", "", "")
-	flags.Set("tlscacert", "~/.docker/ca.pem")
+	assert.Check(t, flags.Set("tlscacert", "~/.docker/ca.pem"))
 
 	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
 	if err == nil {
@@ -152,7 +152,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 		var conf = Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
-		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
 		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile.Path())
 		assert.NilError(t, err)
@@ -173,7 +173,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 		var conf = Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
-		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
 		_, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
 		assert.ErrorContains(t, err, "the following directives are specified both as a flag and in the configuration file")
@@ -206,7 +206,7 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	flags.Set("host", "unix:///var/run/docker.sock")
+	assert.Check(t, flags.Set("host", "unix:///var/run/docker.sock"))
 	err = findConfigurationConflicts(config, flags)
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -544,7 +544,7 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 	configFile := "/tmp/blabla/not/exists/config.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", "", "")
-	flags.Set("config-file", configFile)
+	assert.Check(t, flags.Set("config-file", configFile))
 
 	err := Reload(configFile, flags, func(c *Config) {})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
