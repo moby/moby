@@ -61,11 +61,15 @@
 		people = [
 			"alexellis",
 			"andrewhsu",
+			"corhere",
 			"fntlnz",
 			"gianarb",
+			"ndeloof",
+			"neersighted",
 			"olljanat",
 			"programmerq",
 			"ripcurld",
+			"rumpl",
 			"samwhited",
 			"thajeztah"
 		]
@@ -313,6 +317,11 @@
 	Email = "leijitang@huawei.com"
 	GitHub = "coolljt0725"
 
+	[people.corhere]
+	Name = "Cory Snider"
+	Email = "csnider@mirantis.com"
+	GitHub = "corhere"
+
 	[people.cpuguy83]
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
@@ -423,6 +432,16 @@
 	Email = "mrjana@docker.com"
 	GitHub = "mrjana"
 
+	[people.ndeloof]
+	Name = "Nicolas De Loof"
+	Email = "nicolas.deloof@gmail.com"
+	GitHub = "ndeloof"
+
+	[people.neersighted]
+	Name = "Bjorn Neergaard"
+	Email = "bneergaard@mirantis.com"
+	GitHub = "neersighted"
+
 	[people.olljanat]
 	Name = "Olli Janatuinen"
 	Email = "olli.janatuinen@gmail.com"
@@ -437,6 +456,11 @@
 	Name = "Boaz Shuster"
 	Email = "ripcurld.github@gmail.com"
 	GitHub = "ripcurld"
+
+	[people.rumpl]
+	Name = "Djordje Lukic"
+	Email = "djordje.lukic@docker.com"
+	GitHub = "rumpl"
 
 	[people.runcom]
 	Name = "Antonio Murdaca"
