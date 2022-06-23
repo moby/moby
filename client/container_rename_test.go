@@ -9,23 +9,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerRenameError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerRename(context.Background(), "nothing", "newNothing")
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	err = client.ContainerRename(context.Background(), "nothing", "newNothing")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerRename(t *testing.T) {
-	expectedURL := "/containers/container_id/rename"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/containers/container_id/rename"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -37,10 +40,11 @@ func TestContainerRename(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.ContainerRename(context.Background(), "container_id", "newName")
+	err = client.ContainerRename(context.Background(), "container_id", "newName")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
@@ -21,19 +22,20 @@ import (
 )
 
 func TestServiceCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, types.ServiceCreateOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, types.ServiceCreateOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestServiceCreate(t *testing.T) {
-	expectedURL := "/services/create"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/services/create"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -50,8 +52,9 @@ func TestServiceCreate(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ServiceCreate(context.Background(), swarm.ServiceSpec{}, types.ServiceCreateOptions{})
 	if err != nil {
@@ -63,9 +66,9 @@ func TestServiceCreate(t *testing.T) {
 }
 
 func TestServiceCreateCompatiblePlatforms(t *testing.T) {
-	client := &Client{
-		version: "1.30",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if strings.HasPrefix(req.URL.Path, "/v1.30/services/create") {
 				var serviceSpec swarm.ServiceSpec
 
@@ -111,8 +114,9 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 			} else {
 				return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)
 			}
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	spec := swarm.ServiceSpec{TaskTemplate: swarm.TaskSpec{ContainerSpec: &swarm.ContainerSpec{Image: "foobar:1.0"}}}
 
@@ -143,9 +147,9 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 		{"cannotresolve", "cannotresolve:latest"},
 	}
 
-	client := &Client{
-		version: "1.30",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if strings.HasPrefix(req.URL.Path, "/v1.30/services/create") {
 				// reset and set image received by the service create endpoint
 				serviceCreateImage = ""
@@ -184,8 +188,9 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				}, nil
 			}
 			return nil, fmt.Errorf("unexpected URL '%s'", req.URL.Path)
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	// run pin by digest tests
 	for _, p := range pinByDigestTests {

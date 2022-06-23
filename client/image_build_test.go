@@ -10,17 +10,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageBuildError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageBuild(context.Background(), nil, types.ImageBuildOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImageBuild(context.Background(), nil, types.ImageBuildOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -158,9 +161,9 @@ func TestImageBuild(t *testing.T) {
 		},
 	}
 	for _, buildCase := range buildCases {
-		expectedURL := "/build"
-		client := &Client{
-			client: newMockClient(func(r *http.Request) (*http.Response, error) {
+		expectedURL := "/v" + api.DefaultVersion + "/build"
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
@@ -198,8 +201,9 @@ func TestImageBuild(t *testing.T) {
 					Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 					Header:     headers,
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 		buildResponse, err := client.ImageBuild(context.Background(), nil, buildCase.buildOptions)
 		if err != nil {
 			t.Fatal(err)

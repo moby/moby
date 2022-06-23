@@ -10,40 +10,45 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageSearchAnyError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageSearchStatusUnauthorizedError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
-	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{})
 	if !errdefs.IsUnauthorized(err) {
 		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error"))),
+	)
+	assert.NilError(t, err)
 	privilegeFunc := func() (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
 	}
-	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
+	_, err = client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	if err == nil || err.Error() != "Error requesting privilege" {
@@ -52,13 +57,14 @@ func TestImageSearchWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 }
 
 func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error"))),
+	)
+	assert.NilError(t, err)
 	privilegeFunc := func() (string, error) {
 		return "a-auth-header", nil
 	}
-	_, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
+	_, err = client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	if !errdefs.IsUnauthorized(err) {
@@ -67,9 +73,9 @@ func TestImageSearchWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.
 }
 
 func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
-	expectedURL := "/images/search"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/images/search"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -100,8 +106,9 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 	privilegeFunc := func() (string, error) {
 		return "IAmValid", nil
 	}
@@ -118,15 +125,15 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 }
 
 func TestImageSearchWithoutErrors(t *testing.T) {
-	expectedURL := "/images/search"
+	expectedURL := "/v" + api.DefaultVersion + "/images/search"
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("is-automated", "true")
 	filterArgs.Add("stars", "3")
 
 	expectedFilters := `{"is-automated":{"true":true},"stars":{"3":true}}`
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -151,8 +158,9 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 	results, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
 		Filters: filterArgs,
 	})

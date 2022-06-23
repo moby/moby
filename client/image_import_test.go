@@ -10,24 +10,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageImportError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageImport(context.Background(), types.ImageImportSource{}, "image:tag", types.ImageImportOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImageImport(context.Background(), types.ImageImportSource{}, "image:tag", types.ImageImportOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageImport(t *testing.T) {
-	expectedURL := "/images/create"
-	client := &Client{
-		client: newMockClient(func(r *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/images/create"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
@@ -58,8 +61,9 @@ func TestImageImport(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 	importResponse, err := client.ImageImport(context.Background(), types.ImageImportSource{
 		Source:     strings.NewReader("source"),
 		SourceName: "image_source",

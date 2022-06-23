@@ -9,51 +9,57 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestImagePullReferenceParseError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 	// An empty reference is an invalid reference
-	_, err := client.ImagePull(context.Background(), "", types.ImagePullOptions{})
+	_, err = client.ImagePull(context.Background(), "", types.ImagePullOptions{})
 	if err == nil || !strings.Contains(err.Error(), "invalid reference format") {
 		t.Fatalf("expected an error, got %v", err)
 	}
 }
 
 func TestImagePullAnyError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImagePullStatusUnauthorizedError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
-	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{})
 	if !errdefs.IsUnauthorized(err) {
 		t.Fatalf("expected a Unauthorized Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error"))),
+	)
+	assert.NilError(t, err)
 	privilegeFunc := func() (string, error) {
 		return "", fmt.Errorf("Error requesting privilege")
 	}
-	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{
+	_, err = client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	if err == nil || err.Error() != "Error requesting privilege" {
@@ -62,13 +68,14 @@ func TestImagePullWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 }
 
 func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error"))),
+	)
+	assert.NilError(t, err)
 	privilegeFunc := func() (string, error) {
 		return "a-auth-header", nil
 	}
-	_, err := client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{
+	_, err = client.ImagePull(context.Background(), "myimage", types.ImagePullOptions{
 		PrivilegeFunc: privilegeFunc,
 	})
 	if !errdefs.IsUnauthorized(err) {
@@ -77,9 +84,9 @@ func TestImagePullWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 }
 
 func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
-	expectedURL := "/images/create"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/images/create"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -106,8 +113,9 @@ func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte("hello world"))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 	privilegeFunc := func() (string, error) {
 		return "IAmValid", nil
 	}
@@ -128,7 +136,7 @@ func TestImagePullWithPrivilegedFuncNoError(t *testing.T) {
 }
 
 func TestImagePullWithoutErrors(t *testing.T) {
-	expectedURL := "/images/create"
+	expectedURL := "/v" + api.DefaultVersion + "/images/create"
 	expectedOutput := "hello world"
 	pullCases := []struct {
 		all           bool
@@ -162,8 +170,8 @@ func TestImagePullWithoutErrors(t *testing.T) {
 		},
 	}
 	for _, pullCase := range pullCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -180,8 +188,9 @@ func TestImagePullWithoutErrors(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte(expectedOutput))),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 		resp, err := client.ImagePull(context.Background(), pullCase.reference, types.ImagePullOptions{
 			All: pullCase.all,
 		})

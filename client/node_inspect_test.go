@@ -10,49 +10,54 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
 )
 
 func TestNodeInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, _, err := client.NodeInspectWithRaw(context.Background(), "nothing")
+	_, _, err = client.NodeInspectWithRaw(context.Background(), "nothing")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestNodeInspectNodeNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusNotFound, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, _, err := client.NodeInspectWithRaw(context.Background(), "unknown")
+	_, _, err = client.NodeInspectWithRaw(context.Background(), "unknown")
 	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a nodeNotFoundError error, got %v", err)
 	}
 }
 
 func TestNodeInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.NodeInspectWithRaw(context.Background(), "")
+		})),
+	)
+	assert.NilError(t, err)
+	_, _, err = client.NodeInspectWithRaw(context.Background(), "")
 	if !IsErrNotFound(err) {
 		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 
 func TestNodeInspect(t *testing.T) {
-	expectedURL := "/nodes/node_id"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/nodes/node_id"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -66,8 +71,9 @@ func TestNodeInspect(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	nodeInspect, _, err := client.NodeInspectWithRaw(context.Background(), "node_id")
 	if err != nil {

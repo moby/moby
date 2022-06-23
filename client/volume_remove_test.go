@@ -9,25 +9,28 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestVolumeRemoveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.VolumeRemove(context.Background(), "volume_id", false)
+	err = client.VolumeRemove(context.Background(), "volume_id", false)
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestVolumeRemove(t *testing.T) {
-	expectedURL := "/volumes/volume_id"
+	expectedURL := "/v" + api.DefaultVersion + "/volumes/volume_id"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -38,10 +41,11 @@ func TestVolumeRemove(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.VolumeRemove(context.Background(), "volume_id", false)
+	err = client.VolumeRemove(context.Background(), "volume_id", false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,25 +10,28 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestNodeListError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.NodeList(context.Background(), types.NodeListOptions{})
+	_, err = client.NodeList(context.Background(), types.NodeListOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestNodeList(t *testing.T) {
-	expectedURL := "/nodes"
+	expectedURL := "/v" + api.DefaultVersion + "/nodes"
 
 	filters := filters.NewArgs()
 	filters.Add("label", "label1")
@@ -54,8 +57,8 @@ func TestNodeList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -81,8 +84,9 @@ func TestNodeList(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
 		nodes, err := client.NodeList(context.Background(), listCase.options)
 		if err != nil {

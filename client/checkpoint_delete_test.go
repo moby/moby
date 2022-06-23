@@ -9,16 +9,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestCheckpointDeleteError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.CheckpointDelete(context.Background(), "container_id", types.CheckpointDeleteOptions{
+	err = client.CheckpointDelete(context.Background(), "container_id", types.CheckpointDeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
 
@@ -28,10 +31,10 @@ func TestCheckpointDeleteError(t *testing.T) {
 }
 
 func TestCheckpointDelete(t *testing.T) {
-	expectedURL := "/containers/container_id/checkpoints/checkpoint_id"
+	expectedURL := "/v" + api.DefaultVersion + "/containers/container_id/checkpoints/checkpoint_id"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -42,10 +45,11 @@ func TestCheckpointDelete(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.CheckpointDelete(context.Background(), "container_id", types.CheckpointDeleteOptions{
+	err = client.CheckpointDelete(context.Background(), "container_id", types.CheckpointDeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
 

@@ -10,22 +10,25 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerCommitError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerCommit(context.Background(), "nothing", types.ContainerCommitOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ContainerCommit(context.Background(), "nothing", types.ContainerCommitOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerCommit(t *testing.T) {
-	expectedURL := "/commit"
+	expectedURL := "/v" + api.DefaultVersion + "/commit"
 	expectedContainerID := "container_id"
 	specifiedReference := "repository_name:tag"
 	expectedRepositoryName := "repository_name"
@@ -34,8 +37,8 @@ func TestContainerCommit(t *testing.T) {
 	expectedAuthor := "author"
 	expectedChanges := []string{"change1", "change2"}
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -78,8 +81,9 @@ func TestContainerCommit(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ContainerCommit(context.Background(), expectedContainerID, types.ContainerCommitOptions{
 		Reference: specifiedReference,

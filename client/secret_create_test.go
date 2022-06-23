@@ -18,20 +18,21 @@ import (
 )
 
 func TestSecretCreateUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.24",
-		client:  &http.Client{},
-	}
-	_, err := client.SecretCreate(context.Background(), swarm.SecretSpec{})
+	client, err := NewClientWithOpts(
+		WithVersion("1.24"),
+	)
+	assert.NilError(t, err)
+	_, err = client.SecretCreate(context.Background(), swarm.SecretSpec{})
 	assert.Check(t, is.Error(err, `"secret create" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
 func TestSecretCreateError(t *testing.T) {
-	client := &Client{
-		version: "1.25",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.SecretCreate(context.Background(), swarm.SecretSpec{})
+	client, err := NewClientWithOpts(
+		WithVersion("1.25"),
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.SecretCreate(context.Background(), swarm.SecretSpec{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -39,9 +40,9 @@ func TestSecretCreateError(t *testing.T) {
 
 func TestSecretCreate(t *testing.T) {
 	expectedURL := "/v1.25/secrets/create"
-	client := &Client{
-		version: "1.25",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithVersion("1.25"),
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -58,8 +59,9 @@ func TestSecretCreate(t *testing.T) {
 				StatusCode: http.StatusCreated,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	r, err := client.SecretCreate(context.Background(), swarm.SecretSpec{})
 	if err != nil {

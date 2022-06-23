@@ -9,23 +9,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestNodeRemoveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: false})
+	err = client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: false})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestNodeRemove(t *testing.T) {
-	expectedURL := "/nodes/node_id"
+	expectedURL := "/v" + api.DefaultVersion + "/nodes/node_id"
 
 	removeCases := []struct {
 		force         bool
@@ -41,8 +44,8 @@ func TestNodeRemove(t *testing.T) {
 	}
 
 	for _, removeCase := range removeCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -58,10 +61,11 @@ func TestNodeRemove(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
-		err := client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: removeCase.force})
+		err = client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: removeCase.force})
 		if err != nil {
 			t.Fatal(err)
 		}

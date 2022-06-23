@@ -10,15 +10,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestCheckpointCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.CheckpointCreate(context.Background(), "nothing", types.CheckpointCreateOptions{
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	err = client.CheckpointCreate(context.Background(), "nothing", types.CheckpointCreateOptions{
 		CheckpointID: "noting",
 		Exit:         true,
 	})
@@ -31,10 +34,10 @@ func TestCheckpointCreateError(t *testing.T) {
 func TestCheckpointCreate(t *testing.T) {
 	expectedContainerID := "container_id"
 	expectedCheckpointID := "checkpoint_id"
-	expectedURL := "/containers/container_id/checkpoints"
+	expectedURL := "/v" + api.DefaultVersion + "/containers/container_id/checkpoints"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -60,10 +63,11 @@ func TestCheckpointCreate(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.CheckpointCreate(context.Background(), expectedContainerID, types.CheckpointCreateOptions{
+	err = client.CheckpointCreate(context.Background(), expectedContainerID, types.CheckpointCreateOptions{
 		CheckpointID: expectedCheckpointID,
 		Exit:         true,
 	})

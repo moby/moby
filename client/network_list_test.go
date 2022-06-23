@@ -10,17 +10,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestNetworkListError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.NetworkList(context.Background(), types.NetworkListOptions{
+	_, err = client.NetworkList(context.Background(), types.NetworkListOptions{
 		Filters: filters.NewArgs(),
 	})
 	if !errdefs.IsSystem(err) {
@@ -29,7 +32,7 @@ func TestNetworkListError(t *testing.T) {
 }
 
 func TestNetworkList(t *testing.T) {
-	expectedURL := "/networks"
+	expectedURL := "/v" + api.DefaultVersion + "/networks"
 
 	noDanglingFilters := filters.NewArgs()
 	noDanglingFilters.Add("dangling", "false")
@@ -69,8 +72,8 @@ func TestNetworkList(t *testing.T) {
 	}
 
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -95,8 +98,9 @@ func TestNetworkList(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
 		networkResources, err := client.NetworkList(context.Background(), listCase.options)
 		if err != nil {

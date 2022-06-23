@@ -10,34 +10,37 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
 func TestImageRemoveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
+	_, err = client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "no such image: unknown")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusNotFound, "no such image: unknown"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
+	_, err = client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
 	assert.ErrorContains(t, err, "no such image: unknown")
 	assert.Check(t, IsErrNotFound(err))
 }
 
 func TestImageRemove(t *testing.T) {
-	expectedURL := "/images/image_id"
+	expectedURL := "/v" + api.DefaultVersion + "/images/image_id"
 	removeCases := []struct {
 		force               bool
 		pruneChildren       bool
@@ -60,8 +63,8 @@ func TestImageRemove(t *testing.T) {
 		},
 	}
 	for _, removeCase := range removeCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -91,8 +94,9 @@ func TestImageRemove(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(b)),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{
 			Force:         removeCase.force,
 			PruneChildren: removeCase.pruneChildren,

@@ -10,49 +10,54 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ContainerInspect(context.Background(), "nothing")
+	_, err = client.ContainerInspect(context.Background(), "nothing")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerInspectContainerNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusNotFound, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ContainerInspect(context.Background(), "unknown")
+	_, err = client.ContainerInspect(context.Background(), "unknown")
 	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a containerNotFound error, got %v", err)
 	}
 }
 
 func TestContainerInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.ContainerInspectWithRaw(context.Background(), "", true)
+		})),
+	)
+	assert.NilError(t, err)
+	_, _, err = client.ContainerInspectWithRaw(context.Background(), "", true)
 	if !IsErrNotFound(err) {
 		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 
 func TestContainerInspect(t *testing.T) {
-	expectedURL := "/containers/container_id/json"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/containers/container_id/json"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -70,8 +75,9 @@ func TestContainerInspect(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ContainerInspect(context.Background(), "container_id")
 	if err != nil {
@@ -91,8 +97,8 @@ func TestContainerInspect(t *testing.T) {
 // TestContainerInspectNode tests that the "Node" field is included in the "inspect"
 // output. This information is only present when connected to a Swarm standalone API.
 func TestContainerInspectNode(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			content, err := json.Marshal(types.ContainerJSON{
 				ContainerJSONBase: &types.ContainerJSONBase{
 					ID:    "container_id",
@@ -112,8 +118,9 @@ func TestContainerInspectNode(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	r, err := client.ContainerInspect(context.Background(), "container_id")
 	if err != nil {

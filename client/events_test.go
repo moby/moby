@@ -10,10 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestEventsErrorInOptions(t *testing.T) {
@@ -35,31 +37,31 @@ func TestEventsErrorInOptions(t *testing.T) {
 		},
 	}
 	for _, e := range errorCases {
-		client := &Client{
-			client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-		}
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+		)
+		assert.NilError(t, err)
 		_, errs := client.Events(context.Background(), e.options)
-		err := <-errs
-		if err == nil || !strings.Contains(err.Error(), e.expectedError) {
+		if err := <-errs; err == nil || !strings.Contains(err.Error(), e.expectedError) {
 			t.Fatalf("expected an error %q, got %v", e.expectedError, err)
 		}
 	}
 }
 
 func TestEventsErrorFromServer(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 	_, errs := client.Events(context.Background(), types.EventsOptions{})
-	err := <-errs
-	if !errdefs.IsSystem(err) {
+	if err := <-errs; !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestEvents(t *testing.T) {
 
-	expectedURL := "/events"
+	expectedURL := "/v" + api.DefaultVersion + "/events"
 
 	filters := filters.NewArgs()
 	filters.Add("type", events.ContainerEventType)
@@ -114,8 +116,8 @@ func TestEvents(t *testing.T) {
 	}
 
 	for _, eventsCase := range eventsCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -139,8 +141,9 @@ func TestEvents(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(buffer),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
 		messages, errs := client.Events(context.Background(), eventsCase.options)
 

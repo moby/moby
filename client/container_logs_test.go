@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -19,20 +20,22 @@ import (
 )
 
 func TestContainerLogsNotFoundError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
-	}
-	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusNotFound, "Not found"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
 	if !IsErrNotFound(err) {
 		t.Fatalf("expected a not found error, got %v", err)
 	}
 }
 
 func TestContainerLogsError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -47,7 +50,7 @@ func TestContainerLogsError(t *testing.T) {
 }
 
 func TestContainerLogs(t *testing.T) {
-	expectedURL := "/containers/container_id/logs"
+	expectedURL := "/v" + api.DefaultVersion + "/containers/container_id/logs"
 	cases := []struct {
 		options             types.ContainerLogsOptions
 		expectedQueryParams map[string]string
@@ -119,8 +122,8 @@ func TestContainerLogs(t *testing.T) {
 		},
 	}
 	for _, logCase := range cases {
-		client := &Client{
-			client: newMockClient(func(r *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
@@ -136,8 +139,9 @@ func TestContainerLogs(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 		body, err := client.ContainerLogs(context.Background(), "container_id", logCase.options)
 		if logCase.expectedError != "" {
 			assert.Check(t, is.Error(err, logCase.expectedError))

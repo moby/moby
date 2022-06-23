@@ -84,10 +84,11 @@ func TestSetHostHeader(t *testing.T) {
 // backwards compatibility with API versions <1.24. All other tests use
 // errors returned as JSON
 func TestPlainTextError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ContainerList(context.Background(), types.ContainerListOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(plainTextErrorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ContainerList(context.Background(), types.ContainerListOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -95,16 +96,17 @@ func TestPlainTextError(t *testing.T) {
 
 func TestInfiniteError(t *testing.T) {
 	infinitR := rand.New(rand.NewSource(42))
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			resp := &http.Response{StatusCode: http.StatusInternalServerError}
 			resp.Header = http.Header{}
 			resp.Body = io.NopCloser(infinitR)
 			return resp, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.Ping(context.Background())
+	_, err = client.Ping(context.Background())
 	assert.Check(t, is.ErrorContains(err, "request returned Internal Server Error"))
 }
 

@@ -10,24 +10,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageListError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ImageList(context.Background(), types.ImageListOptions{})
+	_, err = client.ImageList(context.Background(), types.ImageListOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageList(t *testing.T) {
-	expectedURL := "/images/json"
+	expectedURL := "/v" + api.DefaultVersion + "/images/json"
 
 	noDanglingfilters := filters.NewArgs()
 	noDanglingfilters.Add("dangling", "false")
@@ -71,8 +74,8 @@ func TestImageList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -98,8 +101,9 @@ func TestImageList(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
 		images, err := client.ImageList(context.Background(), listCase.options)
 		if err != nil {
@@ -113,8 +117,8 @@ func TestImageList(t *testing.T) {
 
 func TestImageListApiBefore125(t *testing.T) {
 	expectedFilter := "image:tag"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			query := req.URL.Query()
 			actualFilter := query.Get("filter")
 			if actualFilter != expectedFilter {
@@ -139,9 +143,10 @@ func TestImageListApiBefore125(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-		version: "1.24",
-	}
+		})),
+		WithVersion("1.24"),
+	)
+	assert.NilError(t, err)
 
 	filters := filters.NewArgs()
 	filters.Add("reference", "image:tag")
