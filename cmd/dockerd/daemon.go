@@ -39,7 +39,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/listeners"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/libcontainerd/supervisor"
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/homedir"
@@ -170,15 +169,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	waitForContainerDShutdown, err := cli.initContainerD(ctx)
-	if waitForContainerDShutdown != nil {
-		defer waitForContainerDShutdown(10 * time.Second)
-	}
+	defer cancel()
+	waitForContainerdShutdown, err := cli.initContainerd(ctx)
 	if err != nil {
-		cancel()
 		return err
 	}
-	defer cancel()
+	defer waitForContainerdShutdown()
 
 	stopc := make(chan bool)
 	defer close(stopc)
@@ -593,25 +589,6 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	cli.Config.AuthzMiddleware = cli.authzMiddleware
 	s.UseMiddleware(cli.authzMiddleware)
 	return nil
-}
-
-func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts, err := cli.getPlatformContainerdDaemonOpts()
-	if err != nil {
-		return nil, err
-	}
-
-	if cli.Config.Debug {
-		opts = append(opts, supervisor.WithLogLevel("debug"))
-	} else if cli.Config.LogLevel != "" {
-		opts = append(opts, supervisor.WithLogLevel(cli.Config.LogLevel))
-	}
-
-	if !cli.Config.CriContainerd {
-		opts = append(opts, supervisor.WithPlugin("cri", nil))
-	}
-
-	return opts, nil
 }
 
 func newAPIServerConfig(config *config.Config) (*apiserver.Config, error) {
