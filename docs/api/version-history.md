@@ -101,6 +101,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   created if missing. This brings parity with `Binds`
 * `POST /containers/create` rejects request if BindOptions|VolumeOptions|TmpfsOptions
   is set with a non-matching mount Type.
+* `POST /containers/{id}/exec` now accepts an optional `ConsoleSize` parameter.
+  It allows to set the console size of the executed process immediately when it's created.
 
 ## v1.41 API changes
 

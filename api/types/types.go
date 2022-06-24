@@ -390,6 +390,8 @@ type ExecStartCheck struct {
 	Detach bool
 	// Check if there's a tty
 	Tty bool
+	// Terminal size [height, width], unused if Tty == false
+	ConsoleSize *[2]uint `json:",omitempty"`
 }
 
 // HealthcheckResult stores information about a single run of a healthcheck probe

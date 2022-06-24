@@ -35,13 +35,18 @@ func (res *ExecResult) Combined() string {
 // containing stdout, stderr, and exit code. Note:
 //  - this is a synchronous operation;
 //  - cmd stdin is closed.
-func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string) (ExecResult, error) {
+func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string, ops ...func(*types.ExecConfig)) (ExecResult, error) {
 	// prepare exec
 	execConfig := types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          cmd,
 	}
+
+	for _, op := range ops {
+		op(&execConfig)
+	}
+
 	cresp, err := cli.ContainerExecCreate(ctx, id, execConfig)
 	if err != nil {
 		return ExecResult{}, err
