@@ -26,30 +26,106 @@ type serverResponse struct {
 	reqURL     *url.URL
 }
 
-// head sends an http request to the docker API using the method HEAD.
-func (cli *Client) head(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+// versionedClient is used to perform API requests and other version-dependent
+// operations at a particular API version.
+type versionedClient struct {
+	cli     *Client
+	version string
+}
+
+// versioned returns a new versionedClient, negotiating API version if
+// necessary.
+//
+// Client methods which require access to the currently-configured API version
+// should construct a versionedClient and access its version field or call its
+// methods. The same versionedClient should be used for the entire duration of a
+// request to ensure that the same version is consistently used, even if the
+// client's configured version is concurrently modified.
+func (cli *Client) versioned(ctx context.Context) (versionedClient, error) {
+	ver := cli.negotiateAPIVersion(ctx, false)
+	return versionedClient{cli: cli, version: ver}, ctx.Err()
+}
+
+// head sends an HTTP HEAD request to the docker API.
+func (cli versionedClient) head(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodHead, path, query, nil, headers)
 }
 
-// get sends an http request to the docker API using the method GET with a specific Go context.
-func (cli *Client) get(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+// head sends an HTTP HEAD request to the docker API using a temporary
+// versionedClient. Client methods which need to know the version while
+// preparing the request or handling the response should explicitly construct a
+// versionedClient and make HTTP requests through it directly instead of using
+// this convenience wrapper.
+func (cli *Client) head(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return versioned.head(ctx, path, query, headers)
+}
+
+// get sends an HTTP GET request to the docker API.
+func (cli versionedClient) get(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodGet, path, query, nil, headers)
 }
 
-// post sends an http request to the docker API using the method POST with a specific Go context.
+// get sends an HTTP GET request to the docker API using a temporary
+// versionedClient. Client methods which need to know the version while
+// preparing the request or handling the response should explicitly construct a
+// versionedClient and make HTTP requests through it directly instead of using
+// this convenience wrapper.
+func (cli *Client) get(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return versioned.get(ctx, path, query, headers)
+}
+
+// post sends an HTTP POST request to the docker API with obj as the request
+// body, encoded to JSON.
+func (cli versionedClient) post(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
+	body, headers, err := encodeBody(obj, headers)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return cli.postRaw(ctx, path, query, body, headers)
+}
+
+// post sends an HTTP POST request to the docker API using a temporary
+// versionedClient. Client methods which need to know the version while
+// preparing the request or handling the response should explicitly construct a
+// versionedClient and make HTTP requests through it directly instead of using
+// this convenience wrapper.
 func (cli *Client) post(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
-	body, headers, err := encodeBody(obj, headers)
+	versioned, err := cli.versioned(ctx)
 	if err != nil {
 		return serverResponse{}, err
 	}
+	return versioned.post(ctx, path, query, obj, headers)
+}
+
+// postRaw sends an HTTP POST request to the docker API.
+func (cli versionedClient) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
 }
 
+// postRaw sends an HTTP POST request to the docker API using a temporary
+// versionedClient. Client methods which need to know the version while
+// preparing the request or handling the response should explicitly construct a
+// versionedClient and make HTTP requests through it directly instead of using
+// this convenience wrapper.
 func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
-	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return versioned.postRaw(ctx, path, query, body, headers)
 }
 
-func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
+// put sends an HTTP PUT request to the docker API with obj as the request body,
+// encoded to JSON.
+func (cli versionedClient) put(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
 	body, headers, err := encodeBody(obj, headers)
 	if err != nil {
 		return serverResponse{}, err
@@ -57,14 +133,40 @@ func (cli *Client) put(ctx context.Context, path string, query url.Values, obj i
 	return cli.sendRequest(ctx, http.MethodPut, path, query, body, headers)
 }
 
-// putRaw sends an http request to the docker API using the method PUT.
-func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
+// putRaw sends an HTTP PUT request to the docker API.
+func (cli versionedClient) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodPut, path, query, body, headers)
 }
 
-// delete sends an http request to the docker API using the method DELETE.
-func (cli *Client) delete(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+// putRaw sends an HTTP PUT request to the docker API using a temporary
+// versionedClient. Client methods which need to know the version while
+// preparing the request or handling the response should explicitly construct a
+// versionedClient and make HTTP requests through it directly instead of using
+// this convenience wrapper.
+func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return versioned.putRaw(ctx, path, query, body, headers)
+}
+
+// delete sends an HTTP DELETE request to the docker API.
+func (cli versionedClient) delete(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodDelete, path, query, nil, headers)
+}
+
+// delete sends an HTTP DELETE request to the docker API using a temporary
+// versionedClient. Client methods which need to know the version while
+// preparing the request or handling the response should explicitly construct a
+// versionedClient and make HTTP requests through it directly instead of using
+// this convenience wrapper.
+func (cli *Client) delete(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return serverResponse{}, err
+	}
+	return versioned.delete(ctx, path, query, headers)
 }
 
 type headers map[string][]string
@@ -85,7 +187,7 @@ func encodeBody(obj interface{}, headers headers) (io.Reader, headers, error) {
 	return body, headers, nil
 }
 
-func (cli *Client) buildRequest(method, path string, body io.Reader, headers headers) (*http.Request, error) {
+func (cli versionedClient) buildRequest(method, path string, body io.Reader, headers headers) (*http.Request, error) {
 	expectedPayload := (method == http.MethodPost || method == http.MethodPut)
 	if expectedPayload && body == nil {
 		body = bytes.NewReader([]byte{})
@@ -97,14 +199,14 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 	}
 	req = cli.addHeaders(req, headers)
 
-	if cli.proto == "unix" || cli.proto == "npipe" {
+	if cli.cli.proto == "unix" || cli.cli.proto == "npipe" {
 		// For local communications, it doesn't matter what the host is. We just
 		// need a valid and meaningful host name. (See #189)
 		req.Host = "docker"
 	}
 
-	req.URL.Host = cli.addr
-	req.URL.Scheme = cli.scheme
+	req.URL.Host = cli.cli.addr
+	req.URL.Scheme = cli.cli.scheme
 
 	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
@@ -112,13 +214,13 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 	return req, nil
 }
 
-func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers headers) (serverResponse, error) {
-	req, err := cli.buildRequest(method, cli.getAPIPath(ctx, path, query), body, headers)
+func (cli versionedClient) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers headers) (serverResponse, error) {
+	req, err := cli.buildRequest(method, cli.getAPIPath(path, query), body, headers)
 	if err != nil {
 		return serverResponse{}, err
 	}
 
-	resp, err := cli.doRequest(ctx, req)
+	resp, err := cli.cli.doRequest(ctx, req)
 	switch {
 	case errors.Is(err, context.Canceled):
 		return serverResponse{}, errdefs.Cancelled(err)
@@ -198,7 +300,7 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 	return serverResp, nil
 }
 
-func (cli *Client) checkResponseErr(serverResp serverResponse) error {
+func (cli versionedClient) checkResponseErr(serverResp serverResponse) error {
 	if serverResp.statusCode >= 200 && serverResp.statusCode < 400 {
 		return nil
 	}
@@ -242,10 +344,10 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 	return errors.Wrap(errors.New(errorMessage), "Error response from daemon")
 }
 
-func (cli *Client) addHeaders(req *http.Request, headers headers) *http.Request {
+func (cli versionedClient) addHeaders(req *http.Request, headers headers) *http.Request {
 	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
 	// then the user can't change OUR headers
-	for k, v := range cli.customHTTPHeaders {
+	for k, v := range cli.cli.customHTTPHeaders {
 		if versions.LessThan(cli.version, "1.25") && http.CanonicalHeaderKey(k) == "User-Agent" {
 			continue
 		}

@@ -11,10 +11,14 @@ import (
 // SecretCreate creates a new secret.
 func (cli *Client) SecretCreate(ctx context.Context, secret swarm.SecretSpec) (types.SecretCreateResponse, error) {
 	var response types.SecretCreateResponse
-	if err := cli.NewVersionError("1.25", "secret create"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
 		return response, err
 	}
-	resp, err := cli.post(ctx, "/secrets/create", nil, secret, nil)
+	if err := versioned.NewVersionError("1.25", "secret create"); err != nil {
+		return response, err
+	}
+	resp, err := versioned.post(ctx, "/secrets/create", nil, secret, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return response, err

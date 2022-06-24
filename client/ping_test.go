@@ -56,23 +56,14 @@ func TestPingFail(t *testing.T) {
 func TestPingWithError(t *testing.T) {
 	client, err := NewClientWithOpts(
 		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
-			resp := &http.Response{StatusCode: http.StatusInternalServerError}
-			resp.Header = http.Header{}
-			resp.Header.Set("API-Version", "awesome")
-			resp.Header.Set("Docker-Experimental", "true")
-			resp.Header.Set("Swarm", "active/manager")
-			resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
-			return resp, errors.New("some error")
+			return nil, errors.New("some error")
 		})),
 	)
 	assert.NilError(t, err)
 
 	ping, err := client.Ping(context.Background())
 	assert.ErrorContains(t, err, "some error")
-	assert.Check(t, is.Equal(false, ping.Experimental))
-	assert.Check(t, is.Equal("", ping.APIVersion))
-	var si *swarm.Status
-	assert.Check(t, is.Equal(si, ping.SwarmStatus))
+	assert.Check(t, is.DeepEqual(ping, types.Ping{}))
 }
 
 // TestPingSuccess tests that we are able to get the expected API headers/ping

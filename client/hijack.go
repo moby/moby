@@ -18,13 +18,13 @@ import (
 )
 
 // postHijacked sends a POST request and hijacks the connection.
-func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
+func (cli versionedClient) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
 	bodyEncoded, err := encodeData(body)
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
 
-	apiPath := cli.getAPIPath(ctx, path, query)
+	apiPath := cli.getAPIPath(path, query)
 	req, err := http.NewRequest(http.MethodPost, apiPath, bodyEncoded)
 	if err != nil {
 		return types.HijackedResponse{}, err
@@ -39,15 +39,27 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	return types.NewHijackedResponse(conn, mediaType), err
 }
 
+func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return types.HijackedResponse{}, err
+	}
+	return versioned.postHijacked(ctx, path, query, body, headers)
+}
+
 // DialHijack returns a hijacked connection with negotiated protocol proto.
 func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	req = cli.addHeaders(req, meta)
+	req = versioned.addHeaders(req, meta)
 
-	conn, _, err := cli.setupHijackConn(ctx, req, proto)
+	conn, _, err := versioned.setupHijackConn(ctx, req, proto)
 	return conn, err
 }
 
@@ -63,12 +75,12 @@ func fallbackDial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
 	return net.Dial(proto, addr)
 }
 
-func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto string) (net.Conn, string, error) {
-	req.Host = cli.addr
+func (cli versionedClient) setupHijackConn(ctx context.Context, req *http.Request, proto string) (net.Conn, string, error) {
+	req.Host = cli.cli.addr
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
-	dialer := cli.Dialer()
+	dialer := cli.cli.Dialer()
 	conn, err := dialer(ctx)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
@@ -116,7 +128,7 @@ func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto
 	}
 
 	var mediaType string
-	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.42") {
+	if versions.GreaterThanOrEqualTo(cli.version, "1.42") {
 		// Prior to 1.42, Content-Type is always set to raw-stream and not relevant
 		mediaType = resp.Header.Get("Content-Type")
 	}

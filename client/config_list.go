@@ -12,7 +12,11 @@ import (
 
 // ConfigList returns the list of configs.
 func (cli *Client) ConfigList(ctx context.Context, options types.ConfigListOptions) ([]swarm.Config, error) {
-	if err := cli.NewVersionError("1.30", "config list"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := versioned.NewVersionError("1.30", "config list"); err != nil {
 		return nil, err
 	}
 	query := url.Values{}
@@ -26,7 +30,7 @@ func (cli *Client) ConfigList(ctx context.Context, options types.ConfigListOptio
 		query.Set("filters", filterJSON)
 	}
 
-	resp, err := cli.get(ctx, "/configs", query, nil)
+	resp, err := versioned.get(ctx, "/configs", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return nil, err

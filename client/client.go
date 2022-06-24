@@ -59,8 +59,15 @@ import (
 // ErrRedirect is the error returned by checkRedirect when the request is non-GET.
 var ErrRedirect = errors.New("unexpected redirect in response")
 
-// Client is the API client that performs all operations
-// against a docker server.
+type versionNegotiation struct {
+	// The version of the server to talk to.
+	version string
+	// Whether API version negotiation took place.
+	negotiated bool
+}
+
+// Client is the API client that performs all operations against a docker
+// server. Clients are safe for concurrent use by multiple goroutines.
 type Client struct {
 	// scheme sets the scheme for the client
 	scheme string
@@ -75,7 +82,7 @@ type Client struct {
 	// client used to send and receive http requests.
 	client *http.Client
 	// version of the server to talk to.
-	version string
+	version chan versionNegotiation
 	// custom http headers configured by users.
 	customHTTPHeaders map[string]string
 	// manualOverride is set to true when the version was set by users.
@@ -86,9 +93,6 @@ type Client struct {
 	// performed on the first request, after which negotiated is set to "true"
 	// so that subsequent requests do not re-negotiate.
 	negotiateVersion bool
-
-	// negotiated indicates that API version negotiation took place
-	negotiated bool
 }
 
 // CheckRedirect specifies the policy for dealing with redirect responses:
@@ -134,11 +138,12 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	}
 	c := &Client{
 		host:    DefaultDockerHost,
-		version: api.DefaultVersion,
 		client:  client,
 		proto:   defaultProto,
 		addr:    defaultAddr,
+		version: make(chan versionNegotiation, 1),
 	}
+	c.version <- versionNegotiation{version: api.DefaultVersion}
 
 	for _, op := range ops {
 		if err := op(c); err != nil {
@@ -186,23 +191,23 @@ func (cli *Client) Close() error {
 
 // getAPIPath returns the versioned request path to call the api.
 // It appends the query parameters to the path if they are not empty.
-func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) string {
+func (cli versionedClient) getAPIPath(p string, query url.Values) string {
 	var apiPath string
-	if cli.negotiateVersion && !cli.negotiated {
-		cli.NegotiateAPIVersion(ctx)
-	}
 	if cli.version != "" {
 		v := strings.TrimPrefix(cli.version, "v")
-		apiPath = path.Join(cli.basePath, "/v"+v, p)
+		apiPath = path.Join(cli.cli.basePath, "/v"+v, p)
 	} else {
-		apiPath = path.Join(cli.basePath, p)
+		apiPath = path.Join(cli.cli.basePath, p)
 	}
 	return (&url.URL{Path: apiPath, RawQuery: query.Encode()}).String()
 }
 
 // ClientVersion returns the API version used by this client.
 func (cli *Client) ClientVersion() string {
-	return cli.version
+	v := <-cli.version
+	ver := v.version
+	cli.version <- v
+	return ver
 }
 
 // NegotiateAPIVersion queries the API and updates the version to match the API
@@ -222,9 +227,25 @@ func (cli *Client) ClientVersion() string {
 // added (1.24).
 func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 	if !cli.manualOverride {
-		ping, _ := cli.Ping(ctx)
-		cli.negotiateAPIVersionPing(ping)
+		_ = cli.negotiateAPIVersion(ctx, true /* force renegotiation */)
 	}
+}
+
+func (cli *Client) negotiateAPIVersion(ctx context.Context, force bool) string {
+	var state versionNegotiation
+	select {
+	case <-ctx.Done():
+		return ""
+	case state = <-cli.version:
+	}
+
+	if !cli.negotiateVersion || (state.negotiated && !force) {
+		cli.version <- state
+		return state.version
+	}
+
+	ping, _ := cli.Ping(ctx)
+	return cli.negotiateAPIVersionPing(state, ping)
 }
 
 // NegotiateAPIVersionPing downgrades the client's API version to match the
@@ -242,33 +263,35 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 // added (1.24).
 func (cli *Client) NegotiateAPIVersionPing(pingResponse types.Ping) {
 	if !cli.manualOverride {
-		cli.negotiateAPIVersionPing(pingResponse)
+		cli.negotiateAPIVersionPing(<-cli.version, pingResponse)
 	}
 }
 
 // negotiateAPIVersionPing queries the API and updates the version to match the
 // API version from the ping response.
-func (cli *Client) negotiateAPIVersionPing(pingResponse types.Ping) {
+func (cli *Client) negotiateAPIVersionPing(state versionNegotiation, pingResponse types.Ping) string {
 	// default to the latest version before versioning headers existed
 	if pingResponse.APIVersion == "" {
 		pingResponse.APIVersion = "1.24"
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version
-	if cli.version == "" {
-		cli.version = api.DefaultVersion
+	if state.version == "" {
+		state.version = api.DefaultVersion
 	}
 
 	// if server version is lower than the client version, downgrade
-	if versions.LessThan(pingResponse.APIVersion, cli.version) {
-		cli.version = pingResponse.APIVersion
+	if versions.LessThan(pingResponse.APIVersion, state.version) {
+		state.version = pingResponse.APIVersion
 	}
 
 	// Store the results, so that automatic API version negotiation (if enabled)
 	// won't be performed on the next request.
 	if cli.negotiateVersion {
-		cli.negotiated = true
+		state.negotiated = true
 	}
+	cli.version <- state
+	return state.version
 }
 
 // DaemonHost returns the host address used by the client

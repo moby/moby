@@ -4,10 +4,14 @@ import "context"
 
 // ConfigRemove removes a config.
 func (cli *Client) ConfigRemove(ctx context.Context, id string) error {
-	if err := cli.NewVersionError("1.30", "config remove"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
 		return err
 	}
-	resp, err := cli.delete(ctx, "/configs/"+id, nil, nil)
+	if err := versioned.NewVersionError("1.30", "config remove"); err != nil {
+		return err
+	}
+	resp, err := versioned.delete(ctx, "/configs/"+id, nil, nil)
 	defer ensureReaderClosed(resp)
 	return err
 }

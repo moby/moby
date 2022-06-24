@@ -11,11 +11,15 @@ import (
 func (cli *Client) ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error) {
 	var response types.IDResponse
 
-	if err := cli.NewVersionError("1.25", "env"); len(config.Env) != 0 && err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return response, err
+	}
+	if err := versioned.NewVersionError("1.25", "env"); len(config.Env) != 0 && err != nil {
 		return response, err
 	}
 
-	resp, err := cli.post(ctx, "/containers/"+container+"/exec", nil, config, nil)
+	resp, err := versioned.post(ctx, "/containers/"+container+"/exec", nil, config, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return response, err

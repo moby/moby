@@ -18,7 +18,11 @@ import (
 // The Body in the response implements an io.ReadCloser and it's up to the caller to
 // close it.
 func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
-	query, err := cli.imageBuildOptionsToQuery(options)
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return types.ImageBuildResponse{}, err
+	}
+	query, err := versioned.imageBuildOptionsToQuery(options)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
@@ -32,7 +36,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 
 	headers.Set("Content-Type", "application/x-tar")
 
-	serverResp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
+	serverResp, err := versioned.postRaw(ctx, "/build", query, buildContext, headers)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
@@ -45,7 +49,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}, nil
 }
 
-func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
+func (cli versionedClient) imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
 	query := url.Values{
 		"t":           options.Tags,
 		"securityopt": options.SecurityOpt,

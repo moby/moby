@@ -16,8 +16,12 @@ import (
 // ServiceCreate creates a new service.
 func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options types.ServiceCreateOptions) (types.ServiceCreateResponse, error) {
 	var response types.ServiceCreateResponse
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return response, err
+	}
 	headers := map[string][]string{
-		"version": {cli.version},
+		"version": {versioned.version},
 	}
 
 	if options.EncodedRegistryAuth != "" {
@@ -52,7 +56,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		}
 	}
 
-	resp, err := cli.post(ctx, "/services/create", nil, service, headers)
+	resp, err := versioned.post(ctx, "/services/create", nil, service, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return response, err

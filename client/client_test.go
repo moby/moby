@@ -131,7 +131,9 @@ func TestGetAPIPath(t *testing.T) {
 			WithHost("tcp://localhost:2375"),
 		)
 		assert.NilError(t, err)
-		actual := client.getAPIPath(ctx, tc.path, tc.query)
+		versioned, err := client.versioned(ctx)
+		assert.NilError(t, err)
+		actual := versioned.getAPIPath(tc.path, tc.query)
 		assert.Check(t, is.Equal(actual, tc.expected))
 	}
 }
@@ -206,7 +208,8 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	assert.NilError(t, err)
 
 	// set our version to something new
-	client.version = "1.25"
+	<-client.version
+	client.version <- versionNegotiation{version: "1.25"}
 
 	// if no version from server, expect the earliest
 	// version before APIVersion was implemented

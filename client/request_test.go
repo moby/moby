@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -75,7 +76,7 @@ func TestSetHostHeader(t *testing.T) {
 			basePath: hostURL.Path,
 		}
 
-		_, err = client.sendRequest(context.Background(), http.MethodGet, testURL, nil, nil, nil)
+		_, err = versionedClient{cli: client}.sendRequest(context.Background(), http.MethodGet, testURL, nil, nil, nil)
 		assert.NilError(t, err)
 	}
 }
@@ -117,14 +118,14 @@ func TestCanceledContext(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			assert.Equal(t, req.Context().Err(), context.Canceled)
 
-			return &http.Response{}, context.Canceled
+			return nil, context.Canceled
 		}),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := client.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
+	_, err := versionedClient{cli: client}.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
 	assert.Equal(t, true, errdefs.IsCancelled(err))
 	assert.Equal(t, true, errors.Is(err, context.Canceled))
 }
@@ -136,7 +137,7 @@ func TestDeadlineExceededContext(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			assert.Equal(t, req.Context().Err(), context.DeadlineExceeded)
 
-			return &http.Response{}, context.DeadlineExceeded
+			return nil, context.DeadlineExceeded
 		}),
 	}
 
@@ -145,7 +146,45 @@ func TestDeadlineExceededContext(t *testing.T) {
 
 	<-ctx.Done()
 
-	_, err := client.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
+	_, err := versionedClient{cli: client}.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
 	assert.Equal(t, true, errdefs.IsDeadline(err))
 	assert.Equal(t, true, errors.Is(err, context.DeadlineExceeded))
+}
+
+func TestConcurrentRequests(t *testing.T) {
+	var mu sync.Mutex
+	reqs := make(map[string]int)
+
+	client, err := NewClientWithOpts(
+		WithAPIVersionNegotiation(),
+		WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
+			mu.Lock()
+			reqs[r.Method+" "+r.URL.Path]++
+			mu.Unlock()
+			header := make(http.Header)
+			header.Set("API-Version", "1.30")
+			return &http.Response{
+				StatusCode: 200,
+				Header:     header,
+				Body:       io.NopCloser(strings.NewReader("{}")),
+			}, nil
+		})),
+	)
+	assert.NilError(t, err)
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			defer wg.Done()
+			_, err := client.Info(context.Background())
+			assert.Check(t, err)
+		}()
+	}
+	wg.Wait()
+
+	assert.DeepEqual(t, reqs, map[string]int{
+		"HEAD /_ping":     1,
+		"GET /v1.30/info": 3,
+	})
 }
