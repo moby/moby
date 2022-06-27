@@ -63,7 +63,8 @@ func (cp namespacedContent) Info(ctx context.Context, dgst digest.Digest) (conte
 // If one or more fieldpaths are provided, only those
 // fields will be updated.
 // Mutable fields:
-//  labels.*
+//
+//	labels.*
 func (cp namespacedContent) Update(ctx context.Context, info content.Info, fieldpaths ...string) (content.Info, error) {
 	return cp.provider.Update(withDefaultNamespace(ctx, cp.ns), info, fieldpaths...)
 }
