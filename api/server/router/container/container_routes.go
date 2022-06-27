@@ -346,6 +346,8 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		}
 		if v := r.Form.Get("condition"); v != "" {
 			switch container.WaitCondition(v) {
+			case container.WaitConditionNotRunning:
+				waitCondition = containerpkg.WaitConditionNotRunning
 			case container.WaitConditionNextExit:
 				waitCondition = containerpkg.WaitConditionNextExit
 			case container.WaitConditionRemoved:
