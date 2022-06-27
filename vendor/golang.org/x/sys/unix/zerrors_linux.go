@@ -1310,6 +1310,7 @@ const (
 	KEXEC_ARCH_ARM                              = 0x280000
 	KEXEC_ARCH_DEFAULT                          = 0x0
 	KEXEC_ARCH_IA_64                            = 0x320000
+	KEXEC_ARCH_LOONGARCH                        = 0x1020000
 	KEXEC_ARCH_MASK                             = 0xffff0000
 	KEXEC_ARCH_MIPS                             = 0x80000
 	KEXEC_ARCH_MIPS_LE                          = 0xa0000

@@ -6,7 +6,6 @@
 // +build windows
 
 // Package debug provides facilities to execute svc.Handler on console.
-//
 package debug
 
 import (
