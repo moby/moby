@@ -13,7 +13,10 @@ on:
         default: false
 
 env:
-  GO_VERSION: 1.18.6
+  GO_VERSION: 1.19
+  # FIXME: temporarily using a separate var for this, as go-setup-action expects SemVer
+  #        see https://github.com/actions/setup-go/tree/v3.2.0#supported-version-syntax
+  GO_VERSION_SEMVER: 1.19.0
   GOTESTLIST_VERSION: v0.2.0
   TESTSTAT_VERSION: v0.1.3
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -187,7 +190,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ env.GO_VERSION_SEMVER }}
       -
         name: Download artifacts
         uses: actions/download-artifact@v3
@@ -215,7 +218,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ env.GO_VERSION_SEMVER }}
       -
         name: Install gotestlist
         run:
@@ -387,7 +390,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ env.GO_VERSION_SEMVER }}
       -
         name: Test integration
         if: matrix.test == './...'
@@ -477,7 +480,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ env.GO_VERSION_SEMVER }}
       -
         name: Download artifacts
         uses: actions/download-artifact@v3

@@ -165,10 +165,10 @@ FROM microsoft/windowsservercore
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GO_VERSION=1.18.6
-ARG CONTAINERD_VERSION=v1.6.8
+ARG GO_VERSION=1.19
 ARG GOTESTSUM_VERSION=v1.8.1
 ARG GOWINRES_VERSION=v0.2.3
+ARG CONTAINERD_VERSION=v1.6.8
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
