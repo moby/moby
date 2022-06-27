@@ -53,7 +53,7 @@ require (
 	github.com/moby/ipvs v1.0.2
 	github.com/moby/locker v1.0.1
 	github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
-	github.com/moby/sys/mount v0.3.1
+	github.com/moby/sys/mount v0.3.3
 	github.com/moby/sys/mountinfo v0.6.2
 	github.com/moby/sys/signal v0.7.0
 	github.com/moby/sys/symlink v0.2.0
