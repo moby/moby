@@ -55,7 +55,7 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		// Check that the cluster is properly created
 		for i := 0; i < num; i++ {
 			if num != len(dbs[i].ClusterPeers()) {
-				return poll.Continue("%s:Waiting for cluser peers to be established", dbs[i].config.Hostname)
+				return poll.Continue("%s:Waiting for cluster peers to be established", dbs[i].config.Hostname)
 			}
 		}
 		return poll.Success()
