@@ -101,3 +101,58 @@ func TestWaitBlocked(t *testing.T) {
 		})
 	}
 }
+
+func TestWaitConditions(t *testing.T) {
+	defer setupTest(t)()
+	cli := request.NewAPIClient(t)
+
+	testCases := []struct {
+		doc          string
+		waitCond     containertypes.WaitCondition
+		expectedCode int64
+	}{
+		{
+			doc:          "default",
+			expectedCode: 99,
+		},
+		{
+			doc:          "not-running",
+			expectedCode: 99,
+			waitCond:     containertypes.WaitConditionNotRunning,
+		},
+		{
+			doc:          "next-exit",
+			expectedCode: 99,
+			waitCond:     containertypes.WaitConditionNextExit,
+		},
+		{
+			doc:          "removed",
+			expectedCode: 99,
+			waitCond:     containertypes.WaitConditionRemoved,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			opts := []func(*container.TestContainerConfig){
+				container.WithCmd("sh", "-c", "sleep 1; exit 99"),
+			}
+			if tc.waitCond == containertypes.WaitConditionRemoved {
+				opts = append(opts, container.WithAutoRemove)
+			}
+			containerID := container.Run(ctx, t, cli, opts...)
+			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
+
+			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
+			select {
+			case err := <-errC:
+				assert.NilError(t, err)
+			case waitRes := <-waitResC:
+				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
+			}
+		})
+	}
+}
