@@ -432,7 +432,7 @@ github.com/hashicorp/golang-lru/simplelru
 # github.com/hashicorp/memberlist v0.2.4
 ## explicit; go 1.12
 github.com/hashicorp/memberlist
-# github.com/hashicorp/serf v0.8.2
+# github.com/hashicorp/serf v0.8.5
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf

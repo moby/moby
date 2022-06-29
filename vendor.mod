@@ -43,7 +43,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-memdb v1.3.2
 	github.com/hashicorp/memberlist v0.2.4
-	github.com/hashicorp/serf v0.8.2
+	github.com/hashicorp/serf v0.8.5
 	github.com/imdario/mergo v0.3.12
 	github.com/ishidawataru/sctp v0.0.0-20210707070123-9a39160e9062
 	github.com/klauspost/compress v1.15.1
