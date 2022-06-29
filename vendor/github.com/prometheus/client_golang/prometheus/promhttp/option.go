@@ -1,4 +1,4 @@
-// Copyright 2019 The Prometheus Authors
+// Copyright 2022 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,12 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !go1.12
+package promhttp
 
-package prometheus
+// Option are used to configure a middleware or round tripper..
+type Option func(*option)
 
-// readBuildInfo is a wrapper around debug.ReadBuildInfo for Go versions before
-// 1.12. Remove this whole file once the minimum supported Go version is 1.12.
-func readBuildInfo() (path, version, sum string) {
-	return "unknown", "unknown", "unknown"
+type option struct {
+	extraMethods []string
+}
+
+// WithExtraMethods adds additional HTTP methods to the list of allowed methods.
+// See https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods for the default list.
+//
+// See the example for ExampleInstrumentHandlerWithExtraMethods for example usage.
+func WithExtraMethods(methods ...string) Option {
+	return func(o *option) {
+		o.extraMethods = methods
+	}
 }
