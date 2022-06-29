@@ -296,9 +296,20 @@ func (conf *Config) IsValueSet(name string) bool {
 func New() *Config {
 	return &Config{
 		CommonConfig: CommonConfig{
+			ShutdownTimeout: DefaultShutdownTimeout,
 			LogConfig: LogConfig{
 				Config: make(map[string]string),
 			},
+			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
+			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
+			MaxDownloadAttempts:    DefaultDownloadAttempts,
+			Mtu:                    DefaultNetworkMtu,
+			NetworkConfig: NetworkConfig{
+				NetworkControlPlaneMTU: DefaultNetworkMtu,
+			},
+			ContainerdNamespace:       DefaultContainersNamespace,
+			ContainerdPluginNamespace: DefaultPluginNamespace,
+			DefaultRuntime:            StockRuntimeName,
 		},
 	}
 }
@@ -597,6 +608,9 @@ func Validate(config *Config) error {
 	}
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
+	if config.Mtu < 0 {
+		return fmt.Errorf("invalid default MTU: %d", config.Mtu)
+	}
 	if config.MaxConcurrentDownloads < 0 {
 		return fmt.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}

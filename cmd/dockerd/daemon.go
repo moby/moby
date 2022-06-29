@@ -76,8 +76,6 @@ func NewDaemonCli() *DaemonCli {
 }
 
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	opts.setDefaultOptions()
-
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
@@ -92,7 +90,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	if opts.Validate {
 		// If config wasn't OK we wouldn't have made it this far.
-		fmt.Fprintln(os.Stderr, "configuration OK")
+		_, _ = fmt.Fprintln(os.Stderr, "configuration OK")
 		return nil
 	}
 
@@ -386,6 +384,11 @@ func shutdownDaemon(d *daemon.Daemon) {
 }
 
 func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
+	if !opts.flags.Parsed() {
+		return nil, errors.New(`cannot load CLI config before flags are parsed`)
+	}
+	opts.setDefaultOptions()
+
 	conf := opts.daemonConfig
 	flags := opts.flags
 	conf.Debug = opts.Debug
@@ -612,32 +615,35 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 }
 
 func newAPIServerConfig(config *config.Config) (*apiserver.Config, error) {
-	serverConfig := &apiserver.Config{
-		SocketGroup: config.SocketGroup,
-		Version:     dockerversion.Version,
-		CorsHeaders: config.CorsHeaders,
-	}
-
+	var tlsConfig *tls.Config
 	if config.TLS != nil && *config.TLS {
-		tlsOptions := tlsconfig.Options{
+		var (
+			clientAuth tls.ClientAuthType
+			err        error
+		)
+		if config.TLSVerify == nil || *config.TLSVerify {
+			// server requires and verifies client's certificate
+			clientAuth = tls.RequireAndVerifyClientCert
+		}
+		tlsConfig, err = tlsconfig.Server(tlsconfig.Options{
 			CAFile:             config.CommonTLSOptions.CAFile,
 			CertFile:           config.CommonTLSOptions.CertFile,
 			KeyFile:            config.CommonTLSOptions.KeyFile,
 			ExclusiveRootPools: true,
-		}
-
-		if config.TLSVerify == nil || *config.TLSVerify {
-			// server requires and verifies client's certificate
-			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-		tlsConfig, err := tlsconfig.Server(tlsOptions)
+			ClientAuth:         clientAuth,
+		})
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid TLS configuration")
 		}
-		serverConfig.TLSConfig = tlsConfig
 	}
 
-	return serverConfig, nil
+	return &apiserver.Config{
+		SocketGroup: config.SocketGroup,
+		Version:     dockerversion.Version,
+		CorsHeaders: config.CorsHeaders,
+		TLSConfig:   tlsConfig,
+		Hosts:       config.Hosts,
+	}, nil
 }
 
 // checkTLSAuthOK checks basically for an explicitly disabled TLS/TLSVerify
@@ -666,14 +672,14 @@ func checkTLSAuthOK(c *config.Config) bool {
 }
 
 func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, error) {
-	if len(cli.Config.Hosts) == 0 {
+	if len(serverConfig.Hosts) == 0 {
 		return nil, errors.New("no hosts configured")
 	}
 	var hosts []string
 
-	for i := 0; i < len(cli.Config.Hosts); i++ {
-		protoAddr := cli.Config.Hosts[i]
-		protoAddrParts := strings.SplitN(cli.Config.Hosts[i], "://", 2)
+	for i := 0; i < len(serverConfig.Hosts); i++ {
+		protoAddr := serverConfig.Hosts[i]
+		protoAddrParts := strings.SplitN(serverConfig.Hosts[i], "://", 2)
 		if len(protoAddrParts) != 2 {
 			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
@@ -719,15 +725,15 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 				}
 			}
 		}
-		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
-		if err != nil {
-			return nil, err
-		}
 		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
 		if proto == "tcp" {
 			if err := allocateDaemonPort(addr); err != nil {
 				return nil, err
 			}
+		}
+		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
+		if err != nil {
+			return nil, err
 		}
 		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
 		hosts = append(hosts, protoAddrParts[1])

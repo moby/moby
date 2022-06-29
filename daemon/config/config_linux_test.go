@@ -63,33 +63,25 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 					"Hard": 2048,
 					"Soft": 1024
 				}
-			},
-			"log-opts": {
-				"tag": "test_tag"
 			}
 		}`
 
 	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
 	defer file.Remove()
 
-	c := &Config{
-		CommonConfig: CommonConfig{
-			AutoRestart: true,
-			LogConfig: LogConfig{
-				Type:   "syslog",
-				Config: map[string]string{"tag": "test"},
-			},
-		},
-	}
+	conf := New()
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.BoolVarP(&conf.Debug, "debug", "D", false, "")
+	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "")
+	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", &conf.Ulimits), "default-ulimit", "")
+	flags.StringVar(&conf.LogConfig.Type, "log-driver", "json-file", "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "")
+	assert.Check(t, flags.Set("restart", "true"))
+	assert.Check(t, flags.Set("log-driver", "syslog"))
+	assert.Check(t, flags.Set("log-opt", "tag=from_flag"))
 
-	var debug bool
-	flags.BoolVarP(&debug, "debug", "D", false, "")
-	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", nil), "default-ulimit", "")
-	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
-
-	cc, err := MergeDaemonConfigurations(c, flags, file.Path())
+	cc, err := MergeDaemonConfigurations(conf, flags, file.Path())
 	assert.NilError(t, err)
 
 	assert.Check(t, cc.Debug)
@@ -97,7 +89,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 
 	expectedLogConfig := LogConfig{
 		Type:   "syslog",
-		Config: map[string]string{"tag": "test_tag"},
+		Config: map[string]string{"tag": "from_flag"},
 	}
 
 	assert.Check(t, is.DeepEqual(expectedLogConfig, cc.LogConfig))
@@ -134,18 +126,21 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 
 func TestUnixValidateConfigurationErrors(t *testing.T) {
 	testCases := []struct {
-		config *Config
+		doc         string
+		config      *Config
+		expectedErr string
 	}{
-		// Can't override the stock runtime
 		{
+			doc: `cannot override the stock runtime`,
 			config: &Config{
 				Runtimes: map[string]types.Runtime{
 					StockRuntimeName: {},
 				},
 			},
+			expectedErr: `runtime name 'runc' is reserved`,
 		},
-		// Default runtime should be present in runtimes
 		{
+			doc: `default runtime should be present in runtimes`,
 			config: &Config{
 				Runtimes: map[string]types.Runtime{
 					"foo": {},
@@ -154,13 +149,15 @@ func TestUnixValidateConfigurationErrors(t *testing.T) {
 					DefaultRuntime: "bar",
 				},
 			},
+			expectedErr: `specified default runtime 'bar' does not exist`,
 		},
 	}
 	for _, tc := range testCases {
-		err := Validate(tc.config)
-		if err == nil {
-			t.Fatalf("expected error, got nil for config %v", tc.config)
-		}
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			err := Validate(tc.config)
+			assert.ErrorContains(t, err, tc.expectedErr)
+		})
 	}
 }
 
@@ -194,9 +191,6 @@ func TestUnixGetInitPath(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		initPath := tc.config.GetInitPath()
-		if initPath != tc.expectedInitPath {
-			t.Fatalf("expected initPath to be %v, got %v", tc.expectedInitPath, initPath)
-		}
+		assert.Equal(t, tc.config.GetInitPath(), tc.expectedInitPath)
 	}
 }

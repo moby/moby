@@ -703,8 +703,6 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store) (daemon *Daemon, err error) {
-	setDefaultMtu(config)
-
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err
@@ -1347,14 +1345,6 @@ func (daemon *Daemon) setGenericResources(conf *config.Config) error {
 	daemon.genericResources = genericResources
 
 	return nil
-}
-
-func setDefaultMtu(conf *config.Config) {
-	// do nothing if the config does not have the default 0 value.
-	if conf.Mtu != 0 {
-		return
-	}
-	conf.Mtu = config.DefaultNetworkMtu
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not

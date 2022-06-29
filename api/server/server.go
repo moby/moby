@@ -27,6 +27,8 @@ type Config struct {
 	Version     string
 	SocketGroup string
 	TLSConfig   *tls.Config
+	// Hosts is a list of addresses for the API to listen on.
+	Hosts []string
 }
 
 // Server contains instance details for the server

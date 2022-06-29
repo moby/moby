@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -51,7 +50,7 @@ func setDefaultUmask() error {
 	desiredUmask := 0022
 	unix.Umask(desiredUmask)
 	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
-		return fmt.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
+		return errors.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
 	}
 
 	return nil
@@ -91,25 +90,25 @@ func (cli *DaemonCli) getSwarmRunRoot() string {
 func allocateDaemonPort(addr string) error {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error parsing tcp address")
 	}
 
 	intPort, err := strconv.Atoi(port)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error parsing tcp address")
 	}
 
 	var hostIPs []net.IP
 	if parsedIP := net.ParseIP(host); parsedIP != nil {
 		hostIPs = append(hostIPs, parsedIP)
 	} else if hostIPs, err = net.LookupIP(host); err != nil {
-		return fmt.Errorf("failed to lookup %s address in host specification", host)
+		return errors.Errorf("failed to lookup %s address in host specification", host)
 	}
 
 	pa := portallocator.Get()
 	for _, hostIP := range hostIPs {
 		if _, err := pa.RequestPort(hostIP, "tcp", intPort); err != nil {
-			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
+			return errors.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
 		}
 	}
 	return nil

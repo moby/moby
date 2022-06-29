@@ -2,11 +2,15 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/imdario/mergo"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -16,25 +20,19 @@ import (
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
 	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
-	if err == nil || !os.IsNotExist(err) {
-		t.Fatalf("expected does not exist error, got %v", err)
-	}
+	assert.Check(t, os.IsNotExist(err), "got: %[1]T: %[1]v", err)
 }
 
 func TestDaemonBrokenConfiguration(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"Debug": tru`))
 	f.Close()
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
-	if err == nil {
-		t.Fatalf("expected error, got %v", err)
-	}
+	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
@@ -59,9 +57,7 @@ func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
 
 func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"debug": true}`))
@@ -69,7 +65,7 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.Bool("debug", false, "")
-	flags.Set("debug", "false")
+	assert.Check(t, flags.Set("debug", "false"))
 
 	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
 	if err == nil {
@@ -82,41 +78,31 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 
 func TestDaemonConfigurationMergeConcurrent(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"max-concurrent-downloads": 1}`))
 	f.Close()
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
-	if err != nil {
-		t.Fatal("expected error, got nil")
-	}
+	assert.NilError(t, err)
 }
 
 func TestDaemonConfigurationMergeConcurrentError(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"max-concurrent-downloads": -1}`))
 	f.Close()
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
-	if err == nil {
-		t.Fatalf("expected no error, got error %v", err)
-	}
+	assert.ErrorContains(t, err, `invalid max concurrent downloads: -1`)
 }
 
 func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{"tlscacert": "/etc/certificates/ca.pem"}`))
@@ -124,15 +110,10 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("tlscacert", "", "")
-	flags.Set("tlscacert", "~/.docker/ca.pem")
+	assert.Check(t, flags.Set("tlscacert", "~/.docker/ca.pem"))
 
 	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "tlscacert") {
-		t.Fatalf("expected tlscacert conflict, got %v", err)
-	}
+	assert.ErrorContains(t, err, `the following directives are specified both as a flag and in the configuration file: tlscacert`)
 }
 
 // Test for #40711
@@ -148,7 +129,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 		var conf = Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
-		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
 		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile.Path())
 		assert.NilError(t, err)
@@ -169,7 +150,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 		var conf = Config{}
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
-		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
 		_, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
 		assert.ErrorContains(t, err, "the following directives are specified both as a flag and in the configuration file")
@@ -183,12 +164,7 @@ func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
 
 	flags.Bool("tlsverify", false, "")
 	err := findConfigurationConflicts(config, flags)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "the following directives don't match any configuration option: tls-verify") {
-		t.Fatalf("expected tls-verify conflict, got %v", err)
-	}
+	assert.ErrorContains(t, err, "the following directives don't match any configuration option: tls-verify")
 }
 
 func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
@@ -198,23 +174,17 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 	flags.VarP(opts.NewNamedListOptsRef("hosts", &hosts, nil), "host", "H", "")
 
 	err := findConfigurationConflicts(config, flags)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
-	flags.Set("host", "unix:///var/run/docker.sock")
+	assert.Check(t, flags.Set("host", "unix:///var/run/docker.sock"))
 	err = findConfigurationConflicts(config, flags)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "hosts: (from flag: [unix:///var/run/docker.sock], from file: tcp://127.0.0.1:2345)") {
-		t.Fatalf("expected hosts conflict, got %v", err)
-	}
+	assert.ErrorContains(t, err, "hosts: (from flag: [unix:///var/run/docker.sock], from file: tcp://127.0.0.1:2345)")
 }
 
 func TestValidateConfigurationErrors(t *testing.T) {
 	testCases := []struct {
 		name        string
+		field       string
 		config      *Config
 		expectedErr string
 	}{
@@ -281,6 +251,15 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "123456 is not a valid domain",
 		},
 		{
+			name: "negative MTU",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Mtu: -10,
+				},
+			},
+			expectedErr: "invalid default MTU: -10",
+		},
+		{
 			name: "negative max-concurrent-downloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -310,7 +289,8 @@ func TestValidateConfigurationErrors(t *testing.T) {
 		// TODO(thaJeztah) temporarily excluding this test as it assumes defaults are set before validating and applying updated configs
 		/*
 			{
-				name: "zero max-download-attempts",
+				name:  "zero max-download-attempts",
+				field: "MaxDownloadAttempts",
 				config: &Config{
 					CommonConfig: CommonConfig{
 						MaxDownloadAttempts: 0,
@@ -358,19 +338,45 @@ func TestValidateConfigurationErrors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := Validate(tc.config)
+			cfg := New()
+			if tc.field != "" {
+				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride, withForceOverwrite(tc.field)))
+			} else {
+				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
+			}
+			err := Validate(cfg)
 			assert.Error(t, err, tc.expectedErr)
 		})
 	}
 }
 
+func withForceOverwrite(fieldName string) func(config *mergo.Config) {
+	return mergo.WithTransformers(overwriteTransformer{fieldName: fieldName})
+}
+
+type overwriteTransformer struct {
+	fieldName string
+}
+
+func (tf overwriteTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	if typ == reflect.TypeOf(CommonConfig{}) {
+		return func(dst, src reflect.Value) error {
+			dst.FieldByName(tf.fieldName).Set(src.FieldByName(tf.fieldName))
+			return nil
+		}
+	}
+	return nil
+}
+
 func TestValidateConfiguration(t *testing.T) {
 	testCases := []struct {
 		name   string
+		field  string
 		config *Config
 	}{
 		{
-			name: "with label",
+			name:  "with label",
+			field: "Labels",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Labels: []string{"one=two"},
@@ -378,7 +384,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with dns",
+			name:  "with dns",
+			field: "DNSConfig",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -388,7 +395,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with dns-search",
+			name:  "with dns-search",
+			field: "DNSConfig",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -398,7 +406,17 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with max-concurrent-downloads",
+			name:  "with mtu",
+			field: "Mtu",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Mtu: 1234,
+				},
+			},
+		},
+		{
+			name:  "with max-concurrent-downloads",
+			field: "MaxConcurrentDownloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					MaxConcurrentDownloads: 4,
@@ -406,7 +424,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with max-concurrent-uploads",
+			name:  "with max-concurrent-uploads",
+			field: "MaxConcurrentUploads",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					MaxConcurrentUploads: 4,
@@ -414,7 +433,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with max-download-attempts",
+			name:  "with max-download-attempts",
+			field: "MaxDownloadAttempts",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					MaxDownloadAttempts: 4,
@@ -422,7 +442,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with multiple node generic resources",
+			name:  "with multiple node generic resources",
+			field: "NodeGenericResources",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=bar", "foo=baz"},
@@ -430,7 +451,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with node generic resources",
+			name:  "with node generic resources",
+			field: "NodeGenericResources",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=1"},
@@ -438,7 +460,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with hosts",
+			name:  "with hosts",
+			field: "Hosts",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Hosts: []string{"tcp://127.0.0.1:2375"},
@@ -446,7 +469,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "with log-level warn",
+			name:  "with log-level warn",
+			field: "LogLevel",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					LogLevel: "warn",
@@ -456,10 +480,27 @@ func TestValidateConfiguration(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := Validate(tc.config)
+			// Start with a config with all defaults set, so that we only
+			cfg := New()
+			assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
+
+			// Check that the override happened :)
+			assert.Check(t, is.DeepEqual(cfg, tc.config, field(tc.field)))
+			err := Validate(cfg)
 			assert.NilError(t, err)
 		})
 	}
+}
+
+func field(field string) cmp.Option {
+	tmp := reflect.TypeOf(Config{})
+	ignoreFields := make([]string, 0, tmp.NumField())
+	for i := 0; i < tmp.NumField(); i++ {
+		if tmp.Field(i).Name != field {
+			ignoreFields = append(ignoreFields, tmp.Field(i).Name)
+		}
+	}
+	return cmpopts.IgnoreFields(Config{}, ignoreFields...)
 }
 
 // TestReloadSetConfigFileNotExist tests that when `--config-file` is set
@@ -468,7 +509,7 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 	configFile := "/tmp/blabla/not/exists/config.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", "", "")
-	flags.Set("config-file", configFile)
+	assert.Check(t, flags.Set("config-file", configFile))
 
 	err := Reload(configFile, flags, func(c *Config) {})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
@@ -478,10 +519,10 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 // doesn't exist the daemon still will be reloaded.
 func TestReloadDefaultConfigNotExist(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	reloaded := false
 	defaultConfigFile := "/tmp/blabla/not/exists/daemon.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", defaultConfigFile, "")
+	reloaded := false
 	err := Reload(defaultConfigFile, flags, func(c *Config) {
 		reloaded = true
 	})
@@ -493,9 +534,7 @@ func TestReloadDefaultConfigNotExist(t *testing.T) {
 // and the default configuration file exists and is bad return an error
 func TestReloadBadDefaultConfig(t *testing.T) {
 	f, err := os.CreateTemp("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	configFile := f.Name()
 	f.Write([]byte(`{wrong: "configuration"}`))
@@ -503,8 +542,12 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
-	err = Reload(configFile, flags, func(c *Config) {})
+	reloaded := false
+	err = Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+	})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
+	assert.Check(t, reloaded == false)
 }
 
 func TestReloadWithConflictingLabels(t *testing.T) {
@@ -516,8 +559,12 @@ func TestReloadWithConflictingLabels(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	flags.StringSlice("labels", lbls, "")
-	err := Reload(configFile, flags, func(c *Config) {})
+	reloaded := false
+	err := Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+	})
 	assert.Check(t, is.ErrorContains(err, "conflict labels for foo=baz and foo=bar"))
+	assert.Check(t, reloaded == false)
 }
 
 func TestReloadWithDuplicateLabels(t *testing.T) {
@@ -529,8 +576,13 @@ func TestReloadWithDuplicateLabels(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	flags.StringSlice("labels", lbls, "")
-	err := Reload(configFile, flags, func(c *Config) {})
+	reloaded := false
+	err := Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+		assert.Check(t, is.DeepEqual(c.Labels, []string{"foo=the-same"}))
+	})
 	assert.Check(t, err)
+	assert.Check(t, reloaded)
 }
 
 func TestMaskURLCredentials(t *testing.T) {
