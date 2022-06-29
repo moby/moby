@@ -33,8 +33,10 @@ func panicValToErr(panicVal interface{}, err *error) {
 	return
 }
 
-func isEmptyValueDeref(v reflect.Value, deref bool) bool {
+func hIsEmptyValue(v reflect.Value, deref, checkStruct bool) bool {
 	switch v.Kind() {
+	case reflect.Invalid:
+		return true
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
 	case reflect.Bool:
@@ -50,18 +52,21 @@ func isEmptyValueDeref(v reflect.Value, deref bool) bool {
 			if v.IsNil() {
 				return true
 			}
-			return isEmptyValueDeref(v.Elem(), deref)
+			return hIsEmptyValue(v.Elem(), deref, checkStruct)
 		} else {
 			return v.IsNil()
 		}
 	case reflect.Struct:
+		if !checkStruct {
+			return false
+		}
 		// return true if all fields are empty. else return false.
 
 		// we cannot use equality check, because some fields may be maps/slices/etc
 		// and consequently the structs are not comparable.
 		// return v.Interface() == reflect.Zero(v.Type()).Interface()
 		for i, n := 0, v.NumField(); i < n; i++ {
-			if !isEmptyValueDeref(v.Field(i), deref) {
+			if !hIsEmptyValue(v.Field(i), deref, checkStruct) {
 				return false
 			}
 		}
@@ -71,7 +76,7 @@ func isEmptyValueDeref(v reflect.Value, deref bool) bool {
 }
 
 func isEmptyValue(v reflect.Value) bool {
-	return isEmptyValueDeref(v, true)
+	return hIsEmptyValue(v, derefForIsEmptyValue, checkStructForEmptyValue)
 }
 
 func debugf(format string, args ...interface{}) {

@@ -417,7 +417,7 @@ github.com/hashicorp/go-immutable-radix
 # github.com/hashicorp/go-memdb v1.3.2
 ## explicit; go 1.12
 github.com/hashicorp/go-memdb
-# github.com/hashicorp/go-msgpack v0.5.3
+# github.com/hashicorp/go-msgpack v0.5.5
 ## explicit
 github.com/hashicorp/go-msgpack/codec
 # github.com/hashicorp/go-multierror v1.1.1
