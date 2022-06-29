@@ -1113,5 +1113,5 @@ gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
 # github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
-# github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
+# github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre

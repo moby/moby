@@ -164,13 +164,15 @@ require (
 	google.golang.org/protobuf v1.27.1 // indirect
 )
 
-replace github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
-
-// Removes etcd dependency
-replace github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
-
-// Resolve dependency hell with github.com/cloudflare/cfssl (transitive via
-// swarmkit) by pinning the certificate-transparency-go version. Remove once
-// module go.etcd.io/etcd/server/v3 has upgraded its dependency on
-// go.opentelemetry.io/otel to v1.
-replace github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
+replace (
+	// More recent versions result in a panic in libnetwork.
+	// FIXME(thaJeztah): we need to fix how we use this library or replace it; see https://github.com/moby/moby/issues/43753
+	github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
+	// Resolve dependency hell with github.com/cloudflare/cfssl (transitive via
+	// swarmkit) by pinning the certificate-transparency-go version. Remove once
+	// module go.etcd.io/etcd/server/v3 has upgraded its dependency on
+	// go.opentelemetry.io/otel to v1.
+	github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
+	// Removes etcd dependency
+	github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
+)
