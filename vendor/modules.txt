@@ -62,7 +62,7 @@ github.com/agext/levenshtein
 # github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 ## explicit
 github.com/armon/circbuf
-# github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
+# github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 ## explicit
 github.com/armon/go-metrics
 # github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310 => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
@@ -1116,7 +1116,6 @@ gotest.tools/v3/poll
 gotest.tools/v3/skip
 # labix.org/v2/mgo v0.0.0-20140701140051-000000000287
 ## explicit
-# github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
 # github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
 # github.com/hashicorp/go-msgpack => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
 # github.com/hashicorp/serf => github.com/hashicorp/serf v0.7.1-0.20160317193612-598c54895cc5
