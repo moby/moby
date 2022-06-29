@@ -417,7 +417,7 @@ github.com/hashicorp/go-immutable-radix
 # github.com/hashicorp/go-memdb v1.3.2
 ## explicit; go 1.12
 github.com/hashicorp/go-memdb
-# github.com/hashicorp/go-msgpack v0.5.3 => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
+# github.com/hashicorp/go-msgpack v0.5.3
 ## explicit
 github.com/hashicorp/go-msgpack/codec
 # github.com/hashicorp/go-multierror v1.1.1
@@ -432,7 +432,7 @@ github.com/hashicorp/golang-lru/simplelru
 # github.com/hashicorp/memberlist v0.2.4
 ## explicit; go 1.12
 github.com/hashicorp/memberlist
-# github.com/hashicorp/serf v0.8.2 => github.com/hashicorp/serf v0.7.1-0.20160317193612-598c54895cc5
+# github.com/hashicorp/serf v0.8.2
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
@@ -775,8 +775,6 @@ github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 ## explicit; go 1.12
 github.com/vishvananda/netns
-# github.com/vmihailenco/msgpack v4.0.4+incompatible
-## explicit
 # go.etcd.io/bbolt v1.3.6
 ## explicit; go 1.12
 go.etcd.io/bbolt
@@ -1114,10 +1112,6 @@ gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
-# labix.org/v2/mgo v0.0.0-20140701140051-000000000287
-## explicit
 # github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
-# github.com/hashicorp/go-msgpack => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
-# github.com/hashicorp/serf => github.com/hashicorp/serf v0.7.1-0.20160317193612-598c54895cc5
 # github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
