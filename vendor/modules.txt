@@ -802,7 +802,7 @@ go.etcd.io/etcd/server/v3/etcdserver/api/snap
 go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
 go.etcd.io/etcd/server/v3/wal
 go.etcd.io/etcd/server/v3/wal/walpb
-# go.opencensus.io v0.23.0 => go.opencensus.io v0.22.3
+# go.opencensus.io v0.23.0
 ## explicit; go 1.13
 go.opencensus.io
 go.opencensus.io/internal
@@ -1123,6 +1123,5 @@ gotest.tools/v3/skip
 # github.com/matttproud/golang_protobuf_extensions => github.com/matttproud/golang_protobuf_extensions v1.0.1
 # github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.6.0
 # github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
-# go.opencensus.io => go.opencensus.io v0.22.3
 # github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
