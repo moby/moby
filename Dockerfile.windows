@@ -166,7 +166,7 @@ FROM microsoft/windowsservercore
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ARG GO_VERSION=1.18.3
-ARG CONTAINERD_VERSION=1.6.6
+ARG CONTAINERD_VERSION=v1.6.6
 ARG GOTESTSUM_VERSION=v1.8.1
 ARG GOWINRES_VERSION=v0.2.3
 
@@ -259,7 +259,7 @@ RUN `
   `
   Write-Host INFO: Downloading containerd; `
   Install-Package -Force 7Zip4PowerShell; `
-  $location='https://github.com/containerd/containerd/releases/download/v'+$Env:CONTAINERD_VERSION+'/containerd-'+$Env:CONTAINERD_VERSION+'-windows-amd64.tar.gz'; `
+  $location='https://github.com/containerd/containerd/releases/download/'+$Env:CONTAINERD_VERSION+'/containerd-'+$Env:CONTAINERD_VERSION.TrimStart('v')+'-windows-amd64.tar.gz'; `
   Download-File $location C:\containerd.tar.gz; `
   New-Item -Path C:\containerd -ItemType Directory; `
   Expand-7Zip C:\containerd.tar.gz C:\; `
