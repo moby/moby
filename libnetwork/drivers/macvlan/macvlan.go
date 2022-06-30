@@ -17,16 +17,14 @@ const (
 	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
-	macvlanType         = "macvlan"  // driver type name
-	modePrivate         = "private"  // macvlan mode private
-	modeVepa            = "vepa"     // macvlan mode vepa
-	modeBridge          = "bridge"   // macvlan mode bridge
-	modePassthru        = "passthru" // macvlan mode passthrough
-	parentOpt           = "parent"   // parent interface -o parent
-	modeOpt             = "_mode"    // macvlan mode ux opt suffix
+	macvlanType         = "macvlan"      // driver type name
+	modePrivate         = "private"      // macvlan mode private
+	modeVepa            = "vepa"         // macvlan mode vepa
+	modeBridge          = "bridge"       // macvlan mode bridge
+	modePassthru        = "passthru"     // macvlan mode passthrough
+	parentOpt           = "parent"       // parent interface -o parent
+	driverModeOpt       = "macvlan_mode" // macvlan mode ux opt suffix
 )
-
-var driverModeOpt = macvlanType + modeOpt // mode --option macvlan_mode
 
 type endpointTable map[string]*endpoint
 
