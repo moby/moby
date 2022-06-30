@@ -42,7 +42,8 @@ have:
 | Kind             | Description                                                                                                                     |
 |------------------|---------------------------------------------------------------------------------------------------------------------------------|
 | kind/bug         | Bugs are bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.    |
-| kind/enhancement | Enhancements are not bugs or new features but can drastically improve usability or performance of a project component.           |
+| kind/regression  | Regression is an issue which is known not to exist previously and breaks things which are expected to work.                     |
+| kind/enhancement | Enhancements are not bugs or new features but can drastically improve usability or performance of a project component.          |
 | kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shiny.                       |
 | kind/question    | Contains a user or contributor question requiring a response.                                                                   |
 
