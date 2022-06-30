@@ -2,50 +2,97 @@ Cluster Volumes
 ===============
 
 Docker Cluster Volumes is a new feature which allows using CSI plugins to
-create cluster-aware volumes
+create cluster-aware volumes.
+
+The Container Storage Interface is a platform-agnostic API for storage
+providers to write storage plugins which are compatible with many container
+orchestrators. By leveraging the CSI, Docker Swarm can provide intelligent,
+cluster-aware access to volumes across many supported storage providers.
 
 ## Installing a CSI plugin
 
-CSI, the Container Storage Interface, defines an API for storage providers to
-write storage plugins which are cross-compatible between various container
-orchestrators. However, most CSI plugins are shipped with configuration
-specific to Kubernetes. Docker CSI Plugins use the same binaries as those for
-Kubernetes, but in a different environment and sometimes with different
-configuration.
+Docker accesses CSI plugins through the Docker managed plugin system, using the
+`docker plugin` command.
 
-If a plugin is already adapted for and available for Docker, it can be
-installed through the `docker plugin install` command. Though such plugins may
-require configuration specific to the user's environment, they will ultimately
-be detected by and work automatically with Docker once enabled.
+If a plugin is available for Docker, it can be installed through the `docker
+plugin install` command. Plugins may require configuration specific to the
+user's environment, they will ultimately be detected by and work automatically
+with Docker once enabled.
 
 Currently, there is no way to automatically deploy a Docker Plugin across all
 nodes in a cluster. Therefore, users must ensure the Docker Plugin is installed
-on all nodes in the cluster on which it is desired.
+on all nodes in the cluster on which it is desired. 
+
+The CSI plugin must be installed on all manager nodes. If a manager node does
+not have the CSI plugin installed, a leadership change to that manager nodes
+will make Swarm unable to use that driver.
 
 Docker Swarm worker nodes report their active plugins to the Docker Swarm
-managers, and so it is not necessary to install a plugin on every worker node
-if this is not desired. However, the plugin must be installed on every manager
-node, or a leadership change could result in Docker Swarm no longer having the
-ability to call the plugin.
+managers, so it is not necessary to install a plugin on every worker node. The
+plugin only needs to be installed on those nodes need access to the volumes
+provided by that plugin.
 
-### Creating a Docker CSI Plugin
+### Multiple Instances of the Same Plugin
+
+In some cases, it may be desirable to run multiple instances of the same
+plugin. For example, there may be two different instances of some storage
+provider which each need a differently configured plugin.
+
+To run more than one instance of the same plugin, set the `--alias` option when
+installing the plugin. This will cause the plugin to take a local name
+different from its original name.
+
+Ensure that when using plugin name aliases, the plugin name alias is the same
+on every node.
+
+## Creating a Docker CSI Plugin
+
+Most CSI plugins are shipped with configuration specific to Kubernetes. They
+are often provided in the form of Helm charts, and installation information may
+include Kubernetes-specific steps. Docker CSI Plugins use the same binaries as
+those for Kubernetes, but in a different environment and sometimes with
+different configuration.
 
 Before following this section, readers should ensure they are acquainted with
-the 
+the
 [Docker Engine managed plugin system](https://docs.docker.com/engine/extend/).
 Docker CSI plugins use this system to run.
 
+Docker Plugins consist of a root filesystem and a `config.json`. The root
+filesystem can generally be exported from whatever image is built for the
+plugin. The `config.json` specifies how the plugin is used. Several
+CSI-specific concerns, as well as some general but poorly-documented features,
+are outlined here.
+
+### Basic Requirements
+
 Docker CSI plugins are identified with a special interface type. There are two
-related interfaces that CSI plugins can expose. In the `config.json`, this
-should be set as such.
+related interfaces that CSI plugins can expose.
+
+* `docker.csicontroller/1.0` is used for CSI Controller plugins.
+* `docker.csinode/1.0` is used for CSI Node plugins.
+* Combined plugins should include both interfaces.
+
+Additionally, the interface field of the config.json includes a `socket` field.
+This can be set to any value, but the CSI plugin should have its `CSI_ENDPOINT`
+environment variable set appropriately.
+
+In the `config.json`, this should be set as such:
 
 ```json
   "interface": {
-    "types": ["docker.csicontroller/1.0","docker.csinode/1.0"]
-  }
+    "types": ["docker.csicontroller/1.0","docker.csinode/1.0"],
+    "socket": "my-csi-plugin.sock"
+  },
+  "env": [
+    {
+      "name": "CSI_ENDPOINT",
+      "value": "/run/docker/plugins/my-csi-plugin.sock"
+    }
+  ]
 ```
 
-Additionally, the CSI specification states that CSI plugins should have
+The CSI specification states that CSI plugins should have
 `CAP_SYS_ADMIN` privileges, so this should be set in the `config.json` as
 well:
 
@@ -55,9 +102,81 @@ well:
   }
 ```
 
-Other configuration is largely specific to the CSI plugin.
+### Propagated Mount
 
-#### Split-Component Plugins
+In order for the plugin to expose volumes to Swarm, it must publish those
+volumes to a Propagated Mount location. This allows a mount to be itself
+mounted to a different location in the filesystem. The Docker Plugin system
+only allows one Propagated Mount, which is configured as a string representing
+the path in the plugin filesystem.
+
+When calling the CSI plugin, Docker Swarm specifies the publish target path,
+which is the path in the plugin filesystem that a volume should ultimately be
+used from. This is also the path that needs to be specified as the Propagated
+Mount for the plugin. This path is hard-coded to be `/data/published` in the
+plugin filesystem, and as such, the plugin configuration should list this as
+the Propagated Mount:
+
+```json
+  "propagatedMount": "/data/published"
+```
+
+### Configurable Options
+
+Plugin configurations can specify configurable options for many fields. To
+expose a field as configurable, the object including that field should include
+a field `Settable`, which is an array of strings specifying the name of
+settable fields.
+
+For example, consider a plugin that supports a config file.
+
+```json
+  "mounts": [
+    {
+      "name": "configfile",
+      "description": "Config file mounted in from the host filesystem",
+      "type": "bind",
+      "destination": "/opt/my-csi-plugin/config.yaml",
+      "source": "/etc/my-csi-plugin/config.yaml"
+    }
+  ]
+```
+
+This configuration would result in a file located on the host filesystem at
+`/etc/my-csi-plugin/config.yaml` being mounted into the plugin filesystem at
+`/opt/my-csi-plugin/config.yaml`. However, hard-specifying the source path of
+the configuration is undesirable. Instead, the plugin author can put the
+`Source` field in the Settable array:
+
+```json
+  "mounts": [
+    {
+      "name": "configfile",
+      "description": "Config file mounted in from the host filesystem",
+      "type": "bind",
+      "destination": "/opt/my-csi-plugin/config.yaml",
+      "source": "",
+      "settable": ["source"]
+    }
+  ]
+```
+
+When a field is exposed as settable, the user can configure that field when
+installing the plugin.
+
+```
+$ docker plugin install my-csi-plugin configfile.source="/srv/my-csi-plugin/config.yaml"
+```
+
+Or, alternatively, it can be set while the plugin is disabled:
+
+```
+$ docker plugin disable my-csi-plugin
+$ docker plugin set my-csi-plugin configfile.source="/var/lib/my-csi-plugin/config.yaml"
+$ docker plugin enable
+```
+
+### Split-Component Plugins
 
 For split-component plugins, users can specify either the
 `docker.csicontroller/1.0` or `docker.csinode/1.0` plugin interfaces. Manager
@@ -197,11 +316,6 @@ Cluster Volume availability can be one of three states:
 
 A Volume can only be removed from the cluster entirely if its availability is
 set to `drain`, and it has been fully unpublished from all nodes.
-
-#### Force-Removing Volumes
-
-There are cases where a Volume can get caught in a state where Swarm cannot
-verify their removal. In these cases, 
 
 ## Unsupported Features
 
