@@ -18,10 +18,10 @@ const (
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
 
-	ipvlanType    = "ipvlan"             // driver type name
-	parentOpt     = "parent"             // parent interface -o parent
-	driverModeOpt = ipvlanType + "_mode" // mode -o ipvlan_mode
-	driverFlagOpt = ipvlanType + "_flag" // flag -o ipvlan_flag
+	ipvlanType    = "ipvlan"      // driver type name
+	parentOpt     = "parent"      // parent interface -o parent
+	driverModeOpt = "ipvlan_mode" // mode -o ipvlan_mode
+	driverFlagOpt = "ipvlan_flag" // flag -o ipvlan_flag
 
 	modeL2  = "l2"  // ipvlan L2 mode (default)
 	modeL3  = "l3"  // ipvlan L3 mode
