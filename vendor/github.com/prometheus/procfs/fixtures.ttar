@@ -111,7 +111,7 @@ Max core file size        0                    unlimited            bytes
 Max resident set          unlimited            unlimited            bytes
 Max processes             62898                62898                processes
 Max open files            2048                 4096                 files
-Max locked memory         65536                65536                bytes
+Max locked memory         18446744073708503040 18446744073708503040 bytes
 Max address space         8589934592           unlimited            bytes
 Max file locks            unlimited            unlimited            locks
 Max pending signals       62898                62898                signals
@@ -173,6 +173,283 @@ Lines: 1
 411605849 93680043 79
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/26231/smaps
+Lines: 252
+00400000-00cb1000 r-xp 00000000 fd:01 952273                             /bin/alertmanager
+Size:               8900 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                2952 kB
+Pss:                2952 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:      2952 kB
+Private_Dirty:         0 kB
+Referenced:         2864 kB
+Anonymous:             0 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+VmFlags: rd ex mr mw me dw sd 
+00cb1000-016b0000 r--p 008b1000 fd:01 952273                             /bin/alertmanager
+Size:              10236 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                6152 kB
+Pss:                6152 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:      6152 kB
+Private_Dirty:         0 kB
+Referenced:         5308 kB
+Anonymous:             0 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+VmFlags: rd mr mw me dw sd 
+016b0000-0171a000 rw-p 012b0000 fd:01 952273                             /bin/alertmanager
+Size:                424 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                 176 kB
+Pss:                 176 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:        84 kB
+Private_Dirty:        92 kB
+Referenced:          176 kB
+Anonymous:            92 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                 12 kB
+SwapPss:              12 kB
+Locked:                0 kB
+VmFlags: rd wr mr mw me dw ac sd 
+0171a000-0173f000 rw-p 00000000 00:00 0 
+Size:                148 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                  76 kB
+Pss:                  76 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:        76 kB
+Referenced:           76 kB
+Anonymous:            76 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+VmFlags: rd wr mr mw me ac sd 
+c000000000-c000400000 rw-p 00000000 00:00 0 
+Size:               4096 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                2564 kB
+Pss:                2564 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:        20 kB
+Private_Dirty:      2544 kB
+Referenced:         2544 kB
+Anonymous:          2564 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:               1100 kB
+SwapPss:            1100 kB
+Locked:                0 kB
+VmFlags: rd wr mr mw me ac sd 
+c000400000-c001600000 rw-p 00000000 00:00 0 
+Size:              18432 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:               16024 kB
+Pss:               16024 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:      5864 kB
+Private_Dirty:     10160 kB
+Referenced:        11944 kB
+Anonymous:         16024 kB
+LazyFree:           5848 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                440 kB
+SwapPss:             440 kB
+Locked:                0 kB
+VmFlags: rd wr mr mw me ac sd nh 
+c001600000-c004000000 rw-p 00000000 00:00 0 
+Size:              43008 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                   0 kB
+Pss:                   0 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:         0 kB
+Referenced:            0 kB
+Anonymous:             0 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+VmFlags: rd wr mr mw me ac sd 
+7f0ab95ca000-7f0abbb7b000 rw-p 00000000 00:00 0 
+Size:              38596 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                1992 kB
+Pss:                1992 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:       476 kB
+Private_Dirty:      1516 kB
+Referenced:         1828 kB
+Anonymous:          1992 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                384 kB
+SwapPss:             384 kB
+Locked:                0 kB
+VmFlags: rd wr mr mw me ac sd 
+7ffc07ecf000-7ffc07ef0000 rw-p 00000000 00:00 0                          [stack]
+Size:                132 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                   8 kB
+Pss:                   8 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:         8 kB
+Referenced:            8 kB
+Anonymous:             8 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  4 kB
+SwapPss:               4 kB
+Locked:                0 kB
+VmFlags: rd wr mr mw me gd ac 
+7ffc07f9e000-7ffc07fa1000 r--p 00000000 00:00 0                          [vvar]
+Size:                 12 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                   0 kB
+Pss:                   0 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:         0 kB
+Referenced:            0 kB
+Anonymous:             0 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+VmFlags: rd mr pf io de dd sd 
+7ffc07fa1000-7ffc07fa3000 r-xp 00000000 00:00 0                          [vdso]
+Size:                  8 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                   4 kB
+Pss:                   0 kB
+Shared_Clean:          4 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:         0 kB
+Referenced:            4 kB
+Anonymous:             0 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+VmFlags: rd ex mr mw me de sd 
+ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
+Size:                  4 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                   0 kB
+Pss:                   0 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:         0 kB
+Referenced:            0 kB
+Anonymous:             0 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+VmFlags: rd ex 
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/26231/smaps_rollup
+Lines: 17
+00400000-ffffffffff601000 ---p 00000000 00:00 0                          [rollup]
+Rss:               29948 kB
+Pss:               29944 kB
+Shared_Clean:          4 kB
+Shared_Dirty:          0 kB
+Private_Clean:     15548 kB
+Private_Dirty:     14396 kB
+Referenced:        24752 kB
+Anonymous:         20756 kB
+LazyFree:           5848 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:               1940 kB
+SwapPss:            1940 kB
+Locked:                0 kB
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/proc/26231/stat
 Lines: 1
 26231 (vim) R 5392 7446 5392 34835 7446 4218880 32533 309516 26 82 1677 44 158 99 20 0 1 0 82375 56274944 1981 18446744073709551615 4194304 6294284 140736914091744 140736914087944 139965136429984 0 0 12288 1870679807 0 0 0 17 0 0 0 31 0 0 8391624 8481048 16420864 140736914093252 140736914093279 140736914093279 140736914096107 0
@@ -190,7 +467,7 @@ Pid:	26231
 PPid:	1
 TracerPid:	0
 Uid:	1000	1000	1000	0
-Gid:	0	0	0	0
+Gid:	1001	1001	1001	0
 FDSize:	128
 Groups:
 NStgid:	1
@@ -234,6 +511,11 @@ Mems_allowed_list:	0
 voluntary_ctxt_switches:	4742839
 nonvoluntary_ctxt_switches:	1727500
 Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/26231/wchan
+Lines: 1
+poll_schedule_timeoutEOF
+Mode: 664
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/proc/26232
 Mode: 755
@@ -310,6 +592,11 @@ Lines: 1
 33 (ata_sff) S 2 0 0 0 -1 69238880 0 0 0 0 0 0 0 0 0 -20 1 0 5 0 0 18446744073709551615 0 0 0 0 0 0 0 2147483647 0 18446744073709551615 0 0 17 1 0 0 0 0 0 0 0 0 0 0 0 0 0
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/26232/wchan
+Lines: 1
+0EOF
+Mode: 664
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/proc/26233
 Mode: 755
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -356,6 +643,11 @@ Node 0, zone      DMA      1      0      1      0      2      1      1      0   
 Node 0, zone    DMA32    759    572    791    475    194     45     12      0      0      0      0
 Node 0, zone   Normal   4381   1093    185   1530    567    102      4      0      0      0      0
 Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/cmdline
+Lines: 1
+BOOT_IMAGE=/vmlinuz-5.11.0-22-generic root=UUID=456a0345-450d-4f7b-b7c9-43e3241d99ad ro quiet splash vt.handoff=7
+Mode: 444
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/proc/cpuinfo
 Lines: 216
@@ -793,7 +1085,6 @@ internal     : yes
 type         : skcipher
 async        : yes
 blocksize    : 1
-min keysize  : 16
 max keysize  : 32
 ivsize       : 16
 chunksize    : 16
@@ -1552,9 +1843,10 @@ min keysize  : 16
 max keysize  : 32
 
 Mode: 444
+Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/proc/diskstats
-Lines: 49
+Lines: 52
    1       0 ram0 0 0 0 0 0 0 0 0 0 0 0
    1       1 ram1 0 0 0 0 0 0 0 0 0 0 0
    1       2 ram2 0 0 0 0 0 0 0 0 0 0 0
@@ -1604,10 +1896,44 @@ Lines: 49
    8       0 sdb 326552 841 9657779 84 41822 2895 1972905 5007 0 60730 67070 68851 0 1925173784 11130
    8       1 sdb1 231 3 34466 4 24 23 106 0 0 64 64 0 0 0 0
    8       2 sdb2 326310 838 9622281 67 40726 2872 1972799 4924 0 58250 64567 68851 0 1925173784 11130
+   8       0 sdc 14202 71 579164 21861 2995 1589 180500 40875 0 11628 55200 0 0 0 0 127 182
+   8       1 sdc1 1027 0 13795 5021 2 0 4096 3 0 690 4579 0 0 0 0 0 0
+   8       2 sdc2 13126 71 561749 16802 2830 1589 176404 40620 0 10931 50449 0 0 0 0 0 0
 Mode: 664
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/proc/fs
 Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/proc/fs/fscache
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/fs/fscache/stats
+Lines: 24
+FS-Cache statistics
+Cookies: idx=3 dat=67877 spc=0
+Objects: alc=67473 nal=0 avl=67473 ded=388
+ChkAux : non=12 ok=33 upd=44 obs=55
+Pages  : mrk=547164 unc=364577
+Acquire: n=67880 nul=98 noc=25 ok=67780 nbf=39 oom=26
+Lookups: n=67473 neg=67470 pos=58 crt=67473 tmo=85
+Invals : n=14 run=13
+Updates: n=7 nul=3 run=8
+Relinqs: n=394 nul=1 wcr=2 rtr=3
+AttrChg: n=6 ok=5 nbf=4 oom=3 run=2
+Allocs : n=20 ok=19 wt=18 nbf=17 int=16
+Allocs : ops=15 owt=14 abt=13
+Retrvls: n=151959 ok=82823 wt=23467 nod=69136 nbf=15 int=69 oom=43
+Retrvls: ops=151959 owt=42747 abt=44
+Stores : n=225565 ok=225565 agn=12 nbf=13 oom=14
+Stores : ops=69156 run=294721 pgs=225565 rxd=225565 olm=43
+VmScan : nos=364512 gon=2 bsy=43 can=12 wt=66
+Ops    : pend=42753 run=221129 enq=628798 can=11 rej=88
+Ops    : ini=377538 dfr=27 rel=377538 gc=37
+CacheOp: alo=1 luo=2 luc=3 gro=4
+CacheOp: inv=5 upo=6 dro=7 pto=8 atc=9 syn=10
+CacheOp: rap=11 ras=12 alp=13 als=14 wrp=15 ucp=16 dsp=17
+CacheEv: nsp=18 stl=19 rtr=20 cul=21EOF
+Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/proc/fs/xfs
 Mode: 755
@@ -1645,7 +1971,7 @@ Lines: 1
 Mode: 444
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/proc/mdstat
-Lines: 56
+Lines: 60
 Personalities : [linear] [multipath] [raid0] [raid1] [raid6] [raid5] [raid4] [raid10]
 
 md3 : active raid6 sda1[8] sdh1[7] sdg1[6] sdf1[5] sde1[11] sdd1[3] sdc1[10] sdb1[9] sdd1[10](S) sdd2[11](S)
@@ -1667,6 +1993,10 @@ md6 : active raid1 sdb2[2](F) sdc[1](S) sda2[0]
 md8 : active raid1 sdb1[1] sda1[0] sdc[2](S) sde[3](S)
       195310144 blocks [2/2] [UU]
       [=>...................]  resync =  8.5% (16775552/195310144) finish=17.0min speed=259783K/sec
+
+md201 : active raid1 sda3[0] sdb3[1]
+      1993728 blocks super 1.2 [2/2] [UU]
+      [=>...................]  check =  5.7% (114176/1993728) finish=0.2min speed=114176K/sec
 
 md7 : active raid6 sdb1[0] sde1[3] sdd1[2] sdc1[1](F)
       7813735424 blocks super 1.2 level 6, 512k chunk, algorithm 2 [4/3] [U_UU]
@@ -1804,6 +2134,24 @@ Lines: 6
        4    1FB3C        0          1282A8F                0
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/net/protocols
+Lines: 14
+protocol  size sockets  memory press maxhdr  slab module     cl co di ac io in de sh ss gs se re sp bi br ha uh gp em
+PACKET    1344      2      -1   NI       0   no   kernel      n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n
+PINGv6    1112      0      -1   NI       0   yes  kernel      y  y  y  n  n  y  n  n  y  y  y  y  n  y  y  y  y  y  n
+RAWv6     1112      1      -1   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  n  y  y  y  y  n  n
+UDPLITEv6 1216      0      57   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  n  n  n  y  y  y  n
+UDPv6     1216     10      57   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  n  n  n  y  y  y  n
+TCPv6     2144   1937  1225378   no     320   yes  kernel      y  y  y  y  y  y  y  y  y  y  y  y  y  n  y  y  y  y  y
+UNIX      1024    120      -1   NI       0   yes  kernel      n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n
+UDP-Lite  1024      0      57   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  y  n  n  y  y  y  n
+PING       904      0      -1   NI       0   yes  kernel      y  y  y  n  n  y  n  n  y  y  y  y  n  y  y  y  y  y  n
+RAW        912      0      -1   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  n  y  y  y  y  n  n
+UDP       1024     73      57   NI       0   yes  kernel      y  y  y  n  y  y  y  n  y  y  y  y  y  n  n  y  y  y  n
+TCP       1984  93064  1225378   yes     320   yes  kernel      y  y  y  y  y  y  y  y  y  y  y  y  y  n  y  y  y  y  y
+NETLINK   1040     16      -1   NI       0   no   kernel      n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n  n
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/proc/net/rpc
 Mode: 755
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1861,10 +2209,42 @@ Lines: 1
 00015c73 00020e76 F0000769 00000000
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/proc/net/stat
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/net/stat/arp_cache
+Lines: 3
+entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls
+00000014  00000001 00000002 00000003  00000004 00000005  00000006  00000007 00000008  00000009 0000000a 0000000b 0000000c
+00000014  0000000d 0000000e 0000000f  00000010 00000011  00000012  00000013 00000014  00000015 00000016 00000017 00000018
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/net/stat/ndisc_cache
+Lines: 3
+entries  allocs destroys hash_grows  lookups hits  res_failed  rcv_probes_mcast rcv_probes_ucast  periodic_gc_runs forced_gc_runs unresolved_discards table_fulls
+00000024  000000f0 000000f1 000000f2  000000f3 000000f4  000000f5  000000f6 000000f7  000000f8 000000f9 000000fa 000000fb
+00000024  000000fc 000000fd 000000fe  000000ff 00000100  00000101  00000102 00000103  00000104 00000105 00000106 00000107
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/net/tcp
+Lines: 4
+  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
+   0: 0500000A:0016 00000000:0000 0A 00000000:00000001 00:00000000 00000000     0        0 2740 1 ffff88003d3af3c0 100 0 0 10 0
+   1: 00000000:0016 00000000:0000 0A 00000001:00000000 00:00000000 00000000     0        0 2740 1 ffff88003d3af3c0 100 0 0 10 0
+   2: 00000000:0016 00000000:0000 0A 00000001:00000001 00:00000000 00000000     0        0 2740 1 ffff88003d3af3c0 100 0 0 10 0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/net/tcp6
+Lines: 3
+  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode ref pointer drops
+ 1315: 00000000000000000000000000000000:14EB 00000000000000000000000000000000:0000 07 00000000:00000000 00:00000000 00000000   981        0 21040 2 0000000013726323 0
+ 6073: 000080FE00000000FFADE15609667CFE:C781 00000000000000000000000000000000:0000 07 00000000:00000000 00:00000000 00000000  1000        0 11337031 2 00000000b9256fdd 0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/proc/net/udp
 Lines: 4
   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
-   0: 0A000005:0016 00000000:0000 0A 00000000:00000001 00:00000000 00000000     0        0 2740 1 ffff88003d3af3c0 100 0 0 10 0
+   0: 0500000A:0016 00000000:0000 0A 00000000:00000001 00:00000000 00000000     0        0 2740 1 ffff88003d3af3c0 100 0 0 10 0
    1: 00000000:0016 00000000:0000 0A 00000001:00000000 00:00000000 00000000     0        0 2740 1 ffff88003d3af3c0 100 0 0 10 0
    2: 00000000:0016 00000000:0000 0A 00000001:00000001 00:00000000 00000000     0        0 2740 1 ffff88003d3af3c0 100 0 0 10 0
 Mode: 644
@@ -1967,6 +2347,312 @@ Mode: 644
 Path: fixtures/proc/self
 SymlinkTo: 26231
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/slabinfo
+Lines: 302
+slabinfo - version: 2.1
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
+pid_3                375    532    576   28    4 : tunables    0    0    0 : slabdata     19     19      0
+pid_2                  3     28    576   28    4 : tunables    0    0    0 : slabdata      1      1      0
+nvidia_p2p_page_cache      0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+nvidia_pte_cache    9022   9152    368   22    2 : tunables    0    0    0 : slabdata    416    416      0
+nvidia_stack_cache    321    326  12624    2    8 : tunables    0    0    0 : slabdata    163    163      0
+kvm_async_pf           0      0    472   34    4 : tunables    0    0    0 : slabdata      0      0      0
+kvm_vcpu               0      0  15552    2    8 : tunables    0    0    0 : slabdata      0      0      0
+kvm_mmu_page_header      0      0    504   32    4 : tunables    0    0    0 : slabdata      0      0      0
+pte_list_desc          0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+x86_emulator           0      0   3024   10    8 : tunables    0    0    0 : slabdata      0      0      0
+x86_fpu                0      0   4608    7    8 : tunables    0    0    0 : slabdata      0      0      0
+iwl_cmd_pool:0000:04:00.0      0    128    512   32    4 : tunables    0    0    0 : slabdata      4      4      0
+ext4_groupinfo_4k   3719   3740    480   34    4 : tunables    0    0    0 : slabdata    110    110      0
+bio-6                 32     75    640   25    4 : tunables    0    0    0 : slabdata      3      3      0
+bio-5                 16     48   1344   24    8 : tunables    0    0    0 : slabdata      2      2      0
+bio-4                 17     92   1408   23    8 : tunables    0    0    0 : slabdata      4      4      0
+fat_inode_cache        0      0   1056   31    8 : tunables    0    0    0 : slabdata      0      0      0
+fat_cache              0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+ovl_aio_req            0      0    512   32    4 : tunables    0    0    0 : slabdata      0      0      0
+ovl_inode              0      0   1000   32    8 : tunables    0    0    0 : slabdata      0      0      0
+squashfs_inode_cache      0      0   1088   30    8 : tunables    0    0    0 : slabdata      0      0      0
+fuse_request           0      0    472   34    4 : tunables    0    0    0 : slabdata      0      0      0
+fuse_inode             0      0   1152   28    8 : tunables    0    0    0 : slabdata      0      0      0
+xfs_dqtrx              0      0    864   37    8 : tunables    0    0    0 : slabdata      0      0      0
+xfs_dquot              0      0    832   39    8 : tunables    0    0    0 : slabdata      0      0      0
+xfs_buf                0      0    768   21    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_bui_item           0      0    544   30    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_bud_item           0      0    512   32    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_cui_item           0      0    768   21    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_cud_item           0      0    512   32    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_rui_item           0      0   1024   32    8 : tunables    0    0    0 : slabdata      0      0      0
+xfs_rud_item           0      0    512   32    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_icr                0      0    520   31    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_ili                0      0    528   31    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_inode              0      0   1344   24    8 : tunables    0    0    0 : slabdata      0      0      0
+xfs_efi_item           0      0    768   21    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_efd_item           0      0    776   21    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_buf_item           0      0    608   26    4 : tunables    0    0    0 : slabdata      0      0      0
+xf_trans               0      0    568   28    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_ifork              0      0    376   21    2 : tunables    0    0    0 : slabdata      0      0      0
+xfs_da_state           0      0    816   20    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_btree_cur          0      0    560   29    4 : tunables    0    0    0 : slabdata      0      0      0
+xfs_bmap_free_item      0      0    400   20    2 : tunables    0    0    0 : slabdata      0      0      0
+xfs_log_ticket         0      0    520   31    4 : tunables    0    0    0 : slabdata      0      0      0
+nfs_direct_cache       0      0    560   29    4 : tunables    0    0    0 : slabdata      0      0      0
+nfs_commit_data        4     28   1152   28    8 : tunables    0    0    0 : slabdata      1      1      0
+nfs_write_data        32     50   1280   25    8 : tunables    0    0    0 : slabdata      2      2      0
+nfs_read_data          0      0   1280   25    8 : tunables    0    0    0 : slabdata      0      0      0
+nfs_inode_cache        0      0   1408   23    8 : tunables    0    0    0 : slabdata      0      0      0
+nfs_page               0      0    512   32    4 : tunables    0    0    0 : slabdata      0      0      0
+rpc_inode_cache        0      0   1024   32    8 : tunables    0    0    0 : slabdata      0      0      0
+rpc_buffers            8     13   2496   13    8 : tunables    0    0    0 : slabdata      1      1      0
+rpc_tasks              8     25    640   25    4 : tunables    0    0    0 : slabdata      1      1      0
+fscache_cookie_jar      1     35    464   35    4 : tunables    0    0    0 : slabdata      1      1      0
+jfs_mp                32     35    464   35    4 : tunables    0    0    0 : slabdata      1      1      0
+jfs_ip                 0      0   1592   20    8 : tunables    0    0    0 : slabdata      0      0      0
+reiser_inode_cache      0      0   1096   29    8 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_end_io_wq        0      0    464   35    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_prelim_ref       0      0    424   38    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_delayed_extent_op      0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_delayed_data_ref      0      0    448   36    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_delayed_tree_ref      0      0    440   37    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_delayed_ref_head      0      0    480   34    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_inode_defrag      0      0    400   20    2 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_delayed_node      0      0    648   25    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_ordered_extent      0      0    752   21    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_extent_map       0      0    480   34    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_extent_state      0      0    416   39    4 : tunables    0    0    0 : slabdata      0      0      0
+bio-3                 35     92    704   23    4 : tunables    0    0    0 : slabdata      4      4      0
+btrfs_extent_buffer      0      0    600   27    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_free_space_bitmap      0      0  12288    2    8 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_free_space       0      0    416   39    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_path             0      0    448   36    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_trans_handle      0      0    440   37    4 : tunables    0    0    0 : slabdata      0      0      0
+btrfs_inode            0      0   1496   21    8 : tunables    0    0    0 : slabdata      0      0      0
+ext4_inode_cache   84136  84755   1400   23    8 : tunables    0    0    0 : slabdata   3685   3685      0
+ext4_free_data        22     80    392   20    2 : tunables    0    0    0 : slabdata      4      4      0
+ext4_allocation_context      0     70    464   35    4 : tunables    0    0    0 : slabdata      2      2      0
+ext4_prealloc_space     24     74    440   37    4 : tunables    0    0    0 : slabdata      2      2      0
+ext4_system_zone     267    273    376   21    2 : tunables    0    0    0 : slabdata     13     13      0
+ext4_io_end_vec        0     88    368   22    2 : tunables    0    0    0 : slabdata      4      4      0
+ext4_io_end            0     80    400   20    2 : tunables    0    0    0 : slabdata      4      4      0
+ext4_bio_post_read_ctx    128    147    384   21    2 : tunables    0    0    0 : slabdata      7      7      0
+ext4_pending_reservation      0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+ext4_extent_status  79351  79422    376   21    2 : tunables    0    0    0 : slabdata   3782   3782      0
+jbd2_transaction_s     44    100    640   25    4 : tunables    0    0    0 : slabdata      4      4      0
+jbd2_inode          6785   6840    400   20    2 : tunables    0    0    0 : slabdata    342    342      0
+jbd2_journal_handle      0     80    392   20    2 : tunables    0    0    0 : slabdata      4      4      0
+jbd2_journal_head    824   1944    448   36    4 : tunables    0    0    0 : slabdata     54     54      0
+jbd2_revoke_table_s      4     23    352   23    2 : tunables    0    0    0 : slabdata      1      1      0
+jbd2_revoke_record_s      0    156    416   39    4 : tunables    0    0    0 : slabdata      4      4      0
+ext2_inode_cache       0      0   1144   28    8 : tunables    0    0    0 : slabdata      0      0      0
+mbcache                0      0    392   20    2 : tunables    0    0    0 : slabdata      0      0      0
+dm_thin_new_mapping      0    152    424   38    4 : tunables    0    0    0 : slabdata      4      4      0
+dm_snap_pending_exception      0      0    464   35    4 : tunables    0    0    0 : slabdata      0      0      0
+dm_exception           0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+dm_dirty_log_flush_entry      0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+dm_bio_prison_cell_v2      0      0    432   37    4 : tunables    0    0    0 : slabdata      0      0      0
+dm_bio_prison_cell      0    148    432   37    4 : tunables    0    0    0 : slabdata      4      4      0
+kcopyd_job             0      8   3648    8    8 : tunables    0    0    0 : slabdata      1      1      0
+io                     0     32    512   32    4 : tunables    0    0    0 : slabdata      1      1      0
+dm_uevent              0      0   3224   10    8 : tunables    0    0    0 : slabdata      0      0      0
+dax_cache              1     28   1152   28    8 : tunables    0    0    0 : slabdata      1      1      0
+aic94xx_ascb           0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+aic94xx_dma_token      0      0    384   21    2 : tunables    0    0    0 : slabdata      0      0      0
+asd_sas_event          0      0    512   32    4 : tunables    0    0    0 : slabdata      0      0      0
+sas_task               0      0    704   23    4 : tunables    0    0    0 : slabdata      0      0      0
+qla2xxx_srbs           0      0    832   39    8 : tunables    0    0    0 : slabdata      0      0      0
+sd_ext_cdb             2     22    368   22    2 : tunables    0    0    0 : slabdata      1      1      0
+scsi_sense_cache     258    288    512   32    4 : tunables    0    0    0 : slabdata      9      9      0
+virtio_scsi_cmd       64     75    640   25    4 : tunables    0    0    0 : slabdata      3      3      0
+L2TP/IPv6              0      0   1536   21    8 : tunables    0    0    0 : slabdata      0      0      0
+L2TP/IP                0      0   1408   23    8 : tunables    0    0    0 : slabdata      0      0      0
+ip6-frags              0      0    520   31    4 : tunables    0    0    0 : slabdata      0      0      0
+fib6_nodes             5     32    512   32    4 : tunables    0    0    0 : slabdata      1      1      0
+ip6_dst_cache          4     25    640   25    4 : tunables    0    0    0 : slabdata      1      1      0
+ip6_mrt_cache          0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+PINGv6                 0      0   1600   20    8 : tunables    0    0    0 : slabdata      0      0      0
+RAWv6                 25     40   1600   20    8 : tunables    0    0    0 : slabdata      2      2      0
+UDPLITEv6              0      0   1728   18    8 : tunables    0    0    0 : slabdata      0      0      0
+UDPv6                  3     54   1728   18    8 : tunables    0    0    0 : slabdata      3      3      0
+tw_sock_TCPv6          0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+request_sock_TCPv6      0      0    632   25    4 : tunables    0    0    0 : slabdata      0      0      0
+TCPv6                  0     33   2752   11    8 : tunables    0    0    0 : slabdata      3      3      0
+uhci_urb_priv          0      0    392   20    2 : tunables    0    0    0 : slabdata      0      0      0
+sgpool-128             2     14   4544    7    8 : tunables    0    0    0 : slabdata      2      2      0
+sgpool-64              2     13   2496   13    8 : tunables    0    0    0 : slabdata      1      1      0
+sgpool-32              2     44   1472   22    8 : tunables    0    0    0 : slabdata      2      2      0
+sgpool-16              2     68    960   34    8 : tunables    0    0    0 : slabdata      2      2      0
+sgpool-8               2     46    704   23    4 : tunables    0    0    0 : slabdata      2      2      0
+btree_node             0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+bfq_io_cq              0      0    488   33    4 : tunables    0    0    0 : slabdata      0      0      0
+bfq_queue              0      0    848   38    8 : tunables    0    0    0 : slabdata      0      0      0
+mqueue_inode_cache      1     24   1344   24    8 : tunables    0    0    0 : slabdata      1      1      0
+isofs_inode_cache      0      0    968   33    8 : tunables    0    0    0 : slabdata      0      0      0
+io_kiocb               0      0    640   25    4 : tunables    0    0    0 : slabdata      0      0      0
+kioctx                 0     30   1088   30    8 : tunables    0    0    0 : slabdata      1      1      0
+aio_kiocb              0     28    576   28    4 : tunables    0    0    0 : slabdata      1      1      0
+userfaultfd_ctx_cache      0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+fanotify_path_event      0      0    392   20    2 : tunables    0    0    0 : slabdata      0      0      0
+fanotify_fid_event      0      0    400   20    2 : tunables    0    0    0 : slabdata      0      0      0
+fsnotify_mark          0      0    408   20    2 : tunables    0    0    0 : slabdata      0      0      0
+dnotify_mark           0      0    416   39    4 : tunables    0    0    0 : slabdata      0      0      0
+dnotify_struct         0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+dio                    0      0   1088   30    8 : tunables    0    0    0 : slabdata      0      0      0
+bio-2                  4     25    640   25    4 : tunables    0    0    0 : slabdata      1      1      0
+fasync_cache           0      0    384   21    2 : tunables    0    0    0 : slabdata      0      0      0
+audit_tree_mark        0      0    416   39    4 : tunables    0    0    0 : slabdata      0      0      0
+pid_namespace         30     34    480   34    4 : tunables    0    0    0 : slabdata      1      1      0
+posix_timers_cache      0     27    592   27    4 : tunables    0    0    0 : slabdata      1      1      0
+iommu_devinfo         24     32    512   32    4 : tunables    0    0    0 : slabdata      1      1      0
+iommu_domain          10     10   3264   10    8 : tunables    0    0    0 : slabdata      1      1      0
+iommu_iova          8682   8748    448   36    4 : tunables    0    0    0 : slabdata    243    243      0
+UNIX                 529    814   1472   22    8 : tunables    0    0    0 : slabdata     37     37      0
+ip4-frags              0      0    536   30    4 : tunables    0    0    0 : slabdata      0      0      0
+ip_mrt_cache           0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+UDP-Lite               0      0   1536   21    8 : tunables    0    0    0 : slabdata      0      0      0
+tcp_bind_bucket        7    128    512   32    4 : tunables    0    0    0 : slabdata      4      4      0
+inet_peer_cache        0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+xfrm_dst_cache         0      0    704   23    4 : tunables    0    0    0 : slabdata      0      0      0
+xfrm_state             0      0   1152   28    8 : tunables    0    0    0 : slabdata      0      0      0
+ip_fib_trie            7     21    384   21    2 : tunables    0    0    0 : slabdata      1      1      0
+ip_fib_alias           9     20    392   20    2 : tunables    0    0    0 : slabdata      1      1      0
+ip_dst_cache          27     84    576   28    4 : tunables    0    0    0 : slabdata      3      3      0
+PING                   0      0   1408   23    8 : tunables    0    0    0 : slabdata      0      0      0
+RAW                   32     46   1408   23    8 : tunables    0    0    0 : slabdata      2      2      0
+UDP                   11    168   1536   21    8 : tunables    0    0    0 : slabdata      8      8      0
+tw_sock_TCP            1     56    576   28    4 : tunables    0    0    0 : slabdata      2      2      0
+request_sock_TCP       0     25    632   25    4 : tunables    0    0    0 : slabdata      1      1      0
+TCP                   10     60   2624   12    8 : tunables    0    0    0 : slabdata      5      5      0
+hugetlbfs_inode_cache      2     35    928   35    8 : tunables    0    0    0 : slabdata      1      1      0
+dquot                  0      0    640   25    4 : tunables    0    0    0 : slabdata      0      0      0
+bio-1                 32     46    704   23    4 : tunables    0    0    0 : slabdata      2      2      0
+eventpoll_pwq        409    600    408   20    2 : tunables    0    0    0 : slabdata     30     30      0
+eventpoll_epi        408    672    576   28    4 : tunables    0    0    0 : slabdata     24     24      0
+inotify_inode_mark     58    195    416   39    4 : tunables    0    0    0 : slabdata      5      5      0
+scsi_data_buffer       0      0    360   22    2 : tunables    0    0    0 : slabdata      0      0      0
+bio_crypt_ctx        128    147    376   21    2 : tunables    0    0    0 : slabdata      7      7      0
+request_queue         29     39   2408   13    8 : tunables    0    0    0 : slabdata      3      3      0
+blkdev_ioc            81    148    440   37    4 : tunables    0    0    0 : slabdata      4      4      0
+bio-0                125    200    640   25    4 : tunables    0    0    0 : slabdata      8      8      0
+biovec-max           166    196   4544    7    8 : tunables    0    0    0 : slabdata     28     28      0
+biovec-128             0     52   2496   13    8 : tunables    0    0    0 : slabdata      4      4      0
+biovec-64              0     88   1472   22    8 : tunables    0    0    0 : slabdata      4      4      0
+biovec-16              0     92    704   23    4 : tunables    0    0    0 : slabdata      4      4      0
+bio_integrity_payload      4     28    576   28    4 : tunables    0    0    0 : slabdata      1      1      0
+khugepaged_mm_slot     59    180    448   36    4 : tunables    0    0    0 : slabdata      5      5      0
+ksm_mm_slot            0      0    384   21    2 : tunables    0    0    0 : slabdata      0      0      0
+ksm_stable_node        0      0    400   20    2 : tunables    0    0    0 : slabdata      0      0      0
+ksm_rmap_item          0      0    400   20    2 : tunables    0    0    0 : slabdata      0      0      0
+user_namespace         2     37    864   37    8 : tunables    0    0    0 : slabdata      1      1      0
+uid_cache              5     28    576   28    4 : tunables    0    0    0 : slabdata      1      1      0
+dmaengine-unmap-256      1     13   2496   13    8 : tunables    0    0    0 : slabdata      1      1      0
+dmaengine-unmap-128      1     22   1472   22    8 : tunables    0    0    0 : slabdata      1      1      0
+dmaengine-unmap-16      1     28    576   28    4 : tunables    0    0    0 : slabdata      1      1      0
+dmaengine-unmap-2      1     36    448   36    4 : tunables    0    0    0 : slabdata      1      1      0
+audit_buffer           0     22    360   22    2 : tunables    0    0    0 : slabdata      1      1      0
+sock_inode_cache     663   1170   1216   26    8 : tunables    0    0    0 : slabdata     45     45      0
+skbuff_ext_cache       0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+skbuff_fclone_cache      1     72    896   36    8 : tunables    0    0    0 : slabdata      2      2      0
+skbuff_head_cache      3    650    640   25    4 : tunables    0    0    0 : slabdata     26     26      0
+configfs_dir_cache      7     38    424   38    4 : tunables    0    0    0 : slabdata      1      1      0
+file_lock_cache       27    116    552   29    4 : tunables    0    0    0 : slabdata      4      4      0
+file_lock_ctx        106    120    392   20    2 : tunables    0    0    0 : slabdata      6      6      0
+fsnotify_mark_connector     52     66    368   22    2 : tunables    0    0    0 : slabdata      3      3      0
+net_namespace          1      6   5312    6    8 : tunables    0    0    0 : slabdata      1      1      0
+task_delay_info      784   1560    416   39    4 : tunables    0    0    0 : slabdata     40     40      0
+taskstats             45     92    688   23    4 : tunables    0    0    0 : slabdata      4      4      0
+proc_dir_entry       678    682    528   31    4 : tunables    0    0    0 : slabdata     22     22      0
+pde_opener             0    189    376   21    2 : tunables    0    0    0 : slabdata      9      9      0
+proc_inode_cache    7150   8250    992   33    8 : tunables    0    0    0 : slabdata    250    250      0
+seq_file              60    735    456   35    4 : tunables    0    0    0 : slabdata     21     21      0
+sigqueue               0    156    416   39    4 : tunables    0    0    0 : slabdata      4      4      0
+bdev_cache            36     78   1216   26    8 : tunables    0    0    0 : slabdata      3      3      0
+shmem_inode_cache   1599   2208   1016   32    8 : tunables    0    0    0 : slabdata     69     69      0
+kernfs_iattrs_cache   1251   1254    424   38    4 : tunables    0    0    0 : slabdata     33     33      0
+kernfs_node_cache  52898  52920    464   35    4 : tunables    0    0    0 : slabdata   1512   1512      0
+mnt_cache             42     46    704   23    4 : tunables    0    0    0 : slabdata      2      2      0
+filp                4314   6371    704   23    4 : tunables    0    0    0 : slabdata    277    277      0
+inode_cache        28695  29505    920   35    8 : tunables    0    0    0 : slabdata    843    843      0
+dentry            166069 169074    528   31    4 : tunables    0    0    0 : slabdata   5454   5454      0
+names_cache            0     35   4544    7    8 : tunables    0    0    0 : slabdata      5      5      0
+hashtab_node           0      0    360   22    2 : tunables    0    0    0 : slabdata      0      0      0
+ebitmap_node           0      0    400   20    2 : tunables    0    0    0 : slabdata      0      0      0
+avtab_extended_perms      0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+avtab_node             0      0    360   22    2 : tunables    0    0    0 : slabdata      0      0      0
+avc_xperms_data        0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+avc_xperms_decision_node      0      0    384   21    2 : tunables    0    0    0 : slabdata      0      0      0
+avc_xperms_node        0      0    392   20    2 : tunables    0    0    0 : slabdata      0      0      0
+avc_node              37     40    408   20    2 : tunables    0    0    0 : slabdata      2      2      0
+iint_cache             0      0    448   36    4 : tunables    0    0    0 : slabdata      0      0      0
+lsm_inode_cache   122284 122340    392   20    2 : tunables    0    0    0 : slabdata   6117   6117      0
+lsm_file_cache      4266   4485    352   23    2 : tunables    0    0    0 : slabdata    195    195      0
+key_jar                8     25    640   25    4 : tunables    0    0    0 : slabdata      1      1      0
+buffer_head       255622 257076    440   37    4 : tunables    0    0    0 : slabdata   6948   6948      0
+uts_namespace          0      0    776   21    4 : tunables    0    0    0 : slabdata      0      0      0
+nsproxy               31     40    408   20    2 : tunables    0    0    0 : slabdata      2      2      0
+vm_area_struct     39115  43214    528   31    4 : tunables    0    0    0 : slabdata   1394   1394      0
+mm_struct             96    529   1408   23    8 : tunables    0    0    0 : slabdata     23     23      0
+fs_cache             102    756    448   36    4 : tunables    0    0    0 : slabdata     21     21      0
+files_cache          102    588   1152   28    8 : tunables    0    0    0 : slabdata     21     21      0
+signal_cache         266    672   1536   21    8 : tunables    0    0    0 : slabdata     32     32      0
+sighand_cache        266    507   2496   13    8 : tunables    0    0    0 : slabdata     39     39      0
+task_struct          783    963  10240    3    8 : tunables    0    0    0 : slabdata    321    321      0
+cred_jar             364    952    576   28    4 : tunables    0    0    0 : slabdata     34     34      0
+anon_vma_chain     63907  67821    416   39    4 : tunables    0    0    0 : slabdata   1739   1739      0
+anon_vma           25891  28899    416   39    4 : tunables    0    0    0 : slabdata    741    741      0
+pid                  408    992    512   32    4 : tunables    0    0    0 : slabdata     31     31      0
+Acpi-Operand        6682   6740    408   20    2 : tunables    0    0    0 : slabdata    337    337      0
+Acpi-ParseExt          0     39    416   39    4 : tunables    0    0    0 : slabdata      1      1      0
+Acpi-Parse             0     80    392   20    2 : tunables    0    0    0 : slabdata      4      4      0
+Acpi-State             0     78    416   39    4 : tunables    0    0    0 : slabdata      2      2      0
+Acpi-Namespace      3911   3948    384   21    2 : tunables    0    0    0 : slabdata    188    188      0
+trace_event_file    2638   2660    424   38    4 : tunables    0    0    0 : slabdata     70     70      0
+ftrace_event_field   6592   6594    384   21    2 : tunables    0    0    0 : slabdata    314    314      0
+pool_workqueue        41     64   1024   32    8 : tunables    0    0    0 : slabdata      2      2      0
+radix_tree_node    21638  24045    912   35    8 : tunables    0    0    0 : slabdata    687    687      0
+task_group            48     78   1216   26    8 : tunables    0    0    0 : slabdata      3      3      0
+vmap_area           4411   4680    400   20    2 : tunables    0    0    0 : slabdata    234    234      0
+dma-kmalloc-8k         0      0  24576    1    8 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-4k         0      0  12288    2    8 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-2k         0      0   6144    5    8 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-1k         0      0   3072   10    8 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-512        0      0   1536   21    8 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-256        0      0   1024   32    8 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-128        0      0    640   25    4 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-64         0      0    512   32    4 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-32         0      0    416   39    4 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-16         0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-8          0      0    344   23    2 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-192        0      0    528   31    4 : tunables    0    0    0 : slabdata      0      0      0
+dma-kmalloc-96         0      0    432   37    4 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-8k         0      0  24576    1    8 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-4k         0      0  12288    2    8 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-2k         0      0   6144    5    8 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-1k         0      0   3072   10    8 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-512        0      0   1536   21    8 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-256        0      0   1024   32    8 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-192        0      0    528   31    4 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-128       31     75    640   25    4 : tunables    0    0    0 : slabdata      3      3      0
+kmalloc-rcl-96      3371   3626    432   37    4 : tunables    0    0    0 : slabdata     98     98      0
+kmalloc-rcl-64      2080   2272    512   32    4 : tunables    0    0    0 : slabdata     71     71      0
+kmalloc-rcl-32         0      0    416   39    4 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-16         0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-rcl-8          0      0    344   23    2 : tunables    0    0    0 : slabdata      0      0      0
+kmalloc-8k           133    140  24576    1    8 : tunables    0    0    0 : slabdata    140    140      0
+kmalloc-4k           403    444  12288    2    8 : tunables    0    0    0 : slabdata    222    222      0
+kmalloc-2k          2391   2585   6144    5    8 : tunables    0    0    0 : slabdata    517    517      0
+kmalloc-1k          2163   2420   3072   10    8 : tunables    0    0    0 : slabdata    242    242      0
+kmalloc-512         2972   3633   1536   21    8 : tunables    0    0    0 : slabdata    173    173      0
+kmalloc-256         1841   1856   1024   32    8 : tunables    0    0    0 : slabdata     58     58      0
+kmalloc-192         2165   2914    528   31    4 : tunables    0    0    0 : slabdata     94     94      0
+kmalloc-128         1137   1175    640   25    4 : tunables    0    0    0 : slabdata     47     47      0
+kmalloc-96          1925   2590    432   37    4 : tunables    0    0    0 : slabdata     70     70      0
+kmalloc-64          9433  10688    512   32    4 : tunables    0    0    0 : slabdata    334    334      0
+kmalloc-32          9098  10062    416   39    4 : tunables    0    0    0 : slabdata    258    258      0
+kmalloc-16         10914  10956    368   22    2 : tunables    0    0    0 : slabdata    498    498      0
+kmalloc-8           7576   7705    344   23    2 : tunables    0    0    0 : slabdata    335    335      0
+kmem_cache_node      904    928    512   32    4 : tunables    0    0    0 : slabdata     29     29      0
+kmem_cache           904    936    832   39    8 : tunables    0    0    0 : slabdata     24     24      0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/proc/stat
 Lines: 16
 cpu  301854 612 111922 8979004 3552 2 3944 0 0 0
@@ -2024,6 +2710,32 @@ Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/proc/sys
 Mode: 775
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/proc/sys/kernel
+Mode: 775
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/proc/sys/kernel/random
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/sys/kernel/random/entropy_avail
+Lines: 1
+3943
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/sys/kernel/random/poolsize
+Lines: 1
+4096
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/sys/kernel/random/urandom_min_reseed_secs
+Lines: 1
+60
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/proc/sys/kernel/random/write_wakeup_threshold
+Lines: 1
+3072
+Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/proc/sys/vm
 Mode: 775
@@ -2526,6 +3238,237 @@ Mode: 664
 Directory: fixtures/sys/block/sda
 Mode: 775
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/block/sda/queue
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/add_random
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/chunk_sectors
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/dax
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/discard_granularity
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/discard_max_bytes
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/discard_max_hw_bytes
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/discard_zeroes_data
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/fua
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/hw_sector_size
+Lines: 1
+512
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/io_poll
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/io_poll_delay
+Lines: 1
+-1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/io_timeout
+Lines: 1
+30000
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/block/sda/queue/iosched
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/back_seek_max
+Lines: 1
+16384
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/back_seek_penalty
+Lines: 1
+2
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/fifo_expire_async
+Lines: 1
+250
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/fifo_expire_sync
+Lines: 1
+125
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/low_latency
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/max_budget
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/slice_idle
+Lines: 1
+8
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/slice_idle_us
+Lines: 1
+8000
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/strict_guarantees
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iosched/timeout_sync
+Lines: 1
+125
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/iostats
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/logical_block_size
+Lines: 1
+512
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/max_discard_segments
+Lines: 1
+1
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/max_hw_sectors_kb
+Lines: 1
+32767
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/max_integrity_segments
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/max_sectors_kb
+Lines: 1
+1280
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/max_segment_size
+Lines: 1
+65536
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/max_segments
+Lines: 1
+168
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/minimum_io_size
+Lines: 1
+512
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/nomerges
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/nr_requests
+Lines: 1
+64
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/nr_zones
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/optimal_io_size
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/physical_block_size
+Lines: 1
+512
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/read_ahead_kb
+Lines: 1
+128
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/rotational
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/rq_affinity
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/scheduler
+Lines: 1
+mq-deadline kyber [bfq] none
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/wbt_lat_usec
+Lines: 1
+75000
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/write_cache
+Lines: 1
+write back
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/write_same_max_bytes
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/write_zeroes_max_bytes
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/block/sda/queue/zoned
+Lines: 1
+none
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/sys/block/sda/stat
 Lines: 1
 9652963   396792 759304206   412943  8422549  6731723 286915323 13947418        0  5658367 19174573 1 2 3 12
@@ -2534,8 +3477,718 @@ Mode: 664
 Directory: fixtures/sys/class
 Mode: 775
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/drm
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/drm/card0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/drm/card0/device
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/aer_dev_correctable
+Lines: 9
+RxErr 0
+BadTLP 0
+BadDLLP 0
+Rollover 0
+Timeout 0
+NonFatalErr 0
+CorrIntErr 0
+HeaderOF 0
+TOTAL_ERR_COR 0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/aer_dev_fatal
+Lines: 19
+Undefined 0
+DLP 0
+SDES 0
+TLP 0
+FCP 0
+CmpltTO 0
+CmpltAbrt 0
+UnxCmplt 0
+RxOF 0
+MalfTLP 0
+ECRC 0
+UnsupReq 0
+ACSViol 0
+UncorrIntErr 0
+BlockedTLP 0
+AtomicOpBlocked 0
+TLPBlockedErr 0
+PoisonTLPBlocked 0
+TOTAL_ERR_FATAL 0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/aer_dev_nonfatal
+Lines: 19
+Undefined 0
+DLP 0
+SDES 0
+TLP 0
+FCP 0
+CmpltTO 0
+CmpltAbrt 0
+UnxCmplt 0
+RxOF 0
+MalfTLP 0
+ECRC 0
+UnsupReq 0
+ACSViol 0
+UncorrIntErr 0
+BlockedTLP 0
+AtomicOpBlocked 0
+TLPBlockedErr 0
+PoisonTLPBlocked 0
+TOTAL_ERR_NONFATAL 0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/ari_enabled
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/boot_vga
+Lines: 1
+1
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/broken_parity_status
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/class
+Lines: 1
+0x030000
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/consistent_dma_mask_bits
+Lines: 1
+44
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/current_link_speed
+Lines: 1
+8.0 GT/s PCIe
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/current_link_width
+Lines: 1
+16
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/d3cold_allowed
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/device
+Lines: 1
+0x687f
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/dma_mask_bits
+Lines: 1
+44
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/driver_override
+Lines: 1
+(null)
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/enable
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/gpu_busy_percent
+Lines: 1
+4
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/irq
+Lines: 1
+95
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/local_cpulist
+Lines: 1
+0-15
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/local_cpus
+Lines: 1
+0000ffff
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/max_link_speed
+Lines: 1
+8.0 GT/s PCIe
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/max_link_width
+Lines: 1
+16
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/mem_info_gtt_total
+Lines: 1
+8573157376
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/mem_info_gtt_used
+Lines: 1
+144560128
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/mem_info_vis_vram_total
+Lines: 1
+8573157376
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/mem_info_vis_vram_used
+Lines: 1
+1490378752
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/mem_info_vram_total
+Lines: 1
+8573157376
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/mem_info_vram_used
+Lines: 1
+1490378752
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/mem_info_vram_vendor
+Lines: 1
+samsung
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/modalias
+Lines: 1
+pci:v00001002d0000687Fsv00001043sd000004C4bc03sc00i00
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/msi_bus
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/numa_node
+Lines: 1
+-1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pcie_bw
+Lines: 1
+6641 815 256
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pcie_replay_count
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/power_dpm_force_performance_level
+Lines: 1
+manual
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/power_dpm_state
+Lines: 1
+performance
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/power_state
+Lines: 1
+D0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_cur_state
+Lines: 1
+1
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_dpm_dcefclk
+Lines: 5
+0: 600Mhz *
+1: 720Mhz 
+2: 800Mhz 
+3: 847Mhz 
+4: 900Mhz 
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_dpm_mclk
+Lines: 4
+0: 167Mhz *
+1: 500Mhz 
+2: 800Mhz 
+3: 945Mhz 
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_dpm_pcie
+Lines: 2
+0: 8.0GT/s, x16 
+1: 8.0GT/s, x16 *
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_dpm_sclk
+Lines: 8
+0: 852Mhz *
+1: 991Mhz 
+2: 1084Mhz 
+3: 1138Mhz 
+4: 1200Mhz 
+5: 1401Mhz 
+6: 1536Mhz 
+7: 1630Mhz 
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_dpm_socclk
+Lines: 8
+0: 600Mhz 
+1: 720Mhz *
+2: 800Mhz 
+3: 847Mhz 
+4: 900Mhz 
+5: 960Mhz 
+6: 1028Mhz 
+7: 1107Mhz 
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_features
+Lines: 32
+Current ppfeatures: 0x0000000019a1ff4f
+FEATURES            BITMASK                ENABLEMENT
+DPM_PREFETCHER      0x0000000000000001      Y
+GFXCLK_DPM          0x0000000000000002      Y
+UCLK_DPM            0x0000000000000004      Y
+SOCCLK_DPM          0x0000000000000008      Y
+UVD_DPM             0x0000000000000010      N
+VCE_DPM             0x0000000000000020      N
+ULV                 0x0000000000000040      Y
+MP0CLK_DPM          0x0000000000000080      N
+LINK_DPM            0x0000000000000100      Y
+DCEFCLK_DPM         0x0000000000000200      Y
+AVFS                0x0000000000000400      Y
+GFXCLK_DS           0x0000000000000800      Y
+SOCCLK_DS           0x0000000000001000      Y
+LCLK_DS             0x0000000000002000      Y
+PPT                 0x0000000000004000      Y
+TDC                 0x0000000000008000      Y
+THERMAL             0x0000000000010000      Y
+GFX_PER_CU_CG       0x0000000000020000      N
+RM                  0x0000000000040000      N
+DCEFCLK_DS          0x0000000000080000      N
+ACDC                0x0000000000100000      N
+VR0HOT              0x0000000000200000      Y
+VR1HOT              0x0000000000400000      N
+FW_CTF              0x0000000000800000      Y
+LED_DISPLAY         0x0000000001000000      Y
+FAN_CONTROL         0x0000000002000000      N
+FAST_PPT            0x0000000004000000      N
+DIDT                0x0000000008000000      Y
+ACG                 0x0000000010000000      Y
+PCC_LIMIT           0x0000000020000000      N
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_force_state
+Lines: 1
+
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_mclk_od
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_num_states
+Lines: 3
+states: 2
+0 boot
+1 performance
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_od_clk_voltage
+Lines: 18
+OD_SCLK:
+0:        852Mhz        800mV
+1:        991Mhz        900mV
+2:       1084Mhz        950mV
+3:       1138Mhz       1000mV
+4:       1200Mhz       1050mV
+5:       1401Mhz       1100mV
+6:       1536Mhz       1150mV
+7:       1630Mhz       1200mV
+OD_MCLK:
+0:        167Mhz        800mV
+1:        500Mhz        800mV
+2:        800Mhz        950mV
+3:        945Mhz       1100mV
+OD_RANGE:
+SCLK:     852MHz       2400MHz
+MCLK:     167MHz       1500MHz
+VDDC:     800mV        1200mV
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_power_profile_mode
+Lines: 8
+NUM        MODE_NAME BUSY_SET_POINT FPS USE_RLC_BUSY MIN_ACTIVE_LEVEL
+  0 BOOTUP_DEFAULT :             70  60          0              0
+  1 3D_FULL_SCREEN*:             70  60          1              3
+  2   POWER_SAVING :             90  60          0              0
+  3          VIDEO :             70  60          0              0
+  4             VR :             70  90          0              0
+  5        COMPUTE :             30  60          0              6
+  6         CUSTOM :              0   0          0              0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/pp_sclk_od
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/product_name
+Lines: 1
+
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/product_number
+Lines: 1
+
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/resource
+Lines: 13
+0x0000007c00000000 0x0000007dffffffff 0x000000000014220c
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000007e00000000 0x0000007e0fffffff 0x000000000014220c
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x000000000000d000 0x000000000000d0ff 0x0000000000040101
+0x00000000fcd00000 0x00000000fcd7ffff 0x0000000000040200
+0x00000000fcd80000 0x00000000fcd9ffff 0x0000000000046200
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+0x0000000000000000 0x0000000000000000 0x0000000000000000
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/revision
+Lines: 1
+0xc1
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/serial_number
+Lines: 1
+
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/subsystem_device
+Lines: 1
+0x04c4
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/subsystem_vendor
+Lines: 1
+0x1043
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/thermal_throttling_logging
+Lines: 1
+0000:09:00.0: thermal throttling logging enabled, with interval 60 seconds
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/uevent
+Lines: 6
+DRIVER=amdgpu
+PCI_CLASS=30000
+PCI_ID=1002:687F
+PCI_SUBSYS_ID=1043:04C4
+PCI_SLOT_NAME=0000:09:00.0
+MODALIAS=pci:v00001002d0000687Fsv00001043sd000004C4bc03sc00i00
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/unique_id
+Lines: 1
+0123456789abcdef
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/vbios_version
+Lines: 1
+115-D050PIL-100
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/drm/card0/device/vendor
+Lines: 1
+0x1002
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/fc_host
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/fc_host/host0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/dev_loss_tmo
+Lines: 1
+30
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/fabric_name
+Lines: 1
+0x0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/node_name
+Lines: 1
+0x2000e0071bce95f2
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/port_id
+Lines: 1
+0x000002
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/port_name
+Lines: 1
+0x1000e0071bce95f2
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/port_state
+Lines: 1
+Online
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/port_type
+Lines: 1
+Point-To-Point (direct nport connection)
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/speed
+Lines: 1
+16 Gbit
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/fc_host/host0/statistics
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/dumped_frames
+Lines: 1
+0xffffffffffffffff
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/error_frames
+Lines: 1
+0x0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/fcp_packet_aborts
+Lines: 1
+0x13
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/invalid_crc_count
+Lines: 1
+0x2
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/invalid_tx_word_count
+Lines: 1
+0x8
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/link_failure_count
+Lines: 1
+0x9
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/loss_of_signal_count
+Lines: 1
+0x11
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/loss_of_sync_count
+Lines: 1
+0x10
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/nos_count
+Lines: 1
+0x12
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/rx_frames
+Lines: 1
+0x3
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/rx_words
+Lines: 1
+0x4
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/seconds_since_last_reset
+Lines: 1
+0x7
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/tx_frames
+Lines: 1
+0x5
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/statistics/tx_words
+Lines: 1
+0x6
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/supported_classes
+Lines: 1
+Class 3
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/supported_speeds
+Lines: 1
+4 Gbit, 8 Gbit, 16 Gbit
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/fc_host/host0/symbolic_name
+Lines: 1
+Emulex SN1100E2P FV12.4.270.3 DV12.4.0.0. HN:gotest. OS:Linux
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/class/infiniband
 Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/infiniband/hfi1_0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/board_id
+Lines: 1
+HPE 100Gb 1-port OP101 QSFP28 x16 PCIe Gen3 with Intel Omni-Path Adapter
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/fw_ver
+Lines: 1
+1.27.0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/infiniband/hfi1_0/ports
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/infiniband/hfi1_0/ports/1
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/VL15_dropped
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/excessive_buffer_overrun_errors
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/link_downed
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/link_error_recovery
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/local_link_integrity_errors
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_rcv_constraint_errors
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_rcv_data
+Lines: 1
+345091702026
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_rcv_errors
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_rcv_packets
+Lines: 1
+638036947
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_rcv_remote_physical_errors
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_rcv_switch_relay_errors
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_xmit_constraint_errors
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_xmit_data
+Lines: 1
+273558326543
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_xmit_discards
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_xmit_packets
+Lines: 1
+568318856
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/port_xmit_wait
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/counters/symbol_error
+Lines: 1
+0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/phys_state
+Lines: 1
+5: LinkUp
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/rate
+Lines: 1
+100 Gb/sec (4X EDR)
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/hfi1_0/ports/1/state
+Lines: 1
+4: ACTIVE
+Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/class/infiniband/mlx4_0
 Mode: 755
@@ -2563,6 +4216,11 @@ Mode: 755
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/class/infiniband/mlx4_0/ports/1/counters
 Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/mlx4_0/ports/1/counters/VL15_dropped
+Lines: 1
+0
+Mode: 664
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/sys/class/infiniband/mlx4_0/ports/1/counters/excessive_buffer_overrun_errors
 Lines: 1
@@ -2664,6 +4322,11 @@ Mode: 755
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/class/infiniband/mlx4_0/ports/2/counters
 Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/infiniband/mlx4_0/ports/2/counters/VL15_dropped
+Lines: 1
+0
+Mode: 664
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/sys/class/infiniband/mlx4_0/ports/2/counters/excessive_buffer_overrun_errors
 Lines: 1
@@ -2895,6 +4558,32 @@ Lines: 1
 1
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/nvme
+Mode: 775
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/nvme/nvme0
+Mode: 775
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/nvme/nvme0/firmware_rev
+Lines: 1
+1B2QEXP7
+Mode: 664
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/nvme/nvme0/model
+Lines: 1
+Samsung SSD 970 PRO 512GB               
+Mode: 664
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/nvme/nvme0/serial
+Lines: 1
+S680HF8N190894I
+Mode: 664
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/nvme/nvme0/state
+Lines: 1
+live
+Mode: 664
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/class/power_supply
 Mode: 755
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -3032,6 +4721,100 @@ Path: fixtures/sys/class/powercap/intel-rapl:0:0/uevent
 Lines: 0
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/powercap/intel-rapl:a
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_0_max_power_uw
+Lines: 1
+95000000
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_0_name
+Lines: 1
+long_term
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_0_power_limit_uw
+Lines: 1
+4090000000
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_0_time_window_us
+Lines: 1
+999424
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_1_max_power_uw
+Lines: 1
+0
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_1_name
+Lines: 1
+short_term
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_1_power_limit_uw
+Lines: 1
+4090000000
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/constraint_1_time_window_us
+Lines: 1
+2440
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/enabled
+Lines: 1
+1
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/energy_uj
+Lines: 1
+240422366267
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/max_energy_range_uj
+Lines: 1
+262143328850
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/name
+Lines: 1
+package-10
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/powercap/intel-rapl:a/uevent
+Lines: 0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/class/scsi_tape
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/nst0
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/nst0a
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/nst0l
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/nst0m
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/st0
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/st0a
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/st0l
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/class/scsi_tape/st0m
+SymlinkTo: ../../devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/class/thermal
 Mode: 775
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -3109,7 +4892,7 @@ Mode: 664
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/sys/class/thermal/thermal_zone1/temp
 Lines: 1
-44000
+-44000
 Mode: 664
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/sys/class/thermal/thermal_zone1/type
@@ -3442,6 +5225,475 @@ Mode: 444
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/devices/pci0000:00
 Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0a/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0l/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/nst0m/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0a/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0l/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/in_flight
+Lines: 1
+1EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/io_ns
+Lines: 1
+9247011087720EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/other_cnt
+Lines: 1
+1409EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/read_byte_cnt
+Lines: 1
+979383912EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/read_cnt
+Lines: 1
+3741EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/read_ns
+Lines: 1
+33788355744EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/resid_cnt
+Lines: 1
+19EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/write_byte_cnt
+Lines: 1
+1496246784000EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/write_cnt
+Lines: 1
+53772916EOF
+Mode: 444
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/pci0000:00/0000:00:00.0/host0/port-0:0/end_device-0:0/target0:0:0/0:0:0:0/scsi_tape/st0m/stats/write_ns
+Lines: 1
+5233597394395EOF
+Mode: 444
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/devices/pci0000:00/0000:00:0d.0
 Mode: 755
@@ -4093,6 +6345,35 @@ Mode: 644
 Directory: fixtures/sys/devices/system/cpu/cpufreq/policy1
 Mode: 755
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/system/node
+Mode: 775
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/system/node/node1
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/system/node/node1/vmstat
+Lines: 6
+nr_free_pages 1
+nr_zone_inactive_anon 2
+nr_zone_active_anon 3
+nr_zone_inactive_file 4
+nr_zone_active_file 5
+nr_zone_unevictable 6
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Directory: fixtures/sys/devices/system/node/node2
+Mode: 755
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/devices/system/node/node2/vmstat
+Lines: 6
+nr_free_pages 7
+nr_zone_inactive_anon 8
+nr_zone_active_anon 9
+nr_zone_inactive_file 10
+nr_zone_active_file 11
+nr_zone_unevictable 12
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Directory: fixtures/sys/fs
 Mode: 755
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4285,6 +6566,17 @@ Mode: 644
 Path: fixtures/sys/fs/bcache/deaddd54-c735-46d5-868e-f331c5fd7c74/bdev0/stats_total/cache_readaheads
 Lines: 1
 0
+Mode: 644
+# ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Path: fixtures/sys/fs/bcache/deaddd54-c735-46d5-868e-f331c5fd7c74/bdev0/writeback_rate_debug
+Lines: 7
+rate:           1.1M/sec
+dirty:          20.4G
+target:         20.4G
+proportional:   427.5k
+integral:       790.0k
+change:         321.5k/sec
+next io:        17ms
 Mode: 644
 # ttar - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Path: fixtures/sys/fs/bcache/deaddd54-c735-46d5-868e-f331c5fd7c74/btree_cache_size

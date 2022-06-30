@@ -62,7 +62,7 @@ github.com/agext/levenshtein
 # github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 ## explicit
 github.com/armon/circbuf
-# github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
+# github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da
 ## explicit
 github.com/armon/go-metrics
 # github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310 => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
@@ -417,11 +417,11 @@ github.com/hashicorp/go-immutable-radix
 # github.com/hashicorp/go-memdb v1.3.2
 ## explicit; go 1.12
 github.com/hashicorp/go-memdb
-# github.com/hashicorp/go-msgpack v0.5.3 => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
+# github.com/hashicorp/go-msgpack v0.5.5
 ## explicit
 github.com/hashicorp/go-msgpack/codec
-# github.com/hashicorp/go-multierror v1.1.1 => github.com/hashicorp/go-multierror v1.0.0
-## explicit
+# github.com/hashicorp/go-multierror v1.1.1
+## explicit; go 1.13
 github.com/hashicorp/go-multierror
 # github.com/hashicorp/go-sockaddr v1.0.2
 ## explicit
@@ -432,7 +432,7 @@ github.com/hashicorp/golang-lru/simplelru
 # github.com/hashicorp/memberlist v0.2.4
 ## explicit; go 1.12
 github.com/hashicorp/memberlist
-# github.com/hashicorp/serf v0.8.2 => github.com/hashicorp/serf v0.7.1-0.20160317193612-598c54895cc5
+# github.com/hashicorp/serf v0.8.5
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
@@ -456,8 +456,8 @@ github.com/klauspost/compress/huff0
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 => github.com/matttproud/golang_protobuf_extensions v1.0.1
-## explicit
+# github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
+## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/miekg/dns v1.1.27
 ## explicit; go 1.12
@@ -709,8 +709,8 @@ github.com/philhofer/fwd
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.12.1 => github.com/prometheus/client_golang v1.6.0
-## explicit; go 1.11
+# github.com/prometheus/client_golang v1.12.1
+## explicit; go 1.13
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
@@ -722,8 +722,8 @@ github.com/prometheus/client_model/go
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.7.3 => github.com/prometheus/procfs v0.0.11
-## explicit; go 1.12
+# github.com/prometheus/procfs v0.7.3
+## explicit; go 1.13
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -775,8 +775,6 @@ github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 ## explicit; go 1.12
 github.com/vishvananda/netns
-# github.com/vmihailenco/msgpack v4.0.4+incompatible
-## explicit
 # go.etcd.io/bbolt v1.3.6
 ## explicit; go 1.12
 go.etcd.io/bbolt
@@ -802,7 +800,7 @@ go.etcd.io/etcd/server/v3/etcdserver/api/snap
 go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
 go.etcd.io/etcd/server/v3/wal
 go.etcd.io/etcd/server/v3/wal/walpb
-# go.opencensus.io v0.23.0 => go.opencensus.io v0.22.3
+# go.opencensus.io v0.23.0
 ## explicit; go 1.13
 go.opencensus.io
 go.opencensus.io/internal
@@ -1114,18 +1112,6 @@ gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
-# labix.org/v2/mgo v0.0.0-20140701140051-000000000287
-## explicit
-# github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20150106224455-eb0af217e5e9
 # github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
-# github.com/coreos/go-systemd => github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7
-# github.com/coreos/pkg => github.com/coreos/pkg v0.0.0-20180108230652-97fdf19511ea
-# github.com/hashicorp/go-msgpack => github.com/hashicorp/go-msgpack v0.0.0-20140221154404-71c2886f5a67
-# github.com/hashicorp/go-multierror => github.com/hashicorp/go-multierror v1.0.0
-# github.com/hashicorp/serf => github.com/hashicorp/serf v0.7.1-0.20160317193612-598c54895cc5
-# github.com/matttproud/golang_protobuf_extensions => github.com/matttproud/golang_protobuf_extensions v1.0.1
-# github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.6.0
-# github.com/prometheus/procfs => github.com/prometheus/procfs v0.0.11
-# go.opencensus.io => go.opencensus.io v0.22.3
-# github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
+# github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
