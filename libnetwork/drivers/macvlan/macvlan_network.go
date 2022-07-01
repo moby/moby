@@ -31,24 +31,6 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	}
 	config.processIPAM(ipV4Data, ipV6Data)
 
-	// verify the macvlan mode from -o macvlan_mode option
-	switch config.MacvlanMode {
-	case "", modeBridge:
-		// default to macvlan bridge mode if -o macvlan_mode is empty
-		config.MacvlanMode = modeBridge
-	case modePrivate:
-		config.MacvlanMode = modePrivate
-	case modePassthru:
-		config.MacvlanMode = modePassthru
-	case modeVepa:
-		config.MacvlanMode = modeVepa
-	default:
-		return fmt.Errorf("requested macvlan mode '%s' is not valid, 'bridge' mode is the macvlan driver default", config.MacvlanMode)
-	}
-	// loopback is not a valid parent link
-	if config.Parent == "lo" {
-		return fmt.Errorf("loopback interface is not a valid %s parent link", macvlanType)
-	}
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
 		config.Parent = getDummyName(stringid.TruncateID(config.ID))
@@ -190,6 +172,23 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 			config.Internal = true
 		}
 	}
+
+	// verify the macvlan mode from -o macvlan_mode option
+	switch config.MacvlanMode {
+	case "":
+		// default to macvlan bridge mode if -o macvlan_mode is empty
+		config.MacvlanMode = modeBridge
+	case modeBridge, modePrivate, modePassthru, modeVepa:
+		// valid option
+	default:
+		return nil, fmt.Errorf("requested macvlan mode '%s' is not valid, 'bridge' mode is the macvlan driver default", config.MacvlanMode)
+	}
+
+	// loopback is not a valid parent link
+	if config.Parent == "lo" {
+		return nil, fmt.Errorf("loopback interface is not a valid macvlan parent link")
+	}
+
 	config.ID = id
 	return config, nil
 }
