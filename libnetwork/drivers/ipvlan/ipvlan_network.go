@@ -40,34 +40,6 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	}
 	config.processIPAM(ipV4Data, ipV6Data)
 
-	// verify the ipvlan mode from -o ipvlan_mode option
-	switch config.IpvlanMode {
-	case "", modeL2:
-		// default to ipvlan L2 mode if -o ipvlan_mode is empty
-		config.IpvlanMode = modeL2
-	case modeL3:
-		config.IpvlanMode = modeL3
-	case modeL3S:
-		config.IpvlanMode = modeL3S
-	default:
-		return fmt.Errorf("requested ipvlan mode '%s' is not valid, 'l2' mode is the ipvlan driver default", config.IpvlanMode)
-	}
-	// verify the ipvlan flag from -o ipvlan_flag option
-	switch config.IpvlanFlag {
-	case "", flagBridge:
-		// default to bridge if -o ipvlan_flag is empty
-		config.IpvlanFlag = flagBridge
-	case flagPrivate:
-		config.IpvlanFlag = flagPrivate
-	case flagVepa:
-		config.IpvlanFlag = flagVepa
-	default:
-		return fmt.Errorf("requested ipvlan flag '%s' is not valid, 'bridge' is the ipvlan driver default", config.IpvlanFlag)
-	}
-	// loopback is not a valid parent link
-	if config.Parent == "lo" {
-		return fmt.Errorf("loopback interface is not a valid %s parent link", ipvlanType)
-	}
 	// if parent interface not specified, create a dummy type link to use named dummy+net_id
 	if config.Parent == "" {
 		config.Parent = getDummyName(stringid.TruncateID(config.ID))
@@ -209,6 +181,34 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 			config.Internal = true
 		}
 	}
+
+	// verify the ipvlan mode from -o ipvlan_mode option
+	switch config.IpvlanMode {
+	case "":
+		// default to ipvlan L2 mode if -o ipvlan_mode is empty
+		config.IpvlanMode = modeL2
+	case modeL2, modeL3, modeL3S:
+		// valid option
+	default:
+		return nil, fmt.Errorf("requested ipvlan mode '%s' is not valid, 'l2' mode is the ipvlan driver default", config.IpvlanMode)
+	}
+
+	// verify the ipvlan flag from -o ipvlan_flag option
+	switch config.IpvlanFlag {
+	case "":
+		// default to bridge if -o ipvlan_flag is empty
+		config.IpvlanFlag = flagBridge
+	case flagBridge, flagPrivate, flagVepa:
+		// valid option
+	default:
+		return nil, fmt.Errorf("requested ipvlan flag '%s' is not valid, 'bridge' is the ipvlan driver default", config.IpvlanFlag)
+	}
+
+	// loopback is not a valid parent link
+	if config.Parent == "lo" {
+		return nil, fmt.Errorf("loopback interface is not a valid ipvlan parent link")
+	}
+
 	config.ID = id
 	return config, nil
 }
