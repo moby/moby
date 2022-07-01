@@ -236,22 +236,16 @@ func (config *configuration) fromOptions(labels map[string]string) error {
 
 // processIPAM parses v4 and v6 IP information and binds it to the network configuration
 func (config *configuration) processIPAM(ipamV4Data, ipamV6Data []driverapi.IPAMData) {
-	if len(ipamV4Data) > 0 {
-		for _, ipd := range ipamV4Data {
-			s := &ipSubnet{
-				SubnetIP: ipd.Pool.String(),
-				GwIP:     ipd.Gateway.String(),
-			}
-			config.Ipv4Subnets = append(config.Ipv4Subnets, s)
-		}
+	for _, ipd := range ipamV4Data {
+		config.Ipv4Subnets = append(config.Ipv4Subnets, &ipSubnet{
+			SubnetIP: ipd.Pool.String(),
+			GwIP:     ipd.Gateway.String(),
+		})
 	}
-	if len(ipamV6Data) > 0 {
-		for _, ipd := range ipamV6Data {
-			s := &ipSubnet{
-				SubnetIP: ipd.Pool.String(),
-				GwIP:     ipd.Gateway.String(),
-			}
-			config.Ipv6Subnets = append(config.Ipv6Subnets, s)
-		}
+	for _, ipd := range ipamV6Data {
+		config.Ipv6Subnets = append(config.Ipv6Subnets, &ipSubnet{
+			SubnetIP: ipd.Pool.String(),
+			GwIP:     ipd.Gateway.String(),
+		})
 	}
 }
