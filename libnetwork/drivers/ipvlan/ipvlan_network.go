@@ -215,24 +215,21 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 
 // parseNetworkGenericOptions parse generic driver docker network options
 func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
-	var (
-		err    error
-		config *configuration
-	)
 	switch opt := data.(type) {
 	case *configuration:
-		config = opt
+		return opt, nil
 	case map[string]string:
 		return newConfigFromLabels(opt), nil
 	case options.Generic:
-		var opaqueConfig interface{}
-		if opaqueConfig, err = options.GenerateFromModel(opt, config); err == nil {
-			config = opaqueConfig.(*configuration)
+		var config *configuration
+		opaqueConfig, err := options.GenerateFromModel(opt, config)
+		if err != nil {
+			return nil, err
 		}
+		return opaqueConfig.(*configuration), nil
 	default:
-		err = types.BadRequestErrorf("unrecognized network configuration format: %v", opt)
+		return nil, types.BadRequestErrorf("unrecognized network configuration format: %v", opt)
 	}
-	return config, err
 }
 
 // newConfigFromLabels creates a new configuration from the given labels.
