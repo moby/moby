@@ -241,7 +241,7 @@ func (config *configuration) fromOptions(labels map[string]string) error {
 func (config *configuration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
 	if len(ipamV4Data) > 0 {
 		for _, ipd := range ipamV4Data {
-			s := &ipv4Subnet{
+			s := &ipSubnet{
 				SubnetIP: ipd.Pool.String(),
 				GwIP:     ipd.Gateway.String(),
 			}
@@ -250,7 +250,7 @@ func (config *configuration) processIPAM(id string, ipamV4Data, ipamV6Data []dri
 	}
 	if len(ipamV6Data) > 0 {
 		for _, ipd := range ipamV6Data {
-			s := &ipv6Subnet{
+			s := &ipSubnet{
 				SubnetIP: ipd.Pool.String(),
 				GwIP:     ipd.Gateway.String(),
 			}
