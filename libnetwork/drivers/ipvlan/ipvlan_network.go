@@ -38,7 +38,6 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	if err != nil {
 		return err
 	}
-	config.ID = nid
 	err = config.processIPAM(nid, ipV4Data, ipV6Data)
 	if err != nil {
 		return err
@@ -212,6 +211,7 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 			config.Internal = true
 		}
 	}
+	config.ID = id
 	return config, nil
 }
 
