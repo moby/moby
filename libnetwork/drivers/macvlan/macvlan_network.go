@@ -78,8 +78,9 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 				return false, err
 			}
 			config.CreatedSlaveLink = true
+
 			// notify the user in logs that they have limited communications
-			logrus.Debugf("Empty -o parent= limit communications to other containers inside of network: %s",
+			logrus.Debugf("Empty -o parent= flags limit communications to other containers inside of network: %s",
 				config.Parent)
 		} else {
 			// if the subinterface parent_iface.vlan_id checks do not pass, return err.

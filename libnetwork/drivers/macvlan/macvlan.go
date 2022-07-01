@@ -17,7 +17,7 @@ const (
 	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
-	macvlanType         = "macvlan"      // driver type name
+	driverName          = "macvlan"      // driver type name
 	modePrivate         = "private"      // macvlan mode private
 	modeVepa            = "vepa"         // macvlan mode vepa
 	modeBridge          = "bridge"       // macvlan mode bridge
@@ -69,7 +69,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		return err
 	}
 
-	return dc.RegisterDriver(macvlanType, d, c)
+	return dc.RegisterDriver(driverName, d, c)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -85,7 +85,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 func (d *driver) Type() string {
-	return macvlanType
+	return driverName
 }
 
 func (d *driver) IsBuiltIn() bool {
