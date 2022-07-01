@@ -203,8 +203,7 @@ func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
 	case *configuration:
 		config = opt
 	case map[string]string:
-		config = &configuration{}
-		err = config.fromOptions(opt)
+		return newConfigFromLabels(opt), nil
 	case options.Generic:
 		var opaqueConfig interface{}
 		if opaqueConfig, err = options.GenerateFromModel(opt, config); err == nil {
@@ -217,8 +216,9 @@ func parseNetworkGenericOptions(data interface{}) (*configuration, error) {
 	return config, err
 }
 
-// fromOptions binds the generic options to networkConfiguration to cache
-func (config *configuration) fromOptions(labels map[string]string) error {
+// newConfigFromLabels creates a new configuration from the given labels.
+func newConfigFromLabels(labels map[string]string) *configuration {
+	config := &configuration{}
 	for label, value := range labels {
 		switch label {
 		case parentOpt:
@@ -230,7 +230,7 @@ func (config *configuration) fromOptions(labels map[string]string) error {
 		}
 	}
 
-	return nil
+	return config
 }
 
 // processIPAM parses v4 and v6 IP information and binds it to the network configuration
