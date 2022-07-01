@@ -29,10 +29,8 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	if err != nil {
 		return err
 	}
-	err = config.processIPAM(nid, ipV4Data, ipV6Data)
-	if err != nil {
-		return err
-	}
+	config.processIPAM(ipV4Data, ipV6Data)
+
 	// verify the macvlan mode from -o macvlan_mode option
 	switch config.MacvlanMode {
 	case "", modeBridge:
@@ -237,7 +235,7 @@ func (config *configuration) fromOptions(labels map[string]string) error {
 }
 
 // processIPAM parses v4 and v6 IP information and binds it to the network configuration
-func (config *configuration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
+func (config *configuration) processIPAM(ipamV4Data, ipamV6Data []driverapi.IPAMData) {
 	if len(ipamV4Data) > 0 {
 		for _, ipd := range ipamV4Data {
 			s := &ipSubnet{
@@ -256,6 +254,4 @@ func (config *configuration) processIPAM(id string, ipamV4Data, ipamV6Data []dri
 			config.Ipv6Subnets = append(config.Ipv6Subnets, s)
 		}
 	}
-
-	return nil
 }
