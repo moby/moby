@@ -18,7 +18,7 @@ const (
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
 
-	ipvlanType    = "ipvlan"      // driver type name
+	driverName    = "ipvlan"      // driver type name
 	parentOpt     = "parent"      // parent interface -o parent
 	driverModeOpt = "ipvlan_mode" // mode -o ipvlan_mode
 	driverFlagOpt = "ipvlan_flag" // flag -o ipvlan_flag
@@ -75,7 +75,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		return err
 	}
 
-	return dc.RegisterDriver(ipvlanType, d, c)
+	return dc.RegisterDriver(driverName, d, c)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -91,7 +91,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 func (d *driver) Type() string {
-	return ipvlanType
+	return driverName
 }
 
 func (d *driver) IsBuiltIn() bool {

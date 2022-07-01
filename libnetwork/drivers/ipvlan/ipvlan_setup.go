@@ -38,7 +38,7 @@ func createIPVlan(containerIfName, parent, ipvlanMode, ipvlanFlag string) (strin
 	// Get the link for the master index (Example: the docker host eth iface)
 	parentLink, err := ns.NlHandle().LinkByName(parent)
 	if err != nil {
-		return "", fmt.Errorf("error occurred looking up the %s parent iface %s error: %s", ipvlanType, parent, err)
+		return "", fmt.Errorf("error occurred looking up the ipvlan parent iface %s error: %s", parent, err)
 	}
 	// Create an ipvlan link
 	ipvlan := &netlink.IPVlan{
@@ -51,7 +51,7 @@ func createIPVlan(containerIfName, parent, ipvlanMode, ipvlanFlag string) (strin
 	}
 	if err := ns.NlHandle().LinkAdd(ipvlan); err != nil {
 		// If a user creates a macvlan and ipvlan on same parent, only one slave iface can be active at a time.
-		return "", fmt.Errorf("failed to create the %s port: %v", ipvlanType, err)
+		return "", fmt.Errorf("failed to create the ipvlan port: %v", err)
 	}
 
 	return ipvlan.Attrs().Name, nil
@@ -190,7 +190,7 @@ func createDummyLink(dummyName, truncNetID string) error {
 	}
 	parentDummyLink, err := ns.NlHandle().LinkByName(dummyName)
 	if err != nil {
-		return fmt.Errorf("error occurred looking up the %s parent iface %s error: %s", ipvlanType, dummyName, err)
+		return fmt.Errorf("error occurred looking up the ipvlan parent iface %s error: %s", dummyName, err)
 	}
 	// bring the new netlink iface up
 	if err := ns.NlHandle().LinkSetUp(parentDummyLink); err != nil {

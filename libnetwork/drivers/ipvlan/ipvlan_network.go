@@ -22,7 +22,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	defer osl.InitOSContext()()
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
-		return fmt.Errorf("Failed to check kernel version for %s driver support: %v", ipvlanType, err)
+		return fmt.Errorf("failed to check kernel version for ipvlan driver support: %v", err)
 	}
 	// ensure Kernel version is >= v4.2 for ipvlan support
 	if kv.Kernel < ipvlanKernelVer || (kv.Kernel == ipvlanKernelVer && kv.Major < ipvlanMajorVer) {
@@ -52,6 +52,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	if foundExisting {
 		return types.InternalMaskableErrorf("restoring existing network %s", config.ID)
 	}
+
 	// update persistent db, rollback on fail
 	err = d.storeUpdate(config)
 	if err != nil {
@@ -87,7 +88,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 			}
 			config.CreatedSlaveLink = true
 
-			// notify the user in logs they have limited communications
+			// notify the user in logs that they have limited communications
 			logrus.Debugf("Empty -o parent= flags limit communications to other containers inside of network: %s",
 				config.Parent)
 		} else {
@@ -115,7 +116,7 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 	return foundExisting, nil
 }
 
-// DeleteNetwork the network for the specified driver type
+// DeleteNetwork deletes the network for the specified driver type
 func (d *driver) DeleteNetwork(nid string) error {
 	defer osl.InitOSContext()()
 	n := d.network(nid)
@@ -164,7 +165,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-// parseNetworkOptions parse docker network options
+// parseNetworkOptions parses docker network options
 func parseNetworkOptions(id string, option options.Generic) (*configuration, error) {
 	var (
 		err    error
