@@ -169,12 +169,13 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	waitForContainerdShutdown, err := cli.initContainerd(ctx)
 	if err != nil {
+		cancel()
 		return err
 	}
 	defer waitForContainerdShutdown()
+	defer cancel()
 
 	stopc := make(chan bool)
 	defer close(stopc)
