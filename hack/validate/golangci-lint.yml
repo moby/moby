@@ -2,12 +2,12 @@ linters:
   enable:
     - deadcode
     - goimports
-    - golint
     - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
+    - revive
     - staticcheck
     - structcheck
     - typecheck
@@ -48,10 +48,6 @@ issues:
     - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
       linters:
         - errcheck
-    # EXC0003
-    - text: "func name will be used as test\\.Test.* by other packages, and that stutters; consider calling this"
-      linters:
-        - golint
     # EXC0006
     - text: "Use of unsafe calls should be audited"
       linters:
@@ -95,7 +91,7 @@ issues:
     - text: "type name will be used as (container|volume)\\.(Container|Volume).* by other packages, and that stutters; consider calling this"
       path: "api/types/(volume|container)/"
       linters:
-        - golint
+        - revive
     # FIXME: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
     - text: "G307: Deferring unsafe method"
       linters:
