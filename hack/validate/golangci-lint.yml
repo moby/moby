@@ -42,7 +42,7 @@ issues:
     # ID's.
     #
     # These exclusion patterns are copied from the default excluses at:
-    # https://github.com/golangci/golangci-lint/blob/v1.44.0/pkg/config/issues.go#L10-L104
+    # https://github.com/golangci/golangci-lint/blob/v1.46.2/pkg/config/issues.go#L10-L104
 
     # EXC0001
     - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
