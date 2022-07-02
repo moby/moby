@@ -3,12 +3,12 @@ linters:
     - deadcode
     - depguard
     - goimports
-    - golint
     - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
+    - revive
     - staticcheck
     - structcheck
     - typecheck
@@ -55,10 +55,6 @@ issues:
     - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
       linters:
         - errcheck
-    # EXC0003
-    - text: "func name will be used as test\\.Test.* by other packages, and that stutters; consider calling this"
-      linters:
-        - golint
     # EXC0006
     - text: "Use of unsafe calls should be audited"
       linters:
@@ -102,7 +98,7 @@ issues:
     - text: "type name will be used as (container|volume)\\.(Container|Volume).* by other packages, and that stutters; consider calling this"
       path: "api/types/(volume|container)/"
       linters:
-        - golint
+        - revive
     # FIXME temporarily suppress these. See #39924
     - text: "SA1019: .*\\.Xattrs has been deprecated since Go 1.10: Use PAXRecords instead"
       linters:
