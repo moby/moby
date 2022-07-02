@@ -26,10 +26,9 @@ RUN /download-frozen-image-v2.sh /build \
 # See also frozenImages in "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
 
 FROM base AS dockercli
-ENV INSTALL_BINARY_NAME=dockercli
 COPY hack/dockerfile/install/install.sh ./install.sh
-COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+COPY hack/dockerfile/install/dockercli.installer ./
+RUN PREFIX=/build ./install.sh dockercli
 
 # TestDockerCLIBuildSuite dependency
 FROM base AS contrib
