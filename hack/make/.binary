@@ -13,27 +13,6 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
 source "${MAKEDIR}/.go-autogen"
 
-hash_files() {
-	while [ $# -gt 0 ]; do
-		f="$1"
-		shift
-		dir="$(dirname "$f")"
-		base="$(basename "$f")"
-		for hashAlgo in md5 sha256; do
-			if command -v "${hashAlgo}sum" &> /dev/null; then
-				(
-					# subshell and cd so that we get output files like:
-					#   $HASH docker-$VERSION
-					# instead of:
-					#   $HASH /go/src/github.com/.../$VERSION/binary/docker-$VERSION
-					cd "$dir"
-					"${hashAlgo}sum" "$base" > "$base.$hashAlgo"
-				)
-			fi
-		done
-	done
-}
-
 (
 	export GOGC=${DOCKER_BUILD_GOGC:-1000}
 
@@ -115,4 +94,3 @@ hash_files() {
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
-hash_files "$DEST/$BINARY_FULLNAME"
