@@ -49,7 +49,7 @@ issues:
     # ID's.
     #
     # These exclusion patterns are copied from the default excluses at:
-    # https://github.com/golangci/golangci-lint/blob/v1.44.0/pkg/config/issues.go#L10-L104
+    # https://github.com/golangci/golangci-lint/blob/v1.46.2/pkg/config/issues.go#L10-L104
 
     # EXC0001
     - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
@@ -104,7 +104,7 @@ issues:
       linters:
         - golint
     # FIXME temporarily suppress these. See #39924
-    - text: "SA1019: .*\\.Xattrs is deprecated: Use PAXRecords instead"
+    - text: "SA1019: .*\\.Xattrs has been deprecated since Go 1.10: Use PAXRecords instead"
       linters:
         - staticcheck
     # FIXME temporarily suppress these. See #39926
