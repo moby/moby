@@ -10,6 +10,6 @@ set -e
 	export BUILDFLAGS=("${BUILDFLAGS[@]/static_build /}") # we're not building a "static" binary here
 
 	GO_PACKAGE='github.com/docker/docker/cmd/docker-proxy'
-	BINARY_SHORT_NAME='docker-proxy'
+	BINARY_NAME='docker-proxy'
 	source "${MAKEDIR}/.binary"
 )

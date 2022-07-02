@@ -8,7 +8,6 @@ binary_extension() {
 	fi
 }
 
-BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
@@ -116,6 +115,4 @@ hash_files() {
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
-ln -sf "$BINARY_FULLNAME" "$DEST/$BINARY_SHORT_NAME$BINARY_EXTENSION"
-
 hash_files "$DEST/$BINARY_FULLNAME"

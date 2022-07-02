@@ -11,6 +11,6 @@ set -e
 	export BUILDFLAGS=("${BUILDFLAGS[@]/static_build /}") # we're not building a "static" binary here
 
 	GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
-	BINARY_SHORT_NAME='dockerd'
+	BINARY_NAME='dockerd'
 	source "${MAKEDIR}/.binary"
 )
