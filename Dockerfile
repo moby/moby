@@ -154,10 +154,19 @@ FROM base AS delve
 # attaching debugger to it.
 #
 ARG DELVE_VERSION=v1.8.1
+# Delve on Linux is currently only supported on amd64 and arm64;
+# https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}" \
-     && /build/dlv --help
+        case $(dpkg --print-architecture) in \
+            amd64|arm64) \
+                GOBIN=/build/ GO111MODULE=on go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}" \
+                && /build/dlv --help \
+                ;; \
+            *) \
+                mkdir -p /build/ \
+                ;; \
+        esac
 
 FROM base AS tomll
 # GOTOML_VERSION specifies the version of the tomll binary to build and install
