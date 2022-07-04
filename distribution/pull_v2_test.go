@@ -3,7 +3,6 @@ package distribution // import "github.com/docker/docker/distribution"
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -210,7 +209,7 @@ func TestFormatPlatform(t *testing.T) {
 		}
 		matches, _ := regexp.MatchString("windows.* [0-9]", result)
 		if !matches {
-			t.Fatal(fmt.Sprintf("expected formatPlatform to show windows platform with a version, but got '%s'", result))
+			t.Fatalf("expected formatPlatform to show windows platform with a version, but got '%s'", result)
 		}
 	}
 }
