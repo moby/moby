@@ -42,8 +42,8 @@ type versionedClient struct {
 // request to ensure that the same version is consistently used, even if the
 // client's configured version is concurrently modified.
 func (cli *Client) versioned(ctx context.Context) (versionedClient, error) {
-	ver := cli.negotiateAPIVersion(ctx, false)
-	return versionedClient{cli: cli, version: ver}, ctx.Err()
+	ver, err := cli.negotiateAPIVersion(ctx, false)
+	return versionedClient{cli: cli, version: ver}, err
 }
 
 // head sends an HTTP HEAD request to the docker API.

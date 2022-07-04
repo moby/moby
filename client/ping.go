@@ -14,6 +14,16 @@ import (
 // a HEAD request on the endpoint, but falls back to GET if HEAD is not supported
 // by the daemon.
 func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
+	ping, _, err := cli.ping(ctx)
+	return ping, err
+}
+
+// ping pings the server and returns a boolean 'ok' value alongside the ping
+// response data and error to signal whether the ping response data is valid.
+// This is necessary to distinguish a ping with valid data in an HTTP 500
+// response from a ping which never reached the daemon as err != nil would be
+// returned in both cases.
+func (cli *Client) ping(ctx context.Context) (types.Ping, bool, error) {
 	// Ping requests are used during API version negotiation, so we want to
 	// hit the non-versioned /_ping endpoint, not /v1.xx/_ping
 	unversioned := versionedClient{cli: cli, version: ""}
@@ -22,7 +32,7 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	switch serverResp.statusCode {
 	case http.StatusOK, http.StatusInternalServerError:
 		// Server handled the request, so parse the response
-		return parsePingResponse(serverResp.header), err
+		return parsePingResponse(serverResp.header), true, err
 	}
 	// We only want to fall back to GET if the daemon is reachable but does
 	// not support HEAD /_ping requests. The client converts status codes
@@ -35,12 +45,18 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	// such cases any returned error must be an error returned by the
 	// daemon.
 	if err != nil && serverResp.statusCode <= 0 {
-		return types.Ping{}, err
+		return types.Ping{}, false, err
 	}
 
 	serverResp, err = unversioned.get(ctx, "/_ping", nil, nil)
 	ensureReaderClosed(serverResp)
-	return parsePingResponse(serverResp.header), err
+	// HTTP 500 (usually) comes from the daemon but middleboxes could
+	// respond with HTTP 502, 503 or 504. Status codes from middleboxes are
+	// a signal that the daemon was not reached.
+	if serverResp.statusCode <= 0 || serverResp.statusCode > http.StatusInternalServerError {
+		return types.Ping{}, false, err
+	}
+	return parsePingResponse(serverResp.header), true, err
 }
 
 func parsePingResponse(header http.Header) types.Ping {

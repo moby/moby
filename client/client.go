@@ -227,25 +227,34 @@ func (cli *Client) ClientVersion() string {
 // added (1.24).
 func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 	if !cli.manualOverride {
-		_ = cli.negotiateAPIVersion(ctx, true /* force renegotiation */)
+		_, _ = cli.negotiateAPIVersion(ctx, true /* force renegotiation */)
 	}
 }
 
-func (cli *Client) negotiateAPIVersion(ctx context.Context, force bool) string {
+func (cli *Client) negotiateAPIVersion(ctx context.Context, force bool) (string, error) {
 	var state versionNegotiation
 	select {
 	case <-ctx.Done():
-		return ""
+		return "", ctx.Err()
 	case state = <-cli.version:
 	}
 
 	if !cli.negotiateVersion || (state.negotiated && !force) {
 		cli.version <- state
-		return state.version
+		return state.version, nil
 	}
 
-	ping, _ := cli.Ping(ctx)
-	return cli.negotiateAPIVersionPing(state, ping)
+	ping, ok, err := cli.ping(ctx)
+	if !ok {
+		// The daemon could not be reached.
+		// Let negotiation be retried on the next request.
+		cli.version <- state
+		return state.version, err
+	}
+	// The daemon was successfully pinged, although the response may have
+	// contained an error body. Regardless, we have all the information
+	// needed to successfully complete negotiation.
+	return cli.negotiateAPIVersionPing(state, ping), nil
 }
 
 // NegotiateAPIVersionPing downgrades the client's API version to match the

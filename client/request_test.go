@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -186,5 +187,179 @@ func TestConcurrentRequests(t *testing.T) {
 	assert.DeepEqual(t, reqs, map[string]int{
 		"HEAD /_ping":     1,
 		"GET /v1.30/info": 3,
+	})
+}
+
+func TestRetryNegotiation(t *testing.T) {
+	type testcase struct {
+		name       string
+		handlePing func() (*http.Response, error)
+	}
+
+	status := func(code int) testcase {
+		return testcase{
+			name: fmt.Sprintf("StatusCode=%d", code),
+			handlePing: func() (*http.Response, error) {
+				return &http.Response{
+					StatusCode: code,
+					Body:       io.NopCloser(strings.NewReader(http.StatusText(code))),
+				}, nil
+			},
+		}
+	}
+
+	for _, tt := range []testcase{
+		status(http.StatusBadGateway),         // HTTP 502
+		status(http.StatusServiceUnavailable), // HTTP 503
+		status(http.StatusGatewayTimeout),     // HTTP 504
+		{
+			name: "RequestError",
+			handlePing: func() (*http.Response, error) {
+				return nil, fmt.Errorf("fake request error")
+			},
+		},
+	} {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			var handler func(*http.Request) (*http.Response, error)
+			client, err := NewClientWithOpts(
+				WithAPIVersionNegotiation(),
+				WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
+					t.Logf("Mock HTTP client: %s %s", r.Method, r.URL)
+					return handler(r)
+				})),
+			)
+			assert.NilError(t, err)
+
+			handler = func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path != "/_ping" {
+					t.Errorf("unexpected request to %s %s", r.Method, r.URL)
+					return nil, fmt.Errorf("unexpected request")
+				}
+				return tt.handlePing()
+			}
+			info, err := client.Info(context.Background())
+			assert.Check(t, is.DeepEqual(types.Info{}, info))
+			assert.Check(t, err != nil)
+
+			// This time allow negotiation to succeed but respond to
+			// the request for daemon info with an error.
+			handler = func(r *http.Request) (*http.Response, error) {
+				switch r.URL.Path {
+				case "/_ping":
+					header := make(http.Header)
+					header.Set("API-Version", "1.30")
+					return &http.Response{
+						StatusCode: http.StatusInternalServerError,
+						Header:     header,
+						Body:       io.NopCloser(strings.NewReader("pong")),
+					}, nil
+				case "/v1.30/info":
+					return &http.Response{
+						StatusCode: http.StatusInternalServerError,
+						Body:       io.NopCloser(strings.NewReader("don't feel like it today")),
+					}, nil
+				}
+				t.Errorf("unexpected request to %s %s", r.Method, r.URL)
+				return nil, fmt.Errorf("unexpected request")
+			}
+			info, err = client.Info(context.Background())
+			assert.Check(t, is.DeepEqual(types.Info{}, info))
+			assert.Check(t, is.ErrorContains(err, "don't feel like it today"))
+
+			// Get info again, successfully this time. No version
+			// negotiation should take place.
+			expectedInfo := types.Info{Name: "fake-info"}
+			infoJSON, err := json.Marshal(&expectedInfo)
+			assert.NilError(t, err)
+			handler = func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path == "/v1.30/info" {
+					header := make(http.Header)
+					header.Set("Content-Type", "application/json")
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     header,
+						Body:       io.NopCloser(bytes.NewReader(infoJSON)),
+					}, nil
+				}
+				t.Errorf("unexpected request to %s %s", r.Method, r.URL)
+				return nil, fmt.Errorf("unexpected request")
+			}
+			info, err = client.Info(context.Background())
+			assert.Check(t, err)
+			assert.Check(t, is.DeepEqual(info, expectedInfo))
+		})
+	}
+
+	t.Run("ContextCanceled", func(t *testing.T) {
+		var handler func(*http.Request) (*http.Response, error)
+		client, err := NewClientWithOpts(
+			WithAPIVersionNegotiation(),
+			WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
+				t.Logf("Mock HTTP client: %s %s", r.Method, r.URL)
+				return handler(r)
+			})),
+		)
+		assert.NilError(t, err)
+
+		// Cancel the context while the ping request is in-flight.
+		ctx, cancel := context.WithCancel(context.Background())
+		handler = func(r *http.Request) (*http.Response, error) {
+			if r.URL.Path != "/_ping" {
+				t.Errorf("unexpected request to %s %s", r.Method, r.URL)
+				return nil, fmt.Errorf("unexpected request")
+			}
+			cancel()
+			return nil, ctx.Err()
+		}
+		info, err := client.Info(ctx)
+		assert.Check(t, is.DeepEqual(types.Info{}, info))
+		assert.Check(t, is.ErrorIs(err, context.Canceled))
+
+		// This time allow negotiation to succeed but cancel the context
+		// while the info request is in-flight.
+		ctx, cancel = context.WithCancel(context.Background())
+		handler = func(r *http.Request) (*http.Response, error) {
+			switch r.URL.Path {
+			case "/_ping":
+				header := make(http.Header)
+				header.Set("API-Version", "1.30")
+				return &http.Response{
+					StatusCode: http.StatusInternalServerError,
+					Header:     header,
+					Body:       io.NopCloser(strings.NewReader("pong")),
+				}, nil
+			case "/v1.30/info":
+				cancel()
+				return nil, ctx.Err()
+			}
+			t.Errorf("unexpected request to %s %s", r.Method, r.URL)
+			return nil, fmt.Errorf("unexpected request")
+		}
+		info, err = client.Info(ctx)
+		assert.Check(t, is.DeepEqual(types.Info{}, info))
+		assert.Check(t, is.ErrorIs(err, context.Canceled))
+
+		// Get info without any context cancelation shenanigans.
+		// No version negotiation should take place.
+		expectedInfo := types.Info{Name: "fake-info"}
+		infoJSON, err := json.Marshal(&expectedInfo)
+		assert.NilError(t, err)
+		handler = func(r *http.Request) (*http.Response, error) {
+			if r.URL.Path == "/v1.30/info" {
+				header := make(http.Header)
+				header.Set("Content-Type", "application/json")
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     header,
+					Body:       io.NopCloser(bytes.NewReader(infoJSON)),
+				}, nil
+			}
+			t.Errorf("unexpected request to %s %s", r.Method, r.URL)
+			return nil, fmt.Errorf("unexpected request")
+		}
+		info, err = client.Info(context.Background())
+		assert.Check(t, err)
+		assert.Check(t, is.DeepEqual(info, expectedInfo))
 	})
 }
