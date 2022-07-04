@@ -356,7 +356,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	if agent && driver == "overlay" {
 		nodeIP, exists := daemon.GetAttachmentStore().GetIPForNetwork(id)
 		if !exists {
-			return nil, fmt.Errorf("Failed to find a load balancer IP to use for network: %v", id)
+			return nil, fmt.Errorf("failed to find a load balancer IP to use for network: %v", id)
 		}
 
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionLBEndpoint(nodeIP))
