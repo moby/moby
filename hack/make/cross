@@ -2,7 +2,7 @@
 set -e
 
 # if we have our linux/amd64 version compiled, let's symlink it in
-if [ -x "${DEST}/../binary-daemon/dockerd-${VERSION}" ]; then
+if [ -x "${DEST}/../binary-daemon/dockerd" ]; then
 	arch=$(go env GOHOSTARCH)
 	mkdir -p "$DEST/linux/${arch}"
 	(
