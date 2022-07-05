@@ -5946,10 +5946,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageResetScratch(c *testing.T) {
 }
 
 func (s *DockerCLIBuildSuite) TestBuildIntermediateTarget(c *testing.T) {
-	//todo: need to be removed after 18.06 release
-	if strings.Contains(testEnv.DaemonInfo.ServerVersion, "18.05.0") {
-		c.Skip(fmt.Sprintf("Bug fixed in 18.06 or higher.Skipping it for %s", testEnv.DaemonInfo.ServerVersion))
-	}
 	dockerfile := `
 		FROM busybox AS build-env
 		CMD ["/dev"]

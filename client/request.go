@@ -141,7 +141,7 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 		}
 
 		if cli.scheme == "https" && strings.Contains(err.Error(), "bad certificate") {
-			return serverResp, errors.Wrap(err, "The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings")
+			return serverResp, errors.Wrap(err, "the server probably has client authentication (--tlsverify) enabled; check your TLS client certification settings")
 		}
 
 		// Don't decorate context sentinel errors; users may be comparing to
@@ -153,7 +153,7 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 		if nErr, ok := err.(*url.Error); ok {
 			if nErr, ok := nErr.Err.(*net.OpError); ok {
 				if os.IsPermission(nErr.Err) {
-					return serverResp, errors.Wrapf(err, "Got permission denied while trying to connect to the Docker daemon socket at %v", cli.host)
+					return serverResp, errors.Wrapf(err, "permission denied while trying to connect to the Docker daemon socket at %v", cli.host)
 				}
 			}
 		}
@@ -180,10 +180,10 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 		if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
 			// Checks if client is running with elevated privileges
 			if f, elevatedErr := os.Open("\\\\.\\PHYSICALDRIVE0"); elevatedErr == nil {
-				err = errors.Wrap(err, "In the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect.")
+				err = errors.Wrap(err, "in the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect")
 			} else {
 				f.Close()
-				err = errors.Wrap(err, "This error may indicate that the docker daemon is not running.")
+				err = errors.Wrap(err, "this error may indicate that the docker daemon is not running")
 			}
 		}
 
