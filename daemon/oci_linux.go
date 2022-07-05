@@ -720,14 +720,14 @@ func sysctlExists(s string) bool {
 // WithCommonOptions sets common docker options
 func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if c.BaseFS == nil && !daemon.usesSnapshotter() {
+		if c.BaseFS == nil && !daemon.UsesSnapshotter() {
 			return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly nil")
 		}
 		linkedEnv, err := daemon.setupLinkedContainers(c)
 		if err != nil {
 			return err
 		}
-		if !daemon.usesSnapshotter() {
+		if !daemon.UsesSnapshotter() {
 			s.Root = &specs.Root{
 				Path:     c.BaseFS.Path(),
 				Readonly: c.HostConfig.ReadonlyRootfs,

@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
@@ -147,8 +148,8 @@ func (daemon *Daemon) Features() *map[string]bool {
 	return &daemon.configStore.Features
 }
 
-// usesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
-func (daemon *Daemon) usesSnapshotter() bool {
+// UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
+func (daemon *Daemon) UsesSnapshotter() bool {
 	if daemon.configStore.Features != nil {
 		if b, ok := daemon.configStore.Features["containerd-snapshotter"]; ok {
 			return b
@@ -1091,7 +1092,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
 	// used above to run migration. They could be initialized in ImageService
 	// if migration is called from daemon/images. layerStore might move as well.
-	d.imageService = images.NewImageService(imgSvcConfig)
+	if d.UsesSnapshotter() {
+		d.imageService = ctrd.NewService(d.containerdCli)
+	} else {
+		d.imageService = images.NewImageService(imgSvcConfig)
+	}
 	logrus.Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
 	logrus.Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
