@@ -234,7 +234,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	routerOptions.api = cli.api
 	routerOptions.cluster = c
 
-	initRouter(routerOptions)
+	initRouter(d, routerOptions)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -291,34 +291,39 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, err
 	}
 	cgroupParent := newCgroupParent(config)
-	bk, err := buildkit.New(buildkit.Opt{
-		SessionManager:      sm,
-		Root:                filepath.Join(config.Root, "buildkit"),
-		Dist:                d.DistributionServices(),
-		NetworkController:   d.NetworkController(),
-		DefaultCgroupParent: cgroupParent,
-		RegistryHosts:       d.RegistryHosts(),
-		BuilderConfig:       config.Builder,
-		Rootless:            d.Rootless(),
-		IdentityMapping:     d.IdentityMapping(),
-		DNSConfig:           config.DNSConfig,
-		ApparmorProfile:     daemon.DefaultApparmorProfile(),
-	})
-	if err != nil {
-		return opts, err
-	}
-
-	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
-	if err != nil {
-		return opts, errors.Wrap(err, "failed to create buildmanager")
-	}
-	return routerOptions{
+	ro := routerOptions{
 		sessionManager: sm,
-		buildBackend:   bb,
-		buildkit:       bk,
 		features:       d.Features(),
 		daemon:         d,
-	}, nil
+	}
+	if !d.UsesSnapshotter() {
+		bk, err := buildkit.New(buildkit.Opt{
+			SessionManager:      sm,
+			Root:                filepath.Join(config.Root, "buildkit"),
+			Dist:                d.DistributionServices(),
+			NetworkController:   d.NetworkController(),
+			DefaultCgroupParent: cgroupParent,
+			RegistryHosts:       d.RegistryHosts(),
+			BuilderConfig:       config.Builder,
+			Rootless:            d.Rootless(),
+			IdentityMapping:     d.IdentityMapping(),
+			DNSConfig:           config.DNSConfig,
+			ApparmorProfile:     daemon.DefaultApparmorProfile(),
+		})
+		if err != nil {
+			return opts, err
+		}
+
+		bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
+		if err != nil {
+			return opts, errors.Wrap(err, "failed to create buildmanager")
+		}
+
+		ro.buildBackend = bb
+		ro.buildkit = bk
+	}
+
+	return ro, nil
 }
 
 func (cli *DaemonCli) reloadConfig() {
@@ -521,7 +526,7 @@ func checkDeprecatedOptions(config *config.Config) error {
 	return nil
 }
 
-func initRouter(opts routerOptions) {
+func initRouter(d *daemon.Daemon, opts routerOptions) {
 	decoder := runconfig.ContainerDecoder{
 		GetSysInfo: func() *sysinfo.SysInfo {
 			return opts.daemon.RawSysInfo()
@@ -548,7 +553,11 @@ func initRouter(opts routerOptions) {
 	}
 
 	grpcBackends := []grpcrouter.Backend{}
-	for _, b := range []interface{}{opts.daemon, opts.buildBackend} {
+	backends := []interface{}{opts.daemon}
+	if !d.UsesSnapshotter() {
+		backends = append(backends, opts.buildBackend)
+	}
+	for _, b := range backends {
 		if b, ok := b.(grpcrouter.Backend); ok {
 			grpcBackends = append(grpcBackends, b)
 		}
