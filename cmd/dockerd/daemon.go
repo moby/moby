@@ -288,34 +288,39 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, err
 	}
 	cgroupParent := newCgroupParent(config)
-	bk, err := buildkit.New(buildkit.Opt{
-		SessionManager:      sm,
-		Root:                filepath.Join(config.Root, "buildkit"),
-		Dist:                d.DistributionServices(),
-		NetworkController:   d.NetworkController(),
-		DefaultCgroupParent: cgroupParent,
-		RegistryHosts:       d.RegistryHosts(),
-		BuilderConfig:       config.Builder,
-		Rootless:            d.Rootless(),
-		IdentityMapping:     d.IdentityMapping(),
-		DNSConfig:           config.DNSConfig,
-		ApparmorProfile:     daemon.DefaultApparmorProfile(),
-	})
-	if err != nil {
-		return opts, err
-	}
-
-	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
-	if err != nil {
-		return opts, errors.Wrap(err, "failed to create buildmanager")
-	}
-	return routerOptions{
+	ro := routerOptions{
 		sessionManager: sm,
-		buildBackend:   bb,
-		buildkit:       bk,
 		features:       d.Features(),
 		daemon:         d,
-	}, nil
+	}
+	if !d.UsesSnapshotter() {
+		bk, err := buildkit.New(buildkit.Opt{
+			SessionManager:      sm,
+			Root:                filepath.Join(config.Root, "buildkit"),
+			Dist:                d.DistributionServices(),
+			NetworkController:   d.NetworkController(),
+			DefaultCgroupParent: cgroupParent,
+			RegistryHosts:       d.RegistryHosts(),
+			BuilderConfig:       config.Builder,
+			Rootless:            d.Rootless(),
+			IdentityMapping:     d.IdentityMapping(),
+			DNSConfig:           config.DNSConfig,
+			ApparmorProfile:     daemon.DefaultApparmorProfile(),
+		})
+		if err != nil {
+			return opts, err
+		}
+
+		bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
+		if err != nil {
+			return opts, errors.Wrap(err, "failed to create buildmanager")
+		}
+
+		ro.buildBackend = bb
+		ro.buildkit = bk
+	}
+
+	return ro, nil
 }
 
 func (cli *DaemonCli) reloadConfig() {
@@ -536,14 +541,8 @@ func initRouter(opts routerOptions) {
 		distributionrouter.NewRouter(opts.daemon.ImageService()),
 	}
 
-	grpcBackends := []grpcrouter.Backend{}
-	for _, b := range []interface{}{opts.daemon, opts.buildBackend} {
-		if b, ok := b.(grpcrouter.Backend); ok {
-			grpcBackends = append(grpcBackends, b)
-		}
-	}
-	if len(grpcBackends) > 0 {
-		routers = append(routers, grpcrouter.NewRouter(grpcBackends...))
+	if opts.buildBackend != nil {
+		routers = append(routers, grpcrouter.NewRouter(opts.buildBackend))
 	}
 
 	if opts.daemon.NetworkControllerEnabled() {
