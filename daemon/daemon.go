@@ -147,6 +147,16 @@ func (daemon *Daemon) Features() *map[string]bool {
 	return &daemon.configStore.Features
 }
 
+// usesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
+func (daemon *Daemon) usesSnapshotter() bool {
+	if daemon.configStore.Features != nil {
+		if b, ok := daemon.configStore.Features["containerd-snapshotter"]; ok {
+			return b
+		}
+	}
+	return false
+}
+
 // RegistryHosts returns registry configuration in containerd resolvers format
 func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	var (
