@@ -1,6 +1,3 @@
-//go:build darwin || freebsd || netbsd || openbsd || solaris
-// +build darwin freebsd netbsd openbsd solaris
-
 /*
    Copyright The containerd Authors.
 
@@ -17,19 +14,23 @@
    limitations under the License.
 */
 
-package driver
+package fs
 
 import (
+	"fmt"
 	"os"
-
-	"golang.org/x/sys/unix"
+	"syscall"
 )
 
-// Lchmod changes the mode of a file not following symlinks.
-func (d *driver) Lchmod(path string, mode os.FileMode) error {
-	err := unix.Fchmodat(unix.AT_FDCWD, path, uint32(mode), unix.AT_SYMLINK_NOFOLLOW)
-	if err != nil {
-		err = &os.PathError{Op: "lchmod", Path: path, Err: err}
+// copyIrregular covers devices, pipes, and sockets
+func copyIrregular(dst string, fi os.FileInfo) error {
+	st, ok := fi.Sys().(*syscall.Stat_t) // not *unix.Stat_t
+	if !ok {
+		return fmt.Errorf("unsupported stat type: %s: %v", dst, fi.Mode())
 	}
-	return err
+	var rDev uint64 // uint64 on FreeBSD, int on other unixen
+	if fi.Mode()&os.ModeDevice == os.ModeDevice {
+		rDev = st.Rdev
+	}
+	return syscall.Mknod(dst, uint32(st.Mode), rDev)
 }
