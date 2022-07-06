@@ -41,6 +41,9 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 		}
 	}
 
+	resolver := newResolverFromAuthConfig(authConfig)
+	opts = append(opts, containerd.WithResolver(resolver))
+
 	_, err = i.client.Pull(ctx, ref.String(), opts...)
 	return err
 }
