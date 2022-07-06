@@ -8,8 +8,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func newResolverFromAuthConfig(authConfig *registrytypes.AuthConfig) remotes.Resolver {
+func newResolverFromAuthConfig(authConfig *registrytypes.AuthConfig) (remotes.Resolver, docker.StatusTracker) {
 	opts := []docker.RegistryOpt{}
+
 	if authConfig != nil {
 		cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
 		if cfgHost == registry.IndexHostname {
@@ -29,7 +30,10 @@ func newResolverFromAuthConfig(authConfig *registrytypes.AuthConfig) remotes.Res
 		opts = append(opts, docker.WithAuthorizer(authorizer))
 	}
 
+	tracker := docker.NewInMemoryTracker()
+
 	return docker.NewResolver(docker.ResolverOptions{
-		Hosts: docker.ConfigureDefaultRegistries(opts...),
-	})
+		Hosts:   docker.ConfigureDefaultRegistries(opts...),
+		Tracker: tracker,
+	}), tracker
 }

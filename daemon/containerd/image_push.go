@@ -34,6 +34,7 @@ func (i *ImageService) PushImage(ctx context.Context, image, tag string, metaHea
 	}
 
 	is := i.client.ImageService()
+	store := i.client.ContentStore()
 
 	img, err := is.Get(ctx, ref.String())
 	if err != nil {
@@ -55,13 +56,29 @@ func (i *ImageService) PushImage(ctx context.Context, image, tag string, metaHea
 		defer i.client.ImageService().Delete(ctx, platformImg.Name, containerdimages.SynchronousDelete())
 	}
 
+	jobs := newJobs()
+
 	imageHandler := containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
 		logrus.WithField("desc", desc).Debug("Pushing")
+		if desc.MediaType != containerdimages.MediaTypeDockerSchema1Manifest {
+			children, err := containerdimages.Children(ctx, store, desc)
+
+			if err == nil {
+				for _, c := range children {
+					jobs.Add(c)
+				}
+			}
+
+			jobs.Add(desc)
+		}
 		return nil, nil
 	})
 	imageHandler = remotes.SkipNonDistributableBlobs(imageHandler)
 
-	resolver := newResolverFromAuthConfig(authConfig)
+	resolver, tracker := newResolverFromAuthConfig(authConfig)
+
+	finishProgress := showProgress(ctx, jobs, outStream, pushProgress(tracker))
+	defer finishProgress()
 
 	logrus.WithField("desc", target).WithField("ref", ref.String()).Info("Pushing desc to remote ref")
 	err = i.client.Push(ctx, ref.String(), target,

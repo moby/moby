@@ -43,7 +43,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 		}
 	}
 
-	resolver := newResolverFromAuthConfig(authConfig)
+	resolver, _ := newResolverFromAuthConfig(authConfig)
 	opts = append(opts, containerd.WithResolver(resolver))
 
 	jobs := newJobs()
@@ -55,11 +55,8 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	})
 	opts = append(opts, containerd.WithImageHandler(h))
 
-	stop := make(chan struct{})
-	go func() {
-		showProgress(ctx, jobs, i.client.ContentStore(), outStream, stop)
-		stop <- struct{}{}
-	}()
+	finishProgress := showProgress(ctx, jobs, outStream, pullProgress(i.client.ContentStore()))
+	defer finishProgress()
 
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
@@ -76,8 +73,6 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 			return err
 		}
 	}
-	stop <- struct{}{}
-	<-stop
 	return err
 }
 

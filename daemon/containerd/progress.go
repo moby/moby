@@ -7,106 +7,169 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
-func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, w io.Writer, stop chan struct{}) {
+type updateProgressFunc func(ctx context.Context, ongoing *jobs, output progress.Output, start time.Time) error
+
+func showProgress(ctx context.Context, ongoing *jobs, w io.Writer, updateFunc updateProgressFunc) func() {
+	stop := make(chan struct{})
+	ctx, cancelProgress := context.WithCancel(ctx)
+
 	var (
 		out    = streamformatter.NewJSONProgressOutput(w, false)
 		ticker = time.NewTicker(100 * time.Millisecond)
 		start  = time.Now()
 		done   bool
 	)
-	defer ticker.Stop()
 
-outer:
-	for {
-		select {
-		case <-ticker.C:
-			if !ongoing.IsResolved() {
-				continue
-			}
+	for _, j := range ongoing.Jobs() {
+		id := stringid.TruncateID(j.Digest.Encoded())
+		progress.Update(out, id, "Preparing")
+	}
 
-			pulling := map[string]content.Status{}
-			if !done {
-				actives, err := cs.ListStatuses(ctx, "")
-				if err != nil {
-					log.G(ctx).WithError(err).Error("status check failed")
+	go func() {
+		defer func() {
+			ticker.Stop()
+			stop <- struct{}{}
+		}()
+
+		for {
+			select {
+			case <-ticker.C:
+				if !ongoing.IsResolved() {
 					continue
 				}
-				// update status of status entries!
-				for _, status := range actives {
-					pulling[status.Ref] = status
-				}
-			}
-
-			// update inactive jobs
-			for _, j := range ongoing.Jobs() {
-				key := remotes.MakeRefKey(ctx, j)
-				if info, ok := pulling[key]; ok {
-					out.WriteProgress(progress.Progress{
-						ID:      stringid.TruncateID(j.Digest.Encoded()),
-						Action:  "Downloading",
-						Current: info.Offset,
-						Total:   info.Total,
-					})
-					continue
-				}
-
-				info, err := cs.Info(ctx, j.Digest)
+				err := updateFunc(ctx, ongoing, out, start)
 				if err != nil {
-					if !errdefs.IsNotFound(err) {
-						log.G(ctx).WithError(err).Error("failed to get content info")
-						continue outer
-					}
-				} else if info.CreatedAt.After(start) {
-					out.WriteProgress(progress.Progress{
-						ID:         stringid.TruncateID(j.Digest.Encoded()),
-						Action:     "Download complete",
-						HideCounts: true,
-						LastUpdate: true,
-					})
-					ongoing.Remove(j)
-				} else {
-					out.WriteProgress(progress.Progress{
-						ID:         stringid.TruncateID(j.Digest.Encoded()),
-						Action:     "Exists",
-						HideCounts: true,
-						LastUpdate: true,
-					})
-					ongoing.Remove(j)
+					logrus.WithError(err).Error("Updating progress failed")
+					return
 				}
+
+				if done {
+					return
+				}
+			case <-ctx.Done():
+				done = true
 			}
-			if done {
-				return
-			}
-		case <-stop:
-			done = true // allow ui to update once more
-		case <-ctx.Done():
-			return
 		}
+	}()
+
+	return func() {
+		cancelProgress()
+		<-stop
 	}
 }
 
-// jobs holds a list of layers being downloaded to pull reference set by name
+func pushProgress(tracker docker.StatusTracker) updateProgressFunc {
+	return func(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
+		for _, j := range ongoing.Jobs() {
+			key := remotes.MakeRefKey(ctx, j)
+			id := stringid.TruncateID(j.Digest.Encoded())
+
+			status, err := tracker.GetStatus(key)
+			if err != nil {
+				if cerrdefs.IsNotFound(err) {
+					progress.Update(out, id, "Waiting")
+					continue
+				} else {
+					return err
+				}
+
+			}
+
+			logrus.WithField("status", status).WithField("id", id).Debug("Status update")
+
+			if status.Committed && status.Offset >= status.Total {
+				progress.Update(out, id, "Pushed")
+				ongoing.Remove(j)
+				continue
+			}
+
+			out.WriteProgress(progress.Progress{
+				ID:      id,
+				Action:  "Pushing",
+				Current: status.Offset,
+				Total:   status.Total,
+			})
+		}
+
+		return nil
+	}
+}
+
+func pullProgress(cs content.Store) updateProgressFunc {
+	return func(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
+		pulling := map[string]content.Status{}
+		actives, err := cs.ListStatuses(ctx, "")
+		if err != nil {
+			log.G(ctx).WithError(err).Error("status check failed")
+			return nil
+		}
+		// update status of status entries!
+		for _, status := range actives {
+			pulling[status.Ref] = status
+		}
+
+		for _, j := range ongoing.Jobs() {
+			key := remotes.MakeRefKey(ctx, j)
+			if info, ok := pulling[key]; ok {
+				out.WriteProgress(progress.Progress{
+					ID:      stringid.TruncateID(j.Digest.Encoded()),
+					Action:  "Downloading",
+					Current: info.Offset,
+					Total:   info.Total,
+				})
+				continue
+			}
+
+			info, err := cs.Info(ctx, j.Digest)
+			if err != nil {
+				if !cerrdefs.IsNotFound(err) {
+					return err
+				}
+			} else if info.CreatedAt.After(start) {
+				out.WriteProgress(progress.Progress{
+					ID:         stringid.TruncateID(j.Digest.Encoded()),
+					Action:     "Download complete",
+					HideCounts: true,
+					LastUpdate: true,
+				})
+				ongoing.Remove(j)
+			} else {
+				out.WriteProgress(progress.Progress{
+					ID:         stringid.TruncateID(j.Digest.Encoded()),
+					Action:     "Exists",
+					HideCounts: true,
+					LastUpdate: true,
+				})
+				ongoing.Remove(j)
+			}
+		}
+		return nil
+	}
+}
+
 type jobs struct {
 	name     string
-	resolved bool // resolved is set to true once remote image metadata has been downloaded from registry
-	descs    map[digest.Digest]v1.Descriptor
+	resolved bool // resolved is set to true once all jobs are added
+	descs    map[digest.Digest]ocispec.Descriptor
 	mu       sync.Mutex
 }
 
 // newJobs creates a new instance of the job status tracker
 func newJobs() *jobs {
 	return &jobs{
-		descs: map[digest.Digest]v1.Descriptor{},
+		descs: map[digest.Digest]ocispec.Descriptor{},
 	}
 }
 
@@ -118,7 +181,7 @@ func (j *jobs) IsResolved() bool {
 }
 
 // Add adds a descriptor to be tracked
-func (j *jobs) Add(desc v1.Descriptor) {
+func (j *jobs) Add(desc ocispec.Descriptor) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -130,7 +193,7 @@ func (j *jobs) Add(desc v1.Descriptor) {
 }
 
 // Remove removes a descriptor
-func (j *jobs) Remove(desc v1.Descriptor) {
+func (j *jobs) Remove(desc ocispec.Descriptor) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -138,11 +201,11 @@ func (j *jobs) Remove(desc v1.Descriptor) {
 }
 
 // Jobs returns a list of all tracked descriptors
-func (j *jobs) Jobs() []v1.Descriptor {
+func (j *jobs) Jobs() []ocispec.Descriptor {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	descs := make([]v1.Descriptor, 0, len(j.descs))
+	descs := make([]ocispec.Descriptor, 0, len(j.descs))
 	for _, d := range j.descs {
 		descs = append(descs, d)
 	}
