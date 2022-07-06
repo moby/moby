@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
@@ -119,6 +120,7 @@ type Image struct {
 
 // Details provides additional image data
 type Details struct {
+	References  []reference.Named
 	Size        int64
 	Metadata    map[string]string
 	Driver      string
@@ -197,6 +199,13 @@ type ChildConfig struct {
 	DiffID          layer.DiffID
 	ContainerConfig *container.Config
 	Config          *container.Config
+}
+
+// NewImage creates a new image with the given ID
+func NewImage(id ID) *Image {
+	return &Image{
+		computedID: id,
+	}
 }
 
 // NewChildImage creates a new Image as a child of this image.
