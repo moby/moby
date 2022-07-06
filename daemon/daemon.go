@@ -201,7 +201,7 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	return resolver.NewRegistryConfig(m)
 }
 
-func (daemon *Daemon) restore() error {
+func (daemon *Daemon) restore(ctx context.Context) error {
 	var mapLock sync.Mutex
 	containers := make(map[string]*container.Container)
 
@@ -522,7 +522,7 @@ func (daemon *Daemon) restore() error {
 			if err := daemon.prepareMountPoints(c); err != nil {
 				log.WithError(err).Error("failed to prepare mount points for container")
 			}
-			if err := daemon.containerStart(c, "", "", true); err != nil {
+			if err := daemon.containerStart(ctx, c, "", "", true); err != nil {
 				log.WithError(err).Error("failed to start container")
 			}
 			close(chNotify)
@@ -613,7 +613,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 						return
 					}
 
-					if err := daemon.containerStart(c, "", "", true); err != nil {
+					if err := daemon.containerStart(ctx, c, "", "", true); err != nil {
 						logrus.WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 					}
 
@@ -777,7 +777,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// initialization
 	defer func() {
 		if err != nil {
-			if err := d.Shutdown(); err != nil {
+			if err := d.Shutdown(ctx); err != nil {
 				logrus.Error(err)
 			}
 		}
@@ -1104,7 +1104,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	if err := d.restore(); err != nil {
+	if err := d.restore(ctx); err != nil {
 		return nil, err
 	}
 	close(d.startupDone)
@@ -1188,14 +1188,14 @@ func (daemon *Daemon) ShutdownTimeout() int {
 }
 
 // Shutdown stops the daemon.
-func (daemon *Daemon) Shutdown() error {
+func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	daemon.shutdown = true
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
 
 	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
-		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+		if ls, err := daemon.Containers(ctx, &types.ContainerListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
 			daemon.cleanupMetricsPlugins()
 			return nil

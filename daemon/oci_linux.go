@@ -1007,7 +1007,7 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, err error) {
+func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (retSpec *specs.Spec, err error) {
 	var (
 		opts []coci.SpecOpts
 		s    = oci.DefaultSpec()

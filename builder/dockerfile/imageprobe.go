@@ -1,6 +1,8 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/sirupsen/logrus"
@@ -19,13 +21,13 @@ type imageProber struct {
 	cacheBusted bool
 }
 
-func newImageProber(cacheBuilder builder.ImageCacheBuilder, cacheFrom []string, noCache bool) ImageProber {
+func newImageProber(ctx context.Context, cacheBuilder builder.ImageCacheBuilder, cacheFrom []string, noCache bool) ImageProber {
 	if noCache {
 		return &nopProber{}
 	}
 
 	reset := func() builder.ImageCache {
-		return cacheBuilder.MakeImageCache(cacheFrom)
+		return cacheBuilder.MakeImageCache(ctx, cacheFrom)
 	}
 	return &imageProber{cache: reset(), reset: reset}
 }
