@@ -1,0 +1,146 @@
+name: Bug report
+description: Create a report to help us improve
+labels:
+  - kind/bug
+  - status/0-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug!
+        If this is a security issue please report it to the [Docker Security team](mailto:security@docker.com).
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please give a clear and concise description of the bug
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduce
+      description: Steps to reproduce the bug
+      placeholder: |
+        1. docker run ...
+        2. docker kill ...
+        3. docker rm ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What is the expected behavior?
+      placeholder: |
+        E.g. "`docker rm` should remove the container and cleanup all associated data"
+  - type: textarea
+    id: version
+    attributes:
+      label: docker version
+      description: Output of `docker version`
+      render: bash
+      placeholder: |
+        Client:
+          Version:           20.10.17
+          API version:       1.41
+          Go version:        go1.17.11
+          Git commit:        100c70180fde3601def79a59cc3e996aa553c9b9
+          Built:             Mon Jun  6 21:36:39 UTC 2022
+          OS/Arch:           linux/amd64
+          Context:           default
+          Experimental:      true
+
+        Server:
+          Engine:
+            Version:          20.10.17
+            API version:      1.41 (minimum version 1.12)
+            Go version:       go1.17.11
+            Git commit:       a89b84221c8560e7a3dee2a653353429e7628424
+            Built:            Mon Jun  6 22:32:38 2022
+            OS/Arch:          linux/amd64
+            Experimental:     true
+          containerd:
+            Version:          1.6.6
+            GitCommit:        10c12954828e7c7c9b6e0ea9b0c02b01407d3ae1
+          runc:
+            Version:          1.1.2
+            GitCommit:        a916309fff0f838eb94e928713dbc3c0d0ac7aa4
+          docker-init:
+            Version:          0.19.0
+            GitCommit:
+    validations:
+      required: true
+  - type: textarea
+    id: info
+    attributes:
+      label: docker info
+      description: Output of `docker info`
+      render: bash
+      placeholder: |
+        Client:
+          Context:    default
+          Debug Mode: false
+          Plugins:
+            buildx: Docker Buildx (Docker Inc., 0.8.2)
+            compose: Docker Compose (Docker Inc., 2.6.0)
+
+        Server:
+          Containers: 4
+            Running: 2
+            Paused: 0
+            Stopped: 2
+          Images: 80
+          Server Version: 20.10.17
+          Storage Driver: overlay2
+            Backing Filesystem: xfs
+            Supports d_type: true
+            Native Overlay Diff: false
+            userxattr: false
+          Logging Driver: local
+          Cgroup Driver: cgroupfs
+          Cgroup Version: 1
+          Plugins:
+            Volume: local
+            Network: bridge host ipvlan macvlan null overlay
+            Log: awslogs fluentd gcplogs gelf journald json-file local logentries splunk syslog
+          Swarm: inactive
+          Runtimes: runc io.containerd.runc.v2 io.containerd.runtime.v1.linux
+          Default Runtime: runc
+          Init Binary: docker-init
+          containerd version: 10c12954828e7c7c9b6e0ea9b0c02b01407d3ae1
+          runc version: a916309fff0f838eb94e928713dbc3c0d0ac7aa4
+          init version: 
+          Security Options:
+            apparmor
+            seccomp
+            Profile: default
+          Kernel Version: 5.13.0-1031-azure
+          Operating System: Ubuntu 20.04.4 LTS
+          OSType: linux
+          Architecture: x86_64
+          CPUs: 4
+          Total Memory: 15.63GiB
+          Name: dev
+          ID: UC44:2RFL:7NQ5:GGFW:34O5:DYRE:CLOH:VLGZ:64AZ:GFXC:PY6H:SAHY
+          Docker Root Dir: /var/lib/docker
+          Debug Mode: true
+            File Descriptors: 46
+            Goroutines: 134
+            System Time: 2022-07-06T18:07:54.812439392Z
+            EventsListeners: 0
+          Registry: https://index.docker.io/v1/
+          Labels:
+          Experimental: true
+          Insecure Registries:
+            127.0.0.0/8
+          Live Restore Enabled: true
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Info
+      description: Additional info you want to provide such as logs, system info, environment, etc.
+    validations:
+      required: false
