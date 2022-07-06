@@ -3,7 +3,10 @@ package containerd
 import (
 	"context"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types"
+	"github.com/opencontainers/image-spec/identity"
 )
 
 // Images returns a filtered list of images.
@@ -13,9 +16,16 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		return nil, err
 	}
 
+	snapshotter := i.client.SnapshotService(containerd.DefaultSnapshotter)
+
 	var ret []*types.ImageSummary
 	for _, img := range imgs {
 		size, err := img.Size(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		virtualSize, err := computeVirtualSize(ctx, img, snapshotter)
 		if err != nil {
 			return nil, err
 		}
@@ -26,7 +36,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			Containers:  -1,
 			ParentID:    "",
 			SharedSize:  -1,
-			VirtualSize: 10,
+			VirtualSize: virtualSize,
 			ID:          img.Target().Digest.String(),
 			Created:     img.Metadata().CreatedAt.Unix(),
 			Size:        size,
@@ -34,4 +44,20 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	}
 
 	return ret, nil
+}
+
+func computeVirtualSize(ctx context.Context, image containerd.Image, snapshotter snapshots.Snapshotter) (int64, error) {
+	var virtualSize int64
+	diffIDs, err := image.RootFS(ctx)
+	if err != nil {
+		return virtualSize, err
+	}
+	for _, chainID := range identity.ChainIDs(diffIDs) {
+		usage, err := snapshotter.Usage(ctx, chainID.String())
+		if err != nil {
+			return virtualSize, err
+		}
+		virtualSize += usage.Size
+	}
+	return virtualSize, nil
 }
