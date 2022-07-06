@@ -61,7 +61,7 @@ type ExecBackend interface {
 	// ContainerAttachRaw attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
 	// ContainerCreateIgnoreImagesArgsEscaped creates a new Docker container and returns potential warnings
-	ContainerCreateIgnoreImagesArgsEscaped(config types.ContainerCreateConfig) (container.CreateResponse, error)
+	ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config types.ContainerCreateConfig) (container.CreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// ContainerKill stops the container execution abruptly.
@@ -81,7 +81,7 @@ type Result struct {
 // ImageCacheBuilder represents a generator for stateful image cache.
 type ImageCacheBuilder interface {
 	// MakeImageCache creates a stateful image cache.
-	MakeImageCache(cacheFrom []string) ImageCache
+	MakeImageCache(ctx context.Context, cacheFrom []string) ImageCache
 }
 
 // ImageCache abstracts an image cache.

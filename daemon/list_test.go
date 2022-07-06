@@ -88,7 +88,7 @@ func TestListInvalidFilter(t *testing.T) {
 
 	f := filters.NewArgs(filters.Arg("invalid", "foo"))
 
-	_, err = d.Containers(&types.ContainerListOptions{
+	_, err = d.Containers(nil, &types.ContainerListOptions{
 		Filters: f,
 	})
 	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
@@ -109,7 +109,7 @@ func TestNameFilter(t *testing.T) {
 
 	// moby/moby #37453 - ^ regex not working due to prefix slash
 	// not being stripped
-	containerList, err := d.Containers(&types.ContainerListOptions{
+	containerList, err := d.Containers(nil, &types.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^a")),
 	})
 	assert.NilError(t, err)
@@ -118,7 +118,7 @@ func TestNameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, two.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err := d.Containers(&types.ContainerListOptions{
+	containerListWithPrefix, err := d.Containers(nil, &types.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^/a")),
 	})
 	assert.NilError(t, err)
@@ -127,7 +127,7 @@ func TestNameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerListWithPrefix, two.Name))
 
 	// Same as above but make sure it works for exact names
-	containerList, err = d.Containers(&types.ContainerListOptions{
+	containerList, err = d.Containers(nil, &types.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "b1")),
 	})
 	assert.NilError(t, err)
@@ -135,7 +135,7 @@ func TestNameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, three.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err = d.Containers(&types.ContainerListOptions{
+	containerListWithPrefix, err = d.Containers(nil, &types.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "/b1")),
 	})
 	assert.NilError(t, err)

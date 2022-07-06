@@ -1,13 +1,15 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
+
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image/cache"
 	"github.com/sirupsen/logrus"
 )
 
 // MakeImageCache creates a stateful image cache.
-func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
+func (i *ImageService) MakeImageCache(ctx context.Context, sourceRefs []string) builder.ImageCache {
 	if len(sourceRefs) == 0 {
 		return cache.NewLocal(i.imageStore)
 	}
@@ -15,7 +17,7 @@ func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
 	cache := cache.New(i.imageStore)
 
 	for _, ref := range sourceRefs {
-		img, err := i.GetImage(ref, nil)
+		img, err := i.GetImage(ctx, ref, nil)
 		if err != nil {
 			logrus.Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
 			continue

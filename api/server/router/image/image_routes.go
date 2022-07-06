@@ -76,7 +76,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		progressErr = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
-		progressErr = s.backend.ImportImage(src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
+		progressErr = s.backend.ImportImage(ctx, src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
 	}
 	if progressErr != nil {
 		if !output.Flushed() {
@@ -204,7 +204,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	image, err := s.backend.GetImage(vars["name"], nil)
+	image, err := s.backend.GetImage(ctx, vars["name"], nil)
 	if err != nil {
 		return err
 	}

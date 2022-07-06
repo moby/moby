@@ -26,7 +26,7 @@ const (
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
-	img, err := daemon.imageService.GetImage(string(c.ImageID), nil)
+	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), nil)
 	if err != nil {
 		return nil, err
 	}

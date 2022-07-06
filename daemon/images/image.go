@@ -148,7 +148,7 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
 	defer func() {
 		if retErr != nil || retImg == nil || platform == nil {
 			return

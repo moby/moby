@@ -167,7 +167,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		return nil, err
 	}
 
-	img, err := i.GetImage(name, platform)
+	img, err := i.GetImage(nil, name, platform)
 	if errdefs.IsNotFound(err) && img != nil && platform != nil {
 		imgPlat := specs.Platform{
 			OS:           img.OS,
@@ -211,7 +211,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		image, err := i.GetImage(refOrID, opts.Platform)
+		image, err := i.GetImage(nil, refOrID, opts.Platform)
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
