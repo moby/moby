@@ -1,4 +1,5 @@
-// +build linux darwin freebsd solaris
+//go:build !windows
+// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -56,7 +57,7 @@ func Mknod(p string, mode os.FileMode, maj, min int) error {
 		m |= unix.S_IFIFO
 	}
 
-	return unix.Mknod(p, m, int(dev))
+	return mknod(p, m, dev)
 }
 
 // syscallMode returns the syscall-specific mode bits from Go's portable mode bits.

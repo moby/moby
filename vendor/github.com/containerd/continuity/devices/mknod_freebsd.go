@@ -1,5 +1,5 @@
-//go:build darwin || freebsd || netbsd || openbsd || solaris
-// +build darwin freebsd netbsd openbsd solaris
+//go:build freebsd
+// +build freebsd
 
 /*
    Copyright The containerd Authors.
@@ -17,19 +17,10 @@
    limitations under the License.
 */
 
-package driver
+package devices
 
-import (
-	"os"
+import "golang.org/x/sys/unix"
 
-	"golang.org/x/sys/unix"
-)
-
-// Lchmod changes the mode of a file not following symlinks.
-func (d *driver) Lchmod(path string, mode os.FileMode) error {
-	err := unix.Fchmodat(unix.AT_FDCWD, path, uint32(mode), unix.AT_SYMLINK_NOFOLLOW)
-	if err != nil {
-		err = &os.PathError{Op: "lchmod", Path: path, Err: err}
-	}
-	return err
+func mknod(path string, mode uint32, dev uint64) (err error) {
+	return unix.Mknod(path, mode, dev)
 }

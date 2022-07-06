@@ -1,4 +1,5 @@
-// +build linux openbsd
+//go:build !(windows || linux)
+// +build !windows,!linux
 
 /*
    Copyright The containerd Authors.
@@ -20,26 +21,13 @@ package fs
 
 import (
 	"syscall"
-	"time"
+
+	"golang.org/x/sys/unix"
 )
 
-// StatAtime returns the Atim
-func StatAtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Atim
-}
-
-// StatCtime returns the Ctim
-func StatCtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Ctim
-}
-
-// StatMtime returns the Mtim
-func StatMtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Mtim
-}
-
-// StatATimeAsTime returns st.Atim as a time.Time
-func StatATimeAsTime(st *syscall.Stat_t) time.Time {
-	// The int64 conversions ensure the line compiles for 32-bit systems as well.
-	return time.Unix(int64(st.Atim.Sec), int64(st.Atim.Nsec)) // nolint: unconvert
+func utimesNano(name string, atime, mtime syscall.Timespec) error {
+	at := unix.NsecToTimespec(atime.Nano())
+	mt := unix.NsecToTimespec(mtime.Nano())
+	utimes := [2]unix.Timespec{at, mt}
+	return unix.UtimesNanoAt(unix.AT_FDCWD, name, utimes[0:], unix.AT_SYMLINK_NOFOLLOW)
 }

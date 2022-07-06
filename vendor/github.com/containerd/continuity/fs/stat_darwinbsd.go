@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build darwin || freebsd || netbsd
+// +build darwin freebsd netbsd
 
 /*
    Copyright The containerd Authors.
@@ -20,15 +20,26 @@
 package fs
 
 import (
-	"os"
 	"syscall"
+	"time"
 )
 
-func getLinkInfo(fi os.FileInfo) (uint64, bool) {
-	s, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, false
-	}
+// StatAtime returns the access time from a stat struct
+func StatAtime(st *syscall.Stat_t) syscall.Timespec {
+	return st.Atimespec
+}
 
-	return uint64(s.Ino), !fi.IsDir() && s.Nlink > 1 //nolint: unconvert // ino is uint32 on bsd, uint64 on darwin/linux/solaris
+// StatCtime returns the created time from a stat struct
+func StatCtime(st *syscall.Stat_t) syscall.Timespec {
+	return st.Ctimespec
+}
+
+// StatMtime returns the modified time from a stat struct
+func StatMtime(st *syscall.Stat_t) syscall.Timespec {
+	return st.Mtimespec
+}
+
+// StatATimeAsTime returns the access time as a time.Time
+func StatATimeAsTime(st *syscall.Stat_t) time.Time {
+	return time.Unix(st.Atimespec.Unix())
 }

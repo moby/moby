@@ -1,4 +1,5 @@
-// +build darwin freebsd
+//go:build linux || openbsd || solaris
+// +build linux openbsd solaris
 
 /*
    Copyright The containerd Authors.
@@ -23,22 +24,22 @@ import (
 	"time"
 )
 
-// StatAtime returns the access time from a stat struct
+// StatAtime returns the Atim
 func StatAtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Atimespec
+	return st.Atim
 }
 
-// StatCtime returns the created time from a stat struct
+// StatCtime returns the Ctim
 func StatCtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Ctimespec
+	return st.Ctim
 }
 
-// StatMtime returns the modified time from a stat struct
+// StatMtime returns the Mtim
 func StatMtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Mtimespec
+	return st.Mtim
 }
 
-// StatATimeAsTime returns the access time as a time.Time
+// StatATimeAsTime returns st.Atim as a time.Time
 func StatATimeAsTime(st *syscall.Stat_t) time.Time {
-	return time.Unix(int64(st.Atimespec.Sec), int64(st.Atimespec.Nsec)) // nolint: unconvert
+	return time.Unix(st.Atim.Unix())
 }
