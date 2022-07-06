@@ -253,7 +253,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	// notify systemd that we're shutting down
 	notifyStopping()
-	shutdownDaemon(d)
+	shutdownDaemon(ctx, d)
 
 	// Stop notification processing and any background processes
 	cancel()
@@ -361,11 +361,11 @@ func (cli *DaemonCli) stop() {
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
 // d.Shutdown() is waiting too long to kill container or worst it's
 // blocked there
-func shutdownDaemon(d *daemon.Daemon) {
+func shutdownDaemon(ctx context.Context, d *daemon.Daemon) {
 	shutdownTimeout := d.ShutdownTimeout()
 	ch := make(chan struct{})
 	go func() {
-		d.Shutdown()
+		d.Shutdown(ctx)
 		close(ch)
 	}()
 	if shutdownTimeout < 0 {

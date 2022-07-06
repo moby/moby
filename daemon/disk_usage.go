@@ -14,7 +14,8 @@ import (
 func (daemon *Daemon) ContainerDiskUsage(ctx context.Context) ([]*types.Container, error) {
 	ch := daemon.usage.DoChan("ContainerDiskUsage", func() (interface{}, error) {
 		// Retrieve container list
-		containers, err := daemon.Containers(&types.ContainerListOptions{
+		// FIXME(thaJeztah): should this use the existing context?
+		containers, err := daemon.Containers(context.TODO(), &types.ContainerListOptions{
 			Size: true,
 			All:  true,
 		})

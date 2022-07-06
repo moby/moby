@@ -14,7 +14,7 @@ import (
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
+func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
 	if checkpoint != "" && !daemon.HasExperimental() {
 		return errdefs.InvalidParameter(errors.New("checkpoint is only supported in experimental mode"))
 	}
@@ -91,14 +91,14 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 			return errdefs.InvalidParameter(err)
 		}
 	}
-	return daemon.containerStart(ctr, checkpoint, checkpointDir, true)
+	return daemon.containerStart(ctx, ctr, checkpoint, checkpointDir, true)
 }
 
 // containerStart prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (err error) {
+func (daemon *Daemon) containerStart(ctx context.Context, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (err error) {
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
@@ -150,7 +150,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return err
 	}
 
-	spec, err := daemon.createSpec(container)
+	spec, err := daemon.createSpec(ctx, container)
 	if err != nil {
 		return errdefs.System(err)
 	}
@@ -176,15 +176,13 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return err
 	}
 
-	ctx := context.TODO()
-
 	err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions)
 	if err != nil {
 		if errdefs.IsConflict(err) {
 			logrus.WithError(err).WithField("container", container.ID).Error("Container not cleaned up from containerd from previous run")
 			// best effort to clean up old container object
-			daemon.containerd.DeleteTask(ctx, container.ID)
-			if err := daemon.containerd.Delete(ctx, container.ID); err != nil && !errdefs.IsNotFound(err) {
+			daemon.containerd.DeleteTask(context.Background(), container.ID)
+			if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil && !errdefs.IsNotFound(err) {
 				logrus.WithError(err).WithField("container", container.ID).Error("Error cleaning up stale containerd container object")
 			}
 			err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions)
@@ -195,11 +193,11 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 
 	// TODO(mlaventure): we need to specify checkpoint options here
-	pid, err := daemon.containerd.Start(context.Background(), container.ID, checkpointDir,
+	pid, err := daemon.containerd.Start(ctx, container.ID, checkpointDir,
 		container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
-		if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {
+		if err := daemon.containerd.Delete(ctx, container.ID); err != nil {
 			logrus.WithError(err).WithField("container", container.ID).
 				Error("failed to delete failed start container")
 		}

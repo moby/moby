@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -62,7 +63,7 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	img, err := i.GetImage(imageRef, nil)
+	img, err := i.GetImage(context.TODO(), imageRef, nil)
 	if err != nil {
 		return nil, err
 	}

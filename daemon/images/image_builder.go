@@ -167,7 +167,8 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		return nil, err
 	}
 
-	img, err := i.GetImage(name, platform)
+	// FIXME(thaJeztah): should this use the same context?
+	img, err := i.GetImage(context.TODO(), name, platform)
 	if errdefs.IsNotFound(err) && img != nil && platform != nil {
 		imgPlat := specs.Platform{
 			OS:           img.OS,
@@ -206,34 +207,35 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		if !system.IsOSSupported(os) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}
-		layer, err := newROLayerForImage(nil, i.layerStore)
-		return nil, layer, err
+		lyr, err := newROLayerForImage(nil, i.layerStore)
+		return nil, lyr, err
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		image, err := i.GetImage(refOrID, opts.Platform)
+		// FIXME(thaJeztah): should this use the existing context?
+		img, err := i.GetImage(context.TODO(), refOrID, opts.Platform)
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
 		// TODO: shouldn't we error out if error is different from "not found" ?
-		if image != nil {
-			if !system.IsOSSupported(image.OperatingSystem()) {
+		if img != nil {
+			if !system.IsOSSupported(img.OperatingSystem()) {
 				return nil, nil, system.ErrNotSupportedOperatingSystem
 			}
-			layer, err := newROLayerForImage(image, i.layerStore)
-			return image, layer, err
+			lyr, err := newROLayerForImage(img, i.layerStore)
+			return img, lyr, err
 		}
 	}
 
-	image, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
+	img, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
 	if err != nil {
 		return nil, nil, err
 	}
-	if !system.IsOSSupported(image.OperatingSystem()) {
+	if !system.IsOSSupported(img.OperatingSystem()) {
 		return nil, nil, system.ErrNotSupportedOperatingSystem
 	}
-	layer, err := newROLayerForImage(image, i.layerStore)
-	return image, layer, err
+	lyr, err := newROLayerForImage(img, i.layerStore)
+	return img, lyr, err
 }
 
 // CreateImage creates a new image by adding a config and ID to the image store.

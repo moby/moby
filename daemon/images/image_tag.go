@@ -1,6 +1,8 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
+
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 )
@@ -8,7 +10,7 @@ import (
 // TagImage creates the tag specified by newTag, pointing to the image named
 // imageName (alternatively, imageName can also be an image ID).
 func (i *ImageService) TagImage(imageName, repository, tag string) (string, error) {
-	img, err := i.GetImage(imageName, nil)
+	img, err := i.GetImage(context.TODO(), imageName, nil)
 	if err != nil {
 		return "", err
 	}

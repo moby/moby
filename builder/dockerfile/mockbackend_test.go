@@ -28,7 +28,7 @@ func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout
 	return nil
 }
 
-func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(config types.ContainerCreateConfig) (container.CreateResponse, error) {
+func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config types.ContainerCreateConfig) (container.CreateResponse, error) {
 	if m.containerCreateFunc != nil {
 		return m.containerCreateFunc(config)
 	}
@@ -50,7 +50,7 @@ func (m *MockBackend) ContainerKill(containerID string, sig string) error {
 	return nil
 }
 
-func (m *MockBackend) ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error {
+func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error {
 	return nil
 }
 
@@ -74,7 +74,7 @@ func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 	return &mockImage{id: "theid"}, &mockLayer{}, nil
 }
 
-func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
+func (m *MockBackend) MakeImageCache(ctx context.Context, cacheFrom []string) builder.ImageCache {
 	if m.makeImageCacheFunc != nil {
 		return m.makeImageCacheFunc(cacheFrom)
 	}

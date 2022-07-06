@@ -28,8 +28,8 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 }
 
 // Create a container
-func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.CreateResponse, error) {
-	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(types.ContainerCreateConfig{
+func (c *containerManager) Create(ctx context.Context, runConfig *container.Config, hostConfig *container.HostConfig) (container.CreateResponse, error) {
+	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(ctx, types.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,
 	})
@@ -69,7 +69,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		}
 	}()
 
-	if err := c.backend.ContainerStart(cID, nil, "", ""); err != nil {
+	if err := c.backend.ContainerStart(ctx, cID, nil, "", ""); err != nil {
 		close(finished)
 		logCancellationError(cancelErrCh, "error from ContainerStart: "+err.Error())
 		return err
