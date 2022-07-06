@@ -10,8 +10,7 @@ import (
 )
 
 // MakeImageCache creates a stateful image cache.
-func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
-	ctx := context.TODO()
+func (i *ImageService) MakeImageCache(ctx context.Context, sourceRefs []string) builder.ImageCache {
 	if len(sourceRefs) == 0 {
 		return cache.NewLocal(i.imageStore)
 	}

@@ -26,8 +26,7 @@ const (
 	credentialSpecFileLocation     = "CredentialSpecs"
 )
 
-func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
-	ctx := context.TODO()
+func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (*specs.Spec, error) {
 	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
 	if err != nil {
 		return nil, err

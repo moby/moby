@@ -111,7 +111,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				// But containerStart will use daemon.netController segment.
 				// So to avoid panic at startup process, here must wait util daemon restore done.
 				daemon.waitForStartupDone()
-				if err = daemon.containerStart(c, "", "", false); err != nil {
+				if err = daemon.containerStart(context.Background(), c, "", "", false); err != nil {
 					logrus.Debugf("failed to restart container: %+v", err)
 				}
 			}
