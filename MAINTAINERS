@@ -61,6 +61,7 @@
 		people = [
 			"alexellis",
 			"andrewhsu",
+			"bsousaa",
 			"corhere",
 			"fntlnz",
 			"gianarb",
@@ -71,7 +72,8 @@
 			"ripcurld",
 			"rumpl",
 			"samwhited",
-			"thajeztah"
+			"thajeztah",
+			"vvoland"
 		]
 
 	[Org.Alumni]
@@ -306,6 +308,11 @@
 	Name = "Anusha Ragunathan"
 	Email = "anusha@docker.com"
 	GitHub = "anusha-ragunathan"
+	
+	[people.bsousaa]
+	Name = "Bruno de Sousa"
+	Email = "bruno.sousa@docker.com"
+	GitHub = "bsousaa"
 
 	[people.calavera]
 	Name = "David Calavera"
@@ -536,6 +543,11 @@
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
+	
+	[people.vvoland]
+	Name = "Paweł Gronowski"
+	Email = "pawel.gronowski@docker.com"
+	GitHub = "vvoland"
 
 	[people.yongtang]
 	Name = "Yong Tang"
