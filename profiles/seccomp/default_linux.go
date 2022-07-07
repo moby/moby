@@ -731,6 +731,7 @@ func DefaultProfile() *Seccomp {
 					"settimeofday",
 					"stime",
 					"clock_settime",
+					"clock_settime64",
 				},
 				Action: specs.ActAllow,
 			},

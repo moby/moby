@@ -743,7 +743,8 @@
 			"names": [
 				"settimeofday",
 				"stime",
-				"clock_settime"
+				"clock_settime",
+				"clock_settime64"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {
