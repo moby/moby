@@ -50,10 +50,7 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 
 	containerID, err := daemon.containersReplica.GetByPrefix(prefixOrName)
 	if err != nil {
-		if errdefs.IsNotFound(err) {
-			return nil, err
-		}
-		return nil, errdefs.System(err)
+		return nil, err
 	}
 	return daemon.containers.Get(containerID), nil
 }

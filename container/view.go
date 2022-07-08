@@ -30,21 +30,6 @@ var (
 	ErrNameNotReserved = errors.New("name is not reserved")
 )
 
-var (
-	// ErrEmptyPrefix is an error returned if the prefix was empty.
-	ErrEmptyPrefix = errors.New("Prefix can't be empty")
-)
-
-// ErrAmbiguousPrefix is returned if the prefix was ambiguous
-// (multiple ids for the prefix).
-type ErrAmbiguousPrefix struct {
-	prefix string
-}
-
-func (e ErrAmbiguousPrefix) Error() string {
-	return fmt.Sprintf("Multiple IDs found with provided prefix: %s", e.prefix)
-}
-
 // Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
 // versioned ACID in-memory store.
 type Snapshot struct {
@@ -124,12 +109,12 @@ func NewViewDB() (*ViewDB, error) {
 // error if an empty prefix was given or if multiple containers match the prefix.
 func (db *ViewDB) GetByPrefix(s string) (string, error) {
 	if s == "" {
-		return "", ErrEmptyPrefix
+		return "", errdefs.InvalidParameter(errors.New("prefix can't be empty"))
 	}
 	txn := db.store.Txn(false)
 	iter, err := txn.Get(memdbContainersTable, memdbIDIndexPrefix, s)
 	if err != nil {
-		return "", err
+		return "", errdefs.System(err)
 	}
 
 	var (
@@ -142,7 +127,7 @@ func (db *ViewDB) GetByPrefix(s string) (string, error) {
 			break
 		}
 		if id != "" {
-			return "", ErrAmbiguousPrefix{prefix: s}
+			return "", errdefs.InvalidParameter(errors.New("multiple IDs found with provided prefix: " + s))
 		}
 		id = item.(*Container).ID
 	}
