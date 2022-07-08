@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	dclient "github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
@@ -180,7 +180,7 @@ func getExistingPlugins(t testing.TB, testEnv *Execution) []string {
 	client := testEnv.APIClient()
 	pluginList, err := client.PluginList(context.Background(), filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
-	if dclient.IsErrNotImplemented(err) {
+	if errdefs.IsNotImplemented(err) {
 		return []string{}
 	}
 	assert.NilError(t, err, "failed to list plugins")
