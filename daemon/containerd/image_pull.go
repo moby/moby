@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
@@ -41,7 +42,38 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 		}
 	}
 
-	_, err = i.client.Pull(ctx, ref.String(), opts...)
+	jobs := newJobs()
+	h := images.HandlerFunc(func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+		if desc.MediaType != images.MediaTypeDockerSchema1Manifest {
+			jobs.Add(desc)
+		}
+		return nil, nil
+	})
+	opts = append(opts, containerd.WithImageHandler(h))
+
+	stop := make(chan struct{})
+	go func() {
+		showProgress(ctx, jobs, i.client.ContentStore(), outStream, stop)
+		stop <- struct{}{}
+	}()
+
+	img, err := i.client.Pull(ctx, ref.String(), opts...)
+	if err != nil {
+		return err
+	}
+
+	unpacked, err := img.IsUnpacked(ctx, containerd.DefaultSnapshotter)
+	if err != nil {
+		return err
+	}
+
+	if !unpacked {
+		if err := img.Unpack(ctx, containerd.DefaultSnapshotter); err != nil {
+			return err
+		}
+	}
+	stop <- struct{}{}
+	<-stop
 	return err
 }
 
