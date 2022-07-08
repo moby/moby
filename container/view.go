@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -452,6 +453,9 @@ func (v *View) transform(container *Container) *Snapshot {
 // memdb.StringFieldIndex can not be used since ID is a field from an embedded struct.
 type containerByIDIndexer struct{}
 
+// terminator is the null character, used as a terminator.
+const terminator = "\x00"
+
 // FromObject implements the memdb.SingleIndexer interface for Container objects
 func (e *containerByIDIndexer) FromObject(obj interface{}) (bool, []byte, error) {
 	c, ok := obj.(*Container)
@@ -459,8 +463,7 @@ func (e *containerByIDIndexer) FromObject(obj interface{}) (bool, []byte, error)
 		return false, nil, fmt.Errorf("%T is not a Container", obj)
 	}
 	// Add the null character as a terminator
-	v := c.ID + "\x00"
-	return true, []byte(v), nil
+	return true, []byte(c.ID + terminator), nil
 }
 
 // FromArgs implements the memdb.Indexer interface
@@ -473,8 +476,7 @@ func (e *containerByIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
 	}
 	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+	return []byte(arg + terminator), nil
 }
 
 func (e *containerByIDIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
@@ -484,11 +486,7 @@ func (e *containerByIDIndexer) PrefixFromArgs(args ...interface{}) ([]byte, erro
 	}
 
 	// Strip the null terminator, the rest is a prefix
-	n := len(val)
-	if n > 0 {
-		return val[:n-1], nil
-	}
-	return val, nil
+	return bytes.TrimSuffix(val, []byte(terminator)), nil
 }
 
 // namesByNameIndexer is used to index container name associations by name.
@@ -501,7 +499,7 @@ func (e *namesByNameIndexer) FromObject(obj interface{}) (bool, []byte, error) {
 	}
 
 	// Add the null character as a terminator
-	return true, []byte(n.name + "\x00"), nil
+	return true, []byte(n.name + terminator), nil
 }
 
 func (e *namesByNameIndexer) FromArgs(args ...interface{}) ([]byte, error) {
@@ -513,8 +511,7 @@ func (e *namesByNameIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
 	}
 	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+	return []byte(arg + terminator), nil
 }
 
 // namesByContainerIDIndexer is used to index container names by container ID.
@@ -527,7 +524,7 @@ func (e *namesByContainerIDIndexer) FromObject(obj interface{}) (bool, []byte, e
 	}
 
 	// Add the null character as a terminator
-	return true, []byte(n.containerID + "\x00"), nil
+	return true, []byte(n.containerID + terminator), nil
 }
 
 func (e *namesByContainerIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
@@ -539,6 +536,5 @@ func (e *namesByContainerIDIndexer) FromArgs(args ...interface{}) ([]byte, error
 		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
 	}
 	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+	return []byte(arg + terminator), nil
 }
