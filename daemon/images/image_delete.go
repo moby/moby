@@ -45,13 +45,13 @@ const (
 // are divided into two categories grouped by their severity:
 //
 // Hard Conflict:
-// 	- a pull or build using the image.
-// 	- any descendant image.
-// 	- any running container using the image.
+//   - a pull or build using the image.
+//   - any descendant image.
+//   - any running container using the image.
 //
 // Soft Conflict:
-// 	- any stopped container using the image.
-// 	- any repository tag or digest references to the image.
+//   - any stopped container using the image.
+//   - any repository tag or digest references to the image.
 //
 // The image cannot be removed if there are any hard conflicts and can be
 // removed if there are soft conflicts only if force is true.
@@ -59,7 +59,6 @@ const (
 // If prune is true, ancestor images will each attempt to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-//
 func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}

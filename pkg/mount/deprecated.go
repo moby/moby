@@ -22,6 +22,7 @@ type (
 )
 
 // Deprecated: use github.com/moby/sys/mountinfo instead.
+//
 //nolint:golint
 var (
 	Mounted           = mountinfo.Mounted
@@ -34,6 +35,7 @@ var (
 // GetMounts is a function.
 //
 // Deprecated: use github.com/moby/sys/mountinfo.GetMounts() instead.
+//
 //nolint:golint
 func GetMounts(f FilterFunc) ([]*Info, error) {
 	fi := func(i *mountinfo.Info) (skip, stop bool) {

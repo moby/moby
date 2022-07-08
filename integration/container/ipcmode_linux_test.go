@@ -26,9 +26,9 @@ import (
 //
 // The format of /proc/self/mountinfo is like:
 //
-// 29 23 0:24 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw
-//       ^^^^\
-//            - this is the minor:major we look for
+//	29 23 0:24 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw
+//	^^^^\
+//	     - this is the minor:major we look for
 func testIpcCheckDevExists(mm string) (bool, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
