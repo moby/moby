@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -154,6 +155,79 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 				LastUpdate: true,
 			})
 			ongoing.Remove(j)
+		}
+	}
+	return nil
+}
+
+type pushProgress struct {
+	Tracker   docker.StatusTracker
+	mountable map[digest.Digest]struct{}
+	mutex     sync.Mutex
+}
+
+func (p *pushProgress) addMountable(dgst digest.Digest) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if p.mountable == nil {
+		p.mountable = map[digest.Digest]struct{}{}
+	}
+	p.mountable[dgst] = struct{}{}
+}
+
+func (p *pushProgress) isMountable(dgst digest.Digest) bool {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if p.mountable == nil {
+		return false
+	}
+	_, has := p.mountable[dgst]
+	return has
+}
+
+func (p *pushProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
+	for _, j := range ongoing.Jobs() {
+		key := remotes.MakeRefKey(ctx, j)
+		id := stringid.TruncateID(j.Digest.Encoded())
+
+		status, err := p.Tracker.GetStatus(key)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				progress.Update(out, id, "Waiting")
+				continue
+			}
+		}
+
+		if status.Committed && status.Offset >= status.Total {
+			if p.isMountable(j.Digest) {
+				progress.Update(out, id, "Mounted")
+			} else {
+				progress.Update(out, id, "Pushed")
+			}
+			ongoing.Remove(j)
+			continue
+		}
+
+		out.WriteProgress(progress.Progress{
+			ID:      id,
+			Action:  "Pushing",
+			Current: status.Offset,
+			Total:   status.Total,
+		})
+	}
+
+	return nil
+}
+
+type combinedProgress []progressUpdater
+
+func (combined combinedProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out progress.Output, start time.Time) error {
+	for _, p := range combined {
+		err := p.UpdateProgress(ctx, ongoing, out, start)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
