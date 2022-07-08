@@ -14,7 +14,8 @@ type UAStringKey struct{}
 
 // DockerUserAgent is the User-Agent the Docker client uses to identify itself.
 // In accordance with RFC 7231 (5.5.3) is of the form:
-//    [docker client's UA] UpstreamClient([upstream client's UA])
+//
+//	[docker client's UA] UpstreamClient([upstream client's UA])
 func DockerUserAgent(ctx context.Context) string {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: Version})
@@ -68,7 +69,8 @@ func escapeStr(s string, charsToEscape string) string {
 
 // insertUpstreamUserAgent adds the upstream client useragent to create a user-agent
 // string of the form:
-//   $dockerUA UpstreamClient($upstreamUA)
+//
+//	$dockerUA UpstreamClient($upstreamUA)
 func insertUpstreamUserAgent(upstreamUA string, dockerUA string) string {
 	charsToEscape := `();\`
 	upstreamUAEscaped := escapeStr(upstreamUA, charsToEscape)

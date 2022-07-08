@@ -1077,15 +1077,16 @@ func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.Containe
 }
 
 // Parse the remapped root (user namespace) option, which can be one of:
-//   username            - valid username from /etc/passwd
-//   username:groupname  - valid username; valid groupname from /etc/group
-//   uid                 - 32-bit unsigned int valid Linux UID value
-//   uid:gid             - uid value; 32-bit unsigned int Linux GID value
 //
-//  If no groupname is specified, and a username is specified, an attempt
-//  will be made to lookup a gid for that username as a groupname
+// - username            - valid username from /etc/passwd
+// - username:groupname  - valid username; valid groupname from /etc/group
+// - uid                 - 32-bit unsigned int valid Linux UID value
+// - uid:gid             - uid value; 32-bit unsigned int Linux GID value
 //
-//  If names are used, they are verified to exist in passwd/group
+// If no groupname is specified, and a username is specified, an attempt
+// will be made to lookup a gid for that username as a groupname
+//
+// If names are used, they are verified to exist in passwd/group
 func parseRemappedRoot(usergrp string) (string, string, error) {
 
 	var (

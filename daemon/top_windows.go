@@ -11,19 +11,20 @@ import (
 )
 
 // ContainerTop handles `docker top` client requests.
+//
 // Future considerations:
-// -- Windows users are far more familiar with CPU% total.
-//    Further, users on Windows rarely see user/kernel CPU stats split.
-//    The kernel returns everything in terms of 100ns. To obtain
-//    CPU%, we could do something like docker stats does which takes two
-//    samples, subtract the difference and do the maths. Unfortunately this
-//    would slow the stat call down and require two kernel calls. So instead,
-//    we do something similar to linux and display the CPU as combined HH:MM:SS.mmm.
-// -- Perhaps we could add an argument to display "raw" stats
-// -- "Memory" is an extremely overloaded term in Windows. Hence we do what
-//    task manager does and use the private working set as the memory counter.
-//    We could return more info for those who really understand how memory
-//    management works in Windows if we introduced a "raw" stats (above).
+//   - Windows users are far more familiar with CPU% total.
+//     Further, users on Windows rarely see user/kernel CPU stats split.
+//     The kernel returns everything in terms of 100ns. To obtain
+//     CPU%, we could do something like docker stats does which takes two
+//     samples, subtract the difference and do the maths. Unfortunately this
+//     would slow the stat call down and require two kernel calls. So instead,
+//     we do something similar to linux and display the CPU as combined HH:MM:SS.mmm.
+//   - Perhaps we could add an argument to display "raw" stats
+//   - "Memory" is an extremely overloaded term in Windows. Hence we do what
+//     task manager does and use the private working set as the memory counter.
+//     We could return more info for those who really understand how memory
+//     management works in Windows if we introduced a "raw" stats (above).
 func (daemon *Daemon) ContainerTop(name string, psArgs string) (*containertypes.ContainerTopOKBody, error) {
 	// It's not at all an equivalent to linux 'ps' on Windows
 	if psArgs != "" {
