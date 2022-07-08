@@ -79,7 +79,7 @@ func TestGetVolumeByNameFoundRegular(t *testing.T) {
 		backend: &fakeVolumeBackend{
 			volumes: map[string]*volume.Volume{
 
-				"volume1": &volume.Volume{
+				"volume1": {
 					Name: "volume1",
 				},
 			},
@@ -98,7 +98,7 @@ func TestGetVolumeByNameFoundSwarm(t *testing.T) {
 			swarm:   true,
 			manager: true,
 			volumes: map[string]*volume.Volume{
-				"volume1": &volume.Volume{
+				"volume1": {
 					Name: "volume1",
 				},
 			},
@@ -112,16 +112,16 @@ func TestListVolumes(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
 			volumes: map[string]*volume.Volume{
-				"v1": &volume.Volume{Name: "v1"},
-				"v2": &volume.Volume{Name: "v2"},
+				"v1": {Name: "v1"},
+				"v2": {Name: "v2"},
 			},
 		},
 		cluster: &fakeClusterBackend{
 			swarm:   true,
 			manager: true,
 			volumes: map[string]*volume.Volume{
-				"v3": &volume.Volume{Name: "v3"},
-				"v4": &volume.Volume{Name: "v4"},
+				"v3": {Name: "v3"},
+				"v4": {Name: "v4"},
 			},
 		},
 	}
@@ -140,8 +140,8 @@ func TestListVolumesNoSwarm(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
 			volumes: map[string]*volume.Volume{
-				"v1": &volume.Volume{Name: "v1"},
-				"v2": &volume.Volume{Name: "v2"},
+				"v1": {Name: "v1"},
+				"v2": {Name: "v2"},
 			},
 		},
 		cluster: &fakeClusterBackend{},
@@ -155,8 +155,8 @@ func TestListVolumesNoManager(t *testing.T) {
 	v := &volumeRouter{
 		backend: &fakeVolumeBackend{
 			volumes: map[string]*volume.Volume{
-				"v1": &volume.Volume{Name: "v1"},
-				"v2": &volume.Volume{Name: "v2"},
+				"v1": {Name: "v1"},
+				"v2": {Name: "v2"},
 			},
 		},
 		cluster: &fakeClusterBackend{swarm: true},
@@ -318,7 +318,7 @@ func TestUpdateVolume(t *testing.T) {
 		swarm:   true,
 		manager: true,
 		volumes: map[string]*volume.Volume{
-			"vol1": &volume.Volume{
+			"vol1": {
 				Name: "vo1",
 				ClusterVolume: &volume.ClusterVolume{
 					ID: "vol1",
@@ -409,7 +409,7 @@ func TestUpdateVolumeNotFound(t *testing.T) {
 func TestVolumeRemove(t *testing.T) {
 	b := &fakeVolumeBackend{
 		volumes: map[string]*volume.Volume{
-			"vol1": &volume.Volume{
+			"vol1": {
 				Name: "vol1",
 			},
 		},
@@ -436,7 +436,7 @@ func TestVolumeRemoveSwarm(t *testing.T) {
 		swarm:   true,
 		manager: true,
 		volumes: map[string]*volume.Volume{
-			"vol1": &volume.Volume{
+			"vol1": {
 				Name:          "vol1",
 				ClusterVolume: &volume.ClusterVolume{},
 			},
@@ -494,7 +494,7 @@ func TestVolumeRemoveNotFoundNoManager(t *testing.T) {
 func TestVolumeRemoveFoundNoSwarm(t *testing.T) {
 	b := &fakeVolumeBackend{
 		volumes: map[string]*volume.Volume{
-			"vol1": &volume.Volume{
+			"vol1": {
 				Name: "vol1",
 			},
 		},
@@ -518,7 +518,7 @@ func TestVolumeRemoveFoundNoSwarm(t *testing.T) {
 func TestVolumeRemoveNoSwarmInUse(t *testing.T) {
 	b := &fakeVolumeBackend{
 		volumes: map[string]*volume.Volume{
-			"inuse": &volume.Volume{
+			"inuse": {
 				Name: "inuse",
 			},
 		},
@@ -544,7 +544,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 		swarm:   true,
 		manager: true,
 		volumes: map[string]*volume.Volume{
-			"vol1": &volume.Volume{
+			"vol1": {
 				Name:          "vol1",
 				ClusterVolume: &volume.ClusterVolume{},
 				Options:       map[string]string{"mustforce": "yes"},
