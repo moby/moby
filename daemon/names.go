@@ -64,7 +64,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	}
 
 	if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-		if err == container.ErrNameReserved {
+		if errors.Is(err, container.ErrNameReserved) {
 			id, err := daemon.containersReplica.Snapshot().GetID(name)
 			if err != nil {
 				logrus.Errorf("got unexpected error while looking up reserved name: %v", err)
@@ -90,7 +90,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 		}
 
 		if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-			if err == container.ErrNameReserved {
+			if errors.Is(err, container.ErrNameReserved) {
 				continue
 			}
 			return "", err

@@ -100,7 +100,7 @@ type ViewDB struct {
 func NewViewDB() (*ViewDB, error) {
 	store, err := memdb.NewMemDB(schema)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	return &ViewDB{store: store}, nil
 }
@@ -151,7 +151,7 @@ func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 	err := cb(txn)
 	if err != nil {
 		txn.Abort()
-		return err
+		return errdefs.System(err)
 	}
 	txn.Commit()
 	return nil
@@ -190,7 +190,7 @@ func (db *ViewDB) ReserveName(name, containerID string) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
 		if err != nil {
-			return err
+			return errdefs.System(err)
 		}
 		if s != nil {
 			if s.(nameAssociation).containerID != containerID {
@@ -220,7 +220,7 @@ func (v *View) All() ([]Snapshot, error) {
 	var all []Snapshot
 	iter, err := v.txn.Get(memdbContainersTable, memdbIDIndex)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	for {
 		item := iter.Next()
@@ -237,7 +237,7 @@ func (v *View) All() ([]Snapshot, error) {
 func (v *View) Get(id string) (*Snapshot, error) {
 	s, err := v.txn.First(memdbContainersTable, memdbIDIndex, id)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	if s == nil {
 		return nil, errdefs.NotFound(errors.New("No such container: " + id))
@@ -268,7 +268,7 @@ func (v *View) getNames(containerID string) []string {
 func (v *View) GetID(name string) (string, error) {
 	s, err := v.txn.First(memdbNamesTable, memdbIDIndex, name)
 	if err != nil {
-		return "", err
+		return "", errdefs.System(err)
 	}
 	if s == nil {
 		return "", ErrNameNotReserved
