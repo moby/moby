@@ -162,14 +162,14 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 	cntrs := make([]container.Snapshot, 0, len(matches))
 	for id := range matches {
 		c, err := view.Get(id)
-		switch err.(type) {
-		case nil:
-			cntrs = append(cntrs, *c)
-		case container.NoSuchContainerError:
-			// ignore error
-		default:
+		if err != nil {
+			if errdefs.IsNotFound(err) {
+				// ignore error
+				continue
+			}
 			return nil, err
 		}
+		cntrs = append(cntrs, *c)
 	}
 
 	// Restore sort-order after filtering
@@ -367,8 +367,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 
 func idOrNameFilter(view *container.View, value string) (*container.Snapshot, error) {
 	filter, err := view.Get(value)
-	switch err.(type) {
-	case container.NoSuchContainerError:
+	if err != nil && errdefs.IsNotFound(err) {
 		// Try name search instead
 		found := ""
 		for id, idNames := range view.GetAllNames() {

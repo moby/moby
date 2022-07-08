@@ -48,13 +48,12 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 		return containerByName, nil
 	}
 
-	containerID, indexError := daemon.containersReplica.GetByPrefix(prefixOrName)
-	if indexError != nil {
-		// When truncindex defines an error type, use that instead
-		if indexError == container.ErrNotExist {
-			return nil, containerNotFound(prefixOrName)
+	containerID, err := daemon.containersReplica.GetByPrefix(prefixOrName)
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return nil, err
 		}
-		return nil, errdefs.System(indexError)
+		return nil, errdefs.System(err)
 	}
 	return daemon.containers.Get(containerID), nil
 }

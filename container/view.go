@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/sirupsen/logrus"
@@ -32,9 +33,6 @@ var (
 var (
 	// ErrEmptyPrefix is an error returned if the prefix was empty.
 	ErrEmptyPrefix = errors.New("Prefix can't be empty")
-
-	// ErrNotExist is returned when ID or its prefix not found in index.
-	ErrNotExist = errors.New("ID does not exist")
 )
 
 // ErrAmbiguousPrefix is returned if the prefix was ambiguous
@@ -113,17 +111,6 @@ type ViewDB struct {
 	store *memdb.MemDB
 }
 
-// NoSuchContainerError indicates that the container wasn't found in the
-// database.
-type NoSuchContainerError struct {
-	id string
-}
-
-// Error satisfies the error interface.
-func (e NoSuchContainerError) Error() string {
-	return "no such container " + e.id
-}
-
 // NewViewDB provides the default implementation, with the default schema
 func NewViewDB() (*ViewDB, error) {
 	store, err := memdb.NewMemDB(schema)
@@ -164,7 +151,7 @@ func (db *ViewDB) GetByPrefix(s string) (string, error) {
 		return id, nil
 	}
 
-	return "", ErrNotExist
+	return "", errdefs.NotFound(errors.New("No such container: " + s))
 }
 
 // Snapshot provides a consistent read-only view of the database.
@@ -268,7 +255,7 @@ func (v *View) Get(id string) (*Snapshot, error) {
 		return nil, err
 	}
 	if s == nil {
-		return nil, NoSuchContainerError{id: id}
+		return nil, errdefs.NotFound(errors.New("No such container: " + id))
 	}
 	return v.transform(s.(*Container)), nil
 }
