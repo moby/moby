@@ -79,7 +79,7 @@ type Daemon struct {
 	containers            container.Store
 	containersReplica     container.ViewDB
 	execCommands          *exec.Store
-	imageService          *images.ImageService
+	imageService          ImageService
 	configStore           *config.Config
 	statsCollector        *stats.Collector
 	defaultLogConfig      containertypes.LogConfig
@@ -1473,7 +1473,7 @@ func (daemon *Daemon) IdentityMapping() idtools.IdentityMapping {
 }
 
 // ImageService returns the Daemon's ImageService
-func (daemon *Daemon) ImageService() *images.ImageService {
+func (daemon *Daemon) ImageService() ImageService {
 	return daemon.imageService
 }
 
@@ -1481,7 +1481,7 @@ func (daemon *Daemon) ImageService() *images.ImageService {
 func (daemon *Daemon) BuilderBackend() builder.Backend {
 	return struct {
 		*Daemon
-		*images.ImageService
+		ImageService
 	}{daemon, daemon.imageService}
 }
 
