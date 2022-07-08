@@ -219,7 +219,7 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 }
 
 // OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform
-//  being matched does not have a CPU variant.
+// being matched does not have a CPU variant.
 //
 // The reason for this is that CPU variant is not even if the official image config spec as of this writing.
 // See: https://github.com/opencontainers/image-spec/pull/809

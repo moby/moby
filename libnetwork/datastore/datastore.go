@@ -14,7 +14,7 @@ import (
 	"github.com/docker/libkv/store"
 )
 
-//DataStore exported
+// DataStore exported
 type DataStore interface {
 	// GetObject gets data from datastore and unmarshals to the specified object
 	GetObject(key string, o KVObject) error
@@ -174,14 +174,14 @@ func (cfg *ScopeCfg) IsValid() bool {
 	return true
 }
 
-//Key provides convenient method to create a Key
+// Key provides convenient method to create a Key
 func Key(key ...string) string {
 	keychain := append(rootChain, key...)
 	str := strings.Join(keychain, "/")
 	return str + "/"
 }
 
-//ParseKey provides convenient method to unpack the key to complement the Key function
+// ParseKey provides convenient method to unpack the key to complement the Key function
 func ParseKey(key string) ([]string, error) {
 	chain := strings.Split(strings.Trim(key, "/"), "/")
 

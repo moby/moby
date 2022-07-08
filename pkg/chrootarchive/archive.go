@@ -30,7 +30,7 @@ func NewArchiver(idMapping idtools.IdentityMapping) *archive.Archiver {
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `dest`.
 // The archive may be compressed with one of the following algorithms:
-//  identity (uncompressed), gzip, bzip2, xz.
+// identity (uncompressed), gzip, bzip2, xz.
 func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
 	return untarHandler(tarArchive, dest, options, true, dest)
 }
