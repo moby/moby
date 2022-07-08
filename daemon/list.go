@@ -119,8 +119,11 @@ func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listCo
 		// standard behavior of walking the entire container
 		// list from the daemon's in-memory store
 		all, err := view.All()
+		if err != nil {
+			return nil, err
+		}
 		sort.Sort(byCreatedDescending(all))
-		return all, err
+		return all, nil
 	}
 
 	// idSearch will determine if we limit name matching to the IDs
