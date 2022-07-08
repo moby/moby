@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/truncindex"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -56,22 +55,20 @@ func TestGetContainer(t *testing.T) {
 	store.Add(c4.ID, c4)
 	store.Add(c5.ID, c5)
 
-	index := truncindex.NewTruncIndex([]string{})
-	index.Add(c1.ID)
-	index.Add(c2.ID)
-	index.Add(c3.ID)
-	index.Add(c4.ID)
-	index.Add(c5.ID)
-
 	containersReplica, err := container.NewViewDB()
 	if err != nil {
 		t.Fatalf("could not create ViewDB: %v", err)
 	}
 
+	containersReplica.Save(c1)
+	containersReplica.Save(c2)
+	containersReplica.Save(c3)
+	containersReplica.Save(c4)
+	containersReplica.Save(c5)
+
 	daemon := &Daemon{
 		containers:        store,
 		containersReplica: containersReplica,
-		idIndex:           index,
 	}
 
 	daemon.reserveName(c1.ID, c1.Name)

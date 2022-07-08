@@ -17,6 +17,7 @@ const (
 	memdbContainersTable  = "containers"
 	memdbNamesTable       = "names"
 	memdbIDIndex          = "id"
+	memdbIDIndexPrefix    = "id_prefix"
 	memdbContainerIDIndex = "containerid"
 )
 
@@ -26,6 +27,24 @@ var (
 	// ErrNameNotReserved is an error which is returned when trying to find a name that is not reserved
 	ErrNameNotReserved = errors.New("name is not reserved")
 )
+
+var (
+	// ErrEmptyPrefix is an error returned if the prefix was empty.
+	ErrEmptyPrefix = errors.New("Prefix can't be empty")
+
+	// ErrNotExist is returned when ID or its prefix not found in index.
+	ErrNotExist = errors.New("ID does not exist")
+)
+
+// ErrAmbiguousPrefix is returned if the prefix was ambiguous
+// (multiple ids for the prefix).
+type ErrAmbiguousPrefix struct {
+	prefix string
+}
+
+func (e ErrAmbiguousPrefix) Error() string {
+	return fmt.Sprintf("Multiple IDs found with provided prefix: %s", e.prefix)
+}
 
 // Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
 // versioned ACID in-memory store.
@@ -63,6 +82,8 @@ type ViewDB interface {
 	Snapshot() View
 	Save(*Container) error
 	Delete(*Container) error
+
+	GetByPrefix(string) (string, error)
 
 	ReserveName(name, containerID string) error
 	ReleaseName(name string) error
@@ -129,6 +150,38 @@ func NewViewDB() (ViewDB, error) {
 		return nil, err
 	}
 	return &memDB{store: store}, nil
+}
+
+func (db *memDB) GetByPrefix(s string) (string, error) {
+	if s == "" {
+		return "", ErrEmptyPrefix
+	}
+	txn := db.store.Txn(false)
+	iter, err := txn.Get(memdbContainersTable, memdbIDIndexPrefix, s)
+	if err != nil {
+		return "", err
+	}
+
+	var (
+		id string
+	)
+
+	for {
+		item := iter.Next()
+		if item == nil {
+			break
+		}
+		if id != "" {
+			return "", ErrAmbiguousPrefix{prefix: s}
+		}
+		id = item.(*Container).ID
+	}
+
+	if id != "" {
+		return id, nil
+	}
+
+	return "", ErrNotExist
 }
 
 // Snapshot provides a consistent read-only View of the database
@@ -439,6 +492,20 @@ func (e *containerByIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 	// Add the null character as a terminator
 	arg += "\x00"
 	return []byte(arg), nil
+}
+
+func (e *containerByIDIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	val, err := e.FromArgs(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip the null terminator, the rest is a prefix
+	n := len(val)
+	if n > 0 {
+		return val[:n-1], nil
+	}
+	return val, nil
 }
 
 // namesByNameIndexer is used to index container name associations by name.
