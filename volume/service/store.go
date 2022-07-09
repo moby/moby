@@ -571,7 +571,7 @@ func volumeExists(ctx context.Context, store *drivers.Store, v volume.Volume) (b
 // create asks the given driver to create a volume with the name/opts.
 // If a volume with the name is already known, it will ask the stored driver for the volume.
 // If the passed in driver name does not match the driver name which is stored
-//  for the given volume name, an error is returned after checking if the reference is stale.
+// for the given volume name, an error is returned after checking if the reference is stale.
 // If the reference is stale, it will be purged and this create can continue.
 // It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(ctx context.Context, name, driverName string, opts, labels map[string]string) (volume.Volume, bool, error) {
@@ -749,9 +749,9 @@ func (s *VolumeStore) getVolume(ctx context.Context, name, driverName string) (v
 
 // lookupVolume gets the specified volume from the specified driver.
 // This will only return errors related to communications with the driver.
-// If the driver returns an error that is not communication related the
-//   error is logged but not returned.
-// If the volume is not found it will return `nil, nil``
+// If the driver returns an error that is not communication related, the error
+// is logged but not returned.
+// If the volume is not found it will return `nil, nil`
 // TODO(@cpuguy83): plumb through the context to lower level components
 func lookupVolume(ctx context.Context, store *drivers.Store, driverName, volumeName string) (volume.Volume, error) {
 	if driverName == "" {

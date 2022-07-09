@@ -80,10 +80,10 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 // inspectResponse looks into the http response data at r to determine whether its
 // content-type is on the list of acceptable content types for remote build contexts.
 // This function returns:
-//    - a string representation of the detected content-type
-//    - an io.Reader for the response body
-//    - an error value which will be non-nil either when something goes wrong while
-//      reading bytes from r or when the detected content-type is not acceptable.
+//   - a string representation of the detected content-type
+//   - an io.Reader for the response body
+//   - an error value which will be non-nil either when something goes wrong while
+//     reading bytes from r or when the detected content-type is not acceptable.
 func inspectResponse(ct string, r io.Reader, clen int64) (string, io.Reader, error) {
 	plen := clen
 	if plen <= 0 || plen > maxPreambleLength {

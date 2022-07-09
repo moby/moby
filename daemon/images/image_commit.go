@@ -104,9 +104,9 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 // the build.
 //
 // This method is different from CreateImageFromContainer:
-//   * it doesn't attempt to validate container state
-//   * it doesn't send a commit action to metrics
-//   * it doesn't log a container commit event
+//   - it doesn't attempt to validate container state
+//   - it doesn't send a commit action to metrics
+//   - it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
 func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
