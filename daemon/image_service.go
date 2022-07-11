@@ -38,8 +38,8 @@ type ImageService interface {
 	ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 	ImportImage(ctx context.Context, src string, repository string, platform *v1.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
-	TagImage(imageName, repository, tag string) (string, error)
-	TagImageWithReference(imageID image.ID, newTag reference.Named) error
+	TagImage(ctx context.Context, imageName, repository, tag string) (string, error)
+	TagImageWithReference(ctx context.Context, imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, platform *v1.Platform) (*image.Image, error)
 	ImageHistory(name string) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(c backend.CommitConfig) (image.ID, error)

@@ -30,6 +30,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 var shortID = regexp.MustCompile(`^([a-f0-9]{4,64})$`)
@@ -189,8 +190,23 @@ func (cs *ImageService) MakeImageCache(ctx context.Context, cacheFrom []string) 
 }
 
 // TagImageWithReference adds the given reference to the image ID provided.
-func (cs *ImageService) TagImageWithReference(imageID image.ID, newTag reference.Named) error {
-	panic("not implemented")
+func (cs *ImageService) TagImageWithReference(ctx context.Context, imageID image.ID, newTag reference.Named) error {
+	logrus.Infof("Tagging image %q with reference %q", imageID, newTag.String())
+
+	desc, err := cs.ResolveImage(ctx, imageID.String())
+	if err != nil {
+		return err
+	}
+
+	img := containerdimages.Image{
+		Name:   newTag.String(),
+		Target: desc,
+	}
+
+	is := cs.client.ImageService()
+	_, err = is.Create(ctx, img)
+
+	return err
 }
 
 // SquashImage creates a new image with the diff of the specified image and
@@ -296,8 +312,24 @@ func (cs *ImageService) SearchRegistryForImages(ctx context.Context, searchFilte
 
 // TagImage creates the tag specified by newTag, pointing to the image named
 // imageName (alternatively, imageName can also be an image ID).
-func (cs *ImageService) TagImage(imageName, repository, tag string) (string, error) {
-	panic("not implemented")
+func (cs *ImageService) TagImage(ctx context.Context, imageName, repository, tag string) (string, error) {
+	desc, err := cs.ResolveImage(ctx, imageName)
+	if err != nil {
+		return "", err
+	}
+
+	newTag, err := reference.ParseNormalizedNamed(repository)
+	if err != nil {
+		return "", err
+	}
+	if tag != "" {
+		if newTag, err = reference.WithTag(reference.TrimNamed(newTag), tag); err != nil {
+			return "", err
+		}
+	}
+
+	err = cs.TagImageWithReference(ctx, image.ID(desc.Digest), newTag)
+	return reference.FamiliarString(newTag), err
 }
 
 // GetRepository returns a repository from the registry.

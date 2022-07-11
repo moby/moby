@@ -171,7 +171,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 
 	var imageRef string
 	if c.Repo != "" {
-		imageRef, err = daemon.imageService.TagImage(string(id), c.Repo, c.Tag)
+		imageRef, err = daemon.imageService.TagImage(ctx, string(id), c.Repo, c.Tag)
 		if err != nil {
 			return "", err
 		}
