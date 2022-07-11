@@ -134,7 +134,7 @@ func (i *ImageService) ImportImage(ctx context.Context, src string, repository s
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := i.TagImageWithReference(id, newRef); err != nil {
+		if err := i.TagImageWithReference(nil, id, newRef); err != nil {
 			return err
 		}
 	}
