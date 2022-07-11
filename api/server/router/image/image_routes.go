@@ -369,7 +369,7 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if _, err := ir.backend.TagImage(vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
+	if _, err := ir.backend.TagImage(ctx, vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
