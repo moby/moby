@@ -137,7 +137,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		names = r.Form["names"]
 	}
 
-	if err := s.backend.ExportImage(names, output); err != nil {
+	if err := s.backend.ExportImage(ctx, names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -156,7 +156,7 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+	if err := s.backend.LoadImage(ctx, r.Body, output, quiet); err != nil {
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
