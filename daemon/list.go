@@ -235,7 +235,10 @@ func (daemon *Daemon) reducePsContainer(ctx context.Context, container *containe
 
 	// release lock because size calculation is slow
 	if filter.Size {
-		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(newC.ID)
+		sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
+		if err != nil {
+			return nil, err
+		}
 		newC.SizeRw = sizeRw
 		newC.SizeRootFs = sizeRootFs
 	}

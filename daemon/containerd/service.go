@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 )
 
 // ImageService implements daemon.ImageService
@@ -122,6 +124,44 @@ func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) 
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
-func (i *ImageService) GetContainerLayerSize(containerID string) (int64, int64) {
-	panic("not implemented")
+func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error) {
+	snapshotter := i.client.SnapshotService(containerd.DefaultSnapshotter)
+	sizeCache := make(map[digest.Digest]int64)
+	snapshotSizeFn := func(d digest.Digest) (int64, error) {
+		if s, ok := sizeCache[d]; ok {
+			return s, nil
+		}
+		usage, err := snapshotter.Usage(ctx, d.String())
+		if err != nil {
+			return 0, err
+		}
+		sizeCache[d] = usage.Size
+		return usage.Size, nil
+	}
+
+	c, err := i.client.ContainerService().Get(ctx, containerID)
+	if err != nil {
+		return 0, 0, err
+	}
+	image, err := i.client.GetImage(ctx, c.Image)
+	if err != nil {
+		return 0, 0, err
+	}
+	diffIDs, err := image.RootFS(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	chainIDs := identity.ChainIDs(diffIDs)
+
+	usage, err := snapshotter.Usage(ctx, containerID)
+	if err != nil {
+		return 0, 0, err
+	}
+	size := usage.Size
+
+	virtualSize, err := computeVirtualSize(chainIDs, snapshotSizeFn)
+	if err != nil {
+		return 0, 0, err
+	}
+	return size, size + virtualSize, nil
 }
