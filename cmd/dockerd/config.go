@@ -85,12 +85,6 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	_ = flags.MarkHidden("graph")
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	_ = flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
-	flags.StringVar(&conf.ClusterAdvertise, "cluster-advertise", "", "Address or interface name to advertise")
-	_ = flags.MarkDeprecated("cluster-advertise", "Swarm classic is deprecated. Please use Swarm-mode (docker swarm init)")
-	flags.StringVar(&conf.ClusterStore, "cluster-store", "", "URL of the distributed storage backend")
-	_ = flags.MarkDeprecated("cluster-store", "Swarm classic is deprecated. Please use Swarm-mode (docker swarm init)")
-	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", conf.ClusterOpts, nil), "cluster-store-opt", "Set cluster store options")
-	_ = flags.MarkDeprecated("cluster-store-opt", "Swarm classic is deprecated. Please use Swarm-mode (docker swarm init)")
 
 	return nil
 }

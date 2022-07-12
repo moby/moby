@@ -79,9 +79,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
-	if err := checkDeprecatedOptions(cli.Config); err != nil {
-		return err
-	}
 
 	serverConfig, err := newAPIServerConfig(cli.Config)
 	if err != nil {
@@ -510,14 +507,6 @@ func normalizeHosts(config *config.Config) error {
 	}
 	sort.Strings(hosts)
 	config.Hosts = hosts
-	return nil
-}
-
-func checkDeprecatedOptions(config *config.Config) error {
-	// Overlay networks with external k/v stores have been deprecated
-	if config.ClusterAdvertise != "" || len(config.ClusterOpts) > 0 || config.ClusterStore != "" {
-		return errors.New("Host-discovery and overlay networks with external k/v stores are deprecated. The 'cluster-advertise', 'cluster-store', and 'cluster-store-opt' options have been removed")
-	}
 	return nil
 }
 
