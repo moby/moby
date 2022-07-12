@@ -68,10 +68,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
-)
-
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	id                    string
@@ -711,6 +707,11 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store) (daemon *Daemon, err error) {
+	// Verify the platform is supported as a daemon
+	if !platformSupported {
+		return nil, errors.New("the Docker daemon is not supported on this platform")
+	}
+
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err
@@ -731,11 +732,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Setup the resolv.conf
 	setupResolvConf(config)
-
-	// Verify the platform is supported as a daemon
-	if !platformSupported {
-		return nil, errSystemNotSupported
-	}
 
 	// Validate platform-specific requirements
 	if err := checkSystem(); err != nil {
