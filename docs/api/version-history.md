@@ -21,12 +21,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.
   Use field `BuildCache` instead to track storage used by the builder component.
-* `POST /containers/{id}/stop` and `POST /containers/{id}/restart` now accept a
-  `signal` query parameter, which allows overriding the container's default stop-
-  signal.
-* `GET /images/json` now accepts query parameter `shared-size`. When set `true`,
-  images returned will include `SharedSize`, which provides the size on disk shared
-  with other images present on the system.
+* `GET /images/json` now accepts query parameters `containers` and `shared-size`. 
+  When `shared-size` is set `true`, images returned will include `SharedSize`,
+  which provides the size on disk shared with other images present on the system.
+  When `containers` is set `true`, images returned will include `Containers`,
+  which provides the number of containers created from this image.
 * `GET /system/df` now accepts query parameter `type`. When set,
   computes and returns data only for the specified object type.
   The parameter can be specified multiple times to select several object types.

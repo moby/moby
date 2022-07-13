@@ -7946,6 +7946,11 @@ paths:
           description: "Compute and show shared size as a `SharedSize` field on each image."
           type: "boolean"
           default: false
+        - name: "containers"
+          in: "query"
+          description: "Compute and show number of containers using image as a `Containers` field on each image."
+          type: "boolean"
+          default: false
         - name: "digests"
           in: "query"
           description: "Show digest information as a `RepoDigests` field on each image."

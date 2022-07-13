@@ -110,7 +110,10 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
 func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
-	container := i.containers.Get(c.ContainerID)
+	container, err := i.containers.Snapshot().Get(c.ContainerID)
+	if err != nil {
+		return "", err
+	}
 	if container == nil {
 		// TODO: use typed error
 		return "", errors.Errorf("container not found: %s", c.ContainerID)

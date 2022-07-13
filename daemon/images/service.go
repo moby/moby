@@ -27,14 +27,14 @@ type containerStore interface {
 	// used by image delete
 	First(container.StoreFilter) *container.Container
 	// used by image prune, and image list
-	List() []*container.Container
+	List(filters ...container.StoreFilter) []*container.Container
 	// TODO: remove, only used for CommitBuildStep
 	Get(string) *container.Container
 }
 
 // ImageServiceConfig is the configuration used to create a new ImageService
 type ImageServiceConfig struct {
-	ContainerStore            containerStore
+	ContainerStore            container.ViewDB
 	DistributionMetadataStore metadata.Store
 	EventsService             *daemonevents.Events
 	ImageStore                image.Store
@@ -71,7 +71,7 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 
 // ImageService provides a backend for image management
 type ImageService struct {
-	containers                containerStore
+	containers                container.ViewDB
 	distributionMetadataStore metadata.Store
 	downloadManager           *xfer.LayerDownloadManager
 	eventsService             *daemonevents.Events

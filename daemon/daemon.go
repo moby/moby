@@ -1040,7 +1040,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.linkIndex = newLinkIndex()
 
 	imgSvcConfig := images.ImageServiceConfig{
-		ContainerStore:            d.containers,
+		ContainerStore:            d.containersReplica,
 		DistributionMetadataStore: distributionMetadataStore,
 		EventsService:             d.EventsService,
 		ImageStore:                imageStore,
