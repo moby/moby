@@ -13,6 +13,12 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.43 API changes
+
+[Docker Engine API v1.43](https://docs.docker.com/engine/api/v1.43/) documentation
+
+* TODO add API changes for v1.43 here when they arrive.
+
 ## v1.42 API changes
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
