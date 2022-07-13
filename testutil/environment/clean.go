@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
@@ -164,7 +165,7 @@ func deleteAllPlugins(t testing.TB, c client.PluginAPIClient, protectedPlugins m
 	t.Helper()
 	plugins, err := c.PluginList(context.Background(), filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
-	if client.IsErrNotImplemented(err) {
+	if errdefs.IsNotImplemented(err) {
 		return
 	}
 	assert.Check(t, err, "failed to list plugins")
