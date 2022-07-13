@@ -171,29 +171,17 @@ func ifaceGateway(dfNet string) (*staticRoute, error) {
 }
 
 // getSubnetforIPv4 returns the ipv4 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipv4Subnet {
-	for _, s := range n.config.Ipv4Subnets {
-		_, snet, err := net.ParseCIDR(s.SubnetIP)
-		if err != nil {
-			return nil
-		}
-		// first check if the mask lengths are the same
-		i, _ := snet.Mask.Size()
-		j, _ := ip.Mask.Size()
-		if i != j {
-			continue
-		}
-		if snet.Contains(ip.IP) {
-			return s
-		}
-	}
-
-	return nil
+func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipSubnet {
+	return getSubnetForIP(ip, n.config.Ipv4Subnets)
 }
 
 // getSubnetforIPv6 returns the ipv6 subnet to which the given IP belongs
-func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipv6Subnet {
-	for _, s := range n.config.Ipv6Subnets {
+func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipSubnet {
+	return getSubnetForIP(ip, n.config.Ipv6Subnets)
+}
+
+func getSubnetForIP(ip *net.IPNet, subnets []*ipSubnet) *ipSubnet {
+	for _, s := range subnets {
 		_, snet, err := net.ParseCIDR(s.SubnetIP)
 		if err != nil {
 			return nil
