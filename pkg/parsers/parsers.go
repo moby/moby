@@ -25,13 +25,14 @@ func ParseKeyValueOpt(opt string) (string, string, error) {
 // set to `true`. Values larger than `maximum` cause an error if max is non zero,
 // in order to stop the map becoming excessively large.
 // Supported formats:
-//     7
-//     1-6
-//     0,3-4,7,8-10
-//     0-0,0,1-7
-//     03,1-3      <- this is gonna get parsed as [1,2,3]
-//     3,2,1
-//     0-2,3,1
+//
+//	7
+//	1-6
+//	0,3-4,7,8-10
+//	0-0,0,1-7
+//	03,1-3      <- this is gonna get parsed as [1,2,3]
+//	3,2,1
+//	0-2,3,1
 func ParseUintListMaximum(val string, maximum int) (map[int]bool, error) {
 	return parseUintList(val, maximum)
 }
@@ -42,13 +43,14 @@ func ParseUintListMaximum(val string, maximum int) (map[int]bool, error) {
 // input string. It returns a `map[int]bool` with available elements from `val`
 // set to `true`.
 // Supported formats:
-//     7
-//     1-6
-//     0,3-4,7,8-10
-//     0-0,0,1-7
-//     03,1-3      <- this is gonna get parsed as [1,2,3]
-//     3,2,1
-//     0-2,3,1
+//
+//	7
+//	1-6
+//	0,3-4,7,8-10
+//	0-0,0,1-7
+//	03,1-3      <- this is gonna get parsed as [1,2,3]
+//	3,2,1
+//	0-2,3,1
 func ParseUintList(val string) (map[int]bool, error) {
 	return parseUintList(val, 0)
 }

@@ -30,12 +30,11 @@ func IsURL(str string) bool {
 //
 // The following patterns are considered to be a Git URL:
 //
-// - https://(.*).git(?:#.+)?$  git repository URL with optional fragment, as
-//                              known to be used by GitHub and GitLab.
-// - http://(.*).git(?:#.+)?$   same, but non-TLS
-// - git://(.*)                 URLs using git:// scheme
-// - git@(.*)
-// - github.com/                see description below
+//   - https://(.*).git(?:#.+)?$  git repository URL with optional fragment, as known to be used by GitHub and GitLab.
+//   - http://(.*).git(?:#.+)?$   same, but non-TLS
+//   - git://(.*)                 URLs using git:// scheme
+//   - git@(.*)
+//   - github.com/                see description below
 //
 // The github.com/ prefix is a special case used to treat context-paths
 // starting with "github.com/" as a git URL if the given path does not
@@ -49,7 +48,7 @@ func IsURL(str string) bool {
 // path. Code using this function should check if the path exists locally before
 // using it as a URL.
 //
-// Fragments
+// # Fragments
 //
 // Git URLs accept context configuration in their fragment section, separated by
 // a colon (`:`). The first part represents the reference to check out, and can
@@ -74,7 +73,6 @@ func IsURL(str string) bool {
 // | my-repo.git#master:directory   | refs/heads/master    | /directory         |
 // | my-repo.git#mytag:directory    | refs/tags/my-tag     | /directory         |
 // | my-repo.git#mybranch:directory | refs/heads/my-branch | /directory         |
-//
 func IsGitURL(str string) bool {
 	if IsURL(str) && urlPathWithFragmentSuffix.MatchString(str) {
 		return true

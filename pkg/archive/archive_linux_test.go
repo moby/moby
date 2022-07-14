@@ -15,13 +15,14 @@ import (
 
 // setupOverlayTestDir creates files in a directory with overlay whiteouts
 // Tree layout
-// .
-// ├── d1     # opaque, 0700
-// │   └── f1 # empty file, 0600
-// ├── d2     # opaque, 0750
-// │   └── f1 # empty file, 0660
-// └── d3     # 0700
-//     └── f1 # whiteout, 0644
+//
+//	.
+//	├── d1     # opaque, 0700
+//	│   └── f1 # empty file, 0600
+//	├── d2     # opaque, 0750
+//	│   └── f1 # empty file, 0660
+//	└── d3     # 0700
+//	    └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	skip.If(t, userns.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")

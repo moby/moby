@@ -306,7 +306,7 @@ func getBackingFs(v *types.Info) string {
 //
 // Output example from `docker-init --version`:
 //
-//     tini version 0.18.0 - git.fec3683
+//	tini version 0.18.0 - git.fec3683
 func parseInitVersion(v string) (version string, commit string, err error) {
 	parts := strings.Split(v, " - ")
 
@@ -331,9 +331,9 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 //
 // Output example from `runc --version`:
 //
-//   runc version 1.0.0-rc5+dev
-//   commit: 69663f0bd4b60df09991c08812a60108003fa340
-//   spec: 1.0.0
+//	runc version 1.0.0-rc5+dev
+//	commit: 69663f0bd4b60df09991c08812a60108003fa340
+//	spec: 1.0.0
 func parseRuntimeVersion(v string) (runtime string, version string, commit string, err error) {
 	lines := strings.Split(strings.TrimSpace(v), "\n")
 	for _, line := range lines {
