@@ -4,7 +4,6 @@
 package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
 
 import (
-	"bytes"
 	"errors"
 
 	"golang.org/x/sys/unix"
