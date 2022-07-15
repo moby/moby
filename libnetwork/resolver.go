@@ -64,7 +64,7 @@ const (
 	ptrIPv4domain   = ".in-addr.arpa."
 	ptrIPv6domain   = ".ip6.arpa."
 	respTTL         = 600
-	maxExtDNS       = 3 //max number of external servers to try
+	maxExtDNS       = 3 // max number of external servers to try
 	extIOTimeout    = 4 * time.Second
 	defaultRespSize = 512
 	maxConcurrent   = 1024
@@ -177,10 +177,10 @@ func (r *resolver) Stop() {
 	defer func() { <-r.startCh }()
 
 	if r.server != nil {
-		r.server.Shutdown() // nolint:errcheck
+		r.server.Shutdown() //nolint:errcheck
 	}
 	if r.tcpServer != nil {
-		r.tcpServer.Shutdown() // nolint:errcheck
+		r.tcpServer.Shutdown() //nolint:errcheck
 	}
 	r.conn = nil
 	r.tcpServer = nil
@@ -214,7 +214,7 @@ func setCommonFlags(msg *dns.Msg) {
 
 func shuffleAddr(addr []net.IP) []net.IP {
 	for i := len(addr) - 1; i > 0; i-- {
-		r := rand.Intn(i + 1) // nolint:gosec // gosec complains about the use of rand here. It should be fine.
+		r := rand.Intn(i + 1) //nolint:gosec // gosec complains about the use of rand here. It should be fine.
 		addr[i], addr[r] = addr[r], addr[i]
 	}
 	return addr

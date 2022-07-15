@@ -623,7 +623,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	if id != "" {
 		c.networkLocker.Lock(id)
-		defer c.networkLocker.Unlock(id) // nolint:errcheck
+		defer c.networkLocker.Unlock(id) //nolint:errcheck
 
 		if _, err = c.NetworkByID(id); err == nil {
 			return nil, NetworkNameError(id)
@@ -734,7 +734,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	err = c.addNetwork(network)
 	if err != nil {
-		if _, ok := err.(types.MaskableError); ok { // nolint:gosimple
+		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
 			// This error can be ignored and set this boolean
 			// value to skip a refcount increment for configOnly networks
 			skipCfgEpCount = true

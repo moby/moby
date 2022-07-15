@@ -93,12 +93,12 @@ type sandbox struct {
 // These are the container configs used to customize container /etc/hosts file.
 type hostsPathConfig struct {
 	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
-	hostName        string         // nolint:structcheck
-	domainName      string         // nolint:structcheck
-	hostsPath       string         // nolint:structcheck
-	originHostsPath string         // nolint:structcheck
-	extraHosts      []extraHost    // nolint:structcheck
-	parentUpdates   []parentUpdate // nolint:structcheck
+	hostName        string         //nolint:structcheck
+	domainName      string         //nolint:structcheck
+	hostsPath       string         //nolint:structcheck
+	originHostsPath string         //nolint:structcheck
+	extraHosts      []extraHost    //nolint:structcheck
+	parentUpdates   []parentUpdate //nolint:structcheck
 }
 
 type parentUpdate struct {
@@ -115,12 +115,12 @@ type extraHost struct {
 // These are the container configs used to customize container /etc/resolv.conf file.
 type resolvConfPathConfig struct {
 	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
-	resolvConfPath       string   // nolint:structcheck
-	originResolvConfPath string   // nolint:structcheck
-	resolvConfHashFile   string   // nolint:structcheck
-	dnsList              []string // nolint:structcheck
-	dnsSearchList        []string // nolint:structcheck
-	dnsOptionsList       []string // nolint:structcheck
+	resolvConfPath       string   //nolint:structcheck
+	originResolvConfPath string   //nolint:structcheck
+	resolvConfHashFile   string   //nolint:structcheck
+	dnsList              []string //nolint:structcheck
+	dnsSearchList        []string //nolint:structcheck
+	dnsOptionsList       []string //nolint:structcheck
 }
 
 type containerConfig struct {
@@ -412,8 +412,8 @@ func (sb *sandbox) updateGateway(ep *endpoint) error {
 	if osSbox == nil {
 		return nil
 	}
-	osSbox.UnsetGateway()     // nolint:errcheck
-	osSbox.UnsetGatewayIPv6() // nolint:errcheck
+	osSbox.UnsetGateway()     //nolint:errcheck
+	osSbox.UnsetGatewayIPv6() //nolint:errcheck
 
 	if ep == nil {
 		return nil
