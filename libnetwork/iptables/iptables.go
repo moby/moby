@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/rootless"
 	"github.com/sirupsen/logrus"
 )
 
@@ -105,6 +106,12 @@ func probe() {
 }
 
 func initFirewalld() {
+	// When running with RootlessKit, firewalld is running as the root outside our network namespace
+	// https://github.com/moby/moby/issues/43781
+	if rootless.RunningWithRootlessKit() {
+		logrus.Info("skipping firewalld management for rootless mode")
+		return
+	}
 	if err := FirewalldInit(); err != nil {
 		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
 	}
