@@ -27,7 +27,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return fmt.Errorf("network id %q not found", nid)
 	}
 	if ifInfo.MacAddress() != nil {
-		return fmt.Errorf("%s interfaces do not support custom mac address assignment", ipvlanType)
+		return fmt.Errorf("ipvlan interfaces do not support custom mac address assignment")
 	}
 	ep := &endpoint{
 		id:     eid,
@@ -42,7 +42,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if _, ok := opt.([]types.PortBinding); ok {
 			if len(opt.([]types.PortBinding)) > 0 {
-				logrus.Warnf("%s driver does not support port mappings", ipvlanType)
+				logrus.Warnf("ipvlan driver does not support port mappings")
 			}
 		}
 	}
@@ -50,7 +50,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
 		if _, ok := opt.([]types.TransportPort); ok {
 			if len(opt.([]types.TransportPort)) > 0 {
-				logrus.Warnf("%s driver does not support port exposures", ipvlanType)
+				logrus.Warnf("ipvlan driver does not support port exposures")
 			}
 		}
 	}

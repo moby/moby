@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.43"
+basePath: "/v1.42"
 info:
   title: "Docker Engine API"
-  version: "1.43"
+  version: "1.42"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -55,8 +55,8 @@ info:
     the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
     is returned.
 
-    If you omit the version-prefix, the current version of the API (v1.43) is used.
-    For example, calling `/info` is the same as calling `/v1.43/info`. Using the
+    If you omit the version-prefix, the current version of the API (v1.42) is used.
+    For example, calling `/info` is the same as calling `/v1.42/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
