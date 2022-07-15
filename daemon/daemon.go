@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
@@ -141,8 +142,8 @@ func (daemon *Daemon) Features() *map[string]bool {
 	return &daemon.configStore.Features
 }
 
-// usesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
-func (daemon *Daemon) usesSnapshotter() bool {
+// UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
+func (daemon *Daemon) UsesSnapshotter() bool {
 	if daemon.configStore.Features != nil {
 		if b, ok := daemon.configStore.Features["containerd-snapshotter"]; ok {
 			return b
@@ -964,15 +965,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	imageRoot := filepath.Join(config.Root, "image", d.graphDriver)
-	ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
-	if err != nil {
-		return nil, err
-	}
-
-	imageStore, err := image.NewImageStore(ifs, layerStore)
-	if err != nil {
-		return nil, err
-	}
 
 	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
@@ -1004,11 +996,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	d.ReferenceStore = rs
 
-	distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
-	if err != nil {
-		return nil, err
-	}
-
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	//
@@ -1039,55 +1026,75 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	d.linkIndex = newLinkIndex()
 
-	imgSvcConfig := images.ImageServiceConfig{
-		ContainerStore:            d.containers,
-		DistributionMetadataStore: distributionMetadataStore,
-		EventsService:             d.EventsService,
-		ImageStore:                imageStore,
-		LayerStore:                layerStore,
-		MaxConcurrentDownloads:    config.MaxConcurrentDownloads,
-		MaxConcurrentUploads:      config.MaxConcurrentUploads,
-		MaxDownloadAttempts:       config.MaxDownloadAttempts,
-		ReferenceStore:            rs,
-		RegistryService:           registryService,
-		ContentNamespace:          config.ContainerdNamespace,
-	}
-
-	// This is a temporary environment variables used in CI to allow pushing
-	// manifest v2 schema 1 images to test-registries used for testing *pulling*
-	// these images.
-	if os.Getenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE") != "" {
-		imgSvcConfig.TrustKey, err = loadOrCreateTrustKey(config.TrustKeyPath)
-		if err != nil {
-			return nil, err
-		}
-		if err = system.MkdirAll(filepath.Join(config.Root, "trust"), 0700); err != nil {
-			return nil, err
-		}
-	}
-
-	// containerd is not currently supported with Windows.
-	// So sometimes d.containerdCli will be nil
-	// In that case we'll create a local content store... but otherwise we'll use containerd
-	if d.containerdCli != nil {
-		imgSvcConfig.Leases = d.containerdCli.LeasesService()
-		imgSvcConfig.ContentStore = d.containerdCli.ContentStore()
+	if d.UsesSnapshotter() {
+		d.imageService = ctrd.NewService(d.containerdCli)
 	} else {
-		cs, lm, err := d.configureLocalContentStore()
+		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
 			return nil, err
 		}
-		imgSvcConfig.ContentStore = cs
-		imgSvcConfig.Leases = lm
-	}
 
-	// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
-	// used above to run migration. They could be initialized in ImageService
-	// if migration is called from daemon/images. layerStore might move as well.
-	d.imageService = images.NewImageService(imgSvcConfig)
-	logrus.Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
-	logrus.Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
-	logrus.Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
+		imageStore, err := image.NewImageStore(ifs, layerStore)
+		if err != nil {
+			return nil, err
+		}
+
+		distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
+		if err != nil {
+			return nil, err
+		}
+
+		imgSvcConfig := images.ImageServiceConfig{
+			ContainerStore:            d.containers,
+			DistributionMetadataStore: distributionMetadataStore,
+			EventsService:             d.EventsService,
+			ImageStore:                imageStore,
+			LayerStore:                layerStore,
+			MaxConcurrentDownloads:    config.MaxConcurrentDownloads,
+			MaxConcurrentUploads:      config.MaxConcurrentUploads,
+			MaxDownloadAttempts:       config.MaxDownloadAttempts,
+			ReferenceStore:            rs,
+			RegistryService:           registryService,
+			ContentNamespace:          config.ContainerdNamespace,
+		}
+
+		// This is a temporary environment variables used in CI to allow pushing
+		// manifest v2 schema 1 images to test-registries used for testing *pulling*
+		// these images.
+		if os.Getenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE") != "" {
+			imgSvcConfig.TrustKey, err = loadOrCreateTrustKey(config.TrustKeyPath)
+			if err != nil {
+				return nil, err
+			}
+			if err = system.MkdirAll(filepath.Join(config.Root, "trust"), 0700); err != nil {
+				return nil, err
+			}
+		}
+
+		// containerd is not currently supported with Windows.
+		// So sometimes d.containerdCli will be nil
+		// In that case we'll create a local content store... but otherwise we'll use containerd
+		if d.containerdCli != nil {
+			imgSvcConfig.Leases = d.containerdCli.LeasesService()
+			imgSvcConfig.ContentStore = d.containerdCli.ContentStore()
+		} else {
+			cs, lm, err := d.configureLocalContentStore()
+			if err != nil {
+				return nil, err
+			}
+			imgSvcConfig.ContentStore = cs
+			imgSvcConfig.Leases = lm
+		}
+
+		// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
+		// used above to run migration. They could be initialized in ImageService
+		// if migration is called from daemon/images. layerStore might move as well.
+		d.imageService = images.NewImageService(imgSvcConfig)
+
+		logrus.Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
+		logrus.Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
+		logrus.Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
+	}
 
 	go d.execCommandGC()
 
