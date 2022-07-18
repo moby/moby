@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageService implements daemon.ImageService
@@ -37,7 +37,7 @@ func NewService(c *containerd.Client) *ImageService {
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tagOrDigest may be either empty, or indicate a specific tag or digest to pull.
-func (cs *ImageService) PullImage(ctx context.Context, image, tagOrDigest string, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (cs *ImageService) PullImage(ctx context.Context, image, tagOrDigest string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
@@ -248,7 +248,7 @@ func (cs *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Ar
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (cs *ImageService) ImportImage(src string, repository string, platform *ocispec.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (cs *ImageService) ImportImage(src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	panic("not implemented")
 }
 
@@ -307,7 +307,7 @@ func (cs *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (cs *ImageService) GetImage(refOrID string, platform *ocispec.Platform) (retImg *image.Image, retErr error) {
+func (cs *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
 	panic("not implemented")
 }
 
