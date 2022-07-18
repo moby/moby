@@ -113,11 +113,6 @@ func (cs *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer)
 	panic("not implemented")
 }
 
-// Map returns a map of all images in the ImageStore.
-func (cs *ImageService) Map() map[image.ID]*image.Image {
-	panic("not implemented")
-}
-
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore(), and Daemon.containerExport().
 func (cs *ImageService) GetLayerByID(string) (layer.RWLayer, error) {
@@ -261,11 +256,6 @@ func (cs *ImageService) ImportImage(src string, repository string, platform *oci
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (cs *ImageService) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	panic("not implemented")
-}
-
-// LookupImage is not implemented.
-func (cs *ImageService) LookupImage(ctx context.Context, name string) (*types.ImageInspect, error) {
 	panic("not implemented")
 }
 

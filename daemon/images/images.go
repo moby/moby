@@ -33,11 +33,6 @@ func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
-// Map returns a map of all images in the ImageStore
-func (i *ImageService) Map() map[image.ID]*image.Image {
-	return i.imageStore.Map()
-}
-
 // Images returns a filtered list of images.
 func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
