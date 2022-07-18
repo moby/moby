@@ -259,11 +259,6 @@ func (cs *ImageService) LoadImage(inTar io.ReadCloser, outStream io.Writer, quie
 	panic("not implemented")
 }
 
-// LookupImage is not implemented.
-func (cs *ImageService) LookupImage(ctx context.Context, name string) (*types.ImageInspect, error) {
-	panic("not implemented")
-}
-
 // PushImage initiates a push operation on the repository named localName.
 func (cs *ImageService) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	panic("not implemented")
