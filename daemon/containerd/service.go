@@ -37,7 +37,7 @@ func NewService(c *containerd.Client) *ImageService {
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tagOrDigest may be either empty, or indicate a specific tag or digest to pull.
-func (cs *ImageService) PullImage(ctx context.Context, image, tagOrDigest string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.Format(*platform)))
@@ -62,13 +62,13 @@ func (cs *ImageService) PullImage(ctx context.Context, image, tagOrDigest string
 		}
 	}
 
-	_, err = cs.client.Pull(ctx, ref.String(), opts...)
+	_, err = i.client.Pull(ctx, ref.String(), opts...)
 	return err
 }
 
 // Images returns a filtered list of images.
-func (cs *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
-	imgs, err := cs.client.ListImages(ctx)
+func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+	imgs, err := i.client.ListImages(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -98,37 +98,37 @@ func (cs *ImageService) Images(ctx context.Context, opts types.ImageListOptions)
 
 // LogImageEvent generates an event related to an image with only the
 // default attributes.
-func (cs *ImageService) LogImageEvent(imageID, refName, action string) {
+func (i *ImageService) LogImageEvent(imageID, refName, action string) {
 	panic("not implemented")
 }
 
 // LogImageEventWithAttributes generates an event related to an image with
 // specific given attributes.
-func (cs *ImageService) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
+func (i *ImageService) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
 	panic("not implemented")
 }
 
 // GetLayerFolders returns the layer folders from an image RootFS.
-func (cs *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
+func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
 	panic("not implemented")
 }
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore(), and Daemon.containerExport().
-func (cs *ImageService) GetLayerByID(string) (layer.RWLayer, error) {
+func (i *ImageService) GetLayerByID(string) (layer.RWLayer, error) {
 	panic("not implemented")
 }
 
 // GetLayerMountID returns the mount ID for a layer
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually continerCleanup)
 // TODO: needs to be refactored to Unmount (see callers), or removed and replaced with GetLayerByID
-func (cs *ImageService) GetLayerMountID(string) (string, error) {
+func (i *ImageService) GetLayerMountID(string) (string, error) {
 	panic("not implemented")
 }
 
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
-func (cs *ImageService) Cleanup() error {
+func (i *ImageService) Cleanup() error {
 	return nil
 }
 
@@ -136,7 +136,7 @@ func (cs *ImageService) Cleanup() error {
 // moved from Daemon.GraphDriverName, used by:
 // - newContainer
 // - to report an error in Daemon.Mount(container)
-func (cs *ImageService) GraphDriverName() string {
+func (i *ImageService) GraphDriverName() string {
 	return ""
 }
 
@@ -149,31 +149,31 @@ func (cs *ImageService) GraphDriverName() string {
 //   - it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (cs *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
 	panic("not implemented")
 }
 
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (cs *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
 	panic("not implemented")
 }
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a
 // eference or ID. Every call to GetImageAndReleasableLayer MUST call
 // releasableLayer.Release() to prevent leaking of layers.
-func (cs *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	panic("not implemented")
 }
 
 // MakeImageCache creates a stateful image cache.
-func (cs *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
+func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
 	panic("not implemented")
 }
 
 // TagImageWithReference adds the given reference to the image ID provided.
-func (cs *ImageService) TagImageWithReference(imageID image.ID, newTag reference.Named) error {
+func (i *ImageService) TagImageWithReference(imageID image.ID, newTag reference.Named) error {
 	panic("not implemented")
 }
 
@@ -183,7 +183,7 @@ func (cs *ImageService) TagImageWithReference(imageID image.ID, newTag reference
 // The existing image(s) is not destroyed. If no parent is specified, a new
 // image with the diff of all the specified image's layers merged into a new
 // layer that has no parents.
-func (cs *ImageService) SquashImage(id, parent string) (string, error) {
+func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	panic("not implemented")
 }
 
@@ -192,7 +192,7 @@ func (cs *ImageService) SquashImage(id, parent string) (string, error) {
 // stream. All images with the given tag and all versions containing
 // the same tag are exported. names is the set of tags to export, and
 // outStream is the writer which the images are written to.
-func (cs *ImageService) ExportImage(names []string, outStream io.Writer) error {
+func (i *ImageService) ExportImage(names []string, outStream io.Writer) error {
 	panic("not implemented")
 }
 
@@ -229,18 +229,18 @@ func (cs *ImageService) ExportImage(names []string, outStream io.Writer) error {
 // If prune is true, ancestor images will each attempt to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (cs *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
 	panic("not implemented")
 }
 
 // ImageHistory returns a slice of ImageHistory structures for the specified
 // image name by walking the image lineage.
-func (cs *ImageService) ImageHistory(name string) ([]*imagetype.HistoryResponseItem, error) {
+func (i *ImageService) ImageHistory(name string) ([]*imagetype.HistoryResponseItem, error) {
 	panic("not implemented")
 }
 
 // ImagesPrune removes unused images
-func (cs *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
 	panic("not implemented")
 }
 
@@ -248,19 +248,19 @@ func (cs *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Ar
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (cs *ImageService) ImportImage(src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (i *ImageService) ImportImage(src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	panic("not implemented")
 }
 
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (cs *ImageService) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+func (i *ImageService) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	panic("not implemented")
 }
 
 // PushImage initiates a push operation on the repository named localName.
-func (cs *ImageService) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	panic("not implemented")
 }
 
@@ -269,64 +269,64 @@ func (cs *ImageService) PushImage(ctx context.Context, image, tag string, metaHe
 //
 // TODO: this could be implemented in a registry service instead of the image
 // service.
-func (cs *ImageService) SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registrytypes.SearchResults, error) {
+func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registrytypes.SearchResults, error) {
 	panic("not implemented")
 }
 
 // TagImage creates the tag specified by newTag, pointing to the image named
 // imageName (alternatively, imageName can also be an image ID).
-func (cs *ImageService) TagImage(imageName, repository, tag string) (string, error) {
+func (i *ImageService) TagImage(imageName, repository, tag string) (string, error) {
 	panic("not implemented")
 }
 
 // GetRepository returns a repository from the registry.
-func (cs *ImageService) GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, error) {
+func (i *ImageService) GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, error) {
 	panic("not implemented")
 }
 
 // ImageDiskUsage returns information about image data disk usage.
-func (cs *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
+func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
 	panic("not implemented")
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
-func (cs *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
+func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 	panic("not implemented")
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (cs *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
+func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
 	panic("not implemented")
 }
 
 // CommitImage creates a new image from a commit config.
-func (cs *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 	panic("not implemented")
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (cs *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
+func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
 	panic("not implemented")
 }
 
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
-func (cs *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
+func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
 	panic("not implemented")
 }
 
 // DistributionServices return services controlling daemon image storage.
-func (cs *ImageService) DistributionServices() images.DistributionServices {
+func (i *ImageService) DistributionServices() images.DistributionServices {
 	return images.DistributionServices{}
 }
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (cs *ImageService) CountImages() int {
-	imgs, err := cs.client.ListImages(context.TODO())
+func (i *ImageService) CountImages() int {
+	imgs, err := i.client.ListImages(context.TODO())
 	if err != nil {
 		return 0
 	}
@@ -336,25 +336,25 @@ func (cs *ImageService) CountImages() int {
 
 // LayerStoreStatus returns the status for each layer store
 // called from info.go
-func (cs *ImageService) LayerStoreStatus() [][2]string {
+func (i *ImageService) LayerStoreStatus() [][2]string {
 	return [][2]string{}
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
-func (cs *ImageService) GetContainerLayerSize(containerID string) (int64, int64) {
+func (i *ImageService) GetContainerLayerSize(containerID string) (int64, int64) {
 	panic("not implemented")
 }
 
 // UpdateConfig values
 //
 // called from reload.go
-func (cs *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
+func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
 	panic("not implemented")
 }
 
 // Children returns the children image.IDs for a parent image.
 // called from list.go to filter containers
 // TODO: refactor to expose an ancestry for image.ID?
-func (cs *ImageService) Children(id image.ID) []image.ID {
+func (i *ImageService) Children(id image.ID) []image.ID {
 	panic("not implemented")
 }
