@@ -108,7 +108,7 @@ func (s *Server) DisableDiagnostic() {
 	s.Lock()
 	defer s.Unlock()
 
-	s.srv.Shutdown(context.Background()) // nolint:errcheck
+	s.srv.Shutdown(context.Background()) //nolint:errcheck
 	s.srv = nil
 	s.enable = 0
 	logrus.Info("Disabling the diagnostic server")
@@ -122,7 +122,7 @@ func (s *Server) IsDiagnosticEnabled() bool {
 }
 
 func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() // nolint:errcheck
+	r.ParseForm() //nolint:errcheck
 	_, json := ParseHTTPFormOptions(r)
 	rsp := WrongCommand("not implemented", fmt.Sprintf("URL path: %s no method implemented check /help\n", r.URL.Path))
 
@@ -130,11 +130,11 @@ func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("command not implemented done")
 
-	HTTPReply(w, rsp, json) // nolint:errcheck
+	HTTPReply(w, rsp, json) //nolint:errcheck
 }
 
 func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() // nolint:errcheck
+	r.ParseForm() //nolint:errcheck
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
@@ -147,22 +147,22 @@ func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		for path := range n.registeredHanders {
 			result += fmt.Sprintf("%s\n", path)
 		}
-		HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), json) // nolint:errcheck
+		HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), json) //nolint:errcheck
 	}
 }
 
 func ready(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() // nolint:errcheck
+	r.ParseForm() //nolint:errcheck
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
 	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("ready done")
-	HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), json) // nolint:errcheck
+	HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), json) //nolint:errcheck
 }
 
 func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() // nolint:errcheck
+	r.ParseForm() //nolint:errcheck
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
@@ -172,10 +172,10 @@ func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	path, err := stack.DumpToFile("/tmp/")
 	if err != nil {
 		log.WithError(err).Error("failed to write goroutines dump")
-		HTTPReply(w, FailCommand(err), json) // nolint:errcheck
+		HTTPReply(w, FailCommand(err), json) //nolint:errcheck
 	} else {
 		log.Info("stack trace done")
-		HTTPReply(w, CommandSucceed(&StringCmd{Info: fmt.Sprintf("goroutine stacks written to %s", path)}), json) // nolint:errcheck
+		HTTPReply(w, CommandSucceed(&StringCmd{Info: fmt.Sprintf("goroutine stacks written to %s", path)}), json) //nolint:errcheck
 	}
 }
 

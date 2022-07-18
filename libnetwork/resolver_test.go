@@ -252,7 +252,7 @@ func TestDNSProxyServFail(t *testing.T) {
 		srvErrCh <- server.ListenAndServe()
 	}()
 	defer func() {
-		server.Shutdown() // nolint:errcheck
+		server.Shutdown() //nolint:errcheck
 		if err := <-srvErrCh; err != nil {
 			t.Error(err)
 		}
