@@ -83,10 +83,8 @@ add_buildtag() {
 	[[ " $DOCKER_BUILDTAGS" == *" $1_"* ]] || DOCKER_BUILDTAGS+=" $1_$2"
 }
 
-if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null; then
+if ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
 	DOCKER_BUILDTAGS+=" journald"
-elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null; then
-	DOCKER_BUILDTAGS+=" journald journald_compat"
 fi
 
 # test whether "libdevmapper.h" is new enough to support deferred remove
