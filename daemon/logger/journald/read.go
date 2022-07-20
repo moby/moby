@@ -227,6 +227,7 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, j *C.sd_journal,
 
 	waitTimeout := C.uint64_t(250000) // 0.25s
 
+LOOP:
 	for {
 		status := C.sd_journal_wait(j, waitTimeout)
 		if status < 0 {
@@ -235,7 +236,7 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, j *C.sd_journal,
 		}
 		select {
 		case <-logWatcher.WatchConsumerGone():
-			break // won't be able to write anything anymore
+			break LOOP // won't be able to write anything anymore
 		case <-s.closed:
 			// container is gone, drain journal
 		default:
