@@ -167,6 +167,7 @@ github.com/containerd/containerd/api/services/leases/v1
 github.com/containerd/containerd/api/services/namespaces/v1
 github.com/containerd/containerd/api/services/snapshots/v1
 github.com/containerd/containerd/api/services/tasks/v1
+github.com/containerd/containerd/api/services/ttrpc/events/v1
 github.com/containerd/containerd/api/services/version/v1
 github.com/containerd/containerd/api/types
 github.com/containerd/containerd/api/types/task
@@ -204,6 +205,8 @@ github.com/containerd/containerd/pkg/cap
 github.com/containerd/containerd/pkg/dialer
 github.com/containerd/containerd/pkg/kmutex
 github.com/containerd/containerd/pkg/seccomp
+github.com/containerd/containerd/pkg/shutdown
+github.com/containerd/containerd/pkg/ttrpcutil
 github.com/containerd/containerd/pkg/userns
 github.com/containerd/containerd/platforms
 github.com/containerd/containerd/plugin
@@ -217,6 +220,8 @@ github.com/containerd/containerd/remotes/errors
 github.com/containerd/containerd/rootfs
 github.com/containerd/containerd/runtime/linux/runctypes
 github.com/containerd/containerd/runtime/v2/runc/options
+github.com/containerd/containerd/runtime/v2/shim
+github.com/containerd/containerd/runtime/v2/task
 github.com/containerd/containerd/services
 github.com/containerd/containerd/services/content/contentserver
 github.com/containerd/containerd/services/introspection
@@ -224,6 +229,7 @@ github.com/containerd/containerd/services/server/config
 github.com/containerd/containerd/snapshots
 github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
+github.com/containerd/containerd/sys/reaper
 github.com/containerd/containerd/version
 # github.com/containerd/continuity v0.3.0
 ## explicit; go 1.17
