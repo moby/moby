@@ -264,6 +264,35 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 		}
 
 		if !found {
+			// non-default nat networks should be re-created if missing from HNS
+			if v.Type() == "nat" && v.Name() != "nat" {
+				_, _, v4Conf, v6Conf := v.Info().IpamConfig()
+				netOption := map[string]string{}
+				for k, v := range v.Info().DriverOptions() {
+					if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
+						netOption[k] = v
+					}
+				}
+				name := v.Name()
+				id := v.ID()
+
+				err = v.Delete()
+				if err != nil {
+					logrus.Errorf("Error occurred when removing network %v", err)
+				}
+
+				_, err := daemon.netController.NewNetwork("nat", name, id,
+					libnetwork.NetworkOptionGeneric(options.Generic{
+						netlabel.GenericData: netOption,
+					}),
+					libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+				)
+				if err != nil {
+					logrus.Errorf("Error occurred when creating network %v", err)
+				}
+				continue
+			}
+
 			// global networks should not be deleted by local HNS
 			if v.Info().Scope() != datastore.GlobalScope {
 				err = v.Delete()
