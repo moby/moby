@@ -11,10 +11,22 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 )
 
+var acceptedImageFilterTags = map[string]bool{
+	"dangling":  false, // TODO(thaJeztah): implement "dangling" filter: see https://github.com/moby/moby/issues/43846
+	"label":     true,
+	"before":    true,
+	"since":     true,
+	"reference": false, // TODO(thaJeztah): implement "reference" filter: see https://github.com/moby/moby/issues/43847
+}
+
 // Images returns a filtered list of images.
 //
 // TODO(thaJeztah): sort the results by created (descending); see https://github.com/moby/moby/issues/43848
 func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
+		return nil, err
+	}
+
 	filter, err := i.setupFilters(ctx, opts.Filters)
 	if err != nil {
 		return nil, err
