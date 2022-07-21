@@ -5,12 +5,33 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/opencontainers/image-spec/identity"
 )
 
+var acceptedImageFilterTags = map[string]bool{
+	"dangling":  false, // TODO(thaJeztah): implement "dangling" filter: see https://github.com/moby/moby/issues/43846
+	"label":     true,
+	"before":    true,
+	"since":     true,
+	"reference": false, // TODO(thaJeztah): implement "reference" filter: see https://github.com/moby/moby/issues/43847
+}
+
 // Images returns a filtered list of images.
+//
+// TODO(thaJeztah): sort the results by created (descending); see https://github.com/moby/moby/issues/43848
 func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
+		return nil, err
+	}
+
+	filter, err := i.setupFilters(ctx, opts.Filters)
+	if err != nil {
+		return nil, err
+	}
+
 	imgs, err := i.client.ListImages(ctx)
 	if err != nil {
 		return nil, err
@@ -20,6 +41,10 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 	var ret []*types.ImageSummary
 	for _, img := range imgs {
+		if !filter(img) {
+			continue
+		}
+
 		size, err := img.Size(ctx)
 		if err != nil {
 			return nil, err
@@ -44,6 +69,66 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	}
 
 	return ret, nil
+}
+
+type imageFilterFunc func(image containerd.Image) bool
+
+// setupFilters constructs an imageFilterFunc from the given imageFilters.
+//
+// TODO(thaJeztah): reimplement filters using containerd filters: see https://github.com/moby/moby/issues/43845
+func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (imageFilterFunc, error) {
+	var fltrs []imageFilterFunc
+	err := imageFilters.WalkValues("before", func(value string) error {
+		ref, err := reference.ParseDockerRef(value)
+		if err != nil {
+			return err
+		}
+		img, err := i.client.GetImage(ctx, ref.String())
+		if img != nil {
+			t := img.Metadata().CreatedAt
+			fltrs = append(fltrs, func(image containerd.Image) bool {
+				created := image.Metadata().CreatedAt
+				return created.Equal(t) || created.After(t)
+			})
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = imageFilters.WalkValues("since", func(value string) error {
+		ref, err := reference.ParseDockerRef(value)
+		if err != nil {
+			return err
+		}
+		img, err := i.client.GetImage(ctx, ref.String())
+		if img != nil {
+			t := img.Metadata().CreatedAt
+			fltrs = append(fltrs, func(image containerd.Image) bool {
+				created := image.Metadata().CreatedAt
+				return created.Equal(t) || created.Before(t)
+			})
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if imageFilters.Contains("label") {
+		fltrs = append(fltrs, func(image containerd.Image) bool {
+			return imageFilters.MatchKVList("label", image.Labels())
+		})
+	}
+	return func(image containerd.Image) bool {
+		for _, filter := range fltrs {
+			if !filter(image) {
+				return false
+			}
+		}
+		return true
+	}, nil
 }
 
 func computeVirtualSize(ctx context.Context, image containerd.Image, snapshotter snapshots.Snapshotter) (int64, error) {
