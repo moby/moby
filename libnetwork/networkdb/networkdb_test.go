@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/serf/serf"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -479,22 +480,47 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
+	var (
+		dbIndex          int32
+		staleNetworkTime [2]serf.LamportTime
+		expectNodeCount  int
+		network          = "network1"
+	)
+	dbChangeWitness := func(t poll.LogT) poll.Result {
+		db := dbs[dbIndex]
+		networkTime := db.networkClock.Time()
+		if networkTime <= staleNetworkTime[dbIndex] {
+			return poll.Continue("network time is stale, no change registered yet.")
+		}
+		count := -1
+		db.Lock()
+		if nodes, ok := db.networkNodes[network]; ok {
+			count = len(nodes)
+		}
+		db.Unlock()
+		if count != expectNodeCount {
+			return poll.Continue("current number of nodes is %d, expect %d.", count, expectNodeCount)
+		}
+		return poll.Success()
+	}
+
 	// Single node Join/Leave
+	staleNetworkTime[0], staleNetworkTime[1] = dbs[0].networkClock.Time(), dbs[1].networkClock.Time()
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
-	if len(dbs[0].networkNodes["network1"]) != 1 {
-		t.Fatalf("The networkNodes list has to have be 1 instead of %d", len(dbs[0].networkNodes["network1"]))
-	}
+	dbIndex, expectNodeCount = 0, 1
+	poll.WaitOn(t, dbChangeWitness, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 
+	staleNetworkTime[0], staleNetworkTime[1] = dbs[0].networkClock.Time(), dbs[1].networkClock.Time()
 	err = dbs[0].LeaveNetwork("network1")
 	assert.NilError(t, err)
 
-	if len(dbs[0].networkNodes["network1"]) != 0 {
-		t.Fatalf("The networkNodes list has to have be 0 instead of %d", len(dbs[0].networkNodes["network1"]))
-	}
+	dbIndex, expectNodeCount = 0, 0
+	poll.WaitOn(t, dbChangeWitness, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 
 	// Multiple nodes Join/Leave
+	staleNetworkTime[0], staleNetworkTime[1] = dbs[0].networkClock.Time(), dbs[1].networkClock.Time()
 	err = dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
@@ -503,37 +529,34 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 
 	// Wait for the propagation on db[0]
 	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-	if len(dbs[0].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
-	}
+	dbIndex, expectNodeCount = 0, 2
+	poll.WaitOn(t, dbChangeWitness, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 	if n, ok := dbs[0].networks[dbs[0].config.NodeID]["network1"]; !ok || n.leaving {
 		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
 	}
 
 	// Wait for the propagation on db[1]
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-	if len(dbs[1].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
-	}
+	dbIndex, expectNodeCount = 1, 2
+	poll.WaitOn(t, dbChangeWitness, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 	if n, ok := dbs[1].networks[dbs[1].config.NodeID]["network1"]; !ok || n.leaving {
 		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
 	}
 
 	// Try a quick leave/join
+	staleNetworkTime[0], staleNetworkTime[1] = dbs[0].networkClock.Time(), dbs[1].networkClock.Time()
 	err = dbs[0].LeaveNetwork("network1")
 	assert.NilError(t, err)
 	err = dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
 	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-	if len(dbs[0].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
-	}
+	dbIndex, expectNodeCount = 0, 2
+	poll.WaitOn(t, dbChangeWitness, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-	if len(dbs[1].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
-	}
+	dbIndex, expectNodeCount = 1, 2
+	poll.WaitOn(t, dbChangeWitness, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
 
 	closeNetworkDBInstances(t, dbs)
 }
