@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
@@ -63,7 +64,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 		// we allow the image to have a non-matching architecture. The code
 		// below checks for this situation, and returns a warning to the client,
 		// as well as logging it to the daemon logs.
-		img, err := i.GetImage(image, platform)
+		img, err := i.GetImage(image, imagetypes.GetImageOpts{Platform: platform})
 
 		// Note that this is a special case where GetImage returns both an image
 		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183

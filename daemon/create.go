@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	imagetypes "github.com/docker/docker/api/types/image"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
@@ -68,7 +69,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		if img, _ := daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform); img != nil {
+		if img, _ := daemon.imageService.GetImage(opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform}); img != nil {
 			p := maximumSpec()
 			imgPlat := v1.Platform{
 				OS:           img.OS,
@@ -119,7 +120,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	)
 
 	if opts.params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
+		img, err = daemon.imageService.GetImage(opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
 		if err != nil {
 			return nil, err
 		}

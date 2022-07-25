@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
@@ -75,7 +76,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.imageBackend.GetImage(spec.Image, nil)
+			_, err := c.imageBackend.GetImage(spec.Image, imagetypes.GetImageOpts{})
 			if err == nil {
 				return nil
 			}
