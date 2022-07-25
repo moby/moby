@@ -5,9 +5,13 @@ import (
 	"io"
 
 	"github.com/containerd/containerd"
+	cerrdefs "github.com/containerd/containerd/errdefs"
+	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/images/converter"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -21,17 +25,17 @@ import (
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
 	opts := []archive.ExportOpt{
-		archive.WithPlatform(platforms.Ordered(platforms.DefaultSpec())),
 		archive.WithSkipNonDistributableBlobs(),
 	}
-	is := i.client.ImageService()
+
 	for _, imageRef := range names {
-		named, err := reference.ParseDockerRef(imageRef)
+		var err error
+		opts, err = i.appendImageForExport(ctx, opts, imageRef)
 		if err != nil {
 			return err
 		}
-		opts = append(opts, archive.WithImage(is, named.String()))
 	}
+
 	return i.client.Export(ctx, outStream, opts...)
 }
 
@@ -70,4 +74,62 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 	}
 	return nil
+}
+
+func (i *ImageService) appendImageForExport(ctx context.Context, opts []archive.ExportOpt, name string) ([]archive.ExportOpt, error) {
+	ref, err := reference.ParseDockerRef(name)
+	if err != nil {
+		return opts, err
+	}
+
+	is := i.client.ImageService()
+
+	img, err := is.Get(ctx, ref.String())
+	if err != nil {
+		return opts, err
+	}
+
+	store := i.client.ContentStore()
+
+	if containerdimages.IsIndexType(img.Target.MediaType) {
+		children, err := containerdimages.Children(ctx, store, img.Target)
+		if err != nil {
+			return opts, err
+		}
+
+		// Check which platform manifests we have blobs for.
+		missingPlatforms := []v1.Platform{}
+		presentPlatforms := []v1.Platform{}
+		for _, child := range children {
+			if containerdimages.IsManifestType(child.MediaType) {
+				_, err := store.ReaderAt(ctx, child)
+				if cerrdefs.IsNotFound(err) {
+					missingPlatforms = append(missingPlatforms, *child.Platform)
+					logrus.WithField("digest", child.Digest.String()).Debug("missing blob, not exporting")
+					continue
+				} else if err != nil {
+					return opts, err
+				}
+				presentPlatforms = append(presentPlatforms, *child.Platform)
+			}
+		}
+
+		// If we have all the manifests, just export the original index.
+		if len(missingPlatforms) == 0 {
+			return append(opts, archive.WithImage(is, img.Name)), nil
+		}
+
+		// Create a new manifest which contains only the manifests we have in store.
+		srcRef := ref.String()
+		targetRef := srcRef + "-tmp-export"
+		newImg, err := converter.Convert(ctx, i.client, targetRef, srcRef,
+			converter.WithPlatform(platforms.Any(presentPlatforms...)))
+		if err != nil {
+			return opts, err
+		}
+		defer i.client.ImageService().Delete(ctx, newImg.Name, containerdimages.SynchronousDelete())
+		return append(opts, archive.WithManifest(newImg.Target, srcRef)), nil
+	}
+
+	return append(opts, archive.WithImage(is, img.Name)), nil
 }
