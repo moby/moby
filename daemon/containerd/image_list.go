@@ -22,6 +22,10 @@ var acceptedImageFilterTags = map[string]bool{
 // Images returns a filtered list of images.
 //
 // TODO(thaJeztah): sort the results by created (descending); see https://github.com/moby/moby/issues/43848
+// TODO(thaJeztah): implement opts.ContainerCount (used for docker system df); see https://github.com/moby/moby/issues/43853
+// TODO(thaJeztah): add labels to results; see https://github.com/moby/moby/issues/43852
+// TODO(thaJeztah): verify behavior of `RepoDigests` and `RepoTags` for images without (untagged) or multiple tags; see https://github.com/moby/moby/issues/43861
+// TODO(thaJeztah): verify "Size" vs "VirtualSize" in images; see https://github.com/moby/moby/issues/43862
 func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
@@ -39,7 +43,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 	snapshotter := i.client.SnapshotService(containerd.DefaultSnapshotter)
 
-	var ret []*types.ImageSummary
+	var summaries []*types.ImageSummary
 	for _, img := range imgs {
 		if !filter(img) {
 			continue
@@ -55,20 +59,24 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			return nil, err
 		}
 
-		ret = append(ret, &types.ImageSummary{
-			RepoDigests: []string{img.Name() + "@" + img.Target().Digest.String()}, // "hello-world@sha256:bfea6278a0a267fad2634554f4f0c6f31981eea41c553fdf5a83e95a41d40c38"},
-			RepoTags:    []string{img.Name()},
-			Containers:  -1,
+		summaries = append(summaries, &types.ImageSummary{
 			ParentID:    "",
-			SharedSize:  -1,
-			VirtualSize: virtualSize,
 			ID:          img.Target().Digest.String(),
 			Created:     img.Metadata().CreatedAt.Unix(),
+			RepoDigests: []string{img.Name() + "@" + img.Target().Digest.String()}, // "hello-world@sha256:bfea6278a0a267fad2634554f4f0c6f31981eea41c553fdf5a83e95a41d40c38"},
+			RepoTags:    []string{img.Name()},
 			Size:        size,
+			VirtualSize: virtualSize,
+			// -1 indicates that the value has not been set (avoids ambiguity
+			// between 0 (default) and "not set". We cannot use a pointer (nil)
+			// for this, as the JSON representation uses "omitempty", which would
+			// consider both "0" and "nil" to be "empty".
+			SharedSize: -1,
+			Containers: -1,
 		})
 	}
 
-	return ret, nil
+	return summaries, nil
 }
 
 type imageFilterFunc func(image containerd.Image) bool
