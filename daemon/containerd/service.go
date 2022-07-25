@@ -125,7 +125,7 @@ func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) 
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
 func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error) {
-	snapshotter := i.client.SnapshotService(containerd.DefaultSnapshotter)
+	snapshotter := i.client.SnapshotService(i.snapshotter)
 	sizeCache := make(map[digest.Digest]int64)
 	snapshotSizeFn := func(d digest.Digest) (int64, error) {
 		if s, ok := sizeCache[d]; ok {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd"
+	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -19,6 +21,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
+	"github.com/opencontainers/image-spec/identity"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -30,6 +33,10 @@ type createOpts struct {
 	params                  types.ContainerCreateConfig
 	managed                 bool
 	ignoreImagesArgsEscaped bool
+}
+
+type containerdImage interface {
+	GetContainerdImage(ctx context.Context, refOrID string, platform *v1.Platform) (containerdimages.Image, error)
 }
 
 // CreateManagedContainer creates a container that is managed by a Service
@@ -170,12 +177,29 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 
 	ctr.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 
-	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
-	if err != nil {
-		return nil, errdefs.System(err)
+	if daemon.UsesSnapshotter() {
+		c8dImge, err := daemon.imageService.(containerdImage).GetContainerdImage(ctx, opts.params.Config.Image, opts.params.Platform)
+		if err != nil {
+			return nil, err
+		}
+		ctrdimg := containerd.NewImage(daemon.containerdCli, c8dImge)
+		diffIDs, err := ctrdimg.RootFS(ctx)
+		if err != nil {
+			return nil, err
+		}
+		parent := identity.ChainID(diffIDs).String()
+		s := daemon.containerdCli.SnapshotService(daemon.imageService.StorageDriver())
+		if _, err := s.Prepare(ctx, ctr.ID, parent); err != nil {
+			return nil, err
+		}
+	} else {
+		// Set RWLayer for container after mount labels have been set
+		rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))
+		if err != nil {
+			return nil, errdefs.System(err)
+		}
+		ctr.RWLayer = rwLayer
 	}
-	ctr.RWLayer = rwLayer
 
 	current := idtools.CurrentIdentity()
 	if err := idtools.MkdirAndChown(ctr.Root, 0710, idtools.Identity{UID: current.UID, GID: daemon.IdentityMapping().RootPair().GID}); err != nil {

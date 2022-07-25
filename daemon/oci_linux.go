@@ -732,9 +732,11 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				Path:     c.BaseFS,
 				Readonly: c.HostConfig.ReadonlyRootfs,
 			}
-		}
-		if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
-			return err
+			if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
+				return err
+			}
+		} else {
+
 		}
 		cwd := c.Config.WorkingDir
 		if len(cwd) == 0 {
@@ -1018,7 +1020,6 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (r
 		WithResources(c),
 		WithSysctls(c),
 		WithDevices(daemon, c),
-		WithUser(c),
 		WithRlimits(daemon, c),
 		WithNamespaces(daemon, c),
 		WithCapabilities(c),
@@ -1029,6 +1030,20 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (r
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
 	)
+	if daemon.UsesSnapshotter() {
+		s.Root = &specs.Root{
+			Path: "rootfs",
+		}
+		if c.Config.User != "" {
+			opts = append(opts, coci.WithUser(c.Config.User))
+		}
+		if c.Config.WorkingDir != "" {
+			opts = append(opts, coci.WithProcessCwd(c.Config.WorkingDir))
+		}
+	} else {
+		opts = append(opts, WithUser(c))
+	}
+
 	if c.NoNewPrivileges {
 		opts = append(opts, coci.WithNoNewPrivileges)
 	}
