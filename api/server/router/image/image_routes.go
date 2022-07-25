@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -193,7 +192,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{})
+	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{Details: true})
 	if err != nil {
 		return err
 	}
@@ -218,29 +217,9 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		}
 	}
 
-	var size int64
-	var layerMetadata map[string]string
-	if layerID := img.RootFS.ChainID(); layerID != "" {
-		l, err := ir.layerStore.Get(layerID)
-		if err != nil {
-			return nil, err
-		}
-		defer layer.ReleaseAndLog(ir.layerStore, l)
-		size = l.Size()
-		layerMetadata, err = l.Metadata()
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	comment := img.Comment
 	if len(comment) == 0 && len(img.History) > 0 {
 		comment = img.History[len(img.History)-1].Comment
-	}
-
-	lastUpdated, err := ir.imageStore.GetLastUpdated(img.ID())
-	if err != nil {
-		return nil, err
 	}
 
 	return &types.ImageInspect{
@@ -259,15 +238,15 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		Variant:         img.Variant,
 		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,
-		Size:            size,
-		VirtualSize:     size, // TODO: field unused, deprecate
+		Size:            img.Details.Size,
+		VirtualSize:     img.Details.Size, // TODO: field unused, deprecate
 		GraphDriver: types.GraphDriverData{
-			Name: ir.layerStore.DriverName(),
-			Data: layerMetadata,
+			Name: img.Details.Driver,
+			Data: img.Details.Metadata,
 		},
 		RootFS: rootFSToAPIType(img.RootFS),
 		Metadata: types.ImageMetadata{
-			LastTagTime: lastUpdated,
+			LastTagTime: img.Details.LastUpdated,
 		},
 	}, nil
 }
