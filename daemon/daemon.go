@@ -1259,42 +1259,13 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 }
 
 // Mount sets container.BaseFS
-// (is it not set coming in? why is it unset?)
 func (daemon *Daemon) Mount(container *container.Container) error {
-	if container.RWLayer == nil {
-		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
-	}
-	dir, err := container.RWLayer.Mount(container.GetMountLabel())
-	if err != nil {
-		return err
-	}
-	logrus.WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
-
-	if container.BaseFS != "" && container.BaseFS != dir {
-		// The mount path reported by the graph driver should always be trusted on Windows, since the
-		// volume path for a given mounted layer may change over time.  This should only be an error
-		// on non-Windows operating systems.
-		if runtime.GOOS != "windows" {
-			daemon.Unmount(container)
-			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				container.Driver, container.ID, container.BaseFS, dir)
-		}
-	}
-	container.BaseFS = dir // TODO: combine these fields
-	return nil
+	return daemon.imageService.Mount(context.Background(), container)
 }
 
 // Unmount unsets the container base filesystem
 func (daemon *Daemon) Unmount(container *container.Container) error {
-	if container.RWLayer == nil {
-		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
-	}
-	if err := container.RWLayer.Unmount(); err != nil {
-		logrus.WithField("container", container.ID).WithError(err).Error("error unmounting container")
-		return err
-	}
-
-	return nil
+	return daemon.imageService.Unmount(context.Background(), container)
 }
 
 // Subnets return the IPv4 and IPv6 subnets of networks that are manager by Docker.
