@@ -108,28 +108,25 @@ func TestWaitConditions(t *testing.T) {
 	cli := request.NewAPIClient(t)
 
 	testCases := []struct {
-		doc          string
-		waitCond     containertypes.WaitCondition
-		expectedCode int64
+		doc      string
+		waitCond containertypes.WaitCondition
+		runOpts  []func(*container.TestContainerConfig)
 	}{
 		{
-			doc:          "default",
-			expectedCode: 99,
+			doc: "default",
 		},
 		{
-			doc:          "not-running",
-			expectedCode: 99,
-			waitCond:     containertypes.WaitConditionNotRunning,
+			doc:      "not-running",
+			waitCond: containertypes.WaitConditionNotRunning,
 		},
 		{
-			doc:          "next-exit",
-			expectedCode: 99,
-			waitCond:     containertypes.WaitConditionNextExit,
+			doc:      "next-exit",
+			waitCond: containertypes.WaitConditionNextExit,
 		},
 		{
-			doc:          "removed",
-			expectedCode: 99,
-			waitCond:     containertypes.WaitConditionRemoved,
+			doc:      "removed",
+			waitCond: containertypes.WaitConditionRemoved,
+			runOpts:  []func(*container.TestContainerConfig){container.WithAutoRemove},
 		},
 	}
 
@@ -138,21 +135,44 @@ func TestWaitConditions(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			opts := []func(*container.TestContainerConfig){
-				container.WithCmd("sh", "-c", "sleep 1; exit 99"),
-			}
-			if tc.waitCond == containertypes.WaitConditionRemoved {
-				opts = append(opts, container.WithAutoRemove)
-			}
-			containerID := container.Run(ctx, t, cli, opts...)
-			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
+			opts := append([]func(*container.TestContainerConfig){
+				container.WithCmd("sh", "-c", "read -r; exit 99"),
+				func(tcc *container.TestContainerConfig) {
+					tcc.Config.AttachStdin = true
+					tcc.Config.OpenStdin = true
+				},
+			}, tc.runOpts...)
+			containerID := container.Create(ctx, t, cli, opts...)
+			t.Logf("ContainerID = %v", containerID)
 
+			streams, err := cli.ContainerAttach(ctx, containerID, types.ContainerAttachOptions{Stream: true, Stdin: true})
+			assert.NilError(t, err)
+			defer streams.Close()
+
+			assert.NilError(t, cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{}))
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
+			select {
+			case err := <-errC:
+				t.Fatalf("ContainerWait() err = %v", err)
+			case res := <-waitResC:
+				t.Fatalf("ContainerWait() sent exit code (%v) before ContainerStart()", res)
+			default:
+			}
+
+			info, _ := cli.ContainerInspect(ctx, containerID)
+			assert.Equal(t, "running", info.State.Status)
+
+			_, err = streams.Conn.Write([]byte("\n"))
+			assert.NilError(t, err)
+
 			select {
 			case err := <-errC:
 				assert.NilError(t, err)
 			case waitRes := <-waitResC:
-				assert.Check(t, is.Equal(tc.expectedCode, waitRes.StatusCode))
+				assert.Check(t, is.Equal(int64(99), waitRes.StatusCode))
+			case <-time.After(15 * time.Second):
+				info, _ := cli.ContainerInspect(ctx, containerID)
+				t.Fatalf("Timed out waiting for container exit code (status = %q)", info.State.Status)
 			}
 		})
 	}
