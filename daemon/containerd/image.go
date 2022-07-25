@@ -15,6 +15,7 @@ import (
 	imagetype "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -24,33 +25,62 @@ var shortID = regexp.MustCompile(`^([a-f0-9]{4,64})$`)
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error) {
-	desc, err := i.ResolveImage(ctx, refOrID)
+	containerdImage, img, err := i.getImage(ctx, refOrID, options.Platform)
 	if err != nil {
 		return nil, err
 	}
 
+	if options.Details {
+		size, err := containerdImage.Size(ctx)
+		if err != nil {
+			return nil, err
+		}
+		img.Details = &image.Details{
+			Size:        size,
+			Metadata:    nil,
+			Driver:      i.snapshotter,
+			LastUpdated: containerdImage.Metadata().UpdatedAt,
+		}
+	}
+	return img, err
+}
+
+func (i *ImageService) getImage(ctx context.Context, refOrID string, platform *ocispec.Platform) (containerd.Image, *image.Image, error) {
+	desc, err := i.ResolveImage(ctx, refOrID)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	ctrdimg, err := i.resolveImageName2(ctx, refOrID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	containerdImage := containerd.NewImage(i.client, ctrdimg)
 	provider := i.client.ContentStore()
 	conf, err := ctrdimg.Config(ctx, provider, containerdImage.Platform())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var ociimage ocispec.Image
 	imageConfigBytes, err := content.ReadBlob(ctx, containerdImage.ContentStore(), conf)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := json.Unmarshal(imageConfigBytes, &ociimage); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &image.Image{
+	fs, err := containerdImage.RootFS(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	rootfs := image.NewRootFS()
+	for _, id := range fs {
+		rootfs.Append(layer.DiffID(id))
+	}
+	return containerdImage, &image.Image{
 		V1Image: image.V1Image{
 			ID:           string(desc.Digest),
 			OS:           ociimage.OS,
@@ -63,6 +93,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 				WorkingDir: ociimage.Config.WorkingDir,
 			},
 		},
+		RootFS: rootfs,
 	}, nil
 }
 
