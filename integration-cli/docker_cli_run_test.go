@@ -1945,11 +1945,8 @@ func (s *DockerCLIRunSuite) TestRunCidFileCleanupIfEmpty(c *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	tmpCidFile := path.Join(tmpDir, "cid")
 
+	// This must be an image that has no CMD or ENTRYPOINT set
 	image := "emptyfs"
-	if testEnv.OSType == "windows" {
-		// Windows can't support an emptyfs image. Just use the regular Windows image
-		image = testEnv.PlatformDefaults.BaseImage
-	}
 	out, _, err := dockerCmdWithError("run", "--cidfile", tmpCidFile, image)
 	if err == nil {
 		c.Fatalf("Run without command must fail. out=%s", out)
