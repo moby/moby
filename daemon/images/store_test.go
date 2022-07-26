@@ -17,7 +17,7 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.etcd.io/bbolt"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreWithLease, func(t *testing.T)) {
@@ -75,24 +75,24 @@ func TestImageDelete(t *testing.T) {
 
 		ls, err := images.leases.List(ctx)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(len(ls), 1), ls)
+		assert.Check(t, is.Equal(len(ls), 1), ls)
 
 		_, err = images.Delete(id)
 		assert.NilError(t, err)
 
 		ls, err = images.leases.List(ctx)
 		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(len(ls), 0), ls)
+		assert.Check(t, is.Equal(len(ls), 0), ls)
 	})
 }
 
 func TestContentStoreForPull(t *testing.T) {
-	ctx, cs, is, cleanup := setupTestStores(t)
+	ctx, cs, imgStore, cleanup := setupTestStores(t)
 	defer cleanup(t)
 
 	csP := &contentStoreForPull{
 		ContentStore: cs,
-		leases:       is.leases,
+		leases:       imgStore.leases,
 	}
 
 	data := []byte(`{}`)
@@ -112,12 +112,12 @@ func TestContentStoreForPull(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, len(csP.digested), 1)
-	assert.Check(t, cmp.Equal(csP.digested[0], desc.Digest))
+	assert.Check(t, is.Equal(csP.digested[0], desc.Digest))
 
 	// Test already exists
 	csP.digested = nil
 	_, err = csP.Writer(ctx, content.WithRef(t.Name()), content.WithDescriptor(desc))
 	assert.Check(t, c8derrdefs.IsAlreadyExists(err))
 	assert.Equal(t, len(csP.digested), 1)
-	assert.Check(t, cmp.Equal(csP.digested[0], desc.Digest))
+	assert.Check(t, is.Equal(csP.digested[0], desc.Digest))
 }

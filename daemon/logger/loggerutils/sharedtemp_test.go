@@ -14,7 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSharedTempFileConverter(t *testing.T) {
@@ -33,9 +33,9 @@ func TestSharedTempFileConverter(t *testing.T) {
 			t.Logf("Iteration %v", i)
 
 			rdr := convertPath(t, uut, name)
-			assert.Check(t, cmp.Equal("HELLO, WORLD!", readAll(t, rdr)))
+			assert.Check(t, is.Equal("HELLO, WORLD!", readAll(t, rdr)))
 			assert.Check(t, rdr.Close())
-			assert.Check(t, cmp.Equal(fs.ErrClosed, rdr.Close()), "closing an already-closed reader should return an error")
+			assert.Check(t, is.Equal(fs.ErrClosed, rdr.Close()), "closing an already-closed reader should return an error")
 		}
 
 		assert.NilError(t, os.Remove(name))
@@ -67,15 +67,15 @@ func TestSharedTempFileConverter(t *testing.T) {
 
 		rb1 := convertPath(t, uut, bpath) // Same path, different file.
 		ra2 := convertPath(t, uut, apath) // New path, old file.
-		assert.Check(t, cmp.Equal(2, conversions), "expected only one conversion per unique file")
+		assert.Check(t, is.Equal(2, conversions), "expected only one conversion per unique file")
 
 		// Interleave reading and closing to shake out ref-counting bugs:
 		// closing one reader shouldn't affect any other open readers.
-		assert.Check(t, cmp.Equal("FILE A", readAll(t, ra1)))
+		assert.Check(t, is.Equal("FILE A", readAll(t, ra1)))
 		assert.NilError(t, ra1.Close())
-		assert.Check(t, cmp.Equal("FILE A", readAll(t, ra2)))
+		assert.Check(t, is.Equal("FILE A", readAll(t, ra2)))
 		assert.NilError(t, ra2.Close())
-		assert.Check(t, cmp.Equal("FILE B", readAll(t, rb1)))
+		assert.Check(t, is.Equal("FILE B", readAll(t, rb1)))
 		assert.NilError(t, rb1.Close())
 
 		assert.NilError(t, os.Remove(apath))
@@ -120,7 +120,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 				t.Logf("goroutine %v: enter", i)
 				defer t.Logf("goroutine %v: exit", i)
 				f := convertPath(t, uut, name)
-				assert.Check(t, cmp.Equal("HI THERE", readAll(t, f)), "in goroutine %v", i)
+				assert.Check(t, is.Equal("HI THERE", readAll(t, f)), "in goroutine %v", i)
 				closers <- f
 			}()
 		}
@@ -138,12 +138,12 @@ func TestSharedTempFileConverter(t *testing.T) {
 		f := convertPath(t, uut, name)
 		closers <- f
 		close(closers)
-		assert.Check(t, cmp.Equal("HI THERE", readAll(t, f)), "after all goroutines returned")
+		assert.Check(t, is.Equal("HI THERE", readAll(t, f)), "after all goroutines returned")
 		for c := range closers {
 			assert.Check(t, c.Close())
 		}
 
-		assert.Check(t, cmp.Equal(int32(1), conversions))
+		assert.Check(t, is.Equal(int32(1), conversions))
 
 		assert.NilError(t, os.Remove(name))
 		checkDirEmpty(t, dir)
@@ -197,7 +197,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 		fakeErr = nil
 		f, err := uut.Do(src)
 		assert.Check(t, err)
-		assert.Check(t, cmp.Equal("HI THERE", readAll(t, f)))
+		assert.Check(t, is.Equal("HI THERE", readAll(t, f)))
 		assert.Check(t, f.Close())
 
 		// Files pending delete continue to show up in directory
@@ -240,7 +240,7 @@ func checkDirEmpty(t *testing.T, path string) {
 	t.Helper()
 	ls, err := os.ReadDir(path)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Len(ls, 0), "directory should be free of temp files")
+	assert.Check(t, is.Len(ls, 0), "directory should be free of temp files")
 }
 
 func copyTransform(f func(string) string) func(dst io.WriteSeeker, src io.ReadSeeker) error {
