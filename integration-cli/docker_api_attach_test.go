@@ -23,8 +23,7 @@ import (
 )
 
 func (s *DockerAPISuite) TestGetContainersAttachWebsocket(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
+	out, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
 
 	rwc, err := request.SockConn(10*time.Second, request.DaemonHost())
 	assert.NilError(c, err)
