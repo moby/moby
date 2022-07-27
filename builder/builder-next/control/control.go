@@ -2,10 +2,12 @@ package control
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/util/bklog"
 
 	controlapi "github.com/moby/buildkit/api/services/control"
@@ -33,6 +35,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var emptyLogVertexSize int
+
+func init() {
+	emptyLogVertex := controlapi.VertexLog{}
+	emptyLogVertexSize = emptyLogVertex.Size()
+}
+
+// Opt is used to configure a Controller
 type Opt struct {
 	SessionManager            *session.Manager
 	WorkerController          *worker.Controller
@@ -42,8 +52,10 @@ type Opt struct {
 	ResolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
 	Entitlements              []string
 	TraceCollector            sdktrace.SpanExporter
+	UseSnapshotter            bool
 }
 
+// Controller registers itself as a GRPC build server
 type Controller struct { // TODO: ControlService
 	// buildCount needs to be 64bit aligned
 	buildCount       int64
@@ -56,6 +68,7 @@ type Controller struct { // TODO: ControlService
 	*tracev1.UnimplementedTraceServiceServer
 }
 
+// NewController creates a new build controller
 func NewController(opt Opt) (*Controller, error) {
 	cache := solver.NewCacheManager(context.TODO(), "local", opt.CacheKeyStorage, worker.NewCacheResultStorage(opt.WorkerController))
 
@@ -81,6 +94,7 @@ func NewController(opt Opt) (*Controller, error) {
 	return c, nil
 }
 
+// Register the controller as a build GRPC server
 func (c *Controller) Register(server *grpc.Server) error {
 	controlapi.RegisterControlServer(server, c)
 	c.gatewayForwarder.Register(server)
@@ -88,6 +102,7 @@ func (c *Controller) Register(server *grpc.Server) error {
 	return nil
 }
 
+// DiskUsage returns the disk usage
 func (c *Controller) DiskUsage(ctx context.Context, r *controlapi.DiskUsageRequest) (*controlapi.DiskUsageResponse, error) {
 	resp := &controlapi.DiskUsageResponse{}
 	workers, err := c.opt.WorkerController.List()
@@ -122,6 +137,7 @@ func (c *Controller) DiskUsage(ctx context.Context, r *controlapi.DiskUsageReque
 	return resp, nil
 }
 
+// Prune prunes all workers
 func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Control_PruneServer) error {
 	if atomic.LoadInt64(&c.buildCount) == 0 {
 		imageutil.CancelCacheLeases()
@@ -194,6 +210,7 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 	return eg2.Wait()
 }
 
+// Export ...
 func (c *Controller) Export(ctx context.Context, req *tracev1.ExportTraceServiceRequest) (*tracev1.ExportTraceServiceResponse, error) {
 	if c.opt.TraceCollector == nil {
 		return nil, status.Errorf(codes.Unavailable, "trace collector not configured")
@@ -234,6 +251,7 @@ func translateLegacySolveRequest(req *controlapi.SolveRequest) error {
 	return nil
 }
 
+// Solve solves a build request
 func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*controlapi.SolveResponse, error) {
 	atomic.AddInt64(&c.buildCount, 1)
 	defer atomic.AddInt64(&c.buildCount, -1)
@@ -256,9 +274,35 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		return nil, err
 	}
 	if req.Exporter != "" {
-		exp, err := w.Exporter(req.Exporter, c.opt.SessionManager)
-		if err != nil {
-			return nil, err
+		var exp exporter.Exporter
+		if c.opt.UseSnapshotter {
+			if req.Exporter == "moby" {
+				req.Exporter = client.ExporterImage
+			}
+
+			exp, err = w.Exporter(req.Exporter, c.opt.SessionManager)
+			if err != nil {
+				return nil, err
+			}
+
+			if req.ExporterAttrs != nil {
+				reposAndTags, err := sanitizeRepoAndTags(strings.Split(req.ExporterAttrs["name"], ","))
+				if err != nil {
+					return nil, err
+				}
+				var names []string
+				for _, tag := range reposAndTags {
+					names = append(names, tag.String())
+				}
+
+				req.ExporterAttrs["name"] = strings.Join(names, ",")
+				req.ExporterAttrs["unpack"] = "true"
+			}
+		} else {
+			exp, err = w.Exporter(req.Exporter, c.opt.SessionManager)
+			if err != nil {
+				return nil, err
+			}
 		}
 		expi, err = exp.Resolve(ctx, req.ExporterAttrs)
 		if err != nil {
@@ -318,6 +362,7 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 	}, nil
 }
 
+// Status streams the statuses of a solve request
 func (c *Controller) Status(req *controlapi.StatusRequest, stream controlapi.Control_StatusServer) error {
 	ch := make(chan *client.SolveStatus, 8)
 
@@ -401,6 +446,7 @@ func (c *Controller) Status(req *controlapi.StatusRequest, stream controlapi.Con
 	return eg.Wait()
 }
 
+// Session ...
 func (c *Controller) Session(stream controlapi.Control_SessionServer) error {
 	bklog.G(stream.Context()).Debugf("session started")
 
@@ -418,6 +464,7 @@ func (c *Controller) Session(stream controlapi.Control_SessionServer) error {
 	return err
 }
 
+// ListWorkers returns all the available workers
 func (c *Controller) ListWorkers(ctx context.Context, r *controlapi.ListWorkersRequest) (*controlapi.ListWorkersResponse, error) {
 	resp := &controlapi.ListWorkersResponse{}
 	workers, err := c.opt.WorkerController.List(r.Filter...)
@@ -499,4 +546,39 @@ func toPBGCPolicy(in []client.PruneInfo) []*apitypes.GCPolicy {
 		})
 	}
 	return policy
+}
+
+// sanitizeRepoAndTags parses the raw "t" parameter received from the client
+// to a slice of repoAndTag.
+// It also validates each repoName and tag.
+func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
+	var (
+		repoAndTags []reference.Named
+		// This map is used for deduplicating the "-t" parameter.
+		uniqNames = make(map[string]struct{})
+	)
+	for _, repo := range names {
+		if repo == "" {
+			continue
+		}
+
+		ref, err := reference.ParseNormalizedNamed(repo)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, isCanonical := ref.(reference.Canonical); isCanonical {
+			return nil, errors.New("build tag cannot contain a digest")
+		}
+
+		ref = reference.TagNameOnly(ref)
+
+		nameWithTag := ref.String()
+
+		if _, exists := uniqNames[nameWithTag]; !exists {
+			uniqNames[nameWithTag] = struct{}{}
+			repoAndTags = append(repoAndTags, ref)
+		}
+	}
+	return repoAndTags, nil
 }

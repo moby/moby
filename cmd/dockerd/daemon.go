@@ -293,32 +293,34 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		features:       d.Features(),
 		daemon:         d,
 	}
-	if !d.UsesSnapshotter() {
-		bk, err := buildkit.New(buildkit.Opt{
-			SessionManager:      sm,
-			Root:                filepath.Join(config.Root, "buildkit"),
-			Dist:                d.DistributionServices(),
-			NetworkController:   d.NetworkController(),
-			DefaultCgroupParent: cgroupParent,
-			RegistryHosts:       d.RegistryHosts(),
-			BuilderConfig:       config.Builder,
-			Rootless:            d.Rootless(),
-			IdentityMapping:     d.IdentityMapping(),
-			DNSConfig:           config.DNSConfig,
-			ApparmorProfile:     daemon.DefaultApparmorProfile(),
-		})
-		if err != nil {
-			return opts, err
-		}
 
-		bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
-		if err != nil {
-			return opts, errors.Wrap(err, "failed to create buildmanager")
-		}
-
-		ro.buildBackend = bb
-		ro.buildkit = bk
+	bk, err := buildkit.New(buildkit.Opt{
+		SessionManager:      sm,
+		Root:                filepath.Join(config.Root, "buildkit"),
+		Dist:                d.DistributionServices(),
+		NetworkController:   d.NetworkController(),
+		DefaultCgroupParent: cgroupParent,
+		RegistryHosts:       d.RegistryHosts(),
+		BuilderConfig:       config.Builder,
+		Rootless:            d.Rootless(),
+		IdentityMapping:     d.IdentityMapping(),
+		DNSConfig:           config.DNSConfig,
+		ApparmorProfile:     daemon.DefaultApparmorProfile(),
+		UseSnapshotter:      d.UsesSnapshotter(),
+		ContainerdAddress:   config.ContainerdAddr,
+		ContainerdNamespace: config.ContainerdNamespace,
+	})
+	if err != nil {
+		return opts, err
 	}
+
+	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
+	if err != nil {
+		return opts, errors.Wrap(err, "failed to create buildmanager")
+	}
+
+	ro.buildBackend = bb
+	ro.buildkit = bk
 
 	return ro, nil
 }

@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
+	ctd "github.com/containerd/containerd"
 	"github.com/containerd/containerd/content/local"
 	ctdmetadata "github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/snapshots"
@@ -14,6 +16,7 @@ import (
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
+	mobycontrol "github.com/docker/docker/builder/builder-next/control"
 	containerimageexp "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/builder-next/imagerefchecker"
 	mobyworker "github.com/docker/docker/builder/builder-next/worker"
@@ -26,7 +29,6 @@ import (
 	inlineremotecache "github.com/moby/buildkit/cache/remotecache/inline"
 	localremotecache "github.com/moby/buildkit/cache/remotecache/local"
 	"github.com/moby/buildkit/client"
-	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/frontend"
 	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway"
@@ -36,12 +38,98 @@ import (
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/buildkit/util/network/cniprovider"
+	"github.com/moby/buildkit/util/network/netproviders"
 	"github.com/moby/buildkit/worker"
+	"github.com/moby/buildkit/worker/containerd"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
-func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newController(rt http.RoundTripper, opt Opt) (*mobycontrol.Controller, error) {
+	if opt.UseSnapshotter {
+		return newSnapshotterController(rt, opt)
+	}
+	return newGrapDriverController(rt, opt)
+}
+
+func newSnapshotterController(rt http.RoundTripper, opt Opt) (*mobycontrol.Controller, error) {
+	if err := os.MkdirAll(opt.Root, 0711); err != nil {
+		return nil, err
+	}
+
+	dist := opt.Dist
+
+	cacheStorage, err := bboltcachestorage.NewStore(filepath.Join(opt.Root, "cache.db"))
+	if err != nil {
+		return nil, err
+	}
+
+	nc := netproviders.Opt{
+		Mode: "auto",
+		CNI: cniprovider.Opt{
+			Root:       opt.Root,
+			ConfigPath: "/etc/buildkit/cni.json",
+			BinaryDir:  "/opt/cni/bin",
+		},
+	}
+	dns := getDNSConfig(opt.DNSConfig)
+
+	snapshotter := ctd.DefaultSnapshotter
+
+	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, snapshotter, opt.ContainerdNamespace,
+		opt.Rootless, map[string]string{}, dns, nc, opt.ApparmorProfile, nil, "", ctd.WithTimeout(60*time.Second))
+	if err != nil {
+		return nil, err
+	}
+
+	policy, err := getGCPolicy(opt.BuilderConfig, opt.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	wo.GCPolicy = policy
+	wo.RegistryHosts = opt.RegistryHosts
+
+	w, err := mobyworker.NewContainerdWorker(context.TODO(), wo)
+	if err != nil {
+		return nil, err
+	}
+
+	wc := &worker.Controller{}
+
+	err = wc.Add(w)
+	if err != nil {
+		return nil, err
+	}
+	frontends := map[string]frontend.Frontend{
+		"dockerfile.v0": forwarder.NewGatewayForwarder(wc, dockerfile.Build),
+		"gateway.v0":    gateway.NewGatewayFrontend(wc),
+	}
+
+	wa, err := wc.GetDefault()
+	if err != nil {
+		return nil, err
+	}
+
+	return mobycontrol.NewController(mobycontrol.Opt{
+		SessionManager:   opt.SessionManager,
+		WorkerController: wc,
+		Frontends:        frontends,
+		CacheKeyStorage:  cacheStorage,
+		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
+			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.RegistryHosts, wa.ContentStore(), dist.ReferenceStore, dist.ImageStore),
+			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
+		},
+		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
+			"inline": inlineremotecache.ResolveCacheExporterFunc(),
+		},
+		Entitlements:   getEntitlements(opt.BuilderConfig),
+		UseSnapshotter: true,
+	})
+}
+
+func newGrapDriverController(rt http.RoundTripper, opt Opt) (*mobycontrol.Controller, error) {
 	if err := os.MkdirAll(opt.Root, 0711); err != nil {
 		return nil, err
 	}
@@ -203,7 +291,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		"gateway.v0":    gateway.NewGatewayFrontend(wc),
 	}
 
-	return control.NewController(control.Opt{
+	return mobycontrol.NewController(mobycontrol.Opt{
 		SessionManager:   opt.SessionManager,
 		WorkerController: wc,
 		Frontends:        frontends,
@@ -215,7 +303,8 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
 			"inline": inlineremotecache.ResolveCacheExporterFunc(),
 		},
-		Entitlements: getEntitlements(opt.BuilderConfig),
+		Entitlements:   getEntitlements(opt.BuilderConfig),
+		UseSnapshotter: false,
 	})
 }
 

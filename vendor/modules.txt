@@ -32,6 +32,8 @@ github.com/Microsoft/go-winio/vhd
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options
 github.com/Microsoft/hcsshim/computestorage
+github.com/Microsoft/hcsshim/hcn
+github.com/Microsoft/hcsshim/internal/cni
 github.com/Microsoft/hcsshim/internal/cow
 github.com/Microsoft/hcsshim/internal/hcs
 github.com/Microsoft/hcsshim/internal/hcs/schema1
@@ -46,6 +48,8 @@ github.com/Microsoft/hcsshim/internal/longpath
 github.com/Microsoft/hcsshim/internal/mergemaps
 github.com/Microsoft/hcsshim/internal/oc
 github.com/Microsoft/hcsshim/internal/queue
+github.com/Microsoft/hcsshim/internal/regstate
+github.com/Microsoft/hcsshim/internal/runhcs
 github.com/Microsoft/hcsshim/internal/safefile
 github.com/Microsoft/hcsshim/internal/timeout
 github.com/Microsoft/hcsshim/internal/vmcompute
@@ -240,6 +244,9 @@ github.com/containerd/continuity/sysx
 # github.com/containerd/fifo v1.0.0
 ## explicit; go 1.13
 github.com/containerd/fifo
+# github.com/containerd/go-cni v1.1.6
+## explicit; go 1.17
+github.com/containerd/go-cni
 # github.com/containerd/go-runc v1.0.0
 ## explicit; go 1.13
 github.com/containerd/go-runc
@@ -256,6 +263,18 @@ github.com/containerd/ttrpc
 # github.com/containerd/typeurl v1.0.2
 ## explicit; go 1.13
 github.com/containerd/typeurl
+# github.com/containernetworking/cni v1.1.1
+## explicit; go 1.14
+github.com/containernetworking/cni/libcni
+github.com/containernetworking/cni/pkg/invoke
+github.com/containernetworking/cni/pkg/types
+github.com/containernetworking/cni/pkg/types/020
+github.com/containernetworking/cni/pkg/types/040
+github.com/containernetworking/cni/pkg/types/100
+github.com/containernetworking/cni/pkg/types/create
+github.com/containernetworking/cni/pkg/types/internal
+github.com/containernetworking/cni/pkg/utils
+github.com/containernetworking/cni/pkg/version
 # github.com/coreos/go-systemd/v22 v22.4.0
 ## explicit; go 1.12
 github.com/coreos/go-systemd/v22/activation
@@ -494,14 +513,16 @@ github.com/moby/buildkit/client/connhelper
 github.com/moby/buildkit/client/llb
 github.com/moby/buildkit/client/llb/imagemetaresolver
 github.com/moby/buildkit/client/ociindex
-github.com/moby/buildkit/control
 github.com/moby/buildkit/control/gateway
 github.com/moby/buildkit/executor
+github.com/moby/buildkit/executor/containerdexecutor
 github.com/moby/buildkit/executor/oci
 github.com/moby/buildkit/executor/runcexecutor
 github.com/moby/buildkit/exporter
+github.com/moby/buildkit/exporter/containerimage
 github.com/moby/buildkit/exporter/containerimage/exptypes
 github.com/moby/buildkit/exporter/local
+github.com/moby/buildkit/exporter/oci
 github.com/moby/buildkit/exporter/tar
 github.com/moby/buildkit/frontend
 github.com/moby/buildkit/frontend/dockerfile/builder
@@ -528,6 +549,7 @@ github.com/moby/buildkit/session/sshforward
 github.com/moby/buildkit/session/upload
 github.com/moby/buildkit/snapshot
 github.com/moby/buildkit/snapshot/containerd
+github.com/moby/buildkit/snapshot/imagerefchecker
 github.com/moby/buildkit/solver
 github.com/moby/buildkit/solver/bboltcachestorage
 github.com/moby/buildkit/solver/errdefs
@@ -540,6 +562,7 @@ github.com/moby/buildkit/solver/llbsolver/ops
 github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes
 github.com/moby/buildkit/solver/pb
 github.com/moby/buildkit/source
+github.com/moby/buildkit/source/containerimage
 github.com/moby/buildkit/source/git
 github.com/moby/buildkit/source/http
 github.com/moby/buildkit/source/local
@@ -563,10 +586,13 @@ github.com/moby/buildkit/util/grpcerrors
 github.com/moby/buildkit/util/imageutil
 github.com/moby/buildkit/util/leaseutil
 github.com/moby/buildkit/util/network
+github.com/moby/buildkit/util/network/cniprovider
+github.com/moby/buildkit/util/network/netproviders
 github.com/moby/buildkit/util/overlay
 github.com/moby/buildkit/util/progress
 github.com/moby/buildkit/util/progress/controller
 github.com/moby/buildkit/util/progress/logs
+github.com/moby/buildkit/util/pull
 github.com/moby/buildkit/util/pull/pullprogress
 github.com/moby/buildkit/util/push
 github.com/moby/buildkit/util/resolver
@@ -587,6 +613,8 @@ github.com/moby/buildkit/util/urlutil
 github.com/moby/buildkit/util/winlayers
 github.com/moby/buildkit/version
 github.com/moby/buildkit/worker
+github.com/moby/buildkit/worker/base
+github.com/moby/buildkit/worker/containerd
 # github.com/moby/ipvs v1.0.2
 ## explicit; go 1.13
 github.com/moby/ipvs

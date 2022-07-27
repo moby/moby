@@ -12,9 +12,11 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
+	mobycontrol "github.com/docker/docker/builder/builder-next/control"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"
@@ -23,7 +25,6 @@ import (
 	"github.com/docker/go-units"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
-	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/entitlements"
@@ -76,11 +77,14 @@ type Opt struct {
 	IdentityMapping     idtools.IdentityMapping
 	DNSConfig           config.DNSConfig
 	ApparmorProfile     string
+	UseSnapshotter      bool
+	ContainerdAddress   string
+	ContainerdNamespace string
 }
 
 // Builder can build using BuildKit backend
 type Builder struct {
-	controller     *control.Controller
+	controller     *mobycontrol.Controller
 	reqBodyHandler *reqBodyHandler
 
 	mu   sync.Mutex
@@ -328,24 +332,28 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["ulimit"] = ulimits
 	}
 
-	exporterName := ""
-	exporterAttrs := map[string]string{}
+	reposAndTags, err := sanitizeRepoAndTags(opt.Options.Tags)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, tag := range reposAndTags {
+		names = append(names, tag.String())
+	}
+
+	exporterName := client.ExporterImage
+	exporterAttrs := map[string]string{
+		"image.name": strings.Join(names, ","),
+		"name":       strings.Join(names, ","),
+	}
 
 	if len(opt.Options.Outputs) > 1 {
 		return nil, errors.Errorf("multiple outputs not supported")
-	} else if len(opt.Options.Outputs) == 0 {
-		exporterName = "moby"
-	} else {
+	} else if len(opt.Options.Outputs) == 1 {
 		// cacheonly is a special type for triggering skipping all exporters
 		if opt.Options.Outputs[0].Type != "cacheonly" {
 			exporterName = opt.Options.Outputs[0].Type
 			exporterAttrs = opt.Options.Outputs[0].Attrs
-		}
-	}
-
-	if exporterName == "moby" {
-		if len(opt.Options.Tags) > 0 {
-			exporterAttrs["name"] = strings.Join(opt.Options.Tags, ",")
 		}
 	}
 
@@ -630,4 +638,39 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 		KeepBytes:    opts.KeepStorage,
 		Filter:       []string{strings.Join(bkFilter, ",")},
 	}, nil
+}
+
+// sanitizeRepoAndTags parses the raw "t" parameter received from the client
+// to a slice of repoAndTag.
+// It also validates each repoName and tag.
+func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
+	var (
+		repoAndTags []reference.Named
+		// This map is used for deduplicating the "-t" parameter.
+		uniqNames = make(map[string]struct{})
+	)
+	for _, repo := range names {
+		if repo == "" {
+			continue
+		}
+
+		ref, err := reference.ParseNormalizedNamed(repo)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, isCanonical := ref.(reference.Canonical); isCanonical {
+			return nil, errors.New("build tag cannot contain a digest")
+		}
+
+		ref = reference.TagNameOnly(ref)
+
+		nameWithTag := ref.String()
+
+		if _, exists := uniqNames[nameWithTag]; !exists {
+			uniqNames[nameWithTag] = struct{}{}
+			repoAndTags = append(repoAndTags, ref)
+		}
+	}
+	return repoAndTags, nil
 }
