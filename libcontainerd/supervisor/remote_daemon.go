@@ -62,8 +62,9 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 		rootDir:  rootDir,
 		stateDir: stateDir,
 		Config: config.Config{
-			Root:  filepath.Join(rootDir, "daemon"),
-			State: filepath.Join(stateDir, "daemon"),
+			Version: 2,
+			Root:    filepath.Join(rootDir, "daemon"),
+			State:   filepath.Join(stateDir, "daemon"),
 		},
 		Plugins:       make(map[string]interface{}),
 		daemonPid:     -1,
