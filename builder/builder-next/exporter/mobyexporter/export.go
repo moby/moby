@@ -1,4 +1,4 @@
-package containerimage
+package mobyexporter
 
 import (
 	"context"
