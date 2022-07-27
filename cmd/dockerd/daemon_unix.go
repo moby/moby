@@ -60,14 +60,6 @@ func getDaemonConfDir(_ string) (string, error) {
 	return getDefaultDaemonConfigDir()
 }
 
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts := []supervisor.DaemonOpt{
-		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
-	}
-
-	return opts, nil
-}
-
 // setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
@@ -129,33 +121,50 @@ func newCgroupParent(config *config.Config) string {
 	return cgroupParent
 }
 
-func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) error, error) {
-	var waitForShutdown func(time.Duration) error
-	if cli.Config.ContainerdAddr == "" {
-		systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
-		}
-		if !ok {
-			logrus.Debug("Containerd not running, starting daemon managed containerd")
-			opts, err := cli.getContainerdDaemonOpts()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to generate containerd options")
-			}
-
-			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to start containerd")
-			}
-			logrus.Debug("Started daemon managed containerd")
-			cli.Config.ContainerdAddr = r.Address()
-
-			// Try to wait for containerd to shutdown
-			waitForShutdown = r.WaitTimeout
-		} else {
-			cli.Config.ContainerdAddr = systemContainerdAddr
-		}
+func (cli *DaemonCli) initContainerd(ctx context.Context) (func(), error) {
+	if cli.Config.ContainerdAddr != "" {
+		// use system containerd at the given address
+		return nil, nil
 	}
 
+	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
+	}
+	if ok {
+		// detected a system containerd at the given address
+		cli.Config.ContainerdAddr = systemContainerdAddr
+		return nil, nil
+	}
+
+	logrus.Debug("containerd not running, starting daemon managed containerd")
+	opts := []supervisor.DaemonOpt{
+		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
+	}
+
+	if cli.Config.Debug {
+		opts = append(opts, supervisor.WithLogLevel("debug"))
+	} else if cli.Config.LogLevel != "" {
+		opts = append(opts, supervisor.WithLogLevel(cli.Config.LogLevel))
+	}
+
+	if !cli.Config.CriContainerd {
+		opts = append(opts, supervisor.WithPlugin("cri", nil))
+	}
+
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start containerd")
+	}
+	cli.Config.ContainerdAddr = r.Address()
+	logrus.WithField("address", cli.Config.ContainerdAddr).Info("started daemon managed containerd")
+
+	waitForShutdown := func() {
+		// wait for containerd to shut down
+		err := r.WaitTimeout(10 * time.Second)
+		if err != nil {
+			logrus.WithError(err).Error("stopping daemon managed containerd")
+		}
+	}
 	return waitForShutdown, nil
 }

@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -57,10 +55,6 @@ func notifyShutdown(err error) {
 	}
 }
 
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	return nil, nil
-}
-
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	go func() {
@@ -93,9 +87,9 @@ func newCgroupParent(config *config.Config) string {
 	return ""
 }
 
-func (cli *DaemonCli) initContainerD(_ context.Context) (func(time.Duration) error, error) {
+func (cli *DaemonCli) initContainerd(_ context.Context) (func(), error) {
 	system.InitContainerdRuntime(cli.Config.ContainerdAddr)
-	return nil, nil
+	return func() {}, nil
 }
 
 func validateCPURealtimeOptions(_ *config.Config) error {
