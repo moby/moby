@@ -193,12 +193,9 @@ func checkoutGit(root, ref, subdir string) (string, error) {
 }
 
 func gitWithinDir(dir string, args ...string) ([]byte, error) {
-	a := []string{"--work-tree", dir, "--git-dir", filepath.Join(dir, ".git")}
-	return git(append(a, args...)...)
-}
-
-func git(args ...string) ([]byte, error) {
-	return exec.Command("git", args...).CombinedOutput()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	return cmd.CombinedOutput()
 }
 
 // isGitTransport returns true if the provided str is a git transport by inspecting
