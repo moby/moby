@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -160,7 +159,7 @@ func TestCloneArgsGit(t *testing.T) {
 }
 
 func gitGetConfig(name string) string {
-	b, err := git([]string{"config", "--get", name}...)
+	b, err := gitWithinDir("", "config", "--get", name)
 	if err != nil {
 		// since we are interested in empty or non empty string,
 		// we can safely ignore the err here.
@@ -191,7 +190,7 @@ func TestCheckoutGit(t *testing.T) {
 	}
 
 	gitDir := filepath.Join(root, "repo")
-	must(git("-c", "init.defaultBranch=master", "init", gitDir))
+	must(gitWithinDir(root, "-c", "init.defaultBranch=master", "init", gitDir))
 	must(gitWithinDir(gitDir, "config", "user.email", "test@docker.com"))
 	must(gitWithinDir(gitDir, "config", "user.name", "Docker test"))
 	assert.NilError(t, os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644))
@@ -218,7 +217,7 @@ func TestCheckoutGit(t *testing.T) {
 
 	// set up submodule
 	subrepoDir := filepath.Join(root, "subrepo")
-	must(git("-c", "init.defaultBranch=master", "init", subrepoDir))
+	must(gitWithinDir(root, "-c", "init.defaultBranch=master", "init", subrepoDir))
 	must(gitWithinDir(subrepoDir, "config", "user.email", "test@docker.com"))
 	must(gitWithinDir(subrepoDir, "config", "user.name", "Docker test"))
 
@@ -227,10 +226,7 @@ func TestCheckoutGit(t *testing.T) {
 	must(gitWithinDir(subrepoDir, "add", "-A"))
 	must(gitWithinDir(subrepoDir, "commit", "-am", "Subrepo initial"))
 
-	cmd := exec.Command("git", "submodule", "add", subrepoDir, "sub") // this command doesn't work with --work-tree
-	cmd.Dir = gitDir
-	must(cmd.CombinedOutput())
-
+	must(gitWithinDir(gitDir, "submodule", "add", subrepoDir, "sub"))
 	must(gitWithinDir(gitDir, "add", "-A"))
 	must(gitWithinDir(gitDir, "commit", "-am", "With submodule"))
 
