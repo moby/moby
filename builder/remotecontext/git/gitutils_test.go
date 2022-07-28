@@ -1,11 +1,14 @@
 package git // import "github.com/docker/docker/builder/remotecontext/git"
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
+	"net/http/cgi"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -171,6 +174,49 @@ func gitGetConfig(name string) string {
 func TestCheckoutGit(t *testing.T) {
 	root := t.TempDir()
 
+	gitpath, err := exec.LookPath("git")
+	assert.NilError(t, err)
+	gitversion, _ := exec.Command(gitpath, "version").CombinedOutput()
+	t.Logf("%s", gitversion) // E.g. "git version 2.30.2"
+
+	// Serve all repositories under root using the Smart HTTP protocol so
+	// they can be cloned. The Dumb HTTP protocol is incompatible with
+	// shallow cloning but we unconditionally shallow-clone submodules, and
+	// we explicitly disable the file protocol.
+	// (Another option would be to use `git daemon` and the Git protocol,
+	// but that listens on a fixed port number which is a recipe for
+	// disaster in CI. Funnily enough, `git daemon --port=0` works but there
+	// is no easy way to discover which port got picked!)
+
+	// Associate git-http-backend logs with the current (sub)test.
+	// Incompatible with parallel subtests.
+	currentSubtest := t
+	githttp := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var logs bytes.Buffer
+		(&cgi.Handler{
+			Path: gitpath,
+			Args: []string{"http-backend"},
+			Dir:  root,
+			Env: []string{
+				"GIT_PROJECT_ROOT=" + root,
+				"GIT_HTTP_EXPORT_ALL=1",
+			},
+			Stderr: &logs,
+		}).ServeHTTP(w, r)
+		if logs.Len() == 0 {
+			return
+		}
+		for {
+			line, err := logs.ReadString('\n')
+			currentSubtest.Log("git-http-backend: " + line)
+			if err != nil {
+				break
+			}
+		}
+	})
+	server := httptest.NewServer(&githttp)
+	defer server.Close()
+
 	autocrlf := gitGetConfig("core.autocrlf")
 	if !(autocrlf == "true" || autocrlf == "false" ||
 		autocrlf == "input" || autocrlf == "") {
@@ -226,7 +272,7 @@ func TestCheckoutGit(t *testing.T) {
 	must(gitWithinDir(subrepoDir, "add", "-A"))
 	must(gitWithinDir(subrepoDir, "commit", "-am", "Subrepo initial"))
 
-	must(gitWithinDir(gitDir, "submodule", "add", subrepoDir, "sub"))
+	must(gitWithinDir(gitDir, "submodule", "add", server.URL+"/subrepo", "sub"))
 	must(gitWithinDir(gitDir, "add", "-A"))
 	must(gitWithinDir(gitDir, "commit", "-am", "With submodule"))
 
@@ -263,8 +309,9 @@ func TestCheckoutGit(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.frag, func(t *testing.T) {
+			currentSubtest = t
 			ref, subdir := getRefAndSubdir(c.frag)
-			r, err := cloneGitRepo(gitRepo{remote: gitDir, ref: ref, subdir: subdir})
+			r, err := cloneGitRepo(gitRepo{remote: server.URL + "/repo", ref: ref, subdir: subdir})
 
 			if c.fail {
 				assert.Check(t, is.ErrorContains(err, ""))

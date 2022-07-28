@@ -192,8 +192,14 @@ func checkoutGit(root, ref, subdir string) (string, error) {
 }
 
 func gitWithinDir(dir string, args ...string) ([]byte, error) {
+	args = append([]string{"-c", "protocol.file.allow=never"}, args...) // Block sneaky repositories from using repos from the filesystem as submodules.
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
+	cmd.Env = append(cmd.Env,
+		"GIT_PROTOCOL_FROM_USER=0", // Disable unsafe remote protocols.
+		"GIT_CONFIG_NOSYSTEM=1",    // Disable reading from system gitconfig.
+		"HOME=/dev/null",           // Disable reading from user gitconfig.
+	)
 	return cmd.CombinedOutput()
 }
 
