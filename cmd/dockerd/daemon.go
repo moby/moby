@@ -596,7 +596,7 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 	}
 
 	if !cli.Config.CriContainerd {
-		opts = append(opts, supervisor.WithPlugin("cri", nil))
+		opts = append(opts, supervisor.WithPlugin("io.containerd.grpc.v1.cri", nil))
 	}
 
 	return opts, nil
