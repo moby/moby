@@ -105,7 +105,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 
 		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+		i.eventsLogger.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		records = append(records, untaggedRecord)
 
 		repoRefs = i.referenceStore.References(imgID.Digest())
@@ -167,7 +167,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 
 				untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
-				i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+				i.eventsLogger.LogImageEvent(imgID.String(), imgID.String(), "untag")
 				records = append(records, untaggedRecord)
 			}
 		}
@@ -253,7 +253,7 @@ func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]t
 
 		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
 
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
+		i.eventsLogger.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		*records = append(*records, untaggedRecord)
 	}
 
@@ -328,7 +328,7 @@ func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 		return err
 	}
 
-	i.LogImageEvent(imgID.String(), imgID.String(), "delete")
+	i.eventsLogger.LogImageEvent(imgID.String(), imgID.String(), "delete")
 	*records = append(*records, types.ImageDeleteResponseItem{Deleted: imgID.String()})
 	for _, removedLayer := range removedLayers {
 		*records = append(*records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})

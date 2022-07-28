@@ -32,8 +32,6 @@ type ImageService interface {
 	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
-	LogImageEvent(imageID, refName, action string)
-	LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string)
 	CountImages() int
 	ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)

@@ -139,7 +139,7 @@ func (i *ImageService) ImportImage(ctx context.Context, src string, repository s
 		}
 	}
 
-	i.LogImageEvent(id.String(), id.String(), "import")
+	i.eventsLogger.LogImageEvent(id.String(), id.String(), "import")
 	outStream.Write(streamformatter.FormatStatus("", id.String()))
 	return nil
 }

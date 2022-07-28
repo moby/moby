@@ -30,11 +30,8 @@ type tarexporter struct {
 	loggerImgEvent LogImageEvent
 }
 
-// LogImageEvent defines interface for event generation related to image tar(load and save) operations
-type LogImageEvent interface {
-	// LogImageEvent generates an event related to an image operation
-	LogImageEvent(imageID, refName, action string)
-}
+// LogImageEvent defines function to generate events related to image tar(load and save) operations
+type LogImageEvent func(imageID, refName, action string)
 
 // NewTarExporter returns new Exporter for tar packages
 func NewTarExporter(is image.Store, lss layer.Store, rs refstore.Store, loggerImgEvent LogImageEvent) image.Exporter {

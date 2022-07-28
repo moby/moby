@@ -119,7 +119,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 			AuthConfig:       authConfig,
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  i.registryService,
-			ImageEventLogger: i.LogImageEvent,
+			ImageEventLogger: i.eventsLogger.LogImageEvent,
 			MetadataStore:    i.distributionMetadataStore,
 			ImageStore:       imageStore,
 			ReferenceStore:   i.referenceStore,

@@ -47,7 +47,7 @@ func (i *ImageService) PushImage(ctx context.Context, image, tag string, metaHea
 			AuthConfig:       authConfig,
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  i.registryService,
-			ImageEventLogger: i.LogImageEvent,
+			ImageEventLogger: i.eventsLogger.LogImageEvent,
 			MetadataStore:    i.distributionMetadataStore,
 			ImageStore:       distribution.NewImageConfigStoreFromStore(i.imageStore),
 			ReferenceStore:   i.referenceStore,
