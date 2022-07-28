@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -62,6 +63,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	}
 
 	daemon.fillContainerStates(v)
+	daemon.fillFeaturesInfo(v)
 	daemon.fillDebugInfo(v)
 	daemon.fillAPIInfo(v)
 	// Retrieve platform specific info
@@ -195,6 +197,22 @@ func (daemon *Daemon) fillDebugInfo(v *types.Info) {
 	v.NFd = fileutils.GetTotalUsedFds()
 	v.NGoroutines = runtime.NumGoroutine()
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
+}
+
+// fillFeaturesInfo propagates the Features list with features that have been
+// enabled.
+func (daemon *Daemon) fillFeaturesInfo(v *types.Info) {
+	for feature, enabled := range daemon.configStore.Features {
+		if v.Features == nil {
+			v.Features = []string{}
+		}
+		if enabled {
+			v.Features = append(v.Features, feature+"=enabled")
+		} else {
+			v.Features = append(v.Features, feature+"=disabled")
+		}
+	}
+	sort.Strings(v.Features)
 }
 
 func (daemon *Daemon) fillAPIInfo(v *types.Info) {

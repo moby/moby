@@ -17,7 +17,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.43](https://docs.docker.com/engine/api/v1.43/) documentation
 
-* TODO add API changes for v1.43 here when they arrive.
+* `GET /info` now includes a `Features` property, containing a list of features
+  that have been enabled or disabled in the daemon configuration.
 
 ## v1.42 API changes
 

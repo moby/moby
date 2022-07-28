@@ -4848,6 +4848,20 @@ definitions:
         example: "/var/lib/docker"
       Plugins:
         $ref: "#/definitions/PluginsInfo"
+      Features:
+        description: |
+          Features contains the list of features indicating what features are
+          enabled or disabled in the daemon configuration. The field contains
+          a list of strings, formatted as `<feature-name>=<enabled|disabled>`.
+          
+          If a certain feature doesn't appear in this list then it's unset
+          (i.e. neither true nor false).
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "containerd-snapshotter=enabled"
+          - "other-feature=disabled"
       MemoryLimit:
         description: "Indicates if the host has memory limit support enabled."
         type: "boolean"

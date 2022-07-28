@@ -248,16 +248,23 @@ type Commit struct {
 // Info contains response of Engine API:
 // GET "/info"
 type Info struct {
-	ID                 string
-	Containers         int
-	ContainersRunning  int
-	ContainersPaused   int
-	ContainersStopped  int
-	Images             int
-	Driver             string
-	DriverStatus       [][2]string
-	SystemStatus       [][2]string `json:",omitempty"` // SystemStatus is only propagated by the Swarm standalone API
-	Plugins            PluginsInfo
+	ID                string
+	Containers        int
+	ContainersRunning int
+	ContainersPaused  int
+	ContainersStopped int
+	Images            int
+	Driver            string
+	DriverStatus      [][2]string
+	SystemStatus      [][2]string `json:",omitempty"` // SystemStatus is only propagated by the Swarm standalone API
+	Plugins           PluginsInfo
+	// Features contains the list of features indicating what features are
+	// enabled or disabled in the daemon configuration. The field contains
+	// a list of strings, formatted as `<feature-name>=<enabled|disabled>`.
+	//
+	// If a certain feature doesn't appear in this list then it's unset
+	// (i.e. neither true nor false).
+	Features           []string `json:"Features,omitempty"`
 	MemoryLimit        bool
 	SwapLimit          bool
 	KernelMemory       bool `json:",omitempty"` // Deprecated: kernel 5.4 deprecated kmem.limit_in_bytes
