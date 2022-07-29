@@ -81,17 +81,18 @@ type Container struct {
 	Driver          string
 	OS              string
 	// MountLabel contains the options for the 'mount' command
-	MountLabel             string
-	ProcessLabel           string
-	RestartCount           int
-	HasBeenStartedBefore   bool
-	HasBeenManuallyStopped bool // used for unless-stopped restart policy
-	MountPoints            map[string]*volumemounts.MountPoint
-	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
-	ExecCommands           *exec.Store                `json:"-"`
-	DependencyStore        agentexec.DependencyGetter `json:"-"`
-	SecretReferences       []*swarmtypes.SecretReference
-	ConfigReferences       []*swarmtypes.ConfigReference
+	MountLabel               string
+	ProcessLabel             string
+	RestartCount             int
+	HasBeenStartedBefore     bool
+	HasBeenManuallyStopped   bool // used for unless-stopped restart policy
+	HasBeenManuallyRestarted bool `json:"-"` // used to distinguish restart caused by restart policy from the manual one
+	MountPoints              map[string]*volumemounts.MountPoint
+	HostConfig               *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
+	ExecCommands             *exec.Store                `json:"-"`
+	DependencyStore          agentexec.DependencyGetter `json:"-"`
+	SecretReferences         []*swarmtypes.SecretReference
+	ConfigReferences         []*swarmtypes.ConfigReference
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`

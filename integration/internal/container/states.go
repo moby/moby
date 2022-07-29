@@ -57,3 +57,17 @@ func IsSuccessful(ctx context.Context, client client.APIClient, containerID stri
 		return poll.Continue("waiting for container to be \"exited\", currently %s", inspect.State.Status)
 	}
 }
+
+// IsRemoved verifies the container has been removed
+func IsRemoved(ctx context.Context, cli client.APIClient, containerID string) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		inspect, err := cli.ContainerInspect(ctx, containerID)
+		if err != nil {
+			if client.IsErrNotFound(err) {
+				return poll.Success()
+			}
+			return poll.Error(err)
+		}
+		return poll.Continue("waiting for container to be removed, currently %s", inspect.State.Status)
+	}
+}
