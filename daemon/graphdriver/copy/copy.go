@@ -110,11 +110,13 @@ type dirMtimeInfo struct {
 	stat    *syscall.Stat_t
 }
 
-// DirCopy copies or hardlinks the contents of one directory to another,
-// properly handling xattrs, and soft links
+// DirCopy copies or hardlinks the contents of one directory to another, properly
+// handling soft links, "security.capability" and (optionally) "trusted.overlay.opaque"
+// xattrs.
 //
-// Copying xattrs can be opted out of by passing false for copyXattrs.
-func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
+// The copyOpaqueXattrs controls if "trusted.overlay.opaque" xattrs are copied.
+// Passing false disables copying "trusted.overlay.opaque" xattrs.
+func DirCopy(srcDir, dstDir string, copyMode Mode, copyOpaqueXattrs bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
 
@@ -207,7 +209,11 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			return err
 		}
 
-		if copyXattrs {
+		if err := copyXattr(srcPath, dstPath, "security.capability"); err != nil {
+			return err
+		}
+
+		if copyOpaqueXattrs {
 			if err := doCopyXattrs(srcPath, dstPath); err != nil {
 				return err
 			}
@@ -256,10 +262,6 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 }
 
 func doCopyXattrs(srcPath, dstPath string) error {
-	if err := copyXattr(srcPath, dstPath, "security.capability"); err != nil {
-		return err
-	}
-
 	// We need to copy this attribute if it appears in an overlay upper layer, as
 	// this function is used to copy those. It is set by overlay if a directory
 	// is removed and then re-created and should not inherit anything from the
