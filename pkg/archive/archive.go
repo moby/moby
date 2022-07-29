@@ -293,6 +293,13 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 		// archive/bzip2 does not support writing, and there is no xz support at all
 		// However, this is not a problem as docker only currently generates gzipped tars
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
+	case Zstd:
+		zstdWriter, err := zstd.NewWriter(dest)
+		if err != nil {
+			return nil, err
+		}
+		writeBufWrapper := p.NewWriteCloserWrapper(buf, zstdWriter)
+		return writeBufWrapper, nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
