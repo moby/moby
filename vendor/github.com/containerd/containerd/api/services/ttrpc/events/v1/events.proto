@@ -1,0 +1,48 @@
+/*
+	Copyright The containerd Authors.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+syntax = "proto3";
+
+package containerd.services.events.ttrpc.v1;
+
+import weak "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import weak "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/containerd/containerd/api/services/ttrpc/events/v1;events";
+
+service Events {
+	// Forward sends an event that has already been packaged into an envelope
+	// with a timestamp and namespace.
+	//
+	// This is useful if earlier timestamping is required or when forwarding on
+	// behalf of another component, namespace or publisher.
+	rpc Forward(ForwardRequest) returns (google.protobuf.Empty);
+}
+
+message ForwardRequest {
+	Envelope envelope = 1;
+}
+
+message Envelope {
+	option (containerd.plugin.fieldpath) = true;
+	google.protobuf.Timestamp timestamp = 1 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	string namespace = 2;
+	string topic = 3;
+	google.protobuf.Any event = 4;
+}

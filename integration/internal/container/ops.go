@@ -234,3 +234,10 @@ func WithConsoleSize(width, height uint) func(*TestContainerConfig) {
 		c.HostConfig.ConsoleSize = [2]uint{height, width}
 	}
 }
+
+// WithRuntime sets the runtime to use to start the container
+func WithRuntime(name string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Runtime = name
+	}
+}

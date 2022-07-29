@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,7 +16,9 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	net "github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/testutil/daemon"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -213,4 +216,58 @@ func TestRunConsoleSize(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, strings.TrimSpace(b.String()), "123 57")
+}
+
+func TestRunWithAlternativeContainerdShim(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	realShimPath, err := exec.LookPath("containerd-shim-runc-v2")
+	assert.Assert(t, err)
+	realShimPath, err = filepath.Abs(realShimPath)
+	assert.Assert(t, err)
+
+	// t.TempDir() can't be used here as the temporary directory returned by
+	// that function cannot be accessed by the fake-root user for rootless
+	// Docker. It creates a nested hierarchy of directories where the
+	// outermost has permission 0700.
+	shimDir, err := os.MkdirTemp("", t.Name())
+	assert.Assert(t, err)
+	t.Cleanup(func() {
+		if err := os.RemoveAll(shimDir); err != nil {
+			t.Errorf("shimDir RemoveAll cleanup: %v", err)
+		}
+	})
+	assert.Assert(t, os.Chmod(shimDir, 0777))
+	shimDir, err = filepath.Abs(shimDir)
+	assert.Assert(t, err)
+	assert.Assert(t, os.Symlink(realShimPath, filepath.Join(shimDir, "containerd-shim-realfake-v42")))
+
+	d := daemon.New(t,
+		daemon.WithEnvVars("PATH="+shimDir+":"+os.Getenv("PATH")),
+		daemon.WithContainerdSocket(""), // A new containerd instance needs to be started which inherits the PATH env var defined above.
+	)
+	d.StartWithBusybox(t)
+	defer d.Stop(t)
+
+	client := d.NewClientT(t)
+	ctx := context.Background()
+
+	cID := container.Run(ctx, t, client,
+		container.WithImage("busybox"),
+		container.WithCmd("sh", "-c", `echo 'Hello, world!'`),
+		container.WithRuntime("io.containerd.realfake.v42"),
+	)
+
+	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+
+	out, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{ShowStdout: true})
+	assert.NilError(t, err)
+	defer out.Close()
+
+	var b bytes.Buffer
+	_, err = stdcopy.StdCopy(&b, io.Discard, out)
+	assert.NilError(t, err)
+
+	assert.Equal(t, strings.TrimSpace(b.String()), "Hello, world!")
 }
