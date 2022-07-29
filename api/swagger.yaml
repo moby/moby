@@ -6210,6 +6210,28 @@ paths:
             `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+`.
           type: "string"
           pattern: "^/?[a-zA-Z0-9][a-zA-Z0-9_.-]+$"
+        - name: "platform"
+          in: "query"
+          description: |
+            Platform in the format `os[/arch[/variant]]` used for image lookup.
+
+            When specified, the daemon checks if the requested image is present
+            in the local image cache with the given OS and Architecture, and
+            otherwise returns a `404` status.
+
+            If the option is not set, the host's native OS and Architecture are
+            used to look up the image in the image cache. However, if no platform
+            is passed and the given image does exist in the local image cache,
+            but its OS or architecture does not match, the container is created
+            with the available image, and a warning is added to the `Warnings`
+            field in the response, for example;
+
+                WARNING: The requested image's platform (linux/arm64/v8) does not
+                         match the detected host platform (linux/amd64) and no
+                         specific platform was requested
+
+          type: "string"
+          default: ""
         - name: "body"
           in: "body"
           description: "Container to create"
