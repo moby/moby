@@ -169,6 +169,31 @@ func TestStateTimeoutWait(t *testing.T) {
 	}
 }
 
+// Related issue: #39352
+func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
+	s := NewState()
+
+	s.Lock()
+	s.SetRunning(0, true)
+	s.Unlock()
+
+	waitC := s.Wait(context.Background(), WaitConditionNotRunning)
+	want := ExitStatus{ExitCode: 10, ExitedAt: time.Now()}
+
+	s.Lock()
+	s.SetRestarting(&want)
+	s.Unlock()
+
+	s.Lock()
+	s.SetRunning(0, true)
+	s.Unlock()
+
+	got := <-waitC
+	if got.exitCode != want.ExitCode {
+		t.Fatalf("expected exit code %v, got %v", want.ExitCode, got.exitCode)
+	}
+}
+
 func TestIsValidStateString(t *testing.T) {
 	states := []struct {
 		state    string

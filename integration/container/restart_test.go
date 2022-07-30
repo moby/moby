@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	testContainer "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -152,4 +153,61 @@ func pollForNewHealthCheck(ctx context.Context, client *client.Client, startTime
 		}
 		return poll.Continue("waiting for a new container healthcheck")
 	}
+}
+
+// Container started with --rm should be able to be restarted.
+// It should be removed only if killed or stopped
+func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
+	defer setupTest(t)()
+	cli := testEnv.APIClient()
+	ctx := context.Background()
+
+	noWaitTimeout := 0
+
+	for _, tc := range []struct {
+		desc  string
+		doSth func(ctx context.Context, containerID string) error
+	}{
+		{
+			desc: "kill",
+			doSth: func(ctx context.Context, containerID string) error {
+				return cli.ContainerKill(ctx, containerID, "SIGKILL")
+			},
+		},
+		{
+			desc: "stop",
+			doSth: func(ctx context.Context, containerID string) error {
+				return cli.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &noWaitTimeout})
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			cID := testContainer.Run(ctx, t, cli,
+				testContainer.WithName("autoremove-restart-and-"+tc.desc),
+				testContainer.WithAutoRemove,
+			)
+			defer func() {
+				err := cli.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+				if t.Failed() && err != nil {
+					t.Logf("Cleaning up test container failed with error: %v", err)
+				}
+			}()
+
+			err := cli.ContainerRestart(ctx, cID, container.StopOptions{Timeout: &noWaitTimeout})
+			assert.NilError(t, err)
+
+			inspect, err := cli.ContainerInspect(ctx, cID)
+			assert.NilError(t, err)
+			assert.Assert(t, inspect.State.Status != "removing", "Container should not be removing yet")
+
+			poll.WaitOn(t, testContainer.IsInState(ctx, cli, cID, "running"))
+
+			err = tc.doSth(ctx, cID)
+			assert.NilError(t, err)
+
+			poll.WaitOn(t, testContainer.IsRemoved(ctx, cli, cID))
+		})
+	}
+
 }
