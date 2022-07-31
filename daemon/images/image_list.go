@@ -125,28 +125,37 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 
 		summary := newImageSummary(img, size)
 
+		var found bool
+		var matchErr error
+		// if we can at least find one match, that means this image is what we want to search
 		for _, ref := range i.referenceStore.References(id.Digest()) {
-			if opts.Filters.Contains("reference") {
-				var found bool
-				var matchErr error
-				for _, pattern := range opts.Filters.Get("reference") {
-					found, matchErr = reference.FamiliarMatch(pattern, ref)
-					if matchErr != nil {
-						return nil, matchErr
-					}
-					if found {
-						break
-					}
+			if !opts.Filters.Contains("reference") {
+				continue
+			}
+			for _, pattern := range opts.Filters.Get("reference") {
+				found, matchErr = reference.FamiliarMatch(pattern, ref)
+				if matchErr != nil {
+					return nil, matchErr
 				}
-				if !found {
-					continue
+				if found {
+					break
 				}
 			}
-			if _, ok := ref.(reference.Canonical); ok {
-				summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(ref))
+			if found {
+				break
 			}
-			if _, ok := ref.(reference.NamedTagged); ok {
-				summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
+		}
+
+		// if there is no reference, output
+		// or if there is reference and found, output
+		if !opts.Filters.Contains("reference") || found {
+			for _, ref := range i.referenceStore.References(id.Digest()) {
+				if _, ok := ref.(reference.Canonical); ok {
+					summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(ref))
+				}
+				if _, ok := ref.(reference.NamedTagged); ok {
+					summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
+				}
 			}
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
