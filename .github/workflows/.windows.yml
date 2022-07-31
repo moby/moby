@@ -303,7 +303,7 @@ jobs:
           }
       -
         name: Starting containerd
-        if: matrix.runtime == 'containerd'
+        if: matrix.runtime == 'containerd' && matrix.os == 'windows-2019'
         run: |
           Write-Host "Generating config"
           & "${{ env.BIN_OUT }}\containerd.exe" config default | Out-File "$env:TEMP\ctn.toml" -Encoding ascii
@@ -326,8 +326,12 @@ jobs:
         name: Starting test daemon
         run: |
           Write-Host "Creating service"
-          If ("${{ matrix.runtime }}" -eq "containerd") {
+          If ("${{ matrix.runtime }}" -eq "containerd" -and "${{ matrix.os }}" -eq "windows-2019") {
             $runtimeArg="--containerd=\\.\pipe\containerd-containerd"
+            echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
+          If ("${{ matrix.runtime }}" -eq "containerd" -and "${{ matrix.os }}" -eq "windows-2022") {
+            $runtimeArg="--default-runtime=io.containerd.runhcs.v1"
             echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
           New-Item -ItemType Directory "$env:TEMP\moby-root" -ErrorAction SilentlyContinue | Out-Null
@@ -362,6 +366,11 @@ jobs:
             Start-Sleep -Seconds 1
           }
           Write-Host "Test daemon started and replied!"
+          If ("${{ matrix.runtime }}" -eq "containerd") {
+            If (-not (Get-Process -Name containerd -ErrorAction:SilentlyContinue)) {
+              Throw "containerd process is not running"
+            }
+          }
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
       -
@@ -426,14 +435,14 @@ jobs:
           DOCKER_HOST: npipe:////./pipe/docker_engine
       -
         name: Stop containerd
-        if: always() && matrix.runtime == 'containerd'
+        if: always() && matrix.runtime == 'containerd' && matrix.os == 'windows-2019'
         run: |
           $ErrorActionPreference = "SilentlyContinue"
           Stop-Service -Force -Name containerd
           $ErrorActionPreference = "Stop"
       -
         name: Containerd logs
-        if: always() && matrix.runtime == 'containerd'
+        if: always() && matrix.runtime == 'containerd' && matrix.os == 'windows-2019'
         run: |
           Copy-Item "$env:TEMP\ctn.log" -Destination ".\bundles\containerd.log"
           Get-Content "$env:TEMP\ctn.log" | Out-Host

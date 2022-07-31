@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
@@ -93,9 +94,32 @@ func newCgroupParent(config *config.Config) string {
 	return ""
 }
 
-func (cli *DaemonCli) initContainerd(_ context.Context) (func(time.Duration) error, error) {
-	system.InitContainerdRuntime(cli.ContainerdAddr)
-	return nil, nil
+func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+	if cli.ContainerdAddr != "" {
+		// use system containerd at the given address.
+		system.InitContainerdRuntime(cli.ContainerdAddr)
+		return nil, nil
+	}
+
+	if cli.DefaultRuntime != config.WindowsV2RuntimeName {
+		return nil, nil
+	}
+
+	logrus.Info("containerd not running, starting managed containerd")
+	opts, err := cli.getContainerdDaemonOpts()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate containerd options")
+	}
+
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start containerd")
+	}
+	cli.ContainerdAddr = r.Address()
+	system.InitContainerdRuntime(r.Address())
+
+	// Try to wait for containerd to shutdown
+	return r.WaitTimeout, nil
 }
 
 func validateCPURealtimeOptions(_ *config.Config) error {

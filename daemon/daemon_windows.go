@@ -44,9 +44,6 @@ const (
 	windowsMaxCPUShares  = 10000
 	windowsMinCPUPercent = 1
 	windowsMaxCPUPercent = 100
-
-	windowsV1RuntimeName = "com.docker.hcsshim.v1"
-	windowsV2RuntimeName = "io.containerd.runhcs.v1"
 )
 
 // Windows containers are much larger than Linux containers and each of them
@@ -641,14 +638,14 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
 	rt := daemon.configStore.GetDefaultRuntimeName()
 	if rt == "" {
 		if daemon.configStore.ContainerdAddr == "" {
-			rt = windowsV1RuntimeName
+			rt = config.WindowsV1RuntimeName
 		} else {
-			rt = windowsV2RuntimeName
+			rt = config.WindowsV2RuntimeName
 		}
 	}
 
 	switch rt {
-	case windowsV1RuntimeName:
+	case config.WindowsV1RuntimeName:
 		daemon.containerd, err = local.NewClient(
 			ctx,
 			daemon.containerdCli,
@@ -656,7 +653,7 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
 			daemon.configStore.ContainerdNamespace,
 			daemon,
 		)
-	case windowsV2RuntimeName:
+	case config.WindowsV2RuntimeName:
 		if daemon.configStore.ContainerdAddr == "" {
 			return fmt.Errorf("cannot use the specified runtime %q without containerd", rt)
 		}

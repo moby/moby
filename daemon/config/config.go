@@ -63,11 +63,6 @@ const (
 	SeccompProfileUnconfined = "unconfined"
 )
 
-var builtinRuntimes = map[string]bool{
-	StockRuntimeName:   true,
-	LinuxV2RuntimeName: true,
-}
-
 // flatOptions contains configuration keys
 // that MUST NOT be parsed as deep structures.
 // Use this to differentiate these options
