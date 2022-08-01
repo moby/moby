@@ -126,11 +126,27 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 		summary := newImageSummary(img, size)
 
 		for _, ref := range i.referenceStore.References(id.Digest()) {
+			_, refIsCanonical := ref.(reference.Canonical)
+
 			if opts.Filters.Contains("reference") {
 				var found bool
 				var matchErr error
 				for _, pattern := range opts.Filters.Get("reference") {
-					found, matchErr = reference.FamiliarMatch(pattern, ref)
+					var named reference.Named
+					// Assume pattern will only be in REPO[:TAG] format
+					named, err = reference.ParseNormalizedNamed(pattern)
+
+					// fallback to the original pattern when it cannot be parsed
+					query := pattern
+					if err == nil {
+						_, isNamedTagged := named.(reference.NamedTagged)
+						// Use only the REPO part to search it
+						if isNamedTagged && refIsCanonical {
+							query = reference.FamiliarName(named)
+						}
+					}
+
+					found, matchErr = reference.FamiliarMatch(query, ref)
 					if matchErr != nil {
 						return nil, matchErr
 					}
@@ -149,6 +165,35 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 				summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
 			}
 		}
+
+		// Ex. when reference = [debian, debain:x]
+		// even len(RepoTags) == 0, we should still output the summary
+		// But when reference = [debian:x, debian:y]
+		// we should not output the summary with len(RepoTags) == 0
+		if len(summary.RepoTags) == 0 && opts.Filters.Contains("reference") {
+			// whether all reference contains a tag
+			allTagged := true
+			for _, pattern := range opts.Filters.Get("reference") {
+				named, err := reference.ParseNormalizedNamed(pattern)
+				if err == nil {
+					_, isNamedTagged := named.(reference.NamedTagged)
+					allTagged = allTagged && isNamedTagged
+				} else {
+					// assume the default pattern is not tagged
+					allTagged = false
+				}
+
+				if !allTagged {
+					break
+				}
+			}
+
+			if allTagged {
+				// avoid outputting this digest
+				summary.RepoDigests = nil
+			}
+		}
+
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
 			if opts.All || len(i.imageStore.Children(id)) == 0 {
 
