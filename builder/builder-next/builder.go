@@ -87,8 +87,9 @@ type Builder struct {
 	controller     *mobycontrol.Controller
 	reqBodyHandler *reqBodyHandler
 
-	mu   sync.Mutex
-	jobs map[string]*buildJob
+	mu             sync.Mutex
+	jobs           map[string]*buildJob
+	useSnapshotter bool
 }
 
 // New creates a new builder
@@ -103,6 +104,7 @@ func New(opt Opt) (*Builder, error) {
 		controller:     c,
 		reqBodyHandler: reqHandler,
 		jobs:           map[string]*buildJob{},
+		useSnapshotter: opt.UseSnapshotter,
 	}
 	return b, nil
 }
@@ -341,14 +343,23 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		names = append(names, tag.String())
 	}
 
-	exporterName := client.ExporterImage
-	exporterAttrs := map[string]string{
-		"image.name": strings.Join(names, ","),
-		"name":       strings.Join(names, ","),
+	exporterName := ""
+	exporterAttrs := map[string]string{}
+
+	if b.useSnapshotter {
+		exporterName = client.ExporterImage
+		exporterAttrs = map[string]string{
+			"image.name": strings.Join(names, ","),
+			"name":       strings.Join(names, ","),
+		}
 	}
 
 	if len(opt.Options.Outputs) > 1 {
 		return nil, errors.Errorf("multiple outputs not supported")
+	} else if len(opt.Options.Outputs) == 0 {
+		if !b.useSnapshotter {
+			exporterName = "moby"
+		}
 	} else if len(opt.Options.Outputs) == 1 {
 		// cacheonly is a special type for triggering skipping all exporters
 		if opt.Options.Outputs[0].Type != "cacheonly" {
@@ -356,7 +367,11 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 			exporterAttrs = opt.Options.Outputs[0].Attrs
 		}
 	}
-
+	if !b.useSnapshotter && exporterName == "moby" {
+		if len(opt.Options.Tags) > 0 {
+			exporterAttrs["name"] = strings.Join(opt.Options.Tags, ",")
+		}
+	}
 	cache := controlapi.CacheOptions{}
 
 	if inlineCache := opt.Options.BuildArgs["BUILDKIT_INLINE_CACHE"]; inlineCache != nil {
