@@ -184,6 +184,11 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 
 	contJSONBase.GraphDriver.Name = container.Driver
 
+	if daemon.UsesSnapshotter() {
+		// Additional information only applies to graphDrivers, so we're done.
+		return contJSONBase, nil
+	}
+
 	if container.RWLayer == nil {
 		if container.Dead {
 			return contJSONBase, nil
