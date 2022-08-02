@@ -400,6 +400,34 @@ pipeline {
                                 '''
                             }
                         }
+                        stage("Unit tests") {
+                            environment {
+                                DOCKER_ROOTLESS = '1'
+                            }
+                            steps {
+                                sh '''
+                                sudo modprobe ip6table_filter
+                                '''
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e DOCKER_ROOTLESS \
+                                  -e VALIDATE_REPO=${GIT_URL} \
+                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                                  docker:${GIT_COMMIT} \
+                                  hack/test/unit
+                                '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/junit-report*.xml', allowEmptyResults: true
+                                }
+                            }
+                        }
                         stage("Integration tests") {
                             environment {
                                 DOCKER_ROOTLESS = '1'
