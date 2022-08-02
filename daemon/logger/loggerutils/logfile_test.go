@@ -64,19 +64,21 @@ func TestTailFiles(t *testing.T) {
 	for desc, config := range map[string]logger.ReadConfig{} {
 		t.Run(desc, func(t *testing.T) {
 			started := make(chan struct{})
+			fwd := newForwarder(config)
 			go func() {
 				close(started)
-				tailFiles(files, watcher, dec, tailReader, config)
+				tailFiles(files, watcher, dec, tailReader, config.Tail, fwd)
 			}()
 			<-started
 		})
 	}
 
 	config := logger.ReadConfig{Tail: 2}
+	fwd := newForwarder(config)
 	started := make(chan struct{})
 	go func() {
 		close(started)
-		tailFiles(files, watcher, dec, tailReader, config)
+		tailFiles(files, watcher, dec, tailReader, config.Tail, fwd)
 	}()
 	<-started
 

@@ -333,6 +333,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             python3-setuptools \
             python3-wheel \
             sudo \
+            systemd-journal-remote \
             thin-provisioning-tools \
             uidmap \
             vim \
@@ -386,9 +387,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             dbus-user-session \
             systemd \
             systemd-sysv
-RUN mkdir -p hack \
-  && curl -o hack/dind-systemd https://raw.githubusercontent.com/AkihiroSuda/containerized-systemd/b70bac0daeea120456764248164c21684ade7d0d/docker-entrypoint.sh \
-  && chmod +x hack/dind-systemd
 ENTRYPOINT ["hack/dind-systemd"]
 
 FROM dev-systemd-${SYSTEMD} AS dev

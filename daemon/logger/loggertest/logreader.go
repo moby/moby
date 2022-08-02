@@ -10,10 +10,23 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/opt"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
 )
+
+type syncer interface {
+	// Sync commits the current logs to stable storage such that the most
+	// recently-logged message can be immediately read back by a LogReader.
+	Sync() error
+}
+
+func syncLogger(t *testing.T, l logger.Logger) {
+	if sl, ok := l.(syncer); ok {
+		assert.NilError(t, sl.Sync())
+	}
+}
 
 // Reader tests that a logger.LogReader implementation behaves as it should.
 type Reader struct {
@@ -25,6 +38,9 @@ type Reader struct {
 }
 
 var compareLog cmp.Options = []cmp.Option{
+	// Not all log drivers can round-trip timestamps at full nanosecond
+	// precision.
+	opt.TimeWithThreshold(time.Millisecond),
 	// The json-log driver does not round-trip PLogMetaData and API users do
 	// not expect it.
 	cmpopts.IgnoreFields(logger.Message{}, "PLogMetaData"),
@@ -47,6 +63,7 @@ func makeTestMessages() []*logger.Message {
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 15 * time.Minute), Line: []byte("continued"), PLogMetaData: &backend.PartialLogMetaData{ID: "bbbbbbbb", Ordinal: 2, Last: true}},
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("a really long message " + strings.Repeat("a", 4096))},
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("just one more message")},
+		{Source: "stdout", Timestamp: time.Now().Add(-1 * 90 * time.Minute), Line: []byte("someone adjusted the clock")},
 	}
 
 }
@@ -311,6 +328,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 
 		mm := makeTestMessages()
 		logMessages(t, l, mm[0:2])
+		syncLogger(t, l)
 
 		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: 0, Follow: true})
 		defer lw.ConsumerGone()
@@ -337,6 +355,7 @@ func (tr Reader) TestFollow(t *testing.T) {
 
 		mm := makeTestMessages()
 		expected := logMessages(t, l, mm[0:2])[1:]
+		syncLogger(t, l)
 
 		lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Tail: 1, Follow: true})
 		defer lw.ConsumerGone()
@@ -519,13 +538,12 @@ func readMessage(t *testing.T, lw *logger.LogWatcher) *logger.Message {
 			select {
 			case err, open := <-lw.Err:
 				t.Errorf("unexpected receive on lw.Err with closed lw.Msg: err=%v, open=%v", err, open)
-				return nil
 			default:
 			}
+			return nil
 		}
-		if msg != nil {
-			t.Logf("loggertest: ReadMessage [%v %v] %s", msg.Source, msg.Timestamp, msg.Line)
-		}
+		assert.Assert(t, msg != nil)
+		t.Logf("[%v] %s: %s", msg.Timestamp, msg.Source, msg.Line)
 		return msg
 	}
 }
