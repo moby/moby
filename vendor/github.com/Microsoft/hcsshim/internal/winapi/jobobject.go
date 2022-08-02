@@ -175,7 +175,7 @@ type JOBOBJECT_ASSOCIATE_COMPLETION_PORT struct {
 //		LPDWORD            lpReturnLength
 // );
 //
-//sys QueryInformationJobObject(jobHandle windows.Handle, infoClass uint32, jobObjectInfo uintptr, jobObjectInformationLength uint32, lpReturnLength *uint32) (err error) = kernel32.QueryInformationJobObject
+//sys QueryInformationJobObject(jobHandle windows.Handle, infoClass uint32, jobObjectInfo unsafe.Pointer, jobObjectInformationLength uint32, lpReturnLength *uint32) (err error) = kernel32.QueryInformationJobObject
 
 // HANDLE OpenJobObjectW(
 //		DWORD   dwDesiredAccess,

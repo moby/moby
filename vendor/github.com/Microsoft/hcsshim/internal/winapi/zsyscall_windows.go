@@ -100,7 +100,7 @@ func resizePseudoConsole(hPc windows.Handle, size uint32) (hr error) {
 	return
 }
 
-func NtQuerySystemInformation(systemInfoClass int, systemInformation uintptr, systemInfoLength uint32, returnLength *uint32) (status uint32) {
+func NtQuerySystemInformation(systemInfoClass int, systemInformation unsafe.Pointer, systemInfoLength uint32, returnLength *uint32) (status uint32) {
 	r0, _, _ := syscall.Syscall6(procNtQuerySystemInformation.Addr(), 4, uintptr(systemInfoClass), uintptr(systemInformation), uintptr(systemInfoLength), uintptr(unsafe.Pointer(returnLength)), 0, 0)
 	status = uint32(r0)
 	return
@@ -152,7 +152,7 @@ func IsProcessInJob(procHandle windows.Handle, jobHandle windows.Handle, result 
 	return
 }
 
-func QueryInformationJobObject(jobHandle windows.Handle, infoClass uint32, jobObjectInfo uintptr, jobObjectInformationLength uint32, lpReturnLength *uint32) (err error) {
+func QueryInformationJobObject(jobHandle windows.Handle, infoClass uint32, jobObjectInfo unsafe.Pointer, jobObjectInformationLength uint32, lpReturnLength *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procQueryInformationJobObject.Addr(), 5, uintptr(jobHandle), uintptr(infoClass), uintptr(jobObjectInfo), uintptr(jobObjectInformationLength), uintptr(unsafe.Pointer(lpReturnLength)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
@@ -244,7 +244,7 @@ func LocalFree(ptr uintptr) {
 	return
 }
 
-func NtQueryInformationProcess(processHandle windows.Handle, processInfoClass uint32, processInfo uintptr, processInfoLength uint32, returnLength *uint32) (status uint32) {
+func NtQueryInformationProcess(processHandle windows.Handle, processInfoClass uint32, processInfo unsafe.Pointer, processInfoLength uint32, returnLength *uint32) (status uint32) {
 	r0, _, _ := syscall.Syscall6(procNtQueryInformationProcess.Addr(), 5, uintptr(processHandle), uintptr(processInfoClass), uintptr(processInfo), uintptr(processInfoLength), uintptr(unsafe.Pointer(returnLength)), 0)
 	status = uint32(r0)
 	return

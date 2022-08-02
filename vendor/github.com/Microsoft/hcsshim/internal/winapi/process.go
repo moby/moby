@@ -18,7 +18,7 @@ const ProcessVmCounters = 3
 // 	[out, optional] PULONG           ReturnLength
 // );
 //
-//sys NtQueryInformationProcess(processHandle windows.Handle, processInfoClass uint32, processInfo uintptr, processInfoLength uint32, returnLength *uint32) (status uint32) = ntdll.NtQueryInformationProcess
+//sys NtQueryInformationProcess(processHandle windows.Handle, processInfoClass uint32, processInfo unsafe.Pointer, processInfoLength uint32, returnLength *uint32) (status uint32) = ntdll.NtQueryInformationProcess
 
 // typedef struct _VM_COUNTERS_EX
 // {
