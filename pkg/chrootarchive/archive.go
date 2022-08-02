@@ -1,7 +1,6 @@
 package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -18,6 +18,16 @@ func init() {
 	_, _ = user.Lookup("docker")
 	_, _ = net.LookupHost("localhost")
 }
+
+type invalidArchiveError struct {
+	cause error
+}
+
+func (e invalidArchiveError) Error() string {
+	return e.cause.Error()
+}
+
+func (e invalidArchiveError) InvalidParameter() {}
 
 // NewArchiver returns a new Archiver which uses chrootarchive.Untar
 func NewArchiver(idMapping idtools.IdentityMapping) *archive.Archiver {
@@ -61,7 +71,7 @@ func UntarUncompressed(tarArchive io.Reader, dest string, options *archive.TarOp
 // Handler for teasing out the automatic decompression
 func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions, decompress bool, root string) error {
 	if tarArchive == nil {
-		return fmt.Errorf("Empty archive")
+		return invalidArchiveError{errors.New("empty archive")}
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
