@@ -2263,6 +2263,14 @@ definitions:
         type: "string"
         x-nullable: true
         example: ""
+      Parents:
+        description: |
+          List of parent build cache record IDs.
+        type: "array"
+        items:
+          type: "string"
+        x-nullable: true
+        example: ["hw53o5aio51xtltp5xjp8v7fx"]
       Type:
         type: "string"
         description: |
@@ -9046,6 +9054,7 @@ paths:
               BuildCache:
                 -
                   ID: "hw53o5aio51xtltp5xjp8v7fx"
+                  Parents: []
                   Type: "regular"
                   Description: "pulled from docker.io/library/debian@sha256:234cb88d3020898631af0ccbbcca9a66ae7306ecd30c9720690858c1b007d2a0"
                   InUse: false
@@ -9056,6 +9065,7 @@ paths:
                   UsageCount: 26
                 -
                   ID: "ndlpt0hhvkqcdfkputsk4cq9c"
+                  Parents: ["ndlpt0hhvkqcdfkputsk4cq9c"]
                   Type: "regular"
                   Description: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
                   InUse: false
