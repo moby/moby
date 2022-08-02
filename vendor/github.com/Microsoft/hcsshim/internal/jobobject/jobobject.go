@@ -68,6 +68,9 @@ type Options struct {
 	// `UseNTVariant` specifies if we should use the `Nt` variant of Open/CreateJobObject.
 	// Defaults to false.
 	UseNTVariant bool
+	// `IOTracking` enables tracking I/O statistics on the job object. More specifically this
+	// calls SetInformationJobObject with the JobObjectIoAttribution class.
+	EnableIOTracking bool
 }
 
 // Create creates a job object.
@@ -132,6 +135,12 @@ func Create(ctx context.Context, options *Options) (_ *JobObject, err error) {
 			return nil, err
 		}
 		job.mq = mq
+	}
+
+	if options.EnableIOTracking {
+		if err := enableIOTracking(jobHandle); err != nil {
+			return nil, err
+		}
 	}
 
 	return job, nil
@@ -235,7 +244,7 @@ func (job *JobObject) PollNotification() (interface{}, error) {
 	if job.mq == nil {
 		return nil, ErrNotRegistered
 	}
-	return job.mq.ReadOrWait()
+	return job.mq.Dequeue()
 }
 
 // UpdateProcThreadAttribute updates the passed in ProcThreadAttributeList to contain what is necessary to
@@ -330,7 +339,7 @@ func (job *JobObject) Pids() ([]uint32, error) {
 	err := winapi.QueryInformationJobObject(
 		job.handle,
 		winapi.JobObjectBasicProcessIdList,
-		uintptr(unsafe.Pointer(&info)),
+		unsafe.Pointer(&info),
 		uint32(unsafe.Sizeof(info)),
 		nil,
 	)
@@ -356,7 +365,7 @@ func (job *JobObject) Pids() ([]uint32, error) {
 	if err = winapi.QueryInformationJobObject(
 		job.handle,
 		winapi.JobObjectBasicProcessIdList,
-		uintptr(unsafe.Pointer(&buf[0])),
+		unsafe.Pointer(&buf[0]),
 		uint32(len(buf)),
 		nil,
 	); err != nil {
@@ -384,7 +393,7 @@ func (job *JobObject) QueryMemoryStats() (*winapi.JOBOBJECT_MEMORY_USAGE_INFORMA
 	if err := winapi.QueryInformationJobObject(
 		job.handle,
 		winapi.JobObjectMemoryUsageInformation,
-		uintptr(unsafe.Pointer(&info)),
+		unsafe.Pointer(&info),
 		uint32(unsafe.Sizeof(info)),
 		nil,
 	); err != nil {
@@ -406,7 +415,7 @@ func (job *JobObject) QueryProcessorStats() (*winapi.JOBOBJECT_BASIC_ACCOUNTING_
 	if err := winapi.QueryInformationJobObject(
 		job.handle,
 		winapi.JobObjectBasicAccountingInformation,
-		uintptr(unsafe.Pointer(&info)),
+		unsafe.Pointer(&info),
 		uint32(unsafe.Sizeof(info)),
 		nil,
 	); err != nil {
@@ -415,7 +424,9 @@ func (job *JobObject) QueryProcessorStats() (*winapi.JOBOBJECT_BASIC_ACCOUNTING_
 	return &info, nil
 }
 
-// QueryStorageStats gets the storage (I/O) stats for the job object.
+// QueryStorageStats gets the storage (I/O) stats for the job object. This call will error
+// if either `EnableIOTracking` wasn't set to true on creation of the job, or SetIOTracking()
+// hasn't been called since creation of the job.
 func (job *JobObject) QueryStorageStats() (*winapi.JOBOBJECT_IO_ATTRIBUTION_INFORMATION, error) {
 	job.handleLock.RLock()
 	defer job.handleLock.RUnlock()
@@ -430,7 +441,7 @@ func (job *JobObject) QueryStorageStats() (*winapi.JOBOBJECT_IO_ATTRIBUTION_INFO
 	if err := winapi.QueryInformationJobObject(
 		job.handle,
 		winapi.JobObjectIoAttribution,
-		uintptr(unsafe.Pointer(&info)),
+		unsafe.Pointer(&info),
 		uint32(unsafe.Sizeof(info)),
 		nil,
 	); err != nil {
@@ -476,7 +487,7 @@ func (job *JobObject) QueryPrivateWorkingSet() (uint64, error) {
 		status := winapi.NtQueryInformationProcess(
 			h,
 			winapi.ProcessVmCounters,
-			uintptr(unsafe.Pointer(&vmCounters)),
+			unsafe.Pointer(&vmCounters),
 			uint32(unsafe.Sizeof(vmCounters)),
 			nil,
 		)
@@ -496,4 +507,32 @@ func (job *JobObject) QueryPrivateWorkingSet() (uint64, error) {
 	}
 
 	return jobWorkingSetSize, nil
+}
+
+// SetIOTracking enables IO tracking for processes in the job object.
+// This enables use of the QueryStorageStats method.
+func (job *JobObject) SetIOTracking() error {
+	job.handleLock.RLock()
+	defer job.handleLock.RUnlock()
+
+	if job.handle == 0 {
+		return ErrAlreadyClosed
+	}
+
+	return enableIOTracking(job.handle)
+}
+
+func enableIOTracking(job windows.Handle) error {
+	info := winapi.JOBOBJECT_IO_ATTRIBUTION_INFORMATION{
+		ControlFlags: winapi.JOBOBJECT_IO_ATTRIBUTION_CONTROL_ENABLE,
+	}
+	if _, err := windows.SetInformationJobObject(
+		job,
+		winapi.JobObjectIoAttribution,
+		uintptr(unsafe.Pointer(&info)),
+		uint32(unsafe.Sizeof(info)),
+	); err != nil {
+		return fmt.Errorf("failed to enable IO tracking on job object: %w", err)
+	}
+	return nil
 }
