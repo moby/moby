@@ -202,7 +202,7 @@ func (job *JobObject) getExtendedInformation() (*windows.JOBOBJECT_EXTENDED_LIMI
 	if err := winapi.QueryInformationJobObject(
 		job.handle,
 		windows.JobObjectExtendedLimitInformation,
-		uintptr(unsafe.Pointer(&info)),
+		unsafe.Pointer(&info),
 		uint32(unsafe.Sizeof(info)),
 		nil,
 	); err != nil {
@@ -224,7 +224,7 @@ func (job *JobObject) getCPURateControlInformation() (*winapi.JOBOBJECT_CPU_RATE
 	if err := winapi.QueryInformationJobObject(
 		job.handle,
 		windows.JobObjectCpuRateControlInformation,
-		uintptr(unsafe.Pointer(&info)),
+		unsafe.Pointer(&info),
 		uint32(unsafe.Sizeof(info)),
 		nil,
 	); err != nil {
