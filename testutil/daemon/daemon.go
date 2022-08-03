@@ -76,6 +76,7 @@ type Daemon struct {
 	log                        LogT
 	pidFile                    string
 	args                       []string
+	extraEnv                   []string
 	containerdSocket           string
 	rootlessUser               *user.User
 	rootlessXDGRuntimeDir      string
@@ -334,9 +335,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		dockerdBinary = "sudo"
 		d.args = append(d.args,
 			"-u", d.rootlessUser.Username,
-			"-E", "XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
-			"-E", "HOME="+d.rootlessUser.HomeDir,
-			"-E", "PATH="+os.Getenv("PATH"),
+			"--preserve-env",
+			"--preserve-env=PATH", // Pass through PATH, overriding secure_path.
+			"XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
+			"HOME="+d.rootlessUser.HomeDir,
 			"--",
 			defaultDockerdRootlessBinary,
 		)
@@ -392,6 +394,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.args = append(d.args, providedArgs...)
 	d.cmd = exec.Command(dockerdBinary, d.args...)
 	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
+	d.cmd.Env = append(d.cmd.Env, d.extraEnv...)
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
 	d.logFile = out
