@@ -33,8 +33,6 @@ const (
 type remote struct {
 	sync.RWMutex
 	config.Config
-	// Plugins overrides `Plugins map[string]toml.Tree` in config config.
-	Plugins map[string]interface{} `toml:"plugins"`
 
 	daemonPid int
 	logger    *logrus.Entry
@@ -66,7 +64,6 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			Root:    filepath.Join(rootDir, "daemon"),
 			State:   filepath.Join(stateDir, "daemon"),
 		},
-		Plugins:       make(map[string]interface{}),
 		daemonPid:     -1,
 		logger:        logrus.WithField("module", "libcontainerd"),
 		daemonStartCh: make(chan error, 1),

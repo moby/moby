@@ -9,12 +9,10 @@ func WithLogLevel(lvl string) DaemonOpt {
 	}
 }
 
-// WithPlugin allow configuring a containerd plugin
-// configuration values passed needs to be quoted if quotes are needed in
-// the toml format.
-func WithPlugin(name string, conf interface{}) DaemonOpt {
+// WithCRIDisabled disables the CRI plugin.
+func WithCRIDisabled() DaemonOpt {
 	return func(r *remote) error {
-		r.Plugins[name] = conf
+		r.DisabledPlugins = append(r.DisabledPlugins, "io.containerd.grpc.v1.cri")
 		return nil
 	}
 }

@@ -596,7 +596,19 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 	}
 
 	if !cli.Config.CriContainerd {
-		opts = append(opts, supervisor.WithPlugin("io.containerd.grpc.v1.cri", nil))
+		// CRI support in the managed daemon is currently opt-in.
+		//
+		// It's disabled by default, originally because it was listening on
+		// a TCP connection at 0.0.0.0:10010, which was considered a security
+		// risk, and could conflict with user's container ports.
+		//
+		// Current versions of containerd started now listen on localhost on
+		// an ephemeral port instead, but could still conflict with container
+		// ports, and running kubernetes using the static binaries is not a
+		// common scenario, so we (for now) continue disabling it by default.
+		//
+		// Also see https://github.com/containerd/containerd/issues/2483#issuecomment-407530608
+		opts = append(opts, supervisor.WithCRIDisabled())
 	}
 
 	return opts, nil
