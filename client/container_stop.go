@@ -17,14 +17,18 @@ import (
 // otherwise the engine default. A negative timeout value can be specified,
 // meaning no timeout, i.e. no forceful termination is performed.
 func (cli *Client) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return err
+	}
 	query := url.Values{}
 	if options.Timeout != nil {
 		query.Set("t", strconv.Itoa(*options.Timeout))
 	}
-	if options.Signal != "" && versions.GreaterThanOrEqualTo(cli.version, "1.42") {
+	if options.Signal != "" && versions.GreaterThanOrEqualTo(versioned.version, "1.42") {
 		query.Set("signal", options.Signal)
 	}
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/stop", query, nil, nil)
+	resp, err := versioned.post(ctx, "/containers/"+containerID+"/stop", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

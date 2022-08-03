@@ -18,14 +18,15 @@ import (
 )
 
 func TestNetworksPruneError(t *testing.T) {
-	client := &Client{
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-		version: "1.25",
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+		WithVersion("1.25"),
+	)
+	assert.NilError(t, err)
 
 	filters := filters.NewArgs()
 
-	_, err := client.NetworksPrune(context.Background(), filters)
+	_, err = client.NetworksPrune(context.Background(), filters)
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -83,8 +84,8 @@ func TestNetworksPrune(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -103,9 +104,10 @@ func TestNetworksPrune(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
-			}),
-			version: "1.25",
-		}
+			})),
+			WithVersion("1.25"),
+		)
+		assert.NilError(t, err)
 
 		report, err := client.NetworksPrune(context.Background(), listCase.filters)
 		assert.Check(t, err)

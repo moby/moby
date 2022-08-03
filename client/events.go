@@ -25,14 +25,20 @@ func (cli *Client) Events(ctx context.Context, options types.EventsOptions) (<-c
 	go func() {
 		defer close(errs)
 
-		query, err := buildEventsQueryParams(cli.version, options)
+		versioned, err := cli.versioned(ctx)
+		if err != nil {
+			close(started)
+			errs <- err
+			return
+		}
+		query, err := buildEventsQueryParams(versioned.version, options)
 		if err != nil {
 			close(started)
 			errs <- err
 			return
 		}
 
-		resp, err := cli.get(ctx, "/events", query, nil)
+		resp, err := versioned.get(ctx, "/events", query, nil)
 		if err != nil {
 			close(started)
 			errs <- err

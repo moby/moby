@@ -11,50 +11,55 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "nothing")
+	_, _, err = client.ImageInspectWithRaw(context.Background(), "nothing")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageInspectImageNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusNotFound, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "unknown")
+	_, _, err = client.ImageInspectWithRaw(context.Background(), "unknown")
 	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected an imageNotFound error, got %v", err)
 	}
 }
 
 func TestImageInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.ImageInspectWithRaw(context.Background(), "")
+		})),
+	)
+	assert.NilError(t, err)
+	_, _, err = client.ImageInspectWithRaw(context.Background(), "")
 	if !IsErrNotFound(err) {
 		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 
 func TestImageInspect(t *testing.T) {
-	expectedURL := "/images/image_id/json"
+	expectedURL := "/v" + api.DefaultVersion + "/images/image_id/json"
 	expectedTags := []string{"tag1", "tag2"}
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -69,8 +74,9 @@ func TestImageInspect(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	imageInspect, _, err := client.ImageInspectWithRaw(context.Background(), "image_id")
 	if err != nil {

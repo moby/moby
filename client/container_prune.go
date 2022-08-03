@@ -13,7 +13,11 @@ import (
 func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error) {
 	var report types.ContainersPruneReport
 
-	if err := cli.NewVersionError("1.25", "container prune"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return report, err
+	}
+	if err := versioned.NewVersionError("1.25", "container prune"); err != nil {
 		return report, err
 	}
 
@@ -22,7 +26,7 @@ func (cli *Client) ContainersPrune(ctx context.Context, pruneFilters filters.Arg
 		return report, err
 	}
 
-	serverResp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
+	serverResp, err := versioned.post(ctx, "/containers/prune", query, nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return report, err

@@ -9,36 +9,41 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerResizeError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	err = client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerExecResizeError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	err = client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerResize(t *testing.T) {
-	client := &Client{
-		client: newMockClient(resizeTransport("/containers/container_id/resize")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(resizeTransport("/v" + api.DefaultVersion + "/containers/container_id/resize"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{
+	err = client.ContainerResize(context.Background(), "container_id", types.ResizeOptions{
 		Height: 500,
 		Width:  600,
 	})
@@ -48,11 +53,12 @@ func TestContainerResize(t *testing.T) {
 }
 
 func TestContainerExecResize(t *testing.T) {
-	client := &Client{
-		client: newMockClient(resizeTransport("/exec/exec_id/resize")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(resizeTransport("/v" + api.DefaultVersion + "/exec/exec_id/resize"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{
+	err = client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{
 		Height: 500,
 		Width:  600,
 	})

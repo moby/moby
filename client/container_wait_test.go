@@ -12,14 +12,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerWaitError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 	resultC, errC := client.ContainerWait(context.Background(), "nothing", "")
 	select {
 	case result := <-resultC:
@@ -32,9 +35,9 @@ func TestContainerWaitError(t *testing.T) {
 }
 
 func TestContainerWait(t *testing.T) {
-	expectedURL := "/containers/container_id/wait"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/containers/container_id/wait"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -48,8 +51,9 @@ func TestContainerWait(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
 	select {

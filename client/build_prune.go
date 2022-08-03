@@ -13,7 +13,11 @@ import (
 
 // BuildCachePrune requests the daemon to delete unused cache data
 func (cli *Client) BuildCachePrune(ctx context.Context, opts types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error) {
-	if err := cli.NewVersionError("1.31", "build prune"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := versioned.NewVersionError("1.31", "build prune"); err != nil {
 		return nil, err
 	}
 
@@ -30,7 +34,7 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts types.BuildCachePru
 	}
 	query.Set("filters", filters)
 
-	serverResp, err := cli.post(ctx, "/build/prune", query, nil, nil)
+	serverResp, err := versioned.post(ctx, "/build/prune", query, nil, nil)
 	defer ensureReaderClosed(serverResp)
 
 	if err != nil {

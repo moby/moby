@@ -15,9 +15,14 @@ func (cli *Client) ImageList(ctx context.Context, options types.ImageListOptions
 	var images []types.ImageSummary
 	query := url.Values{}
 
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return images, err
+	}
+
 	optionFilters := options.Filters
 	referenceFilters := optionFilters.Get("reference")
-	if versions.LessThan(cli.version, "1.25") && len(referenceFilters) > 0 {
+	if versions.LessThan(versioned.version, "1.25") && len(referenceFilters) > 0 {
 		query.Set("filter", referenceFilters[0])
 		for _, filterValue := range referenceFilters {
 			optionFilters.Del("reference", filterValue)
@@ -25,7 +30,7 @@ func (cli *Client) ImageList(ctx context.Context, options types.ImageListOptions
 	}
 	if optionFilters.Len() > 0 {
 		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, optionFilters)
+		filterJSON, err := filters.ToParamWithVersion(versioned.version, optionFilters)
 		if err != nil {
 			return images, err
 		}
@@ -35,7 +40,7 @@ func (cli *Client) ImageList(ctx context.Context, options types.ImageListOptions
 		query.Set("all", "1")
 	}
 
-	serverResp, err := cli.get(ctx, "/images/json", query, nil)
+	serverResp, err := versioned.get(ctx, "/images/json", query, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return images, err

@@ -10,38 +10,42 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
 )
 
 func TestTaskInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, _, err := client.TaskInspectWithRaw(context.Background(), "nothing")
+	_, _, err = client.TaskInspectWithRaw(context.Background(), "nothing")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestTaskInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.TaskInspectWithRaw(context.Background(), "")
+		})),
+	)
+	assert.NilError(t, err)
+	_, _, err = client.TaskInspectWithRaw(context.Background(), "")
 	if !IsErrNotFound(err) {
 		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 
 func TestTaskInspect(t *testing.T) {
-	expectedURL := "/tasks/task_id"
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/tasks/task_id"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -55,8 +59,9 @@ func TestTaskInspect(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	taskInspect, _, err := client.TaskInspectWithRaw(context.Background(), "task_id")
 	if err != nil {

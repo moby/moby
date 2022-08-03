@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -19,10 +20,11 @@ import (
 )
 
 func TestServiceLogsError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ServiceLogs(context.Background(), "service_id", types.ContainerLogsOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ServiceLogs(context.Background(), "service_id", types.ContainerLogsOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -33,7 +35,7 @@ func TestServiceLogsError(t *testing.T) {
 }
 
 func TestServiceLogs(t *testing.T) {
-	expectedURL := "/services/service_id/logs"
+	expectedURL := "/v" + api.DefaultVersion + "/services/service_id/logs"
 	cases := []struct {
 		options             types.ContainerLogsOptions
 		expectedQueryParams map[string]string
@@ -88,8 +90,8 @@ func TestServiceLogs(t *testing.T) {
 		},
 	}
 	for _, logCase := range cases {
-		client := &Client{
-			client: newMockClient(func(r *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
@@ -105,8 +107,9 @@ func TestServiceLogs(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 		body, err := client.ServiceLogs(context.Background(), "service_id", logCase.options)
 		if logCase.expectedError != "" {
 			assert.Check(t, is.Error(err, logCase.expectedError))

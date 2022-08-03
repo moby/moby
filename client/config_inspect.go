@@ -14,10 +14,14 @@ func (cli *Client) ConfigInspectWithRaw(ctx context.Context, id string) (swarm.C
 	if id == "" {
 		return swarm.Config{}, nil, objectNotFoundError{object: "config", id: id}
 	}
-	if err := cli.NewVersionError("1.30", "config inspect"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
 		return swarm.Config{}, nil, err
 	}
-	resp, err := cli.get(ctx, "/configs/"+id, nil, nil)
+	if err := versioned.NewVersionError("1.30", "config inspect"); err != nil {
+		return swarm.Config{}, nil, err
+	}
+	resp, err := versioned.get(ctx, "/configs/"+id, nil, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return swarm.Config{}, nil, err

@@ -9,26 +9,29 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestSwarmUnlockError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.SwarmUnlock(context.Background(), swarm.UnlockRequest{UnlockKey: "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeU"})
+	err = client.SwarmUnlock(context.Background(), swarm.UnlockRequest{UnlockKey: "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeU"})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestSwarmUnlock(t *testing.T) {
-	expectedURL := "/swarm/unlock"
+	expectedURL := "/v" + api.DefaultVersion + "/swarm/unlock"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -39,10 +42,11 @@ func TestSwarmUnlock(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.SwarmUnlock(context.Background(), swarm.UnlockRequest{UnlockKey: "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeU"})
+	err = client.SwarmUnlock(context.Background(), swarm.UnlockRequest{UnlockKey: "SWMKEY-1-y6guTZNTwpQeTL5RhUfOsdBdXoQjiB2GADHSRJvbXeU"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,26 +10,29 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestNetworkCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{})
+	_, err = client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestNetworkCreate(t *testing.T) {
-	expectedURL := "/networks/create"
+	expectedURL := "/v" + api.DefaultVersion + "/networks/create"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -49,8 +52,9 @@ func TestNetworkCreate(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	networkResponse, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{
 		CheckDuplicate: true,

@@ -12,6 +12,11 @@ import (
 
 // ContainerList returns the list of containers in the docker host.
 func (cli *Client) ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	query := url.Values{}
 
 	if options.All {
@@ -36,7 +41,7 @@ func (cli *Client) ContainerList(ctx context.Context, options types.ContainerLis
 
 	if options.Filters.Len() > 0 {
 		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
+		filterJSON, err := filters.ToParamWithVersion(versioned.version, options.Filters)
 
 		if err != nil {
 			return nil, err
@@ -45,7 +50,7 @@ func (cli *Client) ContainerList(ctx context.Context, options types.ContainerLis
 		query.Set("filters", filterJSON)
 	}
 
-	resp, err := cli.get(ctx, "/containers/json", query, nil)
+	resp, err := versioned.get(ctx, "/containers/json", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return nil, err

@@ -10,24 +10,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageHistoryError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageHistory(context.Background(), "nothing")
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImageHistory(context.Background(), "nothing")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageHistory(t *testing.T) {
-	expectedURL := "/images/image_id/history"
-	client := &Client{
-		client: newMockClient(func(r *http.Request) (*http.Response, error) {
+	expectedURL := "/v" + api.DefaultVersion + "/images/image_id/history"
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
@@ -49,8 +52,9 @@ func TestImageHistory(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(b)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 	imageHistories, err := client.ImageHistory(context.Background(), "image_id")
 	if err != nil {
 		t.Fatal(err)

@@ -9,28 +9,31 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageCreateError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
-	_, err := client.ImageCreate(context.Background(), "reference", types.ImageCreateOptions{})
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
+	_, err = client.ImageCreate(context.Background(), "reference", types.ImageCreateOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestImageCreate(t *testing.T) {
-	expectedURL := "/images/create"
+	expectedURL := "/v" + api.DefaultVersion + "/images/create"
 	expectedImage := "test:5000/my_image"
 	expectedTag := "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	expectedReference := fmt.Sprintf("%s@%s", expectedImage, expectedTag)
 	expectedRegistryAuth := "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289IiwiZW1haWwiOiJqb2huQGRvZS5jb20ifX0="
-	client := &Client{
-		client: newMockClient(func(r *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(r *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
@@ -54,8 +57,9 @@ func TestImageCreate(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	createResponse, err := client.ImageCreate(context.Background(), expectedReference, types.ImageCreateOptions{
 		RegistryAuth: expectedRegistryAuth,

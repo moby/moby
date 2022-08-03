@@ -11,10 +11,14 @@ import (
 
 // NetworkList returns the list of networks configured in the docker host.
 func (cli *Client) NetworkList(ctx context.Context, options types.NetworkListOptions) ([]types.NetworkResource, error) {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return nil, err
+	}
 	query := url.Values{}
 	if options.Filters.Len() > 0 {
 		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
+		filterJSON, err := filters.ToParamWithVersion(versioned.version, options.Filters)
 		if err != nil {
 			return nil, err
 		}
@@ -22,7 +26,7 @@ func (cli *Client) NetworkList(ctx context.Context, options types.NetworkListOpt
 		query.Set("filters", filterJSON)
 	}
 	var networkResources []types.NetworkResource
-	resp, err := cli.get(ctx, "/networks", query, nil)
+	resp, err := versioned.get(ctx, "/networks", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return networkResources, err

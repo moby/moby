@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -18,47 +19,50 @@ import (
 )
 
 func TestVolumeInspectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.VolumeInspect(context.Background(), "nothing")
+	_, err = client.VolumeInspect(context.Background(), "nothing")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestVolumeInspectNotFound(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusNotFound, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.VolumeInspect(context.Background(), "unknown")
+	_, err = client.VolumeInspect(context.Background(), "unknown")
 	assert.Check(t, IsErrNotFound(err))
 }
 
 func TestVolumeInspectWithEmptyID(t *testing.T) {
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			return nil, errors.New("should not make request")
-		}),
-	}
-	_, _, err := client.VolumeInspectWithRaw(context.Background(), "")
+		})),
+	)
+	assert.NilError(t, err)
+	_, _, err = client.VolumeInspectWithRaw(context.Background(), "")
 	if !IsErrNotFound(err) {
 		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 
 func TestVolumeInspect(t *testing.T) {
-	expectedURL := "/volumes/volume_id"
+	expectedURL := "/v" + api.DefaultVersion + "/volumes/volume_id"
 	expected := volume.Volume{
 		Name:       "name",
 		Driver:     "driver",
 		Mountpoint: "mountpoint",
 	}
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -73,8 +77,9 @@ func TestVolumeInspect(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
 	vol, err := client.VolumeInspect(context.Background(), "volume_id")
 	assert.NilError(t, err)

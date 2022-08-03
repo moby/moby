@@ -18,8 +18,12 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		response = types.ServiceUpdateResponse{}
 	)
 
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return response, err
+	}
 	headers := map[string][]string{
-		"version": {cli.version},
+		"version": {versioned.version},
 	}
 
 	if options.EncodedRegistryAuth != "" {
@@ -59,7 +63,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		}
 	}
 
-	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
+	resp, err := versioned.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return response, err

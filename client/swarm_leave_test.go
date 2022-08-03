@@ -9,22 +9,25 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestSwarmLeaveError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.SwarmLeave(context.Background(), false)
+	err = client.SwarmLeave(context.Background(), false)
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestSwarmLeave(t *testing.T) {
-	expectedURL := "/swarm/leave"
+	expectedURL := "/v" + api.DefaultVersion + "/swarm/leave"
 
 	leaveCases := []struct {
 		force         bool
@@ -40,8 +43,8 @@ func TestSwarmLeave(t *testing.T) {
 	}
 
 	for _, leaveCase := range leaveCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -56,10 +59,11 @@ func TestSwarmLeave(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
-		err := client.SwarmLeave(context.Background(), leaveCase.force)
+		err = client.SwarmLeave(context.Background(), leaveCase.force)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -20,7 +20,11 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 	}
 	query.Set("remote", options.RemoteRef)
 
-	privileges, err := cli.checkPluginPermissions(ctx, query, options)
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return nil, err
+	}
+	privileges, err := versioned.checkPluginPermissions(ctx, query, options)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +32,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 	// set name for plugin pull, if empty should default to remote reference
 	query.Set("name", name)
 
-	resp, err := cli.tryPluginPull(ctx, query, privileges, options.RegistryAuth)
+	resp, err := versioned.tryPluginPull(ctx, query, privileges, options.RegistryAuth)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +48,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 		}
 		defer func() {
 			if err != nil {
-				delResp, _ := cli.delete(ctx, "/plugins/"+name, nil, nil)
+				delResp, _ := versioned.delete(ctx, "/plugins/"+name, nil, nil)
 				ensureReaderClosed(delResp)
 			}
 		}()
@@ -66,17 +70,17 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 	return pr, nil
 }
 
-func (cli *Client) tryPluginPrivileges(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
+func (cli versionedClient) tryPluginPrivileges(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
 	return cli.get(ctx, "/plugins/privileges", query, headers)
 }
 
-func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges types.PluginPrivileges, registryAuth string) (serverResponse, error) {
+func (cli versionedClient) tryPluginPull(ctx context.Context, query url.Values, privileges types.PluginPrivileges, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
 	return cli.post(ctx, "/plugins/pull", query, privileges, headers)
 }
 
-func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options types.PluginInstallOptions) (types.PluginPrivileges, error) {
+func (cli versionedClient) checkPluginPermissions(ctx context.Context, query url.Values, options types.PluginInstallOptions) (types.PluginPrivileges, error) {
 	resp, err := cli.tryPluginPrivileges(ctx, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		// todo: do inspect before to check existing name before checking privileges

@@ -9,15 +9,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageTagError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.ImageTag(context.Background(), "image_id", "repo:tag")
+	err = client.ImageTag(context.Background(), "image_id", "repo:tag")
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -26,40 +29,43 @@ func TestImageTagError(t *testing.T) {
 // Note: this is not testing all the InvalidReference as it's the responsibility
 // of distribution/reference package.
 func TestImageTagInvalidReference(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
+	err = client.ImageTag(context.Background(), "image_id", "aa/asdf$$^/aa")
 	if err == nil || err.Error() != `Error parsing reference: "aa/asdf$$^/aa" is not a valid repository/tag: invalid reference format` {
 		t.Fatalf("expected ErrReferenceInvalidFormat, got %v", err)
 	}
 }
 
 func TestImageTagInvalidSourceImageName(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.ImageTag(context.Background(), "invalid_source_image_name_", "repo:tag")
+	err = client.ImageTag(context.Background(), "invalid_source_image_name_", "repo:tag")
 	if err == nil || err.Error() != "Error parsing reference: \"invalid_source_image_name_\" is not a valid repository/tag: invalid reference format" {
 		t.Fatalf("expected Parsing Reference Error, got %v", err)
 	}
 }
 
 func TestImageTagHexSource(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusOK, "OK")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusOK, "OK"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.ImageTag(context.Background(), "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", "repo:tag")
+	err = client.ImageTag(context.Background(), "0d409d33b27e47423b049f7f863faa08655a8c901749c2b25b93ca67d01a470d", "repo:tag")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
 }
 
 func TestImageTag(t *testing.T) {
-	expectedURL := "/images/image_id/tag"
+	expectedURL := "/v" + api.DefaultVersion + "/images/image_id/tag"
 	tagCases := []struct {
 		reference           string
 		expectedQueryParams map[string]string
@@ -115,8 +121,8 @@ func TestImageTag(t *testing.T) {
 		},
 	}
 	for _, tagCase := range tagCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -134,9 +140,10 @@ func TestImageTag(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 				}, nil
-			}),
-		}
-		err := client.ImageTag(context.Background(), "image_id", tagCase.reference)
+			})),
+		)
+		assert.NilError(t, err)
+		err = client.ImageTag(context.Background(), "image_id", tagCase.reference)
 		if err != nil {
 			t.Fatal(err)
 		}

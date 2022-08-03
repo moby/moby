@@ -23,23 +23,25 @@ type configWrapper struct {
 func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
 	var response container.CreateResponse
 
-	if err := cli.NewVersionError("1.25", "stop timeout"); config != nil && config.StopTimeout != nil && err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return response, err
+	}
+	if err := versioned.NewVersionError("1.25", "stop timeout"); config != nil && config.StopTimeout != nil && err != nil {
 		return response, err
 	}
 
-	clientVersion := cli.ClientVersion()
-
 	// When using API 1.24 and under, the client is responsible for removing the container
-	if hostConfig != nil && versions.LessThan(clientVersion, "1.25") {
+	if hostConfig != nil && versions.LessThan(versioned.version, "1.25") {
 		hostConfig.AutoRemove = false
 	}
 
 	// When using API under 1.42, the Linux daemon doesn't respect the ConsoleSize
-	if hostConfig != nil && platform != nil && platform.OS == "linux" && versions.LessThan(clientVersion, "1.42") {
+	if hostConfig != nil && platform != nil && platform.OS == "linux" && versions.LessThan(versioned.version, "1.42") {
 		hostConfig.ConsoleSize = [2]uint{0, 0}
 	}
 
-	if err := cli.NewVersionError("1.41", "specify container image platform"); platform != nil && err != nil {
+	if err := versioned.NewVersionError("1.41", "specify container image platform"); platform != nil && err != nil {
 		return response, err
 	}
 
@@ -58,7 +60,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 		NetworkingConfig: networkingConfig,
 	}
 
-	serverResp, err := cli.post(ctx, "/containers/create", query, body, nil)
+	serverResp, err := versioned.post(ctx, "/containers/create", query, body, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return response, err

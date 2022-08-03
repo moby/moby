@@ -19,21 +19,22 @@ import (
 )
 
 func TestSecretListUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.24",
-		client:  &http.Client{},
-	}
-	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
+	client, err := NewClientWithOpts(
+		WithVersion("1.24"),
+	)
+	assert.NilError(t, err)
+	_, err = client.SecretList(context.Background(), types.SecretListOptions{})
 	assert.Check(t, is.Error(err, `"secret list" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
 func TestSecretListError(t *testing.T) {
-	client := &Client{
-		version: "1.25",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithVersion("1.25"),
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
+	_, err = client.SecretList(context.Background(), types.SecretListOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -66,9 +67,9 @@ func TestSecretList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			version: "1.25",
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithVersion("1.25"),
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -94,8 +95,9 @@ func TestSecretList(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
 		secrets, err := client.SecretList(context.Background(), listCase.options)
 		if err != nil {

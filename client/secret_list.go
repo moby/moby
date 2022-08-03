@@ -12,7 +12,11 @@ import (
 
 // SecretList returns the list of secrets.
 func (cli *Client) SecretList(ctx context.Context, options types.SecretListOptions) ([]swarm.Secret, error) {
-	if err := cli.NewVersionError("1.25", "secret list"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := versioned.NewVersionError("1.25", "secret list"); err != nil {
 		return nil, err
 	}
 	query := url.Values{}
@@ -26,7 +30,7 @@ func (cli *Client) SecretList(ctx context.Context, options types.SecretListOptio
 		query.Set("filters", filterJSON)
 	}
 
-	resp, err := cli.get(ctx, "/secrets", query, nil)
+	resp, err := versioned.get(ctx, "/secrets", query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return nil, err

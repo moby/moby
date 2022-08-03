@@ -16,7 +16,11 @@ func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegist
 		return distributionInspect, objectNotFoundError{object: "distribution", id: image}
 	}
 
-	if err := cli.NewVersionError("1.30", "distribution inspect"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return distributionInspect, err
+	}
+	if err := versioned.NewVersionError("1.30", "distribution inspect"); err != nil {
 		return distributionInspect, err
 	}
 	var headers map[string][]string
@@ -27,7 +31,7 @@ func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegist
 		}
 	}
 
-	resp, err := cli.get(ctx, "/distribution/"+image+"/json", url.Values{}, headers)
+	resp, err := versioned.get(ctx, "/distribution/"+image+"/json", url.Values{}, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return distributionInspect, err

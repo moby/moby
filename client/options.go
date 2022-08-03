@@ -189,8 +189,10 @@ func WithTLSClientConfigFromEnv() Opt {
 func WithVersion(version string) Opt {
 	return func(c *Client) error {
 		if version != "" {
-			c.version = version
+			v := <-c.version
+			v.version = version
 			c.manualOverride = true
+			c.version <- v
 		}
 		return nil
 	}

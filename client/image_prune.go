@@ -13,7 +13,11 @@ import (
 func (cli *Client) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (types.ImagesPruneReport, error) {
 	var report types.ImagesPruneReport
 
-	if err := cli.NewVersionError("1.25", "image prune"); err != nil {
+	versioned, err := cli.versioned(ctx)
+	if err != nil {
+		return report, err
+	}
+	if err := versioned.NewVersionError("1.25", "image prune"); err != nil {
 		return report, err
 	}
 
@@ -22,7 +26,7 @@ func (cli *Client) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (
 		return report, err
 	}
 
-	serverResp, err := cli.post(ctx, "/images/prune", query, nil, nil)
+	serverResp, err := versioned.post(ctx, "/images/prune", query, nil, nil)
 	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return report, err

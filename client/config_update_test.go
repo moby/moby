@@ -16,21 +16,22 @@ import (
 )
 
 func TestConfigUpdateUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.29",
-		client:  &http.Client{},
-	}
-	err := client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
+	client, err := NewClientWithOpts(
+		WithVersion("1.29"),
+	)
+	assert.NilError(t, err)
+	err = client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
 	assert.Check(t, is.Error(err, `"config update" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
 func TestConfigUpdateError(t *testing.T) {
-	client := &Client{
-		version: "1.30",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
+	err = client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -39,9 +40,9 @@ func TestConfigUpdateError(t *testing.T) {
 func TestConfigUpdate(t *testing.T) {
 	expectedURL := "/v1.30/configs/config_id/update"
 
-	client := &Client{
-		version: "1.30",
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -52,10 +53,11 @@ func TestConfigUpdate(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
+	err = client.ConfigUpdate(context.Background(), "config_id", swarm.Version{}, swarm.ConfigSpec{})
 	if err != nil {
 		t.Fatal(err)
 	}

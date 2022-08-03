@@ -10,27 +10,30 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestNetworkConnectError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	err := client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
+	err = client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
-	expectedURL := "/networks/network_id/connect"
+	expectedURL := "/v" + api.DefaultVersion + "/networks/network_id/connect"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -56,20 +59,21 @@ func TestNetworkConnectEmptyNilEndpointSettings(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
+	err = client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestNetworkConnect(t *testing.T) {
-	expectedURL := "/networks/network_id/connect"
+	expectedURL := "/v" + api.DefaultVersion + "/networks/network_id/connect"
 
-	client := &Client{
-		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
@@ -99,10 +103,11 @@ func TestNetworkConnect(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
-		}),
-	}
+		})),
+	)
+	assert.NilError(t, err)
 
-	err := client.NetworkConnect(context.Background(), "network_id", "container_id", &network.EndpointSettings{
+	err = client.NetworkConnect(context.Background(), "network_id", "container_id", &network.EndpointSettings{
 		NetworkID: "NetworkID",
 	})
 	if err != nil {

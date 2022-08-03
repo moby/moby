@@ -10,25 +10,28 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
 )
 
 func TestTaskListError(t *testing.T) {
-	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.TaskList(context.Background(), types.TaskListOptions{})
+	_, err = client.TaskList(context.Background(), types.TaskListOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestTaskList(t *testing.T) {
-	expectedURL := "/tasks"
+	expectedURL := "/v" + api.DefaultVersion + "/tasks"
 
 	filters := filters.NewArgs()
 	filters.Add("label", "label1")
@@ -54,8 +57,8 @@ func TestTaskList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -81,8 +84,9 @@ func TestTaskList(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
 		tasks, err := client.TaskList(context.Background(), listCase.options)
 		if err != nil {

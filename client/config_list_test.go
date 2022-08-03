@@ -19,21 +19,22 @@ import (
 )
 
 func TestConfigListUnsupported(t *testing.T) {
-	client := &Client{
-		version: "1.29",
-		client:  &http.Client{},
-	}
-	_, err := client.ConfigList(context.Background(), types.ConfigListOptions{})
+	client, err := NewClientWithOpts(
+		WithVersion("1.29"),
+	)
+	assert.NilError(t, err)
+	_, err = client.ConfigList(context.Background(), types.ConfigListOptions{})
 	assert.Check(t, is.Error(err, `"config list" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
 func TestConfigListError(t *testing.T) {
-	client := &Client{
-		version: "1.30",
-		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
-	}
+	client, err := NewClientWithOpts(
+		WithVersion("1.30"),
+		WithHTTPClient(newMockClient(errorMock(http.StatusInternalServerError, "Server error"))),
+	)
+	assert.NilError(t, err)
 
-	_, err := client.ConfigList(context.Background(), types.ConfigListOptions{})
+	_, err = client.ConfigList(context.Background(), types.ConfigListOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -66,9 +67,9 @@ func TestConfigList(t *testing.T) {
 		},
 	}
 	for _, listCase := range listCases {
-		client := &Client{
-			version: "1.30",
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
+		client, err := NewClientWithOpts(
+			WithVersion("1.30"),
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(req.URL.Path, expectedURL) {
 					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 				}
@@ -94,8 +95,9 @@ func TestConfigList(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(bytes.NewReader(content)),
 				}, nil
-			}),
-		}
+			})),
+		)
+		assert.NilError(t, err)
 
 		configs, err := client.ConfigList(context.Background(), listCase.options)
 		if err != nil {
