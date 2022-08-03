@@ -1045,8 +1045,17 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if daemon.configStore.Rootless {
 		opts = append(opts, WithRootless(daemon))
 	}
+
+	var snapshotter, snapshotKey string
+	if daemon.UsesSnapshotter() {
+		snapshotter = daemon.imageService.StorageDriver()
+		snapshotKey = c.ID
+	}
+
 	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
-		ID: c.ID,
+		ID:          c.ID,
+		Snapshotter: snapshotter,
+		SnapshotKey: snapshotKey,
 	}, &s, opts...)
 }
 

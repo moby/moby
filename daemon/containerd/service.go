@@ -13,13 +13,15 @@ import (
 
 // ImageService implements daemon.ImageService
 type ImageService struct {
-	client *containerd.Client
+	client      *containerd.Client
+	snapshotter string
 }
 
 // NewService creates a new ImageService.
-func NewService(c *containerd.Client) *ImageService {
+func NewService(c *containerd.Client, snapshotter string) *ImageService {
 	return &ImageService{
-		client: c,
+		client:      c,
+		snapshotter: snapshotter,
 	}
 }
 
@@ -81,7 +83,7 @@ func (i *ImageService) Cleanup() error {
 // StorageDriver returns the name of the default storage-driver (snapshotter)
 // used by the ImageService.
 func (i *ImageService) StorageDriver() string {
-	return ""
+	return i.snapshotter
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
