@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/encryption"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	gogotypes "github.com/gogo/protobuf/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

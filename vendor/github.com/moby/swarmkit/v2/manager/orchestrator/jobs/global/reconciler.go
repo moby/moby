@@ -262,10 +262,10 @@ func (r *Reconciler) IsRelatedService(service *api.Service) bool {
 // FixTask validates that a task is compliant with the rest of the cluster
 // state, and fixes it if it's not. This covers some main scenarios:
 //
-// * The node that the task is running on is now paused or drained. we do not
-//   need to check if the node still meets constraints -- that is the purview
-//   of the constraint enforcer.
-// * The task has failed and needs to be restarted.
+//   - The node that the task is running on is now paused or drained. we do not
+//     need to check if the node still meets constraints -- that is the purview
+//     of the constraint enforcer.
+//   - The task has failed and needs to be restarted.
 //
 // This implements the FixTask method of the taskinit.InitHandler interface.
 func (r *Reconciler) FixTask(ctx context.Context, batch *store.Batch, t *api.Task) {

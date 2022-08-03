@@ -53,7 +53,7 @@ require (
 	github.com/moby/buildkit v0.10.4-0.20220719175648-8e2d9b9006ca // v0.10 branch
 	github.com/moby/ipvs v1.0.2
 	github.com/moby/locker v1.0.1
-	github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
+	github.com/moby/swarmkit/v2 v2.0.0-20220721174824-48dd89375d0a
 	github.com/moby/sys/mount v0.3.3
 	github.com/moby/sys/mountinfo v0.6.2
 	github.com/moby/sys/signal v0.7.0

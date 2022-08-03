@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/equality"
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"

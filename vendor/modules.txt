@@ -593,7 +593,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
+# github.com/moby/swarmkit/v2 v2.0.0-20220721174824-48dd89375d0a
 ## explicit; go 1.17
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs

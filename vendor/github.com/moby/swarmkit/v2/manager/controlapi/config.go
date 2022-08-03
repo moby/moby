@@ -149,9 +149,9 @@ func (s *Server) ListConfigs(ctx context.Context, request *api.ListConfigsReques
 
 // CreateConfig creates and returns a `CreateConfigResponse` with a `Config` based
 // on the provided `CreateConfigRequest.ConfigSpec`.
-// - Returns `InvalidArgument` if the `CreateConfigRequest.ConfigSpec` is malformed,
-//   or if the config data is too long or contains invalid characters.
-// - Returns an error if the creation fails.
+//   - Returns `InvalidArgument` if the `CreateConfigRequest.ConfigSpec` is malformed,
+//     or if the config data is too long or contains invalid characters.
+//   - Returns an error if the creation fails.
 func (s *Server) CreateConfig(ctx context.Context, request *api.CreateConfigRequest) (*api.CreateConfigResponse, error) {
 	if err := validateConfigSpec(request.Spec); err != nil {
 		return nil, err

@@ -104,7 +104,7 @@ type AccessMode struct {
 	BlockVolume *TypeBlock `json:",omitempty"`
 }
 
-// Scope defines the Scope of a CSI Volume. This is how many nodes a
+// Scope defines the Scope of a Cluster Volume. This is how many nodes a
 // Volume can be accessed simultaneously on.
 type Scope string
 
@@ -118,7 +118,7 @@ const (
 	ScopeMultiNode Scope = "multi"
 )
 
-// SharingMode defines the Sharing of a CSI Volume. This is how Tasks using a
+// SharingMode defines the Sharing of a Cluster Volume. This is how Tasks using a
 // Volume at the same time can use it.
 type SharingMode string
 

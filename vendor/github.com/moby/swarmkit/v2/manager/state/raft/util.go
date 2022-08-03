@@ -5,10 +5,10 @@ import (
 	"net"
 	"time"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/state"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
