@@ -39,11 +39,11 @@ import (
 
 const (
 	// Security Strength Equivalence
-	//-----------------------------------
-	//| ECC  |  DH/DSA/RSA  |
-	//| 256  |     3072     |
-	//| 384  |     7680     |
-	//-----------------------------------
+	//
+	// | ECC      | DH/DSA/RSA    |
+	// |----------|---------------|
+	// | 256      | 3072          |
+	// | 384      | 7680          |
 
 	// RootKeySize is the default size of the root CA key
 	// It would be ideal for the root key to use P-384, but in P-384 is not optimized in go yet :(
@@ -134,25 +134,24 @@ type x509UnknownAuthError struct {
 //
 // Requirements:
 //
-// - [signing CA key] must be the private key for [signing CA cert], and either both or none must be provided
-//
-// - [intermediate CA1] must have the same public key and subject as [signing CA cert], because otherwise when
-//   appended to a leaf certificate, the intermediates will not form a chain (because [intermediate CA1] won't because
-//   the signer of the leaf certificate)
-// - [intermediate CA1] must be signed by [intermediate CA2], which must be signed by [intermediate CA3]
-//
-// - When we issue a certificate, the intermediates will be appended so that the certificate looks like:
-//   [leaf signed by signing CA cert][intermediate CA1][intermediate CA2][intermediate CA3]
-// - [leaf signed by signing CA cert][intermediate CA1][intermediate CA2][intermediate CA3] is guaranteed to form a
-//   valid chain from [leaf signed by signing CA cert] to one of the root certs ([signing CA cert], [CA cert1], [CA cert2])
-//   using zero or more of the intermediate certs ([intermediate CA1][intermediate CA2][intermediate CA3]) as intermediates
+//   - [signing CA key] must be the private key for [signing CA cert], and either both or none must be provided
+//   - [intermediate CA1] must have the same public key and subject as [signing CA cert], because otherwise when
+//     appended to a leaf certificate, the intermediates will not form a chain (because [intermediate CA1] won't because
+//     the signer of the leaf certificate)
+//   - [intermediate CA1] must be signed by [intermediate CA2], which must be signed by [intermediate CA3]
+//   - When we issue a certificate, the intermediates will be appended so that the certificate looks like:
+//     [leaf signed by signing CA cert][intermediate CA1][intermediate CA2][intermediate CA3]
+//   - [leaf signed by signing CA cert][intermediate CA1][intermediate CA2][intermediate CA3] is guaranteed to form a
+//     valid chain from [leaf signed by signing CA cert] to one of the root certs ([signing CA cert], [CA cert1], [CA cert2])
+//     using zero or more of the intermediate certs ([intermediate CA1][intermediate CA2][intermediate CA3]) as intermediates
 //
 // Example 1:  Simple root rotation
+//
 // - Initial state:
-// 	 - RootCA.Cert:          [Root CA1 self-signed]
-// 	 - RootCA.Intermediates: []
-// 	 - RootCA.signer.Cert:   [Root CA1 self-signed]
-// 	 - Issued TLS cert:      [leaf signed by Root CA1]
+//   - RootCA.Cert:          [Root CA1 self-signed]
+//   - RootCA.Intermediates: []
+//   - RootCA.signer.Cert:   [Root CA1 self-signed]
+//   - Issued TLS cert:      [leaf signed by Root CA1]
 //
 // - Intermediate state (during root rotation):
 //   - RootCA.Cert:          [Root CA1 self-signed]
@@ -165,7 +164,6 @@ type x509UnknownAuthError struct {
 //   - RootCA.Intermediates: []
 //   - RootCA.signer.Cert:   [Root CA2 self-signed]
 //   - Issued TLS cert:      [leaf signed by Root CA2]
-//
 type RootCA struct {
 	// Certs contains a bundle of self-signed, PEM encoded certificates for the Root CA to be used
 	// as the root of trust.

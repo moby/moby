@@ -2,7 +2,7 @@
 // identifiers within a swarm. This includes entity identification, such as for
 // Services, Tasks and Networks but also cryptographically-secure Node identities.
 //
-// Random Identifiers
+// # Random Identifiers
 //
 // Identifiers provided by this package are cryptographically-strong, random
 // 128 bit numbers encoded in Base36. This method is preferred over UUID4 since
@@ -10,7 +10,7 @@
 //
 // Generating an identifier is simple. Simply call the `NewID` function:
 //
-// 	id := NewID()
+//	id := NewID()
 //
 // If an error occurs while generating the ID, it will panic.
 package identity

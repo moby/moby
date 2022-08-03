@@ -5,10 +5,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/state/raft/membership"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	gogotypes "github.com/gogo/protobuf/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

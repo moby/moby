@@ -3,8 +3,8 @@ package store
 import (
 	"strings"
 
-	"github.com/moby/swarmkit/v2/api"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/moby/swarmkit/v2/api"
 )
 
 const tableVolume = "volume"

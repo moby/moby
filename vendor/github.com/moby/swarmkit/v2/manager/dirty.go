@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -45,7 +46,7 @@ func (m *Manager) IsStateDirty() (bool, error) {
 		field := val.Field(i)
 		structField := val.Type().Field(i)
 		if structField.Type.Kind() != reflect.Slice {
-			panic("unexpected field type in StoreSnapshot")
+			panic(fmt.Sprintf("unexpected field type in StoreSnapshot: %s (type %v)", structField.Name, structField.Type.Kind()))
 		}
 		if structField.Name != "Nodes" && structField.Name != "Clusters" && structField.Name != "Networks" && field.Len() != 0 {
 			// One of the other data types has an entry

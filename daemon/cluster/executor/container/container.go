@@ -257,7 +257,7 @@ func (c *containerConfig) labels() map[string]string {
 func (c *containerConfig) mounts(deps exec.VolumeGetter) []enginemount.Mount {
 	var r []enginemount.Mount
 	for _, mount := range c.spec().Mounts {
-		if mount.Type == api.MountTypeCSI {
+		if mount.Type == api.MountTypeCluster {
 			r = append(r, c.convertCSIMount(mount, deps))
 		} else {
 			r = append(r, convertMount(mount))
@@ -308,7 +308,7 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.Type = enginemount.TypeTmpfs
 	case api.MountTypeNamedPipe:
 		mount.Type = enginemount.TypeNamedPipe
-	case api.MountTypeCSI:
+	case api.MountTypeCluster:
 		mount.Type = enginemount.TypeCluster
 	}
 

@@ -15,9 +15,9 @@ import (
 
 // CreateResource returns a `CreateResourceResponse` after creating a `Resource` based
 // on the provided `CreateResourceRequest.Resource`.
-// - Returns `InvalidArgument` if the `CreateResourceRequest.Resource` is malformed,
-//   or if the config data is too long or contains invalid characters.
-// - Returns an error if the creation fails.
+//   - Returns `InvalidArgument` if the `CreateResourceRequest.Resource` is malformed,
+//     or if the config data is too long or contains invalid characters.
+//   - Returns an error if the creation fails.
 func (s *Server) CreateResource(ctx context.Context, request *api.CreateResourceRequest) (*api.CreateResourceResponse, error) {
 	if request.Annotations == nil || request.Annotations.Name == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Resource must have a name")

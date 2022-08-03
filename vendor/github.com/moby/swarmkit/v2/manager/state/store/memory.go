@@ -913,7 +913,7 @@ func ViewAndWatch(store *MemoryStore, cb func(ReadTx) error, specifiers ...api.E
 // from "version", and new events until the channel is closed. If "version"
 // is nil, this function is equivalent to
 //
-//     state.Watch(store.WatchQueue(), specifiers...).
+//	state.Watch(store.WatchQueue(), specifiers...).
 //
 // If the log has been compacted and it's not possible to produce the exact
 // set of events leading from "version" to the current state, this function
