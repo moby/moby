@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	units "github.com/docker/go-units"
 )
 
@@ -180,7 +181,7 @@ type ImageBuildOptions struct {
 	// at all (nil). See the parsing of buildArgs in
 	// api/server/router/build/build_routes.go for even more info.
 	BuildArgs   map[string]*string
-	AuthConfigs map[string]AuthConfig
+	AuthConfigs map[string]registry.AuthConfig
 	Context     io.Reader
 	Labels      map[string]string
 	// squash the resulting image's layers to the parent

@@ -2,8 +2,6 @@ package plugin // import "github.com/docker/docker/api/server/router/plugin"
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,13 +10,13 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
 )
 
-func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) {
-
+func parseHeaders(headers http.Header) (map[string][]string, *registry.AuthConfig) {
 	metaHeaders := map[string][]string{}
 	for k, v := range headers {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -26,16 +24,8 @@ func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) 
 		}
 	}
 
-	// Get X-Registry-Auth
-	authEncoded := headers.Get("X-Registry-Auth")
-	authConfig := &types.AuthConfig{}
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			authConfig = &types.AuthConfig{}
-		}
-	}
-
+	// Ignore invalid AuthConfig to increase compatibility with the existing API.
+	authConfig, _ := registry.DecodeAuthConfig(headers.Get(registry.AuthHeader))
 	return metaHeaders, authConfig
 }
 

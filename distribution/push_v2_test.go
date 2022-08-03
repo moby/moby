@@ -11,12 +11,12 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
+	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -515,7 +515,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 		},
 	} {
 		imagePushConfig := &ImagePushConfig{}
-		imagePushConfig.AuthConfig = &types.AuthConfig{
+		imagePushConfig.AuthConfig = &registry.AuthConfig{
 			Username:      authInfo.username,
 			Password:      authInfo.password,
 			RegistryToken: authInfo.registryToken,
@@ -524,15 +524,15 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
 		pusher := &pusher{
 			config: imagePushConfig,
-			repoInfo: &registry.RepositoryInfo{
+			repoInfo: &registrypkg.RepositoryInfo{
 				Name: repoInfo,
 			},
-			endpoint: registry.APIEndpoint{
+			endpoint: registrypkg.APIEndpoint{
 				URL: &url.URL{
 					Scheme: "https",
 					Host:   "index.docker.io",
 				},
-				Version:      registry.APIVersion2,
+				Version:      registrypkg.APIVersion2,
 				TrimHostname: true,
 			},
 		}

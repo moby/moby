@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -17,7 +16,7 @@ import (
 )
 
 func spawnTestRegistrySession(t *testing.T) *session {
-	authConfig := &types.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 	endpoint, err := newV1Endpoint(makeIndex("/v1/"), "", nil)
 	if err != nil {
 		t.Fatal(err)

@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/streamformatter"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -39,7 +40,7 @@ type BuildConfig struct {
 // GetImageAndLayerOptions are the options supported by GetImageAndReleasableLayer
 type GetImageAndLayerOptions struct {
 	PullOption PullOption
-	AuthConfig map[string]types.AuthConfig
+	AuthConfig map[string]registry.AuthConfig
 	Output     io.Writer
 	Platform   *specs.Platform
 }

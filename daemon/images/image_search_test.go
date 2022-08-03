@@ -5,27 +5,26 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/registry"
+	registrypkg "github.com/docker/docker/registry"
 	"gotest.tools/v3/assert"
 )
 
 type fakeService struct {
-	registry.Service
+	registrypkg.Service
 	shouldReturnError bool
 
 	term    string
-	results []registrytypes.SearchResult
+	results []registry.SearchResult
 }
 
-func (s *fakeService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *fakeService) Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
 	if s.shouldReturnError {
 		return nil, errdefs.Unknown(errors.New("search unknown error"))
 	}
-	return &registrytypes.SearchResults{
+	return &registry.SearchResults{
 		Query:      s.term,
 		NumResults: len(s.results),
 		Results:    s.results,
@@ -104,23 +103,23 @@ func TestSearchRegistryForImages(t *testing.T) {
 	successCases := []struct {
 		name            string
 		filtersArgs     filters.Args
-		registryResults []registrytypes.SearchResult
-		expectedResults []registrytypes.SearchResult
+		registryResults []registry.SearchResult
+		expectedResults []registry.SearchResult
 	}{
 		{
 			name:            "empty results",
-			registryResults: []registrytypes.SearchResult{},
-			expectedResults: []registrytypes.SearchResult{},
+			registryResults: []registry.SearchResult{},
+			expectedResults: []registry.SearchResult{},
 		},
 		{
 			name: "no filter",
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
@@ -130,25 +129,25 @@ func TestSearchRegistryForImages(t *testing.T) {
 		{
 			name:        "is-automated=true, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "true")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{},
+			expectedResults: []registry.SearchResult{},
 		},
 		{
 			name:        "is-automated=true",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "true")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					IsAutomated: true,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
@@ -159,26 +158,26 @@ func TestSearchRegistryForImages(t *testing.T) {
 		{
 			name:        "is-automated=false, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "false")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					IsAutomated: true,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{},
+			expectedResults: []registry.SearchResult{},
 		},
 		{
 			name:        "is-automated=false",
 			filtersArgs: filters.NewArgs(filters.Arg("is-automated", "false")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					IsAutomated: false,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
@@ -189,25 +188,25 @@ func TestSearchRegistryForImages(t *testing.T) {
 		{
 			name:        "is-official=true, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "true")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{},
+			expectedResults: []registry.SearchResult{},
 		},
 		{
 			name:        "is-official=true",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "true")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					IsOfficial:  true,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
@@ -218,26 +217,26 @@ func TestSearchRegistryForImages(t *testing.T) {
 		{
 			name:        "is-official=false, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "false")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					IsOfficial:  true,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{},
+			expectedResults: []registry.SearchResult{},
 		},
 		{
 			name:        "is-official=false",
 			filtersArgs: filters.NewArgs(filters.Arg("is-official", "false")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					IsOfficial:  false,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
@@ -248,14 +247,14 @@ func TestSearchRegistryForImages(t *testing.T) {
 		{
 			name:        "stars=0",
 			filtersArgs: filters.NewArgs(filters.Arg("stars", "0")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					StarCount:   0,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
@@ -266,19 +265,19 @@ func TestSearchRegistryForImages(t *testing.T) {
 		{
 			name:        "stars=0, no results",
 			filtersArgs: filters.NewArgs(filters.Arg("stars", "1")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
 					StarCount:   0,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{},
+			expectedResults: []registry.SearchResult{},
 		},
 		{
 			name:        "stars=1",
 			filtersArgs: filters.NewArgs(filters.Arg("stars", "1")),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name0",
 					Description: "description0",
@@ -290,7 +289,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 					StarCount:   1,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name1",
 					Description: "description1",
@@ -305,7 +304,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 				filters.Arg("is-official", "true"),
 				filters.Arg("is-automated", "true"),
 			),
-			registryResults: []registrytypes.SearchResult{
+			registryResults: []registry.SearchResult{
 				{
 					Name:        "name0",
 					Description: "description0",
@@ -335,7 +334,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 					IsAutomated: true,
 				},
 			},
-			expectedResults: []registrytypes.SearchResult{
+			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name3",
 					Description: "description3",

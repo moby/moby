@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -21,7 +22,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	}
 
 	if options.EncodedRegistryAuth != "" {
-		headers["X-Registry-Auth"] = []string{options.EncodedRegistryAuth}
+		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
 	}
 
 	// Make sure containerSpec is not nil when no runtime is set or the runtime is set to container

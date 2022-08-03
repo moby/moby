@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -88,7 +89,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			auth := req.Header.Get("X-Registry-Auth")
+			auth := req.Header.Get(registry.AuthHeader)
 			if auth == "NotValid" {
 				return &http.Response{
 					StatusCode: http.StatusUnauthorized,
@@ -96,7 +97,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 				}, nil
 			}
 			if auth != "IAmValid" {
-				return nil, fmt.Errorf("Invalid auth header : expected %s, got %s", "IAmValid", auth)
+				return nil, fmt.Errorf("invalid auth header: expected %s, got %s", "IAmValid", auth)
 			}
 			query := req.URL.Query()
 			tag := query.Get("tag")

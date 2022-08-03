@@ -10,6 +10,7 @@ import (
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
@@ -207,7 +208,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	}
 
 	// Get returns "" if the header does not exist
-	encodedAuth := r.Header.Get("X-Registry-Auth")
+	encodedAuth := r.Header.Get(registry.AuthHeader)
 	queryRegistry := false
 	if v := httputils.VersionFromContext(ctx); v != "" {
 		if versions.LessThan(v, "1.30") {
@@ -240,7 +241,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	var flags basictypes.ServiceUpdateOptions
 
 	// Get returns "" if the header does not exist
-	flags.EncodedRegistryAuth = r.Header.Get("X-Registry-Auth")
+	flags.EncodedRegistryAuth = r.Header.Get(registry.AuthHeader)
 	flags.RegistryAuthFrom = r.URL.Query().Get("registryAuthFrom")
 	flags.Rollback = r.URL.Query().Get("rollback")
 	queryRegistry := false

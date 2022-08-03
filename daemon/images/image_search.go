@@ -4,9 +4,8 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 )
 
@@ -22,8 +21,8 @@ var acceptedSearchFilterTags = map[string]bool{
 // TODO: this could be implemented in a registry service instead of the image
 // service.
 func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int,
-	authConfig *types.AuthConfig,
-	headers map[string][]string) (*registrytypes.SearchResults, error) {
+	authConfig *registry.AuthConfig,
+	headers map[string][]string) (*registry.SearchResults, error) {
 
 	if err := searchFilters.Validate(acceptedSearchFilterTags); err != nil {
 		return nil, err
@@ -63,7 +62,7 @@ func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilter
 		return nil, err
 	}
 
-	filteredResults := []registrytypes.SearchResult{}
+	filteredResults := []registry.SearchResult{}
 	for _, result := range unfilteredResult.Results {
 		if searchFilters.Contains("is-automated") {
 			if isAutomated != result.IsAutomated {
@@ -83,7 +82,7 @@ func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilter
 		filteredResults = append(filteredResults, result)
 	}
 
-	return &registrytypes.SearchResults{
+	return &registry.SearchResults{
 		Query:      unfilteredResult.Query,
 		NumResults: len(filteredResults),
 		Results:    filteredResults,
