@@ -28,7 +28,7 @@ type ImageService interface {
 	PullImage(ctx context.Context, image, tag string, platform *v1.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	CreateImage(config []byte, parent string) (builder.Image, error)
-	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
+	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
 	ExportImage(names []string, outStream io.Writer) error
 	LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)

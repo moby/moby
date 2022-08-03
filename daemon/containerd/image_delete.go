@@ -1,6 +1,12 @@
 package containerd
 
-import "github.com/docker/docker/api/types"
+import (
+	"context"
+
+	"github.com/containerd/containerd/images"
+	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
+)
 
 // ImageDelete deletes the image referenced by the given imageRef from this
 // daemon. The given imageRef can be an image ID, ID prefix, or a repository
@@ -35,6 +41,22 @@ import "github.com/docker/docker/api/types"
 // If prune is true, ancestor images will each attempt to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
-	panic("not implemented")
+//
+// TODO(thaJeztah): implement ImageDelete "force" options; see https://github.com/moby/moby/issues/43850
+// TODO(thaJeztah): implement ImageDelete "prune" options; see https://github.com/moby/moby/issues/43849
+// TODO(thaJeztah): add support for image delete using image (short)ID; see https://github.com/moby/moby/issues/43854
+// TODO(thaJeztah): mage delete should send image "untag" events and prometheus counters; see https://github.com/moby/moby/issues/43855
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+	parsedRef, err := reference.ParseNormalizedNamed(imageRef)
+	if err != nil {
+		return nil, err
+	}
+	ref := reference.TagNameOnly(parsedRef)
+
+	err = i.client.ImageService().Delete(ctx, ref.String(), images.SynchronousDelete())
+	if err != nil {
+		return nil, err
+	}
+
+	return []types.ImageDeleteResponseItem{{Untagged: reference.FamiliarString(parsedRef)}}, nil
 }

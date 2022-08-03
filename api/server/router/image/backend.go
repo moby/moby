@@ -21,7 +21,7 @@ type Backend interface {
 }
 
 type imageBackend interface {
-	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
+	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
 	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
 	GetImage(refOrID string, platform *specs.Platform) (retImg *dockerimage.Image, retErr error)
