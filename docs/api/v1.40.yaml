@@ -2193,23 +2193,52 @@ definitions:
 
   BuildCache:
     type: "object"
+    description: |
+      BuildCache contains information about a build cache record.
     properties:
       ID:
         type: "string"
+        description: |
+          Unique ID of the build cache record.
+        example: "ndlpt0hhvkqcdfkputsk4cq9c"
       Parent:
+        description: |
+          ID of the parent build cache record.
         type: "string"
+        example: "hw53o5aio51xtltp5xjp8v7fx"
       Type:
         type: "string"
+        description: |
+          Cache record type.
+        example: "regular"
+        # see https://github.com/moby/buildkit/blob/fce4a32258dc9d9664f71a4831d5de10f0670677/client/diskusage.go#L75-L84
+        enum:
+          - "internal"
+          - "frontend"
+          - "source.local"
+          - "source.git.checkout"
+          - "exec.cachemount"
+          - "regular"
       Description:
         type: "string"
+        description: |
+          Description of the build-step that produced the build cache.
+        example: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
       InUse:
         type: "boolean"
+        description: |
+          Indicates if the build cache is in use.
+        example: false
       Shared:
         type: "boolean"
+        description: |
+          Indicates if the build cache is shared.
+        example: true
       Size:
         description: |
           Amount of disk space used by the build cache (in bytes).
         type: "integer"
+        example: 51
       CreatedAt:
         description: |
           Date and time at which the build cache was created in
@@ -2227,6 +2256,7 @@ definitions:
         example: "2017-08-09T07:09:37.632105588Z"
       UsageCount:
         type: "integer"
+        example: 26
 
   ImageID:
     type: "object"
@@ -8526,6 +8556,29 @@ paths:
                   UsageData:
                     Size: 10920104
                     RefCount: 2
+              BuildCache:
+                -
+                  ID: "hw53o5aio51xtltp5xjp8v7fx"
+                  Parent: """
+                  Type: "regular"
+                  Description: "pulled from docker.io/library/debian@sha256:234cb88d3020898631af0ccbbcca9a66ae7306ecd30c9720690858c1b007d2a0"
+                  InUse: false
+                  Shared: true
+                  Size: 0
+                  CreatedAt: "2021-06-28T13:31:01.474619385Z"
+                  LastUsedAt: "2021-07-07T22:02:32.738075951Z"
+                  UsageCount: 26
+                -
+                  ID: "ndlpt0hhvkqcdfkputsk4cq9c"
+                  Parent: "ndlpt0hhvkqcdfkputsk4cq9c"
+                  Type: "regular"
+                  Description: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
+                  InUse: false
+                  Shared: true
+                  Size: 51
+                  CreatedAt: "2021-06-28T13:31:03.002625487Z"
+                  LastUsedAt: "2021-07-07T22:02:32.773909517Z"
+                  UsageCount: 26
         500:
           description: "server error"
           schema:

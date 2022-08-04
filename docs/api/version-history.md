@@ -87,6 +87,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   volume (CNI). This option can only be used if the daemon is a Swarm manager.
   The Volume response on creation now also can contain a `ClusterVolume` field
   with information about the created volume.
+* The `BuildCache.Parent` field, as returned by `GET /system/df` is deprecated
+  and is now omitted. API versions before v1.42 continue to include this field.
+* `GET /system/df` now includes a new `Parents` field, for "build-cache" records,
+  which contains a list of parent IDs for the build-cache record.
 * Volume information returned by `GET /volumes/{name}`, `GET /volumes` and
   `GET /system/df` can now contain a `ClusterVolume` if the volume is a cluster
   volume (requires the daemon to be a Swarm manager).
