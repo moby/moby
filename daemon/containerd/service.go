@@ -24,13 +24,15 @@ import (
 type ImageService struct {
 	client      *containerd.Client
 	usage       singleflight.Group
+	containers  container.Store
 	snapshotter string
 }
 
 // NewService creates a new ImageService.
-func NewService(c *containerd.Client, snapshotter string) *ImageService {
+func NewService(c *containerd.Client, containers container.Store, snapshotter string) *ImageService {
 	return &ImageService{
 		client:      c,
+		containers:  containers,
 		snapshotter: snapshotter,
 	}
 }

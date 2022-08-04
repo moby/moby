@@ -42,10 +42,10 @@ func (b *Builder) commit(ctx context.Context, dispatchState *dispatchState, comm
 		return err
 	}
 
-	return b.commitContainer(dispatchState, id, runConfigWithCommentCmd)
+	return b.commitContainer(ctx, dispatchState, id, runConfigWithCommentCmd)
 }
 
-func (b *Builder) commitContainer(dispatchState *dispatchState, id string, containerConfig *container.Config) error {
+func (b *Builder) commitContainer(ctx context.Context, dispatchState *dispatchState, id string, containerConfig *container.Config) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -58,7 +58,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 		ContainerID:     id,
 	}
 
-	imageID, err := b.docker.CommitBuildStep(commitCfg)
+	imageID, err := b.docker.CommitBuildStep(ctx, commitCfg)
 	dispatchState.imageID = string(imageID)
 	return err
 }

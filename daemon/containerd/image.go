@@ -29,7 +29,7 @@ func (i *ImageService) GetContainerdImage(ctx context.Context, refOrID string, p
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error) {
-	ii, img, err := i.getImage(ctx, refOrID, options.Platform)
+	ii, img, err := i.getImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	return img, err
 }
 
-func (i *ImageService) getImage(ctx context.Context, refOrID string, platform *ocispec.Platform) (containerd.Image, *image.Image, error) {
+func (i *ImageService) getImage(ctx context.Context, refOrID string) (containerd.Image, *image.Image, error) {
 	desc, err := i.ResolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, nil, err
