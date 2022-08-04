@@ -31,7 +31,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sort"
@@ -287,11 +286,11 @@ func isSameTarGz(t *testing.T, controller TestingController, a, b []byte) bool {
 			return false
 
 		}
-		aFile, err := ioutil.ReadAll(aTar)
+		aFile, err := io.ReadAll(aTar)
 		if err != nil {
 			t.Fatal("failed to read tar payload of A")
 		}
-		bFile, err := ioutil.ReadAll(bTar)
+		bFile, err := io.ReadAll(bTar)
 		if err != nil {
 			t.Fatal("failed to read tar payload of B")
 		}

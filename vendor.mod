@@ -23,6 +23,8 @@ require (
 	github.com/containerd/containerd v1.6.8
 	github.com/containerd/continuity v0.3.0
 	github.com/containerd/fifo v1.0.0
+	github.com/containerd/nydus-snapshotter v0.3.0-alpha.5
+	github.com/containerd/stargz-snapshotter v0.11.3
 	github.com/containerd/typeurl v1.0.2
 	github.com/coreos/go-systemd/v22 v22.4.0
 	github.com/creack/pty v1.1.11
@@ -103,8 +105,7 @@ require (
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-cni v1.1.6 // indirect
 	github.com/containerd/go-runc v1.0.0 // indirect
-	github.com/containerd/stargz-snapshotter v0.11.3 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.11.3 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.11.4 // indirect
 	github.com/containerd/ttrpc v1.1.0 // indirect
 	github.com/containernetworking/cni v1.1.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect

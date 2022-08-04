@@ -8,6 +8,8 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
+	nyduslabel "github.com/containerd/nydus-snapshotter/pkg/label"
+	stargzsource "github.com/containerd/stargz-snapshotter/fs/source"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
@@ -54,6 +56,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 		return nil, nil
 	})
 	opts = append(opts, containerd.WithImageHandler(h))
+	opts = i.applySnapshotterOpts(opts, ref)
 
 	finishProgress := showProgress(ctx, jobs, outStream, pullProgress(i.client.ContentStore()))
 	defer finishProgress()
@@ -79,4 +82,22 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 // GetRepository returns a repository from the registry.
 func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (distribution.Repository, error) {
 	return nil, errdefs.NotImplemented(errors.New("not implemented"))
+}
+
+func (i *ImageService) applySnapshotterOpts(opts []containerd.RemoteOpt, ref reference.Named) []containerd.RemoteOpt {
+	opts = append(opts, containerd.WithPullUnpack)
+	opts = append(opts, containerd.WithPullSnapshotter(i.snapshotter))
+
+	var wrapper func(images.Handler) images.Handler
+	switch i.snapshotter {
+	case "stargz":
+		const prefetch int64 = 10 * 1024 * 1024 // 10MiB
+		wrapper = stargzsource.AppendDefaultLabelsHandlerWrapper(ref.String(), prefetch)
+	case "nydus":
+		wrapper = nyduslabel.AppendLabelsHandlerWrapper(ref.String())
+	}
+	if wrapper != nil {
+		opts = append(opts, containerd.WithImageHandlerWrapper(wrapper))
+	}
+	return opts
 }
