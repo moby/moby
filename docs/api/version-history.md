@@ -45,6 +45,22 @@ keywords: "API, Docker, rcli, REST, documentation"
   to limit the maximum number of PIDs.
 * `GET /tasks` now  returns `Pids` in `TaskTemplate.Resources.Limits`.
 * `GET /tasks/{id}` now  returns `Pids` in `TaskTemplate.Resources.Limits`.
+* `POST /containers/create` now accepts a `platform` query parameter in the format
+  `os[/arch[/variant]]`.
+
+  When set, the daemon checks if the requested image is present in the local image
+  cache with the given OS and Architecture, and otherwise returns a `404` status.
+
+  If the option is _not_ set, the host's native OS and Architecture are used to
+  look up the image in the image cache. However, if no platform is passed and the
+  given image _does_ exist in the local image cache, but its OS or architecture
+  do not match, the container is created with the available image, and a warning
+  is added to the `Warnings` field in the response, for example;
+
+      WARNING: The requested image's platform (linux/arm64/v8) does not
+               match the detected host platform (linux/amd64) and no
+               specific platform was requested
+
 * `POST /containers/create` on Linux now accepts the `HostConfig.CgroupnsMode` property.
   Set the property to `host` to create the container in the daemon's cgroup namespace, or
   `private` to create the container in its own private cgroup namespace.  The per-daemon
