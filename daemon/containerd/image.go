@@ -23,6 +23,8 @@ import (
 
 var shortID = regexp.MustCompile(`^([a-f0-9]{4,64})$`)
 
+// GetContainerdImage returns the containerd image corresponding to the image referred to by refOrID.
+// The platform parameter is currently ignored
 func (i *ImageService) GetContainerdImage(ctx context.Context, refOrID string, platform *ocispec.Platform) (containerdimages.Image, error) {
 	return i.resolveImageName2(ctx, refOrID)
 }

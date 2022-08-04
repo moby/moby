@@ -160,7 +160,6 @@ func pullProgress(cs content.Store) updateProgressFunc {
 }
 
 type jobs struct {
-	name     string
 	resolved bool // resolved is set to true once all jobs are added
 	descs    map[digest.Digest]ocispec.Descriptor
 	mu       sync.Mutex
