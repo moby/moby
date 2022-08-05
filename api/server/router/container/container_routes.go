@@ -174,7 +174,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 }
 
 func (s *containerRouter) getContainersExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.backend.ContainerExport(vars["name"], w)
+	return s.backend.ContainerExport(ctx, vars["name"], w)
 }
 
 type bodyOnStartError struct{}

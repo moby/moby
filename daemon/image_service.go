@@ -30,6 +30,7 @@ type ImageService interface {
 	CreateImage(config []byte, parent string) (builder.Image, error)
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
 	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
+	PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(string) error) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
 	LogImageEvent(imageID, refName, action string)
@@ -52,7 +53,6 @@ type ImageService interface {
 
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
 	CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error)
-	GetLayerByID(cid string) (layer.RWLayer, error)
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
 	ReleaseLayer(rwlayer layer.RWLayer) error

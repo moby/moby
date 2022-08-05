@@ -218,6 +218,11 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	return resolver.NewRegistryConfig(m)
 }
 
+// layerAccessor may be implemented by ImageService
+type layerAccessor interface {
+	GetLayerByID(cid string) (layer.RWLayer, error)
+}
+
 func (daemon *Daemon) restore() error {
 	var mapLock sync.Mutex
 	containers := make(map[string]*container.Container)
@@ -259,12 +264,14 @@ func (daemon *Daemon) restore() error {
 				log.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
 				return
 			}
-			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
-			if err != nil {
-				log.WithError(err).Error("failed to load container mount")
-				return
+			if accessor, ok := daemon.imageService.(layerAccessor); ok {
+				rwlayer, err := accessor.GetLayerByID(c.ID)
+				if err != nil {
+					log.WithError(err).Error("failed to load container mount")
+					return
+				}
+				c.RWLayer = rwlayer
 			}
-			c.RWLayer = rwlayer
 			log.WithFields(logrus.Fields{
 				"running": c.IsRunning(),
 				"paused":  c.IsPaused(),

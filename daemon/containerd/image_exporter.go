@@ -9,8 +9,10 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/mount"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/platforms"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -18,6 +20,15 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
+
+func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(root string) error) error {
+	snapshotter := i.client.SnapshotService(i.snapshotter)
+	mounts, err := snapshotter.Mounts(ctx, c.ID)
+	if err != nil {
+		return err
+	}
+	return mount.WithTempMount(ctx, mounts, fn)
+}
 
 // ExportImage exports a list of images to the given output stream. The
 // exported images are archived into a tar when written to the output
