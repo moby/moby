@@ -287,8 +287,8 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 
 	// Remove networks not present in HNS
 	for _, v := range controller.Networks() {
-		options := v.Info().DriverOptions()
-		hnsid := options[winlibnetwork.HNSID]
+		drvOptions := v.Info().DriverOptions()
+		hnsid := drvOptions[winlibnetwork.HNSID]
 		found := false
 
 		for _, v := range hnsresponse {
@@ -299,6 +299,35 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		}
 
 		if !found {
+			// non-default nat networks should be re-created if missing from HNS
+			if v.Type() == "nat" && v.Name() != "nat" {
+				_, _, v4Conf, v6Conf := v.Info().IpamConfig()
+				netOption := map[string]string{}
+				for k, v := range v.Info().DriverOptions() {
+					if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
+						netOption[k] = v
+					}
+				}
+				name := v.Name()
+				id := v.ID()
+
+				err = v.Delete()
+				if err != nil {
+					logrus.Errorf("Error occurred when removing network %v", err)
+				}
+
+				_, err := daemon.netController.NewNetwork("nat", name, id,
+					libnetwork.NetworkOptionGeneric(options.Generic{
+						netlabel.GenericData: netOption,
+					}),
+					libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+				)
+				if err != nil {
+					logrus.Errorf("Error occurred when creating network %v", err)
+				}
+				continue
+			}
+
 			// global networks should not be deleted by local HNS
 			if v.Info().Scope() != datastore.GlobalScope {
 				err = v.Delete()
@@ -317,9 +346,9 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 	defaultNetworkExists := false
 
 	if network, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
-		options := network.Info().DriverOptions()
+		drvOptions := network.Info().DriverOptions()
 		for _, v := range hnsresponse {
-			if options[winlibnetwork.HNSID] == v.Id {
+			if drvOptions[winlibnetwork.HNSID] == v.Id {
 				defaultNetworkExists = true
 				break
 			}
@@ -335,8 +364,8 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		}
 		var n libnetwork.Network
 		s := func(current libnetwork.Network) bool {
-			options := current.Info().DriverOptions()
-			if options[winlibnetwork.HNSID] == v.Id {
+			drvOptions := current.Info().DriverOptions()
+			if drvOptions[winlibnetwork.HNSID] == v.Id {
 				n = current
 				return true
 			}
