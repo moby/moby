@@ -10,7 +10,8 @@ Type=notify
 # the default is not to use systemd for cgroups because the delegate issues still
 # exists and systemd currently does not support the cgroup feature set required
 # for containers run by docker
-ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+# explicitly set the PID file path to be aligned with PIDFile option in this file 
+ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --pidfile /var/run/docker.pid
 ExecReload=/bin/kill -s HUP $MAINPID
 TimeoutStartSec=0
 RestartSec=2
@@ -25,6 +26,9 @@ StartLimitBurst=3
 # Both the old, and new name are accepted by systemd 230 and up, so using the old name to make
 # this option work for either version of systemd.
 StartLimitInterval=60s
+
+# Ensure to cleanup pid file when the daemon stops
+PIDFile=/var/run/docker.pid
 
 # Having non-zero Limit*s causes performance problems due to accounting overhead
 # in the kernel. We recommend using cgroups to do container-local accounting.
