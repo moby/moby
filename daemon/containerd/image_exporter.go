@@ -9,12 +9,23 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
 	"github.com/containerd/containerd/images/converter"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/container"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(root string) error) error {
+	snapshotter := i.client.SnapshotService(containerd.DefaultSnapshotter)
+	mounts, err := snapshotter.Mounts(ctx, c.ID)
+	if err != nil {
+		return err
+	}
+	return mount.WithTempMount(ctx, mounts, fn)
+}
 
 // ExportImage exports a list of images to the given output stream. The
 // exported images are archived into a tar when written to the output
