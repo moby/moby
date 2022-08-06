@@ -1,0 +1,25 @@
+dist: bionic
+language: go
+
+os:
+- linux
+
+go:
+  - "1.13.x"
+
+matrix:
+  include:
+    - os: linux
+
+addons:
+  apt:
+    packages:
+      - softhsm2
+
+install:
+  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
+
+script:
+  - make
+  - make check
+  - make test
