@@ -319,6 +319,12 @@ func setProjectID(targetPath string, projectID uint32) error {
 	return nil
 }
 
+func (q *Control) RemoveQuota(targetPath string) {
+	q.Lock()
+	delete(q.quotas, targetPath)
+	q.Unlock()
+}
+
 // findNextProjectID - find the next project id to be used for containers
 // by scanning driver home directory to find used project ids
 func (q *Control) findNextProjectID(home string, baseID uint32) error {
