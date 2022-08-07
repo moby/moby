@@ -8,6 +8,7 @@
 test.main
 .*.swp
 .DS_Store
+.idea/
 # a .bashrc may be added to customize the build environment
 .bashrc
 .editorconfig

@@ -211,6 +211,8 @@ func (r *Root) Remove(v volume.Volume) error {
 		return err
 	}
 
+	lv.quotaCtl.RemoveQuota(realPath)
+
 	delete(r.volumes, lv.name)
 	return removePath(lv.rootPath)
 }
