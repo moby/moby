@@ -10,6 +10,7 @@ thumbs.db
 
 # local repository customization
 .envrc
+# a .bashrc may be added to customize the build environment
 .bashrc
 .editorconfig
 
