@@ -122,14 +122,13 @@ Please refer to [RUNC.md](/docs/RUNC.md) for the currently supported version of 
 You can build static binaries by providing a few variables to `make`:
 
 ```sh
-make EXTRA_FLAGS="-buildmode pie" \
-	EXTRA_LDFLAGS='-linkmode external -extldflags "-fno-PIC -static"' \
-	BUILDTAGS="netgo osusergo static_build"
+make STATIC=1
 ```
 
 > *Note*:
 > - static build is discouraged
 > - static containerd binary does not support loading shared object plugins (`*.so`)
+> - static build binaries are not position-independent
 
 # Via Docker container
 

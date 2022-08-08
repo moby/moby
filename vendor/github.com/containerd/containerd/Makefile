@@ -89,8 +89,17 @@ ifdef BUILDTAGS
 endif
 GO_BUILDTAGS ?=
 GO_BUILDTAGS += ${DEBUG_TAGS}
+ifneq ($(STATIC),)
+	GO_BUILDTAGS += osusergo netgo static_build
+endif
 GO_TAGS=$(if $(GO_BUILDTAGS),-tags "$(strip $(GO_BUILDTAGS))",)
-GO_LDFLAGS=-ldflags '-X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) -X $(PKG)/version.Package=$(PACKAGE) $(EXTRA_LDFLAGS)'
+
+GO_LDFLAGS=-ldflags '-X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) -X $(PKG)/version.Package=$(PACKAGE) $(EXTRA_LDFLAGS)
+ifneq ($(STATIC),)
+	GO_LDFLAGS += -extldflags "-static"
+endif
+GO_LDFLAGS+='
+
 SHIM_GO_LDFLAGS=-ldflags '-X $(PKG)/version.Version=$(VERSION) -X $(PKG)/version.Revision=$(REVISION) -X $(PKG)/version.Package=$(PACKAGE) -extldflags "-static" $(EXTRA_LDFLAGS)'
 
 # Project packages.
