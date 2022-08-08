@@ -166,7 +166,7 @@ FROM microsoft/windowsservercore
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ARG GO_VERSION=1.18.5
-ARG CONTAINERD_VERSION=v1.6.6
+ARG CONTAINERD_VERSION=v1.6.7
 ARG GOTESTSUM_VERSION=v1.8.1
 ARG GOWINRES_VERSION=v0.2.3
 
