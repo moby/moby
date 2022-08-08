@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types"
@@ -189,6 +190,9 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 
 	c, err := i.client.ContainerService().Get(ctx, containerID)
 	if err != nil {
+		if cerrdefs.IsNotFound(err) {
+			return 0, 0, nil
+		}
 		return 0, 0, err
 	}
 	image, err := i.client.GetImage(ctx, c.Image)

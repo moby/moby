@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -182,6 +183,12 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 	if daemon.UsesSnapshotter() {
 		newContainerOpts = append(newContainerOpts, containerd.WithSnapshotter(container.Driver))
 		newContainerOpts = append(newContainerOpts, containerd.WithSnapshot(container.ID))
+		c8dImge, err := daemon.imageService.(containerdImage).GetContainerdImage(ctx, container.Config.Image, &v1.Platform{})
+		if err != nil {
+			return err
+		}
+		ctrdimg := containerd.NewImage(daemon.containerdCli, c8dImge)
+		newContainerOpts = append(newContainerOpts, containerd.WithImage(ctrdimg))
 	}
 	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions, newContainerOpts...)
 	if err != nil {
