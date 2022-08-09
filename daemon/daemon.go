@@ -239,25 +239,25 @@ func (daemon *Daemon) restore() error {
 				log.WithError(err).Error("failed to load container")
 				return
 			}
-			// Ignore the container if it does not support the current driver being used by the graph
-			if (c.Driver == "" && daemon.graphDriver == "aufs") || c.Driver == daemon.graphDriver {
-				rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
-				if err != nil {
-					log.WithError(err).Error("failed to load container mount")
-					return
-				}
-				c.RWLayer = rwlayer
-				log.WithFields(logrus.Fields{
-					"running": c.IsRunning(),
-					"paused":  c.IsPaused(),
-				}).Debug("loaded container")
-
-				mapLock.Lock()
-				containers[c.ID] = c
-				mapLock.Unlock()
-			} else {
-				log.Debugf("cannot load container because it was created with another storage driver")
+			if c.Driver != daemon.graphDriver {
+				// Ignore the container if it wasn't created with the current storage-driver
+				log.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
+				return
 			}
+			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
+			if err != nil {
+				log.WithError(err).Error("failed to load container mount")
+				return
+			}
+			c.RWLayer = rwlayer
+			log.WithFields(logrus.Fields{
+				"running": c.IsRunning(),
+				"paused":  c.IsPaused(),
+			}).Debug("loaded container")
+
+			mapLock.Lock()
+			containers[c.ID] = c
+			mapLock.Unlock()
 		}(v.Name())
 	}
 	group.Wait()
