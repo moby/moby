@@ -239,10 +239,6 @@ func (daemon *Daemon) restore() error {
 				log.WithError(err).Error("failed to load container")
 				return
 			}
-			if !system.IsOSSupported(c.OS) {
-				log.Errorf("failed to load container: %s (%q)", system.ErrNotSupportedOperatingSystem, c.OS)
-				return
-			}
 			// Ignore the container if it does not support the current driver being used by the graph
 			if (c.Driver == "" && daemon.graphDriver == "aufs") || c.Driver == daemon.graphDriver {
 				rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
