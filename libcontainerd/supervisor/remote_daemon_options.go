@@ -20,3 +20,12 @@ func WithCRIDisabled() DaemonOpt {
 		return nil
 	}
 }
+
+// WithPIDFile overrides the default location of the PID-file that's used by
+// the supervisor.
+func WithPIDFile(fileName string) DaemonOpt {
+	return func(r *remote) error {
+		r.pidFile = fileName
+		return nil
+	}
+}
