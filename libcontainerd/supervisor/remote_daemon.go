@@ -25,13 +25,16 @@ import (
 )
 
 const (
+	// PIDFile is the name of the PID file used when starting a managed
+	// containerd instance.
+	PIDFile = "containerd.pid"
+
 	maxConnectionRetryCount = 3
 	healthCheckTimeout      = 3 * time.Second
 	shutdownTimeout         = 15 * time.Second
 	startupTimeout          = 15 * time.Second
 	configFile              = "containerd.toml"
 	binaryName              = "containerd"
-	pidFile                 = "containerd.pid"
 )
 
 type remote struct {
@@ -74,7 +77,7 @@ func Start(ctx context.Context, stateDir string, opts ...DaemonOpt) (Daemon, err
 		stateDir:      stateDir,
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
-		pidFile:       filepath.Join(stateDir, pidFile),
+		pidFile:       filepath.Join(stateDir, PIDFile),
 		logger:        log.G(ctx).WithField("module", "libcontainerd"),
 		daemonStartCh: make(chan error, 1),
 		daemonStopCh:  make(chan struct{}),

@@ -34,6 +34,15 @@ func WithCRIDisabled() DaemonOpt {
 	}
 }
 
+// WithPIDFile overrides the default location of the PID-file that's used by
+// the supervisor.
+func WithPIDFile(fileName string) DaemonOpt {
+	return func(r *remote) error {
+		r.pidFile = fileName
+		return nil
+	}
+}
+
 // WithPlatformDefaults sets the default options for the platform.
 func WithPlatformDefaults(rootDir string) DaemonOpt {
 	return withPlatformDefaults(rootDir)
