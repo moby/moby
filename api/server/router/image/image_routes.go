@@ -193,7 +193,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	img, err := ir.backend.GetImage(vars["name"], opts.GetImageOpts{})
+	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{})
 	if err != nil {
 		return err
 	}

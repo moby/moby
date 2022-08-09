@@ -45,13 +45,13 @@ type manifest struct {
 	Config specs.Descriptor `json:"config"`
 }
 
-func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform specs.Platform) bool {
+func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform specs.Platform) (bool, error) {
 	logger := logrus.WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
 
 	ls, leaseErr := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().Digest())})
 	if leaseErr != nil {
 		logger.WithError(leaseErr).Error("Error looking up image leases")
-		return false
+		return false, leaseErr
 	}
 
 	// Note we are comparing against manifest lists here, which we expect to always have a CPU variant set (where applicable).
@@ -137,19 +137,18 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 
 			if m.Config.Digest == img.ID().Digest() {
 				logger.WithField("manifestDigest", md.Digest).Debug("Found matching manifest for image")
-				return true
+				return true, nil
 			}
 
 			logger.WithField("otherDigest", md.Digest).Debug("Skipping non-matching manifest")
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
-	ctx := context.TODO()
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
 	defer func() {
 		if retErr != nil || retImg == nil || options.Platform == nil {
 			return
@@ -168,7 +167,9 @@ func (i *ImageService) GetImage(refOrID string, options imagetypes.GetImageOpts)
 		}
 		// In some cases the image config can actually be wrong (e.g. classic `docker build` may not handle `--platform` correctly)
 		// So we'll look up the manifest list that coresponds to this imaage to check if at least the manifest list says it is the correct image.
-		if i.manifestMatchesPlatform(ctx, retImg, p) {
+		var matches bool
+		matches, retErr = i.manifestMatchesPlatform(ctx, retImg, p)
+		if matches || retErr != nil {
 			return
 		}
 

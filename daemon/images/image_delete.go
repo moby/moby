@@ -64,7 +64,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	img, err := i.GetImage(imageRef, imagetypes.GetImageOpts{})
+	img, err := i.GetImage(ctx, imageRef, imagetypes.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}
