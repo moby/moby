@@ -15,7 +15,7 @@ func runDaemon(opts *daemonOptions) error {
 	// register the service.
 	stop, runAsService, err := initService(daemonCli)
 	if err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 
 	if stop {
@@ -24,7 +24,11 @@ func runDaemon(opts *daemonOptions) error {
 
 	// Windows specific settings as these are not defaulted.
 	if opts.configFile == "" {
-		opts.configFile = filepath.Join(opts.daemonConfig.Root, `config\daemon.json`)
+		configDir, err := getDaemonConfDir(opts.daemonConfig.Root)
+		if err != nil {
+			return err
+		}
+		opts.configFile = filepath.Join(configDir, "daemon.json")
 	}
 	if runAsService {
 		// If Windows SCM manages the service - no need for PID files
