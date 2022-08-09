@@ -28,13 +28,6 @@ func (r *remote) setDefaults() {
 	if r.Debug.Address == "" {
 		r.Debug.Address = filepath.Join(r.stateDir, debugSockFile)
 	}
-
-	for key, conf := range r.Plugins {
-		if conf == nil {
-			r.DisabledPlugins = append(r.DisabledPlugins, key)
-			delete(r.Plugins, key)
-		}
-	}
 }
 
 func (r *remote) stopDaemon() {
