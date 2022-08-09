@@ -45,11 +45,10 @@ type manifest struct {
 	Config specs.Descriptor `json:"config"`
 }
 
-func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.Platform) bool {
-	ctx := context.TODO()
+func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform specs.Platform) bool {
 	logger := logrus.WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
 
-	ls, leaseErr := i.leases.ListResources(context.TODO(), leases.Lease{ID: imageKey(img.ID().Digest())})
+	ls, leaseErr := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().Digest())})
 	if leaseErr != nil {
 		logger.WithError(leaseErr).Error("Error looking up image leases")
 		return false
@@ -150,6 +149,7 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
+	ctx := context.TODO()
 	defer func() {
 		if retErr != nil || retImg == nil || options.Platform == nil {
 			return
@@ -168,7 +168,7 @@ func (i *ImageService) GetImage(refOrID string, options imagetypes.GetImageOpts)
 		}
 		// In some cases the image config can actually be wrong (e.g. classic `docker build` may not handle `--platform` correctly)
 		// So we'll look up the manifest list that coresponds to this imaage to check if at least the manifest list says it is the correct image.
-		if i.manifestMatchesPlatform(retImg, p) {
+		if i.manifestMatchesPlatform(ctx, retImg, p) {
 			return
 		}
 
