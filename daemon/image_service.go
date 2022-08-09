@@ -72,6 +72,6 @@ type ImageService interface {
 	DistributionServices() images.DistributionServices
 	Children(id image.ID) []image.ID
 	Cleanup() error
-	GraphDriverName() string
+	StorageDriver() string
 	UpdateConfig(maxDownloads, maxUploads int)
 }

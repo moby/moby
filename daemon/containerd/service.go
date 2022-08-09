@@ -78,10 +78,9 @@ func (i *ImageService) Cleanup() error {
 	return nil
 }
 
-// GraphDriverName returns the name of the graph drvier
-// moved from Daemon.GraphDriverName, used by:
-// - newContainer
-func (i *ImageService) GraphDriverName() string {
+// StorageDriver returns the name of the default storage-driver (snapshotter)
+// used by the ImageService.
+func (i *ImageService) StorageDriver() string {
 	return ""
 }
 
