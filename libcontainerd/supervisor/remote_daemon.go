@@ -225,7 +225,7 @@ func (r *remote) startContainerd() error {
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
 	}
 
-	r.logger.WithField("pid", r.daemonPid).Infof("started new %s process", binaryName)
+	r.logger.WithField("pid", r.daemonPid).WithField("address", r.Address()).Infof("started new %s process", binaryName)
 
 	return nil
 }
