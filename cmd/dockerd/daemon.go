@@ -167,7 +167,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	waitForContainerDShutdown, err := cli.initContainerD(ctx)
+	waitForContainerDShutdown, err := cli.initContainerd(ctx)
 	if waitForContainerDShutdown != nil {
 		defer waitForContainerDShutdown(10 * time.Second)
 	}

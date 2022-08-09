@@ -132,32 +132,34 @@ func newCgroupParent(config *config.Config) string {
 	return cgroupParent
 }
 
-func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) error, error) {
-	var waitForShutdown func(time.Duration) error
-	if cli.Config.ContainerdAddr == "" {
-		systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
-		}
-		if !ok {
-			logrus.Info("containerd not running, starting managed containerd")
-			opts, err := cli.getContainerdDaemonOpts()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to generate containerd options")
-			}
-
-			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to start containerd")
-			}
-			cli.Config.ContainerdAddr = r.Address()
-
-			// Try to wait for containerd to shutdown
-			waitForShutdown = r.WaitTimeout
-		} else {
-			cli.Config.ContainerdAddr = systemContainerdAddr
-		}
+func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+	if cli.ContainerdAddr != "" {
+		// use system containerd at the given address.
+		return nil, nil
 	}
 
-	return waitForShutdown, nil
+	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
+	}
+	if ok {
+		// detected a system containerd at the given address.
+		cli.ContainerdAddr = systemContainerdAddr
+		return nil, nil
+	}
+
+	logrus.Info("containerd not running, starting managed containerd")
+	opts, err := cli.getContainerdDaemonOpts()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate containerd options")
+	}
+
+	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start containerd")
+	}
+	cli.ContainerdAddr = r.Address()
+
+	// Try to wait for containerd to shutdown
+	return r.WaitTimeout, nil
 }
