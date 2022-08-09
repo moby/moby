@@ -161,6 +161,16 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	for _, name := range linkNames {
 		daemon.releaseName(name)
 	}
+	if daemon.UsesSnapshotter() {
+		ctr, err := daemon.containerd.LoadContainer(context.Background(), container.ID)
+		if err != nil {
+			logrus.WithError(err).WithField("container", container.ID).Error("cleanup: failed to delete container from containerd")
+		}
+		err = ctr.Delete(context.Background())
+		if err != nil {
+			logrus.WithError(err).WithField("container", container.ID).Error("cleanup: failed to delete container from containerd")
+		}
+	}
 	container.SetRemoved()
 	stateCtr.del(container.ID)
 
