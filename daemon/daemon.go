@@ -1273,8 +1273,8 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		// on non-Windows operating systems.
 		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
-			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.imageService.GraphDriverName(), container.ID, container.BaseFS, dir)
+			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+				container.Driver, container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields
