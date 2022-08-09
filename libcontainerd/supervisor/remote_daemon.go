@@ -39,7 +39,6 @@ type remote struct {
 	daemonStartCh chan error
 	daemonStopCh  chan struct{}
 
-	rootDir  string
 	stateDir string
 }
 
@@ -55,7 +54,6 @@ type DaemonOpt func(c *remote) error
 // Start starts a containerd daemon and monitors it
 func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
-		rootDir:  rootDir,
 		stateDir: stateDir,
 		Config: config.Config{
 			Version: 2,
