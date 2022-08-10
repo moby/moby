@@ -14,6 +14,12 @@ const (
 // withPlatformDefaults sets the default options for the platform.
 func withPlatformDefaults(rootDir string) DaemonOpt {
 	return func(r *remote) error {
+		if r.managedConfig {
+			// custom configuration file is in use.
+			return nil
+		}
+		r.managedConfig = true
+		r.configFile = filepath.Join(r.stateDir, ConfigFile)
 		r.Config = config.Config{
 			Version: 2,
 			Root:    filepath.Join(rootDir, "daemon"),

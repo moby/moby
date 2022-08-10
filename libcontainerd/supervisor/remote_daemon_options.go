@@ -4,6 +4,21 @@ import (
 	"github.com/containerd/log"
 )
 
+// WithCustomConfigFile configures the supervisor to use a custom containerd.toml
+// configuration file instead of producing a generated config.
+func WithCustomConfigFile(fileName string) DaemonOpt {
+	return func(r *remote) error {
+		conf, err := LoadConfigFile(fileName)
+		if err != nil {
+			return err
+		}
+		r.Config = *conf
+		r.configFile = fileName
+		r.managedConfig = false
+		return nil
+	}
+}
+
 // WithLogLevel defines which log level to start containerd with.
 func WithLogLevel(lvl string) DaemonOpt {
 	return func(r *remote) error {
