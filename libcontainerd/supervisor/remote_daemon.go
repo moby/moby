@@ -48,6 +48,10 @@ type remote struct {
 
 	// oomScore adjusts the OOM score for the containerd process.
 	oomScore int
+
+	// logLevel overrides the containerd logging-level through the --log-level
+	// command-line option.
+	logLevel string
 }
 
 // Daemon represents a running containerd daemon
@@ -180,8 +184,8 @@ func (r *remote) startContainerd() error {
 
 	args := []string{"--config", configFile}
 
-	if r.Debug.Level != "" {
-		args = append(args, "--log-level", r.Debug.Level)
+	if r.logLevel != "" {
+		args = append(args, "--log-level", r.logLevel)
 	}
 
 	cmd := exec.Command(binaryName, args...)

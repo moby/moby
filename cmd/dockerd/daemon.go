@@ -589,13 +589,13 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 		return nil, err
 	}
 
-	if cli.Config.Debug {
+	if cli.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
-	} else if cli.Config.LogLevel != "" {
-		opts = append(opts, supervisor.WithLogLevel(cli.Config.LogLevel))
+	} else {
+		opts = append(opts, supervisor.WithLogLevel(cli.LogLevel))
 	}
 
-	if !cli.Config.CriContainerd {
+	if !cli.CriContainerd {
 		// CRI support in the managed daemon is currently opt-in.
 		//
 		// It's disabled by default, originally because it was listening on
