@@ -125,38 +125,36 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 
 		summary := newImageSummary(img, size)
 
+		matchesRefFilter := !opts.Filters.Contains("reference") // No filter -> always matches.
 		for _, ref := range i.referenceStore.References(id.Digest()) {
-			if opts.Filters.Contains("reference") {
-				var found bool
-				var matchErr error
-				for _, pattern := range opts.Filters.Get("reference") {
-					found, matchErr = reference.FamiliarMatch(pattern, ref)
-					if matchErr != nil {
-						return nil, matchErr
-					}
-					if found {
-						break
-					}
-				}
-				if !found {
-					continue
-				}
-			}
 			if _, ok := ref.(reference.Canonical); ok {
 				summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(ref))
 			}
 			if _, ok := ref.(reference.NamedTagged); ok {
 				summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
 			}
+
+			if !matchesRefFilter {
+				for _, pattern := range opts.Filters.Get("reference") {
+					var err error
+					matchesRefFilter, err = reference.FamiliarMatch(pattern, ref)
+					if err != nil {
+						return nil, err
+					}
+					if matchesRefFilter {
+						break
+					}
+				}
+			}
+		}
+		if !matchesRefFilter {
+			continue
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
 			if opts.All || len(i.imageStore.Children(id)) == 0 {
 
 				if opts.Filters.Contains("dangling") && !danglingOnly {
 					// dangling=false case, so dangling image is not needed
-					continue
-				}
-				if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
 					continue
 				}
 				summary.RepoDigests = []string{"<none>@<none>"}
