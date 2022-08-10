@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/containerd/containerd"
@@ -31,7 +30,6 @@ const (
 )
 
 type remote struct {
-	sync.RWMutex
 	config.Config
 
 	daemonPid int
