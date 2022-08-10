@@ -3,29 +3,8 @@ package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 import (
 	"os"
 
-	"github.com/containerd/containerd/defaults"
 	"github.com/docker/docker/pkg/process"
 )
-
-const (
-	grpcPipeName  = `\\.\pipe\containerd-containerd`
-	debugPipeName = `\\.\pipe\containerd-debug`
-)
-
-func (r *remote) setDefaults() {
-	if r.GRPC.Address == "" {
-		r.GRPC.Address = grpcPipeName
-	}
-	if r.GRPC.MaxRecvMsgSize == 0 {
-		r.GRPC.MaxRecvMsgSize = defaults.DefaultMaxRecvMsgSize
-	}
-	if r.GRPC.MaxSendMsgSize == 0 {
-		r.GRPC.MaxSendMsgSize = defaults.DefaultMaxSendMsgSize
-	}
-	if r.Debug.Address == "" {
-		r.Debug.Address = debugPipeName
-	}
-}
 
 func (r *remote) stopDaemon() {
 	p, err := os.FindProcess(r.daemonPid)

@@ -778,6 +778,7 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 		opts = append(opts, supervisor.WithCRIDisabled())
 	}
 
+	opts = append(opts, supervisor.WithPlatformDefaults())
 	return opts, nil
 }
 

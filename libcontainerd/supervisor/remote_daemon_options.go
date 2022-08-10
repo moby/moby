@@ -33,3 +33,8 @@ func WithCRIDisabled() DaemonOpt {
 		return nil
 	}
 }
+
+// WithPlatformDefaults sets the default options for the platform.
+func WithPlatformDefaults() DaemonOpt {
+	return withPlatformDefaults()
+}
