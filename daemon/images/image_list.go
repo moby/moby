@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -45,20 +46,36 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 	}
 
 	var (
-		beforeFilter, sinceFilter *image.Image
+		beforeFilter, sinceFilter time.Time
 		err                       error
 	)
 	err = opts.Filters.WalkValues("before", func(value string) error {
-		beforeFilter, err = i.GetImage(value, nil)
-		return err
+		img, err := i.GetImage(value, nil)
+		if err != nil {
+			return err
+		}
+		// Resolve multiple values to the oldest image,
+		// equivalent to ANDing all the values together.
+		if beforeFilter.IsZero() || beforeFilter.After(img.Created) {
+			beforeFilter = img.Created
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	err = opts.Filters.WalkValues("since", func(value string) error {
-		sinceFilter, err = i.GetImage(value, nil)
-		return err
+		img, err := i.GetImage(value, nil)
+		if err != nil {
+			return err
+		}
+		// Resolve multiple values to the newest image,
+		// equivalent to ANDing all the values together.
+		if sinceFilter.Before(img.Created) {
+			sinceFilter = img.Created
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -77,16 +94,11 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
-		if beforeFilter != nil {
-			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
-				continue
-			}
+		if !beforeFilter.IsZero() && !img.Created.Before(beforeFilter) {
+			continue
 		}
-
-		if sinceFilter != nil {
-			if img.Created.Equal(sinceFilter.Created) || img.Created.Before(sinceFilter.Created) {
-				continue
-			}
+		if !sinceFilter.IsZero() && !img.Created.After(sinceFilter) {
+			continue
 		}
 
 		if opts.Filters.Contains("label") {

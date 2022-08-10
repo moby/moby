@@ -8030,8 +8030,8 @@ paths:
 
             predicate   | values                                            | description
             ------------|---------------------------------------------------|----------------------------------------------------------------
-            `before`    | `<repo>[:<tag>]`, `<image id>` or `<repo@digest>` | List only images which were created before the referenced image
-            `since`     | `<repo>[:<tag>]`, `<image id>` or `<repo@digest>` | List only images which were created after the referenced image
+            `before`    | `<repo>[:<tag>]`, `<image id>` or `<repo@digest>` | List only images which were created before the oldest of the referenced images
+            `since`     | `<repo>[:<tag>]`, `<image id>` or `<repo@digest>` | List only images which were created after the newest of the referenced images
             `dangling`  | `true` or `false`                                 | List only dangling images (images with no children and no tags) or exclude any dangling images, respectively
             `label`     | `<key>` or `<key>=<value>`                        | List only images which have all of the given labels
             `reference` | `<repo>[:<tag>]` or `<repo@digest>`               | List images which have any reference that matches any of the given patterns. [Go `path.Match`](https://pkg.go.dev/path#Match) syntax is supported.
