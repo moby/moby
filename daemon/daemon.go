@@ -202,6 +202,11 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 }
 
 func (daemon *Daemon) restore(ctx context.Context) error {
+	// Restoring containers after a restart is not yet supported
+	// when using the containerd content store.
+	if daemon.UsesSnapshotter() {
+		return nil
+	}
 	var mapLock sync.Mutex
 	containers := make(map[string]*container.Container)
 
