@@ -3,6 +3,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/services/server/config"
 )
 
 const (
@@ -11,8 +12,13 @@ const (
 )
 
 // withPlatformDefaults sets the default options for the platform.
-func withPlatformDefaults() DaemonOpt {
+func withPlatformDefaults(rootDir string) DaemonOpt {
 	return func(r *remote) error {
+		r.Config = config.Config{
+			Version: 2,
+			Root:    filepath.Join(rootDir, "daemon"),
+			State:   filepath.Join(r.stateDir, "daemon"),
+		}
 		if r.GRPC.Address == "" {
 			r.GRPC.Address = filepath.Join(r.stateDir, sockFile)
 		}

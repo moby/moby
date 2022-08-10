@@ -69,14 +69,9 @@ type Daemon interface {
 type DaemonOpt func(c *remote) error
 
 // Start starts a containerd daemon and monitors it
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
+func Start(ctx context.Context, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
-		stateDir: stateDir,
-		Config: config.Config{
-			Version: 2,
-			Root:    filepath.Join(rootDir, "daemon"),
-			State:   filepath.Join(stateDir, "daemon"),
-		},
+		stateDir:      stateDir,
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),

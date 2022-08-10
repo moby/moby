@@ -778,7 +778,7 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 		opts = append(opts, supervisor.WithCRIDisabled())
 	}
 
-	opts = append(opts, supervisor.WithPlatformDefaults())
+	opts = append(opts, supervisor.WithPlatformDefaults(filepath.Join(cli.Root, "containerd")))
 	return opts, nil
 }
 
