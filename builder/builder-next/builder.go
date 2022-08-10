@@ -78,6 +78,7 @@ type Opt struct {
 	DNSConfig           config.DNSConfig
 	ApparmorProfile     string
 	UseSnapshotter      bool
+	Snapshotter         string
 	ContainerdAddress   string
 	ContainerdNamespace string
 }

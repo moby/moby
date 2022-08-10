@@ -75,11 +75,9 @@ func newSnapshotterController(rt http.RoundTripper, opt Opt) (*mobycontrol.Contr
 	}
 	dns := getDNSConfig(opt.DNSConfig)
 
-	snapshotter := ctd.DefaultSnapshotter
-
-	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, snapshotter, opt.ContainerdNamespace,
+	wo, err := containerd.NewWorkerOpt(opt.Root, opt.ContainerdAddress, opt.Snapshotter, opt.ContainerdNamespace,
 		opt.Rootless, map[string]string{
-			worker.LabelSnapshotter: snapshotter,
+			worker.LabelSnapshotter: opt.Snapshotter,
 		}, dns, nc, opt.ApparmorProfile, nil, "", ctd.WithTimeout(60*time.Second))
 	if err != nil {
 		return nil, err
