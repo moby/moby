@@ -55,5 +55,5 @@ func (r *remote) killDaemon() {
 }
 
 func (r *remote) platformCleanup() {
-	os.Remove(filepath.Join(r.stateDir, sockFile))
+	_ = os.Remove(r.Address())
 }
