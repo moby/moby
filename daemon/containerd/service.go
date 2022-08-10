@@ -2,12 +2,14 @@ package containerd
 
 import (
 	"context"
+	"errors"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/plugin"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 )
@@ -53,13 +55,13 @@ func (i *ImageService) Children(id image.ID) []image.ID {
 // called from create.go
 // TODO: accept an opt struct instead of container?
 func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	panic("not implemented")
+	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
 }
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore(), and Daemon.containerExport().
 func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
-	panic("not implemented")
+	return nil, errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // LayerStoreStatus returns the status for each layer store
@@ -75,7 +77,7 @@ func (i *ImageService) LayerStoreStatus() [][2]string {
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually continerCleanup)
 // TODO: needs to be refactored to Unmount (see callers), or removed and replaced with GetLayerByID
 func (i *ImageService) GetLayerMountID(cid string) (string, error) {
-	panic("not implemented")
+	return "", errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // Cleanup resources before the process is shutdown.
@@ -93,18 +95,18 @@ func (i *ImageService) StorageDriver() string {
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	panic("not implemented")
+	return errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	panic("not implemented")
+	return 0, errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // ImageDiskUsage returns information about image data disk usage.
 func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
-	panic("not implemented")
+	return nil, errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // UpdateConfig values
@@ -116,7 +118,7 @@ func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
 
 // GetLayerFolders returns the layer folders from an image RootFS.
 func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
-	panic("not implemented")
+	return nil, errdefs.NotImplemented(errors.New("not implemented"))
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
