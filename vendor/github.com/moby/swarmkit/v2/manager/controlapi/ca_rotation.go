@@ -168,25 +168,25 @@ func getNormalizedExtCAs(caConfig *api.CAConfig, normalizedCurrentRootCACert []b
 
 // validateAndUpdateCA validates a cluster's desired CA configuration spec, and returns a RootCA value on success representing
 // current RootCA as it should be.  Validation logic and return values are as follows:
-// 1. Validates that the contents are complete - e.g. a signing key is not provided without a signing cert, and that external
-//    CAs are not removed if they are needed.  Otherwise, returns an error.
-// 2. If no desired signing cert or key are provided, then either:
-//    - we are happy with the current CA configuration (force rotation value has not changed), and we return the current RootCA
-//      object as is
-//    - we want to generate a new internal CA cert and key (force rotation value has changed), and we return the updated RootCA
-//      object
-// 3. Signing cert and key have been provided: validate that these match (the cert and key match). Otherwise, return an error.
-// 4. Return the updated RootCA object according to the following criteria:
-//    - If the desired cert is the same as the current CA cert then abort any outstanding rotations. The current signing key
-//      is replaced with the desired signing key (this could lets us switch between external->internal or internal->external
-//      without an actual CA rotation, which is not needed because any leaf cert issued with one CA cert can be validated using
-//       the second CA certificate).
-//    - If the desired cert is the same as the current to-be-rotated-to CA cert then a new root rotation is not needed. The
-//      current to-be-rotated-to signing key is replaced with the desired signing key (this could lets us switch between
-//      external->internal or internal->external without an actual CA rotation, which is not needed because any leaf cert
-//      issued with one CA cert can be validated using the second CA certificate).
-//    - Otherwise, start a new root rotation using the desired signing cert and desired signing key as the root rotation
-//      signing cert and key.  If a root rotation is already in progress, just replace it and start over.
+//  1. Validates that the contents are complete - e.g. a signing key is not provided without a signing cert, and that external
+//     CAs are not removed if they are needed.  Otherwise, returns an error.
+//  2. If no desired signing cert or key are provided, then either:
+//     - we are happy with the current CA configuration (force rotation value has not changed), and we return the current RootCA
+//     object as is
+//     - we want to generate a new internal CA cert and key (force rotation value has changed), and we return the updated RootCA
+//     object
+//  3. Signing cert and key have been provided: validate that these match (the cert and key match). Otherwise, return an error.
+//  4. Return the updated RootCA object according to the following criteria:
+//     - If the desired cert is the same as the current CA cert then abort any outstanding rotations. The current signing key
+//     is replaced with the desired signing key (this could lets us switch between external->internal or internal->external
+//     without an actual CA rotation, which is not needed because any leaf cert issued with one CA cert can be validated using
+//     the second CA certificate).
+//     - If the desired cert is the same as the current to-be-rotated-to CA cert then a new root rotation is not needed. The
+//     current to-be-rotated-to signing key is replaced with the desired signing key (this could lets us switch between
+//     external->internal or internal->external without an actual CA rotation, which is not needed because any leaf cert
+//     issued with one CA cert can be validated using the second CA certificate).
+//     - Otherwise, start a new root rotation using the desired signing cert and desired signing key as the root rotation
+//     signing cert and key.  If a root rotation is already in progress, just replace it and start over.
 func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cluster *api.Cluster) (*api.RootCA, error) {
 	newConfig := cluster.Spec.CAConfig.Copy()
 	newConfig.SigningCACert = ca.NormalizePEMs(newConfig.SigningCACert) // ensure this is normalized before we use it

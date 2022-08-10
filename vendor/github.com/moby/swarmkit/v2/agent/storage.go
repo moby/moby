@@ -1,17 +1,17 @@
 package agent
 
 import (
-	"github.com/moby/swarmkit/v2/api"
 	"github.com/gogo/protobuf/proto"
+	"github.com/moby/swarmkit/v2/api"
 	bolt "go.etcd.io/bbolt"
 )
 
 // Layout:
 //
-//  bucket(v1.tasks.<id>) ->
-//			data (task protobuf)
-//			status (task status protobuf)
-//			assigned (key present)
+//	bucket(v1.tasks.<id>) ->
+//		data (task protobuf)
+//		status (task status protobuf)
+//		assigned (key present)
 var (
 	bucketKeyStorageVersion = []byte("v1")
 	bucketKeyTasks          = []byte("tasks")

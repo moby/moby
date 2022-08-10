@@ -32,28 +32,33 @@ func NodeCheckState(n1, n2 *api.Node) bool {
 //
 // Examples:
 //
-// // subscribe to all events
-// Watch(q)
+//	// subscribe to all events
+//	Watch(q)
 //
-// // subscribe to all UpdateTask events
-// Watch(q, EventUpdateTask{})
+//	// subscribe to all UpdateTask events
+//	Watch(q, EventUpdateTask{})
 //
-// // subscribe to all task-related events
-// Watch(q, EventUpdateTask{}, EventCreateTask{}, EventDeleteTask{})
+//	// subscribe to all task-related events
+//	Watch(q, EventUpdateTask{}, EventCreateTask{}, EventDeleteTask{})
 //
-// // subscribe to UpdateTask for node 123
-// Watch(q, EventUpdateTask{Task: &api.Task{NodeID: 123},
-//                         Checks: []TaskCheckFunc{TaskCheckNodeID}})
+//	// subscribe to UpdateTask for node 123
+//	Watch(q, EventUpdateTask{
+//		Task:   &api.Task{NodeID: 123},
+//		Checks: []TaskCheckFunc{TaskCheckNodeID},
+//	})
 //
-// // subscribe to UpdateTask for node 123, as well as CreateTask
-// // for node 123 that also has ServiceID set to "abc"
-// Watch(q, EventUpdateTask{Task: &api.Task{NodeID: 123},
-//                         Checks: []TaskCheckFunc{TaskCheckNodeID}},
-//         EventCreateTask{Task: &api.Task{NodeID: 123, ServiceID: "abc"},
-//                         Checks: []TaskCheckFunc{TaskCheckNodeID,
-//                                                 func(t1, t2 *api.Task) bool {
-//                                                         return t1.ServiceID == t2.ServiceID
-//                                                 }}})
+//	// subscribe to UpdateTask for node 123, as well as CreateTask
+//	// for node 123 that also has ServiceID set to "abc"
+//	Watch(q, EventUpdateTask{
+//		Task:   &api.Task{NodeID: 123},
+//		Checks: []TaskCheckFunc{TaskCheckNodeID}},
+//		EventCreateTask{
+//			Task:   &api.Task{NodeID: 123, ServiceID: "abc"},
+//			Checks: []TaskCheckFunc{TaskCheckNodeID, func(t1, t2 *api.Task) bool {
+//				return t1.ServiceID == t2.ServiceID
+//			},
+//		},
+//	})
 func Watch(queue *watch.Queue, specifiers ...api.Event) (eventq chan events.Event, cancel func()) {
 	if len(specifiers) == 0 {
 		return queue.Watch()

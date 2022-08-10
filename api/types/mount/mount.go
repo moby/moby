@@ -18,7 +18,7 @@ const (
 	// TypeNamedPipe is the type for mounting Windows named pipes
 	TypeNamedPipe Type = "npipe"
 	// TypeCluster is the type for Swarm Cluster Volumes.
-	TypeCluster = "csi"
+	TypeCluster Type = "cluster"
 )
 
 // Mount represents a mount (volume).

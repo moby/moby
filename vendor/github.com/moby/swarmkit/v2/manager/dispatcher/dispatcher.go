@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/go-events"
 	"github.com/docker/go-metrics"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/equality"
 	"github.com/moby/swarmkit/v2/ca"
@@ -19,7 +20,6 @@ import (
 	"github.com/moby/swarmkit/v2/protobuf/ptypes"
 	"github.com/moby/swarmkit/v2/remotes"
 	"github.com/moby/swarmkit/v2/watch"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"

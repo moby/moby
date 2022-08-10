@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/go-events"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/defaults"
 	"github.com/moby/swarmkit/v2/log"
@@ -18,7 +19,6 @@ import (
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"github.com/moby/swarmkit/v2/protobuf/ptypes"
 	"github.com/moby/swarmkit/v2/watch"
-	gogotypes "github.com/gogo/protobuf/types"
 )
 
 // Supervisor supervises a set of updates. It's responsible for keeping track of updates,
