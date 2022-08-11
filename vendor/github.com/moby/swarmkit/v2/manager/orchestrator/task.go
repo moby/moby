@@ -4,12 +4,12 @@ import (
 	"reflect"
 	"time"
 
+	google_protobuf "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/defaults"
 	"github.com/moby/swarmkit/v2/identity"
 	"github.com/moby/swarmkit/v2/manager/constraint"
 	"github.com/moby/swarmkit/v2/protobuf/ptypes"
-	google_protobuf "github.com/gogo/protobuf/types"
 )
 
 // NewTask creates a new task.

@@ -15,9 +15,9 @@ import (
 
 // CreateExtension creates an `Extension` based on the provided `CreateExtensionRequest.Extension`
 // and returns a `CreateExtensionResponse`.
-// - Returns `InvalidArgument` if the `CreateExtensionRequest.Extension` is malformed,
-//   or fails validation.
-// - Returns an error if the creation fails.
+//   - Returns `InvalidArgument` if the `CreateExtensionRequest.Extension` is malformed,
+//     or fails validation.
+//   - Returns an error if the creation fails.
 func (s *Server) CreateExtension(ctx context.Context, request *api.CreateExtensionRequest) (*api.CreateExtensionResponse, error) {
 	if request.Annotations == nil || request.Annotations.Name == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "extension name must be provided")

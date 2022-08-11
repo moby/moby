@@ -111,7 +111,7 @@ func (vs *volumeSet) chooseTaskVolumes(task *api.Task, nodeInfo *NodeInfo) ([]*a
 		return nil, nil
 	}
 	for _, mount := range task.Spec.GetContainer().Mounts {
-		if mount.Type == api.MountTypeCSI {
+		if mount.Type == api.MountTypeCluster {
 			candidate := vs.isVolumeAvailableOnNode(&mount, nodeInfo)
 			if candidate == "" {
 				// TODO(dperny): return structured error types, instead of

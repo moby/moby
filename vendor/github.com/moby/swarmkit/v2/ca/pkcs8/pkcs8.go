@@ -3,7 +3,7 @@
 // https://github.com/youmark/pkcs8 and modified function signatures to match
 // signatures of crypto/x509 and cloudflare/cfssl/helpers to simplify package
 // swapping. License for original package is as follow:
-//
+
 // The MIT License (MIT)
 //
 // Copyright (c) 2014 youmark
@@ -25,6 +25,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
 package pkcs8
 
 import (

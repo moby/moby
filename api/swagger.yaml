@@ -214,12 +214,14 @@ definitions:
           - `volume` a docker volume with the given `Name`.
           - `tmpfs` a `tmpfs`.
           - `npipe` a named pipe from the host into the container.
+          - `cluster` a Swarm cluster volume
         type: "string"
         enum:
           - "bind"
           - "volume"
           - "tmpfs"
           - "npipe"
+          - "cluster"
         example: "volume"
       Name:
         description: |
@@ -350,12 +352,14 @@ definitions:
           - `volume` Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
           - `tmpfs` Create a tmpfs with the given options. The mount source cannot be specified for tmpfs.
           - `npipe` Mounts a named pipe from the host into the container. Must exist prior to creating the container.
+          - `cluster` a Swarm cluster volume
         type: "string"
         enum:
           - "bind"
           - "volume"
           - "tmpfs"
           - "npipe"
+          - "cluster"
       ReadOnly:
         description: "Whether the mount should be read-only."
         type: "boolean"

@@ -419,7 +419,7 @@ func (f *VolumesFilter) SetTask(t *api.Task) bool {
 	// hasCSI will be set true if one of the mounts is a CSI-type mount.
 	hasCSI := false
 	for _, mount := range c.Mounts {
-		if mount.Type == api.MountTypeCSI {
+		if mount.Type == api.MountTypeCluster {
 			hasCSI = true
 			f.requestedVolumes = append(f.requestedVolumes, &mount)
 		}

@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/naming"
-	memdb "github.com/hashicorp/go-memdb"
 )
 
 const tableTask = "task"
