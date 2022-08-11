@@ -59,7 +59,14 @@ func notifyShutdown(err error) {
 }
 
 func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	return nil, nil
+	opts := []supervisor.DaemonOpt{
+		// On Windows, it first checks if a containerd binary is found in the same
+		// directory as the dockerd binary. If found, this binary takes precedence
+		// over containerd binaries installed in $PATH.
+		supervisor.WithDetectLocalBinary(),
+	}
+
+	return opts, nil
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
