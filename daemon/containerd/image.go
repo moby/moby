@@ -42,13 +42,18 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			return nil, err
 		}
 
-		name, err := reference.ParseNamed(ii.Name())
-		if err != nil {
-			return nil, err
+		tagged, err := i.client.ImageService().List(ctx, fmt.Sprintf("target.digest==%s", ii.Target().Digest.String()))
+		tags := make([]reference.Named, 0, len(tagged))
+		for _, i := range tagged {
+			name, err := reference.ParseNamed(i.Name)
+			if err != nil {
+				return nil, err
+			}
+			tags = append(tags, name)
 		}
 
 		img.Details = &image.Details{
-			References:  []reference.Named{name},
+			References:  tags,
 			Size:        size,
 			Metadata:    nil,
 			Driver:      i.snapshotter,
