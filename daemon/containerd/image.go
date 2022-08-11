@@ -35,7 +35,14 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		if err != nil {
 			return nil, err
 		}
+
+		name, err := reference.ParseNamed(containerdImage.Name())
+		if err != nil {
+			return nil, err
+		}
+
 		img.Details = &image.Details{
+			References:  []reference.Named{name},
 			Size:        size,
 			Metadata:    nil,
 			Driver:      i.snapshotter,

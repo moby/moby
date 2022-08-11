@@ -176,6 +176,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			return nil, err
 		}
 		img.Details = &image.Details{
+			References:  i.referenceStore.References(img.ID().Digest()),
 			Size:        size,
 			Metadata:    layerMetadata,
 			Driver:      i.layerStore.DriverName(),
