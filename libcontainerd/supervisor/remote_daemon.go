@@ -161,8 +161,7 @@ func (r *remote) startContainerd() error {
 
 	if pid != -1 {
 		r.daemonPid = pid
-		logrus.WithField("pid", pid).
-			Infof("libcontainerd: %s is still running", binaryName)
+		r.logger.WithField("pid", pid).Infof("%s is still running", binaryName)
 		return nil
 	}
 
@@ -210,8 +209,7 @@ func (r *remote) startContainerd() error {
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
 	}
 
-	logrus.WithField("pid", r.daemonPid).
-		Infof("libcontainerd: started new %s process", binaryName)
+	r.logger.WithField("pid", r.daemonPid).Infof("started new %s process", binaryName)
 
 	return nil
 }
@@ -285,7 +283,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				delay = 100 * time.Millisecond
 				continue
 			}
-			logrus.WithField("address", r.GRPC.Address).Debug("Created containerd monitoring client")
+			r.logger.WithField("address", r.GRPC.Address).Debug("created containerd monitoring client")
 		}
 
 		if client != nil {
