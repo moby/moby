@@ -138,7 +138,7 @@ func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) e
 		return nil, errors.Wrap(err, "failed to generate containerd options")
 	}
 
-	r, err := supervisor.Start(ctx, filepath.Join(cli.Root, "containerd"), filepath.Join(cli.ExecRoot, "containerd"), opts...)
+	r, err := supervisor.Start(ctx, filepath.Join(cli.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
