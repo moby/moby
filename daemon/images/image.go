@@ -172,10 +172,14 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		}
 
 		lastUpdated, err := i.imageStore.GetLastUpdated(img.ID())
+
+		references := i.referenceStore.References(img.ID().Digest())
+
 		if err != nil {
 			return nil, err
 		}
 		img.Details = &image.Details{
+			References:  references,
 			Size:        size,
 			Metadata:    layerMetadata,
 			Driver:      i.layerStore.DriverName(),

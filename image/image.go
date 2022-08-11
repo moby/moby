@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
@@ -119,6 +120,7 @@ type Image struct {
 
 // Details provides additional image data
 type Details struct {
+	References  []reference.Named
 	Size        int64
 	Metadata    map[string]string
 	Driver      string
