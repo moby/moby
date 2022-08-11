@@ -32,6 +32,10 @@ const (
 type remote struct {
 	config.Config
 
+	// configFile is the location where the generated containerd configuration
+	// file is saved.
+	configFile string
+
 	daemonPid int
 	pidFile   string
 	logger    *logrus.Entry
@@ -64,6 +68,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			Root:    filepath.Join(rootDir, "daemon"),
 			State:   filepath.Join(stateDir, "daemon"),
 		},
+		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),
 		logger:        logrus.WithField("module", "libcontainerd"),
@@ -144,17 +149,16 @@ func (r *remote) getContainerdPid() (int, error) {
 }
 
 func (r *remote) getContainerdConfig() (string, error) {
-	path := filepath.Join(r.stateDir, configFile)
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to open containerd config file at %s", path)
+		return "", errors.Wrapf(err, "failed to open containerd config file (%s)", r.configFile)
 	}
 	defer f.Close()
 
 	if err := toml.NewEncoder(f).Encode(r); err != nil {
-		return "", errors.Wrapf(err, "failed to write containerd config file (%s)", path)
+		return "", errors.Wrapf(err, "failed to write containerd config file (%s)", r.configFile)
 	}
-	return path, nil
+	return r.configFile, nil
 }
 
 func (r *remote) startContainerd() error {
