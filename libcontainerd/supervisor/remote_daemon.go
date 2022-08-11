@@ -13,6 +13,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/services/server/config"
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
@@ -40,6 +41,9 @@ type remote struct {
 	daemonStopCh  chan struct{}
 
 	stateDir string
+
+	// oomScore adjusts the OOM score for the containerd process.
+	oomScore int
 }
 
 // Daemon represents a running containerd daemon
@@ -203,6 +207,10 @@ func (r *remote) startContainerd() error {
 
 	r.daemonPid = cmd.Process.Pid
 
+	if err := r.adjustOOMScore(); err != nil {
+		r.logger.WithError(err).Warn("failed to adjust OOM score")
+	}
+
 	err = os.WriteFile(filepath.Join(r.stateDir, pidFile), []byte(fmt.Sprintf("%d", r.daemonPid)), 0660)
 	if err != nil {
 		system.KillProcess(r.daemonPid)
@@ -211,6 +219,18 @@ func (r *remote) startContainerd() error {
 
 	r.logger.WithField("pid", r.daemonPid).Infof("started new %s process", binaryName)
 
+	return nil
+}
+
+func (r *remote) adjustOOMScore() error {
+	if r.oomScore == 0 || r.daemonPid <= 1 {
+		// no score configured, or daemonPid contains an invalid PID (we don't
+		// expect containerd to be running as PID 1 :)).
+		return nil
+	}
+	if err := sys.SetOOMScore(r.daemonPid, r.oomScore); err != nil {
+		return errors.Wrap(err, "failed to adjust OOM score for containerd process")
+	}
 	return nil
 }
 

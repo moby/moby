@@ -62,6 +62,9 @@ func getDaemonConfDir(_ string) (string, error) {
 
 func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
 	opts := []supervisor.DaemonOpt{
+		// TODO(thaJeztah) change this to use /proc/self/oom_score_adj instead,
+		// which would allow us to set the correct score even if dockerd's score
+		// was set through other means (such as systemd or "manually").
 		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
 	}
 
