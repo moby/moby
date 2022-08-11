@@ -2,7 +2,6 @@ package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -34,6 +33,7 @@ type remote struct {
 	config.Config
 
 	daemonPid int
+	pidFile   string
 	logger    *logrus.Entry
 
 	daemonWaitCh  chan struct{}
@@ -65,6 +65,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 			State:   filepath.Join(stateDir, "daemon"),
 		},
 		daemonPid:     -1,
+		pidFile:       filepath.Join(stateDir, pidFile),
 		logger:        logrus.WithField("module", "libcontainerd"),
 		daemonStartCh: make(chan error, 1),
 		daemonStopCh:  make(chan struct{}),
@@ -114,8 +115,7 @@ func (r *remote) Address() string {
 	return r.GRPC.Address
 }
 func (r *remote) getContainerdPid() (int, error) {
-	pidFile := filepath.Join(r.stateDir, pidFile)
-	f, err := os.OpenFile(pidFile, os.O_RDWR, 0600)
+	f, err := os.OpenFile(r.pidFile, os.O_RDWR, 0600)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return -1, nil
@@ -211,7 +211,7 @@ func (r *remote) startContainerd() error {
 		r.logger.WithError(err).Warn("failed to adjust OOM score")
 	}
 
-	err = os.WriteFile(filepath.Join(r.stateDir, pidFile), []byte(fmt.Sprintf("%d", r.daemonPid)), 0660)
+	err = os.WriteFile(r.pidFile, []byte(strconv.Itoa(r.daemonPid)), 0660)
 	if err != nil {
 		system.KillProcess(r.daemonPid)
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
@@ -250,7 +250,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		}
 
 		// cleanup some files
-		os.Remove(filepath.Join(r.stateDir, pidFile))
+		_ = os.Remove(r.pidFile)
 
 		r.platformCleanup()
 
