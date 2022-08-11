@@ -147,6 +147,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	linkNames := daemon.linkIndex.delete(container)
 	selinux.ReleaseLabel(container.ProcessLabel)
 	daemon.containers.Delete(container.ID)
+	daemon.releaseNetwork(container)
 	daemon.containersReplica.Delete(container)
 	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
 		logrus.Error(err)
