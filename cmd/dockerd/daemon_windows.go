@@ -93,8 +93,8 @@ func newCgroupParent(config *config.Config) string {
 	return ""
 }
 
-func (cli *DaemonCli) initContainerD(_ context.Context) (func(time.Duration) error, error) {
-	system.InitContainerdRuntime(cli.Config.ContainerdAddr)
+func (cli *DaemonCli) initContainerd(_ context.Context) (func(time.Duration) error, error) {
+	system.InitContainerdRuntime(cli.ContainerdAddr)
 	return nil, nil
 }
 

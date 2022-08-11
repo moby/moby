@@ -1,10 +1,14 @@
 package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
-// WithLogLevel defines which log level to starts containerd with.
-// This only makes sense if WithStartDaemon() was set to true.
+// WithLogLevel defines which log level to start containerd with.
 func WithLogLevel(lvl string) DaemonOpt {
 	return func(r *remote) error {
-		r.Debug.Level = lvl
+		if lvl == "info" {
+			// both dockerd and containerd default log-level is "info",
+			// so don't pass the default.
+			lvl = ""
+		}
+		r.logLevel = lvl
 		return nil
 	}
 }
