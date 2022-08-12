@@ -625,14 +625,18 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 			if err != nil {
 				errStatus, ok := status.FromError(err)
 				if !ok || errStatus.Code() != codes.Canceled {
-					c.logger.WithError(err).Error("Failed to get event")
-					c.logger.Info("Waiting for containerd to be ready to restart event processing")
+					c.logger.WithError(err).Error("failed to get event")
+					c.logger.Info("waiting for containerd to be ready to restart event processing")
 					if c.waitServe(ctx) {
 						go c.processEventStream(ctx, ns)
 						return
 					}
 				}
-				c.logger.WithError(ctx.Err()).Info("stopping event stream following graceful shutdown")
+				if err := ctx.Err(); err != nil {
+					c.logger.WithError(err).Info("stopping event stream following graceful shutdown")
+				} else {
+					c.logger.Info("stopping event stream following graceful shutdown")
+				}
 			}
 			return
 		case ev := <-eventStream:
