@@ -1,0 +1,29 @@
+language: go
+sudo: false
+
+go:
+  - 1.10.x
+  - 1.11.x
+  - 1.12.x  
+  - 1.13.x
+  - 1.14.x
+  - 1.15.x
+
+cache:
+  directories:
+    - $HOME/.cache/go-build
+    - $HOME/gopath/pkg/mod
+
+env:
+  global:
+    - GO111MODULE=on
+
+before_install:
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+  - go get golang.org/x/tools/cmd/goimports
+  - go get golang.org/x/lint/golint
+script:
+  - gofiles=$(find ./ -name '*.go') && [ -z "$gofiles" ] || unformatted=$(goimports -l $gofiles) && [ -z "$unformatted" ] || (echo >&2 "Go files must be formatted with gofmt. Following files has problem:\n $unformatted" && false)
+  - golint ./... # This won't break the build, just show warnings
+  - $HOME/gopath/bin/goveralls -service=travis-ci

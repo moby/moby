@@ -350,6 +350,9 @@ github.com/cyphar/filepath-securejoin
 # github.com/deckarep/golang-set v0.0.0-20141123011944-ef32fa3046d9
 ## explicit
 github.com/deckarep/golang-set
+# github.com/dimchansky/utfbom v1.1.1
+## explicit
+github.com/dimchansky/utfbom
 # github.com/docker/distribution v2.8.1+incompatible
 ## explicit
 github.com/docker/distribution
@@ -427,6 +430,9 @@ github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/types
+# github.com/golang-jwt/jwt/v4 v4.4.2
+## explicit; go 1.16
+github.com/golang-jwt/jwt/v4
 # github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
 ## explicit
 github.com/golang/gddo/httputil
@@ -570,6 +576,7 @@ github.com/moby/buildkit/cache/config
 github.com/moby/buildkit/cache/contenthash
 github.com/moby/buildkit/cache/metadata
 github.com/moby/buildkit/cache/remotecache
+github.com/moby/buildkit/cache/remotecache/gha
 github.com/moby/buildkit/cache/remotecache/inline
 github.com/moby/buildkit/cache/remotecache/local
 github.com/moby/buildkit/cache/remotecache/registry
@@ -904,6 +911,9 @@ github.com/tinylib/msgp/msgp
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
+# github.com/tonistiigi/go-actions-cache v0.0.0-20220404170428-0bdeb6e1eac7
+## explicit; go 1.16
+github.com/tonistiigi/go-actions-cache
 # github.com/tonistiigi/go-archvariant v1.0.0
 ## explicit; go 1.17
 github.com/tonistiigi/go-archvariant
