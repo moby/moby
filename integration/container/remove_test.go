@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -72,7 +73,9 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	volumes, err := client.VolumeList(ctx, filters.NewArgs(filters.Arg("name", volName)))
+	volumes, err := client.VolumeList(ctx, volume.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", volName)),
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(0, len(volumes.Volumes)))
 }
