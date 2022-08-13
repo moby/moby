@@ -18,38 +18,38 @@ type imageRouter struct {
 
 // NewRouter initializes a new image router
 func NewRouter(backend Backend, referenceBackend reference.Store, imageStore image.Store, layerStore layer.Store) router.Router {
-	r := &imageRouter{
+	ir := &imageRouter{
 		backend:          backend,
 		referenceBackend: referenceBackend,
 		imageStore:       imageStore,
 		layerStore:       layerStore,
 	}
-	r.initRoutes()
-	return r
+	ir.initRoutes()
+	return ir
 }
 
 // Routes returns the available routes to the image controller
-func (r *imageRouter) Routes() []router.Route {
-	return r.routes
+func (ir *imageRouter) Routes() []router.Route {
+	return ir.routes
 }
 
 // initRoutes initializes the routes in the image router
-func (r *imageRouter) initRoutes() {
-	r.routes = []router.Route{
+func (ir *imageRouter) initRoutes() {
+	ir.routes = []router.Route{
 		// GET
-		router.NewGetRoute("/images/json", r.getImagesJSON),
-		router.NewGetRoute("/images/search", r.getImagesSearch),
-		router.NewGetRoute("/images/get", r.getImagesGet),
-		router.NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
-		router.NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
-		router.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
+		router.NewGetRoute("/images/json", ir.getImagesJSON),
+		router.NewGetRoute("/images/search", ir.getImagesSearch),
+		router.NewGetRoute("/images/get", ir.getImagesGet),
+		router.NewGetRoute("/images/{name:.*}/get", ir.getImagesGet),
+		router.NewGetRoute("/images/{name:.*}/history", ir.getImagesHistory),
+		router.NewGetRoute("/images/{name:.*}/json", ir.getImagesByName),
 		// POST
-		router.NewPostRoute("/images/load", r.postImagesLoad),
-		router.NewPostRoute("/images/create", r.postImagesCreate),
-		router.NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
-		router.NewPostRoute("/images/{name:.*}/tag", r.postImagesTag),
-		router.NewPostRoute("/images/prune", r.postImagesPrune),
+		router.NewPostRoute("/images/load", ir.postImagesLoad),
+		router.NewPostRoute("/images/create", ir.postImagesCreate),
+		router.NewPostRoute("/images/{name:.*}/push", ir.postImagesPush),
+		router.NewPostRoute("/images/{name:.*}/tag", ir.postImagesTag),
+		router.NewPostRoute("/images/prune", ir.postImagesPrune),
 		// DELETE
-		router.NewDeleteRoute("/images/{name:.*}", r.deleteImages),
+		router.NewDeleteRoute("/images/{name:.*}", ir.deleteImages),
 	}
 }
