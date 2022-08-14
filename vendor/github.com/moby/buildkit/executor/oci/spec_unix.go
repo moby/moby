@@ -77,7 +77,7 @@ func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
 		return nil, nil
 	}
 	return []oci.SpecOpts{
-		oci.WithUserNamespace(specMapping(idmap.UIDs()), specMapping(idmap.GIDs())),
+		oci.WithUserNamespace(specMapping(idmap.UIDMaps), specMapping(idmap.GIDMaps)),
 	}, nil
 }
 
