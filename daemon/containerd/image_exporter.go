@@ -41,7 +41,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	platform := platforms.DefaultStrict()
+	platform := platforms.All
 	imgs, err := i.client.Import(ctx, inTar, containerd.WithImportPlatform(platform))
 
 	if err != nil {

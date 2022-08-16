@@ -42,6 +42,12 @@ func (s *DockerCLIInspectSuite) TestInspectImage(c *testing.T) {
 	// fails, fix the difference in the image serialization instead of
 	// updating this hash.
 	imageTestID := "sha256:11f64303f0f7ffdc71f001788132bca5346831939a956e3e975c93267d89a16d"
+	usesContainerdSnapshotter := false // TODO(vvoland): Check for feature flag
+	if usesContainerdSnapshotter {
+		// Under containerd ID of the image is the digest of the manifest list.
+		imageTestID = "sha256:e43ca824363c5c56016f6ede3a9035afe0e9bd43333215e0b0bde6193969725d"
+	}
+
 	id := inspectField(c, imageTest, "Id")
 
 	assert.Equal(c, id, imageTestID)
