@@ -2,11 +2,13 @@ package containerd
 
 import (
 	"context"
+	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 )
@@ -166,11 +168,38 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, err
 	}
 
+	err = imageFilters.WalkValues("until", func(value string) error {
+		ts, err := timetypes.GetTimestamp(value, time.Now())
+		if err != nil {
+			return err
+		}
+		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		if err != nil {
+			return err
+		}
+		until := time.Unix(seconds, nanoseconds)
+
+		fltrs = append(fltrs, func(image containerd.Image) bool {
+			created := image.Metadata().CreatedAt
+			return created.Before(until)
+		})
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	if imageFilters.Contains("label") {
 		fltrs = append(fltrs, func(image containerd.Image) bool {
 			return imageFilters.MatchKVList("label", image.Labels())
 		})
 	}
+	if imageFilters.Contains("label!") {
+		fltrs = append(fltrs, func(image containerd.Image) bool {
+			return !imageFilters.MatchKVList("label!", image.Labels())
+		})
+	}
+
 	return func(image containerd.Image) bool {
 		for _, filter := range fltrs {
 			if !filter(image) {

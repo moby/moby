@@ -3,53 +3,138 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/leases"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/opencontainers/go-digest"
+	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
+var imagesAcceptedFilters = map[string]bool{
+	"dangling": true,
+	"label":    true,
+	"label!":   true,
+	"until":    true,
+}
+
+// errPruneRunning is returned when a prune request is received while
+// one is in progress
+var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
+
 // ImagesPrune removes unused images
-// TODO: handle pruneFilters
 func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&i.pruneRunning, 0, 1) {
+		return nil, errPruneRunning
+	}
+	defer atomic.StoreInt32(&i.pruneRunning, 0)
+
+	err := pruneFilters.Validate(imagesAcceptedFilters)
+	if err != nil {
+		return nil, err
+	}
+
+	danglingOnly := true
+	if pruneFilters.Contains("dangling") {
+		if pruneFilters.ExactMatch("dangling", "false") || pruneFilters.ExactMatch("dangling", "0") {
+			danglingOnly = false
+		} else if !pruneFilters.ExactMatch("dangling", "true") && !pruneFilters.ExactMatch("dangling", "1") {
+			return nil, fmt.Errorf("invalid dangling filter value: %q", pruneFilters.Get("dangling"))
+		}
+	}
+
+	filterFunc, err := i.setupFilters(ctx, pruneFilters)
+	if err != nil {
+		return nil, err
+	}
+
+	if !danglingOnly {
+		r, errs := i.pruneUnused(ctx, filterFunc)
+		if len(errs) > 0 {
+			return &r, combineErrors(errs)
+		}
+
+		return &r, nil
+	} else {
+		// In containerd dangling content is automatically deleted by the GC.
+		// So running prune with dangling=true is mostly a no-op, unless there
+		// was some action performed which didn't invoke the GC immediately.
+		report := types.ImagesPruneReport{}
+		// Trigger GC.
+		ls := i.client.LeasesService()
+		lease, err := ls.Create(ctx)
+		if err != nil {
+			return &report, err
+		}
+		err = ls.Delete(ctx, lease, leases.SynchronousDelete)
+		return &report, err
+	}
+}
+
+func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc) (types.ImagesPruneReport, []error) {
+	report := types.ImagesPruneReport{}
 	is := i.client.ImageService()
 	store := i.client.ContentStore()
 
-	images, err := is.List(ctx)
+	allImages, err := i.client.ListImages(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list images")
+		return report, []error{err}
 	}
 
-	platform := platforms.DefaultStrict()
-	report := types.ImagesPruneReport{}
-	toDelete := map[digest.Digest]uint64{}
+	imagesToPrune := map[string]containerd.Image{}
+	for _, img := range allImages {
+		imagesToPrune[img.Name()] = img
+	}
+
 	errs := []error{}
 
-	for _, img := range images {
-		err := getContentDigestsWithSizes(ctx, img, store, platform, toDelete)
+	// Apply filters
+	for name, img := range imagesToPrune {
+		filteredOut := !filterFunc(img)
+		logrus.WithField("image", name).WithField("filteredOut", filteredOut).Debug("filtering image")
+		if filteredOut {
+			delete(imagesToPrune, name)
+		}
+	}
+
+	cs := i.client.ContainerService()
+	containers, err := cs.List(ctx)
+	if err != nil {
+		return report, []error{err}
+	}
+
+	// Exclude images that are used by existing containers from prune
+	for _, container := range containers {
+		logrus.WithField("container", container.ID).WithField("image", container.Image).Debug("filtering container's image")
+		if container.Image != "" {
+			delete(imagesToPrune, container.Image)
+		}
+	}
+
+	logrus.WithField("images", imagesToPrune).Debug("pruning")
+
+	for _, img := range imagesToPrune {
+		blobs := []ocispec.Descriptor{}
+
+		err = containerdimages.Walk(ctx, containerdimages.Handlers(
+			i.presentChildrenHandler(),
+			containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
+				blobs = append(blobs, desc)
+				return nil, nil
+			}),
+		), img.Target())
+
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
-	}
-
-	for digest, size := range toDelete {
-		report.SpaceReclaimed += size
-		report.ImagesDeleted = append(report.ImagesDeleted,
-			types.ImageDeleteResponseItem{
-				Deleted: digest.String(),
-			},
-		)
-	}
-
-	for _, img := range images {
-		err = is.Delete(ctx, img.Name, containerdimages.SynchronousDelete())
+		err = is.Delete(ctx, img.Name(), containerdimages.SynchronousDelete())
 		if err != nil && !cerrdefs.IsNotFound(err) {
 			errs = append(errs, err)
 			continue
@@ -57,26 +142,25 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 
 		report.ImagesDeleted = append(report.ImagesDeleted,
 			types.ImageDeleteResponseItem{
-				Untagged: img.Name,
+				Untagged: img.Name(),
 			},
 		)
-	}
 
-	if len(errs) > 0 {
-		return &report, combineErrors(errs)
-	}
+		// Check which blobs have been deleted and sum their sizes
+		for _, blob := range blobs {
+			_, err := store.ReaderAt(ctx, blob)
 
-	return &report, nil
-}
-
-func getContentDigestsWithSizes(ctx context.Context, img containerdimages.Image, store content.Store, platform platforms.MatchComparer, toDelete map[digest.Digest]uint64) error {
-	return containerdimages.Walk(ctx, containerdimages.Handlers(containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		if desc.Size < 0 {
-			return nil, fmt.Errorf("invalid size %v in %v (%v)", desc.Size, desc.Digest, desc.MediaType)
+			if cerrdefs.IsNotFound(err) {
+				report.ImagesDeleted = append(report.ImagesDeleted,
+					types.ImageDeleteResponseItem{
+						Deleted: blob.Digest.String(),
+					},
+				)
+				report.SpaceReclaimed += uint64(blob.Size)
+			}
 		}
-		toDelete[desc.Digest] = uint64(desc.Size)
-		return nil, nil
-	}), containerdimages.LimitManifests(containerdimages.FilterPlatforms(containerdimages.ChildrenHandler(store), platform), platform, 1)), img.Target)
+	}
+	return report, errs
 }
 
 func combineErrors(errs []error) error {

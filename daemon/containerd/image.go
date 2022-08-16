@@ -270,3 +270,20 @@ func (i *ImageService) resolveImageName(ctx context.Context, refOrID string) (oc
 
 	return img.Target, namedRef, nil
 }
+
+// PresentChildrenHandler traverses recursively all children descriptors that are present in the store.
+func (i *ImageService) presentChildrenHandler() containerdimages.HandlerFunc {
+	store := i.client.ContentStore()
+
+	return func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
+		_, err = store.ReaderAt(ctx, desc)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil, nil
+			}
+			return nil, err
+		}
+
+		return containerdimages.Children(ctx, store, desc)
+	}
+}
