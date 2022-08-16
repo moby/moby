@@ -1,11 +1,8 @@
 package portallocator
 
 import (
-	"fmt"
 	"net"
 	"testing"
-
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func resetPortAllocator() {
@@ -322,49 +319,5 @@ func TestNoDuplicateBPR(t *testing.T) {
 		t.Fatal(err)
 	} else if port == p.Begin {
 		t.Fatalf("Acquire(0) allocated the same port twice: %d", port)
-	}
-}
-
-func TestChangePortRange(t *testing.T) {
-	var tests = []struct {
-		begin  int
-		end    int
-		setErr error
-		reqRlt int
-	}{
-		{defaultPortRangeEnd + 1, defaultPortRangeEnd + 10, fmt.Errorf("begin out of range"), 0},
-		{defaultPortRangeStart - 10, defaultPortRangeStart - 1, fmt.Errorf("end out of range"), 0},
-		{defaultPortRangeEnd, defaultPortRangeStart, fmt.Errorf("out of order"), 0},
-		{defaultPortRangeStart + 100, defaultPortRangeEnd + 10, nil, defaultPortRangeStart + 100},
-		{0, 0, nil, defaultPortRangeStart}, // revert to default if no value given
-		{defaultPortRangeStart - 100, defaultPortRangeEnd, nil, defaultPortRangeStart + 1},
-	}
-	p := Get()
-	port := 0
-	for _, c := range tests {
-		t.Logf("test: port allocate range %v-%v, setErr=%v, reqPort=%v",
-			c.begin, c.end, c.setErr, c.reqRlt)
-		err := p.SetPortRange(c.begin, c.end)
-		if (c.setErr == nil && c.setErr != err) ||
-			(c.setErr != nil && err == nil) {
-			t.Fatalf("Unexpected set range result, expected=%v, actual=%v", c.setErr, err)
-		}
-		if err != nil {
-			continue
-		}
-		if port > 0 {
-			err := p.ReleasePort(defaultIP, "tcp", port)
-			if err != nil {
-				t.Fatalf("Releasing port %v failed, err=%v", port, err)
-			}
-		}
-
-		port, err = p.RequestPort(defaultIP, "tcp", 0)
-		if err != nil {
-			t.Fatalf("Request failed, err %v", err)
-		}
-		if port != c.reqRlt {
-			t.Fatalf("Incorrect port returned, expected=%v, actual=%v", c.reqRlt, port)
-		}
 	}
 }

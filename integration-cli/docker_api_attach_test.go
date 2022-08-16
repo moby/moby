@@ -22,9 +22,8 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestGetContainersAttachWebsocket(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
+func (s *DockerAPISuite) TestGetContainersAttachWebsocket(c *testing.T) {
+	out, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
 
 	rwc, err := request.SockConn(10*time.Second, request.DaemonHost())
 	assert.NilError(c, err)
@@ -75,7 +74,7 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *testing.T) {
 }
 
 // regression gh14320
-func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
+func (s *DockerAPISuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
 	resp, _, err := request.Post("/containers/doesnotexist/attach")
 	assert.NilError(c, err)
 	// connection will shutdown, err should be "persistent connection closed"
@@ -86,7 +85,7 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
 	assert.Equal(c, string(content), expected)
 }
 
-func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
+func (s *DockerAPISuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
 	res, body, err := request.Get("/containers/doesnotexist/attach/ws")
 	assert.Equal(c, res.StatusCode, http.StatusNotFound)
 	assert.NilError(c, err)
@@ -96,7 +95,7 @@ func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
 	assert.Assert(c, strings.Contains(getErrorMessage(c, b), expected))
 }
 
-func (s *DockerSuite) TestPostContainersAttach(c *testing.T) {
+func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	expectSuccess := func(wc io.WriteCloser, br *bufio.Reader, stream string, tty bool) {
@@ -193,6 +192,9 @@ func (s *DockerSuite) TestPostContainersAttach(c *testing.T) {
 
 	resp, err := client.ContainerAttach(context.Background(), cid, attachOpts)
 	assert.NilError(c, err)
+	mediaType, b := resp.MediaType()
+	assert.Check(c, b)
+	assert.Equal(c, mediaType, types.MediaTypeMultiplexedStream)
 	expectSuccess(resp.Conn, resp.Reader, "stdout", false)
 
 	// Make sure we do see "hello" if Logs is true

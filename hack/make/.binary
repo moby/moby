@@ -8,32 +8,10 @@ binary_extension() {
 	fi
 }
 
-BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
 source "${MAKEDIR}/.go-autogen"
-
-hash_files() {
-	while [ $# -gt 0 ]; do
-		f="$1"
-		shift
-		dir="$(dirname "$f")"
-		base="$(basename "$f")"
-		for hashAlgo in md5 sha256; do
-			if command -v "${hashAlgo}sum" &> /dev/null; then
-				(
-					# subshell and cd so that we get output files like:
-					#   $HASH docker-$VERSION
-					# instead of:
-					#   $HASH /go/src/github.com/.../$VERSION/binary/docker-$VERSION
-					cd "$dir"
-					"${hashAlgo}sum" "$base" > "$base.$hashAlgo"
-				)
-			fi
-		done
-	done
-}
 
 (
 	export GOGC=${DOCKER_BUILD_GOGC:-1000}
@@ -47,11 +25,25 @@ hash_files() {
 				;;
 			linux/arm)
 				case "${GOARM}" in
-					5 | "")
+					5)
 						export CC="${CC:-arm-linux-gnueabi-gcc}"
 						export CGO_ENABLED=1
+						export CGO_CFLAGS="-march=armv5t"
+						export CGO_CXXFLAGS="-march=armv5t"
+						;;
+					6)
+						export CC="${CC:-arm-linux-gnueabi-gcc}"
+						export CGO_ENABLED=1
+						export CGO_CFLAGS="-march=armv6"
+						export CGO_CXXFLAGS="-march=armv6"
 						;;
 					7)
+						export CC="${CC:-arm-linux-gnueabihf-gcc}"
+						export CGO_ENABLED=1
+						export CGO_CFLAGS="-march=armv7-a"
+						export CGO_CXXFLAGS="-march=armv7-a"
+						;;
+					*)
 						export CC="${CC:-arm-linux-gnueabihf-gcc}"
 						export CGO_ENABLED=1
 						;;
@@ -102,6 +94,3 @@ hash_files() {
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
-ln -sf "$BINARY_FULLNAME" "$DEST/$BINARY_SHORT_NAME$BINARY_EXTENSION"
-
-hash_files "$DEST/$BINARY_FULLNAME"

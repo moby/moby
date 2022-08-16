@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -45,13 +45,13 @@ const (
 // are divided into two categories grouped by their severity:
 //
 // Hard Conflict:
-// 	- a pull or build using the image.
-// 	- any descendant image.
-// 	- any running container using the image.
+//   - a pull or build using the image.
+//   - any descendant image.
+//   - any running container using the image.
 //
 // Soft Conflict:
-// 	- any stopped container using the image.
-// 	- any repository tag or digest references to the image.
+//   - any stopped container using the image.
+//   - any repository tag or digest references to the image.
 //
 // The image cannot be removed if there are any hard conflicts and can be
 // removed if there are soft conflicts only if force is true.
@@ -59,17 +59,13 @@ const (
 // If prune is true, ancestor images will each attempt to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-//
-func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
 	img, err := i.GetImage(imageRef, nil)
 	if err != nil {
 		return nil, err
-	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, errors.Errorf("unable to delete image: %q", system.ErrNotSupportedOperatingSystem)
 	}
 
 	imgID := img.ID()
@@ -86,12 +82,12 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 		// true, there are multiple repository references to this
 		// image, or there are no containers using the given reference.
 		if !force && isSingleReference(repoRefs) {
-			if container := i.containers.First(using); container != nil {
+			if ctr := i.containers.First(using); ctr != nil {
 				// If we removed the repository reference then
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
+				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(ctr.ID), stringid.TruncateID(imgID.String()))
 				return nil, errdefs.Conflict(err)
 			}
 		}
@@ -371,12 +367,12 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 		running := func(c *container.Container) bool {
 			return c.ImageID == imgID && c.IsRunning()
 		}
-		if container := i.containers.First(running); container != nil {
+		if ctr := i.containers.First(running); ctr != nil {
 			return &imageDeleteConflict{
 				imgID:   imgID,
 				hard:    true,
 				used:    true,
-				message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
+				message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(ctr.ID)),
 			}
 		}
 	}
@@ -394,11 +390,11 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 		stopped := func(c *container.Container) bool {
 			return !c.IsRunning() && c.ImageID == imgID
 		}
-		if container := i.containers.First(stopped); container != nil {
+		if ctr := i.containers.First(stopped); ctr != nil {
 			return &imageDeleteConflict{
 				imgID:   imgID,
 				used:    true,
-				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
+				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(ctr.ID)),
 			}
 		}
 	}

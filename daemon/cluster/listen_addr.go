@@ -20,7 +20,7 @@ const (
 func resolveListenAddr(specifiedAddr string) (string, string, error) {
 	specifiedHost, specifiedPort, err := net.SplitHostPort(specifiedAddr)
 	if err != nil {
-		return "", "", fmt.Errorf("could not parse listen address %s", specifiedAddr)
+		return "", "", configError("could not parse listen address " + specifiedAddr)
 	}
 	// Does the host component match any of the interface names on the
 	// system? If so, use the address from that interface.
@@ -205,9 +205,9 @@ func resolveInterfaceAddr(specifiedInterface string) (net.IP, error) {
 }
 
 // resolveInputIPAddr tries to resolve the IP address from the string passed as input
-// - tries to match the string as an interface name, if so returns the IP address associated with it
-// - on failure of previous step tries to parse the string as an IP address itself
-//	 if succeeds returns the IP address
+//   - tries to match the string as an interface name, if so returns the IP address associated with it
+//   - on failure of previous step tries to parse the string as an IP address itself
+//     if succeeds returns the IP address
 func resolveInputIPAddr(input string, isUnspecifiedValid bool) (net.IP, error) {
 	// Try to see if it is an interface name
 	interfaceAddr, err := resolveInterfaceAddr(input)

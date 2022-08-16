@@ -1,10 +1,11 @@
+//go:build linux
 // +build linux
 
 package bridge
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -31,7 +32,7 @@ func TestSetupIPForwarding(t *testing.T) {
 }
 
 func readCurrentIPForwardingSetting(t *testing.T) []byte {
-	procSetting, err := ioutil.ReadFile(ipv4ForwardConf)
+	procSetting, err := os.ReadFile(ipv4ForwardConf)
 	if err != nil {
 		t.Fatalf("Can't execute test: Failed to read current IP forwarding setting: %v", err)
 	}
@@ -39,7 +40,7 @@ func readCurrentIPForwardingSetting(t *testing.T) []byte {
 }
 
 func writeIPForwardingSetting(t *testing.T, chars []byte) {
-	err := ioutil.WriteFile(ipv4ForwardConf, chars, ipv4ForwardConfPerm)
+	err := os.WriteFile(ipv4ForwardConf, chars, ipv4ForwardConfPerm)
 	if err != nil {
 		t.Fatalf("Can't execute or cleanup after test: Failed to reset IP forwarding: %v", err)
 	}

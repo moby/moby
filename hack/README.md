@@ -51,5 +51,4 @@ refer to
 
 ## Vendor (vendor.sh)
 
-A shell script that is a wrapper around Vndr. For information on how to use
-this, please refer to [vndr's README](https://github.com/LK4D4/vndr/blob/master/README.md)
+A shell script that is a wrapper around `go mod vendor`.

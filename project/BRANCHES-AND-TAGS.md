@@ -2,7 +2,7 @@ Branches and tags
 =================
 
 Note: details of the release process for the Engine are documented in the
-[RELEASE-CHECKLIST](https://github.com/docker/docker/blob/master/project/RELEASE-CHECKLIST.md).
+[PATCH-RELEASES.md](https://github.com/moby/moby/blob/master/project/PATCH-RELEASES.md).
 
 # Branches
 

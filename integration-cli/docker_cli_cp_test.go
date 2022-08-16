@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -26,15 +26,27 @@ const (
 	cpHostContents      = "hello, i am the host"
 )
 
+type DockerCLICpSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLICpSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLICpSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
 // Ensure that an all-local path case returns an error.
-func (s *DockerSuite) TestCpLocalOnly(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpLocalOnly(c *testing.T) {
 	err := runDockerCp(c, "foo", "bar")
 	assert.ErrorContains(c, err, "must specify at least one container source")
 }
 
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
-func (s *DockerSuite) TestCpGarbagePath(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpGarbagePath(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -50,7 +62,7 @@ func (s *DockerSuite) TestCpGarbagePath(c *testing.T) {
 
 	fmt.Fprintf(hostFile, "%s", cpHostContents)
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 
 	tmpname := filepath.Join(tmpdir, cpTestName)
@@ -63,14 +75,14 @@ func (s *DockerSuite) TestCpGarbagePath(c *testing.T) {
 	file, _ := os.Open(tmpname)
 	defer file.Close()
 
-	test, err := ioutil.ReadAll(file)
+	test, err := io.ReadAll(file)
 	assert.NilError(c, err)
 	assert.Assert(c, string(test) != cpHostContents, "output matched host file -- garbage path can escape container rootfs")
 	assert.Assert(c, string(test) == cpContainerContents, "output doesn't match the input for garbage path")
 }
 
 // Check that relative paths are relative to the container's rootfs
-func (s *DockerSuite) TestCpRelativePath(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpRelativePath(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -86,7 +98,7 @@ func (s *DockerSuite) TestCpRelativePath(c *testing.T) {
 
 	fmt.Fprintf(hostFile, "%s", cpHostContents)
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 
 	tmpname := filepath.Join(tmpdir, cpTestName)
@@ -105,14 +117,14 @@ func (s *DockerSuite) TestCpRelativePath(c *testing.T) {
 	file, _ := os.Open(tmpname)
 	defer file.Close()
 
-	test, err := ioutil.ReadAll(file)
+	test, err := io.ReadAll(file)
 	assert.NilError(c, err)
 	assert.Assert(c, string(test) != cpHostContents, "output matched host file -- relative path can escape container rootfs")
 	assert.Assert(c, string(test) == cpContainerContents, "output doesn't match the input for relative path")
 }
 
 // Check that absolute paths are relative to the container's rootfs
-func (s *DockerSuite) TestCpAbsolutePath(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpAbsolutePath(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -128,7 +140,7 @@ func (s *DockerSuite) TestCpAbsolutePath(c *testing.T) {
 
 	fmt.Fprintf(hostFile, "%s", cpHostContents)
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 
 	tmpname := filepath.Join(tmpdir, cpTestName)
@@ -141,7 +153,7 @@ func (s *DockerSuite) TestCpAbsolutePath(c *testing.T) {
 	file, _ := os.Open(tmpname)
 	defer file.Close()
 
-	test, err := ioutil.ReadAll(file)
+	test, err := io.ReadAll(file)
 	assert.NilError(c, err)
 	assert.Assert(c, string(test) != cpHostContents, "output matched host file -- absolute path can escape container rootfs")
 	assert.Assert(c, string(test) == cpContainerContents, "output doesn't match the input for absolute path")
@@ -149,7 +161,7 @@ func (s *DockerSuite) TestCpAbsolutePath(c *testing.T) {
 
 // Test for #5619
 // Check that absolute symlinks are still relative to the container's rootfs
-func (s *DockerSuite) TestCpAbsoluteSymlink(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpAbsoluteSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
 
@@ -167,7 +179,7 @@ func (s *DockerSuite) TestCpAbsoluteSymlink(c *testing.T) {
 
 	fmt.Fprintf(hostFile, "%s", cpHostContents)
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 
 	tmpname := filepath.Join(tmpdir, "container_path")
@@ -185,7 +197,7 @@ func (s *DockerSuite) TestCpAbsoluteSymlink(c *testing.T) {
 
 // Check that symlinks to a directory behave as expected when copying one from
 // a container.
-func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPathParent+" /dir_link")
 
@@ -194,7 +206,7 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
 	out, _ = dockerCmd(c, "wait", containerID)
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
-	testDir, err := ioutil.TempDir("", "test-cp-from-symlink-to-dir-")
+	testDir, err := os.MkdirTemp("", "test-cp-from-symlink-to-dir-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(testDir)
 
@@ -231,11 +243,11 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
 
 // Check that symlinks to a directory behave as expected when copying one to a
 // container.
-func (s *DockerSuite) TestCpToSymlinkToDirectory(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon) // Requires local volume mount bind.
 
-	testVol, err := ioutil.TempDir("", "test-cp-to-symlink-to-dir-")
+	testVol, err := os.MkdirTemp("", "test-cp-to-symlink-to-dir-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(testVol)
 
@@ -246,7 +258,7 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	containerID := strings.TrimSpace(out)
 
 	// Create a temp directory to hold a test file nested in a directory.
-	testDir, err := ioutil.TempDir("", "test-cp-to-symlink-to-dir-")
+	testDir, err := os.MkdirTemp("", "test-cp-to-symlink-to-dir-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(testDir)
 
@@ -254,11 +266,11 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	// the test volume later.
 	hostTestFilename := filepath.Join(testDir, cpFullPath)
 	assert.NilError(c, os.MkdirAll(filepath.Dir(hostTestFilename), os.FileMode(0700)))
-	assert.NilError(c, ioutil.WriteFile(hostTestFilename, []byte(cpHostContents), os.FileMode(0600)))
+	assert.NilError(c, os.WriteFile(hostTestFilename, []byte(cpHostContents), os.FileMode(0600)))
 
 	// Now create another temp directory to hold a symlink to the
 	// "/testDir/some" directory.
-	linkDir, err := ioutil.TempDir("", "test-cp-to-symlink-to-dir-")
+	linkDir, err := os.MkdirTemp("", "test-cp-to-symlink-to-dir-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(linkDir)
 
@@ -301,14 +313,14 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	// And this directory should contain the file copied from the host at the
 	// expected location: "/testVol/dir_link/path/test"
 	expectedFilepath := filepath.Join(testVol, "dir_link/path/test")
-	fileContents, err := ioutil.ReadFile(expectedFilepath)
+	fileContents, err := os.ReadFile(expectedFilepath)
 	assert.NilError(c, err)
 	assert.Equal(c, string(fileContents), cpHostContents)
 }
 
 // Test for #5619
 // Check that symlinks which are part of the resource path are still relative to the container's rootfs
-func (s *DockerSuite) TestCpSymlinkComponent(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpSymlinkComponent(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
 
@@ -326,7 +338,7 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *testing.T) {
 
 	fmt.Fprintf(hostFile, "%s", cpHostContents)
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 
 	assert.NilError(c, err)
 
@@ -340,14 +352,14 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *testing.T) {
 	file, _ := os.Open(tmpname)
 	defer file.Close()
 
-	test, err := ioutil.ReadAll(file)
+	test, err := io.ReadAll(file)
 	assert.NilError(c, err)
 	assert.Assert(c, string(test) != cpHostContents, "output matched host file -- symlink path component can escape container rootfs")
 	assert.Equal(c, string(test), cpContainerContents, "output doesn't match the input for symlink path component")
 }
 
 // Check that cp with unprivileged user doesn't return any error
-func (s *DockerSuite) TestCpUnprivilegedUser(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpUnprivilegedUser(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	testRequires(c, UnixCli) // uses chmod/su: not available on windows
 
@@ -358,7 +370,7 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *testing.T) {
 	out, _ = dockerCmd(c, "wait", containerID)
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 
 	defer os.RemoveAll(tmpdir)
@@ -371,11 +383,11 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *testing.T) {
 	result.Assert(c, icmd.Expected{})
 }
 
-func (s *DockerSuite) TestCpSpecialFiles(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpSpecialFiles(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon)
 
-	outDir, err := ioutil.TempDir("", "cp-test-special-files")
+	outDir, err := os.MkdirTemp("", "cp-test-special-files")
 	assert.NilError(c, err)
 	defer os.RemoveAll(outDir)
 
@@ -390,7 +402,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *testing.T) {
 	dockerCmd(c, "cp", containerID+":/etc/resolv.conf", outDir)
 
 	expected := readContainerFile(c, containerID, "resolv.conf")
-	actual, err := ioutil.ReadFile(outDir + "/resolv.conf")
+	actual, err := os.ReadFile(outDir + "/resolv.conf")
 	assert.NilError(c, err)
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container resolvconf")
 
@@ -398,7 +410,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *testing.T) {
 	dockerCmd(c, "cp", containerID+":/etc/hosts", outDir)
 
 	expected = readContainerFile(c, containerID, "hosts")
-	actual, err = ioutil.ReadFile(outDir + "/hosts")
+	actual, err = os.ReadFile(outDir + "/hosts")
 	assert.NilError(c, err)
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container hosts")
 
@@ -406,21 +418,21 @@ func (s *DockerSuite) TestCpSpecialFiles(c *testing.T) {
 	dockerCmd(c, "cp", containerID+":/etc/hostname", outDir)
 
 	expected = readContainerFile(c, containerID, "hostname")
-	actual, err = ioutil.ReadFile(outDir + "/hostname")
+	actual, err = os.ReadFile(outDir + "/hostname")
 	assert.NilError(c, err)
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container hostname")
 }
 
-func (s *DockerSuite) TestCpVolumePath(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpVolumePath(c *testing.T) {
 	//  stat /tmp/cp-test-volumepath851508420/test gets permission denied for the user
 	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, testEnv.IsLocalDaemon)
 
-	tmpDir, err := ioutil.TempDir("", "cp-test-volumepath")
+	tmpDir, err := os.MkdirTemp("", "cp-test-volumepath")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
-	outDir, err := ioutil.TempDir("", "cp-test-volumepath-out")
+	outDir, err := os.MkdirTemp("", "cp-test-volumepath-out")
 	assert.NilError(c, err)
 	defer os.RemoveAll(outDir)
 	_, err = os.Create(tmpDir + "/test")
@@ -459,22 +471,22 @@ func (s *DockerSuite) TestCpVolumePath(c *testing.T) {
 
 	// Copy file nested in bind-mounted dir
 	dockerCmd(c, "cp", containerID+":/baz/test", outDir)
-	fb, err := ioutil.ReadFile(outDir + "/baz/test")
+	fb, err := os.ReadFile(outDir + "/baz/test")
 	assert.NilError(c, err)
-	fb2, err := ioutil.ReadFile(tmpDir + "/test")
+	fb2, err := os.ReadFile(tmpDir + "/test")
 	assert.NilError(c, err)
 	assert.Assert(c, bytes.Equal(fb, fb2), "Expected copied file to be duplicate of bind-mounted file")
 
 	// Copy bind-mounted file
 	dockerCmd(c, "cp", containerID+":/test", outDir)
-	fb, err = ioutil.ReadFile(outDir + "/test")
+	fb, err = os.ReadFile(outDir + "/test")
 	assert.NilError(c, err)
-	fb2, err = ioutil.ReadFile(tmpDir + "/test")
+	fb2, err = os.ReadFile(tmpDir + "/test")
 	assert.NilError(c, err)
 	assert.Assert(c, bytes.Equal(fb, fb2), "Expected copied file to be duplicate of bind-mounted file")
 }
 
-func (s *DockerSuite) TestCpToDot(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpToDot(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)
@@ -482,7 +494,7 @@ func (s *DockerSuite) TestCpToDot(c *testing.T) {
 	out, _ = dockerCmd(c, "wait", containerID)
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpdir)
 	cwd, err := os.Getwd()
@@ -492,12 +504,12 @@ func (s *DockerSuite) TestCpToDot(c *testing.T) {
 	assert.NilError(c, err)
 
 	dockerCmd(c, "cp", containerID+":/test", ".")
-	content, err := ioutil.ReadFile("./test")
+	content, err := os.ReadFile("./test")
 	assert.NilError(c, err)
 	assert.Equal(c, string(content), "lololol\n")
 }
 
-func (s *DockerSuite) TestCpToStdout(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpToStdout(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)
@@ -514,7 +526,7 @@ func (s *DockerSuite) TestCpToStdout(c *testing.T) {
 	assert.Check(c, is.Contains(out, "-rw"))
 }
 
-func (s *DockerSuite) TestCpNameHasColon(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpNameHasColon(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
@@ -524,16 +536,16 @@ func (s *DockerSuite) TestCpNameHasColon(c *testing.T) {
 	out, _ = dockerCmd(c, "wait", containerID)
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
-	tmpdir, err := ioutil.TempDir("", "docker-integration")
+	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpdir)
 	dockerCmd(c, "cp", containerID+":/te:s:t", tmpdir)
-	content, err := ioutil.ReadFile(tmpdir + "/te:s:t")
+	content, err := os.ReadFile(tmpdir + "/te:s:t")
 	assert.NilError(c, err)
 	assert.Equal(c, string(content), "lololol\n")
 }
 
-func (s *DockerSuite) TestCopyAndRestart(c *testing.T) {
+func (s *DockerCLICpSuite) TestCopyAndRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	expectedMsg := "hello"
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", expectedMsg)
@@ -542,7 +554,7 @@ func (s *DockerSuite) TestCopyAndRestart(c *testing.T) {
 	out, _ = dockerCmd(c, "wait", containerID)
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
-	tmpDir, err := ioutil.TempDir("", "test-docker-restart-after-copy-")
+	tmpDir, err := os.MkdirTemp("", "test-docker-restart-after-copy-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
@@ -552,11 +564,11 @@ func (s *DockerSuite) TestCopyAndRestart(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), expectedMsg)
 }
 
-func (s *DockerSuite) TestCopyCreatedContainer(c *testing.T) {
+func (s *DockerCLICpSuite) TestCopyCreatedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name", "test_cp", "-v", "/test", "busybox")
 
-	tmpDir, err := ioutil.TempDir("", "test")
+	tmpDir, err := os.MkdirTemp("", "test")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 	dockerCmd(c, "cp", "test_cp:/bin/sh", tmpDir)
@@ -565,7 +577,7 @@ func (s *DockerSuite) TestCopyCreatedContainer(c *testing.T) {
 // test copy with option `-L`: following symbol link
 // Check that symlinks to a file behave as expected when copying one from
 // a container to host following symbol link
-func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T) {
+func (s *DockerCLICpSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" /dir_link")
 	assert.Equal(c, exitCode, 0, "failed to set up container: %s", out)
@@ -575,7 +587,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T) {
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
-	testDir, err := ioutil.TempDir("", "test-cp-symlink-container-to-host-follow-symlink")
+	testDir, err := os.MkdirTemp("", "test-cp-symlink-container-to-host-follow-symlink")
 	assert.NilError(c, err)
 	defer os.RemoveAll(testDir)
 
@@ -586,7 +598,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T) {
 	expectedPath := filepath.Join(testDir, "dir_link")
 
 	expected := []byte(cpContainerContents)
-	actual, err := ioutil.ReadFile(expectedPath)
+	actual, err := os.ReadFile(expectedPath)
 	assert.NilError(c, err)
 	os.Remove(expectedPath)
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container symbol link target")
@@ -600,7 +612,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T) {
 
 	dockerCmd(c, "cp", "-L", cleanedContainerID+":"+"/dir_link", expectedPath)
 
-	actual, err = ioutil.ReadFile(expectedPath)
+	actual, err = os.ReadFile(expectedPath)
 	assert.NilError(c, err)
 	defer os.Remove(expectedPath)
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container symbol link target")

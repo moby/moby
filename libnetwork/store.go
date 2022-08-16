@@ -6,16 +6,10 @@ import (
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/docker/libkv/store/consul"
-	"github.com/docker/libkv/store/etcd"
-	"github.com/docker/libkv/store/zookeeper"
 	"github.com/sirupsen/logrus"
 )
 
 func registerKVStores() {
-	consul.Register()
-	zookeeper.Register()
-	etcd.Register()
 	boltdb.Register()
 }
 
@@ -402,11 +396,14 @@ func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoi
 		return
 	}
 
+	networkID := n.ID()
+	endpointID := ep.ID()
+
 	c.Lock()
-	nw, ok := nmap[n.ID()]
+	nw, ok := nmap[networkID]
 
 	if ok {
-		delete(nw.localEps, ep.ID())
+		delete(nw.localEps, endpointID)
 		c.Unlock()
 
 		// Update the svc db about local endpoint leave right away
@@ -420,9 +417,9 @@ func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoi
 
 			// This is the last container going away for the network. Destroy
 			// this network's svc db entry
-			delete(c.svcRecords, n.ID())
+			delete(c.svcRecords, networkID)
 
-			delete(nmap, n.ID())
+			delete(nmap, networkID)
 		}
 	}
 	c.Unlock()

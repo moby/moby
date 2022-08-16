@@ -15,18 +15,30 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
+type DockerCLILogsSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLILogsSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLILogsSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
 // This used to work, it test a log of PageSize-1 (gh#4851)
-func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsContainerSmallerThanPage(c *testing.T) {
 	testLogsContainerPagination(c, 32767)
 }
 
 // Regression test: When going over the PageSize, it used to panic (gh#4851)
-func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsContainerBiggerThanPage(c *testing.T) {
 	testLogsContainerPagination(c, 32768)
 }
 
 // Regression test: When going much over the PageSize, it used to block (gh#4851)
-func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsContainerMuchBiggerThanPage(c *testing.T) {
 	testLogsContainerPagination(c, 33000)
 }
 
@@ -38,7 +50,7 @@ func testLogsContainerPagination(c *testing.T, testLen int) {
 	assert.Equal(c, len(out), testLen+1)
 }
 
-func (s *DockerSuite) TestLogsTimestamps(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsTimestamps(c *testing.T) {
 	testLen := 100
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo = >> a.a; done; cat a.a", testLen))
 
@@ -63,7 +75,7 @@ func (s *DockerSuite) TestLogsTimestamps(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestLogsSeparateStderr(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsSeparateStderr(c *testing.T) {
 	msg := "stderr_log"
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg)).Combined()
 	id := strings.TrimSpace(out)
@@ -74,7 +86,7 @@ func (s *DockerSuite) TestLogsSeparateStderr(c *testing.T) {
 	})
 }
 
-func (s *DockerSuite) TestLogsStderrInStdout(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsStderrInStdout(c *testing.T) {
 	// TODO Windows: Needs investigation why this fails. Obtained string includes
 	// a bunch of ANSI escape sequences before the "stderr_log" message.
 	testRequires(c, DaemonIsLinux)
@@ -89,7 +101,7 @@ func (s *DockerSuite) TestLogsStderrInStdout(c *testing.T) {
 	})
 }
 
-func (s *DockerSuite) TestLogsTail(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsTail(c *testing.T) {
 	testLen := 100
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen)).Combined()
 
@@ -121,7 +133,7 @@ func (s *DockerSuite) TestLogsTail(c *testing.T) {
 	assert.Equal(c, len(lines), testLen+1)
 }
 
-func (s *DockerSuite) TestLogsFollowStopped(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsFollowStopped(c *testing.T) {
 	dockerCmd(c, "run", "--name=test", "busybox", "echo", "hello")
 	id := getIDByName(c, "test")
 
@@ -142,7 +154,7 @@ func (s *DockerSuite) TestLogsFollowStopped(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestLogsSince(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsSince(c *testing.T) {
 	name := "testlogssince"
 	dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo log$i; done")
 	out, _ := dockerCmd(c, "logs", "-t", name)
@@ -177,7 +189,7 @@ func (s *DockerSuite) TestLogsSince(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestLogsSinceFutureFollow(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsSinceFutureFollow(c *testing.T) {
 	// TODO Windows TP5 - Figure out why this test is so flakey. Disabled for now.
 	testRequires(c, DaemonIsLinux)
 	name := "testlogssincefuturefollow"
@@ -211,7 +223,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *testing.T) {
 }
 
 // Regression test for #8832
-func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsFollowSlowStdoutConsumer(c *testing.T) {
 	// TODO Windows: Fix this test for TP5.
 	testRequires(c, DaemonIsLinux)
 	expected := 150000
@@ -269,7 +281,7 @@ func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, s
 	}
 }
 
-func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
@@ -297,7 +309,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
 	assert.NilError(c, waitForGoroutines(nroutines))
 }
 
-func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	id := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(id))
@@ -315,14 +327,14 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
 	assert.NilError(c, waitForGoroutines(nroutines))
 }
 
-func (s *DockerSuite) TestLogsCLIContainerNotFound(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsCLIContainerNotFound(c *testing.T) {
 	name := "testlogsnocontainer"
 	out, _, _ := dockerCmdWithError("logs", name)
 	message := fmt.Sprintf("No such container: %s\n", name)
 	assert.Assert(c, strings.Contains(out, message))
 }
 
-func (s *DockerSuite) TestLogsWithDetails(c *testing.T) {
+func (s *DockerCLILogsSuite) TestLogsWithDetails(c *testing.T) {
 	dockerCmd(c, "run", "--name=test", "--label", "foo=bar", "-e", "baz=qux", "--log-opt", "labels=foo", "--log-opt", "env=baz", "busybox", "echo", "hello")
 	out, _ := dockerCmd(c, "logs", "--details", "--timestamps", "test")
 

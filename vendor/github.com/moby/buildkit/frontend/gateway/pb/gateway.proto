@@ -9,6 +9,7 @@ import "github.com/moby/buildkit/api/types/worker.proto";
 import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
 import "github.com/tonistiigi/fsutil/types/stat.proto";
 
+
 option (gogoproto.sizer_all) = true;
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.unmarshaler_all) = true;
@@ -31,7 +32,10 @@ service LLBBridge {
 
 	rpc NewContainer(NewContainerRequest) returns (NewContainerResponse);
 	rpc ReleaseContainer(ReleaseContainerRequest) returns (ReleaseContainerResponse);
-	rpc ExecProcess(stream ExecMessage) returns (stream ExecMessage);  
+	rpc ExecProcess(stream ExecMessage) returns (stream ExecMessage);
+
+	// apicaps:CapGatewayWarnings
+	rpc Warn(WarnRequest) returns (WarnResponse); 
 }
 
 message Result {
@@ -169,6 +173,18 @@ message PongResponse{
 	repeated moby.buildkit.v1.types.WorkerRecord Workers = 3;
 }
 
+message WarnRequest {
+	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	int64 level = 2;
+	bytes short = 3;
+	repeated bytes detail = 4;
+	string url = 5;
+	pb.SourceInfo info = 6;
+	repeated pb.Range ranges = 7;
+}
+
+message WarnResponse{}
+
 message NewContainerRequest {
 	string ContainerID = 1;
 	// For mount input values we can use random identifiers passed with ref
@@ -176,6 +192,7 @@ message NewContainerRequest {
 	pb.NetMode Network = 3;
 	pb.Platform platform = 4;
 	pb.WorkerConstraints constraints = 5;
+	repeated pb.HostIP extraHosts = 6;
 }
 
 message NewContainerResponse{}
@@ -206,6 +223,8 @@ message ExecMessage {
 		// DoneMessage from server to client will be the last message for any
 		// process.  Note that FdMessage might be sent after ExitMessage.
 		DoneMessage Done = 7;
+		// SignalMessage is used from client to server to send signal events
+		SignalMessage Signal = 8;
 	}
 }
 
@@ -235,4 +254,10 @@ message FdMessage{
 message ResizeMessage{
 	uint32 Rows = 1;
 	uint32 Cols = 2;
+}
+
+message SignalMessage {
+	// we only send name (ie HUP, INT) because the int values
+	// are platform dependent.
+	string Name = 1;
 }

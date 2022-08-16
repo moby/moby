@@ -22,7 +22,7 @@ func GetSecret(ctx context.Context, c session.Caller, id string) ([]byte, error)
 	})
 	if err != nil {
 		if code := grpcerrors.Code(err); code == codes.Unimplemented || code == codes.NotFound {
-			return nil, errors.Wrapf(ErrNotFound, "secret %s not found", id)
+			return nil, errors.Wrapf(ErrNotFound, "secret %s", id)
 		}
 		return nil, err
 	}

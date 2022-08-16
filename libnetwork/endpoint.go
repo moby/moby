@@ -54,7 +54,6 @@ type endpoint struct {
 	iface             *endpointInterface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
-	locator           string
 	exposedPorts      []types.TransportPort
 	anonymous         bool
 	disableResolution bool
@@ -90,7 +89,6 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
-	epMap["locator"] = ep.locator
 	epMap["anonymous"] = ep.anonymous
 	epMap["disableResolution"] = ep.disableResolution
 	epMap["myAliases"] = ep.myAliases
@@ -122,18 +120,18 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	// If anyone ever comes here and figures out one way or another if we can/should be checking these errors and it turns out we can't... then please document *why*
 
 	ib, _ := json.Marshal(epMap["ep_iface"])
-	json.Unmarshal(ib, &ep.iface) // nolint:errcheck
+	json.Unmarshal(ib, &ep.iface) //nolint:errcheck
 
 	jb, _ := json.Marshal(epMap["joinInfo"])
-	json.Unmarshal(jb, &ep.joinInfo) // nolint:errcheck
+	json.Unmarshal(jb, &ep.joinInfo) //nolint:errcheck
 
 	tb, _ := json.Marshal(epMap["exposed_ports"])
 	var tPorts []types.TransportPort
-	json.Unmarshal(tb, &tPorts) // nolint:errcheck
+	json.Unmarshal(tb, &tPorts) //nolint:errcheck
 	ep.exposedPorts = tPorts
 
 	cb, _ := json.Marshal(epMap["sandbox"])
-	json.Unmarshal(cb, &ep.sandboxID) // nolint:errcheck
+	json.Unmarshal(cb, &ep.sandboxID) //nolint:errcheck
 
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]interface{})
@@ -190,9 +188,6 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
 	}
-	if l, ok := epMap["locator"]; ok {
-		ep.locator = l.(string)
-	}
 
 	if sn, ok := epMap["svcName"]; ok {
 		ep.svcName = sn.(string)
@@ -212,17 +207,17 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	sal, _ := json.Marshal(epMap["svcAliases"])
 	var svcAliases []string
-	json.Unmarshal(sal, &svcAliases) // nolint:errcheck
+	json.Unmarshal(sal, &svcAliases) //nolint:errcheck
 	ep.svcAliases = svcAliases
 
 	pc, _ := json.Marshal(epMap["ingressPorts"])
 	var ingressPorts []*PortConfig
-	json.Unmarshal(pc, &ingressPorts) // nolint:errcheck
+	json.Unmarshal(pc, &ingressPorts) //nolint:errcheck
 	ep.ingressPorts = ingressPorts
 
 	ma, _ := json.Marshal(epMap["myAliases"])
 	var myAliases []string
-	json.Unmarshal(ma, &myAliases) // nolint:errcheck
+	json.Unmarshal(ma, &myAliases) //nolint:errcheck
 	ep.myAliases = myAliases
 	return nil
 }
@@ -239,7 +234,6 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.name = ep.name
 	dstEp.id = ep.id
 	dstEp.sandboxID = ep.sandboxID
-	dstEp.locator = ep.locator
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
 	dstEp.anonymous = ep.anonymous

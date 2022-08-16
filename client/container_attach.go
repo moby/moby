@@ -22,7 +22,7 @@ import (
 // multiplexed.
 // The format of the multiplexed stream is as follows:
 //
-//    [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
+//	[8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
 //
 // STREAM_TYPE can be 1 for stdout and 2 for stderr
 //
@@ -52,6 +52,8 @@ func (cli *Client) ContainerAttach(ctx context.Context, container string, option
 		query.Set("logs", "1")
 	}
 
-	headers := map[string][]string{"Content-Type": {"text/plain"}}
+	headers := map[string][]string{
+		"Content-Type": {"text/plain"},
+	}
 	return cli.postHijacked(ctx, "/containers/"+container+"/attach", query, nil, headers)
 }

@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package archive // import "github.com/docker/docker/pkg/archive"
@@ -6,7 +7,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,11 +72,11 @@ func TestChmodTarEntry(t *testing.T) {
 }
 
 func TestTarWithHardLink(t *testing.T) {
-	origin, err := ioutil.TempDir("", "docker-test-tar-hardlink")
+	origin, err := os.MkdirTemp("", "docker-test-tar-hardlink")
 	assert.NilError(t, err)
 	defer os.RemoveAll(origin)
 
-	err = ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
+	err = os.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
 	assert.NilError(t, err)
 
 	err = os.Link(filepath.Join(origin, "1"), filepath.Join(origin, "2"))
@@ -90,7 +91,7 @@ func TestTarWithHardLink(t *testing.T) {
 		t.Skipf("skipping since hardlinks don't work here; expected 2 links, got %d", i1)
 	}
 
-	dest, err := ioutil.TempDir("", "docker-test-tar-hardlink-dest")
+	dest, err := os.MkdirTemp("", "docker-test-tar-hardlink-dest")
 	assert.NilError(t, err)
 	defer os.RemoveAll(dest)
 
@@ -99,7 +100,7 @@ func TestTarWithHardLink(t *testing.T) {
 	assert.NilError(t, err)
 
 	// ensure we can read the whole thing with no error, before writing back out
-	buf, err := ioutil.ReadAll(fh)
+	buf, err := io.ReadAll(fh)
 	assert.NilError(t, err)
 
 	bRdr := bytes.NewReader(buf)
@@ -116,7 +117,7 @@ func TestTarWithHardLink(t *testing.T) {
 }
 
 func TestTarWithHardLinkAndRebase(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "docker-test-tar-hardlink-rebase")
+	tmpDir, err := os.MkdirTemp("", "docker-test-tar-hardlink-rebase")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 
@@ -124,7 +125,7 @@ func TestTarWithHardLinkAndRebase(t *testing.T) {
 	err = os.Mkdir(origin, 0700)
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
+	err = os.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
 	assert.NilError(t, err)
 
 	err = os.Link(filepath.Join(origin, "1"), filepath.Join(origin, "2"))
@@ -165,7 +166,7 @@ func TestUntarParentPathPermissions(t *testing.T) {
 	w := tar.NewWriter(buf)
 	err := w.WriteHeader(&tar.Header{Name: "foo/bar"})
 	assert.NilError(t, err)
-	tmpDir, err := ioutil.TempDir("", t.Name())
+	tmpDir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 	err = Untar(buf, tmpDir, nil)
@@ -205,11 +206,11 @@ func getInode(path string) (uint64, error) {
 func TestTarWithBlockCharFifo(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	skip.If(t, userns.RunningInUserNS(), "skipping test that requires initial userns")
-	origin, err := ioutil.TempDir("", "docker-test-tar-hardlink")
+	origin, err := os.MkdirTemp("", "docker-test-tar-hardlink")
 	assert.NilError(t, err)
 
 	defer os.RemoveAll(origin)
-	err = ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
+	err = os.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
 	assert.NilError(t, err)
 
 	err = system.Mknod(filepath.Join(origin, "2"), unix.S_IFBLK, int(system.Mkdev(int64(12), int64(5))))
@@ -219,7 +220,7 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 	err = system.Mknod(filepath.Join(origin, "4"), unix.S_IFIFO, int(system.Mkdev(int64(12), int64(5))))
 	assert.NilError(t, err)
 
-	dest, err := ioutil.TempDir("", "docker-test-tar-hardlink-dest")
+	dest, err := os.MkdirTemp("", "docker-test-tar-hardlink-dest")
 	assert.NilError(t, err)
 	defer os.RemoveAll(dest)
 
@@ -228,7 +229,7 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 	assert.NilError(t, err)
 
 	// ensure we can read the whole thing with no error, before writing back out
-	buf, err := ioutil.ReadAll(fh)
+	buf, err := io.ReadAll(fh)
 	assert.NilError(t, err)
 
 	bRdr := bytes.NewReader(buf)
@@ -253,15 +254,15 @@ func TestTarUntarWithXattr(t *testing.T) {
 		t.Skip("getcap not installed")
 	}
 
-	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	origin, err := os.MkdirTemp("", "docker-test-untar-origin")
 	assert.NilError(t, err)
 	defer os.RemoveAll(origin)
-	err = ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
+	err = os.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700)
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(origin, "2"), []byte("welcome!"), 0700)
+	err = os.WriteFile(filepath.Join(origin, "2"), []byte("welcome!"), 0700)
 	assert.NilError(t, err)
-	err = ioutil.WriteFile(filepath.Join(origin, "3"), []byte("will be ignored"), 0700)
+	err = os.WriteFile(filepath.Join(origin, "3"), []byte("will be ignored"), 0700)
 	assert.NilError(t, err)
 	// there is no known Go implementation of setcap/getcap with support for v3 file capability
 	out, err := exec.Command("setcap", "cap_block_suspend+ep", filepath.Join(origin, "2")).CombinedOutput()
@@ -285,7 +286,7 @@ func TestTarUntarWithXattr(t *testing.T) {
 		}
 		out, err := exec.Command("getcap", filepath.Join(origin, "2")).CombinedOutput()
 		assert.NilError(t, err, string(out))
-		assert.Check(t, is.Contains(string(out), "= cap_block_suspend+ep"), "untar should have kept the 'security.capability' xattr")
+		assert.Check(t, is.Contains(string(out), "cap_block_suspend=ep"), "untar should have kept the 'security.capability' xattr")
 	}
 }
 

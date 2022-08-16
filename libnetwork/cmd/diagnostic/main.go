@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -29,7 +28,7 @@ const (
 )
 
 func httpIsOk(body io.ReadCloser) {
-	b, err := ioutil.ReadAll(body)
+	b, err := io.ReadAll(body)
 	if err != nil {
 		logrus.Fatalf("Failed the body parse %s", err)
 	}
@@ -122,7 +121,7 @@ func fetchNodePeers(ip string, port int, network string) map[string]string {
 		logrus.WithError(err).Fatalf("Failed fetching path")
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Failed the body parse")
 	}
@@ -149,7 +148,7 @@ func fetchTable(ip string, port int, network, tableName string, clusterPeers, ne
 		logrus.WithError(err).Fatalf("Failed fetching endpoint table")
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Failed the body parse")
 	}
@@ -192,7 +191,7 @@ func fetchTable(ip string, port int, network, tableName string, clusterPeers, ne
 		logrus.Warnf("The following keys:%v results as orphan, do you want to proceed with the deletion (this operation is irreversible)? [Yes/No]", orphanKeys)
 		reader := bufio.NewReader(os.Stdin)
 		text, _ := reader.ReadString('\n')
-		text = strings.Replace(text, "\n", "", -1)
+		text = strings.ReplaceAll(text, "\n", "")
 		if strings.Compare(text, "Yes") == 0 {
 			for _, k := range orphanKeys {
 				resp, err := http.Get(fmt.Sprintf(deleteEntry, ip, port, network, tableName, k))

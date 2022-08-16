@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package winio
@@ -141,6 +142,11 @@ func (f *win32File) closeHandle() {
 func (f *win32File) Close() error {
 	f.closeHandle()
 	return nil
+}
+
+// IsClosed checks if the file has been closed
+func (f *win32File) IsClosed() bool {
+	return f.closing.isSet()
 }
 
 // prepareIo prepares for a new IO operation.

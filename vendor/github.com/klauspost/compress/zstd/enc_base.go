@@ -38,8 +38,8 @@ func (e *fastBase) AppendCRC(dst []byte) []byte {
 
 // WindowSize returns the window size of the encoder,
 // or a window size small enough to contain the input size, if > 0.
-func (e *fastBase) WindowSize(size int) int32 {
-	if size > 0 && size < int(e.maxMatchOff) {
+func (e *fastBase) WindowSize(size int64) int32 {
+	if size > 0 && size < int64(e.maxMatchOff) {
 		b := int32(1) << uint(bits.Len(uint(size)))
 		// Keep minimum window.
 		if b < 1024 {
@@ -108,11 +108,6 @@ func (e *fastBase) UseBlock(enc *blockEnc) {
 	e.blk = enc
 }
 
-func (e *fastBase) matchlenNoHist(s, t int32, src []byte) int32 {
-	// Extend the match to be as long as possible.
-	return int32(matchLen(src[s:], src[t:]))
-}
-
 func (e *fastBase) matchlen(s, t int32, src []byte) int32 {
 	if debugAsserts {
 		if s < 0 {
@@ -131,9 +126,24 @@ func (e *fastBase) matchlen(s, t int32, src []byte) int32 {
 			panic(fmt.Sprintf("len(src)-s (%d) > maxCompressedBlockSize (%d)", len(src)-int(s), maxCompressedBlockSize))
 		}
 	}
+	a := src[s:]
+	b := src[t:]
+	b = b[:len(a)]
+	end := int32((len(a) >> 3) << 3)
+	for i := int32(0); i < end; i += 8 {
+		if diff := load6432(a, i) ^ load6432(b, i); diff != 0 {
+			return i + int32(bits.TrailingZeros64(diff)>>3)
+		}
+	}
 
-	// Extend the match to be as long as possible.
-	return int32(matchLen(src[s:], src[t:]))
+	a = a[end:]
+	b = b[end:]
+	for i := range a {
+		if a[i] != b[i] {
+			return int32(i) + end
+		}
+	}
+	return int32(len(a)) + end
 }
 
 // Reset the encoding table.
@@ -150,14 +160,15 @@ func (e *fastBase) resetBase(d *dict, singleBlock bool) {
 	} else {
 		e.crc.Reset()
 	}
-	if (!singleBlock || d.DictContentSize() > 0) && cap(e.hist) < int(e.maxMatchOff*2)+d.DictContentSize() {
-		l := e.maxMatchOff*2 + int32(d.DictContentSize())
-		// Make it at least 1MB.
-		if l < 1<<20 {
-			l = 1 << 20
+	if d != nil {
+		low := e.lowMem
+		if singleBlock {
+			e.lowMem = true
 		}
-		e.hist = make([]byte, 0, l)
+		e.ensureHist(d.DictContentSize() + maxCompressedBlockSize)
+		e.lowMem = low
 	}
+
 	// We offset current position so everything will be out of reach.
 	// If above reset line, history will be purged.
 	if e.cur < bufferReset {

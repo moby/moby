@@ -1,10 +1,11 @@
 # go-multierror
 
-[![Build Status](http://img.shields.io/travis/hashicorp/go-multierror.svg?style=flat-square)][travis]
-[![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
+[![CircleCI](https://img.shields.io/circleci/build/github/hashicorp/go-multierror/master)](https://circleci.com/gh/hashicorp/go-multierror)
+[![Go Reference](https://pkg.go.dev/badge/github.com/hashicorp/go-multierror.svg)](https://pkg.go.dev/github.com/hashicorp/go-multierror)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/hashicorp/go-multierror)
 
-[travis]: https://travis-ci.org/hashicorp/go-multierror
-[godocs]: https://godoc.org/github.com/hashicorp/go-multierror
+[circleci]: https://app.circleci.com/pipelines/github/hashicorp/go-multierror
+[godocs]: https://pkg.go.dev/github.com/hashicorp/go-multierror
 
 `go-multierror` is a package for Go that provides a mechanism for
 representing a list of `error` values as a single `error`.
@@ -14,16 +15,35 @@ be a list of errors. If the caller knows this, they can unwrap the
 list and access the errors. If the caller doesn't know, the error
 formats to a nice human-readable format.
 
-`go-multierror` implements the
-[errwrap](https://github.com/hashicorp/errwrap) interface so that it can
-be used with that library, as well.
+`go-multierror` is fully compatible with the Go standard library
+[errors](https://golang.org/pkg/errors/) package, including the
+functions `As`, `Is`, and `Unwrap`. This provides a standardized approach
+for introspecting on error values.
 
 ## Installation and Docs
 
 Install using `go get github.com/hashicorp/go-multierror`.
 
 Full documentation is available at
-http://godoc.org/github.com/hashicorp/go-multierror
+https://pkg.go.dev/github.com/hashicorp/go-multierror
+
+### Requires go version 1.13 or newer
+
+`go-multierror` requires go version 1.13 or newer. Go 1.13 introduced
+[error wrapping](https://golang.org/doc/go1.13#error_wrapping), which
+this library takes advantage of.
+
+If you need to use an earlier version of go, you can use the
+[v1.0.0](https://github.com/hashicorp/go-multierror/tree/v1.0.0)
+tag, which doesn't rely on features in go 1.13.
+
+If you see compile errors that look like the below, it's likely that
+you're on an older version of go:
+
+```
+/go/src/github.com/hashicorp/go-multierror/multierror.go:112:9: undefined: errors.As
+/go/src/github.com/hashicorp/go-multierror/multierror.go:117:9: undefined: errors.Is
+```
 
 ## Usage
 
@@ -78,6 +98,39 @@ if err := something(); err != nil {
 	if merr, ok := err.(*multierror.Error); ok {
 		// Use merr.Errors
 	}
+}
+```
+
+You can also use the standard [`errors.Unwrap`](https://golang.org/pkg/errors/#Unwrap)
+function. This will continue to unwrap into subsequent errors until none exist.
+
+**Extracting an error**
+
+The standard library [`errors.As`](https://golang.org/pkg/errors/#As)
+function can be used directly with a multierror to extract a specific error:
+
+```go
+// Assume err is a multierror value
+err := somefunc()
+
+// We want to know if "err" has a "RichErrorType" in it and extract it.
+var errRich RichErrorType
+if errors.As(err, &errRich) {
+	// It has it, and now errRich is populated.
+}
+```
+
+**Checking for an exact error value**
+
+Some errors are returned as exact errors such as the [`ErrNotExist`](https://golang.org/pkg/os/#pkg-variables)
+error in the `os` package. You can check if this error is present by using
+the standard [`errors.Is`](https://golang.org/pkg/errors/#Is) function.
+
+```go
+// Assume err is a multierror value
+err := somefunc()
+if errors.Is(err, os.ErrNotExist) {
+	// err contains os.ErrNotExist
 }
 ```
 

@@ -1,10 +1,10 @@
+//go:build linux
 // +build linux
 
 package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -27,16 +27,14 @@ func init() {
 // Driver contains the device set mounted and the home directory
 type Driver struct {
 	*DeviceSet
-	home    string
-	uidMaps []idtools.IDMap
-	gidMaps []idtools.IDMap
-	ctr     *graphdriver.RefCounter
-	locker  *locker.Locker
+	home   string
+	ctr    *graphdriver.RefCounter
+	locker *locker.Locker
 }
 
 // Init creates a driver with the given home and the set of options.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	deviceSet, err := NewDeviceSet(home, true, options, uidMaps, gidMaps)
+func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
+	deviceSet, err := NewDeviceSet(home, true, options, idMap)
 	if err != nil {
 		return nil, err
 	}
@@ -44,13 +42,11 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
-		uidMaps:   uidMaps,
-		gidMaps:   gidMaps,
 		ctr:       graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
 		locker:    locker.New(),
 	}
 
-	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
+	return graphdriver.NewNaiveDiffDriver(d, d.idMap), nil
 }
 
 func (d *Driver) String() string {
@@ -188,18 +184,14 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		return containerfs.NewLocalContainerFS(rootFs), nil
 	}
 
-	uid, gid, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
-	if err != nil {
-		d.ctr.Decrement(mp)
-		return nil, err
-	}
+	root := d.idMap.RootPair()
 
 	// Create the target directories if they don't exist
-	if err := idtools.MkdirAllAndChown(path.Join(d.home, "mnt"), 0755, idtools.Identity{UID: uid, GID: gid}); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(d.home, "mnt"), 0755, root); err != nil {
 		d.ctr.Decrement(mp)
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(mp, 0755, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAndChown(mp, 0755, root); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
 		return nil, err
 	}
@@ -210,7 +202,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		return nil, err
 	}
 
-	if err := idtools.MkdirAllAndChown(rootFs, 0755, idtools.Identity{UID: uid, GID: gid}); err != nil {
+	if err := idtools.MkdirAllAndChown(rootFs, 0755, root); err != nil {
 		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
 		return nil, err
@@ -220,7 +212,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	if _, err := os.Stat(idFile); err != nil && os.IsNotExist(err) {
 		// Create an "id" file with the container/image id in it to help reconstruct this in case
 		// of later problems
-		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
+		if err := os.WriteFile(idFile, []byte(id), 0600); err != nil {
 			d.ctr.Decrement(mp)
 			d.DeviceSet.UnmountDevice(id, mp)
 			return nil, err

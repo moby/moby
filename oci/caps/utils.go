@@ -5,67 +5,36 @@ import (
 	"strings"
 
 	"github.com/docker/docker/errdefs"
-	"github.com/syndtr/gocapability/capability"
 )
 
-var capabilityList Capabilities
+var (
+	allCaps []string
 
-func init() {
-	last := capability.CAP_LAST_CAP
-	// hack for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
-	if last > capability.CAP_AUDIT_READ {
-		// Prevents docker from setting CAP_PERFMON, CAP_BPF, and CAP_CHECKPOINT_RESTORE
-		// capabilities on privileged (or CAP_ALL) containers on Kernel 5.8 and up.
-		// While these kernels support these capabilities, the current release of
-		// runc ships with an older version of /gocapability/capability, and does
-		// not know about them, causing an error to be produced.
-		//
-		// FIXME remove once https://github.com/opencontainers/runc/commit/6dfbe9b80707b1ca188255e8def15263348e0f9a
-		//       is included in a runc release and once we stop supporting containerd 1.3.x
-		//       (which ships with runc v1.0.0-rc92)
-		last = capability.CAP_AUDIT_READ
-	}
-	for _, cap := range capability.List() {
-		if cap > last {
-			continue
-		}
-		capabilityList = append(capabilityList,
-			&CapabilityMapping{
-				Key:   "CAP_" + strings.ToUpper(cap.String()),
-				Value: cap,
-			},
-		)
-	}
-}
-
-type (
-	// CapabilityMapping maps linux capability name to its value of capability.Cap type
-	// Capabilities is one of the security systems in Linux Security Module (LSM)
+	// knownCapabilities is a map of all known capabilities, using capability
+	// name as index. Nil values indicate that the capability is known, but either
+	// not supported by the Kernel, or not available in the current environment,
+	// for example, when running Docker-in-Docker with restricted capabilities.
+	//
+	// Capabilities are one of the security systems in Linux Security Module (LSM)
 	// framework provided by the kernel.
 	// For more details on capabilities, see http://man7.org/linux/man-pages/man7/capabilities.7.html
-	CapabilityMapping struct {
-		Key   string         `json:"key,omitempty"`
-		Value capability.Cap `json:"value,omitempty"`
-	}
-	// Capabilities contains all CapabilityMapping
-	Capabilities []*CapabilityMapping
+	knownCaps map[string]*struct{}
 )
 
-// String returns <key> of CapabilityMapping
-func (c *CapabilityMapping) String() string {
-	return c.Key
+// GetAllCapabilities returns all capabilities that are availeble in the current
+// environment.
+func GetAllCapabilities() []string {
+	initCaps()
+	return allCaps
 }
 
-// GetAllCapabilities returns all of the capabilities
-func GetAllCapabilities() []string {
-	output := make([]string, len(capabilityList))
-	for i, capability := range capabilityList {
-		output[i] = capability.String()
-	}
-	return output
+// knownCapabilities returns a map of all known capabilities, using capability
+// name as index. Nil values indicate that the capability is known, but either
+// not supported by the Kernel, or not available in the current environment, for
+// example, when running Docker-in-Docker with restricted capabilities.
+func knownCapabilities() map[string]*struct{} {
+	initCaps()
+	return knownCaps
 }
 
 // inSlice tests whether a string is contained in a slice of strings or not.
@@ -85,9 +54,11 @@ const allCapabilities = "ALL"
 //
 // This function also accepts the "ALL" magic-value, that's used by CapAdd/CapDrop.
 func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
-	var normalized []string
+	var (
+		normalized     []string
+		capabilityList = knownCapabilities()
+	)
 
-	valids := GetAllCapabilities()
 	for _, c := range caps {
 		c = strings.ToUpper(c)
 		if c == allCapabilities {
@@ -97,8 +68,10 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 		if !strings.HasPrefix(c, "CAP_") {
 			c = "CAP_" + c
 		}
-		if !inSlice(valids, c) {
+		if v, ok := capabilityList[c]; !ok {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
+		} else if v == nil {
+			return nil, errdefs.InvalidParameter(fmt.Errorf("capability not supported by your kernel or not available in the current environment: %q", c))
 		}
 		normalized = append(normalized, c)
 	}

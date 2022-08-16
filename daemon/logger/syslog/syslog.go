@@ -13,17 +13,15 @@ import (
 	"time"
 
 	syslog "github.com/RackSec/srslog"
-
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/sirupsen/logrus"
 )
 
 const (
 	name        = "syslog"
 	secureProto = "tcp+tls"
+	defaultPort = "514"
 )
 
 var facilities = map[string]syslog.Priority{
@@ -55,10 +53,10 @@ type syslogger struct {
 
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -157,32 +155,32 @@ func parseAddress(address string) (string, string, error) {
 	if address == "" {
 		return "", "", nil
 	}
-	if !urlutil.IsTransportURL(address) {
-		return "", "", fmt.Errorf("syslog-address should be in form proto://address, got %v", address)
-	}
-	url, err := url.Parse(address)
+	addr, err := url.Parse(address)
 	if err != nil {
 		return "", "", err
 	}
 
 	// unix and unixgram socket validation
-	if url.Scheme == "unix" || url.Scheme == "unixgram" {
-		if _, err := os.Stat(url.Path); err != nil {
+	if addr.Scheme == "unix" || addr.Scheme == "unixgram" {
+		if _, err := os.Stat(addr.Path); err != nil {
 			return "", "", err
 		}
-		return url.Scheme, url.Path, nil
+		return addr.Scheme, addr.Path, nil
+	}
+	if addr.Scheme != "udp" && addr.Scheme != "tcp" && addr.Scheme != secureProto {
+		return "", "", fmt.Errorf("unsupported scheme: '%s'", addr.Scheme)
 	}
 
 	// here we process tcp|udp
-	host := url.Host
+	host := addr.Host
 	if _, _, err := net.SplitHostPort(host); err != nil {
 		if !strings.Contains(err.Error(), "missing port in address") {
 			return "", "", err
 		}
-		host = host + ":514"
+		host = net.JoinHostPort(host, defaultPort)
 	}
 
-	return url.Scheme, host, nil
+	return addr.Scheme, host, nil
 }
 
 // ValidateLogOpt looks for syslog specific log options

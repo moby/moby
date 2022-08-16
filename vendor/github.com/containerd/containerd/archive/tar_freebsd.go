@@ -1,5 +1,3 @@
-// +build freebsd
-
 /*
    Copyright The containerd Authors.
 
@@ -18,7 +16,11 @@
 
 package archive
 
-import "golang.org/x/sys/unix"
+import (
+	"os"
+
+	"golang.org/x/sys/unix"
+)
 
 // mknod wraps unix.Mknod.  FreeBSD's unix.Mknod signature is different from
 // other Unix and Unix-like operating systems.
@@ -31,6 +33,14 @@ func lsetxattrCreate(link string, attr string, data []byte) error {
 	err := unix.Lsetxattr(link, attr, data, 0)
 	if err == unix.ENOTSUP || err == unix.EEXIST {
 		return nil
+	}
+	return err
+}
+
+func lchmod(path string, mode os.FileMode) error {
+	err := unix.Fchmodat(unix.AT_FDCWD, path, uint32(mode), unix.AT_SYMLINK_NOFOLLOW)
+	if err != nil {
+		err = &os.PathError{Op: "lchmod", Path: path, Err: err}
 	}
 	return err
 }

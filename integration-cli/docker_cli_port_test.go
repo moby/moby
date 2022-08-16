@@ -12,7 +12,19 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestPortList(c *testing.T) {
+type DockerCLIPortSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIPortSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPortSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// one port
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox", "top")
@@ -241,7 +253,7 @@ func stopRemoveContainer(id string, c *testing.T) {
 	dockerCmd(c, "rm", "-f", id)
 }
 
-func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
+func (s *DockerCLIPortSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Run busybox with command line expose (equivalent to EXPOSE in image's Dockerfile) for the following ports
 	port1 := 80
@@ -312,7 +324,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, expBnd2))
 }
 
-func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
+func (s *DockerCLIPortSuite) TestPortHostBinding(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox", "nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)
@@ -332,7 +344,7 @@ func (s *DockerSuite) TestPortHostBinding(c *testing.T) {
 	assert.Assert(c, err != nil, "out: %s", out)
 }
 
-func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
+func (s *DockerCLIPortSuite) TestPortExposeHostBinding(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "-d", "-P", "--expose", "80", "busybox", "nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)
@@ -349,7 +361,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *testing.T) {
 	assert.Assert(c, err != nil, "out: %s", out)
 }
 
-func (s *DockerSuite) TestPortBindingOnSandbox(c *testing.T) {
+func (s *DockerCLIPortSuite) TestPortBindingOnSandbox(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "--internal", "-d", "bridge", "internal-net")
 	nr := getNetworkResource(c, "internal-net")

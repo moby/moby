@@ -65,9 +65,11 @@ func Enabled() bool {
 		return false
 	}
 
-	if _, err := net.Dial("unixgram", journalSocket); err != nil {
+	conn, err := net.Dial("unixgram", journalSocket)
+	if err != nil {
 		return false
 	}
+	defer conn.Close()
 
 	return true
 }

@@ -3,11 +3,12 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/swarm"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -25,8 +26,9 @@ func TestPingFail(t *testing.T) {
 				resp.Header = http.Header{}
 				resp.Header.Set("API-Version", "awesome")
 				resp.Header.Set("Docker-Experimental", "true")
+				resp.Header.Set("Swarm", "inactive")
 			}
-			resp.Body = ioutil.NopCloser(strings.NewReader("some error with the server"))
+			resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
 			return resp, nil
 		}),
 	}
@@ -35,12 +37,15 @@ func TestPingFail(t *testing.T) {
 	assert.ErrorContains(t, err, "some error with the server")
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
+	var si *swarm.Status
+	assert.Check(t, is.Equal(si, ping.SwarmStatus))
 
 	withHeader = true
 	ping2, err := client.Ping(context.Background())
 	assert.ErrorContains(t, err, "some error with the server")
 	assert.Check(t, is.Equal(true, ping2.Experimental))
 	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
+	assert.Check(t, is.Equal(swarm.Status{NodeState: "inactive"}, *ping2.SwarmStatus))
 }
 
 // TestPingWithError tests the case where there is a protocol error in the ping.
@@ -52,7 +57,8 @@ func TestPingWithError(t *testing.T) {
 			resp.Header = http.Header{}
 			resp.Header.Set("API-Version", "awesome")
 			resp.Header.Set("Docker-Experimental", "true")
-			resp.Body = ioutil.NopCloser(strings.NewReader("some error with the server"))
+			resp.Header.Set("Swarm", "active/manager")
+			resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
 			return resp, errors.New("some error")
 		}),
 	}
@@ -61,6 +67,8 @@ func TestPingWithError(t *testing.T) {
 	assert.ErrorContains(t, err, "some error")
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
+	var si *swarm.Status
+	assert.Check(t, is.Equal(si, ping.SwarmStatus))
 }
 
 // TestPingSuccess tests that we are able to get the expected API headers/ping
@@ -72,7 +80,8 @@ func TestPingSuccess(t *testing.T) {
 			resp.Header = http.Header{}
 			resp.Header.Set("API-Version", "awesome")
 			resp.Header.Set("Docker-Experimental", "true")
-			resp.Body = ioutil.NopCloser(strings.NewReader("OK"))
+			resp.Header.Set("Swarm", "active/manager")
+			resp.Body = io.NopCloser(strings.NewReader("OK"))
 			return resp, nil
 		}),
 	}
@@ -80,6 +89,7 @@ func TestPingSuccess(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
+	assert.Check(t, is.Equal(swarm.Status{NodeState: "active", ControlAvailable: true}, *ping.SwarmStatus))
 }
 
 // TestPingHeadFallback tests that the client falls back to GET if HEAD fails.

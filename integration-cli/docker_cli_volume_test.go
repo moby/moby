@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +18,19 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-func (s *DockerSuite) TestVolumeCLICreate(c *testing.T) {
+type DockerCLIVolumeSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIVolumeSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIVolumeSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIVolumeSuite) TestVolumeCLICreate(c *testing.T) {
 	dockerCmd(c, "volume", "create")
 
 	_, _, err := dockerCmdWithError("volume", "create", "-d", "nosuchdriver")
@@ -35,7 +46,7 @@ func (s *DockerSuite) TestVolumeCLICreate(c *testing.T) {
 	assert.Equal(c, name, "test2")
 }
 
-func (s *DockerSuite) TestVolumeCLIInspect(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLIInspect(c *testing.T) {
 	assert.Assert(c, exec.Command(dockerBinary, "volume", "inspect", "doesnotexist").Run() != nil, "volume inspect should error on non-existent volume")
 	out, _ := dockerCmd(c, "volume", "create")
 	name := strings.TrimSpace(out)
@@ -47,7 +58,7 @@ func (s *DockerSuite) TestVolumeCLIInspect(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "test")
 }
 
-func (s *DockerSuite) TestVolumeCLIInspectMulti(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectMulti(c *testing.T) {
 	dockerCmd(c, "volume", "create", "test1")
 	dockerCmd(c, "volume", "create", "test2")
 	dockerCmd(c, "volume", "create", "test3")
@@ -64,7 +75,7 @@ func (s *DockerSuite) TestVolumeCLIInspectMulti(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "test3"))
 }
 
-func (s *DockerSuite) TestVolumeCLILs(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLILs(c *testing.T) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "volume", "create", "aaa")
 
@@ -77,7 +88,7 @@ func (s *DockerSuite) TestVolumeCLILs(c *testing.T) {
 	assertVolumesInList(c, out, []string{"aaa", "soo", "test"})
 }
 
-func (s *DockerSuite) TestVolumeLsFormat(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeLsFormat(c *testing.T) {
 	dockerCmd(c, "volume", "create", "aaa")
 	dockerCmd(c, "volume", "create", "test")
 	dockerCmd(c, "volume", "create", "soo")
@@ -86,7 +97,7 @@ func (s *DockerSuite) TestVolumeLsFormat(c *testing.T) {
 	assertVolumesInList(c, out, []string{"aaa", "soo", "test"})
 }
 
-func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
 	dockerCmd(c, "volume", "create", "aaa")
 	dockerCmd(c, "volume", "create", "test")
 	dockerCmd(c, "volume", "create", "soo")
@@ -94,11 +105,11 @@ func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
 	config := `{
 		"volumesFormat": "{{ .Name }} default"
 }`
-	d, err := ioutil.TempDir("", "integration-cli-")
+	d, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
 
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "--config", d, "volume", "ls")
@@ -119,7 +130,7 @@ func assertVolumesInList(c *testing.T, out string, expected []string) {
 	}
 }
 
-func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "volume", "create", "testnotinuse1")
 	dockerCmd(c, "volume", "create", "testisinuse1")
@@ -164,19 +175,19 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "testisinuse2\n"), "expected volume 'testisinuse2' in output")
 }
 
-func (s *DockerSuite) TestVolumeCLILsErrorWithInvalidFilterName(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLILsErrorWithInvalidFilterName(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "FOO=123")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Invalid filter"))
+	assert.Assert(c, strings.Contains(out, "invalid filter"))
 }
 
-func (s *DockerSuite) TestVolumeCLILsWithIncorrectFilterValue(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLILsWithIncorrectFilterValue(c *testing.T) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
-	assert.Assert(c, strings.Contains(out, "Invalid filter"))
+	assert.Assert(c, strings.Contains(out, "invalid filter"))
 }
 
-func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLIRm(c *testing.T) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
@@ -208,7 +219,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
 }
 
 // FIXME(vdemeester) should be a unit test in cli/command/volume package
-func (s *DockerSuite) TestVolumeCLINoArgs(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLINoArgs(c *testing.T) {
 	out, _ := dockerCmd(c, "volume")
 	// no args should produce the cmd usage output
 	usage := "Usage:	docker volume COMMAND"
@@ -230,7 +241,7 @@ func (s *DockerSuite) TestVolumeCLINoArgs(c *testing.T) {
 	assert.Assert(c, strings.Contains(result.Stderr(), "unknown flag: --no-such-flag"))
 }
 
-func (s *DockerSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
 	out, _ := dockerCmd(c, "volume", "create")
 	name := strings.TrimSpace(out)
 
@@ -240,7 +251,7 @@ func (s *DockerSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "Template parsing error"))
 }
 
-func (s *DockerSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerCmd(c, "volume", "create", "-d", "local", "test", "--opt=type=tmpfs", "--opt=device=tmpfs", "--opt=o=size=1m,uid=1000")
@@ -264,7 +275,7 @@ func (s *DockerSuite) TestVolumeCLICreateWithOpts(c *testing.T) {
 	assert.Equal(c, found, true)
 }
 
-func (s *DockerSuite) TestVolumeCLICreateLabel(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLICreateLabel(c *testing.T) {
 	testVol := "testvolcreatelabel"
 	testLabel := "foo"
 	testValue := "bar"
@@ -276,7 +287,7 @@ func (s *DockerSuite) TestVolumeCLICreateLabel(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), testValue)
 }
 
-func (s *DockerSuite) TestVolumeCLICreateLabelMultiple(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLICreateLabelMultiple(c *testing.T) {
 	testVol := "testvolcreatelabel"
 
 	testLabels := map[string]string{
@@ -303,7 +314,7 @@ func (s *DockerSuite) TestVolumeCLICreateLabelMultiple(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLILsFilterLabels(c *testing.T) {
 	testVol1 := "testvolcreatelabel-1"
 	_, _, err := dockerCmdWithError("volume", "create", "--label", "foo=bar1", testVol1)
 	assert.NilError(c, err)
@@ -331,7 +342,7 @@ func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *testing.T) {
 	assert.Equal(c, len(outArr), 1, fmt.Sprintf("\n%s", out))
 }
 
-func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
 	// using default volume driver local to create volumes
 	testVol1 := "testvol-1"
 	_, _, err := dockerCmdWithError("volume", "create", testVol1)
@@ -361,7 +372,7 @@ func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
 	assert.Equal(c, len(outArr), 1, fmt.Sprintf("\n%s", out))
 }
 
-func (s *DockerSuite) TestVolumeCLIRmForceUsage(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForceUsage(c *testing.T) {
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
@@ -369,7 +380,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceUsage(c *testing.T) {
 	dockerCmd(c, "volume", "rm", "--force", "nonexist")
 }
 
-func (s *DockerSuite) TestVolumeCLIRmForce(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForce(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	name := "test"
@@ -393,7 +404,7 @@ func (s *DockerSuite) TestVolumeCLIRmForce(c *testing.T) {
 
 // TestVolumeCLIRmForceInUse verifies that repeated `docker volume rm -f` calls does not remove a volume
 // if it is in use. Test case for https://github.com/docker/docker/issues/31446
-func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	name := "testvolume"
 	out, _ := dockerCmd(c, "volume", "create", name)
 	id := strings.TrimSpace(out)
@@ -429,7 +440,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, name))
 }
 
-func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	// Without options
@@ -450,7 +461,7 @@ func (s *DockerSuite) TestVolumeCliInspectWithVolumeOpts(c *testing.T) {
 }
 
 // Test case (1) for 21845: duplicate targets for --volumes-from
-func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	image := "vimage"
@@ -491,7 +502,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *testing.T) {
 }
 
 // Test case (2) for 21845: duplicate targets for --volumes-from and -v (bind)
-func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	image := "vimage"
@@ -533,7 +544,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *testing.T
 }
 
 // Test case (3) for 21845: duplicate targets for --volumes-from and `Mounts` (API only)
-func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *testing.T) {
+func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	image := "vimage"

@@ -1,4 +1,5 @@
-//+build !windows
+//go:build !windows
+// +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
@@ -10,7 +11,7 @@ import (
 func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 	container.AppArmorProfile = "" // we don't care about the previous value.
 
-	if !daemon.apparmorEnabled {
+	if !daemon.RawSysInfo().AppArmor {
 		return nil // if apparmor is disabled there is nothing to do here.
 	}
 
@@ -18,13 +19,10 @@ func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 		return errdefs.InvalidParameter(err)
 	}
 
-	if !container.HostConfig.Privileged {
-		if container.AppArmorProfile == "" {
-			container.AppArmorProfile = defaultAppArmorProfile
-		}
-
-	} else {
+	if container.HostConfig.Privileged {
 		container.AppArmorProfile = unconfinedAppArmorProfile
+	} else if container.AppArmorProfile == "" {
+		container.AppArmorProfile = defaultAppArmorProfile
 	}
 	return nil
 }

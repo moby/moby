@@ -8,17 +8,17 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 // NewInMemoryCacheManager creates a new in-memory cache manager
 func NewInMemoryCacheManager() CacheManager {
-	return NewCacheManager(identity.NewID(), NewInMemoryCacheStorage(), NewInMemoryResultStorage())
+	return NewCacheManager(context.TODO(), identity.NewID(), NewInMemoryCacheStorage(), NewInMemoryResultStorage())
 }
 
 // NewCacheManager creates a new cache manager with specific storage backend
-func NewCacheManager(id string, storage CacheKeyStorage, results CacheResultStorage) CacheManager {
+func NewCacheManager(ctx context.Context, id string, storage CacheKeyStorage, results CacheResultStorage) CacheManager {
 	cm := &cacheManager{
 		id:      id,
 		backend: storage,
@@ -26,7 +26,7 @@ func NewCacheManager(id string, storage CacheKeyStorage, results CacheResultStor
 	}
 
 	if err := cm.ReleaseUnreferenced(); err != nil {
-		logrus.Errorf("failed to release unreferenced cache metadata: %+v", err)
+		bklog.G(ctx).Errorf("failed to release unreferenced cache metadata: %+v", err)
 	}
 
 	return cm

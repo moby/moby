@@ -1,10 +1,11 @@
+//go:build !windows
 // +build !windows
 
 package main
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -61,7 +62,7 @@ func cgroupCpuset() bool {
 }
 
 func seccompEnabled() bool {
-	return supportsSeccomp && SysInfo.Seccomp
+	return SysInfo.Seccomp
 }
 
 func bridgeNfIptables() bool {
@@ -69,7 +70,7 @@ func bridgeNfIptables() bool {
 }
 
 func unprivilegedUsernsClone() bool {
-	content, err := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	content, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	return err != nil || !strings.Contains(string(content), "0")
 }
 
@@ -84,6 +85,6 @@ func overlayFSSupported() bool {
 
 func init() {
 	if testEnv.IsLocalDaemon() {
-		SysInfo = sysinfo.New(true)
+		SysInfo = sysinfo.New()
 	}
 }

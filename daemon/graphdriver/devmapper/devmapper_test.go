@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"golang.org/x/sys/unix"
 )
@@ -114,7 +116,7 @@ func testChangeLoopBackSize(t *testing.T, delta, expectDataSize, expectMetaDataS
 	d, err := Init(driver.home, []string{
 		fmt.Sprintf("dm.loopdatasize=%d", defaultDataLoopbackSize+delta),
 		fmt.Sprintf("dm.loopmetadatasize=%d", defaultMetaDataLoopbackSize+delta),
-	}, nil, nil)
+	}, idtools.IdentityMapping{})
 	if err != nil {
 		t.Fatalf("error creating devicemapper driver: %v", err)
 	}
@@ -136,7 +138,7 @@ func TestDevmapperLockReleasedDeviceDeletion(t *testing.T) {
 	// DeviceSet Lock. If lock has not been released, this will hang.
 	driver.DeviceSet.cleanupDeletedDevices()
 
-	doneChan := make(chan bool)
+	doneChan := make(chan bool, 1)
 
 	go func() {
 		driver.DeviceSet.Lock()

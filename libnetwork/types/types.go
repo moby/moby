@@ -5,13 +5,13 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 
 	"github.com/ishidawataru/sctp"
 )
 
 // constants for the IP address type
+// Deprecated: use the consts defined in github.com/docker/docker/libnetwork/resolvconf
 const (
 	IP = iota // IPv4 and IPv6
 	IPv4
@@ -66,19 +66,6 @@ func (t *TransportPort) GetCopy() TransportPort {
 // String returns the TransportPort structure in string form
 func (t *TransportPort) String() string {
 	return fmt.Sprintf("%s/%d", t.Proto.String(), t.Port)
-}
-
-// FromString reads the TransportPort structure from string
-func (t *TransportPort) FromString(s string) error {
-	ps := strings.Split(s, "/")
-	if len(ps) == 2 {
-		t.Proto = ParseProtocol(ps[0])
-		if p, err := strconv.ParseUint(ps[1], 10, 16); err == nil {
-			t.Port = uint16(p)
-			return nil
-		}
-	}
-	return BadRequestErrorf("invalid format for transport port: %s", s)
 }
 
 // PortBinding represents a port binding between the container and the host
@@ -143,51 +130,6 @@ func (p *PortBinding) String() string {
 	}
 	ret = fmt.Sprintf("%s:%d", ret, p.HostPort)
 	return ret
-}
-
-// FromString reads the PortBinding structure from string s.
-// String s is a triple of "protocol/containerIP:port/hostIP:port"
-// containerIP and hostIP can be in dotted decimal ("192.0.2.1") or IPv6 ("2001:db8::68") form.
-// Zoned addresses ("169.254.0.23%eth0" or "fe80::1ff:fe23:4567:890a%eth0") are not supported.
-// If string s is incorrectly formatted or the IP addresses or ports cannot be parsed, FromString
-// returns an error.
-func (p *PortBinding) FromString(s string) error {
-	ps := strings.Split(s, "/")
-	if len(ps) != 3 {
-		return BadRequestErrorf("invalid format for port binding: %s", s)
-	}
-
-	p.Proto = ParseProtocol(ps[0])
-
-	var err error
-	if p.IP, p.Port, err = parseIPPort(ps[1]); err != nil {
-		return BadRequestErrorf("failed to parse Container IP/Port in port binding: %s", err.Error())
-	}
-
-	if p.HostIP, p.HostPort, err = parseIPPort(ps[2]); err != nil {
-		return BadRequestErrorf("failed to parse Host IP/Port in port binding: %s", err.Error())
-	}
-
-	return nil
-}
-
-func parseIPPort(s string) (net.IP, uint16, error) {
-	hoststr, portstr, err := net.SplitHostPort(s)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	ip := net.ParseIP(hoststr)
-	if ip == nil {
-		return nil, 0, BadRequestErrorf("invalid ip: %s", hoststr)
-	}
-
-	port, err := strconv.ParseUint(portstr, 10, 16)
-	if err != nil {
-		return nil, 0, BadRequestErrorf("invalid port: %s", portstr)
-	}
-
-	return ip, uint16(port), nil
 }
 
 // Equal checks if this instance of PortBinding is equal to the passed one
@@ -339,21 +281,6 @@ func GetMinimalIP(ip net.IP) net.IP {
 		return ip.To4()
 	}
 	return ip
-}
-
-// GetMinimalIPNet returns a copy of the passed IP Network with congruent ip and mask notation
-func GetMinimalIPNet(nw *net.IPNet) *net.IPNet {
-	if nw == nil {
-		return nil
-	}
-	if len(nw.IP) == 16 && nw.IP.To4() != nil {
-		m := nw.Mask
-		if len(m) == 16 {
-			m = m[12:16]
-		}
-		return &net.IPNet{IP: nw.IP.To4(), Mask: m}
-	}
-	return nw
 }
 
 // IsIPNetValid returns true if the ipnet is a valid network/mask

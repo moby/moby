@@ -62,9 +62,8 @@ func (s symbolTransform) String() string {
 // To indicate that you have populated the histogram call HistogramFinished
 // with the value of the highest populated symbol, as well as the number of entries
 // in the most populated entry. These are accepted at face value.
-// The returned slice will always be length 256.
-func (s *fseEncoder) Histogram() []uint32 {
-	return s.count[:]
+func (s *fseEncoder) Histogram() *[256]uint32 {
+	return &s.count
 }
 
 // HistogramFinished can be called to indicate that the histogram has been populated.
@@ -229,7 +228,7 @@ func (s *fseEncoder) setRLE(val byte) {
 		deltaFindState: 0,
 		deltaNbBits:    0,
 	}
-	if debug {
+	if debugEncoder {
 		println("setRLE: val", val, "symbolTT", s.ct.symbolTT[val])
 	}
 	s.rleVal = val
@@ -708,7 +707,6 @@ func (c *cState) init(bw *bitWriter, ct *cTable, first symbolTransform) {
 	im := int32((nbBitsOut << 16) - first.deltaNbBits)
 	lu := (im >> nbBitsOut) + int32(first.deltaFindState)
 	c.state = c.stateTable[lu]
-	return
 }
 
 // encode the output symbol provided and write it to the bitstream.

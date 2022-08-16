@@ -1,7 +1,6 @@
 package specconv // import "github.com/docker/docker/rootless/specconv"
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -22,7 +21,7 @@ func ToRootless(spec *specs.Spec, v2Controllers []string) error {
 }
 
 func getCurrentOOMScoreAdj() int {
-	b, err := ioutil.ReadFile("/proc/self/oom_score_adj")
+	b, err := os.ReadFile("/proc/self/oom_score_adj")
 	if err != nil {
 		logrus.WithError(err).Warn("failed to read /proc/self/oom_score_adj")
 		return 0

@@ -3,7 +3,7 @@
 # For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
 # to run certain tests on your local host, you should run with command:
 #
-#     TESTFLAGS='-test.run TestDockerSuite/TestBuild*' ./hack/make.sh binary test-integration
+#     TESTFLAGS='-test.run TestDockerCLIBuildSuite' ./hack/make.sh binary test-integration
 #
 
 if [ -z "${MAKEDIR}" ]; then
@@ -159,22 +159,6 @@ test_env() {
 			TEST_CLIENT_BINARY="$TEST_CLIENT_BINARY" \
 			"$@"
 	)
-}
-
-error_on_leaked_containerd_shims() {
-	if [ "$(go env GOOS)" = 'windows' ]; then
-		return
-	fi
-
-	leftovers=$(ps -ax -o pid,cmd \
-		| awk '$2 == "containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration/ { print $1 }')
-	if [ -n "$leftovers" ]; then
-		ps aux
-		# shellcheck disable=SC2086
-		kill -9 ${leftovers} 2> /dev/null
-		echo "!!!! WARNING you have left over shim(s), Cleanup your test !!!!"
-		exit 1
-	fi
 }
 
 set_platform_timeout() {

@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package container // import "github.com/docker/docker/daemon/cluster/executor/container"
@@ -11,7 +12,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/events"
-	"github.com/docker/swarmkit/api"
+	"github.com/moby/swarmkit/v2/api"
 )
 
 func TestHealthStates(t *testing.T) {

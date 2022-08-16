@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -40,7 +40,7 @@ func TestContainerStatPathNoHeaderError(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
 	}
@@ -76,7 +76,7 @@ func TestContainerStatPath(t *testing.T) {
 			base64PathStat := base64.StdEncoding.EncodeToString(content)
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 				Header: http.Header{
 					"X-Docker-Container-Path-Stat": []string{base64PathStat},
 				},
@@ -115,14 +115,15 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 	}
 }
 
-// TODO TestCopyToContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
-func TestCopyToContainerNotStatusOKError(t *testing.T) {
+// TestCopyToContainerEmptyResponse verifies that no error is returned when a
+// "204 No Content" is returned by the API.
+func TestCopyToContainerEmptyResponse(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
-	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
-		t.Fatalf("expected an unexpected status code error, got %v", err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -147,7 +148,7 @@ func TestCopyToContainer(t *testing.T) {
 				return nil, fmt.Errorf("noOverwriteDirNonDir not set in URL query properly, expected true, got %s", noOverwriteDirNonDir)
 			}
 
-			content, err := ioutil.ReadAll(req.Body)
+			content, err := io.ReadAll(req.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -160,7 +161,7 @@ func TestCopyToContainer(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
 	}
@@ -192,14 +193,30 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 	}
 }
 
-// TODO TestCopyFromContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
-func TestCopyFromContainerNotStatusOKError(t *testing.T) {
+// TestCopyFromContainerEmptyResponse verifies that no error is returned when a
+// "204 No Content" is returned by the API.
+func TestCopyFromContainerEmptyResponse(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			content, err := json.Marshal(types.ContainerPathStat{
+				Name: "path/to/file",
+				Mode: 0700,
+			})
+			if err != nil {
+				return nil, err
+			}
+			base64PathStat := base64.StdEncoding.EncodeToString(content)
+			return &http.Response{
+				StatusCode: http.StatusNoContent,
+				Header: http.Header{
+					"X-Docker-Container-Path-Stat": []string{base64PathStat},
+				},
+			}, nil
+		}),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if err == nil || err.Error() != "unexpected status code from daemon: 204" {
-		t.Fatalf("expected an unexpected status code error, got %v", err)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -208,7 +225,7 @@ func TestCopyFromContainerNoHeaderError(t *testing.T) {
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
 	}
@@ -246,7 +263,7 @@ func TestCopyFromContainer(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte("content"))),
+				Body:       io.NopCloser(bytes.NewReader([]byte("content"))),
 				Header: http.Header{
 					"X-Docker-Container-Path-Stat": []string{base64PathStat},
 				},
@@ -263,7 +280,7 @@ func TestCopyFromContainer(t *testing.T) {
 	if stat.Mode != 0700 {
 		t.Fatalf("expected container path stat mode to be 0700, got '%v'", stat.Mode)
 	}
-	content, err := ioutil.ReadAll(r)
+	content, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}

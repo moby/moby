@@ -122,3 +122,10 @@ func WithOOMScoreAdjust(score int) Option {
 		d.OOMScoreAdjust = score
 	}
 }
+
+// WithEnvVars sets additional environment variables for the daemon
+func WithEnvVars(vars ...string) Option {
+	return func(d *Daemon) {
+		d.extraEnv = append(d.extraEnv, vars...)
+	}
+}

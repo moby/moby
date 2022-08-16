@@ -1,7 +1,6 @@
 package local // import "github.com/docker/docker/volume/local"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -30,9 +29,28 @@ func TestGetAddress(t *testing.T) {
 
 }
 
+func TestGetPassword(t *testing.T) {
+	cases := map[string]string{
+		"password=secret":                       "secret",
+		" ":                                     "",
+		"password=":                             "",
+		"password=Tr0ub4dor&3":                  "Tr0ub4dor&3",
+		"password=correcthorsebatterystaple":    "correcthorsebatterystaple",
+		"username=moby,password=secret":         "secret",
+		"username=moby,password=secret,addr=11": "secret",
+		"username=moby,addr=11":                 "",
+	}
+	for optsstring, success := range cases {
+		v := getPassword(optsstring)
+		if v != success {
+			t.Errorf("Test case failed for %s actual: %s expected : %s", optsstring, v, success)
+		}
+	}
+}
+
 func TestRemove(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "FIXME: investigate why this test fails on CI")
-	rootDir, err := ioutil.TempDir("", "local-volume-test")
+	rootDir, err := os.MkdirTemp("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +92,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestInitializeWithVolumes(t *testing.T) {
-	rootDir, err := ioutil.TempDir("", "local-volume-test")
+	rootDir, err := os.MkdirTemp("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +124,7 @@ func TestInitializeWithVolumes(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	rootDir, err := ioutil.TempDir("", "local-volume-test")
+	rootDir, err := os.MkdirTemp("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +198,7 @@ func TestValidateName(t *testing.T) {
 func TestCreateWithOpts(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 	skip.If(t, os.Getuid() != 0, "requires mounts")
-	rootDir, err := ioutil.TempDir("", "local-volume-test")
+	rootDir, err := os.MkdirTemp("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +295,7 @@ func TestCreateWithOpts(t *testing.T) {
 }
 
 func TestRelaodNoOpts(t *testing.T) {
-	rootDir, err := ioutil.TempDir("", "volume-test-reload-no-opts")
+	rootDir, err := os.MkdirTemp("", "volume-test-reload-no-opts")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +313,7 @@ func TestRelaodNoOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	// make sure a file with `null` (.e.g. empty opts map from older daemon) is ok
-	if err := ioutil.WriteFile(filepath.Join(rootDir, "test2"), []byte("null"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(rootDir, "test2"), []byte("null"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -303,7 +321,7 @@ func TestRelaodNoOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	// make sure an empty opts file doesn't break us too
-	if err := ioutil.WriteFile(filepath.Join(rootDir, "test3"), nil, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(rootDir, "test3"), nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 

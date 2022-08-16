@@ -38,12 +38,22 @@ func platformVector(platform specs.Platform) []specs.Platform {
 
 	switch platform.Architecture {
 	case "amd64":
+		if amd64Version, err := strconv.Atoi(strings.TrimPrefix(platform.Variant, "v")); err == nil && amd64Version > 1 {
+			for amd64Version--; amd64Version >= 1; amd64Version-- {
+				vector = append(vector, specs.Platform{
+					Architecture: platform.Architecture,
+					OS:           platform.OS,
+					OSVersion:    platform.OSVersion,
+					OSFeatures:   platform.OSFeatures,
+					Variant:      "v" + strconv.Itoa(amd64Version),
+				})
+			}
+		}
 		vector = append(vector, specs.Platform{
 			Architecture: "386",
 			OS:           platform.OS,
 			OSVersion:    platform.OSVersion,
 			OSFeatures:   platform.OSFeatures,
-			Variant:      platform.Variant,
 		})
 	case "arm":
 		if armVersion, err := strconv.Atoi(strings.TrimPrefix(platform.Variant, "v")); err == nil && armVersion > 5 {

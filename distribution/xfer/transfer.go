@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/progress"
+	"github.com/pkg/errors"
 )
 
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved
@@ -19,8 +20,15 @@ func (e DoNotRetry) Error() string {
 	return e.Err.Error()
 }
 
-// Watcher is returned by Watch and can be passed to Release to stop watching.
-type Watcher struct {
+// IsDoNotRetryError returns true if the error is caused by DoNotRetry error,
+// and the transfer should not be retried.
+func IsDoNotRetryError(err error) bool {
+	var dnr DoNotRetry
+	return errors.As(err, &dnr)
+}
+
+// watcher is returned by Watch and can be passed to Release to stop watching.
+type watcher struct {
 	// signalChan is used to signal to the watcher goroutine that
 	// new progress information is available, or that the transfer
 	// has finished.
@@ -34,18 +42,18 @@ type Watcher struct {
 	running chan struct{}
 }
 
-// Transfer represents an in-progress transfer.
-type Transfer interface {
-	Watch(progressOutput progress.Output) *Watcher
-	Release(*Watcher)
-	Context() context.Context
-	Close()
-	Done() <-chan struct{}
-	Released() <-chan struct{}
-	Broadcast(mainProgressChan <-chan progress.Progress)
+// transfer represents an in-progress transfer.
+type transfer interface {
+	watch(progressOutput progress.Output) *watcher
+	release(*watcher)
+	context() context.Context
+	close()
+	done() <-chan struct{}
+	released() <-chan struct{}
+	broadcast(mainProgressChan <-chan progress.Progress)
 }
 
-type transfer struct {
+type xfer struct {
 	mu sync.Mutex
 
 	ctx    context.Context
@@ -53,7 +61,7 @@ type transfer struct {
 
 	// watchers keeps track of the goroutines monitoring progress output,
 	// indexed by the channels that release them.
-	watchers map[chan struct{}]*Watcher
+	watchers map[chan struct{}]*watcher
 
 	// lastProgress is the most recently received progress event.
 	lastProgress progress.Progress
@@ -62,9 +70,9 @@ type transfer struct {
 
 	// running remains open as long as the transfer is in progress.
 	running chan struct{}
-	// released stays open until all watchers release the transfer and
-	// the transfer is no longer tracked by the transfer manager.
-	released chan struct{}
+	// releasedChan stays open until all watchers release the transfer and
+	// the transfer is no longer tracked by the transferManager.
+	releasedChan chan struct{}
 
 	// broadcastDone is true if the main progress channel has closed.
 	broadcastDone bool
@@ -77,12 +85,12 @@ type transfer struct {
 	broadcastSyncChan chan struct{}
 }
 
-// NewTransfer creates a new transfer.
-func NewTransfer() Transfer {
-	t := &transfer{
-		watchers:          make(map[chan struct{}]*Watcher),
+// newTransfer creates a new transfer.
+func newTransfer() transfer {
+	t := &xfer{
+		watchers:          make(map[chan struct{}]*watcher),
 		running:           make(chan struct{}),
-		released:          make(chan struct{}),
+		releasedChan:      make(chan struct{}),
 		broadcastSyncChan: make(chan struct{}),
 	}
 
@@ -95,7 +103,7 @@ func NewTransfer() Transfer {
 }
 
 // Broadcast copies the progress and error output to all viewers.
-func (t *transfer) Broadcast(mainProgressChan <-chan progress.Progress) {
+func (t *xfer) broadcast(mainProgressChan <-chan progress.Progress) {
 	for {
 		var (
 			p  progress.Progress
@@ -137,11 +145,11 @@ func (t *transfer) Broadcast(mainProgressChan <-chan progress.Progress) {
 
 // Watch adds a watcher to the transfer. The supplied channel gets progress
 // updates and is closed when the transfer finishes.
-func (t *transfer) Watch(progressOutput progress.Output) *Watcher {
+func (t *xfer) watch(progressOutput progress.Output) *watcher {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	w := &Watcher{
+	w := &watcher{
 		releaseChan: make(chan struct{}),
 		signalChan:  make(chan struct{}),
 		running:     make(chan struct{}),
@@ -205,7 +213,7 @@ func (t *transfer) Watch(progressOutput progress.Output) *Watcher {
 // to be notified about the progress of the transfer. All calls to Watch must
 // be paired with later calls to Release so that the lifecycle of the transfer
 // is properly managed.
-func (t *transfer) Release(watcher *Watcher) {
+func (t *xfer) release(watcher *watcher) {
 	t.mu.Lock()
 	delete(t.watchers, watcher.releaseChan)
 
@@ -216,9 +224,9 @@ func (t *transfer) Release(watcher *Watcher) {
 			// while waiting for a previous watcher goroutine to
 			// finish.
 			select {
-			case <-t.released:
+			case <-t.releasedChan:
 			default:
-				close(t.released)
+				close(t.releasedChan)
 			}
 		} else {
 			t.cancel()
@@ -233,7 +241,7 @@ func (t *transfer) Release(watcher *Watcher) {
 
 // Done returns a channel which is closed if the transfer completes or is
 // cancelled. Note that having 0 watchers causes a transfer to be cancelled.
-func (t *transfer) Done() <-chan struct{} {
+func (t *xfer) done() <-chan struct{} {
 	// Note that this doesn't return t.ctx.Done() because that channel will
 	// be closed the moment Cancel is called, and we need to return a
 	// channel that blocks until a cancellation is actually acknowledged by
@@ -242,75 +250,66 @@ func (t *transfer) Done() <-chan struct{} {
 }
 
 // Released returns a channel which is closed once all watchers release the
-// transfer AND the transfer is no longer tracked by the transfer manager.
-func (t *transfer) Released() <-chan struct{} {
-	return t.released
+// transfer AND the transfer is no longer tracked by the transferManager.
+func (t *xfer) released() <-chan struct{} {
+	return t.releasedChan
 }
 
 // Context returns the context associated with the transfer.
-func (t *transfer) Context() context.Context {
+func (t *xfer) context() context.Context {
 	return t.ctx
 }
 
-// Close is called by the transfer manager when the transfer is no longer
+// Close is called by the transferManager when the transfer is no longer
 // being tracked.
-func (t *transfer) Close() {
+func (t *xfer) close() {
 	t.mu.Lock()
 	t.closed = true
 	if len(t.watchers) == 0 {
-		close(t.released)
+		close(t.releasedChan)
 	}
 	t.mu.Unlock()
 }
 
-// DoFunc is a function called by the transfer manager to actually perform
+// doFunc is a function called by the transferManager to actually perform
 // a transfer. It should be non-blocking. It should wait until the start channel
 // is closed before transferring any data. If the function closes inactive, that
-// signals to the transfer manager that the job is no longer actively moving
+// signals to the transferManager that the job is no longer actively moving
 // data - for example, it may be waiting for a dependent transfer to finish.
 // This prevents it from taking up a slot.
-type DoFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer
+type doFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) transfer
 
-// TransferManager is used by LayerDownloadManager and LayerUploadManager to
-// schedule and deduplicate transfers. It is up to the TransferManager
-// implementation to make the scheduling and concurrency decisions.
-type TransferManager interface {
-	// Transfer checks if a transfer with the given key is in progress. If
-	// so, it returns progress and error output from that transfer.
-	// Otherwise, it will call xferFunc to initiate the transfer.
-	Transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (Transfer, *Watcher)
-	// SetConcurrency set the concurrencyLimit so that it is adjustable daemon reload
-	SetConcurrency(concurrency int)
-}
-
+// transferManager is used by LayerDownloadManager and LayerUploadManager to
+// schedule and deduplicate transfers. It is up to the transferManager
+// to make the scheduling and concurrency decisions.
 type transferManager struct {
 	mu sync.Mutex
 
 	concurrencyLimit int
 	activeTransfers  int
-	transfers        map[string]Transfer
+	transfers        map[string]transfer
 	waitingTransfers []chan struct{}
 }
 
-// NewTransferManager returns a new TransferManager.
-func NewTransferManager(concurrencyLimit int) TransferManager {
+// newTransferManager returns a new transferManager.
+func newTransferManager(concurrencyLimit int) *transferManager {
 	return &transferManager{
 		concurrencyLimit: concurrencyLimit,
-		transfers:        make(map[string]Transfer),
+		transfers:        make(map[string]transfer),
 	}
 }
 
-// SetConcurrency sets the concurrencyLimit
-func (tm *transferManager) SetConcurrency(concurrency int) {
+// setConcurrency sets the concurrencyLimit
+func (tm *transferManager) setConcurrency(concurrency int) {
 	tm.mu.Lock()
 	tm.concurrencyLimit = concurrency
 	tm.mu.Unlock()
 }
 
-// Transfer checks if a transfer matching the given key is in progress. If not,
+// transfer checks if a transfer matching the given key is in progress. If not,
 // it starts one by calling xferFunc. The caller supplies a channel which
 // receives progress output from the transfer.
-func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput progress.Output) (Transfer, *Watcher) {
+func (tm *transferManager) transfer(key string, xferFunc doFunc, progressOutput progress.Output) (transfer, *watcher) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
@@ -319,24 +318,24 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 		if !present {
 			break
 		}
-		// Transfer is already in progress.
-		watcher := xfer.Watch(progressOutput)
+		// transfer is already in progress.
+		watcher := xfer.watch(progressOutput)
 
 		select {
-		case <-xfer.Context().Done():
+		case <-xfer.context().Done():
 			// We don't want to watch a transfer that has been cancelled.
 			// Wait for it to be removed from the map and try again.
-			xfer.Release(watcher)
+			xfer.release(watcher)
 			tm.mu.Unlock()
 			// The goroutine that removes this transfer from the
 			// map is also waiting for xfer.Done(), so yield to it.
 			// This could be avoided by adding a Closed method
-			// to Transfer to allow explicitly waiting for it to be
+			// to transfer to allow explicitly waiting for it to be
 			// removed the map, but forcing a scheduling round in
 			// this very rare case seems better than bloating the
 			// interface definition.
 			runtime.Gosched()
-			<-xfer.Done()
+			<-xfer.done()
 			tm.mu.Lock()
 		default:
 			return xfer, watcher
@@ -355,8 +354,8 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 
 	mainProgressChan := make(chan progress.Progress)
 	xfer := xferFunc(mainProgressChan, start, inactive)
-	watcher := xfer.Watch(progressOutput)
-	go xfer.Broadcast(mainProgressChan)
+	watcher := xfer.watch(progressOutput)
+	go xfer.broadcast(mainProgressChan)
 	tm.transfers[key] = xfer
 
 	// When the transfer is finished, remove from the map.
@@ -368,14 +367,14 @@ func (tm *transferManager) Transfer(key string, xferFunc DoFunc, progressOutput 
 				tm.inactivate(start)
 				tm.mu.Unlock()
 				inactive = nil
-			case <-xfer.Done():
+			case <-xfer.done():
 				tm.mu.Lock()
 				if inactive != nil {
 					tm.inactivate(start)
 				}
 				delete(tm.transfers, key)
 				tm.mu.Unlock()
-				xfer.Close()
+				xfer.close()
 				return
 			}
 		}

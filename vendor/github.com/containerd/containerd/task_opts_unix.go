@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 /*
@@ -20,10 +21,10 @@ package containerd
 
 import (
 	"context"
+	"errors"
 
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/containerd/runtime/v2/runc/options"
-	"github.com/pkg/errors"
 )
 
 // WithNoNewKeyring causes tasks not to be created with a new keyring for secret storage.

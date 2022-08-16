@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -145,11 +145,11 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		return nil
 	}
 
-	base, err := ioutil.TempDir("", name)
+	base, err := os.MkdirTemp("", name)
 	assert.NilError(t, err)
-	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
+	vfsProto, err := vfs.Init(base, []string{}, idtools.IdentityMapping{})
 	assert.NilError(t, err, "error initializing graph driver")
-	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
+	driver := graphdriver.NewNaiveDiffDriver(vfsProto, idtools.IdentityMapping{})
 
 	ec[ext] = &graphEventsCounter{}
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -349,7 +349,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 	assert.NilError(t, err)
 
 	specFile := "/etc/docker/plugins/" + name + "." + ext
-	err = ioutil.WriteFile(specFile, b, 0644)
+	err = os.WriteFile(specFile, b, 0644)
 	assert.NilError(t, err)
 }
 
@@ -397,7 +397,7 @@ func testGraphDriverPull(c client.APIClient, d *daemon.Daemon) func(*testing.T) 
 
 		r, err := c.ImagePull(ctx, "busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209", types.ImagePullOptions{})
 		assert.NilError(t, err)
-		_, err = io.Copy(ioutil.Discard, r)
+		_, err = io.Copy(io.Discard, r)
 		assert.NilError(t, err)
 
 		container.Run(ctx, t, c, container.WithImage("busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209"))
@@ -428,7 +428,7 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	assert.NilError(t, err)
 	defer responseReader.Close()
 	// ensure it's done by waiting for EOF on the response
-	_, err = io.Copy(ioutil.Discard, responseReader)
+	_, err = io.Copy(io.Discard, responseReader)
 	assert.NilError(t, err)
 
 	// restart the daemon with the plugin set as the storage driver

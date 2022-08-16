@@ -59,13 +59,11 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drvregistry"
-	"github.com/docker/docker/libnetwork/hostdiscovery"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
@@ -161,7 +159,6 @@ type controller struct {
 	sandboxes        sandboxTable
 	cfg              *config.Config
 	stores           []datastore.DataStore
-	discovery        hostdiscovery.HostDiscovery
 	extKeyListener   net.Listener
 	watchCh          chan *endpoint
 	unWatchCh        chan *endpoint
@@ -227,14 +224,6 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	c.drvRegistry = drvRegistry
-
-	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			// Failing to initialize discovery is a bad situation to be in.
-			// But it cannot fail creating the Controller
-			logrus.Errorf("Failed to Initialize Discovery : %v", err)
-		}
-	}
 
 	c.WalkNetworks(populateSpecial)
 
@@ -518,13 +507,6 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		}
 		return false
 	})
-
-	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			logrus.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
-		}
-	}
-
 	return nil
 }
 
@@ -554,40 +536,6 @@ func (c *controller) BuiltinIPAMDrivers() []string {
 	return drivers
 }
 
-func (c *controller) clusterHostID() string {
-	c.Lock()
-	defer c.Unlock()
-	if c.cfg == nil || c.cfg.Cluster.Address == "" {
-		return ""
-	}
-	addr := strings.Split(c.cfg.Cluster.Address, ":")
-	return addr[0]
-}
-
-func (c *controller) initDiscovery(watcher discovery.Watcher) error {
-	if c.cfg == nil {
-		return fmt.Errorf("discovery initialization requires a valid configuration")
-	}
-
-	c.discovery = hostdiscovery.NewHostDiscovery(watcher)
-	return c.discovery.Watch(c.activeCallback, c.hostJoinCallback, c.hostLeaveCallback)
-}
-
-func (c *controller) activeCallback() {
-	ds := c.getStore(datastore.GlobalScope)
-	if ds != nil && !ds.Active() {
-		ds.RestartWatch()
-	}
-}
-
-func (c *controller) hostJoinCallback(nodes []net.IP) {
-	c.processNodeDiscovery(nodes, true)
-}
-
-func (c *controller) hostLeaveCallback(nodes []net.IP) {
-	c.processNodeDiscovery(nodes, false)
-}
-
 func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		c.pushNodeDiscovery(driver, capability, nodes, add)
@@ -597,15 +545,9 @@ func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
 
 func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capability, nodes []net.IP, add bool) {
 	var self net.IP
-	if c.cfg != nil {
-		addr := strings.Split(c.cfg.Cluster.Address, ":")
-		self = net.ParseIP(addr[0])
-		// if external kvstore is not configured, try swarm-mode config
-		if self == nil {
-			if agent := c.getAgent(); agent != nil {
-				self = net.ParseIP(agent.advertiseAddr)
-			}
-		}
+	// try swarm-mode config
+	if agent := c.getAgent(); agent != nil {
+		self = net.ParseIP(agent.advertiseAddr)
 	}
 
 	if d == nil || cap.ConnectivityScope != datastore.GlobalScope || nodes == nil {
@@ -662,14 +604,6 @@ func (c *controller) GetPluginGetter() plugingetter.PluginGetter {
 }
 
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	c.Lock()
-	hd := c.discovery
-	c.Unlock()
-
-	if hd != nil {
-		c.pushNodeDiscovery(driver, capability, hd.Fetch(), true)
-	}
-
 	c.agentDriverNotify(driver)
 	return nil
 }
@@ -689,7 +623,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	if id != "" {
 		c.networkLocker.Lock(id)
-		defer c.networkLocker.Unlock(id) // nolint:errcheck
+		defer c.networkLocker.Unlock(id) //nolint:errcheck
 
 		if _, err = c.NetworkByID(id); err == nil {
 			return nil, NetworkNameError(id)
@@ -800,7 +734,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	err = c.addNetwork(network)
 	if err != nil {
-		if _, ok := err.(types.MaskableError); ok { // nolint:gosimple
+		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
 			// This error can be ignored and set this boolean
 			// value to skip a refcount increment for configOnly networks
 			skipCfgEpCount = true
@@ -1148,6 +1082,14 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	if sb.osSbox != nil {
 		// Apply operating specific knobs on the load balancer sandbox
+		err := sb.osSbox.InvokeFunc(func() {
+			sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+		})
+
+		if err != nil {
+			logrus.Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
+		}
+		// Keep this just so performance is not changed
 		sb.osSbox.ApplyOSTweaks(sb.oslTypes)
 	}
 

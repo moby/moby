@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package docker.swarmkit.v1;
+
+import "github.com/docker/swarmkit/api/objects.proto";
+import "github.com/docker/swarmkit/api/types.proto";
+import "go.etcd.io/etcd/raft/v3/raftpb/raft.proto";
+import weak "gogoproto/gogo.proto";
+import weak "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
+
+// Raft defines the RPC communication between raft nodes.
+service Raft {
+	// ProcessRaftMessage sends a raft message to be processed on a raft member, it is
+	// called from the RaftMember willing to send a message to its destination ('To' field)
+	rpc ProcessRaftMessage(ProcessRaftMessageRequest) returns (ProcessRaftMessageResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	// StreamRaftMessage accepts a stream of raft messages of type StreamRaftMessageRequest
+	// to be processed on a raft member, returning a StreamRaftMessageResponse 
+	// when processing of the streamed messages is complete. A single stream corresponds 
+	// to a single raft message, which may be disassembled and streamed as individual messages.
+	// It is called from the Raft leader, which uses it to stream messages to a raft member.
+	rpc StreamRaftMessage(stream StreamRaftMessageRequest) returns (StreamRaftMessageResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	// ResolveAddress returns the address where the node with the given ID can be reached.
+	rpc ResolveAddress(ResolveAddressRequest) returns (ResolveAddressResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+}
+
+// RaftMembership defines RPCs for adding and removing members from the
+// cluster. These RPCs must always run on the leader, so they are in a separate
+// service to support the raft proxy.
+service RaftMembership {
+	// Join adds a RaftMember to the raft cluster.
+	rpc Join(JoinRequest) returns (JoinResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	// Leave removes a RaftMember from the raft cluster.
+	rpc Leave(LeaveRequest) returns (LeaveResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+}
+
+message RaftMember {
+	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
+	// and is used only for information purposes
+	uint64 raft_id = 1;
+
+	// NodeID is the node's ID.
+	string node_id = 2;
+
+	// Addr specifies the address of the member
+	string addr = 3;
+
+	// Status provides the current status of the manager from the perspective of another manager.
+	RaftMemberStatus status = 4 [(gogoproto.nullable) = false];
+}
+
+message JoinRequest {
+	// Addr specifies the address of the member
+	string addr = 1;
+}
+
+message JoinResponse {
+	// RaftID is the ID assigned to the new member.
+	uint64 raft_id = 1;
+
+	// Members is the membership set of the cluster.
+	repeated RaftMember members = 2;
+
+	// RemovedMembers is a list of members that have been removed from
+	// the cluster, so the new node can avoid communicating with them.
+	repeated uint64 removed_members = 3 [packed=false];
+}
+
+message LeaveRequest {
+	RaftMember node = 1;
+}
+
+message LeaveResponse {}
+
+message ProcessRaftMessageRequest {
+	option (docker.protobuf.plugin.deepcopy) = false;
+	raftpb.Message message = 1;
+}
+
+message ProcessRaftMessageResponse {}
+
+// Raft message streaming request.
+message StreamRaftMessageRequest {
+	option (docker.protobuf.plugin.deepcopy) = false;
+	raftpb.Message message = 1;
+}
+
+// Raft message streaming response.
+message StreamRaftMessageResponse {}
+
+message ResolveAddressRequest {
+	// raft_id is the ID to resolve to an address.
+	uint64 raft_id = 1;
+}
+
+message ResolveAddressResponse {
+	// Addr specifies the address of the member
+	string addr = 1;
+}
+
+// Contains one of many protobuf encoded objects to replicate
+// over the raft backend with a request ID to track when the
+// action is effectively applied
+message InternalRaftRequest {
+	uint64 id = 1;
+
+	repeated StoreAction action = 2 [(gogoproto.nullable) = false];
+}
+
+// TODO(stevvooe): Storage actions may belong in another protobuf file. They
+// aren't necessarily first-class "types" in the cluster schema.
+
+// StoreActionKind defines the operation to take on the store for the target of
+// a storage action.
+enum StoreActionKind {
+	option (gogoproto.goproto_enum_prefix) = false;
+	option (gogoproto.enum_customname) = "StoreActionKind";
+	UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "StoreActionKindUnknown"]; // default value, invalid
+	STORE_ACTION_CREATE = 1 [(gogoproto.enumvalue_customname) = "StoreActionKindCreate"];
+	STORE_ACTION_UPDATE = 2 [(gogoproto.enumvalue_customname) = "StoreActionKindUpdate"];
+	STORE_ACTION_REMOVE = 3 [(gogoproto.enumvalue_customname) = "StoreActionKindRemove"];
+}
+
+// StoreAction defines a target and operation to apply on the storage system.
+message StoreAction {
+	StoreActionKind action = 1;
+	oneof target {
+		Node node = 2;
+		Service service = 3;
+		Task task = 4;
+		Network network = 5;
+		Cluster cluster = 6;
+		Secret secret = 7;
+		Resource resource = 8;
+		Extension extension = 9;
+		Config config = 10;
+		Volume volume = 11;
+	}
+}

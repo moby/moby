@@ -20,12 +20,12 @@ import (
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/moby/buildkit/session/grpchijack"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/entitlements"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	opentracing "github.com/opentracing/opentracing-go"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	fstypes "github.com/tonistiigi/fsutil/types"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -75,7 +75,7 @@ func (c *Client) Solve(ctx context.Context, def *llb.Definition, opt SolveOpt, s
 	return c.solve(ctx, def, nil, opt, statusChan)
 }
 
-type runGatewayCB func(ref string, s *session.Session) error
+type runGatewayCB func(ref string, s *session.Session, opts map[string]string) error
 
 func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runGatewayCB, opt SolveOpt, statusChan chan *SolveStatus) (*SolveResponse, error) {
 	if def != nil && runGateway != nil {
@@ -93,8 +93,8 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	statusContext, cancelStatus := context.WithCancel(context.Background())
 	defer cancelStatus()
 
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		statusContext = opentracing.ContextWithSpan(statusContext, span)
+	if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+		statusContext = trace.ContextWithSpan(statusContext, span)
 	}
 
 	s := opt.SharedSession
@@ -109,7 +109,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 	}
 
-	cacheOpt, err := parseCacheOptions(opt)
+	cacheOpt, err := parseCacheOptions(ctx, runGateway != nil, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -162,11 +162,18 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		}
 
 		eg.Go(func() error {
-			return s.Run(statusContext, grpchijack.Dialer(c.controlClient()))
+			sd := c.sessionDialer
+			if sd == nil {
+				sd = grpchijack.Dialer(c.controlClient())
+			}
+			return s.Run(statusContext, sd)
 		})
 	}
 
 	for k, v := range cacheOpt.frontendAttrs {
+		if opt.FrontendAttrs == nil {
+			opt.FrontendAttrs = map[string]string{}
+		}
 		opt.FrontendAttrs[k] = v
 	}
 
@@ -181,7 +188,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 				<-time.After(3 * time.Second)
 				cancelStatus()
 			}()
-			logrus.Debugf("stopping session")
+			bklog.G(ctx).Debugf("stopping session")
 			s.Close()
 		}()
 		var pbd *pb.Definition
@@ -221,7 +228,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 
 	if runGateway != nil {
 		eg.Go(func() error {
-			err := runGateway(ref, s)
+			err := runGateway(ref, s, opt.FrontendAttrs)
 			if err == nil {
 				return nil
 			}
@@ -259,13 +266,14 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			s := SolveStatus{}
 			for _, v := range resp.Vertexes {
 				s.Vertexes = append(s.Vertexes, &Vertex{
-					Digest:    v.Digest,
-					Inputs:    v.Inputs,
-					Name:      v.Name,
-					Started:   v.Started,
-					Completed: v.Completed,
-					Error:     v.Error,
-					Cached:    v.Cached,
+					Digest:        v.Digest,
+					Inputs:        v.Inputs,
+					Name:          v.Name,
+					Started:       v.Started,
+					Completed:     v.Completed,
+					Error:         v.Error,
+					Cached:        v.Cached,
+					ProgressGroup: v.ProgressGroup,
 				})
 			}
 			for _, v := range resp.Statuses {
@@ -288,6 +296,17 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 					Timestamp: v.Timestamp,
 				})
 			}
+			for _, v := range resp.Warnings {
+				s.Warnings = append(s.Warnings, &VertexWarning{
+					Vertex:     v.Vertex,
+					Level:      int(v.Level),
+					Short:      v.Short,
+					Detail:     v.Detail,
+					URL:        v.Url,
+					SourceInfo: v.Info,
+					Range:      v.Ranges,
+				})
+			}
 			if statusChan != nil {
 				statusChan <- &s
 			}
@@ -300,7 +319,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	// Update index.json of exported cache content store
 	// FIXME(AkihiroSuda): dedupe const definition of cache/remotecache.ExporterResponseManifestDesc = "cache.manifest"
 	if manifestDescJSON := res.ExporterResponse["cache.manifest"]; manifestDescJSON != "" {
-		var manifestDesc ocispec.Descriptor
+		var manifestDesc ocispecs.Descriptor
 		if err = json.Unmarshal([]byte(manifestDescJSON), &manifestDesc); err != nil {
 			return nil, err
 		}
@@ -341,13 +360,13 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 				return nil, errors.Wrap(err, "failed to parse llb proto op")
 			}
 			if src := op.GetSource(); src != nil {
-				if strings.HasPrefix(src.Identifier, "local://") { // TODO: just make a type property
+				if strings.HasPrefix(src.Identifier, "local://") {
 					name := strings.TrimPrefix(src.Identifier, "local://")
 					d, ok := localDirs[name]
 					if !ok {
 						return nil, errors.Errorf("local directory %s not enabled", name)
 					}
-					dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID}) // TODO: excludes
+					dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID})
 				}
 			}
 		}
@@ -370,7 +389,7 @@ type cacheOptions struct {
 	frontendAttrs   map[string]string
 }
 
-func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
+func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cacheOptions, error) {
 	var (
 		cacheExports []*controlapi.CacheOptionsEntry
 		cacheImports []*controlapi.CacheOptionsEntry
@@ -423,18 +442,18 @@ func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
 			}
 			cs, err := contentlocal.NewStore(csDir)
 			if err != nil {
-				logrus.Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
+				bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 				continue
 			}
 			// if digest is not specified, load from "latest" tag
 			if attrs["digest"] == "" {
 				idx, err := ociindex.ReadIndexJSONFileLocked(filepath.Join(csDir, "index.json"))
 				if err != nil {
-					logrus.Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
+					bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 					continue
 				}
 				for _, m := range idx.Manifests {
-					if (m.Annotations[ocispec.AnnotationRefName] == "latest" && attrs["tag"] == "") || (attrs["tag"] != "" && m.Annotations[ocispec.AnnotationRefName] == attrs["tag"]) {
+					if (m.Annotations[ocispecs.AnnotationRefName] == "latest" && attrs["tag"] == "") || (attrs["tag"] != "" && m.Annotations[ocispecs.AnnotationRefName] == attrs["tag"]) {
 						attrs["digest"] = string(m.Digest)
 						break
 					}
@@ -444,7 +463,6 @@ func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
 				}
 			}
 			contentStores["local:"+csDir] = cs
-
 		}
 		if im.Type == "registry" {
 			legacyImportRef := attrs["ref"]
@@ -456,7 +474,7 @@ func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
 			})
 		}
 	}
-	if opt.Frontend != "" {
+	if opt.Frontend != "" || isGateway {
 		// use legacy API for registry importers, because the frontend might not support the new API
 		if len(legacyImportRefs) > 0 {
 			frontendAttrs["cache-from"] = strings.Join(legacyImportRefs, ",")

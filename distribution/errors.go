@@ -18,17 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ErrNoSupport is an error type used for errors indicating that an operation
-// is not supported. It encapsulates a more specific error.
-type ErrNoSupport struct{ Err error }
-
-func (e ErrNoSupport) Error() string {
-	if e.Err == nil {
-		return "not supported"
-	}
-	return e.Err.Error()
-}
-
 // fallbackError wraps an error that can possibly allow fallback to a different
 // endpoint.
 type fallbackError struct {
@@ -74,18 +63,18 @@ func (e notFoundError) Cause() error {
 	return e.cause
 }
 
-// TranslatePullError is used to convert an error from a registry pull
+// translatePullError is used to convert an error from a registry pull
 // operation to an error representing the entire pull operation. Any error
 // information which is not used by the returned error gets output to
 // log at info level.
-func TranslatePullError(err error, ref reference.Named) error {
+func translatePullError(err error, ref reference.Named) error {
 	switch v := err.(type) {
 	case errcode.Errors:
 		if len(v) != 0 {
 			for _, extra := range v[1:] {
-				logrus.Infof("Ignoring extra error returned from registry: %v", extra)
+				logrus.WithError(extra).Infof("Ignoring extra error returned from registry")
 			}
-			return TranslatePullError(v[0], ref)
+			return translatePullError(v[0], ref)
 		}
 	case errcode.Error:
 		switch v.Code {
@@ -93,7 +82,7 @@ func TranslatePullError(err error, ref reference.Named) error {
 			return notFoundError{v, ref}
 		}
 	case xfer.DoNotRetry:
-		return TranslatePullError(v.Err, ref)
+		return translatePullError(v.Err, ref)
 	}
 
 	return errdefs.Unknown(err)
@@ -125,14 +114,12 @@ func continueOnError(err error, mirrorEndpoint bool) bool {
 			return true
 		}
 		return continueOnError(v[0], mirrorEndpoint)
-	case ErrNoSupport:
-		return continueOnError(v.Err, mirrorEndpoint)
 	case errcode.Error:
 		return mirrorEndpoint
 	case *client.UnexpectedHTTPResponseError:
 		return true
-	case ImageConfigPullError:
-		// ImageConfigPullError only happens with v2 images, v1 fallback is
+	case imageConfigPullError:
+		// imageConfigPullError only happens with v2 images, v1 fallback is
 		// unnecessary.
 		// Failures from a mirror endpoint should result in fallback to the
 		// canonical repo.

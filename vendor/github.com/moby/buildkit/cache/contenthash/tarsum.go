@@ -47,7 +47,7 @@ func v1TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	}
 
 	// Get extended attributes.
-	xAttrKeys := make([]string, len(h.PAXRecords))
+	xAttrKeys := make([]string, 0, len(h.PAXRecords))
 	for k := range pax {
 		if strings.HasPrefix(k, "SCHILY.xattr.") {
 			k = strings.TrimPrefix(k, "SCHILY.xattr.")

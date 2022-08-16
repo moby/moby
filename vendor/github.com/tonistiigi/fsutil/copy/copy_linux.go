@@ -97,7 +97,10 @@ func copyFileContent(dst, src *os.File) error {
 			buf := bufferPool.Get().(*[]byte)
 			_, err = io.CopyBuffer(dst, src, *buf)
 			bufferPool.Put(buf)
-			return errors.Wrap(err, "userspace copy failed")
+			if err != nil {
+				return errors.Wrap(err, "userspace copy failed")
+			}
+			return nil
 		}
 
 		first = false

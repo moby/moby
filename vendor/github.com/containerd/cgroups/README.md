@@ -1,7 +1,7 @@
 # cgroups
 
 [![Build Status](https://github.com/containerd/cgroups/workflows/CI/badge.svg)](https://github.com/containerd/cgroups/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/containerd/cgroups/branch/master/graph/badge.svg)](https://codecov.io/gh/containerd/cgroups)
+[![codecov](https://codecov.io/gh/containerd/cgroups/branch/main/graph/badge.svg)](https://codecov.io/gh/containerd/cgroups)
 [![GoDoc](https://godoc.org/github.com/containerd/cgroups?status.svg)](https://godoc.org/github.com/containerd/cgroups)
 [![Go Report Card](https://goreportcard.com/badge/github.com/containerd/cgroups)](https://goreportcard.com/report/github.com/containerd/cgroups)
 
@@ -26,7 +26,7 @@ uses the v1 implementation of cgroups.
 ```go
 shares := uint64(100)
 control, err := cgroups.New(cgroups.V1, cgroups.StaticPath("/test"), &specs.LinuxResources{
-    CPU: &specs.CPU{
+    CPU: &specs.LinuxCPU{
         Shares: &shares,
     },
 })
@@ -142,8 +142,8 @@ All static path should not include `/sys/fs/cgroup/` prefix, it should start wit
 Cgroups is a containerd sub-project, licensed under the [Apache 2.0 license](./LICENSE).
 As a containerd sub-project, you will find the:
 
- * [Project governance](https://github.com/containerd/project/blob/master/GOVERNANCE.md),
- * [Maintainers](https://github.com/containerd/project/blob/master/MAINTAINERS),
- * and [Contributing guidelines](https://github.com/containerd/project/blob/master/CONTRIBUTING.md)
+ * [Project governance](https://github.com/containerd/project/blob/main/GOVERNANCE.md),
+ * [Maintainers](https://github.com/containerd/project/blob/main/MAINTAINERS),
+ * and [Contributing guidelines](https://github.com/containerd/project/blob/main/CONTRIBUTING.md)
 
 information in our [`containerd/project`](https://github.com/containerd/project) repository.

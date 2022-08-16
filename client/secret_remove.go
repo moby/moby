@@ -9,5 +9,5 @@ func (cli *Client) SecretRemove(ctx context.Context, id string) error {
 	}
 	resp, err := cli.delete(ctx, "/secrets/"+id, nil, nil)
 	defer ensureReaderClosed(resp)
-	return wrapResponseError(err, resp, "secret", id)
+	return err
 }

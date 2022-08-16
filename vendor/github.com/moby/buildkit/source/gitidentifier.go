@@ -5,6 +5,7 @@ import (
 	"path"
 	"strings"
 
+	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/sshutil"
 )
 
@@ -53,7 +54,7 @@ func NewGitIdentifier(remoteURL string) (*GitIdentifier, error) {
 }
 
 func (i *GitIdentifier) ID() string {
-	return "git"
+	return srctypes.GitScheme
 }
 
 // isGitTransport returns true if the provided str is a git transport by inspecting
@@ -64,7 +65,7 @@ func isGitTransport(str string) bool {
 
 func getRefAndSubdir(fragment string) (ref string, subdir string) {
 	refAndDir := strings.SplitN(fragment, ":", 2)
-	ref = "master"
+	ref = ""
 	if len(refAndDir[0]) != 0 {
 		ref = refAndDir[0]
 	}

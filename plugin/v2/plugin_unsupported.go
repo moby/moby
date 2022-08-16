@@ -1,3 +1,4 @@
+//go:build !linux
 // +build !linux
 
 package v2 // import "github.com/docker/docker/plugin/v2"

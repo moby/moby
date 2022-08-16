@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 // Package local provides the default implementation for volumes. It
@@ -9,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -23,8 +23,6 @@ import (
 )
 
 var (
-	oldVfsDir = filepath.Join("vfs", "dir")
-
 	validOpts = map[string]struct{}{
 		"type":   {}, // specify the filesystem type for mount, e.g. nfs
 		"o":      {}, // generic mount options
@@ -49,55 +47,22 @@ func (o *optsConfig) String() string {
 	return fmt.Sprintf("type='%s' device='%s' o='%s' size='%d'", o.MountType, o.MountDevice, o.MountOpts, o.Quota.Size)
 }
 
-// scopedPath verifies that the path where the volume is located
-// is under Docker's root and the valid local paths.
-func (r *Root) scopedPath(realPath string) bool {
-	// Volumes path for Docker version >= 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) && realPath != filepath.Join(r.scope, volumesPathName) {
-		return true
-	}
-
-	// Volumes path for Docker version < 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, oldVfsDir)) {
-		return true
-	}
-
-	return false
-}
-
-func setOpts(v *localVolume, opts map[string]string) error {
-	if len(opts) == 0 {
-		return nil
-	}
-	err := validateOpts(opts)
-	if err != nil {
-		return err
-	}
-	v.opts = &optsConfig{
-		MountType:   opts["type"],
-		MountOpts:   opts["o"],
-		MountDevice: opts["device"],
-	}
-	if val, ok := opts["size"]; ok {
-		size, err := units.RAMInBytes(val)
-		if err != nil {
-			return err
-		}
-		if size > 0 && v.quotaCtl == nil {
-			return errdefs.InvalidParameter(errors.Errorf("quota size requested but no quota support"))
-		}
-		v.opts.Quota.Size = uint64(size)
-	}
-	return nil
-}
-
-func validateOpts(opts map[string]string) error {
+func (r *Root) validateOpts(opts map[string]string) error {
 	if len(opts) == 0 {
 		return nil
 	}
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
 			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+		}
+	}
+	if val, ok := opts["size"]; ok {
+		size, err := units.RAMInBytes(val)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if size > 0 && r.quotaCtl == nil {
+			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
 		}
 	}
 	for opt, reqopts := range mandatoryOpts {
@@ -110,6 +75,28 @@ func validateOpts(opts map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func (v *localVolume) setOpts(opts map[string]string) error {
+	if len(opts) == 0 {
+		return nil
+	}
+	v.opts = &optsConfig{
+		MountType:   opts["type"],
+		MountOpts:   opts["o"],
+		MountDevice: opts["device"],
+	}
+	if val, ok := opts["size"]; ok {
+		size, err := units.RAMInBytes(val)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if size > 0 && v.quotaCtl == nil {
+			return errdefs.InvalidParameter(errors.New("quota size requested but no quota support"))
+		}
+		v.opts.Quota.Size = uint64(size)
+	}
+	return v.saveOpts()
 }
 
 func unmount(path string) {
@@ -141,8 +128,13 @@ func (v *localVolume) mount() error {
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
 	}
-	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
-	return errors.Wrap(err, "failed to mount local volume")
+	if err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts); err != nil {
+		if password := getPassword(v.opts.MountOpts); password != "" {
+			err = errors.New(strings.Replace(err.Error(), "password="+password, "password=********", 1))
+		}
+		return errors.Wrap(err, "failed to mount local volume")
+	}
+	return nil
 }
 
 func (v *localVolume) postMount() error {
@@ -156,7 +148,7 @@ func (v *localVolume) postMount() error {
 				return err
 			}
 		} else {
-			return fmt.Errorf("size quota requested for volume but no quota support")
+			return errors.New("size quota requested for volume but no quota support")
 		}
 	}
 	return nil

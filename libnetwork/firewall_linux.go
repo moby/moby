@@ -7,9 +7,7 @@ import (
 
 const userChain = "DOCKER-USER"
 
-var (
-	ctrl *controller = nil
-)
+var ctrl *controller
 
 func setupArrangeUserFilterRule(c *controller) {
 	ctrl = c

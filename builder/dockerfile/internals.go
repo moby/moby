@@ -8,9 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
-	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -23,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -37,7 +33,7 @@ type Archiver interface {
 	UntarPath(src, dst string) error
 	CopyWithTar(src, dst string) error
 	CopyFileWithTar(src, dst string) error
-	IdentityMapping() *idtools.IdentityMapping
+	IdentityMapping() idtools.IdentityMapping
 }
 
 // The builder will use the following interfaces if the container fs implements
@@ -224,69 +220,12 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
-	dest, err := normalizeDest(workingDir, inst.dest, platform)
+	dest, err := normalizeDest(workingDir, inst.dest)
 	if err != nil {
 		return copyInfo{}, errors.Wrapf(err, "invalid %s", inst.cmdName)
 	}
 
 	return copyInfo{root: rwLayer.Root(), path: dest}, nil
-}
-
-// normalizeDest normalises the destination of a COPY/ADD command in a
-// platform semantically consistent way.
-func normalizeDest(workingDir, requested string, platform string) (string, error) {
-	dest := fromSlash(requested, platform)
-	endsInSlash := strings.HasSuffix(dest, string(separator(platform)))
-
-	if platform != "windows" {
-		if !path.IsAbs(requested) {
-			dest = path.Join("/", filepath.ToSlash(workingDir), dest)
-			// Make sure we preserve any trailing slash
-			if endsInSlash {
-				dest += "/"
-			}
-		}
-		return dest, nil
-	}
-
-	// We are guaranteed that the working directory is already consistent,
-	// However, Windows also has, for now, the limitation that ADD/COPY can
-	// only be done to the system drive, not any drives that might be present
-	// as a result of a bind mount.
-	//
-	// So... if the path requested is Linux-style absolute (/foo or \\foo),
-	// we assume it is the system drive. If it is a Windows-style absolute
-	// (DRIVE:\\foo), error if DRIVE is not C. And finally, ensure we
-	// strip any configured working directories drive letter so that it
-	// can be subsequently legitimately converted to a Windows volume-style
-	// pathname.
-
-	// Not a typo - filepath.IsAbs, not system.IsAbs on this next check as
-	// we only want to validate where the DriveColon part has been supplied.
-	if filepath.IsAbs(dest) {
-		if strings.ToUpper(string(dest[0])) != "C" {
-			return "", fmt.Errorf("Windows does not support destinations not on the system drive (C:)")
-		}
-		dest = dest[2:] // Strip the drive letter
-	}
-
-	// Cannot handle relative where WorkingDir is not the system drive.
-	if len(workingDir) > 0 {
-		if ((len(workingDir) > 1) && !system.IsAbs(workingDir[2:])) || (len(workingDir) == 1) {
-			return "", fmt.Errorf("Current WorkingDir %s is not platform consistent", workingDir)
-		}
-		if !system.IsAbs(dest) {
-			if string(workingDir[0]) != "C" {
-				return "", fmt.Errorf("Windows does not support relative paths when WORKDIR is not the system drive")
-			}
-			dest = filepath.Join(string(os.PathSeparator), workingDir[2:], dest)
-			// Make sure we preserve any trailing slash
-			if endsInSlash {
-				dest += string(os.PathSeparator)
-			}
-		}
-	}
-	return dest, nil
 }
 
 // For backwards compat, if there's just one info then use it as the
@@ -484,20 +423,4 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		ExtraHosts: options.ExtraHosts,
 	}
 	return hc
-}
-
-// fromSlash works like filepath.FromSlash but with a given OS platform field
-func fromSlash(path, platform string) string {
-	if platform == "windows" {
-		return strings.Replace(path, "/", "\\", -1)
-	}
-	return path
-}
-
-// separator returns a OS path separator for the given OS platform
-func separator(platform string) byte {
-	if platform == "windows" {
-		return '\\'
-	}
-	return '/'
 }

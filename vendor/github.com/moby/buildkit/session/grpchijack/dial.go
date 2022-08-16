@@ -16,11 +16,8 @@ import (
 
 func Dialer(api controlapi.ControlClient) session.Dialer {
 	return func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
-
 		meta = lowerHeaders(meta)
-
 		md := metadata.MD(meta)
-
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
 		stream, err := api.Session(ctx)
@@ -126,7 +123,6 @@ func (c *conn) Close() (err error) {
 			c.lastBuf = append(c.lastBuf, c.buf...)
 		}
 		c.readMu.Unlock()
-
 	})
 	return nil
 }

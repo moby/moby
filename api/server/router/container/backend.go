@@ -17,7 +17,7 @@ type execBackend interface {
 	ContainerExecCreate(name string, config *types.ExecConfig) (string, error)
 	ContainerExecInspect(id string) (*backend.ExecInspect, error)
 	ContainerExecResize(name string, height, width int) error
-	ContainerExecStart(ctx context.Context, name string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error
+	ContainerExecStart(ctx context.Context, name string, options container.ExecStartOptions) error
 	ExecExists(name string) (bool, error)
 }
 
@@ -32,15 +32,15 @@ type copyBackend interface {
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
 type stateBackend interface {
-	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
-	ContainerKill(name string, sig uint64) error
+	ContainerCreate(config types.ContainerCreateConfig) (container.CreateResponse, error)
+	ContainerKill(name string, signal string) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
 	ContainerResize(name string, height, width int) error
-	ContainerRestart(name string, seconds *int) error
+	ContainerRestart(ctx context.Context, name string, options container.StopOptions) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
-	ContainerStop(name string, seconds *int) error
+	ContainerStop(ctx context.Context, name string, options container.StopOptions) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)
 	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)

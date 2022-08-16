@@ -18,6 +18,8 @@ package containerd
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
@@ -26,7 +28,6 @@ import (
 	ptypes "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -46,7 +47,7 @@ func WithRestoreImage(ctx context.Context, id string, client *Client, checkpoint
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		name, ok := index.Annotations[checkpointImageNameLabel]
 		if !ok || name == "" {
-			return ErrRuntimeNameNotFoundInIndex
+			return ErrImageNameNotFoundInIndex
 		}
 		snapshotter, ok := index.Annotations[checkpointSnapshotterNameLabel]
 		if !ok || name == "" {
@@ -92,7 +93,7 @@ func WithRestoreRuntime(ctx context.Context, id string, client *Client, checkpoi
 			store := client.ContentStore()
 			data, err := content.ReadBlob(ctx, store, *m)
 			if err != nil {
-				return errors.Wrap(err, "unable to read checkpoint runtime")
+				return fmt.Errorf("unable to read checkpoint runtime: %w", err)
 			}
 			if err := proto.Unmarshal(data, &options); err != nil {
 				return err
@@ -117,7 +118,7 @@ func WithRestoreSpec(ctx context.Context, id string, client *Client, checkpoint 
 		store := client.ContentStore()
 		data, err := content.ReadBlob(ctx, store, *m)
 		if err != nil {
-			return errors.Wrap(err, "unable to read checkpoint config")
+			return fmt.Errorf("unable to read checkpoint config: %w", err)
 		}
 		var any ptypes.Any
 		if err := proto.Unmarshal(data, &any); err != nil {

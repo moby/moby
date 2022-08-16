@@ -1,9 +1,9 @@
+//go:build !windows
 // +build !windows
 
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,6 +19,14 @@ import (
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 )
+
+func (s *DockerCLIPruneSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPruneSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
 
 func pruneNetworkAndVerify(c *testing.T, d *daemon.Daemon, kept, pruned []string) {
 	_, err := d.Cmd("network", "prune", "--force")
@@ -109,7 +117,7 @@ func (s *DockerDaemonSuite) TestPruneImageDangling(c *testing.T) {
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id))
 }
 
-func (s *DockerSuite) TestPruneContainerUntil(c *testing.T) {
+func (s *DockerCLIPruneSuite) TestPruneContainerUntil(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "busybox").Combined()
 	id1 := strings.TrimSpace(out)
 	cli.WaitExited(c, id1, 5*time.Second)
@@ -128,7 +136,7 @@ func (s *DockerSuite) TestPruneContainerUntil(c *testing.T) {
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
 }
 
-func (s *DockerSuite) TestPruneContainerLabel(c *testing.T) {
+func (s *DockerCLIPruneSuite) TestPruneContainerLabel(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "--label", "foo", "busybox").Combined()
 	id1 := strings.TrimSpace(out)
 	cli.WaitExited(c, id1, 5*time.Second)
@@ -147,10 +155,10 @@ func (s *DockerSuite) TestPruneContainerLabel(c *testing.T) {
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
 	config := `{"pruneFilters": ["label=foobar"]}`
-	d, err := ioutil.TempDir("", "integration-cli-")
+	d, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	assert.NilError(c, err)
 
 	// With config.json only, prune based on label=foobar
@@ -180,7 +188,7 @@ func (s *DockerSuite) TestPruneContainerLabel(c *testing.T) {
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 }
 
-func (s *DockerSuite) TestPruneVolumeLabel(c *testing.T) {
+func (s *DockerCLIPruneSuite) TestPruneVolumeLabel(c *testing.T) {
 	out, _ := dockerCmd(c, "volume", "create", "--label", "foo")
 	id1 := strings.TrimSpace(out)
 	assert.Assert(c, id1 != "")
@@ -199,10 +207,10 @@ func (s *DockerSuite) TestPruneVolumeLabel(c *testing.T) {
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
 	config := `{"pruneFilters": ["label=foobar"]}`
-	d, err := ioutil.TempDir("", "integration-cli-")
+	d, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	assert.NilError(c, err)
 
 	// With config.json only, prune based on label=foobar
@@ -232,7 +240,7 @@ func (s *DockerSuite) TestPruneVolumeLabel(c *testing.T) {
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 }
 
-func (s *DockerSuite) TestPruneNetworkLabel(c *testing.T) {
+func (s *DockerCLIPruneSuite) TestPruneNetworkLabel(c *testing.T) {
 	dockerCmd(c, "network", "create", "--label", "foo", "n1")
 	dockerCmd(c, "network", "create", "--label", "bar", "n2")
 	dockerCmd(c, "network", "create", "n3")

@@ -4,16 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/plugin"
-	"github.com/docker/docker/registry"
+	registrypkg "github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 )
 
@@ -27,7 +27,7 @@ type CreateOpt func(*Config)
 type Config struct {
 	*types.PluginConfig
 	binPath        string
-	RegistryConfig registry.ServiceOptions
+	RegistryConfig registrypkg.ServiceOptions
 }
 
 // WithInsecureRegistry specifies that the given registry can skip host-key checking as well as fall back to plain http
@@ -53,7 +53,7 @@ type CreateClient interface {
 
 // Create creates a new plugin with the specified name
 func Create(ctx context.Context, c CreateClient, name string, opts ...CreateOpt) error {
-	tmpDir, err := ioutil.TempDir("", "create-test-plugin")
+	tmpDir, err := os.MkdirTemp("", "create-test-plugin")
 	if err != nil {
 		return err
 	}
@@ -78,8 +78,8 @@ func Create(ctx context.Context, c CreateClient, name string, opts ...CreateOpt)
 // This can be useful when testing plugins on swarm where you don't really want
 // the plugin to exist on any of the daemons (immediately) and there needs to be
 // some way to distribute the plugin.
-func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, opts ...CreateOpt) error {
-	tmpDir, err := ioutil.TempDir("", "create-test-plugin-local")
+func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfig, opts ...CreateOpt) error {
+	tmpDir, err := os.MkdirTemp("", "create-test-plugin-local")
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, 
 		return nil, nil
 	}
 
-	regService, err := registry.NewService(cfg.RegistryConfig)
+	regService, err := registrypkg.NewService(cfg.RegistryConfig)
 	if err != nil {
 		return err
 	}
@@ -131,9 +131,9 @@ func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, 
 	}
 
 	if auth == nil {
-		auth = &types.AuthConfig{}
+		auth = &registry.AuthConfig{}
 	}
-	err = manager.Push(ctx, repo, nil, auth, ioutil.Discard)
+	err = manager.Push(ctx, repo, nil, auth, io.Discard)
 	return errors.Wrap(err, "error pushing plugin")
 }
 
@@ -163,7 +163,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := ioutil.WriteFile(filepath.Join(inPath, "config.json"), configJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(inPath, "config.json"), configJSON, 0644); err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(filepath.Join(inPath, "rootfs", filepath.Dir(p.Entrypoint[0])), 0755); err != nil {

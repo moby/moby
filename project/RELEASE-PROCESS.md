@@ -6,7 +6,7 @@ Distribution, Notary and their underlying dependencies (libnetwork, libkv,
 etc...).
 
 Step-by-step technical details of the process are described in 
-[RELEASE-CHECKLIST.md](https://github.com/docker/docker/blob/master/project/RELEASE-CHECKLIST.md).
+[PATCH-RELEASES.md](https://github.com/moby/moby/blob/master/project/PATCH-RELEASES.md).
 
 ## Release cycle
 

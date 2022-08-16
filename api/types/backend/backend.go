@@ -10,18 +10,15 @@ import (
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
 type ContainerAttachConfig struct {
-	GetStreams func() (io.ReadCloser, io.Writer, io.Writer, error)
+	GetStreams func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error)
 	UseStdin   bool
 	UseStdout  bool
 	UseStderr  bool
 	Logs       bool
 	Stream     bool
 	DetachKeys string
-
-	// Used to signify that streams are multiplexed and therefore need a StdWriter to encode stdout/stderr messages accordingly.
-	// TODO @cpuguy83: This shouldn't be needed. It was only added so that http and websocket endpoints can use the same function, and the websocket function was not using a stdwriter prior to this change...
-	// HOWEVER, the websocket endpoint is using a single stream and SHOULD be encoded with stdout/stderr as is done for HTTP since it is still just a single stream.
-	// Since such a change is an API change unrelated to the current changeset we'll keep it as is here and change separately.
+	// Used to signify that streams must be multiplexed by producer as endpoint can't manage multiple streams.
+	// This is typically set by HTTP endpoint, while websocket can transport raw streams
 	MuxStreams bool
 }
 
@@ -38,8 +35,6 @@ type PartialLogMetaData struct {
 // LogMessage is datastructure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
-// changes to this struct need to be reflect in the reset method in
-// daemon/logger/logger.go
 type LogMessage struct {
 	Line         []byte
 	Source       string

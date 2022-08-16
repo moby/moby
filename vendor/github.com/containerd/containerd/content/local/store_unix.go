@@ -1,4 +1,5 @@
-// +build linux solaris darwin freebsd netbsd openbsd
+//go:build linux || solaris
+// +build linux solaris
 
 /*
    Copyright The containerd Authors.
@@ -22,13 +23,11 @@ import (
 	"os"
 	"syscall"
 	"time"
-
-	"github.com/containerd/containerd/sys"
 )
 
 func getATime(fi os.FileInfo) time.Time {
 	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return sys.StatATimeAsTime(st)
+		return time.Unix(st.Atim.Unix())
 	}
 
 	return fi.ModTime()

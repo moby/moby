@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/iptables"
-	_ "github.com/docker/docker/libnetwork/testutils"
 )
 
 func init() {

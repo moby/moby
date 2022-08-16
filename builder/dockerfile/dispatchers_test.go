@@ -116,8 +116,8 @@ func TestFromScratch(t *testing.T) {
 	}
 	err := initializeStage(sb, cmd)
 
-	if runtime.GOOS == "windows" && !system.LCOWSupported() {
-		assert.Check(t, is.Error(err, "Linux containers are not supported on this system"))
+	if runtime.GOOS == "windows" {
+		assert.Check(t, is.Error(err, "Windows does not support FROM scratch"))
 		return
 	}
 
@@ -470,12 +470,12 @@ func TestRunWithBuildArgs(t *testing.T) {
 			config: &container.Config{Cmd: origCmd},
 		}, nil, nil
 	}
-	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.CreateResponse, error) {
 		// Check the runConfig.Cmd sent to create()
 		assert.Check(t, is.DeepEqual(cmdWithShell, config.Config.Cmd))
 		assert.Check(t, is.Contains(config.Config.Env, "one=two"))
 		assert.Check(t, is.DeepEqual(strslice.StrSlice{""}, config.Config.Entrypoint))
-		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
+		return container.CreateResponse{ID: "12345"}, nil
 	}
 	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
 		// Check the runConfig.Cmd sent to commit()
@@ -536,8 +536,8 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 			config: &container.Config{Cmd: origCmd},
 		}, nil, nil
 	}
-	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
-		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
+	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.CreateResponse, error) {
+		return container.CreateResponse{ID: "12345"}, nil
 	}
 	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
 		return "", nil
@@ -563,10 +563,10 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	assert.NilError(t, dispatch(sb, cmd))
 	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
 
-	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.CreateResponse, error) {
 		// Check the Healthcheck is disabled.
 		assert.Check(t, is.DeepEqual([]string{"NONE"}, config.Config.Healthcheck.Test))
-		return container.ContainerCreateCreatedBody{ID: "123456"}, nil
+		return container.CreateResponse{ID: "123456"}, nil
 	}
 
 	sb.state.buildArgs.AddArg("one", strPtr("two"))

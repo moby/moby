@@ -21,7 +21,6 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -216,9 +215,6 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) error 
 	s.stageName = stageName
 	s.imageID = image.ImageID()
 	s.operatingSystem = image.OperatingSystem()
-	if s.operatingSystem == "" { // In case it isn't set
-		s.operatingSystem = runtime.GOOS
-	}
 	if !system.IsOSSupported(s.operatingSystem) {
 		return system.ErrNotSupportedOperatingSystem
 	}

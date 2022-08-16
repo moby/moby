@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 func translateV2AuthError(err error) error {
@@ -20,4 +21,16 @@ func translateV2AuthError(err error) error {
 	}
 
 	return err
+}
+
+func invalidParam(err error) error {
+	return errdefs.InvalidParameter(err)
+}
+
+func invalidParamf(format string, args ...interface{}) error {
+	return errdefs.InvalidParameter(errors.Errorf(format, args...))
+}
+
+func invalidParamWrapf(err error, format string, args ...interface{}) error {
+	return errdefs.InvalidParameter(errors.Wrapf(err, format, args...))
 }

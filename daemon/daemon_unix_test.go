@@ -1,10 +1,10 @@
+//go:build !windows
 // +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -59,7 +59,7 @@ func TestAdjustSharedNamespaceContainerName(t *testing.T) {
 
 // Unix test as uses settings which are not available on Windows
 func TestAdjustCPUShares(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
+	tmp, err := os.MkdirTemp("", "docker-daemon-unix-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestAdjustCPUShares(t *testing.T) {
 
 // Unix test as uses settings which are not available on Windows
 func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
+	tmp, err := os.MkdirTemp("", "docker-daemon-unix-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,30 +250,6 @@ func TestParseNNPSecurityOptions(t *testing.T) {
 	}
 }
 
-func TestNetworkOptions(t *testing.T) {
-	daemon := &Daemon{}
-	dconfigCorrect := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore:     "consul://localhost:8500",
-			ClusterAdvertise: "192.168.0.1:8000",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigCorrect, nil, nil); err != nil {
-		t.Fatalf("Expect networkOptions success, got error: %v", err)
-	}
-
-	dconfigWrong := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore: "consul://localhost:8500://test://bbb",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigWrong, nil, nil); err == nil {
-		t.Fatal("Expected networkOptions error, got nil")
-	}
-}
-
 func TestVerifyPlatformContainerResources(t *testing.T) {
 	t.Parallel()
 	var (
@@ -356,6 +332,7 @@ func TestVerifyPlatformContainerResources(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			warnings, err := verifyPlatformContainerResources(&tc.resources, &tc.sysInfo, tc.update)
@@ -396,7 +373,7 @@ func deviceTypeMock(t *testing.T, testAndCheck func(string)) {
 
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "tempDevDir"+t.Name())
+	tempDir, err := os.MkdirTemp("", "tempDevDir"+t.Name())
 	assert.NilError(t, err, "create temp file")
 	tempFile := filepath.Join(tempDir, "dev")
 

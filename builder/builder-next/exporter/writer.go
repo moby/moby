@@ -3,13 +3,14 @@ package containerimage
 import (
 	"context"
 	"encoding/json"
-	"runtime"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/cache"
+	binfotypes "github.com/moby/buildkit/util/buildinfo/types"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/system"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -20,13 +21,15 @@ import (
 // )
 
 func emptyImageConfig() ([]byte, error) {
+	pl := platforms.Normalize(platforms.DefaultSpec())
 	img := ocispec.Image{
-		Architecture: runtime.GOARCH,
-		OS:           runtime.GOOS,
+		Architecture: pl.Architecture,
+		OS:           pl.OS,
+		Variant:      pl.Variant,
 	}
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"
-	img.Config.Env = []string{"PATH=" + system.DefaultPathEnvUnix}
+	img.Config.Env = []string{"PATH=" + system.DefaultPathEnv(pl.OS)}
 	dt, err := json.Marshal(img)
 	return dt, errors.Wrap(err, "failed to create empty image config")
 }
@@ -41,7 +44,7 @@ func parseHistoryFromConfig(dt []byte) ([]ocispec.History, error) {
 	return config.History, nil
 }
 
-func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History, cache []byte) ([]byte, error) {
+func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History, cache []byte, buildInfo []byte) ([]byte, error) {
 	m := map[string]json.RawMessage{}
 	if err := json.Unmarshal(dt, &m); err != nil {
 		return nil, errors.Wrap(err, "failed to parse image config for patch")
@@ -78,11 +81,21 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History,
 	}
 
 	if cache != nil {
-		dt, err = json.Marshal(cache)
+		dt, err := json.Marshal(cache)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal cache")
+			return nil, err
 		}
 		m["moby.buildkit.cache.v0"] = dt
+	}
+
+	if buildInfo != nil {
+		dt, err := json.Marshal(buildInfo)
+		if err != nil {
+			return nil, err
+		}
+		m[binfotypes.ImageConfigField] = dt
+	} else {
+		delete(m, binfotypes.ImageConfigField)
 	}
 
 	dt, err = json.Marshal(m)
@@ -119,7 +132,7 @@ func normalizeLayersAndHistory(diffs []digest.Digest, history []ocispec.History,
 		// some history items are missing. add them based on the ref metadata
 		for _, md := range refMeta[historyLayers:] {
 			history = append(history, ocispec.History{
-				Created:   &md.createdAt,
+				Created:   md.createdAt,
 				CreatedBy: md.description,
 				Comment:   "buildkit.exporter.image.v0",
 			})
@@ -130,7 +143,7 @@ func normalizeLayersAndHistory(diffs []digest.Digest, history []ocispec.History,
 	for i, h := range history {
 		if !h.EmptyLayer {
 			if h.Created == nil {
-				h.Created = &refMeta[layerIndex].createdAt
+				h.Created = refMeta[layerIndex].createdAt
 			}
 			layerIndex++
 		}
@@ -173,33 +186,39 @@ func normalizeLayersAndHistory(diffs []digest.Digest, history []ocispec.History,
 
 type refMetadata struct {
 	description string
-	createdAt   time.Time
+	createdAt   *time.Time
 }
 
 func getRefMetadata(ref cache.ImmutableRef, limit int) []refMetadata {
-	if limit <= 0 {
-		return nil
-	}
-	meta := refMetadata{
-		description: "created by buildkit", // shouldn't be shown but don't fail build
-		createdAt:   time.Now(),
-	}
 	if ref == nil {
-		return append(getRefMetadata(nil, limit-1), meta)
+		return make([]refMetadata, limit)
 	}
-	if descr := cache.GetDescription(ref.Metadata()); descr != "" {
-		meta.description = descr
+
+	layerChain := ref.LayerChain()
+	defer layerChain.Release(context.TODO())
+
+	if limit < len(layerChain) {
+		layerChain = layerChain[len(layerChain)-limit:]
 	}
-	meta.createdAt = cache.GetCreatedAt(ref.Metadata())
-	p := ref.Parent()
-	if p != nil {
-		defer p.Release(context.TODO())
+
+	metas := make([]refMetadata, len(layerChain))
+	for i, layer := range layerChain {
+		meta := &metas[i]
+
+		if description := layer.GetDescription(); description != "" {
+			meta.description = description
+		} else {
+			meta.description = "created by buildkit" // shouldn't be shown but don't fail build
+		}
+
+		createdAt := layer.GetCreatedAt()
+		meta.createdAt = &createdAt
 	}
-	return append(getRefMetadata(p, limit-1), meta)
+	return metas
 }
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,

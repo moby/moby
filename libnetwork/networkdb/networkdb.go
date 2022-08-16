@@ -192,6 +192,14 @@ type Config struct {
 	// NOTE this MUST always be higher than reapEntryInterval
 	reapNetworkInterval time.Duration
 
+	// rejoinClusterDuration represents retryJoin timeout used by rejoinClusterBootStrap.
+	// Default is 10sec.
+	rejoinClusterDuration time.Duration
+
+	// rejoinClusterInterval represents interval on which rejoinClusterBootStrap runs.
+	// Default is 60sec.
+	rejoinClusterInterval time.Duration
+
 	// StatsPrintPeriod the period to use to print queue stats
 	// Default is 5min
 	StatsPrintPeriod time.Duration
@@ -225,13 +233,15 @@ type entry struct {
 func DefaultConfig() *Config {
 	hostname, _ := os.Hostname()
 	return &Config{
-		NodeID:            stringid.TruncateID(stringid.GenerateRandomID()),
-		Hostname:          hostname,
-		BindAddr:          "0.0.0.0",
-		PacketBufferSize:  1400,
-		StatsPrintPeriod:  5 * time.Minute,
-		HealthPrintPeriod: 1 * time.Minute,
-		reapEntryInterval: 30 * time.Minute,
+		NodeID:                stringid.TruncateID(stringid.GenerateRandomID()),
+		Hostname:              hostname,
+		BindAddr:              "0.0.0.0",
+		PacketBufferSize:      1400,
+		StatsPrintPeriod:      5 * time.Minute,
+		HealthPrintPeriod:     1 * time.Minute,
+		reapEntryInterval:     30 * time.Minute,
+		rejoinClusterDuration: 10 * time.Second,
+		rejoinClusterInterval: 60 * time.Second,
 	}
 }
 
@@ -473,22 +483,23 @@ func (nDB *NetworkDB) deleteNodeFromNetworks(deletedNode string) {
 
 // deleteNodeNetworkEntries is called in 2 conditions with 2 different outcomes:
 // 1) when a notification is coming of a node leaving the network
-//		- Walk all the network entries and mark the leaving node's entries for deletion
-//			These will be garbage collected when the reap timer will expire
+//   - Walk all the network entries and mark the leaving node's entries for deletion
+//     These will be garbage collected when the reap timer will expire
+//
 // 2) when the local node is leaving the network
-//		- Walk all the network entries:
-//			A) if the entry is owned by the local node
-//		  then we will mark it for deletion. This will ensure that if a node did not
-//		  yet received the notification that the local node is leaving, will be aware
-//		  of the entries to be deleted.
-//			B) if the entry is owned by a remote node, then we can safely delete it. This
-//			ensures that if we join back this network as we receive the CREATE event for
-//		  entries owned by remote nodes, we will accept them and we notify the application
+//   - Walk all the network entries:
+//     A) if the entry is owned by the local node
+//     then we will mark it for deletion. This will ensure that if a node did not
+//     yet received the notification that the local node is leaving, will be aware
+//     of the entries to be deleted.
+//     B) if the entry is owned by a remote node, then we can safely delete it. This
+//     ensures that if we join back this network as we receive the CREATE event for
+//     entries owned by remote nodes, we will accept them and we notify the application
 func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 	// Indicates if the delete is triggered for the local node
 	isNodeLocal := node == nDB.config.NodeID
 
-	nDB.indexes[byNetwork].WalkPrefix(fmt.Sprintf("/%s", nid),
+	nDB.indexes[byNetwork].WalkPrefix("/"+nid,
 		func(path string, v interface{}) bool {
 			oldEntry := v.(*entry)
 			params := strings.Split(path[1:], "/")
@@ -569,7 +580,7 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bool) bool) error {
 	nDB.RLock()
 	values := make(map[string]interface{})
-	nDB.indexes[byTable].WalkPrefix(fmt.Sprintf("/%s", tname), func(path string, v interface{}) bool {
+	nDB.indexes[byTable].WalkPrefix("/"+tname, func(path string, v interface{}) bool {
 		values[path] = v
 		return false
 	})

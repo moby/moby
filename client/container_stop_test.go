@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -17,19 +17,22 @@ func TestContainerStopError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	timeout := 0 * time.Second
-	err := client.ContainerStop(context.Background(), "nothing", &timeout)
+	err := client.ContainerStop(context.Background(), "nothing", container.StopOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestContainerStop(t *testing.T) {
-	expectedURL := "/containers/container_id/stop"
+	const expectedURL = "/v1.42/containers/container_id/stop"
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			s := req.URL.Query().Get("signal")
+			if s != "SIGKILL" {
+				return nil, fmt.Errorf("signal not set in URL query. Expected 'SIGKILL', got '%s'", s)
 			}
 			t := req.URL.Query().Get("t")
 			if t != "100" {
@@ -37,12 +40,16 @@ func TestContainerStop(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
+				Body:       io.NopCloser(bytes.NewReader([]byte(""))),
 			}, nil
 		}),
+		version: "1.42",
 	}
-	timeout := 100 * time.Second
-	err := client.ContainerStop(context.Background(), "container_id", &timeout)
+	timeout := 100
+	err := client.ContainerStop(context.Background(), "container_id", container.StopOptions{
+		Signal:  "SIGKILL",
+		Timeout: &timeout,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -79,7 +79,7 @@ func (e *Events) Evict(l chan interface{}) {
 }
 
 // Log creates a local scope message and publishes it
-func (e *Events) Log(action, eventType string, actor eventtypes.Actor) {
+func (e *Events) Log(action string, eventType eventtypes.Type, actor eventtypes.Actor) {
 	now := time.Now().UTC()
 	jm := eventtypes.Message{
 		Action:   action,

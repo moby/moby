@@ -2,7 +2,6 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
@@ -41,11 +40,11 @@ type notFound interface {
 // IsErrNotFound returns true if the error is a NotFound error, which is returned
 // by the API when some object is not found.
 func IsErrNotFound(err error) bool {
-	var e notFound
-	if errors.As(err, &e) {
+	if errdefs.IsNotFound(err) {
 		return true
 	}
-	return errdefs.IsNotFound(err)
+	var e notFound
+	return errors.As(err, &e)
 }
 
 type objectNotFoundError struct {
@@ -59,35 +58,11 @@ func (e objectNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
 }
 
-func wrapResponseError(err error, resp serverResponse, object, id string) error {
-	switch {
-	case err == nil:
-		return nil
-	case resp.statusCode == http.StatusNotFound:
-		return objectNotFoundError{object: object, id: id}
-	case resp.statusCode == http.StatusNotImplemented:
-		return errdefs.NotImplemented(err)
-	default:
-		return err
-	}
-}
-
-// unauthorizedError represents an authorization error in a remote registry.
-type unauthorizedError struct {
-	cause error
-}
-
-// Error returns a string representation of an unauthorizedError
-func (u unauthorizedError) Error() string {
-	return u.cause.Error()
-}
-
 // IsErrUnauthorized returns true if the error is caused
 // when a remote registry authentication fails
+//
+// Deprecated: use errdefs.IsUnauthorized
 func IsErrUnauthorized(err error) bool {
-	if _, ok := err.(unauthorizedError); ok {
-		return ok
-	}
 	return errdefs.IsUnauthorized(err)
 }
 
@@ -99,32 +74,12 @@ func (e pluginPermissionDenied) Error() string {
 	return "Permission denied while installing plugin " + e.name
 }
 
-// IsErrPluginPermissionDenied returns true if the error is caused
-// when a user denies a plugin's permissions
-func IsErrPluginPermissionDenied(err error) bool {
-	_, ok := err.(pluginPermissionDenied)
-	return ok
-}
-
-type notImplementedError struct {
-	message string
-}
-
-func (e notImplementedError) Error() string {
-	return e.message
-}
-
-func (e notImplementedError) NotImplemented() bool {
-	return true
-}
-
 // IsErrNotImplemented returns true if the error is a NotImplemented error.
 // This is returned by the API when a requested feature has not been
 // implemented.
+//
+// Deprecated: use errdefs.IsNotImplemented
 func IsErrNotImplemented(err error) bool {
-	if _, ok := err.(notImplementedError); ok {
-		return ok
-	}
 	return errdefs.IsNotImplemented(err)
 }
 

@@ -21,7 +21,7 @@ func LayerExists(ctx context.Context, path string) (_ bool, err error) {
 	var exists uint32
 	err = layerExists(&stdDriverInfo, path, &exists)
 	if err != nil {
-		return false, hcserror.New(err, title+" - failed", "")
+		return false, hcserror.New(err, title, "")
 	}
 	span.AddAttributes(trace.BoolAttribute("layer-exists", exists != 0))
 	return exists != 0, nil

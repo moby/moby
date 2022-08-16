@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/google/uuid"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,7 +20,7 @@ var root string
 
 func TestMain(m *testing.M) {
 	var err error
-	root, err = ioutil.TempDir("", "docker-container-test-")
+	root, err = os.MkdirTemp("", "docker-container-test-")
 	if err != nil {
 		panic(err)
 	}
@@ -92,7 +91,7 @@ func TestListInvalidFilter(t *testing.T) {
 	_, err = d.Containers(&types.ContainerListOptions{
 		Filters: f,
 	})
-	assert.Assert(t, is.Error(err, "Invalid filter 'invalid'"))
+	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
 }
 
 func TestNameFilter(t *testing.T) {

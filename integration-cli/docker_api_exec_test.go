@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -18,11 +18,12 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 )
 
 // Regression test for #9414
-func (s *DockerSuite) TestExecAPICreateNoCmd(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPICreateNoCmd(c *testing.T) {
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -38,7 +39,7 @@ func (s *DockerSuite) TestExecAPICreateNoCmd(c *testing.T) {
 	assert.Assert(c, strings.Contains(getErrorMessage(c, b), "No exec command specified"), "Expected message when creating exec command with no Cmd specified")
 }
 
-func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPICreateNoValidContentType(c *testing.T) {
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -47,7 +48,7 @@ func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *testing.T) {
 		c.Fatalf("Can not encode data to json %s", err)
 	}
 
-	res, body, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType("test/plain"))
+	res, body, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.RawContent(io.NopCloser(jsonData)), request.ContentType("test/plain"))
 	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
 		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
@@ -56,10 +57,10 @@ func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *testing.T) {
 	}
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(getErrorMessage(c, b), "Content-Type specified"), "Expected message when creating exec command with invalid Content-Type specified")
+	assert.Assert(c, is.Contains(getErrorMessage(c, b), "unsupported Content-Type header (test/plain): must be 'application/json'"))
 }
 
-func (s *DockerSuite) TestExecAPICreateContainerPaused(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 	// Not relevant on Windows as Windows containers cannot be paused
 	testRequires(c, DaemonIsLinux)
 	name := "exec_create_test"
@@ -78,7 +79,7 @@ func (s *DockerSuite) TestExecAPICreateContainerPaused(c *testing.T) {
 	assert.ErrorContains(c, err, "Container "+name+" is paused, unpause the container before exec", "Expected message when creating exec command with Container %s is paused", name)
 }
 
-func (s *DockerSuite) TestExecAPIStart(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPIStart(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Uses pause/unpause but bits may be salvageable to Windows to Windows CI
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
@@ -105,7 +106,7 @@ func (s *DockerSuite) TestExecAPIStart(c *testing.T) {
 	startExec(c, id, http.StatusOK)
 }
 
-func (s *DockerSuite) TestExecAPIStartEnsureHeaders(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPIStartEnsureHeaders(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
@@ -115,7 +116,7 @@ func (s *DockerSuite) TestExecAPIStartEnsureHeaders(c *testing.T) {
 	assert.Assert(c, resp.Header.Get("Server") != "")
 }
 
-func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPIStartBackwardsCompatible(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
 	runSleepingContainer(c, "-d", "--name", "test")
 	id := createExec(c, "test")
@@ -130,7 +131,7 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *testing.T) {
 }
 
 // #19362
-func (s *DockerSuite) TestExecAPIStartMultipleTimesError(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPIStartMultipleTimesError(c *testing.T) {
 	runSleepingContainer(c, "-d", "--name", "test")
 	execID := createExec(c, "test")
 	startExec(c, execID, http.StatusOK)
@@ -140,7 +141,7 @@ func (s *DockerSuite) TestExecAPIStartMultipleTimesError(c *testing.T) {
 }
 
 // #20638
-func (s *DockerSuite) TestExecAPIStartWithDetach(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 	name := "foo"
 	runSleepingContainer(c, "-d", "-t", "--name", name)
 
@@ -171,7 +172,7 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *testing.T) {
 }
 
 // #30311
-func (s *DockerSuite) TestExecAPIStartValidCommand(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPIStartValidCommand(c *testing.T) {
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -187,7 +188,7 @@ func (s *DockerSuite) TestExecAPIStartValidCommand(c *testing.T) {
 }
 
 // #30311
-func (s *DockerSuite) TestExecAPIStartInvalidCommand(c *testing.T) {
+func (s *DockerAPISuite) TestExecAPIStartInvalidCommand(c *testing.T) {
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -205,7 +206,7 @@ func (s *DockerSuite) TestExecAPIStartInvalidCommand(c *testing.T) {
 	assert.Assert(c, inspectJSON.ExecIDs == nil)
 }
 
-func (s *DockerSuite) TestExecStateCleanup(c *testing.T) {
+func (s *DockerAPISuite) TestExecStateCleanup(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
 	// This test checks accidental regressions. Not part of stable API.
@@ -217,12 +218,12 @@ func (s *DockerSuite) TestExecStateCleanup(c *testing.T) {
 	stateDir := "/var/run/docker/containerd/" + cid
 
 	checkReadDir := func(c *testing.T) (interface{}, string) {
-		fi, err := ioutil.ReadDir(stateDir)
+		fi, err := os.ReadDir(stateDir)
 		assert.NilError(c, err)
 		return len(fi), ""
 	}
 
-	fi, err := ioutil.ReadDir(stateDir)
+	fi, err := os.ReadDir(stateDir)
 	assert.NilError(c, err)
 	assert.Assert(c, len(fi) > 1)
 
@@ -251,7 +252,7 @@ func createExec(c *testing.T, name string) string {
 func createExecCmd(c *testing.T, name string, cmd string) string {
 	_, reader, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": []string{cmd}}))
 	assert.NilError(c, err)
-	b, err := ioutil.ReadAll(reader)
+	b, err := io.ReadAll(reader)
 	assert.NilError(c, err)
 	defer reader.Close()
 	createResp := struct {

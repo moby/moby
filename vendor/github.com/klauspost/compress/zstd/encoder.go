@@ -33,7 +33,7 @@ type encoder interface {
 	Block() *blockEnc
 	CRC() *xxhash.Digest
 	AppendCRC([]byte) []byte
-	WindowSize(size int) int32
+	WindowSize(size int64) int32
 	UseBlock(*blockEnc)
 	Reset(d *dict, singleBlock bool)
 }
@@ -48,6 +48,8 @@ type encoderState struct {
 	err              error
 	writeErr         error
 	nWritten         int64
+	nInput           int64
+	frameContentSize int64
 	headerWritten    bool
 	eofWritten       bool
 	fullFrameWritten bool
@@ -96,23 +98,25 @@ func (e *Encoder) Reset(w io.Writer) {
 	if cap(s.filling) == 0 {
 		s.filling = make([]byte, 0, e.o.blockSize)
 	}
-	if cap(s.current) == 0 {
-		s.current = make([]byte, 0, e.o.blockSize)
-	}
-	if cap(s.previous) == 0 {
-		s.previous = make([]byte, 0, e.o.blockSize)
+	if e.o.concurrent > 1 {
+		if cap(s.current) == 0 {
+			s.current = make([]byte, 0, e.o.blockSize)
+		}
+		if cap(s.previous) == 0 {
+			s.previous = make([]byte, 0, e.o.blockSize)
+		}
+		s.current = s.current[:0]
+		s.previous = s.previous[:0]
+		if s.writing == nil {
+			s.writing = &blockEnc{lowMem: e.o.lowMem}
+			s.writing.init()
+		}
+		s.writing.initNewEncode()
 	}
 	if s.encoder == nil {
 		s.encoder = e.o.encoder()
 	}
-	if s.writing == nil {
-		s.writing = &blockEnc{lowMem: e.o.lowMem}
-		s.writing.init()
-	}
-	s.writing.initNewEncode()
 	s.filling = s.filling[:0]
-	s.current = s.current[:0]
-	s.previous = s.previous[:0]
 	s.encoder.Reset(e.o.dict, false)
 	s.headerWritten = false
 	s.eofWritten = false
@@ -120,7 +124,21 @@ func (e *Encoder) Reset(w io.Writer) {
 	s.w = w
 	s.err = nil
 	s.nWritten = 0
+	s.nInput = 0
 	s.writeErr = nil
+	s.frameContentSize = 0
+}
+
+// ResetContentSize will reset and set a content size for the next stream.
+// If the bytes written does not match the size given an error will be returned
+// when calling Close().
+// This is removed when Reset is called.
+// Sizes <= 0 results in no content size set.
+func (e *Encoder) ResetContentSize(w io.Writer, size int64) {
+	e.Reset(w)
+	if size >= 0 {
+		e.state.frameContentSize = size
+	}
 }
 
 // Write data to the encoder.
@@ -190,6 +208,7 @@ func (e *Encoder) nextBlock(final bool) error {
 				return s.err
 			}
 			s.nWritten += int64(n2)
+			s.nInput += int64(len(s.filling))
 			s.current = s.current[:0]
 			s.filling = s.filling[:0]
 			s.headerWritten = true
@@ -200,8 +219,8 @@ func (e *Encoder) nextBlock(final bool) error {
 
 		var tmp [maxHeaderSize]byte
 		fh := frameHeader{
-			ContentSize:   0,
-			WindowSize:    uint32(s.encoder.WindowSize(0)),
+			ContentSize:   uint64(s.frameContentSize),
+			WindowSize:    uint32(s.encoder.WindowSize(s.frameContentSize)),
 			SingleSegment: false,
 			Checksum:      e.o.crc,
 			DictID:        e.o.dict.ID(),
@@ -241,11 +260,52 @@ func (e *Encoder) nextBlock(final bool) error {
 		return s.err
 	}
 
+	// SYNC:
+	if e.o.concurrent == 1 {
+		src := s.filling
+		s.nInput += int64(len(s.filling))
+		if debugEncoder {
+			println("Adding sync block,", len(src), "bytes, final:", final)
+		}
+		enc := s.encoder
+		blk := enc.Block()
+		blk.reset(nil)
+		enc.Encode(blk, src)
+		blk.last = final
+		if final {
+			s.eofWritten = true
+		}
+
+		err := errIncompressible
+		// If we got the exact same number of literals as input,
+		// assume the literals cannot be compressed.
+		if len(src) != len(blk.literals) || len(src) != e.o.blockSize {
+			err = blk.encode(src, e.o.noEntropy, !e.o.allLitEntropy)
+		}
+		switch err {
+		case errIncompressible:
+			if debugEncoder {
+				println("Storing incompressible block as raw")
+			}
+			blk.encodeRaw(src)
+			// In fast mode, we do not transfer offsets, so we don't have to deal with changing the.
+		case nil:
+		default:
+			s.err = err
+			return err
+		}
+		_, s.err = s.w.Write(blk.output)
+		s.nWritten += int64(len(blk.output))
+		s.filling = s.filling[:0]
+		return s.err
+	}
+
 	// Move blocks forward.
 	s.filling, s.current, s.previous = s.previous[:0], s.filling, s.current
+	s.nInput += int64(len(s.current))
 	s.wg.Add(1)
 	go func(src []byte) {
-		if debug {
+		if debugEncoder {
 			println("Adding block,", len(src), "bytes, final:", final)
 		}
 		defer func() {
@@ -290,7 +350,7 @@ func (e *Encoder) nextBlock(final bool) error {
 			}
 			switch err {
 			case errIncompressible:
-				if debug {
+				if debugEncoder {
 					println("Storing incompressible block as raw")
 				}
 				blk.encodeRaw(src)
@@ -313,7 +373,7 @@ func (e *Encoder) nextBlock(final bool) error {
 //
 // The Copy function uses ReaderFrom if available.
 func (e *Encoder) ReadFrom(r io.Reader) (n int64, err error) {
-	if debug {
+	if debugEncoder {
 		println("Using ReadFrom")
 	}
 
@@ -336,20 +396,20 @@ func (e *Encoder) ReadFrom(r io.Reader) (n int64, err error) {
 		switch err {
 		case io.EOF:
 			e.state.filling = e.state.filling[:len(e.state.filling)-len(src)]
-			if debug {
+			if debugEncoder {
 				println("ReadFrom: got EOF final block:", len(e.state.filling))
 			}
 			return n, nil
+		case nil:
 		default:
-			if debug {
+			if debugEncoder {
 				println("ReadFrom: got error:", err)
 			}
 			e.state.err = err
 			return n, err
-		case nil:
 		}
 		if len(src) > 0 {
-			if debug {
+			if debugEncoder {
 				println("ReadFrom: got space left in source:", len(src))
 			}
 			continue
@@ -393,6 +453,11 @@ func (e *Encoder) Close() error {
 	err := e.nextBlock(true)
 	if err != nil {
 		return err
+	}
+	if s.frameContentSize > 0 {
+		if s.nInput != s.frameContentSize {
+			return fmt.Errorf("frame content size %d given, but %d bytes was written", s.frameContentSize, s.nInput)
+		}
 	}
 	if e.state.fullFrameWritten {
 		return s.err
@@ -470,7 +535,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 	}
 	fh := frameHeader{
 		ContentSize:   uint64(len(src)),
-		WindowSize:    uint32(enc.WindowSize(len(src))),
+		WindowSize:    uint32(enc.WindowSize(int64(len(src)))),
 		SingleSegment: single,
 		Checksum:      e.o.crc,
 		DictID:        e.o.dict.ID(),
@@ -512,7 +577,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 
 		switch err {
 		case errIncompressible:
-			if debug {
+			if debugEncoder {
 				println("Storing incompressible block as raw")
 			}
 			dst = blk.encodeRawTo(dst, src)
@@ -548,7 +613,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 
 			switch err {
 			case errIncompressible:
-				if debug {
+				if debugEncoder {
 					println("Storing incompressible block as raw")
 				}
 				dst = blk.encodeRawTo(dst, todo)

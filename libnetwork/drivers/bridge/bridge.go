@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package bridge
@@ -5,7 +6,6 @@ package bridge
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -927,7 +927,7 @@ func setHairpinMode(nlh *netlink.Handle, link netlink.Link, enable bool) error {
 		val = []byte{'0', '\n'}
 	}
 
-	if err := ioutil.WriteFile(path, val, 0644); err != nil {
+	if err := os.WriteFile(path, val, 0644); err != nil {
 		return fmt.Errorf("unable to set hairpin mode on %s via sysfs: %v", link.Attrs().Name, err)
 	}
 
@@ -1351,6 +1351,11 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 			endpoint.portMapping = nil
 		}
 	}()
+
+	// Clean the connection tracker state of the host for the
+	// specific endpoint. This is needed because some flows may be
+	// bound to the local proxy and won't bre redirect to the new endpoints.
+	clearEndpointConnections(d.nlh, endpoint)
 
 	if err = d.storeUpdate(endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)

@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/errdefs"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -23,11 +23,12 @@ const versionMatcher = "/v{version:[0-9.]+}"
 
 // Config provides the configuration for the API server
 type Config struct {
-	Logging     bool
 	CorsHeaders string
 	Version     string
 	SocketGroup string
 	TLSConfig   *tls.Config
+	// Hosts is a list of addresses for the API to listen on.
+	Hosts []string
 }
 
 // Server contains instance details for the server
@@ -139,11 +140,11 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		}
 
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
-			statusCode := errdefs.GetHTTPErrorStatusCode(err)
+			statusCode := httpstatus.FromError(err)
 			if statusCode >= 500 {
 				logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			}
-			httputils.MakeErrorHandler(err)(w, r)
+			makeErrorHandler(err)(w, r)
 		}
 	}
 }
@@ -184,7 +185,7 @@ func (s *Server) createMux() *mux.Router {
 		m.Path("/debug" + r.Path()).Handler(f)
 	}
 
-	notFoundHandler := httputils.MakeErrorHandler(pageNotFoundError{})
+	notFoundHandler := makeErrorHandler(pageNotFoundError{})
 	m.HandleFunc(versionMatcher+"/{path:.*}", notFoundHandler)
 	m.NotFoundHandler = notFoundHandler
 	m.MethodNotAllowedHandler = notFoundHandler

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"path"
 	"sort"
@@ -13,22 +12,24 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/session/secrets"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/util/progress/logs"
 	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -38,27 +39,31 @@ type execOp struct {
 	op          *pb.ExecOp
 	cm          cache.Manager
 	mm          *mounts.MountManager
+	sm          *session.Manager
 	exec        executor.Executor
 	w           worker.Worker
 	platform    *pb.Platform
 	numInputs   int
 	parallelism *semaphore.Weighted
+	vtx         solver.Vertex
 }
 
-func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, parallelism *semaphore.Weighted, sm *session.Manager, md *metadata.Store, exec executor.Executor, w worker.Worker) (solver.Op, error) {
+func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, parallelism *semaphore.Weighted, sm *session.Manager, exec executor.Executor, w worker.Worker) (solver.Op, error) {
 	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
 		return nil, err
 	}
 	name := fmt.Sprintf("exec %s", strings.Join(op.Exec.Meta.Args, " "))
 	return &execOp{
 		op:          op.Exec,
-		mm:          mounts.NewMountManager(name, cm, sm, md),
+		mm:          mounts.NewMountManager(name, cm, sm),
 		cm:          cm,
+		sm:          sm,
 		exec:        exec,
 		numInputs:   len(v.Inputs()),
 		w:           w,
 		platform:    platform,
 		parallelism: parallelism,
+		vtx:         v,
 	}, nil
 }
 
@@ -93,7 +98,7 @@ func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 
 	p := platforms.DefaultSpec()
 	if e.platform != nil {
-		p = specs.Platform{
+		p = ocispecs.Platform{
 			OS:           e.platform.OS,
 			Architecture: e.platform.Architecture,
 			Variant:      e.platform.Variant,
@@ -140,6 +145,14 @@ func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
 		}, e.numInputs),
+		Opts: solver.CacheOpts(map[interface{}]interface{}{
+			cache.ProgressKey{}: &controller.Controller{
+				WriterFactory: progress.FromContext(ctx),
+				Digest:        e.vtx.Digest(),
+				Name:          e.vtx.Name(),
+				ProgressGroup: e.vtx.Options().ProgressGroup,
+			},
+		}),
 	}
 
 	deps, err := e.getMountDeps()
@@ -234,6 +247,8 @@ func addDefaultEnvvar(env []string, k, v string) []string {
 }
 
 func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) (results []solver.Result, err error) {
+	trace.SpanFromContext(ctx).AddEvent("ExecOp started")
+
 	refs := make([]*worker.WorkerRef, len(inputs))
 	for i, inp := range inputs {
 		var ok bool
@@ -290,13 +305,16 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		return nil, err
 	}
 
-	extraHosts, err := parseExtraHosts(e.op.Meta.ExtraHosts)
+	extraHosts, err := gateway.ParseExtraHosts(e.op.Meta.ExtraHosts)
 	if err != nil {
 		return nil, err
 	}
 
-	emu, err := getEmulator(e.platform, e.cm.IdentityMapping())
-	if err == nil && emu != nil {
+	emu, err := getEmulator(ctx, e.platform, e.cm.IdentityMapping())
+	if err != nil {
+		return nil, err
+	}
+	if emu != nil {
 		e.op.Meta.Args = append([]string{qemuMountName}, e.op.Meta.Args...)
 
 		p.Mounts = append(p.Mounts, executor.Mount{
@@ -304,9 +322,6 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 			Src:      emu,
 			Dest:     qemuMountName,
 		})
-	}
-	if err != nil {
-		logrus.Warn(err.Error()) // TODO: remove this with pull support
 	}
 
 	meta := executor.Meta{
@@ -317,6 +332,8 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		Hostname:       e.op.Meta.Hostname,
 		ReadonlyRootFS: p.ReadonlyRootFS,
 		ExtraHosts:     extraHosts,
+		Ulimit:         e.op.Meta.Ulimit,
+		CgroupParent:   e.op.Meta.CgroupParent,
 		NetMode:        e.op.Network,
 		SecurityMode:   e.op.Security,
 	}
@@ -330,9 +347,20 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	}
 	meta.Env = addDefaultEnvvar(meta.Env, "PATH", utilsystem.DefaultPathEnv(currentOS))
 
-	stdout, stderr := logs.NewLogStreams(ctx, os.Getenv("BUILDKIT_DEBUG_EXEC_OUTPUT") == "1")
+	secretEnv, err := e.loadSecretEnv(ctx, g)
+	if err != nil {
+		return nil, err
+	}
+	meta.Env = append(meta.Env, secretEnv...)
+
+	stdout, stderr, flush := logs.NewLogStreams(ctx, os.Getenv("BUILDKIT_DEBUG_EXEC_OUTPUT") == "1")
 	defer stdout.Close()
 	defer stderr.Close()
+	defer func() {
+		if err != nil {
+			flush()
+		}
+	}()
 
 	execErr := e.exec.Run(ctx, "", p.Root, p.Mounts, executor.ProcessInfo{
 		Meta:   meta,
@@ -354,7 +382,7 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		// Prevent the result from being released.
 		p.OutputRefs[i].Ref = nil
 	}
-	return results, errors.Wrapf(execErr, "executor failed running %v", e.op.Meta.Args)
+	return results, errors.Wrapf(execErr, "process %q did not complete successfully", strings.Join(e.op.Meta.Args, " "))
 }
 
 func proxyEnvList(p *pb.ProxyEnv) []string {
@@ -377,21 +405,6 @@ func proxyEnvList(p *pb.ProxyEnv) []string {
 	return out
 }
 
-func parseExtraHosts(ips []*pb.HostIP) ([]executor.HostIP, error) {
-	out := make([]executor.HostIP, len(ips))
-	for i, hip := range ips {
-		ip := net.ParseIP(hip.IP)
-		if ip == nil {
-			return nil, errors.Errorf("failed to parse IP %s", hip.IP)
-		}
-		out[i] = executor.HostIP{
-			IP:   ip,
-			Host: hip.Host,
-		}
-	}
-	return out, nil
-}
-
 func (e *execOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
 	if e.parallelism == nil {
 		return func() {}, nil
@@ -403,4 +416,35 @@ func (e *execOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
 	return func() {
 		e.parallelism.Release(1)
 	}, nil
+}
+
+func (e *execOp) loadSecretEnv(ctx context.Context, g session.Group) ([]string, error) {
+	secretenv := e.op.Secretenv
+	if len(secretenv) == 0 {
+		return nil, nil
+	}
+	out := make([]string, 0, len(secretenv))
+	for _, sopt := range secretenv {
+		id := sopt.ID
+		if id == "" {
+			return nil, errors.Errorf("secret ID missing for %q environment variable", sopt.Name)
+		}
+		var dt []byte
+		var err error
+		err = e.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
+			dt, err = secrets.GetSecret(ctx, caller, id)
+			if err != nil {
+				if errors.Is(err, secrets.ErrNotFound) && sopt.Optional {
+					return nil
+				}
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, fmt.Sprintf("%s=%s", sopt.Name, string(dt)))
+	}
+	return out, nil
 }

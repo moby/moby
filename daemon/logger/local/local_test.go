@@ -2,20 +2,18 @@ package local
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggertest"
 	protoio "github.com/gogo/protobuf/io"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,7 +22,7 @@ import (
 func TestWriteLog(t *testing.T) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
@@ -81,96 +79,23 @@ func TestWriteLog(t *testing.T) {
 }
 
 func TestReadLog(t *testing.T) {
-	t.Parallel()
-
-	dir, err := ioutil.TempDir("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
-	logPath := filepath.Join(dir, "test.log")
-	l, err := New(logger.Info{LogPath: logPath})
-	assert.NilError(t, err)
-	defer l.Close()
-
-	m1 := logger.Message{Source: "stdout", Timestamp: time.Now().Add(-1 * 30 * time.Minute), Line: []byte("a message")}
-	m2 := logger.Message{Source: "stdout", Timestamp: time.Now().Add(-1 * 20 * time.Minute), Line: []byte("another message"), PLogMetaData: &backend.PartialLogMetaData{Ordinal: 1, Last: true}}
-	longMessage := []byte("a really long message " + strings.Repeat("a", initialBufSize*2))
-	m3 := logger.Message{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: longMessage}
-	m4 := logger.Message{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("just one more message")}
-
-	// copy the log message because the underlying log writer resets the log message and returns it to a buffer pool
-	err = l.Log(copyLogMessage(&m1))
-	assert.NilError(t, err)
-	err = l.Log(copyLogMessage(&m2))
-	assert.NilError(t, err)
-	err = l.Log(copyLogMessage(&m3))
-	assert.NilError(t, err)
-	err = l.Log(copyLogMessage(&m4))
-	assert.NilError(t, err)
-
-	lr := l.(logger.LogReader)
-
-	testMessage := func(t *testing.T, lw *logger.LogWatcher, m *logger.Message) {
-		t.Helper()
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		select {
-		case <-ctx.Done():
-			assert.Assert(t, ctx.Err())
-		case err := <-lw.Err:
-			assert.NilError(t, err)
-		case msg, open := <-lw.Msg:
-			if !open {
-				select {
-				case err := <-lw.Err:
-					assert.NilError(t, err)
-				default:
-					assert.Assert(t, m == nil)
-					return
-				}
+	r := loggertest.Reader{
+		Factory: func(t *testing.T, info logger.Info) func(*testing.T) logger.Logger {
+			dir := t.TempDir()
+			info.LogPath = filepath.Join(dir, info.ContainerID+".log")
+			return func(t *testing.T) logger.Logger {
+				l, err := New(info)
+				assert.NilError(t, err)
+				return l
 			}
-			assert.Assert(t, m != nil)
-			if m.PLogMetaData == nil {
-				// a `\n` is appended on read to make this work with the existing API's when the message is not a partial.
-				// make sure it's the last entry in the line, and then truncate it for the deep equal below.
-				assert.Check(t, msg.Line[len(msg.Line)-1] == '\n')
-				msg.Line = msg.Line[:len(msg.Line)-1]
-			}
-			assert.Check(t, is.DeepEqual(m, msg), fmt.Sprintf("\n%+v\n%+v", m, msg))
-		}
+		},
 	}
-
-	t.Run("tail exact", func(t *testing.T) {
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: 4})
-
-		testMessage(t, lw, &m1)
-		testMessage(t, lw, &m2)
-		testMessage(t, lw, &m3)
-		testMessage(t, lw, &m4)
-		testMessage(t, lw, nil) // no more messages
-	})
-
-	t.Run("tail less than available", func(t *testing.T) {
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: 2})
-
-		testMessage(t, lw, &m3)
-		testMessage(t, lw, &m4)
-		testMessage(t, lw, nil) // no more messages
-	})
-
-	t.Run("tail more than available", func(t *testing.T) {
-		lw := lr.ReadLogs(logger.ReadConfig{Tail: 100})
-
-		testMessage(t, lw, &m1)
-		testMessage(t, lw, &m2)
-		testMessage(t, lw, &m3)
-		testMessage(t, lw, &m4)
-		testMessage(t, lw, nil) // no more messages
-	})
+	t.Run("Tail", r.TestTail)
+	t.Run("Follow", r.TestFollow)
 }
 
 func BenchmarkLogWrite(b *testing.B) {
-	f, err := ioutil.TempFile("", b.Name())
+	f, err := os.CreateTemp("", b.Name())
 	assert.Assert(b, err)
 	defer os.Remove(f.Name())
 	f.Close()

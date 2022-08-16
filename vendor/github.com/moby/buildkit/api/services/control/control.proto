@@ -41,13 +41,14 @@ message UsageRecord {
 	bool Mutable = 2;
 	bool InUse = 3;
 	int64 Size = 4;
-	string Parent = 5;
+	string Parent = 5 [deprecated=true];
 	google.protobuf.Timestamp CreatedAt = 6 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
 	google.protobuf.Timestamp LastUsedAt = 7 [(gogoproto.stdtime) = true];
 	int64 UsageCount = 8;
 	string Description = 9;
 	string RecordType = 10;
 	bool Shared = 11;
+	repeated string Parents = 12;
 }
 
 message SolveRequest {
@@ -103,6 +104,7 @@ message StatusResponse {
 	repeated Vertex vertexes = 1;
 	repeated VertexStatus statuses = 2;
 	repeated VertexLog logs = 3;
+	repeated VertexWarning warnings = 4;
 }
 
 message Vertex {
@@ -113,6 +115,7 @@ message Vertex {
 	google.protobuf.Timestamp started = 5 [(gogoproto.stdtime) = true ];
 	google.protobuf.Timestamp completed = 6 [(gogoproto.stdtime) = true ];
 	string error = 7; // typed errors?
+	pb.ProgressGroup progressGroup = 8;
 }
 
 message VertexStatus {
@@ -121,7 +124,6 @@ message VertexStatus {
 	string name = 3;
 	int64 current = 4;
 	int64 total = 5;
-	// TODO: add started, completed
 	google.protobuf.Timestamp timestamp = 6 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
 	google.protobuf.Timestamp started = 7 [(gogoproto.stdtime) = true ];
 	google.protobuf.Timestamp completed = 8 [(gogoproto.stdtime) = true ];
@@ -132,6 +134,16 @@ message VertexLog {
 	google.protobuf.Timestamp timestamp = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
 	int64 stream = 3;
 	bytes msg = 4;
+}
+
+message VertexWarning {
+	string vertex = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	int64 level = 2;
+	bytes short = 3;
+	repeated bytes detail = 4;
+	string url = 5;
+	pb.SourceInfo info = 6;
+	repeated pb.Range ranges = 7;
 }
 
 message BytesMessage {

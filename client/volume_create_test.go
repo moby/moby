@@ -5,13 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -20,7 +19,7 @@ func TestVolumeCreateError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.VolumeCreate(context.Background(), volumetypes.VolumeCreateBody{})
+	_, err := client.VolumeCreate(context.Background(), volume.CreateOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -39,7 +38,7 @@ func TestVolumeCreate(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			content, err := json.Marshal(types.Volume{
+			content, err := json.Marshal(volume.Volume{
 				Name:       "volume",
 				Driver:     "local",
 				Mountpoint: "mountpoint",
@@ -49,12 +48,12 @@ func TestVolumeCreate(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader(content)),
+				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
 		}),
 	}
 
-	volume, err := client.VolumeCreate(context.Background(), volumetypes.VolumeCreateBody{
+	vol, err := client.VolumeCreate(context.Background(), volume.CreateOptions{
 		Name:   "myvolume",
 		Driver: "mydriver",
 		DriverOpts: map[string]string{
@@ -64,13 +63,13 @@ func TestVolumeCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if volume.Name != "volume" {
-		t.Fatalf("expected volume.Name to be 'volume', got %s", volume.Name)
+	if vol.Name != "volume" {
+		t.Fatalf("expected volume.Name to be 'volume', got %s", vol.Name)
 	}
-	if volume.Driver != "local" {
-		t.Fatalf("expected volume.Driver to be 'local', got %s", volume.Driver)
+	if vol.Driver != "local" {
+		t.Fatalf("expected volume.Driver to be 'local', got %s", vol.Driver)
 	}
-	if volume.Mountpoint != "mountpoint" {
-		t.Fatalf("expected volume.Mountpoint to be 'mountpoint', got %s", volume.Mountpoint)
+	if vol.Mountpoint != "mountpoint" {
+		t.Fatalf("expected volume.Mountpoint to be 'mountpoint', got %s", vol.Mountpoint)
 	}
 }

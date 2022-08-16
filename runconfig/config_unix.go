@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package runconfig // import "github.com/docker/docker/runconfig"
@@ -24,7 +25,7 @@ func (w *ContainerConfigWrapper) getHostConfig() *container.HostConfig {
 
 	if hc == nil && w.InnerHostConfig != nil {
 		hc = w.InnerHostConfig
-	} else if w.InnerHostConfig != nil {
+	} else if hc != nil && w.InnerHostConfig != nil {
 		if hc.Memory != 0 && w.InnerHostConfig.Memory == 0 {
 			w.InnerHostConfig.Memory = hc.Memory
 		}

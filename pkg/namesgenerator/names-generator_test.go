@@ -25,3 +25,12 @@ func TestNameRetries(t *testing.T) {
 	}
 
 }
+
+func BenchmarkGetRandomName(b *testing.B) {
+	b.ReportAllocs()
+	var out string
+	for n := 0; n < b.N; n++ {
+		out = GetRandomName(5)
+	}
+	b.Log("Last result:", out)
+}

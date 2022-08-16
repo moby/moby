@@ -9,9 +9,8 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/api/types/registry"
+	registrypkg "github.com/docker/docker/registry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -41,7 +40,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatalf("could not parse url from test server: %v", err)
 	}
 
-	endpoint := registry.APIEndpoint{
+	endpoint := registrypkg.APIEndpoint{
 		Mirror:       false,
 		URL:          uri,
 		Version:      2,
@@ -50,9 +49,9 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		TLSConfig:    nil,
 	}
 	n, _ := reference.ParseNormalizedNamed("testremotename")
-	repoInfo := &registry.RepositoryInfo{
+	repoInfo := &registrypkg.RepositoryInfo{
 		Name: n,
-		Index: &registrytypes.IndexInfo{
+		Index: &registry.IndexInfo{
 			Name:     "testrepo",
 			Mirrors:  nil,
 			Secure:   false,
@@ -63,19 +62,14 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	imagePullConfig := &ImagePullConfig{
 		Config: Config{
 			MetaHeaders: http.Header{},
-			AuthConfig: &types.AuthConfig{
+			AuthConfig: &registry.AuthConfig{
 				RegistryToken: secretRegistryToken,
 			},
 		},
-		Schema2Types: ImageTypes,
 	}
-	puller, err := newPuller(endpoint, repoInfo, imagePullConfig, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := puller.(*v2Puller)
+	p := newPuller(endpoint, repoInfo, imagePullConfig, nil)
 	ctx := context.Background()
-	p.repo, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +77,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	logrus.Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
-	_ = p.pullV2Repository(ctx, tag, nil)
+	_ = p.pullRepository(ctx, tag)
 }
 
 func TestTokenPassThru(t *testing.T) {

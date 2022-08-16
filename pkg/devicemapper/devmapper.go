@@ -1,3 +1,4 @@
+//go:build linux && cgo
 // +build linux,cgo
 
 package devicemapper // import "github.com/docker/docker/pkg/devicemapper"
@@ -14,7 +15,8 @@ import (
 )
 
 // Same as DM_DEVICE_* enum values from libdevmapper.h
-//nolint: deadcode,unused,varcheck
+//
+//nolint:deadcode,unused,varcheck
 const (
 	deviceCreate TaskType = iota
 	deviceReload

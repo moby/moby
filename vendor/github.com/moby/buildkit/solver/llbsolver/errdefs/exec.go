@@ -5,7 +5,7 @@ import (
 	"runtime"
 
 	"github.com/moby/buildkit/solver"
-	"github.com/sirupsen/logrus"
+	"github.com/moby/buildkit/util/bklog"
 )
 
 // ExecError will be returned when an error is encountered when evaluating an op.
@@ -62,6 +62,10 @@ func (e *ExecError) Release() error {
 }
 
 func WithExecError(err error, inputs, mounts []solver.Result) error {
+	return WithExecErrorWithContext(context.TODO(), err, inputs, mounts)
+}
+
+func WithExecErrorWithContext(ctx context.Context, err error, inputs, mounts []solver.Result) error {
 	if err == nil {
 		return nil
 	}
@@ -73,7 +77,7 @@ func WithExecError(err error, inputs, mounts []solver.Result) error {
 	runtime.SetFinalizer(ee, func(e *ExecError) {
 		if !e.OwnerBorrowed {
 			e.EachRef(func(r solver.Result) error {
-				logrus.Warn("leaked execError detected and released")
+				bklog.G(ctx).Warn("leaked execError detected and released")
 				r.Release(context.TODO())
 				return nil
 			})

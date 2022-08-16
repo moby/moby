@@ -1,3 +1,4 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package testutils
@@ -15,8 +16,7 @@ import (
 //
 // Example usage:
 //
-//     defer SetupTestOSContext(t)()
-//
+//	defer SetupTestOSContext(t)()
 func SetupTestOSContext(t *testing.T) func() {
 	runtime.LockOSThread()
 	if err := syscall.Unshare(syscall.CLONE_NEWNET); err != nil {

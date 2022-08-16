@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	nethttp "net/http"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -15,14 +12,12 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
-	"github.com/docker/docker/distribution"
 	distmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/executor"
@@ -44,11 +39,10 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -65,13 +59,12 @@ type Opt struct {
 	ID                string
 	Labels            map[string]string
 	GCPolicy          []client.PruneInfo
-	MetadataStore     *metadata.Store
 	Executor          executor.Executor
 	Snapshotter       snapshot.Snapshotter
 	ContentStore      content.Store
 	CacheManager      cache.Manager
 	ImageSource       *containerimage.Source
-	DownloadManager   distribution.RootFSDownloadManager
+	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
 	Transport         nethttp.RoundTripper
 	Exporter          exporter.Exporter
@@ -98,7 +91,6 @@ func NewWorker(opt Opt) (*Worker, error) {
 
 	gs, err := git.NewSource(git.Opt{
 		CacheAccessor: cm,
-		MetadataStore: opt.MetadataStore,
 	})
 	if err == nil {
 		sm.Register(gs)
@@ -108,7 +100,6 @@ func NewWorker(opt Opt) (*Worker, error) {
 
 	hs, err := http.NewSource(http.Opt{
 		CacheAccessor: cm,
-		MetadataStore: opt.MetadataStore,
 		Transport:     opt.Transport,
 	})
 	if err == nil {
@@ -119,7 +110,6 @@ func NewWorker(opt Opt) (*Worker, error) {
 
 	ss, err := local.NewSource(local.Opt{
 		CacheAccessor: cm,
-		MetadataStore: opt.MetadataStore,
 	})
 	if err == nil {
 		sm.Register(ss)
@@ -151,9 +141,8 @@ func (w *Worker) Platforms(noCache bool) []ocispec.Platform {
 			pm[platforms.Format(p)] = struct{}{}
 		}
 		for _, p := range archutil.SupportedPlatforms(noCache) {
-			if _, ok := pm[p]; !ok {
-				pp, _ := platforms.Parse(p)
-				w.Opt.Platforms = append(w.Opt.Platforms, pp)
+			if _, ok := pm[platforms.Format(p)]; !ok {
+				w.Opt.Platforms = append(w.Opt.Platforms, p)
 			}
 		}
 	}
@@ -173,18 +162,13 @@ func (w *Worker) ContentStore() content.Store {
 	return w.Opt.ContentStore
 }
 
-// MetadataStore returns the metadata store
-func (w *Worker) MetadataStore() *metadata.Store {
-	return w.Opt.MetadataStore
-}
-
 // LoadRef loads a reference by ID
 func (w *Worker) LoadRef(ctx context.Context, id string, hidden bool) (cache.ImmutableRef, error) {
 	var opts []cache.RefOption
 	if hidden {
 		opts = append(opts, cache.NoUpdateLastUsed)
 	}
-	return w.CacheManager().Get(ctx, id, opts...)
+	return w.CacheManager().Get(ctx, id, nil, opts...)
 }
 
 // ResolveOp converts a LLB vertex into a LLB operation
@@ -196,11 +180,15 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 		case *pb.Op_Source:
 			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, parallelism, sm, w)
 		case *pb.Op_Exec:
-			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), parallelism, sm, w.Opt.MetadataStore, w.Executor(), w)
+			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), parallelism, sm, w.Executor(), w)
 		case *pb.Op_File:
-			return ops.NewFileOp(v, op, w.CacheManager(), parallelism, w.Opt.MetadataStore, w)
+			return ops.NewFileOp(v, op, w.CacheManager(), parallelism, w)
 		case *pb.Op_Build:
 			return ops.NewBuildOp(v, op, s, w)
+		case *pb.Op_Merge:
+			return ops.NewMergeOp(v, op, w)
+		case *pb.Op_Diff:
+			return ops.NewDiffOp(v, op, w)
 		}
 	}
 	return nil, errors.Errorf("could not resolve %v", v)
@@ -240,7 +228,7 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 }
 
 // GetRemote returns a remote snapshot reference for a local one
-func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, _ session.Group) (*solver.Remote, error) {
+func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, s session.Group) (*solver.Remote, error) {
 	var diffIDs []layer.DiffID
 	var err error
 	if !createIfNeeded {
@@ -249,7 +237,10 @@ func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIf
 			return nil, err
 		}
 	} else {
-		if err := ref.Finalize(ctx, true); err != nil {
+		if err := ref.Finalize(ctx); err != nil {
+			return nil, err
+		}
+		if err := ref.Extract(ctx, s); err != nil {
 			return nil, err
 		}
 		diffIDs, err = w.Layers.EnsureLayer(ctx, ref.ID())
@@ -280,32 +271,20 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
 	defer mu.Unlock()
 
 	for _, id := range ids {
-		id = "cache-dir:" + id
-		sis, err := w.Opt.MetadataStore.Search(id)
+		mds, err := mounts.SearchCacheDir(ctx, w.CacheManager(), id)
 		if err != nil {
 			return err
 		}
-		for _, si := range sis {
-			for _, k := range si.Indexes() {
-				if k == id || strings.HasPrefix(k, id+":") {
-					if siCached := w.CacheManager().Metadata(si.ID()); siCached != nil {
-						si = siCached
-					}
-					if err := cache.CachePolicyDefault(si); err != nil {
-						return err
-					}
-					si.Queue(func(b *bolt.Bucket) error {
-						return si.SetValue(b, k, nil)
-					})
-					if err := si.Commit(); err != nil {
-						return err
-					}
-					// if ref is unused try to clean it up right away by releasing it
-					if mref, err := w.CacheManager().GetMutable(ctx, si.ID()); err == nil {
-						go mref.Release(context.TODO())
-					}
-					break
-				}
+		for _, md := range mds {
+			if err := md.SetCachePolicyDefault(); err != nil {
+				return err
+			}
+			if err := md.ClearCacheDirIndex(); err != nil {
+				return err
+			}
+			// if ref is unused try to clean it up right away by releasing it
+			if mref, err := w.CacheManager().GetMutable(ctx, md.ID()); err == nil {
+				go mref.Release(context.TODO())
 			}
 		}
 	}
@@ -358,7 +337,7 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 	}()
 
 	r := image.NewRootFS()
-	rootFS, release, err := w.DownloadManager.Download(ctx, *r, runtime.GOOS, layers, &discardProgress{})
+	rootFS, release, err := w.DownloadManager.Download(ctx, *r, layers, &discardProgress{})
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +414,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 
 	// TODO should this write output to progressOutput? Or use something similar to loggerFromContext()? see https://github.com/moby/buildkit/commit/aa29e7729464f3c2a773e27795e584023c751cb8
 	discardLogs := func(_ []byte) {}
-	if err := contentutil.Copy(ctx, ld.w.ContentStore(), ld.provider, ld.desc, discardLogs); err != nil {
+	if err := contentutil.Copy(ctx, ld.w.ContentStore(), ld.provider, ld.desc, "", discardLogs); err != nil {
 		return nil, 0, done(err)
 	}
 	_ = done(nil)
@@ -445,7 +424,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 		return nil, 0, err
 	}
 
-	return ioutil.NopCloser(content.NewReader(ra)), ld.desc.Size, nil
+	return io.NopCloser(content.NewReader(ra)), ld.desc.Size, nil
 }
 
 func (ld *layerDescriptor) Close() {
@@ -482,7 +461,7 @@ func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer,
 }
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,

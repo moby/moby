@@ -2,7 +2,6 @@ package git // import "github.com/docker/docker/builder/remotecontext/git"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -171,7 +170,7 @@ func gitGetConfig(name string) string {
 }
 
 func TestCheckoutGit(t *testing.T) {
-	root, err := ioutil.TempDir("", "docker-build-git-checkout")
+	root, err := os.MkdirTemp("", "docker-build-git-checkout")
 	assert.NilError(t, err)
 	defer os.RemoveAll(root)
 
@@ -195,13 +194,13 @@ func TestCheckoutGit(t *testing.T) {
 	_, err = gitWithinDir(gitDir, "config", "user.name", "Docker test")
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644)
+	err = os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644)
 	assert.NilError(t, err)
 
 	subDir := filepath.Join(gitDir, "subdir")
 	assert.NilError(t, os.Mkdir(subDir, 0755))
 
-	err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 5000"), 0644)
+	err = os.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 5000"), 0644)
 	assert.NilError(t, err)
 
 	if runtime.GOOS != "windows" {
@@ -223,10 +222,10 @@ func TestCheckoutGit(t *testing.T) {
 	_, err = gitWithinDir(gitDir, "checkout", "-b", "test")
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0644)
+	err = os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0644)
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0644)
+	err = os.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0644)
 	assert.NilError(t, err)
 
 	_, err = gitWithinDir(gitDir, "add", "-A")
@@ -249,7 +248,7 @@ func TestCheckoutGit(t *testing.T) {
 	_, err = gitWithinDir(subrepoDir, "config", "user.name", "Docker test")
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(subrepoDir, "subfile"), []byte("subcontents"), 0644)
+	err = os.WriteFile(filepath.Join(subrepoDir, "subfile"), []byte("subcontents"), 0644)
 	assert.NilError(t, err)
 
 	_, err = gitWithinDir(subrepoDir, "add", "-A")
@@ -310,7 +309,7 @@ func TestCheckoutGit(t *testing.T) {
 		assert.NilError(t, err)
 		defer os.RemoveAll(r)
 		if c.submodule {
-			b, err := ioutil.ReadFile(filepath.Join(r, "sub/subfile"))
+			b, err := os.ReadFile(filepath.Join(r, "sub/subfile"))
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal("subcontents", string(b)))
 		} else {
@@ -319,7 +318,7 @@ func TestCheckoutGit(t *testing.T) {
 			assert.Assert(t, os.IsNotExist(err))
 		}
 
-		b, err := ioutil.ReadFile(filepath.Join(r, "Dockerfile"))
+		b, err := os.ReadFile(filepath.Join(r, "Dockerfile"))
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(c.exp, string(b)))
 	}

@@ -21,7 +21,7 @@ func GetSharedBaseImages(ctx context.Context) (_ string, err error) {
 	var buffer *uint16
 	err = getBaseImages(&buffer)
 	if err != nil {
-		return "", hcserror.New(err, title+" - failed", "")
+		return "", hcserror.New(err, title, "")
 	}
 	imageData := interop.ConvertAndFreeCoTaskMemString(buffer)
 	span.AddAttributes(trace.StringAttribute("imageData", imageData))

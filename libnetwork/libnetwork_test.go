@@ -1,10 +1,11 @@
+//go:build linux
 // +build linux
 
 package libnetwork_test
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1013,7 +1014,11 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	sbx1, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("docker.io"),
-		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+		libnetwork.OptionExtraHost("web", "192.168.0.1"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if err := sbx1.Delete(); err != nil {
 			t.Fatal(err)
@@ -1021,6 +1026,9 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	}()
 
 	sbx2, err := controller.NewSandbox("c2")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		if err := sbx2.Delete(); err != nil {
 			t.Fatal(err)
@@ -1269,7 +1277,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		}
 	}()
 
-	if err := ioutil.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1285,7 +1293,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if err != plugins.ErrNotImplements {
+	if !errors.Is(err, plugins.ErrNotImplements) {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -1324,7 +1332,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		}
 	}()
 
-	if err := ioutil.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
 		t.Fatal(err)
 	}
 

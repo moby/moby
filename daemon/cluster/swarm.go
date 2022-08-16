@@ -13,10 +13,10 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/signal"
-	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/manager/encryption"
-	swarmnode "github.com/docker/swarmkit/node"
+	"github.com/docker/docker/pkg/stack"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/manager/encryption"
+	swarmnode "github.com/moby/swarmkit/v2/node"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -52,7 +52,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 
 	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
 	if err != nil {
-		return "", err
+		return "", errdefs.InvalidParameter(err)
 	}
 
 	advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
@@ -399,7 +399,7 @@ func (c *Cluster) Leave(force bool) error {
 	// release readers in here
 	if err := nr.Stop(); err != nil {
 		logrus.Errorf("failed to shut down cluster node: %v", err)
-		signal.DumpStacks("")
+		stack.Dump()
 		return err
 	}
 
@@ -492,6 +492,23 @@ func (c *Cluster) Info() types.Info {
 	return info
 }
 
+// Status returns a textual representation of the node's swarm status and role (manager/worker)
+func (c *Cluster) Status() string {
+	c.mu.RLock()
+	s := c.currentNodeState()
+	c.mu.RUnlock()
+
+	state := string(s.status)
+	if s.status == types.LocalNodeStateActive {
+		if s.IsActiveManager() || s.IsManager() {
+			state += "/manager"
+		} else {
+			state += "/worker"
+		}
+	}
+	return state
+}
+
 func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 	var err error
 	req.ListenAddr, err = validateAddr(req.ListenAddr)
@@ -532,6 +549,7 @@ func validateAddr(addr string) (string, error) {
 	}
 	newaddr, err := opts.ParseTCPAddr(addr, defaultAddr)
 	if err != nil {
+		// TODO(thaJeztah) why are we ignoring the error here? Is this to allow "non-tcp" addresses?
 		return addr, nil
 	}
 	return strings.TrimPrefix(newaddr, "tcp://"), nil

@@ -1,10 +1,10 @@
+//go:build linux
 // +build linux
 
 package bridge
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -51,7 +51,7 @@ func setupDefaultSysctl(config *networkConfiguration, i *bridgeInterface) error 
 			Info("failed to read ipv6 net.ipv6.conf.<bridge>.accept_ra")
 		return nil
 	}
-	if err := ioutil.WriteFile(sysPath, []byte{'0', '\n'}, 0644); err != nil {
+	if err := os.WriteFile(sysPath, []byte{'0', '\n'}, 0644); err != nil {
 		logrus.WithError(err).Warn("unable to disable IPv6 router advertisement")
 	}
 	return nil

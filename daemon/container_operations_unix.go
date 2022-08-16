@@ -1,13 +1,14 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
@@ -205,7 +206,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "unable to get secret from secret store")
 		}
-		if err := ioutil.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
+		if err := os.WriteFile(fPath, secret.Spec.Data, s.File.Mode); err != nil {
 			return errors.Wrap(err, "error injecting secret")
 		}
 
@@ -256,7 +257,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "unable to get config from config store")
 		}
-		if err := ioutil.WriteFile(fPath, config.Spec.Data, configRef.File.Mode); err != nil {
+		if err := os.WriteFile(fPath, config.Spec.Data, configRef.File.Mode); err != nil {
 			return errors.Wrap(err, "error injecting config")
 		}
 
@@ -336,24 +337,25 @@ func (daemon *Daemon) cleanupSecretDir(c *container.Container) {
 
 func killProcessDirectly(container *container.Container) error {
 	pid := container.GetPID()
-	// Ensure that we don't kill ourselves
 	if pid == 0 {
+		// Ensure that we don't kill ourselves
 		return nil
 	}
 
-	if err := unix.Kill(pid, 9); err != nil {
+	if err := unix.Kill(pid, syscall.SIGKILL); err != nil {
 		if err != unix.ESRCH {
-			return err
+			return errdefs.System(err)
 		}
-		e := errNoSuchProcess{pid, 9}
-		logrus.WithError(e).WithField("container", container.ID).Debug("no such process")
-		return e
+		err = errNoSuchProcess{pid, syscall.SIGKILL}
+		logrus.WithError(err).WithField("container", container.ID).Debug("no such process")
+		return err
 	}
 
 	// In case there were some exceptions(e.g., state of zombie and D)
 	if system.IsProcessAlive(pid) {
 		// Since we can not kill a zombie pid, add zombie check here
 		isZombie, err := system.IsProcessZombie(pid)
+		// TODO(thaJeztah) should we ignore os.IsNotExist() here? ("/proc/<pid>/stat" will be gone if the process exited)
 		if err != nil {
 			logrus.WithError(err).WithField("container", container.ID).Warn("Container state is invalid")
 			return err
@@ -458,5 +460,5 @@ func (daemon *Daemon) setupContainerMountsRoot(c *container.Container) error {
 	if err != nil {
 		return err
 	}
-	return idtools.MkdirAllAndChown(p, 0701, idtools.CurrentIdentity())
+	return idtools.MkdirAllAndChown(p, 0710, idtools.Identity{UID: idtools.CurrentIdentity().UID, GID: daemon.IdentityMapping().RootPair().GID})
 }

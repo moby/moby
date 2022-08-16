@@ -7,9 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/layer"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 )
 
 // V2MetadataService maps layer IDs to a set of known metadata for
@@ -69,7 +69,7 @@ func ComputeV2MetadataHMAC(key []byte, meta *V2Metadata) string {
 
 // ComputeV2MetadataHMACKey returns a key for the given "authConfig" that can be used to hash v2 metadata
 // entries.
-func ComputeV2MetadataHMACKey(authConfig *types.AuthConfig) ([]byte, error) {
+func ComputeV2MetadataHMACKey(authConfig *registry.AuthConfig) ([]byte, error) {
 	if authConfig == nil {
 		return nil, nil
 	}

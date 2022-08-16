@@ -1,6 +1,7 @@
 package ebpf
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ var (
 	ErrKeyNotExist      = errors.New("key does not exist")
 	ErrKeyExist         = errors.New("key already exists")
 	ErrIterationAborted = errors.New("iteration aborted")
+	ErrMapIncompatible  = errors.New("map's spec is incompatible with pinned map")
 )
 
 // MapOptions control loading a map into the kernel.
@@ -64,6 +66,11 @@ type MapSpec struct {
 	// InnerMap is used as a template for ArrayOfMaps and HashOfMaps
 	InnerMap *MapSpec
 
+	// Extra trailing bytes found in the ELF map definition when using structs
+	// larger than libbpf's bpf_map_def. Must be empty before instantiating
+	// the MapSpec into a Map.
+	Extra bytes.Reader
+
 	// The BTF associated with this map.
 	BTF *btf.Map
 }
@@ -81,10 +88,30 @@ func (ms *MapSpec) Copy() *MapSpec {
 	}
 
 	cpy := *ms
+
 	cpy.Contents = make([]MapKV, len(ms.Contents))
 	copy(cpy.Contents, ms.Contents)
+
 	cpy.InnerMap = ms.InnerMap.Copy()
+
 	return &cpy
+}
+
+func (ms *MapSpec) clampPerfEventArraySize() error {
+	if ms.Type != PerfEventArray {
+		return nil
+	}
+
+	n, err := internal.PossibleCPUs()
+	if err != nil {
+		return fmt.Errorf("perf event array: %w", err)
+	}
+
+	if n := uint32(n); ms.MaxEntries > n {
+		ms.MaxEntries = n
+	}
+
+	return nil
 }
 
 // MapKV is used to initialize the contents of a Map.
@@ -96,19 +123,19 @@ type MapKV struct {
 func (ms *MapSpec) checkCompatibility(m *Map) error {
 	switch {
 	case m.typ != ms.Type:
-		return fmt.Errorf("expected type %v, got %v", ms.Type, m.typ)
+		return fmt.Errorf("expected type %v, got %v: %w", ms.Type, m.typ, ErrMapIncompatible)
 
 	case m.keySize != ms.KeySize:
-		return fmt.Errorf("expected key size %v, got %v", ms.KeySize, m.keySize)
+		return fmt.Errorf("expected key size %v, got %v: %w", ms.KeySize, m.keySize, ErrMapIncompatible)
 
 	case m.valueSize != ms.ValueSize:
-		return fmt.Errorf("expected value size %v, got %v", ms.ValueSize, m.valueSize)
+		return fmt.Errorf("expected value size %v, got %v: %w", ms.ValueSize, m.valueSize, ErrMapIncompatible)
 
 	case m.maxEntries != ms.MaxEntries:
-		return fmt.Errorf("expected max entries %v, got %v", ms.MaxEntries, m.maxEntries)
+		return fmt.Errorf("expected max entries %v, got %v: %w", ms.MaxEntries, m.maxEntries, ErrMapIncompatible)
 
 	case m.flags != ms.Flags:
-		return fmt.Errorf("expected flags %v, got %v", ms.Flags, m.flags)
+		return fmt.Errorf("expected flags %v, got %v: %w", ms.Flags, m.flags, ErrMapIncompatible)
 	}
 	return nil
 }
@@ -170,15 +197,27 @@ func NewMap(spec *MapSpec) (*Map, error) {
 //
 // The caller is responsible for ensuring the process' rlimit is set
 // sufficiently high for locking memory during map creation. This can be done
-// by calling unix.Setrlimit with unix.RLIMIT_MEMLOCK prior to calling NewMapWithOptions.
+// by calling rlimit.RemoveMemlock() prior to calling NewMapWithOptions.
+//
+// May return an error wrapping ErrMapIncompatible.
 func NewMapWithOptions(spec *MapSpec, opts MapOptions) (*Map, error) {
-	btfs := make(btfHandleCache)
-	defer btfs.close()
+	handles := newHandleCache()
+	defer handles.close()
 
-	return newMapWithOptions(spec, opts, btfs)
+	m, err := newMapWithOptions(spec, opts, handles)
+	if err != nil {
+		return nil, fmt.Errorf("creating map: %w", err)
+	}
+
+	err = m.finalize(spec)
+	if err != nil {
+		return nil, fmt.Errorf("populating map: %w", err)
+	}
+
+	return m, nil
 }
 
-func newMapWithOptions(spec *MapSpec, opts MapOptions, btfs btfHandleCache) (_ *Map, err error) {
+func newMapWithOptions(spec *MapSpec, opts MapOptions, handles *handleCache) (_ *Map, err error) {
 	closeOnError := func(c io.Closer) {
 		if err != nil {
 			c.Close()
@@ -187,8 +226,12 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions, btfs btfHandleCache) (_ *
 
 	switch spec.Pinning {
 	case PinByName:
-		if spec.Name == "" || opts.PinPath == "" {
-			return nil, fmt.Errorf("pin by name: missing Name or PinPath")
+		if spec.Name == "" {
+			return nil, fmt.Errorf("pin by name: missing Name")
+		}
+
+		if opts.PinPath == "" {
+			return nil, fmt.Errorf("pin by name: missing MapOptions.PinPath")
 		}
 
 		path := filepath.Join(opts.PinPath, spec.Name)
@@ -202,7 +245,7 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions, btfs btfHandleCache) (_ *
 		defer closeOnError(m)
 
 		if err := spec.checkCompatibility(m); err != nil {
-			return nil, fmt.Errorf("use pinned map %s: %s", spec.Name, err)
+			return nil, fmt.Errorf("use pinned map %s: %w", spec.Name, err)
 		}
 
 		return m, nil
@@ -211,7 +254,7 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions, btfs btfHandleCache) (_ *
 		// Nothing to do here
 
 	default:
-		return nil, fmt.Errorf("unsupported pin type %d", int(spec.Pinning))
+		return nil, fmt.Errorf("pin type %d: %w", int(spec.Pinning), ErrNotSupported)
 	}
 
 	var innerFd *internal.FD
@@ -224,16 +267,19 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions, btfs btfHandleCache) (_ *
 			return nil, errors.New("inner maps cannot be pinned")
 		}
 
-		template, err := createMap(spec.InnerMap, nil, opts, btfs)
+		template, err := spec.InnerMap.createMap(nil, opts, handles)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("inner map: %w", err)
 		}
 		defer template.Close()
+
+		// Intentionally skip populating and freezing (finalizing)
+		// the inner map template since it will be removed shortly.
 
 		innerFd = template.fd
 	}
 
-	m, err := createMap(spec, innerFd, opts, btfs)
+	m, err := spec.createMap(innerFd, opts, handles)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +295,9 @@ func newMapWithOptions(spec *MapSpec, opts MapOptions, btfs btfHandleCache) (_ *
 	return m, nil
 }
 
-func createMap(spec *MapSpec, inner *internal.FD, opts MapOptions, btfs btfHandleCache) (_ *Map, err error) {
+// createMap validates the spec's properties and creates the map in the kernel
+// using the given opts. It does not populate or freeze the map.
+func (spec *MapSpec) createMap(inner *internal.FD, opts MapOptions, handles *handleCache) (_ *Map, err error) {
 	closeOnError := func(closer io.Closer) {
 		if err != nil {
 			closer.Close()
@@ -258,10 +306,16 @@ func createMap(spec *MapSpec, inner *internal.FD, opts MapOptions, btfs btfHandl
 
 	spec = spec.Copy()
 
+	// Kernels 4.13 through 5.4 used a struct bpf_map_def that contained
+	// additional 'inner_map_idx' and later 'numa_node' fields.
+	// In order to support loading these definitions, tolerate the presence of
+	// extra bytes, but require them to be zeroes.
+	if _, err := io.Copy(internal.DiscardZeroes{}, &spec.Extra); err != nil {
+		return nil, errors.New("extra contains unhandled non-zero bytes, drain before creating map")
+	}
+
 	switch spec.Type {
-	case ArrayOfMaps:
-		fallthrough
-	case HashOfMaps:
+	case ArrayOfMaps, HashOfMaps:
 		if err := haveNestedMaps(); err != nil {
 			return nil, err
 		}
@@ -296,47 +350,57 @@ func createMap(spec *MapSpec, inner *internal.FD, opts MapOptions, btfs btfHandl
 			return nil, fmt.Errorf("map create: %w", err)
 		}
 	}
+	if spec.Flags&unix.BPF_F_MMAPABLE > 0 {
+		if err := haveMmapableMaps(); err != nil {
+			return nil, fmt.Errorf("map create: %w", err)
+		}
+	}
+	if spec.Flags&unix.BPF_F_INNER_MAP > 0 {
+		if err := haveInnerMaps(); err != nil {
+			return nil, fmt.Errorf("map create: %w", err)
+		}
+	}
 
-	attr := bpfMapCreateAttr{
-		mapType:    spec.Type,
-		keySize:    spec.KeySize,
-		valueSize:  spec.ValueSize,
-		maxEntries: spec.MaxEntries,
-		flags:      spec.Flags,
-		numaNode:   spec.NumaNode,
+	attr := internal.BPFMapCreateAttr{
+		MapType:    uint32(spec.Type),
+		KeySize:    spec.KeySize,
+		ValueSize:  spec.ValueSize,
+		MaxEntries: spec.MaxEntries,
+		Flags:      spec.Flags,
+		NumaNode:   spec.NumaNode,
 	}
 
 	if inner != nil {
 		var err error
-		attr.innerMapFd, err = inner.Value()
+		attr.InnerMapFd, err = inner.Value()
 		if err != nil {
 			return nil, fmt.Errorf("map create: %w", err)
 		}
 	}
 
 	if haveObjName() == nil {
-		attr.mapName = newBPFObjName(spec.Name)
+		attr.MapName = internal.NewBPFObjName(spec.Name)
 	}
 
 	var btfDisabled bool
 	if spec.BTF != nil {
-		handle, err := btfs.load(btf.MapSpec(spec.BTF))
+		handle, err := handles.btfHandle(spec.BTF.Spec)
 		btfDisabled = errors.Is(err, btf.ErrNotSupported)
 		if err != nil && !btfDisabled {
 			return nil, fmt.Errorf("load BTF: %w", err)
 		}
 
 		if handle != nil {
-			attr.btfFd = uint32(handle.FD())
-			attr.btfKeyTypeID = btf.MapKey(spec.BTF).ID()
-			attr.btfValueTypeID = btf.MapValue(spec.BTF).ID()
+			attr.BTFFd = uint32(handle.FD())
+			attr.BTFKeyTypeID = uint32(spec.BTF.Key.ID())
+			attr.BTFValueTypeID = uint32(spec.BTF.Value.ID())
 		}
 	}
 
-	fd, err := bpfMapCreate(&attr)
+	fd, err := internal.BPFMapCreate(&attr)
 	if err != nil {
 		if errors.Is(err, unix.EPERM) {
-			return nil, fmt.Errorf("map create: RLIMIT_MEMLOCK may be too low: %w", err)
+			return nil, fmt.Errorf("map create: %w (MEMLOCK bay be too low, consider rlimit.RemoveMemlock)", err)
 		}
 		if btfDisabled {
 			return nil, fmt.Errorf("map create without BTF: %w", err)
@@ -350,19 +414,11 @@ func createMap(spec *MapSpec, inner *internal.FD, opts MapOptions, btfs btfHandl
 		return nil, fmt.Errorf("map create: %w", err)
 	}
 
-	if err := m.populate(spec.Contents); err != nil {
-		return nil, fmt.Errorf("map create: can't set initial contents: %w", err)
-	}
-
-	if spec.Freeze {
-		if err := m.Freeze(); err != nil {
-			return nil, fmt.Errorf("can't freeze map: %w", err)
-		}
-	}
-
 	return m, nil
 }
 
+// newMap allocates and returns a new Map structure.
+// Sets the fullValueSize on per-CPU maps.
 func newMap(fd *internal.FD, name string, typ MapType, keySize, valueSize, maxEntries, flags uint32) (*Map, error) {
 	m := &Map{
 		name,
@@ -385,7 +441,7 @@ func newMap(fd *internal.FD, name string, typ MapType, keySize, valueSize, maxEn
 		return nil, err
 	}
 
-	m.fullValueSize = align(int(valueSize), 8) * possibleCPUs
+	m.fullValueSize = internal.Align(int(valueSize), 8) * possibleCPUs
 	return m, nil
 }
 
@@ -862,12 +918,21 @@ func (m *Map) Freeze() error {
 	return nil
 }
 
-func (m *Map) populate(contents []MapKV) error {
-	for _, kv := range contents {
+// finalize populates the Map according to the Contents specified
+// in spec and freezes the Map if requested by spec.
+func (m *Map) finalize(spec *MapSpec) error {
+	for _, kv := range spec.Contents {
 		if err := m.Put(kv.Key, kv.Value); err != nil {
-			return fmt.Errorf("key %v: %w", kv.Key, err)
+			return fmt.Errorf("putting value: key %v: %w", kv.Key, err)
 		}
 	}
+
+	if spec.Freeze {
+		if err := m.Freeze(); err != nil {
+			return fmt.Errorf("freezing map: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -1182,7 +1247,7 @@ func MapGetNextID(startID MapID) (MapID, error) {
 //
 // Returns ErrNotExist, if there is no eBPF map with the given id.
 func NewMapFromID(id MapID) (*Map, error) {
-	fd, err := bpfObjGetFDByID(internal.BPF_MAP_GET_FD_BY_ID, uint32(id))
+	fd, err := internal.BPFObjGetFDByID(internal.BPF_MAP_GET_FD_BY_ID, uint32(id))
 	if err != nil {
 		return nil, err
 	}

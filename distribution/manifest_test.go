@@ -3,7 +3,6 @@ package distribution
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -14,10 +13,12 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -125,7 +126,7 @@ func TestManifestStore(t *testing.T) {
 	dgst := digest.Canonical.FromBytes(serialized)
 
 	setupTest := func(t *testing.T) (specs.Descriptor, *mockManifestGetter, *manifestStore, content.Store, func(*testing.T)) {
-		root, err := ioutil.TempDir("", strings.Replace(t.Name(), "/", "_", -1))
+		root, err := os.MkdirTemp("", strings.ReplaceAll(t.Name(), "/", "_"))
 		assert.NilError(t, err)
 		defer func() {
 			if t.Failed() {
@@ -345,6 +346,76 @@ func TestDetectManifestBlobMediaType(t *testing.T) {
 			mt, err := detectManifestBlobMediaType(tc.json)
 			assert.NilError(t, err)
 			assert.Equal(t, mt, tc.expected)
+		})
+	}
+
+}
+
+func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
+	type testCase struct {
+		json     []byte
+		expected string
+	}
+	cases := map[string]testCase{
+		"schema 1 mediaType with manifests": {
+			[]byte(`{"mediaType": "` + schema1.MediaTypeManifest + `","manifests":[]}`),
+			`media-type: "application/vnd.docker.distribution.manifest.v1+json" should not have "manifests" or "layers"`,
+		},
+		"schema 1 mediaType with layers": {
+			[]byte(`{"mediaType": "` + schema1.MediaTypeManifest + `","layers":[]}`),
+			`media-type: "application/vnd.docker.distribution.manifest.v1+json" should not have "manifests" or "layers"`,
+		},
+		"schema 2 mediaType with manifests": {
+			[]byte(`{"mediaType": "` + schema2.MediaTypeManifest + `","manifests":[]}`),
+			`media-type: "application/vnd.docker.distribution.manifest.v2+json" should not have "manifests" or "fsLayers"`,
+		},
+		"schema 2 mediaType with fsLayers": {
+			[]byte(`{"mediaType": "` + schema2.MediaTypeManifest + `","fsLayers":[]}`),
+			`media-type: "application/vnd.docker.distribution.manifest.v2+json" should not have "manifests" or "fsLayers"`,
+		},
+		"oci manifest mediaType with manifests": {
+			[]byte(`{"mediaType": "` + specs.MediaTypeImageManifest + `","manifests":[]}`),
+			`media-type: "application/vnd.oci.image.manifest.v1+json" should not have "manifests" or "fsLayers"`,
+		},
+		"manifest list mediaType with fsLayers": {
+			[]byte(`{"mediaType": "` + manifestlist.MediaTypeManifestList + `","fsLayers":[]}`),
+			`media-type: "application/vnd.docker.distribution.manifest.list.v2+json" should not have "config", "layers", or "fsLayers"`,
+		},
+		"index mediaType with layers": {
+			[]byte(`{"mediaType": "` + specs.MediaTypeImageIndex + `","layers":[]}`),
+			`media-type: "application/vnd.oci.image.index.v1+json" should not have "config", "layers", or "fsLayers"`,
+		},
+		"index mediaType with config": {
+			[]byte(`{"mediaType": "` + specs.MediaTypeImageIndex + `","config":{}}`),
+			`media-type: "application/vnd.oci.image.index.v1+json" should not have "config", "layers", or "fsLayers"`,
+		},
+		"config and manifests": {
+			[]byte(`{"config":{}, "manifests":[]}`),
+			`media-type: cannot determine`,
+		},
+		"layers and manifests": {
+			[]byte(`{"layers":[], "manifests":[]}`),
+			`media-type: cannot determine`,
+		},
+		"layers and fsLayers": {
+			[]byte(`{"layers":[], "fsLayers":[]}`),
+			`media-type: cannot determine`,
+		},
+		"fsLayers and manifests": {
+			[]byte(`{"fsLayers":[], "manifests":[]}`),
+			`media-type: cannot determine`,
+		},
+		"config and fsLayers": {
+			[]byte(`{"config":{}, "fsLayers":[]}`),
+			`media-type: cannot determine`,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			mt, err := detectManifestBlobMediaType(tc.json)
+			assert.Error(t, err, tc.expected)
+			assert.Equal(t, mt, "")
 		})
 	}
 

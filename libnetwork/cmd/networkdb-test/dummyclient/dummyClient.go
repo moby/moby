@@ -29,11 +29,11 @@ type tableHandler struct {
 var clientWatchTable = map[string]tableHandler{}
 
 func watchTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() // nolint:errcheck
+	r.ParseForm() //nolint:errcheck
 	diagnostic.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
 		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
-		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{}) // nolint:errcheck
+		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{}) //nolint:errcheck
 		return
 	}
 
@@ -54,11 +54,11 @@ func watchTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 }
 
 func watchTableEntries(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() // nolint:errcheck
+	r.ParseForm() //nolint:errcheck
 	diagnostic.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
 		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
-		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{}) // nolint:errcheck
+		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{}) //nolint:errcheck
 		return
 	}
 

@@ -95,17 +95,19 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 	return fmt.Sprintf("%d.%09d", t.Unix(), int64(t.Nanosecond())), nil
 }
 
-// ParseTimestamps returns seconds and nanoseconds from a timestamp that has the
-// format "%d.%09d", time.Unix(), int64(time.Nanosecond()))
-// if the incoming nanosecond portion is longer or shorter than 9 digits it is
-// converted to nanoseconds.  The expectation is that the seconds and
-// seconds will be used to create a time variable.  For example:
-//     seconds, nanoseconds, err := ParseTimestamp("1136073600.000000001",0)
-//     if err == nil since := time.Unix(seconds, nanoseconds)
-// returns seconds as def(aultSeconds) if value == ""
-func ParseTimestamps(value string, def int64) (int64, int64, error) {
+// ParseTimestamps returns seconds and nanoseconds from a timestamp that has
+// the format ("%d.%09d", time.Unix(), int64(time.Nanosecond())).
+// If the incoming nanosecond portion is longer than 9 digits it is truncated.
+// The expectation is that the seconds and nanoseconds will be used to create a
+// time variable.  For example:
+//
+//	seconds, nanoseconds, _ := ParseTimestamp("1136073600.000000001",0)
+//	since := time.Unix(seconds, nanoseconds)
+//
+// returns seconds as defaultSeconds if value == ""
+func ParseTimestamps(value string, defaultSeconds int64) (int64, int64, error) {
 	if value == "" {
-		return def, 0, nil
+		return defaultSeconds, 0, nil
 	}
 	return parseTimestamp(value)
 }

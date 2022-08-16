@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package overlay
@@ -138,7 +139,7 @@ func deleteVxlanByVNI(path string, vni uint32) error {
 		if err != nil {
 			return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
 		}
-		defer nlh.Delete()
+		defer nlh.Close()
 		err = nlh.SetSocketTimeout(soTimeout)
 		if err != nil {
 			logrus.Warnf("Failed to set the timeout on the netlink handle sockets for vxlan deletion: %v", err)

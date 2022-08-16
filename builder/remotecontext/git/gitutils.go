@@ -1,7 +1,6 @@
 package git // import "github.com/docker/docker/builder/remotecontext/git"
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -34,7 +33,7 @@ func Clone(remoteURL string) (string, error) {
 func cloneGitRepo(repo gitRepo) (checkoutDir string, err error) {
 	fetch := fetchArgs(repo.remote, repo.ref)
 
-	root, err := ioutil.TempDir("", "docker-build-git")
+	root, err := os.MkdirTemp("", "docker-build-git")
 	if err != nil {
 		return "", err
 	}

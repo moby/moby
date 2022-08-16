@@ -1,18 +1,17 @@
+//go:build !windows
 // +build !windows
 
 package daemon
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/cgroups"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -24,7 +23,6 @@ import (
 const (
 	defaultRuntimeName = "runc"
 
-	linuxShimV1 = "io.containerd.runtime.v1.linux"
 	linuxShimV2 = "io.containerd.runc.v2"
 )
 
@@ -35,7 +33,6 @@ func configureRuntimes(conf *config.Config) {
 	if conf.Runtimes == nil {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
-	conf.Runtimes[config.LinuxV1RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV1ShimConfig(conf, defaultRuntimeName)}
 	conf.Runtimes[config.LinuxV2RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV2ShimConfig(conf, defaultRuntimeName)}
 	conf.Runtimes[config.StockRuntimeName] = conf.Runtimes[config.LinuxV2RuntimeName]
 }
@@ -48,17 +45,6 @@ func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimCon
 			Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
 			SystemdCgroup: UsingSystemd(conf),
 			NoPivotRoot:   os.Getenv("DOCKER_RAMDISK") != "",
-		},
-	}
-}
-
-func defaultV1ShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
-	return &types.ShimConfig{
-		Binary: linuxShimV1,
-		Opts: &runctypes.RuncOptions{
-			Runtime:       runtimePath,
-			RuntimeRoot:   filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
-			SystemdCgroup: UsingSystemd(conf),
 		},
 	}
 }
@@ -101,7 +87,7 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 		if len(rt.Args) > 0 {
 			script := filepath.Join(tmpDir, name)
 			content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", rt.Path, strings.Join(rt.Args, " "))
-			if err := ioutil.WriteFile(script, []byte(content), 0700); err != nil {
+			if err := os.WriteFile(script, []byte(content), 0700); err != nil {
 				return err
 			}
 		}
@@ -131,7 +117,10 @@ func (daemon *Daemon) rewriteRuntimePath(name, p string, args []string) (string,
 func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
 	rt := daemon.configStore.GetRuntime(name)
 	if rt == nil {
-		return nil, errdefs.InvalidParameter(errors.Errorf("runtime not found in config: %s", name))
+		if !isPermissibleC8dRuntimeName(name) {
+			return nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
+		}
+		return &types.Runtime{Shim: &types.ShimConfig{Binary: name}}, nil
 	}
 
 	if len(rt.Args) > 0 {
@@ -147,12 +136,39 @@ func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
 		rt.Shim = defaultV2ShimConfig(daemon.configStore, rt.Path)
 	}
 
-	if rt.Shim.Binary == linuxShimV1 {
-		if cgroups.Mode() == cgroups.Unified {
-			return nil, errdefs.InvalidParameter(errors.Errorf("runtime %q is not supported while cgroups v2 (unified hierarchy) is being used", name))
-		}
-		logrus.Warnf("Configured runtime %q is deprecated and will be removed in the next release", name)
-	}
-
 	return rt, nil
+}
+
+// isPermissibleC8dRuntimeName tests whether name is safe to pass into
+// containerd as a runtime name, and whether the name is well-formed.
+// It does not check if the runtime is installed.
+//
+// A runtime name containing slash characters is interpreted by containerd as
+// the path to a runtime binary. If we allowed this, anyone with Engine API
+// access could get containerd to execute an arbitrary binary as root. Although
+// Engine API access is already equivalent to root on the host, the runtime name
+// has not historically been a vector to run arbitrary code as root so users are
+// not expecting it to become one.
+//
+// This restriction is not configurable. There are viable workarounds for
+// legitimate use cases: administrators and runtime developers can make runtimes
+// available for use with Docker by installing them onto PATH following the
+// [binary naming convention] for containerd Runtime v2.
+//
+// [binary naming convention]: https://github.com/containerd/containerd/blob/main/runtime/v2/README.md#binary-naming
+func isPermissibleC8dRuntimeName(name string) bool {
+	// containerd uses a rather permissive test to validate runtime names:
+	//
+	//   - Any name for which filepath.IsAbs(name) is interpreted as the absolute
+	//     path to a shim binary. We want to block this behaviour.
+	//   - Any name which contains at least one '.' character and no '/' characters
+	//     and does not begin with a '.' character is a valid runtime name. The shim
+	//     binary name is derived from the final two components of the name and
+	//     searched for on the PATH. The name "a.." is technically valid per
+	//     containerd's implementation: it would resolve to a binary named
+	//     "containerd-shim---".
+	//
+	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/manager.go#L297-L317
+	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/shim/util.go#L83-L93
+	return !filepath.IsAbs(name) && !strings.ContainsRune(name, '/') && shim.BinaryName(name) != ""
 }

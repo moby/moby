@@ -35,7 +35,6 @@ func (s *seqCoders) setPrev(ll, ml, of *fseEncoder) {
 		// Ensure we cannot reuse by accident
 		prevEnc := *prev
 		prevEnc.symbolLen = 0
-		return
 	}
 	compareSwap(ll, &s.llEnc, &s.llPrev)
 	compareSwap(ml, &s.mlEnc, &s.mlPrev)

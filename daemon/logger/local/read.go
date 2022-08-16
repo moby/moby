@@ -1,11 +1,11 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
-
-	"bytes"
 
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/daemon/logger"
@@ -14,25 +14,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// maxMsgLen is the maximum size of the logger.Message after serialization.
+// logger.defaultBufSize caps the size of Line field.
+const maxMsgLen int = 1e6 // 1MB.
+
 func (d *driver) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
-	logWatcher := logger.NewLogWatcher()
-
-	go d.readLogs(logWatcher, config)
-	return logWatcher
-}
-
-func (d *driver) readLogs(watcher *logger.LogWatcher, config logger.ReadConfig) {
-	defer close(watcher.Msg)
-
-	d.mu.Lock()
-	d.readers[watcher] = struct{}{}
-	d.mu.Unlock()
-
-	d.logfile.ReadLogs(config, watcher)
-
-	d.mu.Lock()
-	delete(d.readers, watcher)
-	d.mu.Unlock()
+	return d.logfile.ReadLogs(config)
 }
 
 func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
@@ -99,7 +86,35 @@ func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io
 type decoder struct {
 	rdr   io.Reader
 	proto *logdriver.LogEntry
-	buf   []byte
+	// buf keeps bytes from rdr.
+	buf []byte
+	// offset is the position in buf.
+	// If offset > 0, buf[offset:] has bytes which are read but haven't used.
+	offset int
+	// nextMsgLen is the length of the next log message.
+	// If nextMsgLen = 0, a new value must be read from rdr.
+	nextMsgLen int
+}
+
+func (d *decoder) readRecord(size int) error {
+	var err error
+	for i := 0; i < maxDecodeRetry; i++ {
+		var n int
+		n, err = io.ReadFull(d.rdr, d.buf[d.offset:size])
+		d.offset += n
+		if err != nil {
+			if err != io.ErrUnexpectedEOF {
+				return err
+			}
+			continue
+		}
+		break
+	}
+	if err != nil {
+		return err
+	}
+	d.offset = 0
+	return nil
 }
 
 func (d *decoder) Decode() (*logger.Message, error) {
@@ -111,44 +126,35 @@ func (d *decoder) Decode() (*logger.Message, error) {
 	if d.buf == nil {
 		d.buf = make([]byte, initialBufSize)
 	}
-	var (
-		read int
-		err  error
-	)
 
-	for i := 0; i < maxDecodeRetry; i++ {
-		var n int
-		n, err = io.ReadFull(d.rdr, d.buf[read:encodeBinaryLen])
+	if d.nextMsgLen == 0 {
+		msgLen, err := d.decodeSizeHeader()
 		if err != nil {
-			if err != io.ErrUnexpectedEOF {
-				return nil, errors.Wrap(err, "error reading log message length")
-			}
-			read += n
-			continue
+			return nil, err
 		}
-		read += n
-		break
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not read log message length: read: %d, expected: %d", read, encodeBinaryLen)
-	}
 
-	msgLen := int(binary.BigEndian.Uint32(d.buf[:read]))
+		if msgLen > maxMsgLen {
+			return nil, fmt.Errorf("log message is too large (%d > %d)", msgLen, maxMsgLen)
+		}
 
-	if len(d.buf) < msgLen+encodeBinaryLen {
-		d.buf = make([]byte, msgLen+encodeBinaryLen)
-	} else {
-		if msgLen <= initialBufSize {
+		if len(d.buf) < msgLen+encodeBinaryLen {
+			d.buf = make([]byte, msgLen+encodeBinaryLen)
+		} else if msgLen <= initialBufSize {
 			d.buf = d.buf[:initialBufSize]
 		} else {
 			d.buf = d.buf[:msgLen+encodeBinaryLen]
 		}
-	}
 
-	return decodeLogEntry(d.rdr, d.proto, d.buf, msgLen)
+		d.nextMsgLen = msgLen
+	}
+	return d.decodeLogEntry()
 }
 
 func (d *decoder) Reset(rdr io.Reader) {
+	if d.rdr == rdr {
+		return
+	}
+
 	d.rdr = rdr
 	if d.proto != nil {
 		resetProto(d.proto)
@@ -156,6 +162,8 @@ func (d *decoder) Reset(rdr io.Reader) {
 	if d.buf != nil {
 		d.buf = d.buf[:initialBufSize]
 	}
+	d.offset = 0
+	d.nextMsgLen = 0
 }
 
 func (d *decoder) Close() {
@@ -171,34 +179,32 @@ func decodeFunc(rdr io.Reader) loggerutils.Decoder {
 	return &decoder{rdr: rdr}
 }
 
-func decodeLogEntry(rdr io.Reader, proto *logdriver.LogEntry, buf []byte, msgLen int) (*logger.Message, error) {
-	var (
-		read int
-		err  error
-	)
-	for i := 0; i < maxDecodeRetry; i++ {
-		var n int
-		n, err = io.ReadFull(rdr, buf[read:msgLen+encodeBinaryLen])
-		if err != nil {
-			if err != io.ErrUnexpectedEOF {
-				return nil, errors.Wrap(err, "could not decode log entry")
-			}
-			read += n
-			continue
-		}
-		break
-	}
+func (d *decoder) decodeSizeHeader() (int, error) {
+	err := d.readRecord(encodeBinaryLen)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not decode entry: read %d, expected: %d", read, msgLen)
+		return 0, errors.Wrap(err, "could not read a size header")
 	}
 
-	if err := proto.Unmarshal(buf[:msgLen]); err != nil {
-		return nil, errors.Wrap(err, "error unmarshalling log entry")
+	msgLen := int(binary.BigEndian.Uint32(d.buf[:encodeBinaryLen]))
+	return msgLen, nil
+}
+
+func (d *decoder) decodeLogEntry() (*logger.Message, error) {
+	msgLen := d.nextMsgLen
+	err := d.readRecord(msgLen + encodeBinaryLen)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not read a log entry (size=%d+%d)", msgLen, encodeBinaryLen)
+	}
+	d.nextMsgLen = 0
+
+	if err := d.proto.Unmarshal(d.buf[:msgLen]); err != nil {
+		return nil, errors.Wrapf(err, "error unmarshalling log entry (size=%d)", msgLen)
 	}
 
-	msg := protoToMessage(proto)
-	if msg.PLogMetaData == nil {
+	msg := protoToMessage(d.proto)
+	if msg.PLogMetaData == nil || msg.PLogMetaData.Last {
 		msg.Line = append(msg.Line, '\n')
 	}
+
 	return msg, nil
 }

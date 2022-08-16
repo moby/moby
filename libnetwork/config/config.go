@@ -1,8 +1,7 @@
 package config
 
 import (
-	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/libnetwork/cluster"
@@ -10,10 +9,7 @@ import (
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
-	"github.com/docker/docker/libnetwork/portallocator"
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/libkv/store"
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
@@ -27,7 +23,6 @@ const (
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
 	Daemon          DaemonCfg
-	Cluster         ClusterCfg
 	Scopes          map[string]*datastore.ScopeCfg
 	ActiveSandboxes map[string]interface{}
 	PluginGetter    plugingetter.PluginGetter
@@ -48,14 +43,6 @@ type DaemonCfg struct {
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
 }
 
-// ClusterCfg represents cluster configuration
-type ClusterCfg struct {
-	Watcher   discovery.Watcher
-	Address   string
-	Discovery string
-	Heartbeat uint64
-}
-
 // LoadDefaultScopes loads default scope configs for scopes which
 // doesn't have explicit user specified configs.
 func (c *Config) LoadDefaultScopes(dataDir string) {
@@ -71,7 +58,7 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 	cfg := &Config{
 		Scopes: map[string]*datastore.ScopeCfg{},
 	}
-	data, err := ioutil.ReadFile(tomlCfgFile)
+	data, err := os.ReadFile(tomlCfgFile)
 	if err != nil {
 		return nil, err
 	}
@@ -144,76 +131,6 @@ func OptionLabels(labels []string) Option {
 	}
 }
 
-// OptionKVProvider function returns an option setter for kvstore provider
-func OptionKVProvider(provider string) Option {
-	return func(c *Config) {
-		logrus.Debugf("Option OptionKVProvider: %s", provider)
-		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
-			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
-		}
-		c.Scopes[datastore.GlobalScope].Client.Provider = strings.TrimSpace(provider)
-	}
-}
-
-// OptionKVProviderURL function returns an option setter for kvstore url
-func OptionKVProviderURL(url string) Option {
-	return func(c *Config) {
-		logrus.Debugf("Option OptionKVProviderURL: %s", url)
-		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
-			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
-		}
-		c.Scopes[datastore.GlobalScope].Client.Address = strings.TrimSpace(url)
-	}
-}
-
-// OptionKVOpts function returns an option setter for kvstore options
-func OptionKVOpts(opts map[string]string) Option {
-	return func(c *Config) {
-		if opts["kv.cacertfile"] != "" && opts["kv.certfile"] != "" && opts["kv.keyfile"] != "" {
-			logrus.Info("Option Initializing KV with TLS")
-			tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
-				CAFile:   opts["kv.cacertfile"],
-				CertFile: opts["kv.certfile"],
-				KeyFile:  opts["kv.keyfile"],
-			})
-			if err != nil {
-				logrus.Errorf("Unable to set up TLS: %s", err)
-				return
-			}
-			if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
-				c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
-			}
-			if c.Scopes[datastore.GlobalScope].Client.Config == nil {
-				c.Scopes[datastore.GlobalScope].Client.Config = &store.Config{TLS: tlsConfig}
-			} else {
-				c.Scopes[datastore.GlobalScope].Client.Config.TLS = tlsConfig
-			}
-			// Workaround libkv/etcd bug for https
-			c.Scopes[datastore.GlobalScope].Client.Config.ClientTLS = &store.ClientTLSConfig{
-				CACertFile: opts["kv.cacertfile"],
-				CertFile:   opts["kv.certfile"],
-				KeyFile:    opts["kv.keyfile"],
-			}
-		} else {
-			logrus.Info("Option Initializing KV without TLS")
-		}
-	}
-}
-
-// OptionDiscoveryWatcher function returns an option setter for discovery watcher
-func OptionDiscoveryWatcher(watcher discovery.Watcher) Option {
-	return func(c *Config) {
-		c.Cluster.Watcher = watcher
-	}
-}
-
-// OptionDiscoveryAddress function returns an option setter for self discovery address
-func OptionDiscoveryAddress(address string) Option {
-	return func(c *Config) {
-		c.Cluster.Address = address
-	}
-}
-
 // OptionDataDir function returns an option setter for data folder
 func OptionDataDir(dataDir string) Option {
 	return func(c *Config) {
@@ -241,23 +158,6 @@ func OptionExperimental(exp bool) Option {
 	return func(c *Config) {
 		logrus.Debugf("Option Experimental: %v", exp)
 		c.Daemon.Experimental = exp
-	}
-}
-
-// OptionDynamicPortRange function returns an option setter for service port allocation range
-func OptionDynamicPortRange(in string) Option {
-	return func(c *Config) {
-		start, end := 0, 0
-		if len(in) > 0 {
-			n, err := fmt.Sscanf(in, "%d-%d", &start, &end)
-			if n != 2 || err != nil {
-				logrus.Errorf("Failed to parse range string with err %v", err)
-				return
-			}
-		}
-		if err := portallocator.Get().SetPortRange(start, end); err != nil {
-			logrus.Errorf("Failed to set port range with err %v", err)
-		}
 	}
 }
 

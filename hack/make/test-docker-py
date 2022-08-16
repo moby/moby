@@ -7,15 +7,16 @@ source hack/make/.integration-test-helpers
 # TODO docker 17.06 cli client used in CI fails to build using a sha;
 # unable to prepare context: unable to 'git clone' to temporary context directory: error fetching: error: no such remote ref ead0bb9e08c13dd3d1712759491eee06bf5a5602
 #: exit status 128
-: "${DOCKER_PY_COMMIT:=5.0.0}"
+: "${DOCKER_PY_COMMIT:=5.0.3}"
 
 # custom options to pass py.test
 #
 # This option can be used to temporarily skip flaky tests (using the `--deselect`
 # flag) until they are fixed upstream. For example:
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
-# TODO re-enable test after https://github.com/docker/docker-py/issues/2513 has been resolved
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream}"
+# TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
+# TODO re-enable test_create_with_device_cgroup_rules after https://github.com/docker/docker-py/issues/2939 is resolved
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_device_cgroup_rules}"
 (
 	bundle .integration-daemon-start
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -82,9 +81,7 @@ func inspectFieldAndUnmarshall(c *testing.T, name, field string, output interfac
 	c.Helper()
 	str := inspectFieldJSON(c, name, field)
 	err := json.Unmarshal([]byte(str), output)
-	if c != nil {
-		assert.Assert(c, err == nil, "failed to unmarshal: %v", err)
-	}
+	assert.Assert(c, err == nil, "failed to unmarshal: %v", err)
 }
 
 // Deprecated: use cli.Inspect
@@ -99,26 +96,22 @@ func inspectFilter(name, filter string) (string, error) {
 
 // Deprecated: use cli.Inspect
 func inspectFieldWithError(name, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf(".%s", field))
+	return inspectFilter(name, "."+field)
 }
 
 // Deprecated: use cli.Inspect
 func inspectField(c *testing.T, name, field string) string {
 	c.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
-	if c != nil {
-		assert.NilError(c, err)
-	}
+	out, err := inspectFilter(name, "."+field)
+	assert.NilError(c, err)
 	return out
 }
 
 // Deprecated: use cli.Inspect
 func inspectFieldJSON(c *testing.T, name, field string) string {
 	c.Helper()
-	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
-	if c != nil {
-		assert.NilError(c, err)
-	}
+	out, err := inspectFilter(name, "json ."+field)
+	assert.NilError(c, err)
 	return out
 }
 
@@ -126,9 +119,7 @@ func inspectFieldJSON(c *testing.T, name, field string) string {
 func inspectFieldMap(c *testing.T, name, path, field string) string {
 	c.Helper()
 	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
-	if c != nil {
-		assert.NilError(c, err)
-	}
+	assert.NilError(c, err)
 	return out
 }
 
@@ -213,7 +204,7 @@ func writeFile(dst, content string, c *testing.T) {
 // Fail the test when error occurs.
 func readFile(src string, c *testing.T) (content string) {
 	c.Helper()
-	data, err := ioutil.ReadFile(src)
+	data, err := os.ReadFile(src)
 	assert.NilError(c, err)
 
 	return string(data)
@@ -241,7 +232,7 @@ func readContainerFile(c *testing.T, containerID, filename string) []byte {
 	assert.NilError(c, err)
 	defer f.Close()
 
-	content, err := ioutil.ReadAll(f)
+	content, err := io.ReadAll(f)
 	assert.NilError(c, err)
 	return content
 }
@@ -311,12 +302,12 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 
 func createTmpFile(c *testing.T, content string) string {
 	c.Helper()
-	f, err := ioutil.TempFile("", "testfile")
+	f, err := os.CreateTemp("", "testfile")
 	assert.NilError(c, err)
 
 	filename := f.Name()
 
-	err = ioutil.WriteFile(filename, []byte(content), 0644)
+	err = os.WriteFile(filename, []byte(content), 0644)
 	assert.NilError(c, err)
 
 	return filename

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 
 	"github.com/cilium/ebpf/asm"
 	"github.com/cilium/ebpf/internal"
@@ -30,7 +29,7 @@ type btfExtCoreHeader struct {
 	CoreReloLen uint32
 }
 
-func parseExtInfos(r io.ReadSeeker, bo binary.ByteOrder, strings stringTable) (funcInfo, lineInfo map[string]extInfo, coreRelos map[string]bpfCoreRelos, err error) {
+func parseExtInfos(r io.ReadSeeker, bo binary.ByteOrder, strings stringTable) (funcInfo, lineInfo map[string]extInfo, relos map[string]coreRelos, err error) {
 	var header btfExtHeader
 	var coreHeader btfExtCoreHeader
 	if err := binary.Read(r, bo, &header); err != nil {
@@ -64,7 +63,7 @@ func parseExtInfos(r io.ReadSeeker, bo binary.ByteOrder, strings stringTable) (f
 
 	// Of course, the .BTF.ext header has different semantics than the
 	// .BTF ext header. We need to ignore non-null values.
-	_, err = io.CopyN(ioutil.Discard, r, remainder)
+	_, err = io.CopyN(io.Discard, r, remainder)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("header padding: %v", err)
 	}
@@ -94,13 +93,13 @@ func parseExtInfos(r io.ReadSeeker, bo binary.ByteOrder, strings stringTable) (f
 			return nil, nil, nil, fmt.Errorf("can't seek to CO-RE relocation section: %v", err)
 		}
 
-		coreRelos, err = parseExtInfoRelos(io.LimitReader(r, int64(coreHeader.CoreReloLen)), bo, strings)
+		relos, err = parseExtInfoRelos(io.LimitReader(r, int64(coreHeader.CoreReloLen)), bo, strings)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("CO-RE relocation info: %w", err)
 		}
 	}
 
-	return funcInfo, lineInfo, coreRelos, nil
+	return funcInfo, lineInfo, relos, nil
 }
 
 type btfExtInfoSec struct {
@@ -114,11 +113,16 @@ type extInfoRecord struct {
 }
 
 type extInfo struct {
+	byteOrder  binary.ByteOrder
 	recordSize uint32
 	records    []extInfoRecord
 }
 
 func (ei extInfo) append(other extInfo, offset uint64) (extInfo, error) {
+	if other.byteOrder != ei.byteOrder {
+		return extInfo{}, fmt.Errorf("ext_info byte order mismatch, want %v (got %v)", ei.byteOrder, other.byteOrder)
+	}
+
 	if other.recordSize != ei.recordSize {
 		return extInfo{}, fmt.Errorf("ext_info record size mismatch, want %d (got %d)", ei.recordSize, other.recordSize)
 	}
@@ -131,10 +135,14 @@ func (ei extInfo) append(other extInfo, offset uint64) (extInfo, error) {
 			Opaque:  info.Opaque,
 		})
 	}
-	return extInfo{ei.recordSize, records}, nil
+	return extInfo{ei.byteOrder, ei.recordSize, records}, nil
 }
 
 func (ei extInfo) MarshalBinary() ([]byte, error) {
+	if ei.byteOrder != internal.NativeEndian {
+		return nil, fmt.Errorf("%s is not the native byte order", ei.byteOrder)
+	}
+
 	if len(ei.records) == 0 {
 		return nil, nil
 	}
@@ -197,6 +205,7 @@ func parseExtInfo(r io.Reader, bo binary.ByteOrder, strings stringTable) (map[st
 		}
 
 		result[secName] = extInfo{
+			bo,
 			recordSize,
 			records,
 		}
@@ -208,18 +217,25 @@ type bpfCoreRelo struct {
 	InsnOff      uint32
 	TypeID       TypeID
 	AccessStrOff uint32
-	ReloKind     coreReloKind
+	Kind         COREKind
 }
 
-type bpfCoreRelos []bpfCoreRelo
+type coreRelo struct {
+	insnOff  uint32
+	typeID   TypeID
+	accessor coreAccessor
+	kind     COREKind
+}
+
+type coreRelos []coreRelo
 
 // append two slices of extInfoRelo to each other. The InsnOff of b are adjusted
 // by offset.
-func (r bpfCoreRelos) append(other bpfCoreRelos, offset uint64) bpfCoreRelos {
-	result := make([]bpfCoreRelo, 0, len(r)+len(other))
+func (r coreRelos) append(other coreRelos, offset uint64) coreRelos {
+	result := make([]coreRelo, 0, len(r)+len(other))
 	result = append(result, r...)
 	for _, relo := range other {
-		relo.InsnOff += uint32(offset)
+		relo.insnOff += uint32(offset)
 		result = append(result, relo)
 	}
 	return result
@@ -227,7 +243,7 @@ func (r bpfCoreRelos) append(other bpfCoreRelos, offset uint64) bpfCoreRelos {
 
 var extInfoReloSize = binary.Size(bpfCoreRelo{})
 
-func parseExtInfoRelos(r io.Reader, bo binary.ByteOrder, strings stringTable) (map[string]bpfCoreRelos, error) {
+func parseExtInfoRelos(r io.Reader, bo binary.ByteOrder, strings stringTable) (map[string]coreRelos, error) {
 	var recordSize uint32
 	if err := binary.Read(r, bo, &recordSize); err != nil {
 		return nil, fmt.Errorf("read record size: %v", err)
@@ -237,14 +253,14 @@ func parseExtInfoRelos(r io.Reader, bo binary.ByteOrder, strings stringTable) (m
 		return nil, fmt.Errorf("expected record size %d, got %d", extInfoReloSize, recordSize)
 	}
 
-	result := make(map[string]bpfCoreRelos)
+	result := make(map[string]coreRelos)
 	for {
 		secName, infoHeader, err := parseExtInfoHeader(r, bo, strings)
 		if errors.Is(err, io.EOF) {
 			return result, nil
 		}
 
-		var relos []bpfCoreRelo
+		var relos coreRelos
 		for i := uint32(0); i < infoHeader.NumInfo; i++ {
 			var relo bpfCoreRelo
 			if err := binary.Read(r, bo, &relo); err != nil {
@@ -255,7 +271,22 @@ func parseExtInfoRelos(r io.Reader, bo binary.ByteOrder, strings stringTable) (m
 				return nil, fmt.Errorf("section %v: offset %v is not aligned with instruction size", secName, relo.InsnOff)
 			}
 
-			relos = append(relos, relo)
+			accessorStr, err := strings.Lookup(relo.AccessStrOff)
+			if err != nil {
+				return nil, err
+			}
+
+			accessor, err := parseCoreAccessor(accessorStr)
+			if err != nil {
+				return nil, fmt.Errorf("accessor %q: %s", accessorStr, err)
+			}
+
+			relos = append(relos, coreRelo{
+				relo.InsnOff,
+				relo.TypeID,
+				accessor,
+				relo.Kind,
+			})
 		}
 
 		result[secName] = relos

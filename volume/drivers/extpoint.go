@@ -21,13 +21,14 @@ const extName = "VolumeDriver"
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
 // It's not intended to be public or reused.
-//nolint: deadcode
+//
+//nolint:deadcode,unused,varcheck
 type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts map[string]string) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
-	// Get the mountpoint of the given volume
+	// Path returns the mountpoint of the given volume.
 	Path(name string) (mountpoint string, err error)
 	// Mount the given volume and return the mountpoint
 	Mount(name, id string) (mountpoint string, err error)

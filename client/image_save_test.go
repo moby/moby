@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
@@ -39,7 +39,7 @@ func TestImageSave(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte("response"))),
+				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 			}, nil
 		}),
 	}
@@ -47,7 +47,7 @@ func TestImageSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := ioutil.ReadAll(saveResponse)
+	response, err := io.ReadAll(saveResponse)
 	if err != nil {
 		t.Fatal(err)
 	}

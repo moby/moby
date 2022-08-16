@@ -235,7 +235,7 @@ func newStorageItem(id string, b *bolt.Bucket, s *Store) (*StorageItem, error) {
 	return si, nil
 }
 
-func (s *StorageItem) Storage() *Store { // TODO: used in local source. how to remove this?
+func (s *StorageItem) Storage() *Store {
 	return s.storage
 }
 
@@ -345,15 +345,25 @@ func (s *StorageItem) SetValue(b *bolt.Bucket, key string, v *Value) error {
 	return s.setValue(b, key, v)
 }
 
+func (s *StorageItem) ClearIndex(tx *bolt.Tx, index string) error {
+	s.vmu.Lock()
+	defer s.vmu.Unlock()
+	return s.clearIndex(tx, index)
+}
+
+func (s *StorageItem) clearIndex(tx *bolt.Tx, index string) error {
+	b, err := tx.CreateBucketIfNotExists([]byte(indexBucket))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return b.Delete([]byte(indexKey(index, s.ID())))
+}
+
 func (s *StorageItem) setValue(b *bolt.Bucket, key string, v *Value) error {
 	if v == nil {
 		if old, ok := s.values[key]; ok {
 			if old.Index != "" {
-				b, err := b.Tx().CreateBucketIfNotExists([]byte(indexBucket))
-				if err != nil {
-					return errors.WithStack(err)
-				}
-				b.Delete([]byte(indexKey(old.Index, s.ID()))) // ignore error
+				s.clearIndex(b.Tx(), old.Index) // ignore error
 			}
 		}
 		if err := b.Put([]byte(key), nil); err != nil {

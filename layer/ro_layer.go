@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/docker/distribution"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 )
 
 type roLayer struct {
@@ -73,19 +73,17 @@ func (rl *roLayer) Parent() Layer {
 	return rl.parent
 }
 
-func (rl *roLayer) Size() (size int64, err error) {
+func (rl *roLayer) Size() int64 {
+	size := rl.size
 	if rl.parent != nil {
-		size, err = rl.parent.Size()
-		if err != nil {
-			return
-		}
+		size += rl.parent.Size()
 	}
 
-	return size + rl.size, nil
+	return size
 }
 
-func (rl *roLayer) DiffSize() (size int64, err error) {
-	return rl.size, nil
+func (rl *roLayer) DiffSize() int64 {
+	return rl.size
 }
 
 func (rl *roLayer) Metadata() (map[string]string, error) {
@@ -146,7 +144,7 @@ func storeLayer(tx *fileMetadataTransaction, layer *roLayer) error {
 			return err
 		}
 	}
-	return tx.setOS(layer.layerStore.os)
+	return nil
 }
 
 func newVerifiedReadCloser(rc io.ReadCloser, dgst digest.Digest) (io.ReadCloser, error) {

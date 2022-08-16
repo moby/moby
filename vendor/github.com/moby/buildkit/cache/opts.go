@@ -13,6 +13,8 @@ type DescHandler struct {
 	Provider       func(session.Group) content.Provider
 	Progress       progress.Controller
 	SnapshotLabels map[string]string
+	Annotations    map[string]string
+	Ref            string // string representation of desc origin, can be used as a sync key
 }
 
 type DescHandlers map[digest.Digest]*DescHandler
@@ -28,8 +30,10 @@ func descHandlersOf(opts ...RefOption) DescHandlers {
 
 type DescHandlerKey digest.Digest
 
-type NeedsRemoteProvidersError []digest.Digest
+type NeedsRemoteProviderError []digest.Digest //nolint:errname
 
-func (m NeedsRemoteProvidersError) Error() string {
+func (m NeedsRemoteProviderError) Error() string {
 	return fmt.Sprintf("missing descriptor handlers for lazy blobs %+v", []digest.Digest(m))
 }
+
+type ProgressKey struct{}

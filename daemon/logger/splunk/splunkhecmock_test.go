@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"sync"
@@ -150,7 +149,7 @@ func (hec *HTTPEventCollectorMock) ServeHTTP(writer http.ResponseWriter, request
 
 		// Read body
 		var body []byte
-		body, err = ioutil.ReadAll(reader)
+		body, err = io.ReadAll(reader)
 		if err != nil {
 			hec.test.Fatal(err)
 		}

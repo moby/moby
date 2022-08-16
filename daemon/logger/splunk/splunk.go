@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,7 +22,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/urlutil"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -144,10 +142,10 @@ const (
 
 func init() {
 	if err := logger.RegisterLogDriver(driverName, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(driverName, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -185,7 +183,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	// If path to the root certificate is provided - load it
 	if caPath, ok := info.Config[splunkCAPathKey]; ok {
-		caCert, err := ioutil.ReadFile(caPath)
+		caCert, err := os.ReadFile(caPath)
 		if err != nil {
 			return nil, err
 		}
@@ -531,12 +529,12 @@ func (l *splunkLogger) tryPostMessages(ctx context.Context, messages []*splunkMe
 		return err
 	}
 	defer func() {
-		pools.Copy(ioutil.Discard, resp.Body)
+		pools.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
 		rdr := io.LimitReader(resp.Body, maxResponseSize)
-		body, err := ioutil.ReadAll(rdr)
+		body, err := io.ReadAll(rdr)
 		if err != nil {
 			return err
 		}
@@ -608,8 +606,8 @@ func parseURL(info logger.Info) (*url.URL, error) {
 		return nil, fmt.Errorf("%s: failed to parse %s as url value in %s", driverName, splunkURLStr, splunkURLKey)
 	}
 
-	if !urlutil.IsURL(splunkURLStr) ||
-		!splunkURL.IsAbs() ||
+	if !splunkURL.IsAbs() ||
+		(splunkURL.Scheme != "http" && splunkURL.Scheme != "https") ||
 		(splunkURL.Path != "" && splunkURL.Path != "/") ||
 		splunkURL.RawQuery != "" ||
 		splunkURL.Fragment != "" {
@@ -631,13 +629,13 @@ func verifySplunkConnection(l *splunkLogger) error {
 		return err
 	}
 	defer func() {
-		pools.Copy(ioutil.Discard, resp.Body)
+		pools.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
 		rdr := io.LimitReader(resp.Body, maxResponseSize)
-		body, err := ioutil.ReadAll(rdr)
+		body, err := io.ReadAll(rdr)
 		if err != nil {
 			return err
 		}

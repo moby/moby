@@ -379,7 +379,7 @@ func (s decSymbol) final() (int, uint8) {
 // This can only be used if no symbols are 0 bits.
 // At least tablelog bits must be available in the bit reader.
 func (s *fseState) nextFast(br *bitReader) (uint32, uint8) {
-	lowBits := uint16(br.getBitsFast(s.state.nbBits()))
+	lowBits := br.get16BitsFast(s.state.nbBits())
 	s.state = s.dt[s.state.newState()+lowBits]
 	return s.state.baseline(), s.state.addBits()
 }

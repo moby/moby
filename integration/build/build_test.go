@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -144,7 +144,7 @@ func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
 func TestBuildMultiStageCopy(t *testing.T) {
 	ctx := context.Background()
 
-	dockerfile, err := ioutil.ReadFile("testdata/Dockerfile." + t.Name())
+	dockerfile, err := os.ReadFile("testdata/Dockerfile." + t.Name())
 	assert.NilError(t, err)
 
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
@@ -214,7 +214,7 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 			Tags:        []string{imgName},
 		})
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
 
@@ -264,7 +264,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 			Target:      "target-a",
 		})
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
 
@@ -291,7 +291,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 			Target:      "target-b",
 		})
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
 
@@ -329,7 +329,7 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 			ForceRemove: true,
 		})
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, err = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
 }
@@ -524,6 +524,7 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 }
 
 func TestBuildWCOWSandboxSize(t *testing.T) {
+	t.Skip("FLAKY_TEST that needs to be fixed; see https://github.com/moby/moby/issues/42743")
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows", "only Windows has sandbox size control")
 	ctx := context.TODO()
 	defer setupTest(t)()
@@ -590,9 +591,9 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 		{
 			name: "empty-lines-dockerfile",
 			dockerfile: `
-			
-			
-			
+
+
+
 			`,
 			expectedErr: "file with no instructions",
 		},
@@ -634,7 +635,7 @@ func TestBuildPreserveOwnership(t *testing.T) {
 
 	ctx := context.Background()
 
-	dockerfile, err := ioutil.ReadFile("testdata/Dockerfile." + t.Name())
+	dockerfile, err := os.ReadFile("testdata/Dockerfile." + t.Name())
 	assert.NilError(t, err)
 
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))

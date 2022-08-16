@@ -2,14 +2,13 @@ package reference // import "github.com/docker/docker/reference"
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -29,7 +28,7 @@ var (
 )
 
 func TestLoad(t *testing.T) {
-	jsonFile, err := ioutil.TempFile("", "tag-store-test")
+	jsonFile, err := os.CreateTemp("", "tag-store-test")
 	if err != nil {
 		t.Fatalf("error creating temp file: %v", err)
 	}
@@ -63,7 +62,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	jsonFile, err := ioutil.TempFile("", "tag-store-test")
+	jsonFile, err := os.CreateTemp("", "tag-store-test")
 	assert.NilError(t, err)
 
 	_, err = jsonFile.Write([]byte(`{}`))
@@ -94,7 +93,7 @@ func TestSave(t *testing.T) {
 		}
 	}
 
-	jsonBytes, err := ioutil.ReadFile(jsonFile.Name())
+	jsonBytes, err := os.ReadFile(jsonFile.Name())
 	if err != nil {
 		t.Fatalf("could not read json file: %v", err)
 	}
@@ -105,7 +104,7 @@ func TestSave(t *testing.T) {
 }
 
 func TestAddDeleteGet(t *testing.T) {
-	jsonFile, err := ioutil.TempFile("", "tag-store-test")
+	jsonFile, err := os.CreateTemp("", "tag-store-test")
 	if err != nil {
 		t.Fatalf("error creating temp file: %v", err)
 	}
@@ -336,7 +335,7 @@ func TestAddDeleteGet(t *testing.T) {
 }
 
 func TestInvalidTags(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "tag-store-test")
+	tmpDir, err := os.MkdirTemp("", "tag-store-test")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 

@@ -1,5 +1,6 @@
 {
 	"defaultAction": "SCMP_ACT_ERRNO",
+	"defaultErrnoRet": 1,
 	"archMap": [
 		{
 			"architecture": "SCMP_ARCH_X86_64",
@@ -47,6 +48,10 @@
 			"subArchitectures": [
 				"SCMP_ARCH_S390"
 			]
+		},
+		{
+			"architecture": "SCMP_ARCH_RISCV64",
+			"subArchitectures": null
 		}
 	],
 	"syscalls": [
@@ -126,6 +131,7 @@
 				"ftruncate64",
 				"futex",
 				"futex_time64",
+				"futex_waitv",
 				"futimesat",
 				"getcpu",
 				"getcwd",
@@ -182,6 +188,9 @@
 				"io_uring_setup",
 				"ipc",
 				"kill",
+				"landlock_add_rule",
+				"landlock_create_ruleset",
+				"landlock_restrict_self",
 				"lchown",
 				"lchown32",
 				"lgetxattr",
@@ -199,6 +208,7 @@
 				"madvise",
 				"membarrier",
 				"memfd_create",
+				"memfd_secret",
 				"mincore",
 				"mkdir",
 				"mkdirat",
@@ -238,6 +248,9 @@
 				"pidfd_send_signal",
 				"pipe",
 				"pipe2",
+				"pkey_alloc",
+				"pkey_free",
+				"pkey_mprotect",
 				"poll",
 				"ppoll",
 				"ppoll_time64",
@@ -246,6 +259,7 @@
 				"preadv",
 				"preadv2",
 				"prlimit64",
+				"process_mrelease",
 				"pselect6",
 				"pselect6_time64",
 				"pwrite64",
@@ -473,7 +487,8 @@
 		},
 		{
 			"names": [
-				"sync_file_range2"
+				"sync_file_range2",
+				"swapcontext"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {
@@ -540,6 +555,17 @@
 		},
 		{
 			"names": [
+				"riscv_flush_icache"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"includes": {
+				"arches": [
+					"riscv64"
+				]
+			}
+		},
+		{
+			"names": [
 				"open_by_handle_at"
 			],
 			"action": "SCMP_ACT_ALLOW",
@@ -553,6 +579,7 @@
 			"names": [
 				"bpf",
 				"clone",
+				"clone3",
 				"fanotify_init",
 				"fsconfig",
 				"fsmount",
@@ -560,11 +587,13 @@
 				"fspick",
 				"lookup_dcookie",
 				"mount",
+				"mount_setattr",
 				"move_mount",
 				"name_to_handle_at",
 				"open_tree",
 				"perf_event_open",
 				"quotactl",
+				"quotactl_fd",
 				"setdomainname",
 				"sethostname",
 				"setns",
@@ -621,6 +650,18 @@
 					"s390x"
 				]
 			},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			}
+		},
+		{
+			"names": [
+				"clone3"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 38,
 			"excludes": {
 				"caps": [
 					"CAP_SYS_ADMIN"
@@ -705,7 +746,8 @@
 			"names": [
 				"settimeofday",
 				"stime",
-				"clock_settime"
+				"clock_settime",
+				"clock_settime64"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"includes": {

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
-	swarmapi "github.com/docker/swarmkit/api"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	"gotest.tools/v3/assert"
 )
 
@@ -31,7 +31,10 @@ func TestIsolationConversion(t *testing.T) {
 				},
 			}
 			config := containerConfig{task: &task}
-			assert.Equal(t, c.to, config.hostConfig().Isolation)
+			// NOTE(dperny): you shouldn't ever pass nil outside of testing,
+			// because if there are CSI volumes, the code will panic. However,
+			// in testing. this is acceptable.
+			assert.Equal(t, c.to, config.hostConfig(nil).Isolation)
 		})
 	}
 }
@@ -129,7 +132,10 @@ func TestCredentialSpecConversion(t *testing.T) {
 				},
 			}
 			config := containerConfig{task: &task}
-			assert.DeepEqual(t, c.to, config.hostConfig().SecurityOpt)
+			// NOTE(dperny): you shouldn't ever pass nil outside of testing,
+			// because if there are CSI volumes, the code will panic. However,
+			// in testing. this is acceptable.
+			assert.DeepEqual(t, c.to, config.hostConfig(nil).SecurityOpt)
 		})
 	}
 }

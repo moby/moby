@@ -8,7 +8,6 @@ import (
 
 	"github.com/containerd/containerd/content/local"
 	ctdmetadata "github.com/containerd/containerd/metadata"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -38,7 +37,6 @@ import (
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/worker"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
@@ -169,11 +167,6 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Errorf("snapshotter doesn't support differ")
 	}
 
-	p, err := parsePlatforms(archutil.SupportedPlatforms(true))
-	if err != nil {
-		return nil, err
-	}
-
 	leases, err := lm.List(context.TODO(), "labels.\"buildkit/lease.temporary\"")
 	if err != nil {
 		return nil, err
@@ -184,7 +177,6 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 
 	wopt := mobyworker.Opt{
 		ID:                "moby",
-		MetadataStore:     md,
 		ContentStore:      store,
 		CacheManager:      cm,
 		GCPolicy:          gcPolicy,
@@ -196,7 +188,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Exporter:          exp,
 		Transport:         rt,
 		Layers:            layers,
-		Platforms:         p,
+		Platforms:         archutil.SupportedPlatforms(true),
 	}
 
 	wc := &worker.Controller{}
@@ -266,18 +258,6 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 		}
 	}
 	return gcPolicy, nil
-}
-
-func parsePlatforms(platformsStr []string) ([]specs.Platform, error) {
-	out := make([]specs.Platform, 0, len(platformsStr))
-	for _, s := range platformsStr {
-		p, err := platforms.Parse(s)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, platforms.Normalize(p))
-	}
-	return out, nil
 }
 
 func getEntitlements(conf config.BuilderConfig) []string {

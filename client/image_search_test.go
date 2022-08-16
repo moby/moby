@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -73,15 +73,15 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			auth := req.Header.Get("X-Registry-Auth")
+			auth := req.Header.Get(registry.AuthHeader)
 			if auth == "NotValid" {
 				return &http.Response{
 					StatusCode: http.StatusUnauthorized,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
+					Body:       io.NopCloser(bytes.NewReader([]byte("Invalid credentials"))),
 				}, nil
 			}
 			if auth != "IAmValid" {
-				return nil, fmt.Errorf("Invalid auth header : expected 'IAmValid', got %s", auth)
+				return nil, fmt.Errorf("invalid auth header: expected 'IAmValid', got %s", auth)
 			}
 			query := req.URL.Query()
 			term := query.Get("term")
@@ -98,7 +98,7 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader(content)),
+				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
 		}),
 	}
@@ -149,7 +149,7 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader(content)),
+				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
 		}),
 	}

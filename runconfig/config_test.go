@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -42,27 +42,30 @@ func TestDecodeContainerConfig(t *testing.T) {
 	}
 
 	for _, f := range fixtures {
-		b, err := ioutil.ReadFile(f.file)
-		if err != nil {
-			t.Fatal(err)
-		}
+		f := f
+		t.Run(f.file, func(t *testing.T) {
+			b, err := os.ReadFile(f.file)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		c, h, _, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New(true))
-		if err != nil {
-			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
-		}
+			c, h, _, err := decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if c.Image != image {
-			t.Fatalf("Expected %s image, found %s\n", image, c.Image)
-		}
+			if c.Image != image {
+				t.Fatalf("Expected %s image, found %s", image, c.Image)
+			}
 
-		if len(c.Entrypoint) != len(f.entrypoint) {
-			t.Fatalf("Expected %v, found %v\n", f.entrypoint, c.Entrypoint)
-		}
+			if len(c.Entrypoint) != len(f.entrypoint) {
+				t.Fatalf("Expected %v, found %v", f.entrypoint, c.Entrypoint)
+			}
 
-		if h != nil && h.Memory != 1000 {
-			t.Fatalf("Expected memory to be 1000, found %d\n", h.Memory)
-		}
+			if h != nil && h.Memory != 1000 {
+				t.Fatalf("Expected memory to be 1000, found %d", h.Memory)
+			}
+		})
 	}
 }
 
@@ -131,5 +134,5 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
-	return decodeContainerConfig(bytes.NewReader(b), sysinfo.New(true))
+	return decodeContainerConfig(bytes.NewReader(b), sysinfo.New())
 }

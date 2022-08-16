@@ -1,10 +1,10 @@
+//go:build !windows
 // +build !windows
 
 package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -26,7 +26,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *testing.T) {
 
 	s.d.StartWithBusybox(c, "--userns-remap", "default")
 
-	tmpDir, err := ioutil.TempDir("", "userns")
+	tmpDir, err := os.MkdirTemp("", "userns")
 	assert.NilError(c, err)
 
 	defer os.RemoveAll(tmpDir)

@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 )
 
 // ID is the content-addressable ID of an image.
@@ -36,40 +36,75 @@ func IDFromDigest(digest digest.Digest) ID {
 type V1Image struct {
 	// ID is a unique 64 character identifier of the image
 	ID string `json:"id,omitempty"`
-	// Parent is the ID of the parent image
+
+	// Parent is the ID of the parent image.
+	//
+	// Depending on how the image was created, this field may be empty and
+	// is only set for images that were built/created locally. This field
+	// is empty if the image was pulled from an image registry.
 	Parent string `json:"parent,omitempty"`
-	// Comment is the commit message that was set when committing the image
+
+	// Comment is an optional message that can be set when committing or
+	// importing the image.
 	Comment string `json:"comment,omitempty"`
+
 	// Created is the timestamp at which the image was created
 	Created time.Time `json:"created"`
-	// Container is the id of the container used to commit
+
+	// Container is the ID of the container that was used to create the image.
+	//
+	// Depending on how the image was created, this field may be empty.
 	Container string `json:"container,omitempty"`
-	// ContainerConfig is the configuration of the container that is committed into the image
+
+	// ContainerConfig is the configuration of the container that was committed
+	// into the image.
 	ContainerConfig container.Config `json:"container_config,omitempty"`
-	// DockerVersion specifies the version of Docker that was used to build the image
+
+	// DockerVersion is the version of Docker that was used to build the image.
+	//
+	// Depending on how the image was created, this field may be empty.
 	DockerVersion string `json:"docker_version,omitempty"`
-	// Author is the name of the author that was specified when committing the image
+
+	// Author is the name of the author that was specified when committing the
+	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
 	Author string `json:"author,omitempty"`
-	// Config is the configuration of the container received from the client
+
+	// Config is the configuration of the container received from the client.
 	Config *container.Config `json:"config,omitempty"`
-	// Architecture is the hardware that the image is built and runs on
+
+	// Architecture is the hardware CPU architecture that the image runs on.
 	Architecture string `json:"architecture,omitempty"`
-	// Variant is the CPU architecture variant (presently ARM-only)
+
+	// Variant is the CPU architecture variant (presently ARM-only).
 	Variant string `json:"variant,omitempty"`
-	// OS is the operating system used to build and run the image
+
+	// OS is the Operating System the image is built to run on.
 	OS string `json:"os,omitempty"`
-	// Size is the total size of the image including all layers it is composed of
+
+	// Size is the total size of the image including all layers it is composed of.
 	Size int64 `json:",omitempty"`
 }
 
 // Image stores the image configuration
 type Image struct {
 	V1Image
-	Parent     ID        `json:"parent,omitempty"` //nolint:govet
-	RootFS     *RootFS   `json:"rootfs,omitempty"`
-	History    []History `json:"history,omitempty"`
-	OSVersion  string    `json:"os.version,omitempty"`
-	OSFeatures []string  `json:"os.features,omitempty"`
+
+	// Parent is the ID of the parent image.
+	//
+	// Depending on how the image was created, this field may be empty and
+	// is only set for images that were built/created locally. This field
+	// is empty if the image was pulled from an image registry.
+	Parent ID `json:"parent,omitempty"` //nolint:govet
+
+	// RootFS contains information about the image's RootFS, including the
+	// layer IDs.
+	RootFS  *RootFS   `json:"rootfs,omitempty"`
+	History []History `json:"history,omitempty"`
+
+	// OsVersion is the version of the Operating System the image is built to
+	// run on (especially for Windows).
+	OSVersion  string   `json:"os.version,omitempty"`
+	OSFeatures []string `json:"os.features,omitempty"`
 
 	// rawJSON caches the immutable JSON associated with this image.
 	rawJSON []byte
@@ -195,7 +230,8 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 type History struct {
 	// Created is the timestamp at which the image was created
 	Created time.Time `json:"created"`
-	// Author is the name of the author that was specified when committing the image
+	// Author is the name of the author that was specified when committing the
+	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
 	Author string `json:"author,omitempty"`
 	// CreatedBy keeps the Dockerfile command used while building the image
 	CreatedBy string `json:"created_by,omitempty"`

@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	types "github.com/docker/docker/api/types/swarm"
-	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
 // TaskFromGRPC converts a grpc Task to a Task.
@@ -55,6 +55,17 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 		task.JobIteration = &types.Version{
 			Index: t.JobIteration.Index,
 		}
+	}
+
+	// appending to a nil slice is valid. if there are no items in t.Volumes,
+	// then the task.Volumes will remain nil; otherwise, it will contain
+	// converted entries.
+	for _, v := range t.Volumes {
+		task.Volumes = append(task.Volumes, types.VolumeAttachment{
+			ID:     v.ID,
+			Source: v.Source,
+			Target: v.Target,
+		})
 	}
 
 	if t.Status.PortStatus == nil {

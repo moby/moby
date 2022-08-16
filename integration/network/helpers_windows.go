@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -40,10 +39,4 @@ func IsNetworkNotAvailable(c client.NetworkAPIClient, name string) cmp.Compariso
 		}
 		return cmp.ResultSuccess
 	}
-}
-
-// IsUserNamespace returns whether the user namespace remapping is enabled
-func IsUserNamespace() bool {
-	root := os.Getenv("DOCKER_REMAP_ROOT")
-	return root != ""
 }

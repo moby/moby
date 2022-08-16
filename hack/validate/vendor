@@ -5,23 +5,24 @@ source "${SCRIPTDIR}/.validate"
 
 validate_vendor_diff(){
 	IFS=$'\n'
+	check_files=( 'vendor.sum' 'vendor.mod' 'vendor/' )
 	# shellcheck disable=SC2207
-	files=( $(validate_diff --diff-filter=ACMR --name-only -- 'vendor.conf' 'vendor/' || true) )
+	changed_files=( $(validate_diff --diff-filter=ACMR --name-only -- "${check_files[@]}" || true) )
 	unset IFS
 
-	if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then
+	if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ "${#changed_files[@]}" -gt 0 ]; then
 		# recreate vendor/
 		./hack/vendor.sh
 		# check if any files have changed
-		diffs="$(git status --porcelain -- vendor 2>/dev/null)"
+		diffs="$(git status --porcelain -- "${check_files[@]}" 2>/dev/null)"
 		mfiles="$(echo "$diffs" | awk '/^ M / {print $2}')"
 		if [ "$diffs" ]; then
 			{
-				echo 'The result of vndr differs'
+				echo 'The result of go mod vendor differs'
 				echo
 				echo "$diffs"
 				echo
-				echo 'Please vendor your package with github.com/LK4D4/vndr.'
+				echo 'Please vendor your package with hack/vendor.sh.'
 				echo
 				if [ -n "$mfiles" ] ; then
 					git diff -- "$mfiles"
@@ -39,13 +40,11 @@ validate_vendor_diff(){
 # 1. make sure all the vendored packages are used
 # 2. make sure all the packages contain license information (just warning, because it can cause false-positive)
 validate_vendor_used() {
-	for f in $(mawk '/^[a-zA-Z0-9]/ { print $1 }' vendor.conf); do
+	for f in $(mawk '$1 = "#" { print $2 }' 'vendor/modules.txt'); do
 	if [ -d "vendor/$f" ]; then
 		if ! echo "vendor/$f"/* | grep -qiEc '/(LICENSE|COPYING)'; then
 		echo "WARNING: could not find copyright information for $f"
 		fi
-	else
-		echo "WARNING: $f is vendored but unused"
 	fi
 	done
 }

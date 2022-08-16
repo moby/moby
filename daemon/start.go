@@ -81,7 +81,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(ctr.OS, ctr.HostConfig, nil, false); err != nil {
+	if _, err = daemon.verifyContainerSettings(ctr.HostConfig, nil, false); err != nil {
 		return errdefs.InvalidParameter(err)
 	}
 	// Adapt for old containers in case we have updates in this function and
@@ -206,6 +206,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
 	}
 
+	container.HasBeenManuallyRestarted = false
 	container.SetRunning(pid, true)
 	container.HasBeenStartedBefore = true
 	daemon.setStateCounter(container)

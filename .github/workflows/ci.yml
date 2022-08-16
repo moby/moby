@@ -1,0 +1,170 @@
+name: ci
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]{2}'
+    tags:
+      - 'v*'
+  pull_request:
+
+env:
+  BUNDLES_OUTPUT: ./bundles
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - binary
+          - dynbinary
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Build
+        uses: docker/bake-action@v1
+        with:
+          targets: ${{ matrix.target }}
+          set: |
+            *.cache-from=type=gha,scope=build-${{ matrix.target }}
+            *.cache-to=type=gha,scope=build-${{ matrix.target }}
+      -
+        name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.BUNDLES_OUTPUT }}
+          if-no-files-found: error
+          retention-days: 7
+
+  cross:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm/v5
+          - linux/arm/v6
+          - linux/arm/v7
+          - linux/arm64
+          - linux/ppc64le
+          - linux/s390x
+          - windows/amd64
+          - windows/arm64
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      -
+        name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Build
+        uses: docker/bake-action@v1
+        with:
+          targets: cross
+          set: |
+            *.cache-from=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
+            *.cache-to=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
+        env:
+          DOCKER_CROSSPLATFORMS: ${{ matrix.platform }}
+      -
+        name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: cross-${{ env.PLATFORM_PAIR }}
+          path: ${{ env.BUNDLES_OUTPUT }}
+          if-no-files-found: error
+          retention-days: 7
+
+  test-buildkit:
+    needs:
+      - build
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg:
+          - ./client
+          - ./cmd/buildctl
+          - ./solver
+          - ./frontend
+          - ./frontend/dockerfile
+        typ:
+          - integration
+        include:
+          - pkg: ./...
+            skip-integration-tests: 1
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: moby
+      -
+        name: BuildKit ref
+        run: |
+          ./hack/go-mod-prepare.sh
+          echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+        working-directory: moby
+      -
+        name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
+        uses: actions/checkout@v3
+        with:
+          repository: "moby/buildkit"
+          ref: ${{ env.BUILDKIT_REF }}
+          path: buildkit
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Download binary artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: binary
+          path: ./buildkit/build/moby/
+      -
+        name: Update daemon.json
+        run: |
+          sudo rm /etc/docker/daemon.json
+          sudo service docker restart
+          docker version
+          docker info
+      -
+        name: Test
+        run: |
+          ./hack/test ${{ matrix.typ }}
+        env:
+          CONTEXT: "."
+          TEST_DOCKERD: "1"
+          TEST_DOCKERD_BINARY: "./build/moby/binary-daemon/dockerd"
+          TESTPKGS: "${{ matrix.pkg }}"
+          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
+          SKIP_INTEGRATION_TESTS: "${{ matrix.skip-integration-tests }}"
+        working-directory: buildkit

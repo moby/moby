@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"unsafe"
 
 	"github.com/cilium/ebpf/internal/unix"
@@ -61,10 +63,52 @@ func BPF(cmd BPFCmd, attr unsafe.Pointer, size uintptr) (uintptr, error) {
 
 	var err error
 	if errNo != 0 {
-		err = errNo
+		err = wrappedErrno{errNo}
 	}
 
 	return r1, err
+}
+
+type BPFProgLoadAttr struct {
+	ProgType           uint32
+	InsCount           uint32
+	Instructions       Pointer
+	License            Pointer
+	LogLevel           uint32
+	LogSize            uint32
+	LogBuf             Pointer
+	KernelVersion      uint32     // since 4.1  2541517c32be
+	ProgFlags          uint32     // since 4.11 e07b98d9bffe
+	ProgName           BPFObjName // since 4.15 067cae47771c
+	ProgIfIndex        uint32     // since 4.15 1f6f4cb7ba21
+	ExpectedAttachType uint32     // since 4.17 5e43f899b03a
+	ProgBTFFd          uint32
+	FuncInfoRecSize    uint32
+	FuncInfo           Pointer
+	FuncInfoCnt        uint32
+	LineInfoRecSize    uint32
+	LineInfo           Pointer
+	LineInfoCnt        uint32
+	AttachBTFID        uint32
+	AttachProgFd       uint32
+}
+
+// BPFProgLoad wraps BPF_PROG_LOAD.
+func BPFProgLoad(attr *BPFProgLoadAttr) (*FD, error) {
+	for {
+		fd, err := BPF(BPF_PROG_LOAD, unsafe.Pointer(attr), unsafe.Sizeof(*attr))
+		// As of ~4.20 the verifier can be interrupted by a signal,
+		// and returns EAGAIN in that case.
+		if errors.Is(err, unix.EAGAIN) {
+			continue
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		return NewFD(uint32(fd)), nil
+	}
 }
 
 type BPFProgAttachAttr struct {
@@ -177,4 +221,84 @@ func BPFObjGetInfoByFD(fd *FD, info unsafe.Pointer, size uintptr) error {
 		return fmt.Errorf("fd %v: %w", fd, err)
 	}
 	return nil
+}
+
+type bpfGetFDByIDAttr struct {
+	id   uint32
+	next uint32
+}
+
+// BPFObjGetInfoByFD wraps BPF_*_GET_FD_BY_ID.
+//
+// Available from 4.13.
+func BPFObjGetFDByID(cmd BPFCmd, id uint32) (*FD, error) {
+	attr := bpfGetFDByIDAttr{
+		id: id,
+	}
+	ptr, err := BPF(cmd, unsafe.Pointer(&attr), unsafe.Sizeof(attr))
+	return NewFD(uint32(ptr)), err
+}
+
+// BPFObjName is a null-terminated string made up of
+// 'A-Za-z0-9_' characters.
+type BPFObjName [unix.BPF_OBJ_NAME_LEN]byte
+
+// NewBPFObjName truncates the result if it is too long.
+func NewBPFObjName(name string) BPFObjName {
+	var result BPFObjName
+	copy(result[:unix.BPF_OBJ_NAME_LEN-1], name)
+	return result
+}
+
+type BPFMapCreateAttr struct {
+	MapType        uint32
+	KeySize        uint32
+	ValueSize      uint32
+	MaxEntries     uint32
+	Flags          uint32
+	InnerMapFd     uint32     // since 4.12 56f668dfe00d
+	NumaNode       uint32     // since 4.14 96eabe7a40aa
+	MapName        BPFObjName // since 4.15 ad5b177bd73f
+	MapIfIndex     uint32
+	BTFFd          uint32
+	BTFKeyTypeID   uint32
+	BTFValueTypeID uint32
+}
+
+func BPFMapCreate(attr *BPFMapCreateAttr) (*FD, error) {
+	fd, err := BPF(BPF_MAP_CREATE, unsafe.Pointer(attr), unsafe.Sizeof(*attr))
+	if err != nil {
+		return nil, err
+	}
+
+	return NewFD(uint32(fd)), nil
+}
+
+// wrappedErrno wraps syscall.Errno to prevent direct comparisons with
+// syscall.E* or unix.E* constants.
+//
+// You should never export an error of this type.
+type wrappedErrno struct {
+	syscall.Errno
+}
+
+func (we wrappedErrno) Unwrap() error {
+	return we.Errno
+}
+
+type syscallError struct {
+	error
+	errno syscall.Errno
+}
+
+func SyscallError(err error, errno syscall.Errno) error {
+	return &syscallError{err, errno}
+}
+
+func (se *syscallError) Is(target error) bool {
+	return target == se.error
+}
+
+func (se *syscallError) Unwrap() error {
+	return se.errno
 }

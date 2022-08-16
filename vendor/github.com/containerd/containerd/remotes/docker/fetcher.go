@@ -19,9 +19,9 @@ package docker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -30,7 +30,6 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 type dockerFetcher struct {
@@ -42,7 +41,7 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 
 	hosts := r.filterHosts(HostCapabilityPull)
 	if len(hosts) == 0 {
-		return nil, errors.Wrap(errdefs.ErrNotFound, "no pull hosts")
+		return nil, fmt.Errorf("no pull hosts: %w", errdefs.ErrNotFound)
 	}
 
 	ctx, err := ContextWithRepositoryScope(ctx, r.refspec, false)
@@ -58,6 +57,10 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 			u, err := url.Parse(us)
 			if err != nil {
 				log.G(ctx).WithError(err).Debug("failed to parse")
+				continue
+			}
+			if u.Scheme != "http" && u.Scheme != "https" {
+				log.G(ctx).Debug("non-http(s) alternative url is unsupported")
 				continue
 			}
 			log.G(ctx).Debug("trying alternative url")
@@ -138,9 +141,9 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 		}
 
 		if errdefs.IsNotFound(firstErr) {
-			firstErr = errors.Wrapf(errdefs.ErrNotFound,
-				"could not fetch content descriptor %v (%v) from remote",
-				desc.Digest, desc.MediaType)
+			firstErr = fmt.Errorf("could not fetch content descriptor %v (%v) from remote: %w",
+				desc.Digest, desc.MediaType, errdefs.ErrNotFound,
+			)
 		}
 
 		return nil, firstErr
@@ -148,7 +151,7 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 	})
 }
 
-func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string, offset int64) (io.ReadCloser, error) {
+func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string, offset int64) (_ io.ReadCloser, retErr error) {
 	req.header.Set("Accept", strings.Join([]string{mediatype, `*/*`}, ", "))
 
 	if offset > 0 {
@@ -162,28 +165,32 @@ func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string,
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			resp.Body.Close()
+		}
+	}()
 
 	if resp.StatusCode > 299 {
 		// TODO(stevvooe): When doing a offset specific request, we should
 		// really distinguish between a 206 and a 200. In the case of 200, we
 		// can discard the bytes, hiding the seek behavior from the
 		// implementation.
-		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", req.String())
+			return nil, fmt.Errorf("content at %v not found: %w", req.String(), errdefs.ErrNotFound)
 		}
 		var registryErr Errors
 		if err := json.NewDecoder(resp.Body).Decode(&registryErr); err != nil || registryErr.Len() < 1 {
-			return nil, errors.Errorf("unexpected status code %v: %v", req.String(), resp.Status)
+			return nil, fmt.Errorf("unexpected status code %v: %v", req.String(), resp.Status)
 		}
-		return nil, errors.Errorf("unexpected status code %v: %s - Server message: %s", req.String(), resp.Status, registryErr.Error())
+		return nil, fmt.Errorf("unexpected status code %v: %s - Server message: %s", req.String(), resp.Status, registryErr.Error())
 	}
 	if offset > 0 {
 		cr := resp.Header.Get("content-range")
 		if cr != "" {
 			if !strings.HasPrefix(cr, fmt.Sprintf("bytes %d-", offset)) {
-				return nil, errors.Errorf("unhandled content range in response: %v", cr)
+				return nil, fmt.Errorf("unhandled content range in response: %v", cr)
 
 			}
 		} else {
@@ -193,12 +200,12 @@ func (r dockerFetcher) open(ctx context.Context, req *request, mediatype string,
 
 			// Discard up to offset
 			// Could use buffer pool here but this case should be rare
-			n, err := io.Copy(ioutil.Discard, io.LimitReader(resp.Body, offset))
+			n, err := io.Copy(io.Discard, io.LimitReader(resp.Body, offset))
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to discard to offset")
+				return nil, fmt.Errorf("failed to discard to offset: %w", err)
 			}
 			if n != offset {
-				return nil, errors.Errorf("unable to discard to offset")
+				return nil, errors.New("unable to discard to offset")
 			}
 
 		}

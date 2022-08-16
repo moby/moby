@@ -6,7 +6,7 @@ import (
 
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -21,7 +21,7 @@ type DefinitionOp struct {
 	defs       map[digest.Digest][]byte
 	metas      map[digest.Digest]pb.OpMetadata
 	sources    map[digest.Digest][]*SourceLocation
-	platforms  map[digest.Digest]*specs.Platform
+	platforms  map[digest.Digest]*ocispecs.Platform
 	dgst       digest.Digest
 	index      pb.OutputIndex
 	inputCache map[digest.Digest][]*DefinitionOp
@@ -31,7 +31,7 @@ type DefinitionOp struct {
 func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 	ops := make(map[digest.Digest]*pb.Op)
 	defs := make(map[digest.Digest][]byte)
-	platforms := make(map[digest.Digest]*specs.Platform)
+	platforms := make(map[digest.Digest]*ocispecs.Platform)
 
 	var dgst digest.Digest
 	for _, dt := range def.Def {
@@ -43,7 +43,7 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		ops[dgst] = &op
 		defs[dgst] = dt
 
-		var platform *specs.Platform
+		var platform *ocispecs.Platform
 		if op.Platform != nil {
 			spec := op.Platform.Spec()
 			platform = &spec
@@ -105,11 +105,11 @@ func (d *DefinitionOp) ToInput(ctx context.Context, c *Constraints) (*pb.Input, 
 	return d.Output().ToInput(ctx, c)
 }
 
-func (d *DefinitionOp) Vertex(context.Context) Vertex {
+func (d *DefinitionOp) Vertex(context.Context, *Constraints) Vertex {
 	return d
 }
 
-func (d *DefinitionOp) Validate(context.Context) error {
+func (d *DefinitionOp) Validate(context.Context, *Constraints) error {
 	// Scratch state has no digest, ops or metas.
 	if d.dgst == "" {
 		return nil
@@ -151,7 +151,7 @@ func (d *DefinitionOp) Marshal(ctx context.Context, c *Constraints) (digest.Dige
 		return "", nil, nil, nil, errors.Errorf("cannot marshal empty definition op")
 	}
 
-	if err := d.Validate(ctx); err != nil {
+	if err := d.Validate(ctx, c); err != nil {
 		return "", nil, nil, nil, err
 	}
 
@@ -160,7 +160,6 @@ func (d *DefinitionOp) Marshal(ctx context.Context, c *Constraints) (digest.Dige
 
 	meta := d.metas[d.dgst]
 	return d.dgst, d.defs[d.dgst], &meta, d.sources[d.dgst], nil
-
 }
 
 func (d *DefinitionOp) Output() Output {

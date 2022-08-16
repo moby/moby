@@ -31,7 +31,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // Layer represents the descriptors for a layer diff. These descriptions
@@ -68,7 +67,7 @@ func ApplyLayersWithOpts(ctx context.Context, layers []Layer, sn snapshots.Snaps
 	_, err := sn.Stat(ctx, chainID.String())
 	if err != nil {
 		if !errdefs.IsNotFound(err) {
-			return "", errors.Wrapf(err, "failed to stat snapshot %s", chainID)
+			return "", fmt.Errorf("failed to stat snapshot %s: %w", chainID, err)
 		}
 
 		if err := applyLayers(ctx, layers, chain, sn, a, nil, applyOpts); err != nil && !errdefs.IsAlreadyExists(err) {
@@ -96,7 +95,7 @@ func ApplyLayerWithOpts(ctx context.Context, layer Layer, chain []digest.Digest,
 	)
 	if _, err := sn.Stat(ctx, chainID); err != nil {
 		if !errdefs.IsNotFound(err) {
-			return false, errors.Wrapf(err, "failed to stat snapshot %s", chainID)
+			return false, fmt.Errorf("failed to stat snapshot %s: %w", chainID, err)
 		}
 
 		if err := applyLayers(ctx, []Layer{layer}, append(chain, layer.Diff.Digest), sn, a, opts, applyOpts); err != nil {
@@ -143,7 +142,7 @@ func applyLayers(ctx context.Context, layers []Layer, chain []digest.Digest, sn 
 			}
 
 			// Already exists should have the caller retry
-			return errors.Wrapf(err, "failed to prepare extraction snapshot %q", key)
+			return fmt.Errorf("failed to prepare extraction snapshot %q: %w", key, err)
 
 		}
 		break
@@ -162,16 +161,16 @@ func applyLayers(ctx context.Context, layers []Layer, chain []digest.Digest, sn 
 
 	diff, err = a.Apply(ctx, layer.Blob, mounts, applyOpts...)
 	if err != nil {
-		err = errors.Wrapf(err, "failed to extract layer %s", layer.Diff.Digest)
+		err = fmt.Errorf("failed to extract layer %s: %w", layer.Diff.Digest, err)
 		return err
 	}
 	if diff.Digest != layer.Diff.Digest {
-		err = errors.Errorf("wrong diff id calculated on extraction %q", diff.Digest)
+		err = fmt.Errorf("wrong diff id calculated on extraction %q", diff.Digest)
 		return err
 	}
 
 	if err = sn.Commit(ctx, chainID.String(), key, opts...); err != nil {
-		err = errors.Wrapf(err, "failed to commit snapshot %s", key)
+		err = fmt.Errorf("failed to commit snapshot %s: %w", key, err)
 		return err
 	}
 

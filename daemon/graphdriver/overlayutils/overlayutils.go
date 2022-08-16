@@ -1,14 +1,15 @@
+//go:build linux
 // +build linux
 
 package overlayutils // import "github.com/docker/docker/daemon/graphdriver/overlayutils"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -47,7 +48,7 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 		return errors.New("overlay is not supported for Rootless with SELinux")
 	}
 
-	td, err := ioutil.TempDir(d, "check-overlayfs-support")
+	td, err := os.MkdirTemp(d, "check-overlayfs-support")
 	if err != nil {
 		return err
 	}
@@ -76,4 +77,15 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 		logrus.Warnf("Failed to unmount check directory %v: %v", mnt, err)
 	}
 	return nil
+}
+
+// GetOverlayXattr combines the overlay module's xattr class with the named
+// xattr -- `user` when mounted inside a user namespace, and `trusted` when
+// mounted in the 'root' namespace.
+func GetOverlayXattr(name string) string {
+	class := "trusted"
+	if userns.RunningInUserNS() {
+		class = "user"
+	}
+	return fmt.Sprintf("%s.overlay.%s", class, name)
 }

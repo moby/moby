@@ -20,6 +20,9 @@ import "github.com/opencontainers/image-spec/specs-go"
 type Manifest struct {
 	specs.Versioned
 
+	// MediaType specifies the type of this document data structure e.g. `application/vnd.oci.image.manifest.v1+json`
+	MediaType string `json:"mediaType,omitempty"`
+
 	// Config references a configuration object for a container, by digest.
 	// The referenced configuration object is a JSON blob that the runtime uses to set up the container.
 	Config Descriptor `json:"config"`

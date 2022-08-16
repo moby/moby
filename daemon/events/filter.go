@@ -102,7 +102,7 @@ func (ef *Filter) matchConfig(ev events.Message) bool {
 	return ef.fuzzyMatchName(ev, events.ConfigEventType)
 }
 
-func (ef *Filter) fuzzyMatchName(ev events.Message, eventType string) bool {
+func (ef *Filter) fuzzyMatchName(ev events.Message, eventType events.Type) bool {
 	return ef.filter.FuzzyMatch(eventType, ev.Actor.ID) ||
 		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["name"])
 }

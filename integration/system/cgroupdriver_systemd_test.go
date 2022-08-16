@@ -26,7 +26,7 @@ func hasSystemd() bool {
 
 // TestCgroupDriverSystemdMemoryLimit checks that container
 // memory limit can be set when using systemd cgroupdriver.
-//  https://github.com/moby/moby/issues/35123
+// https://github.com/moby/moby/issues/35123
 func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !hasSystemd())

@@ -6,5 +6,5 @@ import "context"
 func (cli *Client) ServiceRemove(ctx context.Context, serviceID string) error {
 	resp, err := cli.delete(ctx, "/services/"+serviceID, nil, nil)
 	defer ensureReaderClosed(resp)
-	return wrapResponseError(err, resp, "service", serviceID)
+	return err
 }

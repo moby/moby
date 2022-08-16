@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -70,7 +69,7 @@ func getValueFromOsRelease(key string) (string, error) {
 
 // IsContainerized returns true if we are running inside a container.
 func IsContainerized() (bool, error) {
-	b, err := ioutil.ReadFile(proc1Cgroup)
+	b, err := os.ReadFile(proc1Cgroup)
 	if err != nil {
 		return false, err
 	}

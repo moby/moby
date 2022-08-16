@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 
 	"github.com/containerd/containerd/content"
 	c8derrdefs "github.com/containerd/containerd/errdefs"
@@ -15,7 +14,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -84,7 +83,7 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 			continue
 		}
 
-		data, err := ioutil.ReadAll(makeRdr(ra))
+		data, err := io.ReadAll(makeRdr(ra))
 		ra.Close()
 
 		if err != nil {
@@ -124,7 +123,7 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 				continue
 			}
 
-			data, err := ioutil.ReadAll(makeRdr(ra))
+			data, err := io.ReadAll(makeRdr(ra))
 			ra.Close()
 			if err != nil {
 				logger.WithError(err).Error("Error reading manifest for image")
@@ -220,7 +219,7 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 }
 
 // OnlyPlatformWithFallback uses `platforms.Only` with a fallback to handle the case where the platform
-//  being matched does not have a CPU variant.
+// being matched does not have a CPU variant.
 //
 // The reason for this is that CPU variant is not even if the official image config spec as of this writing.
 // See: https://github.com/opencontainers/image-spec/pull/809

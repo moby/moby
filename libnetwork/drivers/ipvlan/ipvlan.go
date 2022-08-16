@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package ipvlan
@@ -16,14 +17,20 @@ const (
 	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
-	ipvlanType          = "ipvlan" // driver type name
-	modeL2              = "l2"     // ipvlan mode l2 is the default
-	modeL3              = "l3"     // ipvlan L3 mode
-	parentOpt           = "parent" // parent interface -o parent
-	modeOpt             = "_mode"  // ipvlan mode ux opt suffix
-)
 
-var driverModeOpt = ipvlanType + modeOpt // mode -o ipvlan_mode
+	driverName    = "ipvlan"      // driver type name
+	parentOpt     = "parent"      // parent interface -o parent
+	driverModeOpt = "ipvlan_mode" // mode -o ipvlan_mode
+	driverFlagOpt = "ipvlan_flag" // flag -o ipvlan_flag
+
+	modeL2  = "l2"  // ipvlan L2 mode (default)
+	modeL3  = "l3"  // ipvlan L3 mode
+	modeL3S = "l3s" // ipvlan L3S mode
+
+	flagBridge  = "bridge"  // ipvlan flag bridge (default)
+	flagPrivate = "private" // ipvlan flag private
+	flagVepa    = "vepa"    // ipvlan flag vepa
+)
 
 type endpointTable map[string]*endpoint
 
@@ -68,7 +75,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		return err
 	}
 
-	return dc.RegisterDriver(ipvlanType, d, c)
+	return dc.RegisterDriver(driverName, d, c)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -84,7 +91,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 }
 
 func (d *driver) Type() string {
-	return ipvlanType
+	return driverName
 }
 
 func (d *driver) IsBuiltIn() bool {

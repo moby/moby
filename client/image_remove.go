@@ -23,7 +23,7 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options type
 	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
 	defer ensureReaderClosed(resp)
 	if err != nil {
-		return dels, wrapResponseError(err, resp, "image", imageID)
+		return dels, err
 	}
 
 	err = json.NewDecoder(resp.body).Decode(&dels)

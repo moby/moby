@@ -103,7 +103,7 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 // Make sure in context of daemon, not the local platform. Note we can't
 // use filepath.FromSlash or ToSlash here as they are a no-op on Unix.
 func toSlash(path string) string {
-	return strings.Replace(path, `\`, `/`, -1)
+	return strings.ReplaceAll(path, `\`, `/`)
 }
 
 // IsLocalDaemon is true if the daemon under test is on the same
@@ -162,6 +162,11 @@ func (e *Execution) IsUserNamespace() bool {
 	return root != ""
 }
 
+// RuntimeIsWindowsContainerd returns whether containerd runtime is used on Windows
+func (e *Execution) RuntimeIsWindowsContainerd() bool {
+	return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") == "1"
+}
+
 // IsRootless returns whether the rootless mode is enabled
 func (e *Execution) IsRootless() bool {
 	return os.Getenv("DOCKER_ROOTLESS") != ""
@@ -215,4 +220,9 @@ func EnsureFrozenImagesLinux(testEnv *Execution) error {
 		}
 	}
 	return nil
+}
+
+// GitHubActions is true if test is executed on a GitHub Runner.
+func (e *Execution) GitHubActions() bool {
+	return os.Getenv("GITHUB_ACTIONS") == "true"
 }

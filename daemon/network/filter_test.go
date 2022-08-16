@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package network // import "github.com/docker/docker/daemon/network"

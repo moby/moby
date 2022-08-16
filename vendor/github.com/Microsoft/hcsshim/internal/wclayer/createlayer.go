@@ -21,7 +21,7 @@ func CreateLayer(ctx context.Context, path, parent string) (err error) {
 
 	err = createLayer(&stdDriverInfo, path, parent)
 	if err != nil {
-		return hcserror.New(err, title+" - failed", "")
+		return hcserror.New(err, title, "")
 	}
 	return nil
 }

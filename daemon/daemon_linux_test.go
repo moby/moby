@@ -1,9 +1,9 @@
+//go:build linux
 // +build linux
 
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,25 +55,85 @@ const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b
 310 142 0:60 / /run/docker/netns/71a18572176b rw,nosuid,nodev,noexec,relatime - proc proc rw
 `
 
+const mountsFixtureOverlay2 = `23 28 0:22 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw
+24 28 0:4 / /proc rw,nosuid,nodev,noexec,relatime shared:13 - proc proc rw
+25 28 0:6 / /dev rw,nosuid,relatime shared:2 - devtmpfs udev rw,size=491380k,nr_inodes=122845,mode=755
+26 25 0:23 / /dev/pts rw,nosuid,noexec,relatime shared:3 - devpts devpts rw,gid=5,mode=620,ptmxmode=000
+27 28 0:24 / /run rw,nosuid,noexec,relatime shared:5 - tmpfs tmpfs rw,size=100884k,mode=755
+28 0 252:1 / / rw,relatime shared:1 - ext4 /dev/vda1 rw,data=ordered
+29 23 0:7 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime shared:8 - securityfs securityfs rw
+30 25 0:25 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw
+31 27 0:26 / /run/lock rw,nosuid,nodev,noexec,relatime shared:6 - tmpfs tmpfs rw,size=5120k
+32 23 0:27 / /sys/fs/cgroup ro,nosuid,nodev,noexec shared:9 - tmpfs tmpfs ro,mode=755
+33 32 0:28 / /sys/fs/cgroup/unified rw,nosuid,nodev,noexec,relatime shared:10 - cgroup2 cgroup rw
+34 32 0:29 / /sys/fs/cgroup/systemd rw,nosuid,nodev,noexec,relatime shared:11 - cgroup cgroup rw,xattr,name=systemd
+35 23 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime shared:12 - pstore pstore rw
+36 32 0:31 / /sys/fs/cgroup/blkio rw,nosuid,nodev,noexec,relatime shared:14 - cgroup cgroup rw,blkio
+37 32 0:32 / /sys/fs/cgroup/memory rw,nosuid,nodev,noexec,relatime shared:15 - cgroup cgroup rw,memory
+38 32 0:33 / /sys/fs/cgroup/hugetlb rw,nosuid,nodev,noexec,relatime shared:16 - cgroup cgroup rw,hugetlb
+39 32 0:34 / /sys/fs/cgroup/freezer rw,nosuid,nodev,noexec,relatime shared:17 - cgroup cgroup rw,freezer
+40 32 0:35 / /sys/fs/cgroup/perf_event rw,nosuid,nodev,noexec,relatime shared:18 - cgroup cgroup rw,perf_event
+41 32 0:36 / /sys/fs/cgroup/pids rw,nosuid,nodev,noexec,relatime shared:19 - cgroup cgroup rw,pids
+42 32 0:37 / /sys/fs/cgroup/cpuset rw,nosuid,nodev,noexec,relatime shared:20 - cgroup cgroup rw,cpuset
+43 32 0:38 / /sys/fs/cgroup/cpu,cpuacct rw,nosuid,nodev,noexec,relatime shared:21 - cgroup cgroup rw,cpu,cpuacct
+44 32 0:39 / /sys/fs/cgroup/rdma rw,nosuid,nodev,noexec,relatime shared:22 - cgroup cgroup rw,rdma
+45 32 0:40 / /sys/fs/cgroup/devices rw,nosuid,nodev,noexec,relatime shared:23 - cgroup cgroup rw,devices
+46 32 0:41 / /sys/fs/cgroup/net_cls,net_prio rw,nosuid,nodev,noexec,relatime shared:24 - cgroup cgroup rw,net_cls,net_prio
+47 24 0:42 / /proc/sys/fs/binfmt_misc rw,relatime shared:25 - autofs systemd-1 rw,fd=33,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=11725
+48 23 0:8 / /sys/kernel/debug rw,relatime shared:26 - debugfs debugfs rw
+49 25 0:19 / /dev/mqueue rw,relatime shared:27 - mqueue mqueue rw
+50 25 0:43 / /dev/hugepages rw,relatime shared:28 - hugetlbfs hugetlbfs rw,pagesize=2M
+80 23 0:20 / /sys/kernel/config rw,relatime shared:29 - configfs configfs rw
+82 23 0:44 / /sys/fs/fuse/connections rw,relatime shared:30 - fusectl fusectl rw
+84 28 252:15 / /boot/efi rw,relatime shared:31 - vfat /dev/vda15 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro
+391 28 0:49 / /var/lib/lxcfs rw,nosuid,nodev,relatime shared:208 - fuse.lxcfs lxcfs rw,user_id=0,group_id=0,allow_other
+401 48 0:11 / /sys/kernel/debug/tracing rw,relatime shared:213 - tracefs tracefs rw
+421 47 0:93 / /proc/sys/fs/binfmt_misc rw,relatime shared:223 - binfmt_misc binfmt_misc rw
+510 27 0:3 net:[4026531993] /run/docker/netns/default rw shared:255 - nsfs nsfs rw
+60 27 0:3 net:[4026532265] /run/docker/netns/ingress_sbox rw shared:40 - nsfs nsfs rw
+162 27 0:3 net:[4026532331] /run/docker/netns/1-bj0aarwy1n rw shared:41 - nsfs nsfs rw
+450 28 0:51 / /var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/merged rw,relatime shared:231 - overlay overlay rw,lowerdir=/var/lib/docker/overlay2/l/E6KNVZ2QUCIXY5VT7E5LO3PVCA:/var/lib/docker/overlay2/l/64XI57TRGG6QS4K6DCSREZXBN2:/var/lib/docker/overlay2/l/TWXZ4ANJR6BDLDZMWZ4Y6AICAR:/var/lib/docker/overlay2/l/VRLSNSG3PKZELC5O66TVTQ7EH5:/var/lib/docker/overlay2/l/HOLV4F57X56TRLVACMRLFVW7YD:/var/lib/docker/overlay2/l/JJQFBBBT6LWLQS35XBADV6BLAM:/var/lib/docker/overlay2/l/FZTPKHZGP2Z6DBPFEEL2IK3I5Y,upperdir=/var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/diff,workdir=/var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/work
+569 27 0:3 net:[4026532353] /run/docker/netns/7de1071d0d8b rw shared:245 - nsfs nsfs rw
+245 27 0:50 / /run/user/0 rw,nosuid,nodev,relatime shared:160 - tmpfs tmpfs rw,size=100880k,mode=700
+482 28 0:69 / /var/lib/docker/overlay2/df4ee7b0bac7bda30e6e3d24a1153b288ebda50ffe68aae7ae0f38bc9286a01a/merged rw,relatime shared:250 - overlay overlay rw,lowerdir=/var/lib/docker/overlay2/l/CNZ3ATGGHMUTPPJBBU2OL4GLL6:/var/lib/docker/overlay2/l/64XI57TRGG6QS4K6DCSREZXBN2:/var/lib/docker/overlay2/l/TWXZ4ANJR6BDLDZMWZ4Y6AICAR:/var/lib/docker/overlay2/l/VRLSNSG3PKZELC5O66TVTQ7EH5:/var/lib/docker/overlay2/l/HOLV4F57X56TRLVACMRLFVW7YD:/var/lib/docker/overlay2/l/JJQFBBBT6LWLQS35XBADV6BLAM:/var/lib/docker/overlay2/l/FZTPKHZGP2Z6DBPFEEL2IK3I5Y,upperdir=/var/lib/docker/overlay2/df4ee7b0bac7bda30e6e3d24a1153b288ebda50ffe68aae7ae0f38bc9286a01a/diff,workdir=/var/lib/docker/overlay2/df4ee7b0bac7bda30e6e3d24a1153b288ebda50ffe68aae7ae0f38bc9286a01a/work
+528 28 0:77 / /var/lib/docker/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm rw,nosuid,nodev,noexec,relatime shared:260 - tmpfs shm rw,size=65536k
+649 27 0:3 net:[4026532429] /run/docker/netns/7f85bc5ef3ba rw shared:265 - nsfs nsfs rw
+`
+
 func TestCleanupMounts(t *testing.T) {
 	d := &Daemon{
 		root: "/var/lib/docker/",
 	}
 
-	expected := "/var/lib/docker/containers/d045dc441d2e2e1d5b3e328d47e5943811a40819fb47497c5f5a5df2d6d13c37/shm"
-	var unmounted int
-	unmount := func(target string) error {
-		if target == expected {
-			unmounted++
+	t.Run("aufs", func(t *testing.T) {
+		expected := "/var/lib/docker/containers/d045dc441d2e2e1d5b3e328d47e5943811a40819fb47497c5f5a5df2d6d13c37/shm"
+		var unmounted int
+		unmount := func(target string) error {
+			if target == expected {
+				unmounted++
+			}
+			return nil
 		}
-		return nil
-	}
 
-	d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "", unmount)
+		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "", unmount)
+		assert.NilError(t, err)
+		assert.Equal(t, unmounted, 1, "Expected to unmount the shm (and the shm only)")
+	})
 
-	if unmounted != 1 {
-		t.Fatal("Expected to unmount the shm (and the shm only)")
-	}
+	t.Run("overlay2", func(t *testing.T) {
+		expected := "/var/lib/docker/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm"
+		var unmounted int
+		unmount := func(target string) error {
+			if target == expected {
+				unmounted++
+			}
+			return nil
+		}
+
+		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixtureOverlay2), "", unmount)
+		assert.NilError(t, err)
+		assert.Equal(t, unmounted, 1, "Expected to unmount the shm (and the shm only)")
+	})
 }
 
 func TestCleanupMountsByID(t *testing.T) {
@@ -81,20 +141,35 @@ func TestCleanupMountsByID(t *testing.T) {
 		root: "/var/lib/docker/",
 	}
 
-	expected := "/var/lib/docker/aufs/mnt/03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d"
-	var unmounted int
-	unmount := func(target string) error {
-		if target == expected {
-			unmounted++
+	t.Run("aufs", func(t *testing.T) {
+		expected := "/var/lib/docker/aufs/mnt/03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d"
+		var unmounted int
+		unmount := func(target string) error {
+			if target == expected {
+				unmounted++
+			}
+			return nil
 		}
-		return nil
-	}
 
-	d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d", unmount)
+		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "03ca4b49e71f1e49a41108829f4d5c70ac95934526e2af8984a1f65f1de0715d", unmount)
+		assert.NilError(t, err)
+		assert.Equal(t, unmounted, 1, "Expected to unmount the root (and that only)")
+	})
 
-	if unmounted != 1 {
-		t.Fatal("Expected to unmount the auf root (and that only)")
-	}
+	t.Run("overlay2", func(t *testing.T) {
+		expected := "/var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/merged"
+		var unmounted int
+		unmount := func(target string) error {
+			if target == expected {
+				unmounted++
+			}
+			return nil
+		}
+
+		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixtureOverlay2), "3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67", unmount)
+		assert.NilError(t, err)
+		assert.Equal(t, unmounted, 1, "Expected to unmount the root (and that only)")
+	})
 }
 
 func TestNotCleanupMounts(t *testing.T) {
@@ -107,16 +182,15 @@ func TestNotCleanupMounts(t *testing.T) {
 		return nil
 	}
 	mountInfo := `234 232 0:59 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=65536k`
-	d.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", unmount)
-	if unmounted {
-		t.Fatal("Expected not to clean up /dev/shm")
-	}
+	err := d.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", unmount)
+	assert.NilError(t, err)
+	assert.Equal(t, unmounted, false, "Expected not to clean up /dev/shm")
 }
 
 func TestValidateContainerIsolationLinux(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings("linux", &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
+	_, err := d.verifyContainerSettings(&containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'hyperv' on linux"))
 }
 
@@ -185,7 +259,7 @@ func TestRootMountCleanup(t *testing.T) {
 
 	t.Parallel()
 
-	testRoot, err := ioutil.TempDir("", t.Name())
+	testRoot, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testRoot)
 	cfg := &config.Config{}
@@ -257,7 +331,7 @@ func TestRootMountCleanup(t *testing.T) {
 		err = mount.MakeShared(testRoot)
 		assert.NilError(t, err)
 		defer mount.MakePrivate(testRoot)
-		err = ioutil.WriteFile(unmountFile, nil, 0644)
+		err = os.WriteFile(unmountFile, nil, 0644)
 		assert.NilError(t, err)
 
 		err = setupDaemonRootPropagation(cfg)

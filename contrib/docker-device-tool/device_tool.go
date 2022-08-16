@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package main
@@ -13,6 +14,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/sirupsen/logrus"
 )
 
@@ -75,7 +77,7 @@ func main() {
 	args := flag.Args()
 
 	home := path.Join(*root, "devicemapper")
-	devices, err := devmapper.NewDeviceSet(home, false, nil, nil, nil)
+	devices, err := devmapper.NewDeviceSet(home, false, nil, idtools.IdentityMapping{})
 	if err != nil {
 		fmt.Println("Can't initialize device mapper: ", err)
 		os.Exit(1)

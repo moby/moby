@@ -1,7 +1,6 @@
 package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -16,13 +15,14 @@ import (
 
 // setupOverlayTestDir creates files in a directory with overlay whiteouts
 // Tree layout
-// .
-// ├── d1     # opaque, 0700
-// │   └── f1 # empty file, 0600
-// ├── d2     # opaque, 0750
-// │   └── f1 # empty file, 0660
-// └── d3     # 0700
-//     └── f1 # whiteout, 0644
+//
+//	.
+//	├── d1     # opaque, 0700
+//	│   └── f1 # empty file, 0600
+//	├── d2     # opaque, 0750
+//	│   └── f1 # empty file, 0660
+//	└── d3     # 0700
+//	    └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	skip.If(t, userns.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
@@ -33,7 +33,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err = system.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0600)
+	err = os.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0600)
 	assert.NilError(t, err)
 
 	// Create another opaque directory containing single file but with permission 0750
@@ -43,7 +43,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err = system.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0660)
+	err = os.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0660)
 	assert.NilError(t, err)
 
 	// Create regular directory with deleted file
@@ -91,13 +91,13 @@ func TestOverlayTarUntar(t *testing.T) {
 	assert.NilError(t, err)
 	defer system.Umask(oldmask)
 
-	src, err := ioutil.TempDir("", "docker-test-overlay-tar-src")
+	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)
 	defer os.RemoveAll(src)
 
 	setupOverlayTestDir(t, src)
 
-	dst, err := ioutil.TempDir("", "docker-test-overlay-tar-dst")
+	dst, err := os.MkdirTemp("", "docker-test-overlay-tar-dst")
 	assert.NilError(t, err)
 	defer os.RemoveAll(dst)
 
@@ -130,13 +130,13 @@ func TestOverlayTarAUFSUntar(t *testing.T) {
 	assert.NilError(t, err)
 	defer system.Umask(oldmask)
 
-	src, err := ioutil.TempDir("", "docker-test-overlay-tar-src")
+	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)
 	defer os.RemoveAll(src)
 
 	setupOverlayTestDir(t, src)
 
-	dst, err := ioutil.TempDir("", "docker-test-overlay-tar-dst")
+	dst, err := os.MkdirTemp("", "docker-test-overlay-tar-dst")
 	assert.NilError(t, err)
 	defer os.RemoveAll(dst)
 

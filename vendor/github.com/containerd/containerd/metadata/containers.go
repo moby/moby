@@ -18,6 +18,7 @@ package metadata
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -31,7 +32,6 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -57,11 +57,11 @@ func (s *containerStore) Get(ctx context.Context, id string) (containers.Contain
 	if err := view(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getContainerBucket(tx, namespace, id)
 		if bkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "container %q in namespace %q", id, namespace)
+			return fmt.Errorf("container %q in namespace %q: %w", id, namespace, errdefs.ErrNotFound)
 		}
 
 		if err := readContainer(&container, bkt); err != nil {
-			return errors.Wrapf(err, "failed to read container %q", id)
+			return fmt.Errorf("failed to read container %q: %w", id, err)
 		}
 
 		return nil
@@ -80,7 +80,7 @@ func (s *containerStore) List(ctx context.Context, fs ...string) ([]containers.C
 
 	filter, err := filters.ParseAll(fs...)
 	if err != nil {
-		return nil, errors.Wrap(errdefs.ErrInvalidArgument, err.Error())
+		return nil, fmt.Errorf("%s: %w", err.Error(), errdefs.ErrInvalidArgument)
 	}
 
 	var m []containers.Container
@@ -99,7 +99,7 @@ func (s *containerStore) List(ctx context.Context, fs ...string) ([]containers.C
 			container := containers.Container{ID: string(k)}
 
 			if err := readContainer(&container, cbkt); err != nil {
-				return errors.Wrapf(err, "failed to read container %q", string(k))
+				return fmt.Errorf("failed to read container %q: %w", string(k), err)
 			}
 
 			if filter.Match(adaptContainer(container)) {
@@ -121,7 +121,7 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 	}
 
 	if err := validateContainer(&container); err != nil {
-		return containers.Container{}, errors.Wrap(err, "create container failed validation")
+		return containers.Container{}, fmt.Errorf("create container failed validation: %w", err)
 	}
 
 	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
@@ -133,7 +133,7 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 		cbkt, err := bkt.CreateBucket([]byte(container.ID))
 		if err != nil {
 			if err == bolt.ErrBucketExists {
-				err = errors.Wrapf(errdefs.ErrAlreadyExists, "container %q", container.ID)
+				err = fmt.Errorf("container %q: %w", container.ID, errdefs.ErrAlreadyExists)
 			}
 			return err
 		}
@@ -141,7 +141,7 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 		container.CreatedAt = time.Now().UTC()
 		container.UpdatedAt = container.CreatedAt
 		if err := writeContainer(cbkt, &container); err != nil {
-			return errors.Wrapf(err, "failed to write container %q", container.ID)
+			return fmt.Errorf("failed to write container %q: %w", container.ID, err)
 		}
 
 		return nil
@@ -159,23 +159,23 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 	}
 
 	if container.ID == "" {
-		return containers.Container{}, errors.Wrapf(errdefs.ErrInvalidArgument, "must specify a container id")
+		return containers.Container{}, fmt.Errorf("must specify a container id: %w", errdefs.ErrInvalidArgument)
 	}
 
 	var updated containers.Container
 	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getContainersBucket(tx, namespace)
 		if bkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "cannot update container %q in namespace %q", container.ID, namespace)
+			return fmt.Errorf("cannot update container %q in namespace %q: %w", container.ID, namespace, errdefs.ErrNotFound)
 		}
 
 		cbkt := bkt.Bucket([]byte(container.ID))
 		if cbkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "container %q", container.ID)
+			return fmt.Errorf("container %q: %w", container.ID, errdefs.ErrNotFound)
 		}
 
 		if err := readContainer(&updated, cbkt); err != nil {
-			return errors.Wrapf(err, "failed to read container %q", container.ID)
+			return fmt.Errorf("failed to read container %q: %w", container.ID, err)
 		}
 		createdat := updated.CreatedAt
 		updated.ID = container.ID
@@ -188,11 +188,11 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 			// are provided. This allows these fields to become mutable in the
 			// future.
 			if updated.Snapshotter != container.Snapshotter {
-				return errors.Wrapf(errdefs.ErrInvalidArgument, "container.Snapshotter field is immutable")
+				return fmt.Errorf("container.Snapshotter field is immutable: %w", errdefs.ErrInvalidArgument)
 			}
 
 			if updated.Runtime.Name != container.Runtime.Name {
-				return errors.Wrapf(errdefs.ErrInvalidArgument, "container.Runtime.Name field is immutable")
+				return fmt.Errorf("container.Runtime.Name field is immutable: %w", errdefs.ErrInvalidArgument)
 			}
 		}
 
@@ -230,18 +230,18 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 			case "snapshotkey":
 				updated.SnapshotKey = container.SnapshotKey
 			default:
-				return errors.Wrapf(errdefs.ErrInvalidArgument, "cannot update %q field on %q", path, container.ID)
+				return fmt.Errorf("cannot update %q field on %q: %w", path, container.ID, errdefs.ErrInvalidArgument)
 			}
 		}
 
 		if err := validateContainer(&updated); err != nil {
-			return errors.Wrap(err, "update failed validation")
+			return fmt.Errorf("update failed validation: %w", err)
 		}
 
 		updated.CreatedAt = createdat
 		updated.UpdatedAt = time.Now().UTC()
 		if err := writeContainer(cbkt, &updated); err != nil {
-			return errors.Wrapf(err, "failed to write container %q", container.ID)
+			return fmt.Errorf("failed to write container %q: %w", container.ID, err)
 		}
 
 		return nil
@@ -261,12 +261,12 @@ func (s *containerStore) Delete(ctx context.Context, id string) error {
 	return update(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getContainersBucket(tx, namespace)
 		if bkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "cannot delete container %q in namespace %q", id, namespace)
+			return fmt.Errorf("cannot delete container %q in namespace %q: %w", id, namespace, errdefs.ErrNotFound)
 		}
 
 		if err := bkt.DeleteBucket([]byte(id)); err != nil {
 			if err == bolt.ErrBucketNotFound {
-				err = errors.Wrapf(errdefs.ErrNotFound, "container %v", id)
+				err = fmt.Errorf("container %v: %w", id, errdefs.ErrNotFound)
 			}
 			return err
 		}
@@ -279,32 +279,32 @@ func (s *containerStore) Delete(ctx context.Context, id string) error {
 
 func validateContainer(container *containers.Container) error {
 	if err := identifiers.Validate(container.ID); err != nil {
-		return errors.Wrap(err, "container.ID")
+		return fmt.Errorf("container.ID: %w", err)
 	}
 
 	for k := range container.Extensions {
 		if k == "" {
-			return errors.Wrapf(errdefs.ErrInvalidArgument, "container.Extension keys must not be zero-length")
+			return fmt.Errorf("container.Extension keys must not be zero-length: %w", errdefs.ErrInvalidArgument)
 		}
 	}
 
 	// image has no validation
 	for k, v := range container.Labels {
-		if err := labels.Validate(k, v); err == nil {
-			return errors.Wrapf(err, "containers.Labels")
+		if err := labels.Validate(k, v); err != nil {
+			return fmt.Errorf("containers.Labels: %w", err)
 		}
 	}
 
 	if container.Runtime.Name == "" {
-		return errors.Wrapf(errdefs.ErrInvalidArgument, "container.Runtime.Name must be set")
+		return fmt.Errorf("container.Runtime.Name must be set: %w", errdefs.ErrInvalidArgument)
 	}
 
 	if container.Spec == nil {
-		return errors.Wrapf(errdefs.ErrInvalidArgument, "container.Spec must be set")
+		return fmt.Errorf("container.Spec must be set: %w", errdefs.ErrInvalidArgument)
 	}
 
 	if container.SnapshotKey != "" && container.Snapshotter == "" {
-		return errors.Wrapf(errdefs.ErrInvalidArgument, "container.Snapshotter must be set if container.SnapshotKey is set")
+		return fmt.Errorf("container.Snapshotter must be set if container.SnapshotKey is set: %w", errdefs.ErrInvalidArgument)
 	}
 
 	return nil

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -17,7 +16,6 @@ import (
 	"github.com/docker/docker/libnetwork/bitseq"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
@@ -39,7 +37,7 @@ func randomLocalStore(needStore bool) (datastore.DataStore, error) {
 	if !needStore {
 		return nil, nil
 	}
-	tmp, err := ioutil.TempFile("", "libnetwork-")
+	tmp, err := os.CreateTemp("", "libnetwork-")
 	if err != nil {
 		return nil, fmt.Errorf("Error creating temp file: %v", err)
 	}
@@ -1054,6 +1052,72 @@ func TestOverlappingRequests(t *testing.T) {
 				assert.Check(t, is.ErrorContains(err, ""))
 			}
 		}
+	}
+}
+
+func TestUnusualSubnets(t *testing.T) {
+
+	subnet := "192.168.0.2/31"
+
+	outsideTheRangeAddresses := []struct {
+		address string
+	}{
+		{"192.168.0.1"},
+		{"192.168.0.4"},
+		{"192.168.0.100"},
+	}
+
+	expectedAddresses := []struct {
+		address string
+	}{
+		{"192.168.0.2"},
+		{"192.168.0.3"},
+	}
+
+	for _, store := range []bool{false, true} {
+
+		allocator, err := getAllocator(store)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		//
+		// IPv4 /31 blocks.  See RFC 3021.
+		//
+
+		pool, _, _, err := allocator.RequestPool(localAddressSpace, subnet, "", nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Outside-the-range
+
+		for _, outside := range outsideTheRangeAddresses {
+			_, _, errx := allocator.RequestAddress(pool, net.ParseIP(outside.address), nil)
+			if errx != ipamapi.ErrIPOutOfRange {
+				t.Fatalf("Address %s failed to throw expected error: %s", outside.address, errx.Error())
+			}
+		}
+
+		// Should get just these two IPs followed by exhaustion on the next request
+
+		for _, expected := range expectedAddresses {
+			got, _, errx := allocator.RequestAddress(pool, nil, nil)
+			if errx != nil {
+				t.Fatalf("Failed to obtain the address: %s", errx.Error())
+			}
+			expectedIP := net.ParseIP(expected.address)
+			gotIP := got.IP
+			if !gotIP.Equal(expectedIP) {
+				t.Fatalf("Failed to obtain sequentialaddress. Expected: %s, Got: %s", expectedIP, gotIP)
+			}
+		}
+
+		_, _, err = allocator.RequestAddress(pool, nil, nil)
+		if err != ipamapi.ErrNoAvailableIPs {
+			t.Fatal("Did not get expected error when pool is exhausted.")
+		}
+
 	}
 }
 

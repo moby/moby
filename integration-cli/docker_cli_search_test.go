@@ -8,31 +8,43 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+type DockerCLISearchSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLISearchSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLISearchSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
 // search for repos named  "registry" on the central registry
-func (s *DockerSuite) TestSearchOnCentralRegistry(c *testing.T) {
+func (s *DockerCLISearchSuite) TestSearchOnCentralRegistry(c *testing.T) {
 	out, _ := dockerCmd(c, "search", "busybox")
 	assert.Assert(c, strings.Contains(out, "Busybox base image."), "couldn't find any repository named (or containing) 'Busybox base image.'")
 }
 
-func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *testing.T) {
+func (s *DockerCLISearchSuite) TestSearchStarsOptionWithWrongParameter(c *testing.T) {
 	out, _, err := dockerCmdWithError("search", "--filter", "stars=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 
 	out, _, err = dockerCmdWithError("search", "-f", "stars=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 
 	out, _, err = dockerCmdWithError("search", "-f", "is-automated=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 
 	out, _, err = dockerCmdWithError("search", "-f", "is-official=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
+	assert.Assert(c, strings.Contains(out, "invalid filter"), "couldn't find the invalid filter warning")
 }
 
-func (s *DockerSuite) TestSearchCmdOptions(c *testing.T) {
+func (s *DockerCLISearchSuite) TestSearchCmdOptions(c *testing.T) {
 	outSearchCmd, _ := dockerCmd(c, "search", "busybox")
 	assert.Assert(c, strings.Count(outSearchCmd, "\n") > 3, outSearchCmd)
 
@@ -60,12 +72,12 @@ func (s *DockerSuite) TestSearchCmdOptions(c *testing.T) {
 }
 
 // search for repos which start with "ubuntu-" on the central registry
-func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *testing.T) {
+func (s *DockerCLISearchSuite) TestSearchOnCentralRegistryWithDash(c *testing.T) {
 	dockerCmd(c, "search", "ubuntu-")
 }
 
 // test case for #23055
-func (s *DockerSuite) TestSearchWithLimit(c *testing.T) {
+func (s *DockerCLISearchSuite) TestSearchWithLimit(c *testing.T) {
 	for _, limit := range []int{10, 50, 100} {
 		out, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 		assert.NilError(c, err)
@@ -73,7 +85,7 @@ func (s *DockerSuite) TestSearchWithLimit(c *testing.T) {
 		assert.Equal(c, len(outSlice), limit+2) // 1 header, 1 carriage return
 	}
 
-	for _, limit := range []int{-1, 0, 101} {
+	for _, limit := range []int{-1, 101} {
 		_, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 		assert.ErrorContains(c, err, "")
 	}

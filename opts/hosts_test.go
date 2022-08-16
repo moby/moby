@@ -7,12 +7,20 @@ import (
 )
 
 func TestParseHost(t *testing.T) {
-	invalid := []string{
-		"something with spaces",
-		"://",
-		"unknown://",
-		"tcp://:port",
-		"tcp://invalid:port",
+	invalid := map[string]string{
+		"something with spaces": `invalid bind address (something with spaces): parse "tcp://something with spaces": invalid character " " in host name`,
+		"://":                   `invalid bind address (://): unsupported proto ''`,
+		"unknown://":            `invalid bind address (unknown://): unsupported proto 'unknown'`,
+		"tcp://:port":           `invalid bind address (tcp://:port): parse "tcp://:port": invalid port ":port" after host`,
+		"tcp://invalid:port":    `invalid bind address (tcp://invalid:port): parse "tcp://invalid:port": invalid port ":port" after host`,
+		"tcp://:5555/":          `invalid bind address (tcp://:5555/): should not contain a path element`,
+		"tcp://:5555/p":         `invalid bind address (tcp://:5555/p): should not contain a path element`,
+		"tcp://0.0.0.0:5555/":   `invalid bind address (tcp://0.0.0.0:5555/): should not contain a path element`,
+		"tcp://0.0.0.0:5555/p":  `invalid bind address (tcp://0.0.0.0:5555/p): should not contain a path element`,
+		"tcp://[::1]:/":         `invalid bind address (tcp://[::1]:/): should not contain a path element`,
+		"tcp://[::1]:5555/":     `invalid bind address (tcp://[::1]:5555/): should not contain a path element`,
+		"tcp://[::1]:5555/p":    `invalid bind address (tcp://[::1]:5555/p): should not contain a path element`,
+		" tcp://:5555/path ":    `invalid bind address (tcp://:5555/path): should not contain a path element`,
 	}
 
 	valid := map[string]string{
@@ -23,124 +31,190 @@ func TestParseHost(t *testing.T) {
 		"fd://something":           "fd://something",
 		"tcp://host:":              fmt.Sprintf("tcp://host:%d", DefaultHTTPPort),
 		"tcp://":                   DefaultTCPHost,
-		"tcp://:2375":              fmt.Sprintf("tcp://%s:2375", DefaultHTTPHost),
-		"tcp://:2376":              fmt.Sprintf("tcp://%s:2376", DefaultHTTPHost),
-		"tcp://0.0.0.0:8080":       "tcp://0.0.0.0:8080",
-		"tcp://192.168.0.0:12000":  "tcp://192.168.0.0:12000",
-		"tcp://192.168:8080":       "tcp://192.168:8080",
+		"tcp://:":                  DefaultTCPHost,
+		"tcp://:5555":              fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost),
+		"tcp://[::1]":              fmt.Sprintf(`tcp://[::1]:%d`, DefaultHTTPPort),
+		"tcp://[::1]:":             fmt.Sprintf(`tcp://[::1]:%d`, DefaultHTTPPort),
+		"tcp://[::1]:5555":         `tcp://[::1]:5555`,
+		"tcp://0.0.0.0:5555":       "tcp://0.0.0.0:5555",
+		"tcp://192.168:5555":       "tcp://192.168:5555",
+		"tcp://192.168.0.1:5555":   "tcp://192.168.0.1:5555",
 		"tcp://0.0.0.0:1234567890": "tcp://0.0.0.0:1234567890", // yeah it's valid :P
-		" tcp://:7777/path ":       fmt.Sprintf("tcp://%s:7777/path", DefaultHTTPHost),
-		"tcp://docker.com:2375":    "tcp://docker.com:2375",
+		"tcp://docker.com:5555":    "tcp://docker.com:5555",
 		"unix://":                  "unix://" + DefaultUnixSocket,
 		"unix://path/to/socket":    "unix://path/to/socket",
 		"npipe://":                 "npipe://" + DefaultNamedPipe,
 		"npipe:////./pipe/foo":     "npipe:////./pipe/foo",
 	}
 
-	for _, value := range invalid {
-		if _, err := ParseHost(false, false, value); err == nil {
-			t.Errorf("Expected an error for %v, got [nil]", value)
-		}
+	for value, expectedError := range invalid {
+		t.Run(value, func(t *testing.T) {
+			_, err := ParseHost(false, false, value)
+			if err == nil || err.Error() != expectedError {
+				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
+			}
+		})
 	}
 
 	for value, expected := range valid {
-		if actual, err := ParseHost(false, false, value); err != nil || actual != expected {
-			t.Errorf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
-		}
+		t.Run(value, func(t *testing.T) {
+			actual, err := ParseHost(false, false, value)
+			if err != nil {
+				t.Errorf(`unexpected error: "%v"`, err)
+			}
+			if actual != expected {
+				t.Errorf(`expected "%s", got "%s""`, expected, actual)
+			}
+		})
 	}
 }
 
 func TestParseDockerDaemonHost(t *testing.T) {
 	invalids := map[string]string{
-
-		"tcp:a.b.c.d":                   "",
-		"tcp:a.b.c.d/path":              "",
-		"udp://127.0.0.1":               "Invalid bind address format: udp://127.0.0.1",
-		"udp://127.0.0.1:2375":          "Invalid bind address format: udp://127.0.0.1:2375",
-		"tcp://unix:///run/docker.sock": "Invalid proto, expected tcp: unix:///run/docker.sock",
-		" tcp://:7777/path ":            "Invalid bind address format:  tcp://:7777/path ",
-		"":                              "Invalid bind address format: ",
+		"tcp:a.b.c.d":                   `invalid bind address (tcp:a.b.c.d): parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
+		"tcp:a.b.c.d/path":              `invalid bind address (tcp:a.b.c.d/path): parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,
+		"tcp://127.0.0.1/":              "invalid bind address (tcp://127.0.0.1/): should not contain a path element",
+		"udp://127.0.0.1":               "invalid bind address (udp://127.0.0.1): unsupported proto 'udp'",
+		"udp://127.0.0.1:5555":          "invalid bind address (udp://127.0.0.1:5555): unsupported proto 'udp'",
+		"tcp://unix:///run/docker.sock": "invalid bind address (tcp://unix:///run/docker.sock): should not contain a path element",
+		" tcp://:5555/path ":            "invalid bind address ( tcp://:5555/path ): unsupported proto ' tcp'",
+		"":                              "invalid bind address (): unsupported proto ''",
+		":5555/path":                    "invalid bind address (:5555/path): should not contain a path element",
+		"0.0.0.1:5555/path":             "invalid bind address (0.0.0.1:5555/path): should not contain a path element",
+		"[::1]:5555/path":               "invalid bind address ([::1]:5555/path): should not contain a path element",
+		"[0:0:0:0:0:0:0:1]:5555/path":   "invalid bind address ([0:0:0:0:0:0:0:1]:5555/path): should not contain a path element",
+		"tcp://:5555/path":              "invalid bind address (tcp://:5555/path): should not contain a path element",
+		"localhost:5555/path":           "invalid bind address (localhost:5555/path): should not contain a path element",
 	}
 	valids := map[string]string{
-		"0.0.0.1:":                    "tcp://0.0.0.1:2375",
-		"0.0.0.1:5555":                "tcp://0.0.0.1:5555",
-		"0.0.0.1:5555/path":           "tcp://0.0.0.1:5555/path",
-		"[::1]:":                      "tcp://[::1]:2375",
-		"[::1]:5555/path":             "tcp://[::1]:5555/path",
-		"[0:0:0:0:0:0:0:1]:":          "tcp://[0:0:0:0:0:0:0:1]:2375",
-		"[0:0:0:0:0:0:0:1]:5555/path": "tcp://[0:0:0:0:0:0:0:1]:5555/path",
-		":6666":                       fmt.Sprintf("tcp://%s:6666", DefaultHTTPHost),
-		":6666/path":                  fmt.Sprintf("tcp://%s:6666/path", DefaultHTTPHost),
-		"tcp://":                      DefaultTCPHost,
-		"tcp://:7777":                 fmt.Sprintf("tcp://%s:7777", DefaultHTTPHost),
-		"tcp://:7777/path":            fmt.Sprintf("tcp://%s:7777/path", DefaultHTTPHost),
-		"unix:///run/docker.sock":     "unix:///run/docker.sock",
-		"unix://":                     "unix://" + DefaultUnixSocket,
-		"fd://":                       "fd://",
-		"fd://something":              "fd://something",
-		"localhost:":                  "tcp://localhost:2375",
-		"localhost:5555":              "tcp://localhost:5555",
-		"localhost:5555/path":         "tcp://localhost:5555/path",
+		":":                       DefaultTCPHost,
+		":5555":                   fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost),
+		"0.0.0.1:":                fmt.Sprintf("tcp://0.0.0.1:%d", DefaultHTTPPort),
+		"0.0.0.1:5555":            "tcp://0.0.0.1:5555",
+		"[::1]":                   fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
+		"[::1]:":                  fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
+		"[::1]:5555":              "tcp://[::1]:5555",
+		"[0:0:0:0:0:0:0:1]":       fmt.Sprintf("tcp://[0:0:0:0:0:0:0:1]:%d", DefaultHTTPPort),
+		"[0:0:0:0:0:0:0:1]:":      fmt.Sprintf("tcp://[0:0:0:0:0:0:0:1]:%d", DefaultHTTPPort),
+		"[0:0:0:0:0:0:0:1]:5555":  "tcp://[0:0:0:0:0:0:0:1]:5555",
+		"localhost":               fmt.Sprintf("tcp://localhost:%d", DefaultHTTPPort),
+		"localhost:":              fmt.Sprintf("tcp://localhost:%d", DefaultHTTPPort),
+		"localhost:5555":          "tcp://localhost:5555",
+		"fd://":                   "fd://",
+		"fd://something":          "fd://something",
+		"npipe://":                "npipe://" + DefaultNamedPipe,
+		"npipe:////./pipe/foo":    "npipe:////./pipe/foo",
+		"tcp://":                  DefaultTCPHost,
+		"tcp://:5555":             fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost),
+		"tcp://[::1]":             fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
+		"tcp://[::1]:":            fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
+		"tcp://[::1]:5555":        "tcp://[::1]:5555",
+		"unix://":                 "unix://" + DefaultUnixSocket,
+		"unix:///run/docker.sock": "unix:///run/docker.sock",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := parseDaemonHost(invalidAddr); err == nil || expectedError != "" && err.Error() != expectedError {
-			t.Errorf("tcp %v address expected error %q return, got %q and addr %v", invalidAddr, expectedError, err, addr)
-		}
+		t.Run(invalidAddr, func(t *testing.T) {
+			addr, err := parseDaemonHost(invalidAddr)
+			if err == nil || err.Error() != expectedError {
+				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
+			}
+			if addr != "" {
+				t.Errorf(`expected addr to be empty, got "%s""`, addr)
+			}
+		})
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := parseDaemonHost(validAddr); err != nil || addr != expectedAddr {
-			t.Errorf("%v -> expected %v, got (%v) addr (%v)", validAddr, expectedAddr, err, addr)
-		}
+		t.Run(validAddr, func(t *testing.T) {
+			addr, err := parseDaemonHost(validAddr)
+			if err != nil {
+				t.Errorf(`unexpected error: "%v"`, err)
+			}
+			if addr != expectedAddr {
+				t.Errorf(`expected "%s", got "%s""`, expectedAddr, addr)
+			}
+		})
 	}
 }
 
 func TestParseTCP(t *testing.T) {
 	var (
-		defaultHTTPHost = "tcp://127.0.0.1:2376"
+		defaultHTTPHost = "tcp://127.0.0.1:8888"
 	)
 	invalids := map[string]string{
-		"tcp:a.b.c.d":          "",
-		"tcp:a.b.c.d/path":     "",
-		"udp://127.0.0.1":      "Invalid proto, expected tcp: udp://127.0.0.1",
-		"udp://127.0.0.1:2375": "Invalid proto, expected tcp: udp://127.0.0.1:2375",
+		"tcp:a.b.c.d":                 `invalid bind address (tcp:a.b.c.d): parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
+		"tcp:a.b.c.d/path":            `invalid bind address (tcp:a.b.c.d/path): parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,
+		"udp://127.0.0.1":             "invalid bind address (udp://127.0.0.1): unsupported proto 'udp'",
+		"udp://127.0.0.1:5555":        "invalid bind address (udp://127.0.0.1:5555): unsupported proto 'udp'",
+		":5555/path":                  "invalid bind address (:5555/path): should not contain a path element",
+		"0.0.0.1:5555/path":           "invalid bind address (0.0.0.1:5555/path): should not contain a path element",
+		"[::1]:5555/path":             "invalid bind address ([::1]:5555/path): should not contain a path element",
+		"[0:0:0:0:0:0:0:1]:5555/path": "invalid bind address ([0:0:0:0:0:0:0:1]:5555/path): should not contain a path element",
+		"tcp://:5555/path":            "invalid bind address (tcp://:5555/path): should not contain a path element",
+		"localhost:5555/path":         "invalid bind address (localhost:5555/path): should not contain a path element",
+	}
+	invalidDefaults := map[string]string{
+		"localhost":                 `invalid default address (localhost): unsupported proto ''`,
+		"udp://localhost":           `invalid default address (udp://localhost): unsupported proto 'udp'`,
+		"tcp://localhost:noport":    `invalid default address (tcp://localhost:noport): parse "tcp://localhost:noport": invalid port ":noport" after host`,
+		"tcp://localhost:5555/path": `invalid default address (tcp://localhost:5555/path): should not contain a path element`,
 	}
 	valids := map[string]string{
-		"":                            defaultHTTPHost,
-		"tcp://":                      defaultHTTPHost,
-		"0.0.0.1:":                    "tcp://0.0.0.1:2376",
-		"0.0.0.1:5555":                "tcp://0.0.0.1:5555",
-		"0.0.0.1:5555/path":           "tcp://0.0.0.1:5555/path",
-		":6666":                       "tcp://127.0.0.1:6666",
-		":6666/path":                  "tcp://127.0.0.1:6666/path",
-		"tcp://:7777":                 "tcp://127.0.0.1:7777",
-		"tcp://:7777/path":            "tcp://127.0.0.1:7777/path",
-		"[::1]:":                      "tcp://[::1]:2376",
-		"[::1]:5555":                  "tcp://[::1]:5555",
-		"[::1]:5555/path":             "tcp://[::1]:5555/path",
-		"[0:0:0:0:0:0:0:1]:":          "tcp://[0:0:0:0:0:0:0:1]:2376",
-		"[0:0:0:0:0:0:0:1]:5555":      "tcp://[0:0:0:0:0:0:0:1]:5555",
-		"[0:0:0:0:0:0:0:1]:5555/path": "tcp://[0:0:0:0:0:0:0:1]:5555/path",
-		"localhost:":                  "tcp://localhost:2376",
-		"localhost:5555":              "tcp://localhost:5555",
-		"localhost:5555/path":         "tcp://localhost:5555/path",
+		"":                       defaultHTTPHost,
+		"0.0.0.1":                "tcp://0.0.0.1:8888",
+		"0.0.0.1:":               "tcp://0.0.0.1:8888",
+		"0.0.0.1:5555":           "tcp://0.0.0.1:5555",
+		":":                      "tcp://127.0.0.1:8888",
+		":5555":                  "tcp://127.0.0.1:5555",
+		"[::1]":                  "tcp://[::1]:8888",
+		"[::1]:":                 "tcp://[::1]:8888",
+		"[::1]:5555":             "tcp://[::1]:5555",
+		"[0:0:0:0:0:0:0:1]":      "tcp://[0:0:0:0:0:0:0:1]:8888",
+		"[0:0:0:0:0:0:0:1]:":     "tcp://[0:0:0:0:0:0:0:1]:8888",
+		"[0:0:0:0:0:0:0:1]:5555": "tcp://[0:0:0:0:0:0:0:1]:5555",
+		"localhost":              "tcp://localhost:8888",
+		"localhost:":             "tcp://localhost:8888",
+		"localhost:5555":         "tcp://localhost:5555",
+		"tcp://":                 defaultHTTPHost,
+		"tcp://:":                defaultHTTPHost,
+		"tcp://:5555":            "tcp://127.0.0.1:5555",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || expectedError != "" && err.Error() != expectedError {
-			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
-		}
+		t.Run(invalidAddr, func(t *testing.T) {
+			addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost)
+			if err == nil || err.Error() != expectedError {
+				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
+			}
+			if addr != "" {
+				t.Errorf(`expected addr to be empty, got "%s""`, addr)
+			}
+		})
+	}
+	for invalidAddr, expectedError := range invalidDefaults {
+		t.Run("default "+invalidAddr, func(t *testing.T) {
+			_, err := ParseTCPAddr("tcp://0.0.0.0:2375", invalidAddr)
+			if err == nil || err.Error() != expectedError {
+				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
+			}
+		})
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := ParseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
-			t.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
-		}
+		t.Run(validAddr, func(t *testing.T) {
+			addr, err := ParseTCPAddr(validAddr, defaultHTTPHost)
+			if err != nil {
+				t.Errorf(`unexpected error: "%v"`, err)
+			}
+			if addr != expectedAddr {
+				t.Errorf(`expected "%s", got "%s""`, expectedAddr, addr)
+			}
+		})
 	}
 }
 
 func TestParseInvalidUnixAddrInvalid(t *testing.T) {
-	if _, err := parseSimpleProtoAddr("unix", "tcp://127.0.0.1", "unix:///var/run/docker.sock"); err == nil || err.Error() != "Invalid proto, expected unix: tcp://127.0.0.1" {
+	if _, err := parseSimpleProtoAddr("unix", "tcp://127.0.0.1", "unix:///var/run/docker.sock"); err == nil || err.Error() != "invalid proto, expected unix: tcp://127.0.0.1" {
 		t.Fatalf("Expected an error, got %v", err)
 	}
-	if _, err := parseSimpleProtoAddr("unix", "unix://tcp://127.0.0.1", "/var/run/docker.sock"); err == nil || err.Error() != "Invalid proto, expected unix: tcp://127.0.0.1" {
+	if _, err := parseSimpleProtoAddr("unix", "unix://tcp://127.0.0.1", "/var/run/docker.sock"); err == nil || err.Error() != "invalid proto, expected unix: tcp://127.0.0.1" {
 		t.Fatalf("Expected an error, got %v", err)
 	}
 	if v, err := parseSimpleProtoAddr("unix", "", "/var/run/docker.sock"); err != nil || v != "unix:///var/run/docker.sock" {

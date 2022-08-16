@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package daemon // import "github.com/docker/docker/daemon"
@@ -11,8 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/rootless"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -25,67 +26,58 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		v.CgroupVersion = "2"
 	}
 
-	v.MemoryLimit = sysInfo.MemoryLimit
-	v.SwapLimit = sysInfo.SwapLimit
-	v.KernelMemory = sysInfo.KernelMemory
-	v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
-	v.OomKillDisable = sysInfo.OomKillDisable
-	v.CPUCfsPeriod = sysInfo.CPUCfs
-	v.CPUCfsQuota = sysInfo.CPUCfs
-	v.CPUShares = sysInfo.CPUShares
-	v.CPUSet = sysInfo.Cpuset
-	v.PidsLimit = sysInfo.PidsLimit
+	if v.CgroupDriver != cgroupNoneDriver {
+		v.MemoryLimit = sysInfo.MemoryLimit
+		v.SwapLimit = sysInfo.SwapLimit
+		v.KernelMemory = sysInfo.KernelMemory
+		v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
+		v.OomKillDisable = sysInfo.OomKillDisable
+		v.CPUCfsPeriod = sysInfo.CPUCfs
+		v.CPUCfsQuota = sysInfo.CPUCfs
+		v.CPUShares = sysInfo.CPUShares
+		v.CPUSet = sysInfo.Cpuset
+		v.PidsLimit = sysInfo.PidsLimit
+	}
 	v.Runtimes = daemon.configStore.GetAllRuntimes()
 	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	v.InitBinary = daemon.configStore.GetInitPath()
+	v.RuncCommit.ID = "N/A"
+	v.ContainerdCommit.ID = "N/A"
+	v.InitCommit.ID = "N/A"
 
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(v.DefaultRuntime).Path
 	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
 		if _, _, commit, err := parseRuntimeVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %v", defaultRuntimeBinary, err)
-			v.RuncCommit.ID = "N/A"
 		} else {
 			v.RuncCommit.ID = commit
 		}
 	} else {
 		logrus.Warnf("failed to retrieve %s version: %v", defaultRuntimeBinary, err)
-		v.RuncCommit.ID = "N/A"
 	}
-
-	// runc is now shipped as a separate package. Set "expected" to same value
-	// as "ID" to prevent clients from reporting a version-mismatch
-	v.RuncCommit.Expected = v.RuncCommit.ID
 
 	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
 		v.ContainerdCommit.ID = rv.Revision
 	} else {
 		logrus.Warnf("failed to retrieve containerd version: %v", err)
-		v.ContainerdCommit.ID = "N/A"
 	}
-
-	// containerd is now shipped as a separate package. Set "expected" to same
-	// value as "ID" to prevent clients from reporting a version-mismatch
-	v.ContainerdCommit.Expected = v.ContainerdCommit.ID
-
-	// TODO is there still a need to check the expected version for tini?
-	// if not, we can change this, and just set "Expected" to v.InitCommit.ID
-	v.InitCommit.Expected = dockerversion.InitCommitID
 
 	defaultInitBinary := daemon.configStore.GetInitPath()
 	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
 		if _, commit, err := parseInitVersion(string(rv)); err != nil {
 			logrus.Warnf("failed to parse %s version: %s", defaultInitBinary, err)
-			v.InitCommit.ID = "N/A"
 		} else {
 			v.InitCommit.ID = commit
-			if len(dockerversion.InitCommitID) > len(commit) {
-				v.InitCommit.Expected = dockerversion.InitCommitID[0:len(commit)]
-			}
 		}
 	} else {
 		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
-		v.InitCommit.ID = "N/A"
 	}
+
+	// Set expected and actual commits to the same value to prevent the client
+	// showing that the version does not match the "expected" version/commit.
+	v.RuncCommit.Expected = v.RuncCommit.ID
+	v.ContainerdCommit.Expected = v.ContainerdCommit.ID
+	v.InitCommit.Expected = v.InitCommit.ID
 
 	if v.CgroupDriver == cgroupNoneDriver {
 		if v.CgroupVersion == "2" {
@@ -217,6 +209,62 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 	} else {
 		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
 	}
+
+	daemon.fillRootlessVersion(v)
+}
+
+func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
+	if !rootless.RunningWithRootlessKit() {
+		return
+	}
+	rlc, err := rootless.GetRootlessKitClient()
+	if err != nil {
+		logrus.Warnf("failed to create RootlessKit client: %v", err)
+		return
+	}
+	rlInfo, err := rlc.Info(context.TODO())
+	if err != nil {
+		logrus.Warnf("failed to retrieve RootlessKit version: %v", err)
+		return
+	}
+	v.Components = append(v.Components, types.ComponentVersion{
+		Name:    "rootlesskit",
+		Version: rlInfo.Version,
+		Details: map[string]string{
+			"ApiVersion":    rlInfo.APIVersion,
+			"StateDir":      rlInfo.StateDir,
+			"NetworkDriver": rlInfo.NetworkDriver.Driver,
+			"PortDriver":    rlInfo.PortDriver.Driver,
+		},
+	})
+
+	switch rlInfo.NetworkDriver.Driver {
+	case "slirp4netns":
+		if rv, err := exec.Command("slirp4netns", "--version").Output(); err == nil {
+			if _, ver, commit, err := parseRuntimeVersion(string(rv)); err != nil {
+				logrus.Warnf("failed to parse slirp4netns version: %v", err)
+			} else {
+				v.Components = append(v.Components, types.ComponentVersion{
+					Name:    "slirp4netns",
+					Version: ver,
+					Details: map[string]string{
+						"GitCommit": commit,
+					},
+				})
+			}
+		} else {
+			logrus.Warnf("failed to retrieve slirp4netns version: %v", err)
+		}
+	case "vpnkit":
+		if rv, err := exec.Command("vpnkit", "--version").Output(); err == nil {
+			v.Components = append(v.Components, types.ComponentVersion{
+				Name:    "vpnkit",
+				Version: strings.TrimSpace(string(rv)),
+			})
+		} else {
+			logrus.Warnf("failed to retrieve vpnkit version: %v", err)
+		}
+	}
 }
 
 func fillDriverWarnings(v *types.Info) {
@@ -258,7 +306,7 @@ func getBackingFs(v *types.Info) string {
 //
 // Output example from `docker-init --version`:
 //
-//     tini version 0.18.0 - git.fec3683
+//	tini version 0.18.0 - git.fec3683
 func parseInitVersion(v string) (version string, commit string, err error) {
 	parts := strings.Split(v, " - ")
 
@@ -283,9 +331,9 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 //
 // Output example from `runc --version`:
 //
-//   runc version 1.0.0-rc5+dev
-//   commit: 69663f0bd4b60df09991c08812a60108003fa340
-//   spec: 1.0.0
+//	runc version 1.0.0-rc5+dev
+//	commit: 69663f0bd4b60df09991c08812a60108003fa340
+//	spec: 1.0.0
 func parseRuntimeVersion(v string) (runtime string, version string, commit string, err error) {
 	lines := strings.Split(strings.TrimSpace(v), "\n")
 	for _, line := range lines {

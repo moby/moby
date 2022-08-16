@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/go-units"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
@@ -72,7 +73,7 @@ type Opt struct {
 	RegistryHosts       docker.RegistryHosts
 	BuilderConfig       config.BuilderConfig
 	Rootless            bool
-	IdentityMapping     *idtools.IdentityMapping
+	IdentityMapping     idtools.IdentityMapping
 	DNSConfig           config.DNSConfig
 	ApparmorProfile     string
 }
@@ -89,10 +90,6 @@ type Builder struct {
 // New creates a new builder
 func New(opt Opt) (*Builder, error) {
 	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
-
-	if opt.IdentityMapping != nil && opt.IdentityMapping.Empty() {
-		opt.IdentityMapping = nil
-	}
 
 	c, err := newController(reqHandler, opt)
 	if err != nil {
@@ -132,7 +129,8 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 	for _, r := range duResp.Record {
 		items = append(items, &types.BuildCache{
 			ID:          r.ID,
-			Parent:      r.Parent,
+			Parent:      r.Parent, //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
+			Parents:     r.Parents,
 			Type:        r.RecordType,
 			Description: r.Description,
 			InUse:       r.InUse,
@@ -318,6 +316,17 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		return nil, err
 	}
 	frontendAttrs["add-hosts"] = extraHosts
+
+	if opt.Options.ShmSize > 0 {
+		frontendAttrs["shm-size"] = strconv.FormatInt(opt.Options.ShmSize, 10)
+	}
+
+	ulimits, err := toBuildkitUlimits(opt.Options.Ulimits)
+	if err != nil {
+		return nil, err
+	} else if len(ulimits) > 0 {
+		frontendAttrs["ulimit"] = ulimits
+	}
 
 	exporterName := ""
 	exporterAttrs := map[string]string{}
@@ -556,6 +565,18 @@ func toBuildkitExtraHosts(inp []string) (string, error) {
 		hosts = append(hosts, parts[0]+"="+parts[1])
 	}
 	return strings.Join(hosts, ","), nil
+}
+
+// toBuildkitUlimits converts ulimits from docker type=soft:hard format to buildkit's csv format
+func toBuildkitUlimits(inp []*units.Ulimit) (string, error) {
+	if len(inp) == 0 {
+		return "", nil
+	}
+	ulimits := make([]string, 0, len(inp))
+	for _, ulimit := range inp {
+		ulimits = append(ulimits, ulimit.String())
+	}
+	return strings.Join(ulimits, ","), nil
 }
 
 func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, error) {

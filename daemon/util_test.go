@@ -1,9 +1,11 @@
+//go:build linux
 // +build linux
 
 package daemon
 
 import (
 	"context"
+	"syscall"
 	"time"
 
 	"github.com/containerd/containerd"
@@ -34,7 +36,7 @@ func (c *MockContainerdClient) Create(ctx context.Context, containerID string, s
 func (c *MockContainerdClient) Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (pid int, err error) {
 	return 0, nil
 }
-func (c *MockContainerdClient) SignalProcess(ctx context.Context, containerID, processID string, signal int) error {
+func (c *MockContainerdClient) SignalProcess(ctx context.Context, containerID, processID string, signal syscall.Signal) error {
 	return nil
 }
 func (c *MockContainerdClient) Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (int, error) {

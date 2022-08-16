@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 )
 
 type SourceMap struct {

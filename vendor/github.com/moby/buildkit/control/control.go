@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	controlapi "github.com/moby/buildkit/api/services/control"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/cache/remotecache"
@@ -20,11 +22,15 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/throttle"
+	"github.com/moby/buildkit/util/tracing/transform"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	tracev1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Opt struct {
@@ -35,9 +41,11 @@ type Opt struct {
 	ResolveCacheExporterFuncs map[string]remotecache.ResolveCacheExporterFunc
 	ResolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
 	Entitlements              []string
+	TraceCollector            sdktrace.SpanExporter
 }
 
 type Controller struct { // TODO: ControlService
+	// buildCount needs to be 64bit aligned
 	buildCount       int64
 	opt              Opt
 	solver           *llbsolver.Solver
@@ -45,10 +53,11 @@ type Controller struct { // TODO: ControlService
 	gatewayForwarder *controlgateway.GatewayForwarder
 	throttledGC      func()
 	gcmu             sync.Mutex
+	*tracev1.UnimplementedTraceServiceServer
 }
 
 func NewController(opt Opt) (*Controller, error) {
-	cache := solver.NewCacheManager("local", opt.CacheKeyStorage, worker.NewCacheResultStorage(opt.WorkerController))
+	cache := solver.NewCacheManager(context.TODO(), "local", opt.CacheKeyStorage, worker.NewCacheResultStorage(opt.WorkerController))
 
 	gatewayForwarder := controlgateway.NewGatewayForwarder()
 
@@ -75,6 +84,7 @@ func NewController(opt Opt) (*Controller, error) {
 func (c *Controller) Register(server *grpc.Server) error {
 	controlapi.RegisterControlServer(server, c)
 	c.gatewayForwarder.Register(server)
+	tracev1.RegisterTraceServiceServer(server, c)
 	return nil
 }
 
@@ -99,7 +109,7 @@ func (c *Controller) DiskUsage(ctx context.Context, r *controlapi.DiskUsageReque
 				Mutable:     r.Mutable,
 				InUse:       r.InUse,
 				Size_:       r.Size,
-				Parent:      r.Parent,
+				Parents:     r.Parents,
 				UsageCount:  int64(r.UsageCount),
 				Description: r.Description,
 				CreatedAt:   r.CreatedAt,
@@ -132,7 +142,7 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 				ReleaseUnreferenced() error
 			}); ok {
 				if err := c.ReleaseUnreferenced(); err != nil {
-					logrus.Errorf("failed to release cache metadata: %+v", err)
+					bklog.G(ctx).Errorf("failed to release cache metadata: %+v", err)
 				}
 			}
 		}
@@ -167,7 +177,7 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 				Mutable:     r.Mutable,
 				InUse:       r.InUse,
 				Size_:       r.Size,
-				Parent:      r.Parent,
+				Parents:     r.Parents,
 				UsageCount:  int64(r.UsageCount),
 				Description: r.Description,
 				CreatedAt:   r.CreatedAt,
@@ -182,6 +192,17 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 	})
 
 	return eg2.Wait()
+}
+
+func (c *Controller) Export(ctx context.Context, req *tracev1.ExportTraceServiceRequest) (*tracev1.ExportTraceServiceResponse, error) {
+	if c.opt.TraceCollector == nil {
+		return nil, status.Errorf(codes.Unavailable, "trace collector not configured")
+	}
+	err := c.opt.TraceCollector.ExportSpans(ctx, transform.Spans(req.GetResourceSpans()))
+	if err != nil {
+		return nil, err
+	}
+	return &tracev1.ExportTraceServiceResponse{}, nil
 }
 
 func translateLegacySolveRequest(req *controlapi.SolveRequest) error {
@@ -216,6 +237,8 @@ func translateLegacySolveRequest(req *controlapi.SolveRequest) error {
 func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*controlapi.SolveResponse, error) {
 	atomic.AddInt64(&c.buildCount, 1)
 	defer atomic.AddInt64(&c.buildCount, -1)
+
+	// This method registers job ID in solver.Solve. Make sure there are no blocking calls before that might delay this.
 
 	if err := translateLegacySolveRequest(req); err != nil {
 		return nil, err
@@ -263,7 +286,11 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		if err != nil {
 			return nil, err
 		}
-		cacheExportMode = parseCacheExportMode(e.Attrs["mode"])
+		if exportMode, supported := parseCacheExportMode(e.Attrs["mode"]); !supported {
+			bklog.G(ctx).Debugf("skipping invalid cache export mode: %s", e.Attrs["mode"])
+		} else {
+			cacheExportMode = exportMode
+		}
 	}
 	for _, im := range req.Cache.Imports {
 		cacheImports = append(cacheImports, frontend.CacheOptionsEntry{
@@ -306,18 +333,19 @@ func (c *Controller) Status(req *controlapi.StatusRequest, stream controlapi.Con
 				return nil
 			}
 			logSize := 0
-			retry := false
 			for {
+				retry := false
 				sr := controlapi.StatusResponse{}
 				for _, v := range ss.Vertexes {
 					sr.Vertexes = append(sr.Vertexes, &controlapi.Vertex{
-						Digest:    v.Digest,
-						Inputs:    v.Inputs,
-						Name:      v.Name,
-						Started:   v.Started,
-						Completed: v.Completed,
-						Error:     v.Error,
-						Cached:    v.Cached,
+						Digest:        v.Digest,
+						Inputs:        v.Inputs,
+						Name:          v.Name,
+						Started:       v.Started,
+						Completed:     v.Completed,
+						Error:         v.Error,
+						Cached:        v.Cached,
+						ProgressGroup: v.ProgressGroup,
 					})
 				}
 				for _, v := range ss.Statuses {
@@ -339,7 +367,7 @@ func (c *Controller) Status(req *controlapi.StatusRequest, stream controlapi.Con
 						Msg:       v.Data,
 						Timestamp: v.Timestamp,
 					})
-					logSize += len(v.Data)
+					logSize += len(v.Data) + emptyLogVertexSize
 					// avoid logs growing big and split apart if they do
 					if logSize > 1024*1024 {
 						ss.Vertexes = nil
@@ -348,6 +376,17 @@ func (c *Controller) Status(req *controlapi.StatusRequest, stream controlapi.Con
 						retry = true
 						break
 					}
+				}
+				for _, v := range ss.Warnings {
+					sr.Warnings = append(sr.Warnings, &controlapi.VertexWarning{
+						Vertex: v.Vertex,
+						Level:  int64(v.Level),
+						Short:  v.Short,
+						Detail: v.Detail,
+						Info:   v.SourceInfo,
+						Ranges: v.Range,
+						Url:    v.URL,
+					})
 				}
 				if err := stream.SendMsg(&sr); err != nil {
 					return err
@@ -363,7 +402,8 @@ func (c *Controller) Status(req *controlapi.StatusRequest, stream controlapi.Con
 }
 
 func (c *Controller) Session(stream controlapi.Control_SessionServer) error {
-	logrus.Debugf("session started")
+	bklog.G(stream.Context()).Debugf("session started")
+
 	conn, closeCh, opts := grpchijack.Hijack(stream)
 	defer conn.Close()
 
@@ -374,7 +414,7 @@ func (c *Controller) Session(stream controlapi.Control_SessionServer) error {
 	}()
 
 	err := c.opt.SessionManager.HandleConn(ctx, conn, opts)
-	logrus.Debugf("session finished: %v", err)
+	bklog.G(ctx).Debugf("session finished: %v", err)
 	return err
 }
 
@@ -430,25 +470,22 @@ func (c *Controller) gc() {
 	err = eg.Wait()
 	close(ch)
 	if err != nil {
-		logrus.Errorf("gc error: %+v", err)
+		bklog.G(ctx).Errorf("gc error: %+v", err)
 	}
 	<-done
 	if size > 0 {
-		logrus.Debugf("gc cleaned up %d bytes", size)
+		bklog.G(ctx).Debugf("gc cleaned up %d bytes", size)
 	}
 }
 
-func parseCacheExportMode(mode string) solver.CacheExportMode {
+func parseCacheExportMode(mode string) (solver.CacheExportMode, bool) {
 	switch mode {
 	case "min":
-		return solver.CacheExportModeMin
+		return solver.CacheExportModeMin, true
 	case "max":
-		return solver.CacheExportModeMax
-	case "":
-	default:
-		logrus.Debugf("skipping invalid cache export mode: %s", mode)
+		return solver.CacheExportModeMax, true
 	}
-	return solver.CacheExportModeMin
+	return solver.CacheExportModeMin, false
 }
 
 func toPBGCPolicy(in []client.PruneInfo) []*apitypes.GCPolicy {

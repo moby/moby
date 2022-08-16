@@ -5,15 +5,14 @@ import (
 	"io"
 	"os"
 	"syscall"
-	"time"
 
 	"github.com/containerd/console"
 	runc "github.com/containerd/go-runc"
-	"github.com/docker/docker/pkg/signal"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/sys/signal"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -22,8 +21,8 @@ func updateRuncFieldsForHostOS(runtime *runc.Runc) {
 	runtime.PdeathSignal = syscall.SIGKILL // this can still leak the process
 }
 
-func (w *runcExecutor) run(ctx context.Context, id, bundle string, process executor.ProcessInfo) error {
-	return w.callWithIO(ctx, id, bundle, process, func(ctx context.Context, started chan<- int, io runc.IO) error {
+func (w *runcExecutor) run(ctx context.Context, id, bundle string, process executor.ProcessInfo, started func()) error {
+	return w.callWithIO(ctx, id, bundle, process, started, func(ctx context.Context, started chan<- int, io runc.IO) error {
 		_, err := w.runc.Run(ctx, id, bundle, &runc.CreateOpts{
 			NoPivot: w.noPivot,
 			Started: started,
@@ -33,8 +32,8 @@ func (w *runcExecutor) run(ctx context.Context, id, bundle string, process execu
 	})
 }
 
-func (w *runcExecutor) exec(ctx context.Context, id, bundle string, specsProcess *specs.Process, process executor.ProcessInfo) error {
-	return w.callWithIO(ctx, id, bundle, process, func(ctx context.Context, started chan<- int, io runc.IO) error {
+func (w *runcExecutor) exec(ctx context.Context, id, bundle string, specsProcess *specs.Process, process executor.ProcessInfo, started func()) error {
+	return w.callWithIO(ctx, id, bundle, process, started, func(ctx context.Context, started chan<- int, io runc.IO) error {
 		return w.runc.Exec(ctx, id, *specsProcess, &runc.ExecOpts{
 			Started: started,
 			IO:      io,
@@ -44,12 +43,28 @@ func (w *runcExecutor) exec(ctx context.Context, id, bundle string, specsProcess
 
 type runcCall func(ctx context.Context, started chan<- int, io runc.IO) error
 
-func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, process executor.ProcessInfo, call runcCall) error {
-	ctx, cancel := context.WithCancel(ctx)
+func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, process executor.ProcessInfo, started func(), call runcCall) error {
+	runcProcess := &startingProcess{
+		ready: make(chan struct{}),
+	}
+	defer runcProcess.Release()
+
+	var eg errgroup.Group
+	egCtx, cancel := context.WithCancel(ctx)
+	defer eg.Wait()
 	defer cancel()
 
+	startedCh := make(chan int, 1)
+	eg.Go(func() error {
+		return runcProcess.WaitForStart(egCtx, startedCh, started)
+	})
+
+	eg.Go(func() error {
+		return handleSignals(egCtx, runcProcess, process.Signal)
+	})
+
 	if !process.Meta.Tty {
-		return call(ctx, nil, &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr})
+		return call(ctx, startedCh, &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr})
 	}
 
 	ptm, ptsName, err := console.NewPty()
@@ -63,18 +78,16 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 		return err
 	}
 
-	eg, ctx := errgroup.WithContext(ctx)
-
 	defer func() {
 		if process.Stdin != nil {
 			process.Stdin.Close()
 		}
 		pts.Close()
 		ptm.Close()
-		cancel() // this will shutdown resize loop
+		cancel() // this will shutdown resize and signal loops
 		err := eg.Wait()
 		if err != nil {
-			logrus.Warningf("error while shutting down tty io: %s", err)
+			bklog.G(ctx).Warningf("error while shutting down tty io: %s", err)
 		}
 	}()
 
@@ -105,29 +118,14 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 		})
 	}
 
-	started := make(chan int, 1)
-
 	eg.Go(func() error {
-		startedCtx, timeout := context.WithTimeout(ctx, 10*time.Second)
-		defer timeout()
-		var runcProcess *os.Process
-		select {
-		case <-startedCtx.Done():
-			return errors.New("runc started message never received")
-		case pid, ok := <-started:
-			if !ok {
-				return errors.New("runc process failed to send pid")
-			}
-			runcProcess, err = os.FindProcess(pid)
-			if err != nil {
-				return errors.Wrapf(err, "unable to find runc process for pid %d", pid)
-			}
-			defer runcProcess.Release()
+		err := runcProcess.WaitForReady(egCtx)
+		if err != nil {
+			return err
 		}
-
 		for {
 			select {
-			case <-ctx.Done():
+			case <-egCtx.Done():
 				return nil
 			case resize := <-process.Resize:
 				err = ptm.Resize(console.WinSize{
@@ -135,11 +133,11 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 					Width:  uint16(resize.Cols),
 				})
 				if err != nil {
-					logrus.Errorf("failed to resize ptm: %s", err)
+					bklog.G(ctx).Errorf("failed to resize ptm: %s", err)
 				}
-				err = runcProcess.Signal(signal.SIGWINCH)
+				err = runcProcess.Process.Signal(signal.SIGWINCH)
 				if err != nil {
-					logrus.Errorf("failed to send SIGWINCH to process: %s", err)
+					bklog.G(ctx).Errorf("failed to send SIGWINCH to process: %s", err)
 				}
 			}
 		}
@@ -156,5 +154,5 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 		runcIO.stderr = pts
 	}
 
-	return call(ctx, started, runcIO)
+	return call(ctx, startedCh, runcIO)
 }

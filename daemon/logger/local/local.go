@@ -3,6 +3,7 @@ package local // import "github.com/docker/docker/daemon/logger/local"
 import (
 	"encoding/binary"
 	"io"
+	"math/bits"
 	"strconv"
 	"sync"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -29,6 +29,11 @@ const (
 	defaultMaxFileCount       = 5
 	defaultCompressLogs       = true
 )
+
+var buffersPool = sync.Pool{New: func() interface{} {
+	b := make([]byte, initialBufSize)
+	return &b
+}}
 
 // LogOptKeys are the keys names used for log opts passed in to initialize the driver.
 var LogOptKeys = map[string]bool{
@@ -49,18 +54,15 @@ func ValidateLogOpt(cfg map[string]string) error {
 
 func init() {
 	if err := logger.RegisterLogDriver(Name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(Name, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 
 type driver struct {
-	mu      sync.Mutex
-	closed  bool
 	logfile *loggerutils.LogFile
-	readers map[*logger.LogWatcher]struct{} // stores the active log followers
 }
 
 // New creates a new local logger
@@ -97,42 +99,38 @@ func New(info logger.Info) (logger.Logger, error) {
 	return newDriver(info.LogPath, cfg)
 }
 
-func makeMarshaller() func(m *logger.Message) ([]byte, error) {
-	buf := make([]byte, initialBufSize)
+func marshal(m *logger.Message, buffer *[]byte) error {
+	proto := logdriver.LogEntry{}
+	md := logdriver.PartialLogEntryMetadata{}
 
-	// allocate the partial log entry separately, which allows for easier re-use
-	proto := &logdriver.LogEntry{}
-	md := &logdriver.PartialLogEntryMetadata{}
+	resetProto(&proto)
 
-	return func(m *logger.Message) ([]byte, error) {
-		resetProto(proto)
+	messageToProto(m, &proto, &md)
+	protoSize := proto.Size()
+	writeLen := protoSize + (2 * encodeBinaryLen) // + len(messageDelimiter)
 
-		messageToProto(m, proto, md)
-		protoSize := proto.Size()
-		writeLen := protoSize + (2 * encodeBinaryLen) // + len(messageDelimiter)
+	buf := *buffer
+	if writeLen > cap(buf) {
+		// If we already need to reallocate the buffer, make it larger to be more reusable.
+		// Round to the next power of two.
+		capacity := 1 << (bits.Len(uint(writeLen)) + 1)
 
-		if writeLen > len(buf) {
-			buf = make([]byte, writeLen)
-		} else {
-			// shrink the buffer back down
-			if writeLen <= initialBufSize {
-				buf = buf[:initialBufSize]
-			} else {
-				buf = buf[:writeLen]
-			}
-		}
-
-		binary.BigEndian.PutUint32(buf[:encodeBinaryLen], uint32(protoSize))
-		n, err := proto.MarshalTo(buf[encodeBinaryLen:writeLen])
-		if err != nil {
-			return nil, errors.Wrap(err, "error marshaling log entry")
-		}
-		if n+(encodeBinaryLen*2) != writeLen {
-			return nil, io.ErrShortWrite
-		}
-		binary.BigEndian.PutUint32(buf[writeLen-encodeBinaryLen:writeLen], uint32(protoSize))
-		return buf[:writeLen], nil
+		buf = make([]byte, writeLen, capacity)
+	} else {
+		buf = buf[:writeLen]
 	}
+	*buffer = buf
+
+	binary.BigEndian.PutUint32(buf[:encodeBinaryLen], uint32(protoSize))
+	n, err := proto.MarshalTo(buf[encodeBinaryLen:writeLen])
+	if err != nil {
+		return errors.Wrap(err, "error marshaling log entry")
+	}
+	if n+(encodeBinaryLen*2) != writeLen {
+		return io.ErrShortWrite
+	}
+	binary.BigEndian.PutUint32(buf[writeLen-encodeBinaryLen:writeLen], uint32(protoSize))
+	return nil
 }
 
 func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
@@ -140,13 +138,12 @@ func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, makeMarshaller(), decodeFunc, 0640, getTailReader)
+	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0640, getTailReader)
 	if err != nil {
 		return nil, err
 	}
 	return &driver{
 		logfile: lf,
-		readers: make(map[*logger.LogWatcher]struct{}),
 	}, nil
 }
 
@@ -155,22 +152,21 @@ func (d *driver) Name() string {
 }
 
 func (d *driver) Log(msg *logger.Message) error {
-	d.mu.Lock()
-	err := d.logfile.WriteLogEntry(msg)
-	d.mu.Unlock()
-	return err
+	buf := buffersPool.Get().(*[]byte)
+	defer buffersPool.Put(buf)
+
+	timestamp := msg.Timestamp
+	err := marshal(msg, buf)
+	logger.PutMessage(msg)
+
+	if err != nil {
+		return errors.Wrap(err, "error marshalling logger.Message")
+	}
+	return d.logfile.WriteLogEntry(timestamp, *buf)
 }
 
 func (d *driver) Close() error {
-	d.mu.Lock()
-	d.closed = true
-	err := d.logfile.Close()
-	for r := range d.readers {
-		r.ProducerGone()
-		delete(d.readers, r)
-	}
-	d.mu.Unlock()
-	return err
+	return d.logfile.Close()
 }
 
 func messageToProto(msg *logger.Message, proto *logdriver.LogEntry, partial *logdriver.PartialLogEntryMetadata) {

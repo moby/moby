@@ -32,7 +32,7 @@ build, so the source of truth for the current version of each dependency is
 whatever is in "./vendor".
 
 If you would rather (or must, due to distro policy) package these dependencies
-yourself, take a look at "vendor.conf" for an easy-to-parse list of the
+yourself, take a look at "vendor.mod" for an easy-to-parse list of the
 exact version for each.
 
 ## Stripping Binaries
@@ -81,14 +81,8 @@ Please use our build script ("./hack/make.sh") for compilation.
 
 ### `DOCKER_BUILDTAGS`
 
-If you're building a binary that might be used on platforms that include
-seccomp, you will need to use the `seccomp` build tag:
-```bash
-export DOCKER_BUILDTAGS='seccomp'
-```
-
-There are build tags for disabling graphdrivers as well. By default, support
-for all graphdrivers are built in.
+There are build tags for disabling graphdrivers, if necessary. By default,
+support for all graphdrivers are built in.
 
 To disable btrfs:
 ```bash
@@ -107,7 +101,7 @@ export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
 
 NOTE: if you need to set more than one build tag, space separate them:
 ```bash
-export DOCKER_BUILDTAGS='apparmor exclude_graphdriver_aufs'
+export DOCKER_BUILDTAGS='exclude_graphdriver_aufs exclude_graphdriver_btrfs'
 ```
 
 ## System Dependencies

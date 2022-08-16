@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package bridge
@@ -5,8 +6,8 @@ package bridge
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/testutils"
@@ -20,14 +21,14 @@ func TestSetupIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	config, br := setupTestInterface(t, nh)
 	if err := setupBridgeIPv6(config, br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv6: %v", err)
 	}
 
-	procSetting, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", config.BridgeName))
+	procSetting, err := os.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", config.BridgeName))
 	if err != nil {
 		t.Fatalf("Failed to read disable_ipv6 kernel setting: %v", err)
 	}
@@ -70,7 +71,7 @@ func TestSetupGatewayIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	br := &bridgeInterface{nlh: nh}
 

@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package macvlan
@@ -46,7 +47,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if _, ok := opt.([]types.PortBinding); ok {
 			if len(opt.([]types.PortBinding)) > 0 {
-				logrus.Warnf("%s driver does not support port mappings", macvlanType)
+				logrus.Warnf("macvlan driver does not support port mappings")
 			}
 		}
 	}
@@ -54,7 +55,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
 		if _, ok := opt.([]types.TransportPort); ok {
 			if len(opt.([]types.TransportPort)) > 0 {
-				logrus.Warnf("%s driver does not support port exposures", macvlanType)
+				logrus.Warnf("macvlan driver does not support port exposures")
 			}
 		}
 	}

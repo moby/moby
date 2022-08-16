@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,8 +17,19 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-// Pushing an image to a private registry.
-func testPushBusyboxImage(c *testing.T) {
+type DockerCLIPushSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIPushSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPushSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerRegistrySuite) TestPushBusyboxImage(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
@@ -27,21 +37,13 @@ func testPushBusyboxImage(c *testing.T) {
 	dockerCmd(c, "push", repoName)
 }
 
-func (s *DockerRegistrySuite) TestPushBusyboxImage(c *testing.T) {
-	testPushBusyboxImage(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPushBusyboxImage(c *testing.T) {
-	testPushBusyboxImage(c)
-}
-
 // pushing an image without a prefix should throw an error
-func (s *DockerSuite) TestPushUnprefixedRepo(c *testing.T) {
+func (s *DockerCLIPushSuite) TestPushUnprefixedRepo(c *testing.T) {
 	out, _, err := dockerCmdWithError("push", "busybox")
 	assert.ErrorContains(c, err, "", "pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
 }
 
-func testPushUntagged(c *testing.T) {
+func (s *DockerRegistrySuite) TestPushUntagged(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	expected := "An image does not exist locally with the tag"
 
@@ -50,15 +52,7 @@ func testPushUntagged(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, expected), "pushing the image failed")
 }
 
-func (s *DockerRegistrySuite) TestPushUntagged(c *testing.T) {
-	testPushUntagged(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPushUntagged(c *testing.T) {
-	testPushUntagged(c)
-}
-
-func testPushBadTag(c *testing.T) {
+func (s *DockerRegistrySuite) TestPushBadTag(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox:latest", privateRegistryURL)
 	expected := "does not exist"
 
@@ -67,15 +61,7 @@ func testPushBadTag(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, expected), "pushing the image failed")
 }
 
-func (s *DockerRegistrySuite) TestPushBadTag(c *testing.T) {
-	testPushBadTag(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPushBadTag(c *testing.T) {
-	testPushBadTag(c)
-}
-
-func testPushMultipleTags(c *testing.T) {
+func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
 	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
@@ -113,17 +99,9 @@ func testPushMultipleTags(c *testing.T) {
 	assert.DeepEqual(c, out1Lines, out2Lines)
 }
 
-func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
-	testPushMultipleTags(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPushMultipleTags(c *testing.T) {
-	testPushMultipleTags(c)
-}
-
-func testPushEmptyLayer(c *testing.T) {
+func (s *DockerRegistrySuite) TestPushEmptyLayer(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
-	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
+	emptyTarball, err := os.CreateTemp("", "empty_tarball")
 	assert.NilError(c, err, "Unable to create test file")
 
 	tw := tar.NewWriter(emptyTarball)
@@ -144,17 +122,9 @@ func testPushEmptyLayer(c *testing.T) {
 	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out)
 }
 
-func (s *DockerRegistrySuite) TestPushEmptyLayer(c *testing.T) {
-	testPushEmptyLayer(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestPushEmptyLayer(c *testing.T) {
-	testPushEmptyLayer(c)
-}
-
-// testConcurrentPush pushes multiple tags to the same repo
+// TestConcurrentPush pushes multiple tags to the same repo
 // concurrently.
-func testConcurrentPush(c *testing.T) {
+func (s *DockerRegistrySuite) TestConcurrentPush(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	var repos []string
@@ -196,14 +166,6 @@ func testConcurrentPush(c *testing.T) {
 		out, _ := dockerCmd(c, "run", "--rm", repo)
 		assert.Equal(c, strings.TrimSpace(out), "/bin/sh -c echo "+repo)
 	}
-}
-
-func (s *DockerRegistrySuite) TestConcurrentPush(c *testing.T) {
-	testConcurrentPush(c)
-}
-
-func (s *DockerSchema1RegistrySuite) TestConcurrentPush(c *testing.T) {
-	testConcurrentPush(c)
 }
 
 func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
@@ -248,39 +210,6 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.Equal(c, out4, "hello world")
 }
 
-func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c *testing.T) {
-	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	// tag the image to upload it to the private registry
-	dockerCmd(c, "tag", "busybox", sourceRepoName)
-	// push the image to the registry
-	out1, _, err := dockerCmdWithError("push", sourceRepoName)
-	assert.NilError(c, err, fmt.Sprintf("pushing the image to the private registry has failed: %s", out1))
-	// ensure that none of the layers were mounted from another repository during push
-	assert.Assert(c, !strings.Contains(out1, "Mounted from"))
-
-	digest1 := reference.DigestRegexp.FindString(out1)
-	assert.Assert(c, len(digest1) > 0, "no digest found for pushed manifest")
-
-	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
-	// retag the image to upload the same layers to another repo in the same registry
-	dockerCmd(c, "tag", "busybox", destRepoName)
-	// push the image to the registry
-	out2, _, err := dockerCmdWithError("push", destRepoName)
-	assert.NilError(c, err, fmt.Sprintf("pushing the image to the private registry has failed: %s", out2))
-	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
-	assert.Assert(c, !strings.Contains(out2, "Mounted from"))
-
-	digest2 := reference.DigestRegexp.FindString(out2)
-	assert.Assert(c, len(digest2) > 0, "no digest found for pushed manifest")
-	assert.Assert(c, digest1 != digest2)
-
-	// ensure that we can pull and run the second pushed repository
-	dockerCmd(c, "rmi", destRepoName)
-	dockerCmd(c, "pull", destRepoName)
-	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
-	assert.Assert(c, out3 == "hello world")
-}
-
 func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *testing.T) {
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
@@ -291,7 +220,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *testin
 }
 
 // This may be flaky but it's needed not to regress on unauthorized push, see #21054
-func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *testing.T) {
+func (s *DockerCLIPushSuite) TestPushToCentralRegistryUnauthorized(c *testing.T) {
 	testRequires(c, Network)
 	repoName := "test/busybox"
 	dockerCmd(c, "tag", "busybox", repoName)

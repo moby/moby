@@ -29,9 +29,9 @@ import (
 	"time"
 
 	"github.com/containerd/cgroups/v2/stats"
+
 	"github.com/godbus/dbus/v5"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -61,7 +61,7 @@ func remove(path string) error {
 			return nil
 		}
 	}
-	return errors.Wrapf(err, "cgroups: unable to remove path %q", path)
+	return fmt.Errorf("cgroups: unable to remove path %q: %w", path, err)
 }
 
 // parseCgroupProcsFile parses /sys/fs/cgroup/$GROUPPATH/cgroup.procs
@@ -227,7 +227,7 @@ func ToResources(spec *specs.LinuxResources) *Resources {
 	if i := spec.Rdma; i != nil {
 		resources.RDMA = &RDMA{}
 		for device, value := range spec.Rdma {
-			if device != "" && (value.HcaHandles != nil || value.HcaObjects != nil) {
+			if device != "" && (value.HcaHandles != nil && value.HcaObjects != nil) {
 				resources.RDMA.Limit = append(resources.RDMA.Limit, RDMAEntry{
 					Device:     device,
 					HcaHandles: *value.HcaHandles,

@@ -34,6 +34,7 @@ const (
 type grpclbServiceConfig struct {
 	serviceconfig.LoadBalancingConfig
 	ChildPolicy *[]map[string]json.RawMessage
+	ServiceName string
 }
 
 func (b *lbBuilder) ParseConfig(lbConfig json.RawMessage) (serviceconfig.LoadBalancingConfig, error) {

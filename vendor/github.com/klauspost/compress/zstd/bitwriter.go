@@ -38,11 +38,31 @@ func (b *bitWriter) addBits16NC(value uint16, bits uint8) {
 	b.nBits += bits
 }
 
-// addBits32NC will add up to 32 bits.
+// addBits32NC will add up to 31 bits.
 // It will not check if there is space for them,
 // so the caller must ensure that it has flushed recently.
 func (b *bitWriter) addBits32NC(value uint32, bits uint8) {
 	b.bitContainer |= uint64(value&bitMask32[bits&31]) << (b.nBits & 63)
+	b.nBits += bits
+}
+
+// addBits64NC will add up to 64 bits.
+// There must be space for 32 bits.
+func (b *bitWriter) addBits64NC(value uint64, bits uint8) {
+	if bits <= 31 {
+		b.addBits32Clean(uint32(value), bits)
+		return
+	}
+	b.addBits32Clean(uint32(value), 32)
+	b.flush32()
+	b.addBits32Clean(uint32(value>>32), bits-32)
+}
+
+// addBits32Clean will add up to 32 bits.
+// It will not check if there is space for them.
+// The input must not contain more bits than specified.
+func (b *bitWriter) addBits32Clean(value uint32, bits uint8) {
+	b.bitContainer |= uint64(value) << (b.nBits & 63)
 	b.nBits += bits
 }
 

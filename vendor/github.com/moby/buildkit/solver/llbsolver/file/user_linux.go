@@ -2,6 +2,7 @@ package file
 
 import (
 	"os"
+	"syscall"
 
 	"github.com/containerd/continuity/fs"
 	"github.com/moby/buildkit/snapshot"
@@ -45,6 +46,10 @@ func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.User, error) 
 			}
 
 			ufile, err := os.Open(passwdPath)
+			if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
+				// Couldn't open the file. Considering this case as not finding the user in the file.
+				break
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -95,6 +100,10 @@ func readUser(chopt *pb.ChownOpt, mu, mg fileoptypes.Mount) (*copy.User, error) 
 			}
 
 			gfile, err := os.Open(groupPath)
+			if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
+				// Couldn't open the file. Considering this case as not finding the group in the file.
+				break
+			}
 			if err != nil {
 				return nil, err
 			}

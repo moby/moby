@@ -15,13 +15,25 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
+type DockerCLIInspectSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIInspectSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIInspectSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
 func checkValidGraphDriver(c *testing.T, name string) {
 	if name != "devicemapper" && name != "overlay" && name != "vfs" && name != "zfs" && name != "btrfs" && name != "aufs" {
 		c.Fatalf("%v is not a valid graph driver name", name)
 	}
 }
 
-func (s *DockerSuite) TestInspectImage(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectImage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
 	// It is important that this ID remain stable. If a code change causes
@@ -35,13 +47,13 @@ func (s *DockerSuite) TestInspectImage(c *testing.T) {
 	assert.Equal(c, id, imageTestID)
 }
 
-func (s *DockerSuite) TestInspectInt64(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectInt64(c *testing.T) {
 	dockerCmd(c, "run", "-d", "-m=300M", "--name", "inspectTest", "busybox", "true")
 	inspectOut := inspectField(c, "inspectTest", "HostConfig.Memory")
 	assert.Equal(c, inspectOut, "314572800")
 }
 
-func (s *DockerSuite) TestInspectDefault(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectDefault(c *testing.T) {
 	// Both the container and image are named busybox. docker inspect will fetch the container JSON.
 	// If the container JSON is not available, it will go for the image JSON.
 
@@ -52,7 +64,7 @@ func (s *DockerSuite) TestInspectDefault(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(inspectOut), containerID)
 }
 
-func (s *DockerSuite) TestInspectStatus(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectStatus(c *testing.T) {
 	out := runSleepingContainer(c, "-d")
 	out = strings.TrimSpace(out)
 
@@ -77,7 +89,7 @@ func (s *DockerSuite) TestInspectStatus(c *testing.T) {
 
 }
 
-func (s *DockerSuite) TestInspectTypeFlagContainer(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectTypeFlagContainer(c *testing.T) {
 	// Both the container and image are named busybox. docker inspect will fetch container
 	// JSON State.Running field. If the field is true, it's a container.
 	runSleepingContainer(c, "--name=busybox", "-d")
@@ -87,7 +99,7 @@ func (s *DockerSuite) TestInspectTypeFlagContainer(c *testing.T) {
 	assert.Equal(c, out, "true\n") // not a container JSON
 }
 
-func (s *DockerSuite) TestInspectTypeFlagWithNoContainer(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithNoContainer(c *testing.T) {
 	// Run this test on an image named busybox. docker inspect will try to fetch container
 	// JSON. Since there is no container named busybox and --type=container, docker inspect will
 	// not try to get the image JSON. It will throw an error.
@@ -99,7 +111,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithNoContainer(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 }
 
-func (s *DockerSuite) TestInspectTypeFlagWithImage(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithImage(c *testing.T) {
 	// Both the container and image are named busybox. docker inspect will fetch image
 	// JSON as --type=image. if there is no image with name busybox, docker inspect
 	// will throw an error.
@@ -111,7 +123,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithImage(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, "State"))
 }
 
-func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
 	// Both the container and image are named busybox. docker inspect will fail
 	// as --type=foobar is not a valid value for the flag.
 
@@ -123,7 +135,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "not a valid value for --type"))
 }
 
-func (s *DockerSuite) TestInspectImageFilterInt(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
 	out := inspectField(c, imageTest, "Size")
@@ -139,7 +151,7 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *testing.T) {
 	assert.Equal(c, result, true)
 }
 
-func (s *DockerSuite) TestInspectContainerFilterInt(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
 	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
 		Stdin:   strings.NewReader("blahblah"),
@@ -161,7 +173,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *testing.T) {
 	assert.Equal(c, inspectResult, true)
 }
 
-func (s *DockerSuite) TestInspectImageGraphDriver(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectImageGraphDriver(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Devicemapper)
 	imageTest := "emptyfs"
 	name := inspectField(c, imageTest, "GraphDriver.Name")
@@ -179,7 +191,7 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *testing.T) {
 	assert.Assert(c, err == nil, "failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
 }
 
-func (s *DockerSuite) TestInspectContainerGraphDriver(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectContainerGraphDriver(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Devicemapper)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -204,7 +216,7 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *testing.T) {
 	assert.Assert(c, err == nil, "failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
 }
 
-func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectBindMountPoint(c *testing.T) {
 	modifier := ",z"
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	if testEnv.OSType == "windows" {
@@ -236,7 +248,7 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
 	assert.Equal(c, m.RW, false)
 }
 
-func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectNamedMountPoint(c *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "run", "-d", "--name", "test", "-v", "data:"+prefix+slash+"data", "busybox", "cat")
@@ -260,7 +272,7 @@ func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
 }
 
 // #14947
-func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectTimesAsRFC3339Nano(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	id := strings.TrimSpace(out)
 	startedAt := inspectField(c, id, "State.StartedAt")
@@ -281,7 +293,7 @@ func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *testing.T) {
 }
 
 // #15633
-func (s *DockerSuite) TestInspectLogConfigNoType(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectLogConfigNoType(c *testing.T) {
 	dockerCmd(c, "create", "--name=test", "--log-opt", "max-file=42", "busybox")
 	var logConfig container.LogConfig
 
@@ -294,7 +306,7 @@ func (s *DockerSuite) TestInspectLogConfigNoType(c *testing.T) {
 	assert.Equal(c, logConfig.Config["max-file"], "42", fmt.Sprintf("%v", logConfig))
 }
 
-func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
 	// Both the container and image are named busybox. docker inspect will fetch container
 	// JSON SizeRw and SizeRootFs field. If there is no flag --size/-s, there are no size fields.
 
@@ -305,7 +317,7 @@ func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "<nil>,<nil>", fmt.Sprintf("Expected not to display size info: %s", out))
 }
 
-func (s *DockerSuite) TestInspectSizeFlagContainer(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectSizeFlagContainer(c *testing.T) {
 	runSleepingContainer(c, "--name=busybox", "-d")
 
 	formatStr := "--format='{{.SizeRw}},{{.SizeRootFs}}'"
@@ -316,7 +328,7 @@ func (s *DockerSuite) TestInspectSizeFlagContainer(c *testing.T) {
 	assert.Assert(c, strings.TrimSpace(sz[1]) != "<nil>")
 }
 
-func (s *DockerSuite) TestInspectTemplateError(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectTemplateError(c *testing.T) {
 	// Template parsing error for both the container and image.
 
 	runSleepingContainer(c, "--name=container1", "-d")
@@ -329,7 +341,7 @@ func (s *DockerSuite) TestInspectTemplateError(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "Template parsing error"))
 }
 
-func (s *DockerSuite) TestInspectJSONFields(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectJSONFields(c *testing.T) {
 	runSleepingContainer(c, "--name=busybox", "-d")
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format={{.HostConfig.Dns}}", "busybox")
 
@@ -337,7 +349,7 @@ func (s *DockerSuite) TestInspectJSONFields(c *testing.T) {
 	assert.Equal(c, out, "[]\n")
 }
 
-func (s *DockerSuite) TestInspectByPrefix(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectByPrefix(c *testing.T) {
 	id := inspectField(c, "busybox", "Id")
 	assert.Assert(c, strings.HasPrefix(id, "sha256:"))
 
@@ -348,7 +360,7 @@ func (s *DockerSuite) TestInspectByPrefix(c *testing.T) {
 	assert.Equal(c, id, id3)
 }
 
-func (s *DockerSuite) TestInspectStopWhenNotFound(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectStopWhenNotFound(c *testing.T) {
 	runSleepingContainer(c, "--name=busybox1", "-d")
 	runSleepingContainer(c, "--name=busybox2", "-d")
 	result := dockerCmdWithResult("inspect", "--type=container", "--format='{{.Name}}'", "busybox1", "busybox2", "missing")
@@ -366,7 +378,7 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *testing.T) {
 	assert.Assert(c, strings.Contains(result.Stderr(), "Error: No such container: missing"))
 }
 
-func (s *DockerSuite) TestInspectHistory(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectHistory(c *testing.T) {
 	dockerCmd(c, "run", "--name=testcont", "busybox", "echo", "hello")
 	dockerCmd(c, "commit", "-m", "test comment", "testcont", "testimg")
 	out, _, err := dockerCmdWithError("inspect", "--format='{{.Comment}}'", "testimg")
@@ -374,7 +386,7 @@ func (s *DockerSuite) TestInspectHistory(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "test comment"))
 }
 
-func (s *DockerSuite) TestInspectContainerNetworkDefault(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectContainerNetworkDefault(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	contName := "test1"
@@ -386,7 +398,7 @@ func (s *DockerSuite) TestInspectContainerNetworkDefault(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), strings.TrimSpace(netOut))
 }
 
-func (s *DockerSuite) TestInspectContainerNetworkCustom(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectContainerNetworkCustom(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	netOut, _ := dockerCmd(c, "network", "create", "net1")
@@ -397,7 +409,7 @@ func (s *DockerSuite) TestInspectContainerNetworkCustom(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), strings.TrimSpace(netOut))
 }
 
-func (s *DockerSuite) TestInspectRootFS(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectRootFS(c *testing.T) {
 	out, _, err := dockerCmdWithError("inspect", "busybox")
 	assert.NilError(c, err)
 
@@ -407,7 +419,7 @@ func (s *DockerSuite) TestInspectRootFS(c *testing.T) {
 	assert.Assert(c, len(imageJSON[0].RootFS.Layers) >= 1)
 }
 
-func (s *DockerSuite) TestInspectAmpersand(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectAmpersand(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	name := "test"
@@ -417,7 +429,7 @@ func (s *DockerSuite) TestInspectAmpersand(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, `soanni&rtr`))
 }
 
-func (s *DockerSuite) TestInspectPlugin(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectPlugin(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
 	assert.NilError(c, err)
@@ -448,7 +460,7 @@ func (s *DockerSuite) TestInspectPlugin(c *testing.T) {
 }
 
 // Test case for 29185
-func (s *DockerSuite) TestInspectUnknownObject(c *testing.T) {
+func (s *DockerCLIInspectSuite) TestInspectUnknownObject(c *testing.T) {
 	// This test should work on both Windows and Linux
 	out, _, err := dockerCmdWithError("inspect", "foobar")
 	assert.ErrorContains(c, err, "")

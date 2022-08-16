@@ -17,7 +17,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -37,17 +37,17 @@ type winApplier struct {
 	a  diff.Applier
 }
 
-func (s *winApplier) Apply(ctx context.Context, desc ocispec.Descriptor, mounts []mount.Mount, opts ...diff.ApplyOpt) (d ocispec.Descriptor, err error) {
+func (s *winApplier) Apply(ctx context.Context, desc ocispecs.Descriptor, mounts []mount.Mount, opts ...diff.ApplyOpt) (d ocispecs.Descriptor, err error) {
 	if !hasWindowsLayerMode(ctx) {
 		return s.a.Apply(ctx, desc, mounts, opts...)
 	}
 
 	compressed, err := images.DiffCompression(ctx, desc.MediaType)
 	if err != nil {
-		return ocispec.Descriptor{}, errors.Wrapf(errdefs.ErrNotImplemented, "unsupported diff media type: %v", desc.MediaType)
+		return ocispecs.Descriptor{}, errors.Wrapf(errdefs.ErrNotImplemented, "unsupported diff media type: %v", desc.MediaType)
 	}
 
-	var ocidesc ocispec.Descriptor
+	var ocidesc ocispecs.Descriptor
 	if err := mount.WithTempMount(ctx, mounts, func(root string) error {
 		ra, err := s.cs.ReaderAt(ctx, desc)
 		if err != nil {
@@ -92,15 +92,14 @@ func (s *winApplier) Apply(ctx context.Context, desc ocispec.Descriptor, mounts 
 			return err
 		}
 
-		ocidesc = ocispec.Descriptor{
-			MediaType: ocispec.MediaTypeImageLayer,
+		ocidesc = ocispecs.Descriptor{
+			MediaType: ocispecs.MediaTypeImageLayer,
 			Size:      rc.c,
 			Digest:    digester.Digest(),
 		}
 		return nil
-
 	}); err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispecs.Descriptor{}, err
 	}
 	return ocidesc, nil
 }

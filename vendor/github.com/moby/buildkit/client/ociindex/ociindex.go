@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/gofrs/flock"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -17,9 +17,9 @@ const (
 
 // PutDescToIndex puts desc to index with tag.
 // Existing manifests with the same tag will be removed from the index.
-func PutDescToIndex(index *v1.Index, desc v1.Descriptor, tag string) error {
+func PutDescToIndex(index *ocispecs.Index, desc ocispecs.Descriptor, tag string) error {
 	if index == nil {
-		index = &v1.Index{}
+		index = &ocispecs.Index{}
 	}
 	if index.SchemaVersion == 0 {
 		index.SchemaVersion = 2
@@ -28,11 +28,11 @@ func PutDescToIndex(index *v1.Index, desc v1.Descriptor, tag string) error {
 		if desc.Annotations == nil {
 			desc.Annotations = make(map[string]string)
 		}
-		desc.Annotations[v1.AnnotationRefName] = tag
+		desc.Annotations[ocispecs.AnnotationRefName] = tag
 		// remove existing manifests with the same tag
-		var manifests []v1.Descriptor
+		var manifests []ocispecs.Descriptor
 		for _, m := range index.Manifests {
-			if m.Annotations[v1.AnnotationRefName] != tag {
+			if m.Annotations[ocispecs.AnnotationRefName] != tag {
 				manifests = append(manifests, m)
 			}
 		}
@@ -42,7 +42,7 @@ func PutDescToIndex(index *v1.Index, desc v1.Descriptor, tag string) error {
 	return nil
 }
 
-func PutDescToIndexJSONFileLocked(indexJSONPath string, desc v1.Descriptor, tag string) error {
+func PutDescToIndexJSONFileLocked(indexJSONPath string, desc ocispecs.Descriptor, tag string) error {
 	lockPath := indexJSONPath + IndexJSONLockFileSuffix
 	lock := flock.New(lockPath)
 	locked, err := lock.TryLock()
@@ -61,7 +61,7 @@ func PutDescToIndexJSONFileLocked(indexJSONPath string, desc v1.Descriptor, tag 
 		return errors.Wrapf(err, "could not open %s", indexJSONPath)
 	}
 	defer f.Close()
-	var idx v1.Index
+	var idx ocispecs.Index
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
 		return errors.Wrapf(err, "could not read %s", indexJSONPath)
@@ -87,7 +87,7 @@ func PutDescToIndexJSONFileLocked(indexJSONPath string, desc v1.Descriptor, tag 
 	return nil
 }
 
-func ReadIndexJSONFileLocked(indexJSONPath string) (*v1.Index, error) {
+func ReadIndexJSONFileLocked(indexJSONPath string) (*ocispecs.Index, error) {
 	lockPath := indexJSONPath + IndexJSONLockFileSuffix
 	lock := flock.New(lockPath)
 	locked, err := lock.TryRLock()
@@ -105,7 +105,7 @@ func ReadIndexJSONFileLocked(indexJSONPath string) (*v1.Index, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "could not read %s", indexJSONPath)
 	}
-	var idx v1.Index
+	var idx ocispecs.Index
 	if err := json.Unmarshal(b, &idx); err != nil {
 		return nil, errors.Wrapf(err, "could not unmarshal %s (%q)", indexJSONPath, string(b))
 	}

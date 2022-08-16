@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
@@ -16,18 +14,19 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	enginemount "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	netconst "github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
-	"github.com/docker/swarmkit/agent/exec"
-	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/api/genericresource"
-	"github.com/docker/swarmkit/template"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/api/genericresource"
+	"github.com/moby/swarmkit/v2/template"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -255,12 +254,42 @@ func (c *containerConfig) labels() map[string]string {
 	return labels
 }
 
-func (c *containerConfig) mounts() []enginemount.Mount {
+func (c *containerConfig) mounts(deps exec.VolumeGetter) []enginemount.Mount {
 	var r []enginemount.Mount
 	for _, mount := range c.spec().Mounts {
-		r = append(r, convertMount(mount))
+		if mount.Type == api.MountTypeCluster {
+			r = append(r, c.convertCSIMount(mount, deps))
+		} else {
+			r = append(r, convertMount(mount))
+		}
 	}
 	return r
+}
+
+// convertCSIMount matches the CSI mount with the path of the CSI volume.
+//
+// technically quadratic with respect to the number of CSI mounts, but that
+// number shouldn't ever be large enough for quadratic to matter.
+//
+// TODO(dperny): figure out a scheme for errors? or maybe add code to
+// checkMounts?
+func (c *containerConfig) convertCSIMount(m api.Mount, deps exec.VolumeGetter) enginemount.Mount {
+	var mount enginemount.Mount
+
+	// these are actually bind mounts
+	mount.Type = enginemount.TypeBind
+
+	for _, attach := range c.task.Volumes {
+		if attach.Source == m.Source && attach.Target == m.Target {
+			// we should not get an error here, because we should have checked
+			// already that the volume is ready
+			path, _ := deps.Get(attach.ID)
+			mount.Source = path
+			mount.Target = m.Target
+		}
+	}
+
+	return mount
 }
 
 func convertMount(m api.Mount) enginemount.Mount {
@@ -279,6 +308,8 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.Type = enginemount.TypeTmpfs
 	case api.MountTypeNamedPipe:
 		mount.Type = enginemount.TypeNamedPipe
+	case api.MountTypeCluster:
+		mount.Type = enginemount.TypeCluster
 	}
 
 	if m.BindOptions != nil {
@@ -351,12 +382,12 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 	}
 }
 
-func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
+func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *enginecontainer.HostConfig {
 	hc := &enginecontainer.HostConfig{
 		Resources:      c.resources(),
 		GroupAdd:       c.spec().Groups,
 		PortBindings:   c.portBindings(),
-		Mounts:         c.mounts(),
+		Mounts:         c.mounts(deps),
 		ReadonlyRootfs: c.spec().ReadOnly,
 		Isolation:      c.isolation(),
 		Init:           c.init(),
@@ -406,7 +437,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 }
 
 // This handles the case of volumes that are defined inside a service Mount
-func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.VolumeCreateBody {
+func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volume.CreateOptions {
 	var (
 		driverName string
 		driverOpts map[string]string
@@ -420,7 +451,7 @@ func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *volumetypes.Vol
 	}
 
 	if mount.VolumeOptions != nil {
-		return &volumetypes.VolumeCreateBody{
+		return &volume.CreateOptions{
 			Name:       mount.Source,
 			Driver:     driverName,
 			DriverOpts: driverOpts,

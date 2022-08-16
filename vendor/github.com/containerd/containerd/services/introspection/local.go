@@ -18,7 +18,6 @@ package introspection
 
 import (
 	context "context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -42,12 +41,9 @@ func init() {
 		ID:       services.IntrospectionService,
 		Requires: []plugin.Type{},
 		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
-			// this service works by using the plugin context up till the point
-			// this service is initialized. Since we require this service last,
-			// it should provide the full set of plugins.
-			pluginsPB := pluginsToPB(ic.GetAll())
+			// this service fetches all plugins through the plugin set of the plugin context
 			return &Local{
-				plugins: pluginsPB,
+				plugins: ic.Plugins(),
 				root:    ic.Root,
 			}, nil
 		},
@@ -56,19 +52,19 @@ func init() {
 
 // Local is a local implementation of the introspection service
 type Local struct {
-	mu      sync.Mutex
-	plugins []api.Plugin
-	root    string
+	mu          sync.Mutex
+	root        string
+	plugins     *plugin.Set
+	pluginCache []api.Plugin
 }
 
 var _ = (api.IntrospectionClient)(&Local{})
 
 // UpdateLocal updates the local introspection service
-func (l *Local) UpdateLocal(root string, plugins []api.Plugin) {
+func (l *Local) UpdateLocal(root string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.root = root
-	l.plugins = plugins
 }
 
 // Plugins returns the locally defined plugins
@@ -96,7 +92,11 @@ func (l *Local) Plugins(ctx context.Context, req *api.PluginsRequest, _ ...grpc.
 func (l *Local) getPlugins() []api.Plugin {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.plugins
+	plugins := l.plugins.GetAll()
+	if l.pluginCache == nil || len(plugins) != len(l.pluginCache) {
+		l.pluginCache = pluginsToPB(plugins)
+	}
+	return l.pluginCache
 }
 
 // Server returns the local server information
@@ -114,7 +114,7 @@ func (l *Local) getUUID() (string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	data, err := ioutil.ReadFile(l.uuidPath())
+	data, err := os.ReadFile(l.uuidPath())
 	if err != nil {
 		if os.IsNotExist(err) {
 			return l.generateUUID()
@@ -138,7 +138,7 @@ func (l *Local) generateUUID() (string, error) {
 		return "", err
 	}
 	uu := u.String()
-	if err := ioutil.WriteFile(path, []byte(uu), 0666); err != nil {
+	if err := os.WriteFile(path, []byte(uu), 0666); err != nil {
 		return "", err
 	}
 	return uu, nil

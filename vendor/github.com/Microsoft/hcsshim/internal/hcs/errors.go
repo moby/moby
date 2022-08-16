@@ -60,7 +60,7 @@ var (
 	// ErrVmcomputeOperationInvalidState is an error encountered when the compute system is not in a valid state for the requested operation
 	ErrVmcomputeOperationInvalidState = syscall.Errno(0xc0370105)
 
-	// ErrProcNotFound is an error encountered when the the process cannot be found
+	// ErrProcNotFound is an error encountered when a procedure look up fails.
 	ErrProcNotFound = syscall.Errno(0x7f)
 
 	// ErrVmcomputeOperationAccessIsDenied is an error which can be encountered when enumerating compute systems in RS1/RS2
@@ -78,6 +78,13 @@ var (
 
 	// ErrNotSupported is an error encountered when hcs doesn't support the request
 	ErrPlatformNotSupported = errors.New("unsupported platform request")
+
+	// ErrProcessAlreadyStopped is returned by hcs if the process we're trying to kill has already been stopped.
+	ErrProcessAlreadyStopped = syscall.Errno(0x8037011f)
+
+	// ErrInvalidHandle is an error that can be encountrered when querying the properties of a compute system when the handle to that
+	// compute system has already been closed.
+	ErrInvalidHandle = syscall.Errno(0x6)
 )
 
 type ErrorEvent struct {
@@ -242,12 +249,19 @@ func makeProcessError(process *Process, op string, err error, events []ErrorEven
 // IsNotExist checks if an error is caused by the Container or Process not existing.
 // Note: Currently, ErrElementNotFound can mean that a Process has either
 // already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
-// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+// will currently return true when the error is ErrElementNotFound.
 func IsNotExist(err error) bool {
 	err = getInnerError(err)
 	return err == ErrComputeSystemDoesNotExist ||
-		err == ErrElementNotFound ||
-		err == ErrProcNotFound
+		err == ErrElementNotFound
+}
+
+// IsErrorInvalidHandle checks whether the error is the result of an operation carried
+// out on a handle that is invalid/closed. This error popped up while trying to query
+// stats on a container in the process of being stopped.
+func IsErrorInvalidHandle(err error) bool {
+	err = getInnerError(err)
+	return err == ErrInvalidHandle
 }
 
 // IsAlreadyClosed checks if an error is caused by the Container or Process having been
@@ -278,12 +292,12 @@ func IsTimeout(err error) bool {
 // a Container or Process being already stopped.
 // Note: Currently, ErrElementNotFound can mean that a Process has either
 // already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
-// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+// will currently return true when the error is ErrElementNotFound.
 func IsAlreadyStopped(err error) bool {
 	err = getInnerError(err)
 	return err == ErrVmcomputeAlreadyStopped ||
-		err == ErrElementNotFound ||
-		err == ErrProcNotFound
+		err == ErrProcessAlreadyStopped ||
+		err == ErrElementNotFound
 }
 
 // IsNotSupported returns a boolean indicating whether the error is caused by

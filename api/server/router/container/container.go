@@ -56,7 +56,7 @@ func (r *containerRouter) initRoutes() {
 		router.NewPostRoute("/containers/{name:.*}/wait", r.postContainersWait),
 		router.NewPostRoute("/containers/{name:.*}/resize", r.postContainersResize),
 		router.NewPostRoute("/containers/{name:.*}/attach", r.postContainersAttach),
-		router.NewPostRoute("/containers/{name:.*}/copy", r.postContainersCopy), // Deprecated since 1.8, Errors out since 1.12
+		router.NewPostRoute("/containers/{name:.*}/copy", r.postContainersCopy), // Deprecated since 1.8 (API v1.20), errors out since 1.12 (API v1.24)
 		router.NewPostRoute("/containers/{name:.*}/exec", r.postContainerExecCreate),
 		router.NewPostRoute("/exec/{name:.*}/start", r.postContainerExecStart),
 		router.NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),

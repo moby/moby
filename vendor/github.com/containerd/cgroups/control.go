@@ -23,10 +23,12 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+type procType = string
+
 const (
-	cgroupProcs    = "cgroup.procs"
-	cgroupTasks    = "tasks"
-	defaultDirPerm = 0755
+	cgroupProcs    procType = "cgroup.procs"
+	cgroupTasks    procType = "tasks"
+	defaultDirPerm          = 0755
 )
 
 // defaultFilePerm is a var so that the test framework can change the filemode
@@ -37,32 +39,37 @@ const (
 var defaultFilePerm = os.FileMode(0)
 
 type Process struct {
-	// Subsystem is the name of the subsystem that the process is in
+	// Subsystem is the name of the subsystem that the process / task is in.
 	Subsystem Name
-	// Pid is the process id of the process
+	// Pid is the process id of the process / task.
 	Pid int
-	// Path is the full path of the subsystem and location that the process is in
+	// Path is the full path of the subsystem and location that the process / task is in.
 	Path string
 }
 
-type Task struct {
-	// Subsystem is the name of the subsystem that the task is in
-	Subsystem Name
-	// Pid is the process id of the task
-	Pid int
-	// Path is the full path of the subsystem and location that the task is in
-	Path string
-}
+type Task = Process
 
 // Cgroup handles interactions with the individual groups to perform
 // actions on them as them main interface to this cgroup package
 type Cgroup interface {
 	// New creates a new cgroup under the calling cgroup
 	New(string, *specs.LinuxResources) (Cgroup, error)
-	// Add adds a process to the cgroup (cgroup.procs)
-	Add(Process) error
-	// AddTask adds a process to the cgroup (tasks)
-	AddTask(Process) error
+	// Add adds a process to the cgroup (cgroup.procs). Without additional arguments,
+	// the process is added to all the cgroup subsystems. When giving Add a list of
+	// subsystem names, the process is only added to those subsystems, provided that
+	// they are active in the targeted cgroup.
+	Add(Process, ...Name) error
+	// AddProc adds the process with the given id to the cgroup (cgroup.procs).
+	// Without additional arguments, the process with the given id is added to all
+	// the cgroup subsystems. When giving AddProc a list of subsystem names, the process
+	// id is only added to those subsystems, provided that they are active in the targeted
+	// cgroup.
+	AddProc(uint64, ...Name) error
+	// AddTask adds a process to the cgroup (tasks). Without additional arguments, the
+	// task is added to all the cgroup subsystems. When giving AddTask a list of subsystem
+	// names, the task is only added to those subsystems, provided that they are active in
+	// the targeted cgroup.
+	AddTask(Process, ...Name) error
 	// Delete removes the cgroup as a whole
 	Delete() error
 	// MoveTo moves all the processes under the calling cgroup to the provided one

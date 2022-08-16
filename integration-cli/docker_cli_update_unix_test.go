@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package main
@@ -18,7 +19,15 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerSuite) TestUpdateRunningContainer(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIUpdateSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIUpdateSuite) TestUpdateRunningContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
@@ -33,7 +42,7 @@ func (s *DockerSuite) TestUpdateRunningContainer(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "524288000")
 }
 
-func (s *DockerSuite) TestUpdateRunningContainerWithRestart(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateRunningContainerWithRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
@@ -49,7 +58,7 @@ func (s *DockerSuite) TestUpdateRunningContainerWithRestart(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "524288000")
 }
 
-func (s *DockerSuite) TestUpdateStoppedContainer(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateStoppedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
@@ -64,7 +73,7 @@ func (s *DockerSuite) TestUpdateStoppedContainer(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "524288000")
 }
 
-func (s *DockerSuite) TestUpdatePausedContainer(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdatePausedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, cpuShare)
 
@@ -81,7 +90,7 @@ func (s *DockerSuite) TestUpdatePausedContainer(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "500")
 }
 
-func (s *DockerSuite) TestUpdateWithUntouchedFields(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateWithUntouchedFields(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, cpuShare)
@@ -99,7 +108,7 @@ func (s *DockerSuite) TestUpdateWithUntouchedFields(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "800")
 }
 
-func (s *DockerSuite) TestUpdateContainerInvalidValue(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateContainerInvalidValue(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
@@ -111,7 +120,7 @@ func (s *DockerSuite) TestUpdateContainerInvalidValue(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, expected))
 }
 
-func (s *DockerSuite) TestUpdateContainerWithoutFlags(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateContainerWithoutFlags(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 
@@ -121,7 +130,7 @@ func (s *DockerSuite) TestUpdateContainerWithoutFlags(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 }
 
-func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateSwapMemoryOnly(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
@@ -137,7 +146,7 @@ func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "629145600")
 }
 
-func (s *DockerSuite) TestUpdateInvalidSwapMemory(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateInvalidSwapMemory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
@@ -162,7 +171,7 @@ func (s *DockerSuite) TestUpdateInvalidSwapMemory(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "629145600")
 }
 
-func (s *DockerSuite) TestUpdateStats(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateStats(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, cpuCfsQuota)
@@ -191,7 +200,7 @@ func (s *DockerSuite) TestUpdateStats(c *testing.T) {
 	assert.Equal(c, preMemLimit, curMemLimit)
 }
 
-func (s *DockerSuite) TestUpdateMemoryWithSwapMemory(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateMemoryWithSwapMemory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
@@ -205,7 +214,7 @@ func (s *DockerSuite) TestUpdateMemoryWithSwapMemory(c *testing.T) {
 	dockerCmd(c, "update", "--memory", "800M", "--memory-swap", "1000M", name)
 }
 
-func (s *DockerSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testing.T) {
 	testRequires(c, DaemonIsLinux, cpuShare)
 
 	out, _ := dockerCmd(c, "run", "-tid", "--restart=always", "busybox", "sh")
@@ -233,7 +242,7 @@ func (s *DockerSuite) TestUpdateNotAffectMonitorRestartPolicy(c *testing.T) {
 	assert.NilError(c, waitRun(id))
 }
 
-func (s *DockerSuite) TestUpdateWithNanoCPUs(c *testing.T) {
+func (s *DockerCLIUpdateSuite) TestUpdateWithNanoCPUs(c *testing.T) {
 	testRequires(c, cpuCfsQuota, cpuCfsPeriod)
 
 	file1 := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"

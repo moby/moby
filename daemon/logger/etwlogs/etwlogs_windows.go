@@ -48,7 +48,7 @@ var mu sync.Mutex
 func init() {
 	providerHandle = windows.InvalidHandle
 	if err := logger.RegisterLogDriver(name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 

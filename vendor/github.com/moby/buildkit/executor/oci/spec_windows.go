@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package oci
@@ -34,4 +35,11 @@ func generateIDmapOpts(idmap *idtools.IdentityMapping) ([]oci.SpecOpts, error) {
 		return nil, nil
 	}
 	return nil, errors.New("no support for IdentityMapping on Windows")
+}
+
+func generateRlimitOpts(ulimits []*pb.Ulimit) ([]oci.SpecOpts, error) {
+	if len(ulimits) == 0 {
+		return nil, nil
+	}
+	return nil, errors.New("no support for POSIXRlimit on Windows")
 }

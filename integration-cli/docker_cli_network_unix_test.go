@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package main
@@ -5,7 +6,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -200,11 +200,11 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 	assert.NilError(c, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
-	err = ioutil.WriteFile(fileName, []byte(url), 0644)
+	err = os.WriteFile(fileName, []byte(url), 0644)
 	assert.NilError(c, err)
 
 	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
-	err = ioutil.WriteFile(ipamFileName, []byte(url), 0644)
+	err = os.WriteFile(ipamFileName, []byte(url), 0644)
 	assert.NilError(c, err)
 }
 
@@ -383,12 +383,12 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateLabel(c *testing.T) {
 	assertNwNotAvailable(c, testNet)
 }
 
-func (s *DockerSuite) TestDockerNetworkDeleteNotExists(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerNetworkDeleteNotExists(c *testing.T) {
 	out, _, err := dockerCmdWithError("network", "rm", "test")
 	assert.ErrorContains(c, err, "", out)
 }
 
-func (s *DockerSuite) TestDockerNetworkDeleteMultiple(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerNetworkDeleteMultiple(c *testing.T) {
 	dockerCmd(c, "network", "create", "testDelMulti0")
 	assertNwIsAvailable(c, "testDelMulti0")
 	dockerCmd(c, "network", "create", "testDelMulti1")
@@ -412,7 +412,7 @@ func (s *DockerSuite) TestDockerNetworkDeleteMultiple(c *testing.T) {
 	assertNwIsAvailable(c, "testDelMulti2")
 }
 
-func (s *DockerSuite) TestDockerNetworkInspect(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerNetworkInspect(c *testing.T) {
 	out, _ := dockerCmd(c, "network", "inspect", "host")
 	var networkResources []types.NetworkResource
 	err := json.Unmarshal([]byte(out), &networkResources)
@@ -423,7 +423,7 @@ func (s *DockerSuite) TestDockerNetworkInspect(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "host")
 }
 
-func (s *DockerSuite) TestDockerNetworkInspectWithID(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerNetworkInspectWithID(c *testing.T) {
 	out, _ := dockerCmd(c, "network", "create", "test2")
 	networkID := strings.TrimSpace(out)
 	assertNwIsAvailable(c, "test2")
@@ -434,7 +434,7 @@ func (s *DockerSuite) TestDockerNetworkInspectWithID(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), networkID)
 }
 
-func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetwork(c *testing.T) {
 	result := dockerCmdWithResult("network", "inspect", "host", "none")
 	result.Assert(c, icmd.Success)
 
@@ -444,7 +444,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *testing.T) {
 	assert.Equal(c, len(networkResources), 2)
 }
 
-func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *testing.T) {
 	// non-existent network was not at the beginning of the inspect list
 	// This should print an error, return an exitCode 1 and print the host network
 	result := dockerCmdWithResult("network", "inspect", "host", "nonexistent")
@@ -483,7 +483,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetworksIncludingNonexistent(c *t
 	assert.Equal(c, len(networkResources), 1)
 }
 
-func (s *DockerSuite) TestDockerInspectNetworkWithContainerName(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerInspectNetworkWithContainerName(c *testing.T) {
 	dockerCmd(c, "network", "create", "brNetForInspect")
 	assertNwIsAvailable(c, "brNetForInspect")
 	defer func() {
@@ -999,7 +999,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacInspect(c *testing.T) {
 	assert.Equal(c, mac, "a0:b1:c2:d3:e4:f5")
 }
 
-func (s *DockerSuite) TestInspectAPIMultipleNetworks(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestInspectAPIMultipleNetworks(c *testing.T) {
 	dockerCmd(c, "network", "create", "mybridge1")
 	dockerCmd(c, "network", "create", "mybridge2")
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -1418,7 +1418,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectLinkLocalIP(c *testing.T) {
 	assert.NilError(c, err)
 }
 
-func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestUserDefinedNetworkConnectDisconnectLink(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "foo1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "foo2")
@@ -1492,7 +1492,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithAliasOnDefaultNetworks(
 	}
 }
 
-func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "net2")
@@ -1546,7 +1546,7 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *testing.T)
 	assert.Assert(c, strings.Contains(out, runconfig.ErrUnsupportedNetworkAndAlias.Error()))
 }
 
-func (s *DockerSuite) TestUserDefinedNetworkConnectivity(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestUserDefinedNetworkConnectivity(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "br.net1")
 
@@ -1569,15 +1569,15 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectivity(c *testing.T) {
 	assert.ErrorContains(c, err, "")
 }
 
-func (s *DockerSuite) TestEmbeddedDNSInvalidInput(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestEmbeddedDNSInvalidInput(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "nw1")
 
 	// Sending garbage to embedded DNS shouldn't crash the daemon
-	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:bullseye", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
+	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:bullseye-slim", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
 }
 
-func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerNetworkConnectFailsNoInspectChange(c *testing.T) {
 	dockerCmd(c, "run", "-d", "--name=bb", "busybox", "top")
 	assert.Assert(c, waitRun("bb") == nil)
 	defer dockerCmd(c, "stop", "bb")
@@ -1592,7 +1592,7 @@ func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *testing.T)
 	assert.Equal(c, ns1, ns0)
 }
 
-func (s *DockerSuite) TestDockerNetworkInternalMode(c *testing.T) {
+func (s *DockerCLINetworkSuite) TestDockerNetworkInternalMode(c *testing.T) {
 	dockerCmd(c, "network", "create", "--driver=bridge", "--internal", "internal")
 	assertNwIsAvailable(c, "internal")
 	nr := getNetworkResource(c, "internal")
@@ -1747,12 +1747,12 @@ func (s *DockerNetworkSuite) TestConntrackFlowsLeak(c *testing.T) {
 	assertNwIsAvailable(c, "testbind")
 
 	// Launch the server, this will remain listening on an exposed port and reply to any request in a ping/pong fashion
-	cmd := "while true; do echo hello | nc -w 1 -lu 8080; done"
-	cli.DockerCmd(c, "run", "-d", "--name", "server", "--net", "testbind", "-p", "8080:8080/udp", "appropriate/nc", "sh", "-c", cmd)
+	cmd := "while true; do echo hello | nc -w 1 -l -u -p 8080; done"
+	cli.DockerCmd(c, "run", "-d", "--name", "server", "--net", "testbind", "-p", "8080:8080/udp", "busybox", "sh", "-c", cmd)
 
 	// Launch a container client, here the objective is to create a flow that is natted in order to expose the bug
-	cmd = "echo world | nc -q 1 -u 192.168.10.1 8080"
-	cli.DockerCmd(c, "run", "-d", "--name", "client", "--net=host", "appropriate/nc", "sh", "-c", cmd)
+	cmd = "echo world | nc -w 1 -u 192.168.10.1 8080"
+	cli.DockerCmd(c, "run", "-d", "--name", "client", "--net=host", "busybox", "sh", "-c", cmd)
 
 	// Get all the flows using netlink
 	flows, err := netlink.ConntrackTableList(netlink.ConntrackTable, unix.AF_INET)

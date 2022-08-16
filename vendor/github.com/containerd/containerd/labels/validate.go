@@ -17,8 +17,9 @@
 package labels
 
 import (
+	"fmt"
+
 	"github.com/containerd/containerd/errdefs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -31,7 +32,7 @@ func Validate(k, v string) error {
 		if len(k) > 10 {
 			k = k[:10]
 		}
-		return errors.Wrapf(errdefs.ErrInvalidArgument, "label key and value greater than maximum size (%d bytes), key: %s", maxSize, k)
+		return fmt.Errorf("label key and value greater than maximum size (%d bytes), key: %s: %w", maxSize, k, errdefs.ErrInvalidArgument)
 	}
 	return nil
 }

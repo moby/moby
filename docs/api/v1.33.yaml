@@ -184,24 +184,72 @@ definitions:
 
   MountPoint:
     type: "object"
-    description: "A mount point inside a container"
+    description: |
+      MountPoint represents a mount point configuration inside the container.
+      This is used for reporting the mountpoints in use by a container.
     properties:
       Type:
+        description: |
+          The mount type:
+
+          - `bind` a mount of a file or directory from the host into the container.
+          - `volume` a docker volume with the given `Name`.
+          - `tmpfs` a `tmpfs`.
+          - `npipe` a named pipe from the host into the container.
         type: "string"
+        enum:
+          - "bind"
+          - "volume"
+          - "tmpfs"
+          - "npipe"
+        example: "volume"
       Name:
+        description: |
+          Name is the name reference to the underlying data defined by `Source`
+          e.g., the volume name.
         type: "string"
+        example: "myvolume"
       Source:
+        description: |
+          Source location of the mount.
+
+          For volumes, this contains the storage location of the volume (within
+          `/var/lib/docker/volumes/`). For bind-mounts, and `npipe`, this contains
+          the source (host) part of the bind-mount. For `tmpfs` mount points, this
+          field is empty.
         type: "string"
+        example: "/var/lib/docker/volumes/myvolume/_data"
       Destination:
+        description: |
+          Destination is the path relative to the container root (`/`) where
+          the `Source` is mounted inside the container.
         type: "string"
+        example: "/usr/share/nginx/html/"
       Driver:
+        description: |
+          Driver is the volume driver used to create the volume (if it is a volume).
         type: "string"
+        example: "local"
       Mode:
+        description: |
+          Mode is a comma separated list of options supplied by the user when
+          creating the bind/volume mount.
+
+          The default is platform-specific (`"z"` on Linux, empty on Windows).
         type: "string"
+        example: "z"
       RW:
+        description: |
+          Whether the mount is mounted writable (read-write).
         type: "boolean"
+        example: true
       Propagation:
+        description: |
+          Propagation describes how mounts are propagated from the host into the
+          mount point, and vice-versa. Refer to the [Linux kernel documentation](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt)
+          for details. This field is not used on Windows.
         type: "string"
+        example: ""
 
   DeviceMapping:
     type: "object"
@@ -778,7 +826,15 @@ definitions:
               - "hyperv"
 
   ContainerConfig:
-    description: "Configuration for a container that is portable between hosts"
+    description: |
+      Configuration for a container that is portable between hosts.
+
+      When used as `ContainerConfig` field in an image, `ContainerConfig` is an
+      optional field containing the configuration of the container that was last
+      committed when creating the image.
+
+      Previous versions of Docker builder used this field to store build cache,
+      and it is not in active use anymore.
     type: "object"
     properties:
       Hostname:
@@ -1209,8 +1265,6 @@ definitions:
             type: "array"
             items:
               type: "string"
-          BaseLayer:
-            type: "string"
       Metadata:
         type: "object"
         properties:
@@ -2685,7 +2739,7 @@ definitions:
           Limits:
             description: "Define resources limits."
             $ref: "#/definitions/ResourceObject"
-          Reservation:
+          Reservations:
             description: "Define resources reservation."
             $ref: "#/definitions/ResourceObject"
       RestartPolicy:
@@ -2922,6 +2976,7 @@ definitions:
 
   ServiceSpec:
     description: "User modifiable configuration for a service."
+    type: object
     properties:
       Name:
         description: "Name of the service."
@@ -3261,7 +3316,7 @@ definitions:
         Mounts:
           type: "array"
           items:
-            $ref: "#/definitions/Mount"
+            $ref: "#/definitions/MountPoint"
 
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
@@ -4121,6 +4176,7 @@ definitions:
 
   PeerNode:
     description: "Represents a peer-node in the swarm"
+    type: "object"
     properties:
       NodeID:
         description: "Unique identifier of for this node in the swarm."
@@ -4696,7 +4752,6 @@ paths:
                 CpuRealtimeRuntime: 10000
                 Devices: []
                 IpcMode: ""
-                LxcConf: []
                 Memory: 0
                 MemorySwap: 0
                 MemoryReservation: 0
@@ -5669,21 +5724,6 @@ paths:
           description: "Return stream"
           type: "boolean"
           default: false
-        - name: "stdin"
-          in: "query"
-          description: "Attach to `stdin`"
-          type: "boolean"
-          default: false
-        - name: "stdout"
-          in: "query"
-          description: "Attach to `stdout`"
-          type: "boolean"
-          default: false
-        - name: "stderr"
-          in: "query"
-          description: "Attach to `stderr`"
-          type: "boolean"
-          default: false
       tags: ["Container"]
   /containers/{id}/wait:
     post:
@@ -5702,6 +5742,10 @@ paths:
                 description: "Exit code of the container"
                 type: "integer"
                 x-nullable: false
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -5721,8 +5765,15 @@ paths:
           type: "string"
         - name: "condition"
           in: "query"
-          description: "Wait until a container state reaches the given condition, either 'not-running' (default), 'next-exit', or 'removed'."
+          description: |
+            Wait until a container state reaches the given condition.
+
+            Defaults to `not-running` if omitted or empty.
           type: "string"
+          enum:
+            - "not-running"
+            - "next-exit"
+            - "removed"
           default: "not-running"
       tags: ["Container"]
   /containers/{id}:
@@ -5791,14 +5842,7 @@ paths:
         400:
           description: "Bad parameter"
           schema:
-            allOf:
-              - $ref: "#/definitions/ErrorResponse"
-              - type: "object"
-                properties:
-                  message:
-                    description: "The error message. Either \"must specify path parameter\" (path cannot be empty) or \"not a directory\" (path was asserted to be a directory but exists as a file)."
-                    type: "string"
-                    x-nullable: false
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "Container or path does not exist"
           schema:
@@ -5833,14 +5877,7 @@ paths:
         400:
           description: "Bad parameter"
           schema:
-            allOf:
-              - $ref: "#/definitions/ErrorResponse"
-              - type: "object"
-                properties:
-                  message:
-                    description: "The error message. Either \"must specify path parameter\" (path cannot be empty) or \"not a directory\" (path was asserted to be a directory but exists as a file)."
-                    type: "string"
-                    x-nullable: false
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "Container or path does not exist"
           schema:
@@ -5866,7 +5903,10 @@ paths:
       tags: ["Container"]
     put:
       summary: "Extract an archive of files or folders to a directory in a container"
-      description: "Upload a tar archive to be extracted to a path in the filesystem of container id."
+      description: |
+        Upload a tar archive to be extracted to a path in the filesystem of container id.
+        `path` parameter is asserted to be a directory. If it exists as a file, 400 error
+        will be returned with message "not a directory".
       operationId: "PutContainerArchive"
       consumes: ["application/x-tar", "application/octet-stream"]
       responses:
@@ -5876,6 +5916,9 @@ paths:
           description: "Bad parameter"
           schema:
             $ref: "#/definitions/ErrorResponse"
+          examples:
+            application/json:
+              message: "not a directory"
         403:
           description: "Permission denied, the volume or container rootfs is marked as read-only."
           schema:
@@ -6243,6 +6286,11 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
+        - name: "platform"
+          in: "query"
+          description: "Platform in the format os[/arch[/variant]]"
+          type: "string"
+          default: ""
       tags: ["Image"]
   /images/{name}/json:
     get:
@@ -7288,10 +7336,18 @@ paths:
       description: "Resize the TTY session used by an exec instance. This endpoint only works if `tty` was specified as part of creating and starting the exec instance."
       operationId: "ExecResize"
       responses:
-        201:
+        200:
           description: "No error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "No such exec instance"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:

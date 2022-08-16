@@ -171,16 +171,16 @@ $ TESTDIRS='github.com/docker/docker/opts' TESTFLAGS='-test.run ^TestValidateIPA
 We use [gocheck](https://labix.org/gocheck) for our integration-cli tests.
 You can use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from
-your local host you can run the `TestBuild` test with this command:
+your local host you can run the `TestDockerCLIBuildSuite` test with this command:
 
 ```bash
-$ TESTFLAGS='-test.run TestDockerSuite/TestBuild*' make test-integration
+$ TESTFLAGS='-test.run TestDockerCLIBuildSuite' make test-integration
 ```
 
 To run the same test inside your Docker development container, you do this:
 
 ```bash
-# TESTFLAGS='-test.run TestDockerSuite/TestBuild*' hack/make.sh binary test-integration
+# TESTFLAGS='-test.run TestDockerCLIBuildSuite' hack/make.sh binary test-integration
 ```
 
 ## Test the Windows binary against a Linux daemon
@@ -250,3 +250,4 @@ jobs can be triggered and re-ran by the Moby maintainers
 
 Congratulations, you have successfully completed the basics you need to
 understand the Moby test framework.
+In the next section you'll [learn how to debug Docker daemon, running inside the development container](debug.md).

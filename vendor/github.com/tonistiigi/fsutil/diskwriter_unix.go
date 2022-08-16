@@ -45,7 +45,7 @@ func handleTarTypeBlockCharFifo(path string, stat *types.Stat) error {
 		mode |= syscall.S_IFBLK
 	}
 
-	if err := syscall.Mknod(path, mode, int(mkdev(stat.Devmajor, stat.Devminor))); err != nil {
+	if err := createSpecialFile(path, mode, stat); err != nil {
 		return errors.WithStack(err)
 	}
 	return nil

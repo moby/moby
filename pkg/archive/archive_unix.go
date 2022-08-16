@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package archive // import "github.com/docker/docker/pkg/archive"
@@ -15,6 +16,10 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"golang.org/x/sys/unix"
 )
+
+func init() {
+	sysStat = statUnix
+}
 
 // fixVolumePathPrefix does platform specific processing to ensure that if
 // the path being passed in is not in a volume path format, convert it to one.
@@ -44,19 +49,24 @@ func chmodTarEntry(perm os.FileMode) os.FileMode {
 	return perm // noop for unix as golang APIs provide perm bits correctly
 }
 
-func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (err error) {
-	s, ok := stat.(*syscall.Stat_t)
-
-	if ok {
-		// Currently go does not fill in the major/minors
-		if s.Mode&unix.S_IFBLK != 0 ||
-			s.Mode&unix.S_IFCHR != 0 {
-			hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) //nolint: unconvert
-			hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) //nolint: unconvert
-		}
+// statUnix populates hdr from system-dependent fields of fi without performing
+// any OS lookups.
+func statUnix(fi os.FileInfo, hdr *tar.Header) error {
+	s, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return nil
 	}
 
-	return
+	hdr.Uid = int(s.Uid)
+	hdr.Gid = int(s.Gid)
+
+	if s.Mode&unix.S_IFBLK != 0 ||
+		s.Mode&unix.S_IFCHR != 0 {
+		hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) //nolint: unconvert
+		hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) //nolint: unconvert
+	}
+
+	return nil
 }
 
 func getInodeFromStat(stat interface{}) (inode uint64, err error) {

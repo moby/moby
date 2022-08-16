@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"path"
-	"runtime"
 	"sync"
 	"time"
 
@@ -22,7 +20,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1"
 	distreference "github.com/docker/distribution/reference"
-	"github.com/docker/docker/distribution"
+	dimages "github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -34,12 +32,13 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/source"
+	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/resolver"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -52,7 +51,7 @@ type SourceOpt struct {
 	ContentStore    content.Store
 	CacheAccessor   cache.Accessor
 	ReferenceStore  reference.Store
-	DownloadManager distribution.RootFSDownloadManager
+	DownloadManager *xfer.LayerDownloadManager
 	MetadataStore   metadata.V2MetadataService
 	ImageStore      image.Store
 	RegistryHosts   docker.RegistryHosts
@@ -74,7 +73,7 @@ func NewSource(opt SourceOpt) (*Source, error) {
 
 // ID returns image scheme identifier
 func (is *Source) ID() string {
-	return source.DockerImageScheme
+	return srctypes.DockerImageScheme
 }
 
 func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
@@ -302,51 +301,51 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 	return err
 }
 
-func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (string, solver.CacheOpts, bool, error) {
+func (p *puller) CacheKey(ctx context.Context, g session.Group, index int) (string, string, solver.CacheOpts, bool, error) {
 	p.resolveLocal()
 
 	if p.desc.Digest != "" && index == 0 {
 		dgst, err := p.mainManifestKey(p.platform)
 		if err != nil {
-			return "", nil, false, err
+			return "", "", nil, false, err
 		}
-		return dgst.String(), nil, false, nil
+		return dgst.String(), p.desc.Digest.String(), nil, false, nil
 	}
 
 	if p.config != nil {
 		k := cacheKeyFromConfig(p.config).String()
 		if k == "" {
-			return digest.FromBytes(p.config).String(), nil, true, nil
+			return digest.FromBytes(p.config).String(), digest.FromBytes(p.config).String(), nil, true, nil
 		}
-		return k, nil, true, nil
+		return k, k, nil, true, nil
 	}
 
 	if err := p.resolve(ctx, g); err != nil {
-		return "", nil, false, err
+		return "", "", nil, false, err
 	}
 
 	if p.desc.Digest != "" && index == 0 {
 		dgst, err := p.mainManifestKey(p.platform)
 		if err != nil {
-			return "", nil, false, err
+			return "", "", nil, false, err
 		}
-		return dgst.String(), nil, false, nil
+		return dgst.String(), p.desc.Digest.String(), nil, false, nil
 	}
 
 	if len(p.config) == 0 && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
-		return "", nil, false, errors.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
+		return "", "", nil, false, errors.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
 	}
 
 	k := cacheKeyFromConfig(p.config).String()
 	if k == "" || p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
 		dgst, err := p.mainManifestKey(p.platform)
 		if err != nil {
-			return "", nil, false, err
+			return "", "", nil, false, err
 		}
-		return dgst.String(), nil, true, nil
+		return dgst.String(), p.desc.Digest.String(), nil, true, nil
 	}
 
-	return k, nil, true, nil
+	return k, k, nil, true, nil
 }
 
 func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cache.RefOption) (cache.ImmutableRef, error) {
@@ -407,7 +406,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 
 	pctx, stopProgress := context.WithCancel(ctx)
 
-	pw, _, ctx := progress.FromContext(ctx)
+	pw, _, ctx := progress.NewFromContext(ctx)
 	defer pw.Close()
 
 	progressDone := make(chan struct{})
@@ -564,7 +563,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	}()
 
 	r := image.NewRootFS()
-	rootFS, release, err := p.is.DownloadManager.Download(ctx, *r, runtime.GOOS, layers, pkgprogress.ChanOutput(pchan))
+	rootFS, release, err := p.is.DownloadManager.Download(ctx, *r, layers, pkgprogress.ChanOutput(pchan))
 	stopProgress()
 	if err != nil {
 		return nil, err
@@ -588,8 +587,8 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 
 	// TODO: handle windows layers for cross platform builds
 
-	if p.src.RecordType != "" && cache.GetRecordType(ref) == "" {
-		if err := cache.SetRecordType(ref, p.src.RecordType); err != nil {
+	if p.src.RecordType != "" && ref.GetRecordType() == "" {
+		if err := ref.SetRecordType(p.src.RecordType); err != nil {
 			ref.Release(context.TODO())
 			return nil, err
 		}
@@ -640,7 +639,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 		return nil, 0, err
 	}
 
-	return ioutil.NopCloser(content.NewReader(ra)), ld.desc.Size, nil
+	return io.NopCloser(content.NewReader(ra)), ld.desc.Size, nil
 }
 
 func (ld *layerDescriptor) Close() {
@@ -808,7 +807,7 @@ type statusInfo struct {
 }
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,
@@ -854,11 +853,11 @@ func resolveModeToString(rm source.ResolveMode) string {
 }
 
 func platformMatches(img *image.Image, p *ocispec.Platform) bool {
-	if img.Architecture != p.Architecture {
-		return false
-	}
-	if img.Variant != "" && img.Variant != p.Variant {
-		return false
-	}
-	return img.OS == p.OS
+	return dimages.OnlyPlatformWithFallback(*p).Match(ocispec.Platform{
+		Architecture: img.Architecture,
+		OS:           img.OS,
+		OSVersion:    img.OSVersion,
+		OSFeatures:   img.OSFeatures,
+		Variant:      img.Variant,
+	})
 }

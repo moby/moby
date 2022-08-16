@@ -18,8 +18,9 @@ package content
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"sync"
 	"time"
@@ -27,7 +28,6 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var bufPool = sync.Pool{
@@ -77,7 +77,7 @@ func WriteBlob(ctx context.Context, cs Ingester, ref string, r io.Reader, desc o
 	cw, err := OpenWriter(ctx, cs, WithRef(ref), WithDescriptor(desc))
 	if err != nil {
 		if !errdefs.IsAlreadyExists(err) {
-			return errors.Wrap(err, "failed to open writer")
+			return fmt.Errorf("failed to open writer: %w", err)
 		}
 
 		return nil // all ready present
@@ -134,23 +134,28 @@ func OpenWriter(ctx context.Context, cs Ingester, opts ...WriterOpt) (Writer, er
 func Copy(ctx context.Context, cw Writer, r io.Reader, size int64, expected digest.Digest, opts ...Opt) error {
 	ws, err := cw.Status()
 	if err != nil {
-		return errors.Wrap(err, "failed to get status")
+		return fmt.Errorf("failed to get status: %w", err)
 	}
 
 	if ws.Offset > 0 {
 		r, err = seekReader(r, ws.Offset, size)
 		if err != nil {
-			return errors.Wrapf(err, "unable to resume write to %v", ws.Ref)
+			return fmt.Errorf("unable to resume write to %v: %w", ws.Ref, err)
 		}
 	}
 
-	if _, err := copyWithBuffer(cw, r); err != nil {
-		return errors.Wrap(err, "failed to copy")
+	copied, err := copyWithBuffer(cw, r)
+	if err != nil {
+		return fmt.Errorf("failed to copy: %w", err)
+	}
+	if size != 0 && copied < size-ws.Offset {
+		// Short writes would return its own error, this indicates a read failure
+		return fmt.Errorf("failed to read expected number of bytes: %w", io.ErrUnexpectedEOF)
 	}
 
 	if err := cw.Commit(ctx, size, expected, opts...); err != nil {
 		if !errdefs.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed commit on ref %q", ws.Ref)
+			return fmt.Errorf("failed commit on ref %q: %w", ws.Ref, err)
 		}
 	}
 
@@ -165,8 +170,15 @@ func CopyReaderAt(cw Writer, ra ReaderAt, n int64) error {
 		return err
 	}
 
-	_, err = copyWithBuffer(cw, io.NewSectionReader(ra, ws.Offset, n))
-	return err
+	copied, err := copyWithBuffer(cw, io.NewSectionReader(ra, ws.Offset, n))
+	if err != nil {
+		return fmt.Errorf("failed to copy: %w", err)
+	}
+	if copied < n {
+		// Short writes would return its own error, this indicates a read failure
+		return fmt.Errorf("failed to read expected number of bytes: %w", io.ErrUnexpectedEOF)
+	}
+	return nil
 }
 
 // CopyReader copies to a writer from a given reader, returning
@@ -178,13 +190,13 @@ func CopyReaderAt(cw Writer, ra ReaderAt, n int64) error {
 func CopyReader(cw Writer, r io.Reader) (int64, error) {
 	ws, err := cw.Status()
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to get status")
+		return 0, fmt.Errorf("failed to get status: %w", err)
 	}
 
 	if ws.Offset > 0 {
 		r, err = seekReader(r, ws.Offset, 0)
 		if err != nil {
-			return 0, errors.Wrapf(err, "unable to resume write to %v", ws.Ref)
+			return 0, fmt.Errorf("unable to resume write to %v: %w", ws.Ref, err)
 		}
 	}
 
@@ -200,7 +212,10 @@ func seekReader(r io.Reader, offset, size int64) (io.Reader, error) {
 	if ok {
 		nn, err := seeker.Seek(offset, io.SeekStart)
 		if nn != offset {
-			return nil, errors.Wrapf(err, "failed to seek to offset %v", offset)
+			if err == nil {
+				err = fmt.Errorf("unexpected seek location without seek error")
+			}
+			return nil, fmt.Errorf("failed to seek to offset %v: %w", offset, err)
 		}
 
 		if err != nil {
@@ -218,12 +233,12 @@ func seekReader(r io.Reader, offset, size int64) (io.Reader, error) {
 	}
 
 	// well then, let's just discard up to the offset
-	n, err := copyWithBuffer(ioutil.Discard, io.LimitReader(r, offset))
+	n, err := copyWithBuffer(io.Discard, io.LimitReader(r, offset))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to discard to offset")
+		return nil, fmt.Errorf("failed to discard to offset: %w", err)
 	}
 	if n != offset {
-		return nil, errors.Errorf("unable to discard to offset")
+		return nil, errors.New("unable to discard to offset")
 	}
 
 	return r, nil

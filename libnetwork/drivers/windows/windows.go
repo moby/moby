@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 // Shim for the Host Network Service (HNS) to manage networking for
@@ -20,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -217,9 +217,6 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			}
 			config.VSID = uint(vsid)
 		case EnableOutboundNat:
-			if osversion.Build() <= 16236 {
-				return nil, fmt.Errorf("Invalid network option. OutboundNat is not supported on this OS version")
-			}
 			b, err := strconv.ParseBool(value)
 			if err != nil {
 				return nil, err
@@ -493,10 +490,11 @@ func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 		}
 
 		encodedPolicy, err := json.Marshal(hcsshim.NatPolicy{
-			Type:         "NAT",
-			ExternalPort: elem.HostPort,
-			InternalPort: elem.Port,
-			Protocol:     elem.Proto.String(),
+			Type:                 "NAT",
+			ExternalPort:         elem.HostPort,
+			InternalPort:         elem.Port,
+			Protocol:             elem.Proto.String(),
+			ExternalPortReserved: true,
 		})
 
 		if err != nil {
@@ -636,7 +634,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	macAddress := ifInfo.MacAddress()
 	// Use the macaddress if it was provided
 	if macAddress != nil {
-		endpointStruct.MacAddress = strings.Replace(macAddress.String(), ":", "-", -1)
+		endpointStruct.MacAddress = strings.ReplaceAll(macAddress.String(), ":", "-")
 	}
 
 	portMapping := epConnectivity.PortBindings

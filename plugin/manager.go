@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,18 +11,18 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pubsub"
-	"github.com/docker/docker/pkg/system"
 	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -39,7 +38,12 @@ type Executor interface {
 	Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error
 	IsRunning(id string) (bool, error)
 	Restore(id string, stdout, stderr io.WriteCloser) (alive bool, err error)
-	Signal(id string, signal int) error
+	Signal(id string, signal syscall.Signal) error
+}
+
+// EndpointResolver provides looking up registry endpoints for pulling.
+type EndpointResolver interface {
+	LookupPullEndpoints(hostname string) (endpoints []registry.APIEndpoint, err error)
 }
 
 func (pm *Manager) restorePlugin(p *v2.Plugin, c *controller) error {
@@ -54,7 +58,7 @@ type eventLogger func(id, name, action string)
 // ManagerConfig defines configuration needed to start new manager.
 type ManagerConfig struct {
 	Store              *Store // remove
-	RegistryService    registry.Service
+	RegistryService    EndpointResolver
 	LiveRestoreEnabled bool // TODO: remove
 	LogPluginEvent     eventLogger
 	Root               string
@@ -84,25 +88,8 @@ type controller struct {
 	timeoutInSecs int
 }
 
-// pluginRegistryService ensures that all resolved repositories
-// are of the plugin class.
-type pluginRegistryService struct {
-	registry.Service
-}
-
-func (s pluginRegistryService) ResolveRepository(name reference.Named) (repoInfo *registry.RepositoryInfo, err error) {
-	repoInfo, err = s.Service.ResolveRepository(name)
-	if repoInfo != nil {
-		repoInfo.Class = "plugin"
-	}
-	return
-}
-
 // NewManager returns a new plugin manager.
 func NewManager(config ManagerConfig) (*Manager, error) {
-	if config.RegistryService != nil {
-		config.RegistryService = pluginRegistryService{config.RegistryService}
-	}
 	manager := &Manager{
 		config: config,
 	}
@@ -178,7 +165,7 @@ func handleLoadError(err error, id string) {
 }
 
 func (pm *Manager) reload() error { // todo: restore
-	dir, err := ioutil.ReadDir(pm.config.Root)
+	dir, err := os.ReadDir(pm.config.Root)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read %v", pm.config.Root)
 	}
@@ -194,7 +181,7 @@ func (pm *Manager) reload() error { // todo: restore
 		} else {
 			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
 				// There was likely some error while removing this plugin, let's try to remove again here
-				if err := system.EnsureRemoveAll(v.Name()); err != nil {
+				if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
 					logrus.WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
 				}
 			}
@@ -224,7 +211,7 @@ func (pm *Manager) reload() error { // todo: restore
 
 			// We should only enable rootfs propagation for certain plugin types that need it.
 			for _, typ := range p.PluginObj.Config.Interface.Types {
-				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
+				if (typ.Capability == "volumedriver" || typ.Capability == "graphdriver" || typ.Capability == "csinode" || typ.Capability == "csicontroller") && typ.Prefix == "docker" && strings.HasPrefix(typ.Version, "1.") {
 					if p.PluginObj.Config.PropagatedMount != "" {
 						propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
 
@@ -268,7 +255,7 @@ func (pm *Manager) Get(idOrName string) (*v2.Plugin, error) {
 
 func (pm *Manager) loadPlugin(id string) (*v2.Plugin, error) {
 	p := filepath.Join(pm.config.Root, id, configFileName)
-	dt, err := ioutil.ReadFile(p)
+	dt, err := os.ReadFile(p)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error reading %v", p)
 	}

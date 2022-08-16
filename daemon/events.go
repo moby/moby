@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/libnetwork"
-	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/sirupsen/logrus"
 )
 
@@ -87,14 +87,13 @@ func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, actio
 // LogDaemonEventWithAttributes generates an event related to the daemon itself with specific given attributes.
 func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map[string]string) {
 	if daemon.EventsService != nil {
-		if info := daemon.SystemInfo(); info.Name != "" {
-			attributes["name"] = info.Name
+		if name := hostName(); name != "" {
+			attributes["name"] = name
 		}
-		actor := events.Actor{
-			ID:         daemon.ID,
+		daemon.EventsService.Log(action, events.DaemonEventType, events.Actor{
+			ID:         daemon.id,
 			Attributes: attributes,
-		}
-		daemon.EventsService.Log(action, events.DaemonEventType, actor)
+		})
 	}
 }
 

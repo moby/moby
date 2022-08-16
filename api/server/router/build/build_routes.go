@@ -19,8 +19,8 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -29,13 +29,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type invalidIsolationError string
-
-func (e invalidIsolationError) Error() string {
-	return fmt.Sprintf("Unsupported isolation: %q", string(e))
+type invalidParam struct {
+	error
 }
 
-func (e invalidIsolationError) InvalidParameter() {}
+func (e invalidParam) InvalidParameter() {}
 
 func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
 	options := &types.ImageBuildOptions{
@@ -64,7 +62,8 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if runtime.GOOS != "windows" && options.SecurityOpt != nil {
-		return nil, errdefs.InvalidParameter(errors.New("The daemon on this platform does not support setting security options on build"))
+		// SecurityOpt only supports "credentials-spec" on Windows, and not used on other platforms.
+		return nil, invalidParam{errors.New("security options are not supported on " + runtime.GOOS)}
 	}
 
 	version := httputils.VersionFromContext(ctx)
@@ -86,7 +85,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		if outputsJSON != "" {
 			var outputs []types.ImageBuildOutput
 			if err := json.Unmarshal([]byte(outputsJSON), &outputs); err != nil {
-				return nil, err
+				return nil, invalidParam{errors.Wrap(err, "invalid outputs specified")}
 			}
 			options.Outputs = outputs
 		}
@@ -103,14 +102,14 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if i := r.FormValue("isolation"); i != "" {
 		options.Isolation = container.Isolation(i)
 		if !options.Isolation.IsValid() {
-			return nil, invalidIsolationError(options.Isolation)
+			return nil, invalidParam{errors.Errorf("unsupported isolation: %q", i)}
 		}
 	}
 
 	if ulimitsJSON := r.FormValue("ulimits"); ulimitsJSON != "" {
 		var buildUlimits = []*units.Ulimit{}
 		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
-			return nil, errors.Wrap(errdefs.InvalidParameter(err), "error reading ulimit settings")
+			return nil, invalidParam{errors.Wrap(err, "error reading ulimit settings")}
 		}
 		options.Ulimits = buildUlimits
 	}
@@ -130,7 +129,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if buildArgsJSON := r.FormValue("buildargs"); buildArgsJSON != "" {
 		var buildArgs = map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
-			return nil, errors.Wrap(errdefs.InvalidParameter(err), "error reading build args")
+			return nil, invalidParam{errors.Wrap(err, "error reading build args")}
 		}
 		options.BuildArgs = buildArgs
 	}
@@ -138,7 +137,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if labelsJSON := r.FormValue("labels"); labelsJSON != "" {
 		var labels = map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
-			return nil, errors.Wrap(errdefs.InvalidParameter(err), "error reading labels")
+			return nil, invalidParam{errors.Wrap(err, "error reading labels")}
 		}
 		options.Labels = labels
 	}
@@ -146,7 +145,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	if cacheFromJSON := r.FormValue("cachefrom"); cacheFromJSON != "" {
 		var cacheFrom = []string{}
 		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
-			return nil, err
+			return nil, invalidParam{errors.Wrap(err, "error reading cache-from")}
 		}
 		options.CacheFrom = cacheFrom
 	}
@@ -169,7 +168,7 @@ func parseVersion(s string) (types.BuilderVersion, error) {
 	case types.BuilderBuildKit:
 		return types.BuilderBuildKit, nil
 	default:
-		return "", errors.Errorf("invalid version %q", s)
+		return "", invalidParam{errors.Errorf("invalid version %q", s)}
 	}
 }
 
@@ -179,7 +178,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	}
 	fltrs, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return errors.Wrap(err, "could not parse filters")
+		return err
 	}
 	ksfv := r.FormValue("keep-storage")
 	if ksfv == "" {
@@ -187,7 +186,7 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	}
 	ks, err := strconv.Atoi(ksfv)
 	if err != nil {
-		return errors.Wrapf(err, "keep-storage is in bytes and expects an integer, got %v", ksfv)
+		return invalidParam{errors.Wrapf(err, "keep-storage is in bytes and expects an integer, got %v", ksfv)}
 	}
 
 	opts := types.BuildCachePruneOptions{
@@ -208,7 +207,7 @@ func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r 
 
 	id := r.FormValue("id")
 	if id == "" {
-		return errors.Errorf("build ID not provided")
+		return invalidParam{errors.New("build ID not provided")}
 	}
 
 	return br.backend.Cancel(ctx, id)
@@ -262,7 +261,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	buildOptions.AuthConfigs = getAuthConfigs(r.Header)
 
 	if buildOptions.Squash && !br.daemon.HasExperimental() {
-		return errdefs.InvalidParameter(errors.New("squash is only supported with experimental mode"))
+		return invalidParam{errors.New("squash is only supported with experimental mode")}
 	}
 
 	out := io.Writer(output)
@@ -296,8 +295,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	return nil
 }
 
-func getAuthConfigs(header http.Header) map[string]types.AuthConfig {
-	authConfigs := map[string]types.AuthConfig{}
+func getAuthConfigs(header http.Header) map[string]registry.AuthConfig {
+	authConfigs := map[string]registry.AuthConfig{}
 	authConfigsEncoded := header.Get("X-Registry-Config")
 
 	if authConfigsEncoded == "" {

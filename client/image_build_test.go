@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
 )
@@ -144,7 +145,7 @@ func TestImageBuild(t *testing.T) {
 		},
 		{
 			buildOptions: types.ImageBuildOptions{
-				AuthConfigs: map[string]types.AuthConfig{
+				AuthConfigs: map[string]registry.AuthConfig{
 					"https://index.docker.io/v1/": {
 						Auth: "dG90bwo=",
 					},
@@ -195,7 +196,7 @@ func TestImageBuild(t *testing.T) {
 				headers.Add("Server", "Docker/v1.23 (MyOS)")
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte("body"))),
+					Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 					Header:     headers,
 				}, nil
 			}),
@@ -207,7 +208,7 @@ func TestImageBuild(t *testing.T) {
 		if buildResponse.OSType != "MyOS" {
 			t.Fatalf("expected OSType to be 'MyOS', got %s", buildResponse.OSType)
 		}
-		response, err := ioutil.ReadAll(buildResponse.Body)
+		response, err := io.ReadAll(buildResponse.Body)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -13,7 +13,7 @@
 // A handshake is send at /Plugin.Activate, and plugins are expected to return
 // a Manifest with a list of Docker subsystems which this plugin implements.
 //
-// In order to use a plugins, you can use the ``Get`` with the name of the
+// In order to use a plugins, you can use the `Get` with the name of the
 // plugin and the subsystem it implements.
 //
 //	plugin, err := plugins.Get("example", "VolumeDriver")
@@ -24,6 +24,7 @@ package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -265,7 +266,7 @@ func Get(name, imp string) (*Plugin, error) {
 		logrus.Debugf("%s implements: %s", name, imp)
 		return pl, nil
 	}
-	return nil, ErrNotImplements
+	return nil, fmt.Errorf("%w: plugin=%q, requested implementation=%q", ErrNotImplements, name, imp)
 }
 
 // Handle adds the specified function to the extpointHandlers.

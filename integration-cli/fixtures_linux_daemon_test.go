@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +28,7 @@ func ensureSyscallTest(c *testing.T) {
 		return
 	}
 
-	tmp, err := ioutil.TempDir("", "syscall-test-build")
+	tmp, err := os.MkdirTemp("", "syscall-test-build")
 	assert.NilError(c, err, "couldn't create temp dir")
 	defer os.RemoveAll(tmp)
 
@@ -49,10 +48,10 @@ func ensureSyscallTest(c *testing.T) {
 
 	dockerFile := filepath.Join(tmp, "Dockerfile")
 	content := []byte(`
-	FROM debian:bullseye
+	FROM debian:bullseye-slim
 	COPY . /usr/bin/
 	`)
-	err = ioutil.WriteFile(dockerFile, content, 0600)
+	err = os.WriteFile(dockerFile, content, 0600)
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -65,7 +64,7 @@ func ensureSyscallTest(c *testing.T) {
 }
 
 func ensureSyscallTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:buster")
+	err := load.FrozenImagesLinux(testEnv.APIClient(), "debian:bullseye-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -92,7 +91,7 @@ func ensureNNPTest(c *testing.T) {
 		return
 	}
 
-	tmp, err := ioutil.TempDir("", "docker-nnp-test")
+	tmp, err := os.MkdirTemp("", "docker-nnp-test")
 	assert.NilError(c, err)
 
 	gcc, err := exec.LookPath("gcc")
@@ -103,11 +102,11 @@ func ensureNNPTest(c *testing.T) {
 
 	dockerfile := filepath.Join(tmp, "Dockerfile")
 	content := `
-	FROM debian:bullseye
+	FROM debian:bullseye-slim
 	COPY . /usr/bin
 	RUN chmod +s /usr/bin/nnp-test
 	`
-	err = ioutil.WriteFile(dockerfile, []byte(content), 0600)
+	err = os.WriteFile(dockerfile, []byte(content), 0600)
 	assert.NilError(c, err, "could not write Dockerfile for nnp-test image")
 
 	var buildArgs []string
@@ -120,7 +119,7 @@ func ensureNNPTest(c *testing.T) {
 }
 
 func ensureNNPTestBuild(c *testing.T) {
-	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:buster")
+	err := load.FrozenImagesLinux(testEnv.APIClient(), "debian:bullseye-slim")
 	assert.NilError(c, err)
 
 	var buildArgs []string

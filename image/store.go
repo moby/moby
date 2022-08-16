@@ -8,7 +8,7 @@ import (
 	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -229,12 +229,9 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	if imageMeta == nil {
 		return nil, fmt.Errorf("unrecognized image ID %s", id.String())
 	}
-	img, err := is.Get(id)
+	_, err := is.Get(id)
 	if err != nil {
 		return nil, fmt.Errorf("unrecognized image %s, %v", id.String(), err)
-	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, fmt.Errorf("unsupported image operating system %q", img.OperatingSystem())
 	}
 	for id := range imageMeta.children {
 		is.fs.DeleteMetadata(id.Digest(), "parent")

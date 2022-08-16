@@ -1,5 +1,3 @@
-// +build windows
-
 /*
    Copyright The containerd Authors.
 
@@ -19,6 +17,7 @@
 package sys
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,7 +28,6 @@ import (
 	"unsafe"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
 
@@ -270,7 +268,7 @@ func ForceRemoveAll(path string) error {
 	snapshotDir := filepath.Join(path, snapshotPlugin, "snapshots")
 	if stat, err := os.Stat(snapshotDir); err == nil && stat.IsDir() {
 		if err := cleanupWCOWLayers(snapshotDir); err != nil {
-			return errors.Wrapf(err, "failed to cleanup WCOW layers in %s", snapshotDir)
+			return fmt.Errorf("failed to cleanup WCOW layers in %s: %w", snapshotDir, err)
 		}
 	}
 
@@ -280,12 +278,22 @@ func ForceRemoveAll(path string) error {
 func cleanupWCOWLayers(root string) error {
 	// See snapshots/windows/windows.go getSnapshotDir()
 	var layerNums []int
+	var rmLayerNums []int
 	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if path != root && info.IsDir() {
-			if layerNum, err := strconv.Atoi(filepath.Base(path)); err == nil {
-				layerNums = append(layerNums, layerNum)
+			name := filepath.Base(path)
+			if strings.HasPrefix(name, "rm-") {
+				layerNum, err := strconv.Atoi(strings.TrimPrefix(name, "rm-"))
+				if err != nil {
+					return err
+				}
+				rmLayerNums = append(rmLayerNums, layerNum)
 			} else {
-				return err
+				layerNum, err := strconv.Atoi(name)
+				if err != nil {
+					return err
+				}
+				layerNums = append(layerNums, layerNum)
 			}
 			return filepath.SkipDir
 		}
@@ -295,8 +303,14 @@ func cleanupWCOWLayers(root string) error {
 		return err
 	}
 
-	sort.Sort(sort.Reverse(sort.IntSlice(layerNums)))
+	sort.Sort(sort.Reverse(sort.IntSlice(rmLayerNums)))
+	for _, rmLayerNum := range rmLayerNums {
+		if err := cleanupWCOWLayer(filepath.Join(root, "rm-"+strconv.Itoa(rmLayerNum))); err != nil {
+			return err
+		}
+	}
 
+	sort.Sort(sort.Reverse(sort.IntSlice(layerNums)))
 	for _, layerNum := range layerNums {
 		if err := cleanupWCOWLayer(filepath.Join(root, strconv.Itoa(layerNum))); err != nil {
 			return err
@@ -311,19 +325,20 @@ func cleanupWCOWLayer(layerPath string) error {
 		HomeDir: filepath.Dir(layerPath),
 	}
 
-	// ERROR_DEV_NOT_EXIST is returned if the layer is not currently prepared.
+	// ERROR_DEV_NOT_EXIST is returned if the layer is not currently prepared or activated.
+	// ERROR_FLT_INSTANCE_NOT_FOUND is returned if the layer is currently activated but not prepared.
 	if err := hcsshim.UnprepareLayer(info, filepath.Base(layerPath)); err != nil {
-		if hcserror, ok := err.(*hcsshim.HcsError); !ok || hcserror.Err != windows.ERROR_DEV_NOT_EXIST {
-			return errors.Wrapf(err, "failed to unprepare %s", layerPath)
+		if hcserror, ok := err.(*hcsshim.HcsError); !ok || (hcserror.Err != windows.ERROR_DEV_NOT_EXIST && hcserror.Err != syscall.Errno(windows.ERROR_FLT_INSTANCE_NOT_FOUND)) {
+			return fmt.Errorf("failed to unprepare %s: %w", layerPath, err)
 		}
 	}
 
 	if err := hcsshim.DeactivateLayer(info, filepath.Base(layerPath)); err != nil {
-		return errors.Wrapf(err, "failed to deactivate %s", layerPath)
+		return fmt.Errorf("failed to deactivate %s: %w", layerPath, err)
 	}
 
 	if err := hcsshim.DestroyLayer(info, filepath.Base(layerPath)); err != nil {
-		return errors.Wrapf(err, "failed to destroy %s", layerPath)
+		return fmt.Errorf("failed to destroy %s: %w", layerPath, err)
 	}
 
 	return nil

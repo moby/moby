@@ -5,12 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -51,7 +51,7 @@ func TestVolumeInspectWithEmptyID(t *testing.T) {
 
 func TestVolumeInspect(t *testing.T) {
 	expectedURL := "/volumes/volume_id"
-	expected := types.Volume{
+	expected := volume.Volume{
 		Name:       "name",
 		Driver:     "driver",
 		Mountpoint: "mountpoint",
@@ -71,12 +71,12 @@ func TestVolumeInspect(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader(content)),
+				Body:       io.NopCloser(bytes.NewReader(content)),
 			}, nil
 		}),
 	}
 
-	volume, err := client.VolumeInspect(context.Background(), "volume_id")
+	vol, err := client.VolumeInspect(context.Background(), "volume_id")
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(expected, volume))
+	assert.Check(t, is.DeepEqual(expected, vol))
 }

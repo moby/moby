@@ -3,9 +3,9 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/discovery"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,14 +28,22 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	attributes := map[string]string{}
 
 	defer func() {
-		jsonString, _ := json.Marshal(daemon.configStore)
-
-		// we're unlocking here, because
-		// LogDaemonEventWithAttributes() -> SystemInfo() -> GetAllRuntimes()
-		// holds that lock too.
+		if err == nil {
+			jsonString, _ := json.Marshal(&struct {
+				*config.Config
+				config.Proxies `json:"proxies"`
+			}{
+				Config: daemon.configStore,
+				Proxies: config.Proxies{
+					HTTPProxy:  config.MaskCredentials(daemon.configStore.HTTPProxy),
+					HTTPSProxy: config.MaskCredentials(daemon.configStore.HTTPSProxy),
+					NoProxy:    config.MaskCredentials(daemon.configStore.NoProxy),
+				},
+			})
+			logrus.Infof("Reloaded configuration: %s", jsonString)
+		}
 		daemon.configStore.Unlock()
 		if err == nil {
-			logrus.Infof("Reloaded configuration: %s", jsonString)
 			daemon.LogDaemonEventWithAttributes("reload", attributes)
 		}
 	}()
@@ -45,15 +53,10 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	}
 	daemon.reloadDebug(conf, attributes)
 	daemon.reloadMaxConcurrentDownloadsAndUploads(conf, attributes)
-	if err := daemon.reloadMaxDownloadAttempts(conf, attributes); err != nil {
-		return err
-	}
+	daemon.reloadMaxDownloadAttempts(conf, attributes)
 	daemon.reloadShutdownTimeout(conf, attributes)
 	daemon.reloadFeatures(conf, attributes)
 
-	if err := daemon.reloadClusterDiscovery(conf, attributes); err != nil {
-		return err
-	}
 	if err := daemon.reloadLabels(conf, attributes); err != nil {
 		return err
 	}
@@ -80,59 +83,48 @@ func (daemon *Daemon) reloadDebug(conf *config.Config, attributes map[string]str
 		daemon.configStore.Debug = conf.Debug
 	}
 	// prepare reload event attributes with updatable configurations
-	attributes["debug"] = fmt.Sprintf("%t", daemon.configStore.Debug)
+	attributes["debug"] = strconv.FormatBool(daemon.configStore.Debug)
 }
 
 // reloadMaxConcurrentDownloadsAndUploads updates configuration with max concurrent
 // download and upload options and updates the passed attributes
 func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(conf *config.Config, attributes map[string]string) {
-	// If no value is set for max-concurrent-downloads we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
-	maxConcurrentDownloads := config.DefaultMaxConcurrentDownloads
-	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads != nil {
-		maxConcurrentDownloads = *conf.MaxConcurrentDownloads
-	}
-	daemon.configStore.MaxConcurrentDownloads = &maxConcurrentDownloads
-	logrus.Debugf("Reset Max Concurrent Downloads: %d", *daemon.configStore.MaxConcurrentDownloads)
+	daemon.configStore.MaxConcurrentDownloads = config.DefaultMaxConcurrentDownloads
+	daemon.configStore.MaxConcurrentUploads = config.DefaultMaxConcurrentUploads
 
-	// If no value is set for max-concurrent-upload we assume it is the default value
-	// We always "reset" as the cost is lightweight and easy to maintain.
-	maxConcurrentUploads := config.DefaultMaxConcurrentUploads
-	if conf.IsValueSet("max-concurrent-uploads") && conf.MaxConcurrentUploads != nil {
-		maxConcurrentUploads = *conf.MaxConcurrentUploads
+	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads != 0 {
+		daemon.configStore.MaxConcurrentDownloads = conf.MaxConcurrentDownloads
 	}
-	daemon.configStore.MaxConcurrentUploads = &maxConcurrentUploads
-	logrus.Debugf("Reset Max Concurrent Uploads: %d", *daemon.configStore.MaxConcurrentUploads)
-
+	if conf.IsValueSet("max-concurrent-uploads") && conf.MaxConcurrentUploads != 0 {
+		daemon.configStore.MaxConcurrentUploads = conf.MaxConcurrentUploads
+	}
 	if daemon.imageService != nil {
-		daemon.imageService.UpdateConfig(&maxConcurrentDownloads, &maxConcurrentUploads)
+		daemon.imageService.UpdateConfig(
+			daemon.configStore.MaxConcurrentDownloads,
+			daemon.configStore.MaxConcurrentUploads,
+		)
 	}
 
 	// prepare reload event attributes with updatable configurations
-	attributes["max-concurrent-downloads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentDownloads)
-	// prepare reload event attributes with updatable configurations
-	attributes["max-concurrent-uploads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentUploads)
+	attributes["max-concurrent-downloads"] = strconv.Itoa(daemon.configStore.MaxConcurrentDownloads)
+	attributes["max-concurrent-uploads"] = strconv.Itoa(daemon.configStore.MaxConcurrentUploads)
+	logrus.Debug("Reset Max Concurrent Downloads: ", attributes["max-concurrent-downloads"])
+	logrus.Debug("Reset Max Concurrent Uploads: ", attributes["max-concurrent-uploads"])
 }
 
 // reloadMaxDownloadAttempts updates configuration with max concurrent
 // download attempts when a connection is lost and updates the passed attributes
-func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes map[string]string) error {
-	if err := config.ValidateMaxDownloadAttempts(conf); err != nil {
-		return err
-	}
-
-	// If no value is set for max-download-attempts we assume it is the default value
+func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes map[string]string) {
 	// We always "reset" as the cost is lightweight and easy to maintain.
-	maxDownloadAttempts := config.DefaultDownloadAttempts
-	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != nil {
-		maxDownloadAttempts = *conf.MaxDownloadAttempts
+	daemon.configStore.MaxDownloadAttempts = config.DefaultDownloadAttempts
+	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != 0 {
+		daemon.configStore.MaxDownloadAttempts = conf.MaxDownloadAttempts
 	}
-	daemon.configStore.MaxDownloadAttempts = &maxDownloadAttempts
-	logrus.Debugf("Reset Max Download Attempts: %d", *daemon.configStore.MaxDownloadAttempts)
 
 	// prepare reload event attributes with updatable configurations
-	attributes["max-download-attempts"] = fmt.Sprintf("%d", *daemon.configStore.MaxDownloadAttempts)
-	return nil
+	attributes["max-download-attempts"] = strconv.Itoa(daemon.configStore.MaxDownloadAttempts)
+	logrus.Debug("Reset Max Download Attempts: ", attributes["max-download-attempts"])
 }
 
 // reloadShutdownTimeout updates configuration with daemon shutdown timeout option
@@ -145,82 +137,7 @@ func (daemon *Daemon) reloadShutdownTimeout(conf *config.Config, attributes map[
 	}
 
 	// prepare reload event attributes with updatable configurations
-	attributes["shutdown-timeout"] = fmt.Sprintf("%d", daemon.configStore.ShutdownTimeout)
-}
-
-// reloadClusterDiscovery updates configuration with cluster discovery options
-// and updates the passed attributes
-func (daemon *Daemon) reloadClusterDiscovery(conf *config.Config, attributes map[string]string) (err error) {
-	defer func() {
-		// prepare reload event attributes with updatable configurations
-		attributes["cluster-store"] = conf.ClusterStore
-		attributes["cluster-advertise"] = conf.ClusterAdvertise
-
-		attributes["cluster-store-opts"] = "{}"
-		if daemon.configStore.ClusterOpts != nil {
-			opts, err2 := json.Marshal(conf.ClusterOpts)
-			if err != nil {
-				err = err2
-			}
-			attributes["cluster-store-opts"] = string(opts)
-		}
-	}()
-
-	newAdvertise := conf.ClusterAdvertise
-	newClusterStore := daemon.configStore.ClusterStore
-	if conf.IsValueSet("cluster-advertise") {
-		if conf.IsValueSet("cluster-store") {
-			newClusterStore = conf.ClusterStore
-		}
-		newAdvertise, err = config.ParseClusterAdvertiseSettings(newClusterStore, conf.ClusterAdvertise)
-		if err != nil && err != discovery.ErrDiscoveryDisabled {
-			return err
-		}
-	}
-
-	if daemon.clusterProvider != nil {
-		if err := conf.IsSwarmCompatible(); err != nil {
-			return err
-		}
-	}
-
-	// check discovery modifications
-	if !config.ModifiedDiscoverySettings(daemon.configStore, newClusterStore, newAdvertise, conf.ClusterOpts) {
-		return nil
-	}
-
-	// enable discovery for the first time if it was not previously enabled
-	if daemon.discoveryWatcher == nil {
-		discoveryWatcher, err := discovery.Init(newClusterStore, newAdvertise, conf.ClusterOpts)
-		if err != nil {
-			return fmt.Errorf("failed to initialize discovery: %v", err)
-		}
-		daemon.discoveryWatcher = discoveryWatcher
-	} else if err == discovery.ErrDiscoveryDisabled {
-		// disable discovery if it was previously enabled and it's disabled now
-		daemon.discoveryWatcher.Stop()
-	} else if err = daemon.discoveryWatcher.Reload(conf.ClusterStore, newAdvertise, conf.ClusterOpts); err != nil {
-		// reload discovery
-		return err
-	}
-
-	daemon.configStore.ClusterStore = newClusterStore
-	daemon.configStore.ClusterOpts = conf.ClusterOpts
-	daemon.configStore.ClusterAdvertise = newAdvertise
-
-	if daemon.netController == nil {
-		return nil
-	}
-	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.PluginStore, nil)
-	if err != nil {
-		logrus.WithError(err).Warn("failed to get options with network controller")
-		return nil
-	}
-	err = daemon.netController.ReloadConfiguration(netOptions...)
-	if err != nil {
-		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
-	}
-	return nil
+	attributes["shutdown-timeout"] = strconv.Itoa(daemon.configStore.ShutdownTimeout)
 }
 
 // reloadLabels updates configuration with engine labels
@@ -251,7 +168,7 @@ func (daemon *Daemon) reloadAllowNondistributableArtifacts(conf *config.Config, 
 	// Update corresponding configuration.
 	if conf.IsValueSet("allow-nondistributable-artifacts") {
 		daemon.configStore.AllowNondistributableArtifacts = conf.AllowNondistributableArtifacts
-		if err := daemon.RegistryService.LoadAllowNondistributableArtifacts(conf.AllowNondistributableArtifacts); err != nil {
+		if err := daemon.registryService.LoadAllowNondistributableArtifacts(conf.AllowNondistributableArtifacts); err != nil {
 			return err
 		}
 	}
@@ -276,7 +193,7 @@ func (daemon *Daemon) reloadInsecureRegistries(conf *config.Config, attributes m
 	// update corresponding configuration
 	if conf.IsValueSet("insecure-registries") {
 		daemon.configStore.InsecureRegistries = conf.InsecureRegistries
-		if err := daemon.RegistryService.LoadInsecureRegistries(conf.InsecureRegistries); err != nil {
+		if err := daemon.registryService.LoadInsecureRegistries(conf.InsecureRegistries); err != nil {
 			return err
 		}
 	}
@@ -301,7 +218,7 @@ func (daemon *Daemon) reloadRegistryMirrors(conf *config.Config, attributes map[
 	// update corresponding configuration
 	if conf.IsValueSet("registry-mirrors") {
 		daemon.configStore.Mirrors = conf.Mirrors
-		if err := daemon.RegistryService.LoadMirrors(conf.Mirrors); err != nil {
+		if err := daemon.registryService.LoadMirrors(conf.Mirrors); err != nil {
 			return err
 		}
 	}
@@ -329,7 +246,7 @@ func (daemon *Daemon) reloadLiveRestore(conf *config.Config, attributes map[stri
 	}
 
 	// prepare reload event attributes with updatable configurations
-	attributes["live-restore"] = fmt.Sprintf("%t", daemon.configStore.LiveRestoreEnabled)
+	attributes["live-restore"] = strconv.FormatBool(daemon.configStore.LiveRestoreEnabled)
 	return nil
 }
 

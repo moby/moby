@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package aufs // import "github.com/docker/docker/daemon/graphdriver/aufs"
@@ -6,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/v3/assert"
@@ -31,7 +32,7 @@ func init() {
 }
 
 func testInit(dir string, t testing.TB) graphdriver.Driver {
-	d, err := Init(dir, nil, nil, nil)
+	d, err := Init(dir, nil, idtools.IdentityMapping{})
 	if err != nil {
 		if err == graphdriver.ErrNotSupported {
 			t.Skip(err)
@@ -690,7 +691,7 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 	// Perform the actual mount for the top most image
 	point, err := driverGet(d, last, "")
 	assert.NilError(t, err)
-	files, err := ioutil.ReadDir(point)
+	files, err := os.ReadDir(point)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(files, expected))
 }

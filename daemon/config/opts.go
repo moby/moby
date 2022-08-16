@@ -3,7 +3,7 @@ package config // import "github.com/docker/docker/daemon/config"
 import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/swarmkit/api/genericresource"
+	"github.com/moby/swarmkit/v2/api/genericresource"
 )
 
 // ParseGenericResources parses and validates the specified string as a list of GenericResource

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/options"
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"gotest.tools/v3/assert"
 )
 

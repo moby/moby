@@ -5,16 +5,119 @@ This package provides various compression algorithms.
 * [zstandard](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression and decompression in pure Go.
 * [S2](https://github.com/klauspost/compress/tree/master/s2#s2-compression) is a high performance replacement for Snappy.
 * Optimized [deflate](https://godoc.org/github.com/klauspost/compress/flate) packages which can be used as a dropin replacement for [gzip](https://godoc.org/github.com/klauspost/compress/gzip), [zip](https://godoc.org/github.com/klauspost/compress/zip) and [zlib](https://godoc.org/github.com/klauspost/compress/zlib).
+* [snappy](https://github.com/klauspost/compress/tree/master/snappy) is a drop-in replacement for `github.com/golang/snappy` offering better compression and concurrent streams.
 * [huff0](https://github.com/klauspost/compress/tree/master/huff0) and [FSE](https://github.com/klauspost/compress/tree/master/fse) implementations for raw entropy encoding.
+* [gzhttp](https://github.com/klauspost/compress/tree/master/gzhttp) Provides client and server wrappers for handling gzipped requests efficiently.
 * [pgzip](https://github.com/klauspost/pgzip) is a separate package that provides a very fast parallel gzip implementation.
 * [fuzz package](https://github.com/klauspost/compress-fuzz) for fuzz testing all compressors/decompressors here.
 
 [![Go Reference](https://pkg.go.dev/badge/klauspost/compress.svg)](https://pkg.go.dev/github.com/klauspost/compress?tab=subdirectories)
-[![Build Status](https://travis-ci.org/klauspost/compress.svg?branch=master)](https://travis-ci.org/klauspost/compress)
+[![Go](https://github.com/klauspost/compress/actions/workflows/go.yml/badge.svg)](https://github.com/klauspost/compress/actions/workflows/go.yml)
 [![Sourcegraph Badge](https://sourcegraph.com/github.com/klauspost/compress/-/badge.svg)](https://sourcegraph.com/github.com/klauspost/compress?badge)
 
 # changelog
 
+* Mar 3, 2022 (v1.15.0)
+	* zstd: Refactor decoder by @klauspost in [#498](https://github.com/klauspost/compress/pull/498)
+	* zstd: Add stream encoding without goroutines by @klauspost in [#505](https://github.com/klauspost/compress/pull/505)
+	* huff0: Prevent single blocks exceeding 16 bits by @klauspost in[#507](https://github.com/klauspost/compress/pull/507)
+	* flate: Inline literal emission by @klauspost in [#509](https://github.com/klauspost/compress/pull/509)
+	* gzhttp: Add zstd to transport by @klauspost in [#400](https://github.com/klauspost/compress/pull/400)
+	* gzhttp: Make content-type optional by @klauspost in [#510](https://github.com/klauspost/compress/pull/510)
+
+<details>
+	<summary>See  Details</summary>
+Both compression and decompression now supports "synchronous" stream operations. This means that whenever "concurrency" is set to 1, they will operate without spawning goroutines.
+
+Stream decompression is now faster on asynchronous, since the goroutine allocation much more effectively splits the workload. On typical streams this will typically use 2 cores fully for decompression. When a stream has finished decoding no goroutines will be left over, so decoders can now safely be pooled and still be garbage collected.
+
+While the release has been extensively tested, it is recommended to testing when upgrading.
+</details>
+
+* Feb 22, 2022 (v1.14.4)
+	* flate: Fix rare huffman only (-2) corruption. [#503](https://github.com/klauspost/compress/pull/503)
+	* zip: Update deprecated CreateHeaderRaw to correctly call CreateRaw by @saracen in [#502](https://github.com/klauspost/compress/pull/502)
+	* zip: don't read data descriptor early by @saracen in [#501](https://github.com/klauspost/compress/pull/501)  #501
+	* huff0: Use static decompression buffer up to 30% faster by @klauspost in [#499](https://github.com/klauspost/compress/pull/499) [#500](https://github.com/klauspost/compress/pull/500)
+
+* Feb 17, 2022 (v1.14.3)
+	* flate: Improve fastest levels compression speed ~10% more throughput. [#482](https://github.com/klauspost/compress/pull/482) [#489](https://github.com/klauspost/compress/pull/489) [#490](https://github.com/klauspost/compress/pull/490) [#491](https://github.com/klauspost/compress/pull/491) [#494](https://github.com/klauspost/compress/pull/494)  [#478](https://github.com/klauspost/compress/pull/478)
+	* flate: Faster decompression speed, ~5-10%. [#483](https://github.com/klauspost/compress/pull/483)
+	* s2: Faster compression with Go v1.18 and amd64 microarch level 3+. [#484](https://github.com/klauspost/compress/pull/484) [#486](https://github.com/klauspost/compress/pull/486)
+
+* Jan 25, 2022 (v1.14.2)
+	* zstd: improve header decoder by @dsnet  [#476](https://github.com/klauspost/compress/pull/476)
+	* zstd: Add bigger default blocks  [#469](https://github.com/klauspost/compress/pull/469)
+	* zstd: Remove unused decompression buffer [#470](https://github.com/klauspost/compress/pull/470)
+	* zstd: Fix logically dead code by @ningmingxiao [#472](https://github.com/klauspost/compress/pull/472)
+	* flate: Improve level 7-9 [#471](https://github.com/klauspost/compress/pull/471) [#473](https://github.com/klauspost/compress/pull/473)
+	* zstd: Add noasm tag for xxhash [#475](https://github.com/klauspost/compress/pull/475)
+
+* Jan 11, 2022 (v1.14.1)
+	* s2: Add stream index in [#462](https://github.com/klauspost/compress/pull/462)
+	* flate: Speed and efficiency improvements in [#439](https://github.com/klauspost/compress/pull/439) [#461](https://github.com/klauspost/compress/pull/461) [#455](https://github.com/klauspost/compress/pull/455) [#452](https://github.com/klauspost/compress/pull/452) [#458](https://github.com/klauspost/compress/pull/458)
+	* zstd: Performance improvement in [#420]( https://github.com/klauspost/compress/pull/420) [#456](https://github.com/klauspost/compress/pull/456) [#437](https://github.com/klauspost/compress/pull/437) [#467](https://github.com/klauspost/compress/pull/467) [#468](https://github.com/klauspost/compress/pull/468)
+	* zstd: add arm64 xxhash assembly in [#464](https://github.com/klauspost/compress/pull/464)
+	* Add garbled for binaries for s2 in [#445](https://github.com/klauspost/compress/pull/445)
+
+* Aug 30, 2021 (v1.13.5)
+	* gz/zlib/flate: Alias stdlib errors [#425](https://github.com/klauspost/compress/pull/425)
+	* s2: Add block support to commandline tools [#413](https://github.com/klauspost/compress/pull/413)
+	* zstd: pooledZipWriter should return Writers to the same pool [#426](https://github.com/klauspost/compress/pull/426)
+	* Removed golang/snappy as external dependency for tests [#421](https://github.com/klauspost/compress/pull/421)
+
+* Aug 12, 2021 (v1.13.4)
+	* Add [snappy replacement package](https://github.com/klauspost/compress/tree/master/snappy).
+	* zstd: Fix incorrect encoding in "best" mode [#415](https://github.com/klauspost/compress/pull/415)
+
+* Aug 3, 2021 (v1.13.3) 
+	* zstd: Improve Best compression [#404](https://github.com/klauspost/compress/pull/404)
+	* zstd: Fix WriteTo error forwarding [#411](https://github.com/klauspost/compress/pull/411)
+	* gzhttp: Return http.HandlerFunc instead of http.Handler. Unlikely breaking change. [#406](https://github.com/klauspost/compress/pull/406)
+	* s2sx: Fix max size error [#399](https://github.com/klauspost/compress/pull/399)
+	* zstd: Add optional stream content size on reset [#401](https://github.com/klauspost/compress/pull/401)
+	* zstd: use SpeedBestCompression for level >= 10 [#410](https://github.com/klauspost/compress/pull/410)
+
+* Jun 14, 2021 (v1.13.1)
+	* s2: Add full Snappy output support  [#396](https://github.com/klauspost/compress/pull/396)
+	* zstd: Add configurable [Decoder window](https://pkg.go.dev/github.com/klauspost/compress/zstd#WithDecoderMaxWindow) size [#394](https://github.com/klauspost/compress/pull/394)
+	* gzhttp: Add header to skip compression  [#389](https://github.com/klauspost/compress/pull/389)
+	* s2: Improve speed with bigger output margin  [#395](https://github.com/klauspost/compress/pull/395)
+
+* Jun 3, 2021 (v1.13.0)
+	* Added [gzhttp](https://github.com/klauspost/compress/tree/master/gzhttp#gzip-handler) which allows wrapping HTTP servers and clients with GZIP compressors.
+	* zstd: Detect short invalid signatures [#382](https://github.com/klauspost/compress/pull/382)
+	* zstd: Spawn decoder goroutine only if needed. [#380](https://github.com/klauspost/compress/pull/380)
+
+<details>
+	<summary>See changes to v1.12.x</summary>
+	
+* May 25, 2021 (v1.12.3)
+	* deflate: Better/faster Huffman encoding [#374](https://github.com/klauspost/compress/pull/374)
+	* deflate: Allocate less for history. [#375](https://github.com/klauspost/compress/pull/375)
+	* zstd: Forward read errors [#373](https://github.com/klauspost/compress/pull/373) 
+
+* Apr 27, 2021 (v1.12.2)
+	* zstd: Improve better/best compression [#360](https://github.com/klauspost/compress/pull/360) [#364](https://github.com/klauspost/compress/pull/364) [#365](https://github.com/klauspost/compress/pull/365)
+	* zstd: Add helpers to compress/decompress zstd inside zip files [#363](https://github.com/klauspost/compress/pull/363)
+	* deflate: Improve level 5+6 compression [#367](https://github.com/klauspost/compress/pull/367)
+	* s2: Improve better/best compression [#358](https://github.com/klauspost/compress/pull/358) [#359](https://github.com/klauspost/compress/pull/358)
+	* s2: Load after checking src limit on amd64. [#362](https://github.com/klauspost/compress/pull/362)
+	* s2sx: Limit max executable size [#368](https://github.com/klauspost/compress/pull/368) 
+
+* Apr 14, 2021 (v1.12.1)
+	* snappy package removed. Upstream added as dependency.
+	* s2: Better compression in "best" mode [#353](https://github.com/klauspost/compress/pull/353)
+	* s2sx: Add stdin input and detect pre-compressed from signature [#352](https://github.com/klauspost/compress/pull/352)
+	* s2c/s2d: Add http as possible input [#348](https://github.com/klauspost/compress/pull/348)
+	* s2c/s2d/s2sx: Always truncate when writing files [#352](https://github.com/klauspost/compress/pull/352)
+	* zstd: Reduce memory usage further when using [WithLowerEncoderMem](https://pkg.go.dev/github.com/klauspost/compress/zstd#WithLowerEncoderMem) [#346](https://github.com/klauspost/compress/pull/346)
+	* s2: Fix potential problem with amd64 assembly and profilers [#349](https://github.com/klauspost/compress/pull/349)
+</details>
+
+<details>
+	<summary>See changes to v1.11.x</summary>
+	
 * Mar 26, 2021 (v1.11.13)
 	* zstd: Big speedup on small dictionary encodes [#344](https://github.com/klauspost/compress/pull/344) [#345](https://github.com/klauspost/compress/pull/345)
 	* zstd: Add [WithLowerEncoderMem](https://pkg.go.dev/github.com/klauspost/compress/zstd#WithLowerEncoderMem) encoder option [#336](https://github.com/klauspost/compress/pull/336)
@@ -69,9 +172,10 @@ This package provides various compression algorithms.
 	* zstd: Add experimental compression [dictionaries](https://github.com/klauspost/compress/tree/master/zstd#dictionaries) [#281](https://github.com/klauspost/compress/pull/281)
 	* zstd: Fix mixed Write and ReadFrom calls [#282](https://github.com/klauspost/compress/pull/282)
 	* inflate/gz: Limit variable shifts, ~5% faster decompression [#274](https://github.com/klauspost/compress/pull/274)
+</details>
 
 <details>
-	<summary>See changes prior to v1.11.0</summary>
+	<summary>See changes to v1.10.x</summary>
  
 * July 8, 2020 (v1.10.11) 
 	* zstd: Fix extra block when compressing with ReadFrom. [#278](https://github.com/klauspost/compress/pull/278)
@@ -233,11 +337,6 @@ This package provides various compression algorithms.
 
 # deflate usage
 
-* [High Throughput Benchmark](http://blog.klauspost.com/go-gzipdeflate-benchmarks/).
-* [Small Payload/Webserver Benchmarks](http://blog.klauspost.com/gzip-performance-for-go-webservers/).
-* [Linear Time Compression](http://blog.klauspost.com/constant-time-gzipzip-compression/).
-* [Re-balancing Deflate Compression Levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/)
-
 The packages are drop-in replacements for standard libraries. Simply replace the import path to use them:
 
 | old import         | new import                              | Documentation
@@ -254,6 +353,12 @@ You may also be interested in [pgzip](https://github.com/klauspost/pgzip), which
 The packages contains the same as the standard library, so you can use the godoc for that: [gzip](http://golang.org/pkg/compress/gzip/), [zip](http://golang.org/pkg/archive/zip/),  [zlib](http://golang.org/pkg/compress/zlib/), [flate](http://golang.org/pkg/compress/flate/).
 
 Currently there is only minor speedup on decompression (mostly CRC32 calculation).
+
+Memory usage is typically 1MB for a Writer. stdlib is in the same range. 
+If you expect to have a lot of concurrently allocated Writers consider using 
+the stateless compress described below.
+
+For compression performance, see: [this spreadsheet](https://docs.google.com/spreadsheets/d/1nuNE2nPfuINCZJRMt6wFWhKpToF95I47XjSsc-1rbPQ/edit?usp=sharing).
 
 # Stateless compression
 
@@ -355,7 +460,7 @@ The most notable thing is how quickly the standard library drops to very low com
 This is mainly a test of how good the algorithms are at detecting un-compressible input. The standard library only offers this feature with very conservative settings at level 1. Obviously there is no reason for the algorithms to try to compress input that cannot be compressed.  The only downside is that it might skip some compressible data on false detections.
 
 
-# linear time compression (huffman only)
+## Huffman only compression
 
 This compression library adds a special compression level, named `HuffmanOnly`, which allows near linear time compression. This is done by completely disabling matching of previous data, and only reduce the number of bits to represent each character. 
 
@@ -371,13 +476,13 @@ For more information see my blog post on [Fast Linear Time Compression](http://b
 
 This is implemented on Go 1.7 as "Huffman Only" mode, though not exposed for gzip.
 
+# Other packages
 
-# snappy package
+Here are other packages of good quality and pure Go (no cgo wrappers or autoconverted code):
 
-The standard snappy package has now been improved. This repo contains a copy of the snappy repo.
-
-I would advise to use the standard package: https://github.com/golang/snappy
-
+* [github.com/pierrec/lz4](https://github.com/pierrec/lz4) - strong multithreaded LZ4 compression.
+* [github.com/cosnicolaou/pbzip2](https://github.com/cosnicolaou/pbzip2) - multithreaded bzip2 decompression.
+* [github.com/dsnet/compress](https://github.com/dsnet/compress) - brotli decompression, bzip2 writer.
 
 # license
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,7 +21,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/symlink"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,7 +32,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	}
 	outStream = streamformatter.NewStdoutWriter(outStream)
 
-	tmpDir, err := ioutil.TempDir("", "docker-import-")
+	tmpDir, err := os.MkdirTemp("", "docker-import-")
 	if err != nil {
 		return err
 	}
@@ -74,7 +73,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err != nil {
 			return err
 		}
-		config, err := ioutil.ReadFile(configPath)
+		config, err := os.ReadFile(configPath)
 		if err != nil {
 			return err
 		}
@@ -218,7 +217,7 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 
 	legacyLoadedMap := make(map[string]image.ID)
 
-	dirs, err := ioutil.ReadDir(tmpDir)
+	dirs, err := os.ReadDir(tmpDir)
 	if err != nil {
 		return err
 	}
@@ -277,7 +276,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if err != nil {
 		return err
 	}
-	imageJSON, err := ioutil.ReadFile(configPath)
+	imageJSON, err := os.ReadFile(configPath)
 	if err != nil {
 		logrus.Debugf("Error reading json: %v", err)
 		return err

@@ -12,8 +12,8 @@ import (
 
 type byteBuffer interface {
 	// Read up to 8 bytes.
-	// Returns nil if no more input is available.
-	readSmall(n int) []byte
+	// Returns io.ErrUnexpectedEOF if this cannot be satisfied.
+	readSmall(n int) ([]byte, error)
 
 	// Read >8 bytes.
 	// MAY use the destination slice.
@@ -29,17 +29,17 @@ type byteBuffer interface {
 // in-memory buffer
 type byteBuf []byte
 
-func (b *byteBuf) readSmall(n int) []byte {
+func (b *byteBuf) readSmall(n int) ([]byte, error) {
 	if debugAsserts && n > 8 {
 		panic(fmt.Errorf("small read > 8 (%d). use readBig", n))
 	}
 	bb := *b
 	if len(bb) < n {
-		return nil
+		return nil, io.ErrUnexpectedEOF
 	}
 	r := bb[:n]
 	*b = bb[n:]
-	return r
+	return r, nil
 }
 
 func (b *byteBuf) readBig(n int, dst []byte) ([]byte, error) {
@@ -81,19 +81,22 @@ type readerWrapper struct {
 	tmp [8]byte
 }
 
-func (r *readerWrapper) readSmall(n int) []byte {
+func (r *readerWrapper) readSmall(n int) ([]byte, error) {
 	if debugAsserts && n > 8 {
 		panic(fmt.Errorf("small read > 8 (%d). use readBig", n))
 	}
 	n2, err := io.ReadFull(r.r, r.tmp[:n])
 	// We only really care about the actual bytes read.
-	if n2 != n {
-		if debug {
+	if err != nil {
+		if err == io.EOF {
+			return nil, io.ErrUnexpectedEOF
+		}
+		if debugDecoder {
 			println("readSmall: got", n2, "want", n, "err", err)
 		}
-		return nil
+		return nil, err
 	}
-	return r.tmp[:n]
+	return r.tmp[:n], nil
 }
 
 func (r *readerWrapper) readBig(n int, dst []byte) ([]byte, error) {
@@ -110,6 +113,9 @@ func (r *readerWrapper) readBig(n int, dst []byte) ([]byte, error) {
 func (r *readerWrapper) readByte() (byte, error) {
 	n2, err := r.r.Read(r.tmp[:1])
 	if err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		return 0, err
 	}
 	if n2 != 1 {

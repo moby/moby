@@ -14,8 +14,6 @@ import (
 	"github.com/Graylog2/go-gelf/gelf"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/pkg/urlutil"
-	"github.com/sirupsen/logrus"
 )
 
 const name = "gelf"
@@ -29,10 +27,10 @@ type gelfLogger struct {
 
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -251,23 +249,18 @@ func parseAddress(address string) (*url.URL, error) {
 	if address == "" {
 		return nil, fmt.Errorf("gelf-address is a required parameter")
 	}
-	if !urlutil.IsTransportURL(address) {
-		return nil, fmt.Errorf("gelf-address should be in form proto://address, got %v", address)
-	}
-	url, err := url.Parse(address)
+	addr, err := url.Parse(address)
 	if err != nil {
 		return nil, err
 	}
 
-	// we support only udp
-	if url.Scheme != "udp" && url.Scheme != "tcp" {
+	if addr.Scheme != "udp" && addr.Scheme != "tcp" {
 		return nil, fmt.Errorf("gelf: endpoint needs to be TCP or UDP")
 	}
 
-	// get host and port
-	if _, _, err = net.SplitHostPort(url.Host); err != nil {
+	if _, _, err = net.SplitHostPort(addr.Host); err != nil {
 		return nil, fmt.Errorf("gelf: please provide gelf-address as proto://host:port")
 	}
 
-	return url, nil
+	return addr, nil
 }

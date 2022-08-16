@@ -210,14 +210,10 @@ can take over 15 minutes to complete.
 
    Notice the split versions between client and server, which might be
    unexpected. In more recent times the Docker CLI component (which provides the
-   `docker` command) has split out from the Moby project and is now maintained in:
-   
-   * [docker/cli](https://github.com/docker/cli) - The Docker CLI source-code;
-   * [docker/docker-ce](https://github.com/docker/docker-ce) - The Docker CE
-     edition project, which assembles engine, CLI and other components.
+   `docker` command) has split out from the Moby project and is now maintained in [docker/cli](https://github.com/docker/cli).
    
    The Moby project now defaults to a [fixed
-   version](https://github.com/docker/docker-ce/commits/v17.06.0-ce) of the
+   version](https://github.com/docker/cli/commits/v17.06.0-ce) of the
    `docker` CLI for integration tests.
 
    You may have noticed the following message when starting the container with the `shell` command:
@@ -241,8 +237,8 @@ can take over 15 minutes to complete.
    Docker version 17.09.0-dev, build 
    ```
 
-    This Docker CLI should be built from the [docker-ce
-    project](https://github.com/docker/docker-ce) and needs to be a Linux
+    This Docker CLI should be built from the [docker-cli
+    project](https://github.com/docker/cli) and needs to be a Linux
     binary.
 
    Inside the container you are running a development version. This is the version

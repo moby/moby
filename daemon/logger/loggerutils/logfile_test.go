@@ -6,25 +6,23 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"text/tabwriter"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/pkg/tailfile"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 )
 
 type testDecoder struct {
-	rdr     io.Reader
-	scanner *bufio.Scanner
+	rdr        io.Reader
+	scanner    *bufio.Scanner
+	resetCount int
 }
 
 func (d *testDecoder) Decode() (*logger.Message, error) {
@@ -41,6 +39,7 @@ func (d *testDecoder) Decode() (*logger.Message, error) {
 func (d *testDecoder) Reset(rdr io.Reader) {
 	d.rdr = rdr
 	d.scanner = bufio.NewScanner(rdr)
+	d.resetCount++
 }
 
 func (d *testDecoder) Close() {
@@ -65,19 +64,21 @@ func TestTailFiles(t *testing.T) {
 	for desc, config := range map[string]logger.ReadConfig{} {
 		t.Run(desc, func(t *testing.T) {
 			started := make(chan struct{})
+			fwd := newForwarder(config)
 			go func() {
 				close(started)
-				tailFiles(files, watcher, dec, tailReader, config, make(chan interface{}))
+				tailFiles(files, watcher, dec, tailReader, config.Tail, fwd)
 			}()
 			<-started
 		})
 	}
 
 	config := logger.ReadConfig{Tail: 2}
+	fwd := newForwarder(config)
 	started := make(chan struct{})
 	go func() {
 		close(started)
-		tailFiles(files, watcher, dec, tailReader, config, make(chan interface{}))
+		tailFiles(files, watcher, dec, tailReader, config.Tail, fwd)
 	}()
 	<-started
 
@@ -111,205 +112,66 @@ func (dummyDecoder) Decode() (*logger.Message, error) {
 func (dummyDecoder) Close()          {}
 func (dummyDecoder) Reset(io.Reader) {}
 
-func TestFollowLogsConsumerGone(t *testing.T) {
-	lw := logger.NewLogWatcher()
-
-	f, err := ioutil.TempFile("", t.Name())
-	assert.NilError(t, err)
-	defer func() {
-		f.Close()
-		os.Remove(f.Name())
-	}()
-
-	dec := dummyDecoder{}
-
-	followLogsDone := make(chan struct{})
-	var since, until time.Time
-	go func() {
-		followLogs(f, lw, make(chan interface{}), make(chan interface{}), dec, since, until)
-		close(followLogsDone)
-	}()
-
-	select {
-	case <-lw.Msg:
-	case err := <-lw.Err:
-		assert.NilError(t, err)
-	case <-followLogsDone:
-		t.Fatal("follow logs finished unexpectedly")
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for log message")
-	}
-
-	lw.ConsumerGone()
-	select {
-	case <-followLogsDone:
-	case <-time.After(20 * time.Second):
-		t.Fatal("timeout waiting for followLogs() to finish")
-	}
-}
-
-type dummyWrapper struct {
-	dummyDecoder
-	fn func() error
-}
-
-func (d *dummyWrapper) Decode() (*logger.Message, error) {
-	if err := d.fn(); err != nil {
-		return nil, err
-	}
-	return d.dummyDecoder.Decode()
-}
-
-func TestFollowLogsProducerGone(t *testing.T) {
-	lw := logger.NewLogWatcher()
-	defer lw.ConsumerGone()
-
-	f, err := ioutil.TempFile("", t.Name())
-	assert.NilError(t, err)
-	defer os.Remove(f.Name())
-
-	var sent, received, closed int32
-	dec := &dummyWrapper{fn: func() error {
-		switch atomic.LoadInt32(&closed) {
-		case 0:
-			atomic.AddInt32(&sent, 1)
-			return nil
-		case 1:
-			atomic.AddInt32(&closed, 1)
-			t.Logf("logDecode() closed after sending %d messages\n", sent)
-			return io.EOF
-		default:
-			t.Fatal("logDecode() called after closing!")
-			return io.EOF
-		}
-	}}
-	var since, until time.Time
-
-	followLogsDone := make(chan struct{})
-	go func() {
-		followLogs(f, lw, make(chan interface{}), make(chan interface{}), dec, since, until)
-		close(followLogsDone)
-	}()
-
-	// read 1 message
-	select {
-	case <-lw.Msg:
-		received++
-	case err := <-lw.Err:
-		assert.NilError(t, err)
-	case <-followLogsDone:
-		t.Fatal("followLogs() finished unexpectedly")
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for log message")
-	}
-
-	// "stop" the "container"
-	atomic.StoreInt32(&closed, 1)
-	lw.ProducerGone()
-
-	// should receive all the messages sent
-	readDone := make(chan struct{})
-	go func() {
-		defer close(readDone)
-		for {
-			select {
-			case <-lw.Msg:
-				received++
-				if received == atomic.LoadInt32(&sent) {
-					return
-				}
-			case err := <-lw.Err:
-				assert.NilError(t, err)
-			}
-		}
-	}()
-	select {
-	case <-readDone:
-	case <-time.After(30 * time.Second):
-		t.Fatalf("timeout waiting for log messages to be read (sent: %d, received: %d", sent, received)
-	}
-
-	t.Logf("messages sent: %d, received: %d", atomic.LoadInt32(&sent), received)
-
-	// followLogs() should be done by now
-	select {
-	case <-followLogsDone:
-	case <-time.After(30 * time.Second):
-		t.Fatal("timeout waiting for followLogs() to finish")
-	}
-
-	select {
-	case <-lw.WatchConsumerGone():
-		t.Fatal("consumer should not have exited")
-	default:
-	}
-}
-
 func TestCheckCapacityAndRotate(t *testing.T) {
-	dir, err := ioutil.TempDir("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
-	f, err := ioutil.TempFile(dir, "log")
-	assert.NilError(t, err)
-
-	l := &LogFile{
-		f:               f,
-		capacity:        5,
-		maxFiles:        3,
-		compress:        true,
-		notifyReaders:   pubsub.NewPublisher(0, 1),
-		perms:           0600,
-		filesRefCounter: refCounter{counter: make(map[string]int)},
-		getTailReader: func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
-			return tailfile.NewTailReader(ctx, r, lines)
-		},
-		createDecoder: func(io.Reader) Decoder {
-			return dummyDecoder{}
-		},
-		marshal: func(msg *logger.Message) ([]byte, error) {
-			return msg.Line, nil
-		},
+	logPath := filepath.Join(dir, "log")
+	getTailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+		return tailfile.NewTailReader(ctx, r, lines)
 	}
+	createDecoder := func(io.Reader) Decoder {
+		return dummyDecoder{}
+	}
+	l, err := NewLogFile(
+		logPath,
+		5,    // capacity
+		3,    // maxFiles
+		true, // compress
+		createDecoder,
+		0600, // perms
+		getTailReader,
+	)
+	assert.NilError(t, err)
 	defer l.Close()
 
 	ls := dirStringer{dir}
 
-	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-	_, err = os.Stat(f.Name() + ".1")
+	timestamp := time.Time{}
+
+	assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
+	_, err = os.Stat(logPath + ".1")
 	assert.Assert(t, os.IsNotExist(err), ls)
 
-	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
+	assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
+	poll.WaitOn(t, checkFileExists(logPath+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
-	assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-	poll.WaitOn(t, checkFileExists(f.Name()+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
-	poll.WaitOn(t, checkFileExists(f.Name()+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
+	assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
+	poll.WaitOn(t, checkFileExists(logPath+".1.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
+	poll.WaitOn(t, checkFileExists(logPath+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 
 	t.Run("closed log file", func(t *testing.T) {
 		// Now let's simulate a failed rotation where the file was able to be closed but something else happened elsewhere
 		// down the line.
 		// We want to make sure that we can recover in the case that `l.f` was closed while attempting a rotation.
 		l.f.Close()
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world!")}))
-		assert.NilError(t, os.Remove(f.Name()+".2.gz"))
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world!")))
+		assert.NilError(t, os.Remove(logPath+".2.gz"))
 	})
 
 	t.Run("with log reader", func(t *testing.T) {
 		// Make sure rotate works with an active reader
-		lw := logger.NewLogWatcher()
+		lw := l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000})
 		defer lw.ConsumerGone()
-		go l.ReadLogs(logger.ReadConfig{Follow: true, Tail: 1000}, lw)
 
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 0!")}), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 0!")), ls)
 		// make sure the log reader is primed
 		waitForMsg(t, lw, 30*time.Second)
 
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 1!")}), ls)
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 2!")}), ls)
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 3!")}), ls)
-		assert.NilError(t, l.WriteLogEntry(&logger.Message{Line: []byte("hello world 4!")}), ls)
-		poll.WaitOn(t, checkFileExists(f.Name()+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 1!")), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 2!")), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 3!")), ls)
+		assert.NilError(t, l.WriteLogEntry(timestamp, []byte("hello world 4!")), ls)
+		poll.WaitOn(t, checkFileExists(logPath+".2.gz"), poll.WithDelay(time.Millisecond), poll.WithTimeout(30*time.Second))
 	})
 }
 
@@ -320,9 +182,8 @@ func waitForMsg(t *testing.T, lw *logger.LogWatcher, timeout time.Duration) {
 	defer timer.Stop()
 
 	select {
-	case <-lw.Msg:
-	case <-lw.WatchProducerGone():
-		t.Fatal("log producer gone before log message arrived")
+	case _, ok := <-lw.Msg:
+		assert.Assert(t, ok, "log producer gone before log message arrived")
 	case err := <-lw.Err:
 		assert.NilError(t, err)
 	case <-timer.C:
@@ -335,7 +196,7 @@ type dirStringer struct {
 }
 
 func (d dirStringer) String() string {
-	ls, err := ioutil.ReadDir(d.d)
+	ls, err := os.ReadDir(d.d)
 	if err != nil {
 		return ""
 	}
@@ -345,7 +206,12 @@ func (d dirStringer) String() string {
 
 	btw := bufio.NewWriter(tw)
 
-	for _, fi := range ls {
+	for _, entry := range ls {
+		fi, err := entry.Info()
+		if err != nil {
+			return ""
+		}
+
 		btw.WriteString(fmt.Sprintf("%s\t%s\t%dB\t%s\n", fi.Name(), fi.Mode(), fi.Size(), fi.ModTime()))
 	}
 	btw.Flush()

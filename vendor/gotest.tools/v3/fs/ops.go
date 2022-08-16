@@ -2,6 +2,7 @@ package fs
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 )
 
@@ -137,7 +137,7 @@ func WithFiles(files map[string]string) PathOp {
 func FromDir(source string) PathOp {
 	return func(path Path) error {
 		if _, ok := path.(manifestDirectory); ok {
-			return errors.New("use manifest.FromDir")
+			return fmt.Errorf("use manifest.FromDir")
 		}
 		return copyDirectory(source, path.Path())
 	}
@@ -257,7 +257,7 @@ func WithSymlink(path, target string) PathOp {
 func WithHardlink(path, target string) PathOp {
 	return func(root Path) error {
 		if _, ok := root.(manifestDirectory); ok {
-			return errors.New("WithHardlink not implemented for manifests")
+			return fmt.Errorf("WithHardlink not implemented for manifests")
 		}
 		return os.Link(filepath.Join(root.Path(), target), filepath.Join(root.Path(), path))
 	}
@@ -268,7 +268,7 @@ func WithHardlink(path, target string) PathOp {
 func WithTimestamps(atime, mtime time.Time) PathOp {
 	return func(root Path) error {
 		if _, ok := root.(manifestDirectory); ok {
-			return errors.New("WithTimestamp not implemented for manifests")
+			return fmt.Errorf("WithTimestamp not implemented for manifests")
 		}
 		return os.Chtimes(root.Path(), atime, mtime)
 	}

@@ -134,7 +134,7 @@ func verifySandbox(t *testing.T, s Sandbox, ifaceSuffixes []string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	for _, suffix := range ifaceSuffixes {
 		_, err = nh.LinkByName(sboxIfaceName + suffix)

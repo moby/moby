@@ -16,7 +16,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,23 +38,10 @@ var (
 	// used for creation.
 	ErrMountNameConflict = errors.New("mount already exists with name")
 
-	// ErrActiveMount is used when an operation on a
-	// mount is attempted but the layer is still
-	// mounted and the operation cannot be performed.
-	ErrActiveMount = errors.New("mount still active")
-
-	// ErrNotMounted is used when requesting an active
-	// mount but the layer is not mounted.
-	ErrNotMounted = errors.New("not mounted")
-
 	// ErrMaxDepthExceeded is used when a layer is attempted
 	// to be created which would result in a layer depth
 	// greater than the 125 max.
 	ErrMaxDepthExceeded = errors.New("max depth exceeded")
-
-	// ErrNotSupported is used when the action is not supported
-	// on the current host operating system.
-	ErrNotSupported = errors.New("not support on this host operating system")
 )
 
 // ChainID is the content-addressable ID of a layer.
@@ -102,11 +89,11 @@ type Layer interface {
 
 	// Size returns the size of the entire layer chain. The size
 	// is calculated from the total size of all files in the layers.
-	Size() (int64, error)
+	Size() int64
 
 	// DiffSize returns the size difference of the top layer
 	// from parent layer.
-	DiffSize() (int64, error)
+	DiffSize() int64
 
 	// Metadata returns the low level storage metadata associated
 	// with layer.

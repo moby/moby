@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package ipvlan
@@ -29,17 +30,13 @@ type configuration struct {
 	Internal         bool
 	Parent           string
 	IpvlanMode       string
+	IpvlanFlag       string
 	CreatedSlaveLink bool
-	Ipv4Subnets      []*ipv4Subnet
-	Ipv6Subnets      []*ipv6Subnet
+	Ipv4Subnets      []*ipSubnet
+	Ipv6Subnets      []*ipSubnet
 }
 
-type ipv4Subnet struct {
-	SubnetIP string
-	GwIP     string
-}
-
-type ipv6Subnet struct {
+type ipSubnet struct {
 	SubnetIP string
 	GwIP     string
 }

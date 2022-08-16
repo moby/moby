@@ -12,7 +12,15 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
+// NewWindowsParser creates a parser with Windows semantics.
+func NewWindowsParser() Parser {
+	return &windowsParser{
+		fi: defaultFileInfoProvider{},
+	}
+}
+
 type windowsParser struct {
+	fi fileInfoProvider
 }
 
 const (
@@ -39,7 +47,7 @@ const (
 	rxName = `[^\\/:*?"<>|\r\n]+`
 
 	// RXReservedNames are reserved names not possible on Windows
-	rxReservedNames = `(con)|(prn)|(nul)|(aux)|(com[1-9])|(lpt[1-9])`
+	rxReservedNames = `(con|prn|nul|aux|com[1-9]|lpt[1-9])`
 
 	// rxPipe is a named path pipe (starts with `\\.\pipe\`, possibly with / instead of \)
 	rxPipe = `[/\\]{2}.[/\\]pipe[/\\][^:*?"<>|\r\n]+`
@@ -63,12 +71,6 @@ const (
 	// rxDestination is the regex expression for the mount destination
 	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `))`
 
-	rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
-	// Destination (aka container path):
-	//    -  Variation on hostdir but can be a drive followed by colon as well
-	//    -  If a path, must be absolute. Can include spaces
-	//    -  Drive cannot be c: (explicitly checked in code, not RegEx)
-
 	// rxMode is the regex expression for the mode of the mount
 	// Mode (optional):
 	//    -  Hopefully self explanatory in comparison to above regex's.
@@ -76,13 +78,18 @@ const (
 	rxMode = `(:(?P<mode>(?i)ro|rw))?`
 )
 
+var (
+	volumeNameRegexp          = regexp.MustCompile(`^` + rxName + `$`)
+	reservedNameRegexp        = regexp.MustCompile(`^` + rxReservedNames + `$`)
+	hostDirRegexp             = regexp.MustCompile(`^` + rxHostDir + `$`)
+	mountDestinationRegexp    = regexp.MustCompile(`^` + rxDestination + `$`)
+	windowsSplitRawSpecRegexp = regexp.MustCompile(`^` + rxSource + rxDestination + rxMode + `$`)
+)
+
 type mountValidator func(mnt *mount.Mount) error
 
-func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
-	specExp := regexp.MustCompile(`^` + rxSource + destRegex + rxMode + `$`)
-	match := specExp.FindStringSubmatch(strings.ToLower(raw))
-
-	// Must have something back
+func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]string, error) {
+	match := splitRegexp.FindStringSubmatch(strings.ToLower(raw))
 	if len(match) == 0 {
 		return nil, errInvalidSpec(raw)
 	}
@@ -90,7 +97,7 @@ func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 	var split []string
 	matchgroups := make(map[string]string)
 	// Pull out the sub expressions from the named capture groups
-	for i, name := range specExp.SubexpNames() {
+	for i, name := range splitRegexp.SubexpNames() {
 		matchgroups[name] = strings.ToLower(match[i])
 	}
 	if source, exists := matchgroups["source"]; exists {
@@ -113,16 +120,12 @@ func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 	// situation where the user intention was to map a file into a container through
 	// a local volume, but this is not supported by the platform.
 	if matchgroups["source"] == "" && matchgroups["destination"] != "" {
-		volExp := regexp.MustCompile(`^` + rxName + `$`)
-		reservedNameExp := regexp.MustCompile(`^` + rxReservedNames + `$`)
-
-		if volExp.MatchString(matchgroups["destination"]) {
-			if reservedNameExp.MatchString(matchgroups["destination"]) {
+		if volumeNameRegexp.MatchString(matchgroups["destination"]) {
+			if reservedNameRegexp.MatchString(matchgroups["destination"]) {
 				return nil, fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", matchgroups["destination"])
 			}
 		} else {
-
-			exists, isDir, _ := currentFileInfoProvider.fileInfo(matchgroups["destination"])
+			exists, isDir, _ := p.fi.fileInfo(matchgroups["destination"])
 			if exists && !isDir {
 				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
 
@@ -136,28 +139,30 @@ func windowsValidMountMode(mode string) bool {
 	if mode == "" {
 		return true
 	}
+	// TODO should windows mounts produce an error if any mode was provided (they're a no-op on windows)
 	return rwModes[strings.ToLower(mode)]
 }
+
 func windowsValidateNotRoot(p string) error {
-	p = strings.ToLower(strings.Replace(p, `/`, `\`, -1))
+	p = strings.ToLower(strings.ReplaceAll(p, `/`, `\`))
 	if p == "c:" || p == `c:\` {
 		return fmt.Errorf("destination path cannot be `c:` or `c:\\`: %v", p)
 	}
 	return nil
 }
 
-var windowsSpecificValidators mountValidator = func(mnt *mount.Mount) error {
-	return windowsValidateNotRoot(mnt.Target)
+var windowsValidators mountValidator = func(m *mount.Mount) error {
+	if err := windowsValidateNotRoot(m.Target); err != nil {
+		return err
+	}
+	if !mountDestinationRegexp.MatchString(strings.ToLower(m.Target)) {
+		return fmt.Errorf("invalid mount path: '%s'", m.Target)
+	}
+	return nil
 }
 
-func windowsValidateRegex(p, r string) error {
-	if regexp.MustCompile(`^` + r + `$`).MatchString(strings.ToLower(p)) {
-		return nil
-	}
-	return fmt.Errorf("invalid mount path: '%s'", p)
-}
 func windowsValidateAbsolute(p string) error {
-	if err := windowsValidateRegex(p, rxDestination); err != nil {
+	if !mountDestinationRegexp.MatchString(strings.ToLower(p)) {
 		return fmt.Errorf("invalid mount path: '%s' mount path must be absolute", p)
 	}
 	return nil
@@ -166,7 +171,7 @@ func windowsValidateAbsolute(p string) error {
 func windowsDetectMountType(p string) mount.Type {
 	if strings.HasPrefix(p, `\\.\pipe\`) {
 		return mount.TypeNamedPipe
-	} else if regexp.MustCompile(`^` + rxHostDir + `$`).MatchString(p) {
+	} else if hostDirRegexp.MatchString(p) {
 		return mount.TypeBind
 	} else {
 		return mount.TypeVolume
@@ -177,20 +182,18 @@ func (p *windowsParser) ReadWrite(mode string) bool {
 	return strings.ToLower(mode) != "ro"
 }
 
-// IsVolumeNameValid checks a volume name in a platform specific manner.
+// ValidateVolumeName checks a volume name in a platform specific manner.
 func (p *windowsParser) ValidateVolumeName(name string) error {
-	nameExp := regexp.MustCompile(`^` + rxName + `$`)
-	if !nameExp.MatchString(name) {
+	if !volumeNameRegexp.MatchString(name) {
 		return errors.New("invalid volume name")
 	}
-	nameExp = regexp.MustCompile(`^` + rxReservedNames + `$`)
-	if nameExp.MatchString(name) {
+	if reservedNameRegexp.MatchString(name) {
 		return fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", name)
 	}
 	return nil
 }
 func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
-	return p.validateMountConfigReg(mnt, rxDestination, windowsSpecificValidators)
+	return p.validateMountConfigReg(mnt, windowsValidators)
 }
 
 type fileInfoProvider interface {
@@ -211,21 +214,14 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err err
 	return true, fi.IsDir(), nil
 }
 
-var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
-
-func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, additionalValidators ...mountValidator) error {
-
+func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValidators ...mountValidator) error {
+	if len(mnt.Target) == 0 {
+		return &errMountConfig{mnt, errMissingField("Target")}
+	}
 	for _, v := range additionalValidators {
 		if err := v(mnt); err != nil {
 			return &errMountConfig{mnt, err}
 		}
-	}
-	if len(mnt.Target) == 0 {
-		return &errMountConfig{mnt, errMissingField("Target")}
-	}
-
-	if err := windowsValidateRegex(mnt.Target, destRegex); err != nil {
-		return &errMountConfig{mnt, err}
 	}
 
 	switch mnt.Type {
@@ -247,7 +243,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 			return &errMountConfig{mnt, err}
 		}
 
-		exists, isdir, err := currentFileInfoProvider.fileInfo(mnt.Source)
+		exists, isdir, err := p.fi.fileInfo(mnt.Source)
 		if err != nil {
 			return &errMountConfig{mnt, err}
 		}
@@ -297,16 +293,16 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 	}
 	return nil
 }
-func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	return p.parseMountRaw(raw, volumeDriver, rxDestination, true, windowsSpecificValidators)
-}
 
-func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
-	arr, err := windowsSplitRawSpec(raw, destRegex)
+func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
+	arr, err := p.splitRawSpec(raw, windowsSplitRawSpecRegexp)
 	if err != nil {
 		return nil, err
 	}
+	return p.parseMount(arr, raw, volumeDriver, true, windowsValidators)
+}
 
+func (p *windowsParser) parseMount(arr []string, raw, volumeDriver string, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
 	var spec mount.Mount
 	var mode string
 	switch len(arr) {
@@ -320,18 +316,18 @@ func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, conve
 			return nil, errInvalidSpec(raw)
 		}
 		// Host Source Path or Name + Destination
-		spec.Source = strings.Replace(arr[0], `/`, `\`, -1)
+		spec.Source = strings.ReplaceAll(arr[0], `/`, `\`)
 		spec.Target = arr[1]
 	case 3:
 		// HostSourcePath+DestinationPath+Mode
-		spec.Source = strings.Replace(arr[0], `/`, `\`, -1)
+		spec.Source = strings.ReplaceAll(arr[0], `/`, `\`)
 		spec.Target = arr[1]
 		mode = arr[2]
 	default:
 		return nil, errInvalidSpec(raw)
 	}
 	if convertTargetToBackslash {
-		spec.Target = strings.Replace(spec.Target, `/`, `\`, -1)
+		spec.Target = strings.ReplaceAll(spec.Target, `/`, `\`)
 	}
 
 	if !windowsValidMountMode(mode) {
@@ -355,7 +351,7 @@ func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, conve
 		spec.VolumeOptions.NoCopy = !copyData
 	}
 
-	mp, err := p.parseMountSpec(spec, destRegex, convertTargetToBackslash, additionalValidators...)
+	mp, err := p.parseMountSpec(spec, convertTargetToBackslash, additionalValidators...)
 	if mp != nil {
 		mp.Mode = mode
 	}
@@ -366,10 +362,11 @@ func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, conve
 }
 
 func (p *windowsParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
-	return p.parseMountSpec(cfg, rxDestination, true, windowsSpecificValidators)
+	return p.parseMountSpec(cfg, true, windowsValidators)
 }
-func (p *windowsParser) parseMountSpec(cfg mount.Mount, destRegex string, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
-	if err := p.validateMountConfigReg(&cfg, destRegex, additionalValidators...); err != nil {
+
+func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
+	if err := p.validateMountConfigReg(&cfg, additionalValidators...); err != nil {
 		return nil, err
 	}
 	mp := &MountPoint{
@@ -379,7 +376,7 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, destRegex string, conver
 		Spec:        cfg,
 	}
 	if convertTargetToBackslash {
-		mp.Destination = strings.Replace(cfg.Target, `/`, `\`, -1)
+		mp.Destination = strings.ReplaceAll(cfg.Target, `/`, `\`)
 	}
 
 	switch cfg.Type {
@@ -400,9 +397,9 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, destRegex string, conver
 			}
 		}
 	case mount.TypeBind:
-		mp.Source = strings.Replace(cfg.Source, `/`, `\`, -1)
+		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
 	case mount.TypeNamedPipe:
-		mp.Source = strings.Replace(cfg.Source, `/`, `\`, -1)
+		mp.Source = strings.ReplaceAll(cfg.Source, `/`, `\`)
 	}
 	// cleanup trailing `\` except for paths like `c:\`
 	if len(mp.Source) > 3 && mp.Source[len(mp.Source)-1] == '\\' {
@@ -438,19 +435,25 @@ func (p *windowsParser) ParseVolumesFrom(spec string) (string, string, error) {
 }
 
 func (p *windowsParser) DefaultPropagationMode() mount.Propagation {
-	return mount.Propagation("")
+	return ""
 }
 
 func (p *windowsParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool) (string, error) {
 	return "", fmt.Errorf("%s does not support tmpfs", runtime.GOOS)
 }
+
 func (p *windowsParser) DefaultCopyMode() bool {
 	return false
 }
+
 func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
 	return false
 }
 
 func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
-	return errors.New("Platform does not support tmpfs")
+	return errors.New("platform does not support tmpfs")
+}
+
+func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
+	return false
 }

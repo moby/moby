@@ -1,10 +1,19 @@
+//go:build linux || freebsd
 // +build linux freebsd
 
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/sirupsen/logrus"
 )
+
+// GetLayerFolders returns the layer folders from an image RootFS
+func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
+	// Windows specific
+	panic("not implemented")
+}
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
 func (i *ImageService) GetContainerLayerSize(containerID string) (int64, int64) {
@@ -32,10 +41,8 @@ func (i *ImageService) GetContainerLayerSize(containerID string) (int64, int64) 
 	}
 
 	if parent := rwlayer.Parent(); parent != nil {
-		sizeRootfs, err = parent.Size()
-		if err != nil {
-			sizeRootfs = -1
-		} else if sizeRw != -1 {
+		sizeRootfs = parent.Size()
+		if sizeRw != -1 {
 			sizeRootfs += sizeRw
 		}
 	}

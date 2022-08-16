@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 )
 
@@ -34,9 +35,9 @@ func TestImageCreate(t *testing.T) {
 			if !strings.HasPrefix(r.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
 			}
-			registryAuth := r.Header.Get("X-Registry-Auth")
+			registryAuth := r.Header.Get(registry.AuthHeader)
 			if registryAuth != expectedRegistryAuth {
-				return nil, fmt.Errorf("X-Registry-Auth header not properly set in the request. Expected '%s', got %s", expectedRegistryAuth, registryAuth)
+				return nil, fmt.Errorf("%s header not properly set in the request. Expected '%s', got %s", registry.AuthHeader, expectedRegistryAuth, registryAuth)
 			}
 
 			query := r.URL.Query()
@@ -52,7 +53,7 @@ func TestImageCreate(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte("body"))),
+				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 			}, nil
 		}),
 	}
@@ -63,7 +64,7 @@ func TestImageCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := ioutil.ReadAll(createResponse)
+	response, err := io.ReadAll(createResponse)
 	if err != nil {
 		t.Fatal(err)
 	}

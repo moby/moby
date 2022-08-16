@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"bufio"
 	"context"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -27,9 +26,9 @@ import (
 //
 // The format of /proc/self/mountinfo is like:
 //
-// 29 23 0:24 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw
-//       ^^^^\
-//            - this is the minor:major we look for
+//	29 23 0:24 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw
+//	^^^^\
+//	     - this is the minor:major we look for
 func testIpcCheckDevExists(mm string) (bool, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
@@ -199,7 +198,7 @@ func TestAPIIpcModeHost(t *testing.T) {
 		Cmd:   []string{"top"},
 	}
 	hostCfg := containertypes.HostConfig{
-		IpcMode: containertypes.IpcMode("host"),
+		IpcMode: containertypes.IPCModeHost,
 	}
 	ctx := context.Background()
 
@@ -217,7 +216,7 @@ func TestAPIIpcModeHost(t *testing.T) {
 	_, err = container.Exec(ctx, client, name, []string{"sh", "-c", "printf covfefe > /dev/shm/." + name})
 	assert.NilError(t, err)
 	// 2. check it's the same on the host
-	bytes, err := ioutil.ReadFile("/dev/shm/." + name)
+	bytes, err := os.ReadFile("/dev/shm/." + name)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("covfefe", string(bytes)))
 	// 3. clean up

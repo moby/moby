@@ -10,20 +10,31 @@ import (
 
 // history contains the information transferred between blocks.
 type history struct {
-	b             []byte
-	huffTree      *huff0.Scratch
-	recentOffsets [3]int
+	// Literal decompression
+	huffTree *huff0.Scratch
+
+	// Sequence decompression
 	decoders      sequenceDecs
-	windowSize    int
-	maxSize       int
-	error         bool
-	dict          *dict
+	recentOffsets [3]int
+
+	// History buffer...
+	b []byte
+
+	// ignoreBuffer is meant to ignore a number of bytes
+	// when checking for matches in history
+	ignoreBuffer int
+
+	windowSize       int
+	allocFrameBuffer int // needed?
+	error            bool
+	dict             *dict
 }
 
 // reset will reset the history to initial state of a frame.
 // The history must already have been initialized to the desired size.
 func (h *history) reset() {
 	h.b = h.b[:0]
+	h.ignoreBuffer = 0
 	h.error = false
 	h.recentOffsets = [3]int{1, 4, 8}
 	if f := h.decoders.litLengths.fse; f != nil && !f.preDefined {
@@ -35,7 +46,7 @@ func (h *history) reset() {
 	if f := h.decoders.matchLengths.fse; f != nil && !f.preDefined {
 		fseDecoderPool.Put(f)
 	}
-	h.decoders = sequenceDecs{}
+	h.decoders = sequenceDecs{br: h.decoders.br}
 	if h.huffTree != nil {
 		if h.dict == nil || h.dict.litEnc != h.huffTree {
 			huffDecoderPool.Put(h.huffTree)
@@ -54,6 +65,7 @@ func (h *history) setDict(dict *dict) {
 	h.decoders.litLengths = dict.llDec
 	h.decoders.offsets = dict.ofDec
 	h.decoders.matchLengths = dict.mlDec
+	h.decoders.dict = dict.content
 	h.recentOffsets = dict.offsets
 	h.huffTree = dict.litEnc
 }
@@ -81,6 +93,24 @@ func (h *history) append(b []byte) {
 	copy(h.b, h.b[discard:])
 	h.b = h.b[:h.windowSize]
 	copy(h.b[h.windowSize-len(b):], b)
+}
+
+// ensureBlock will ensure there is space for at least one block...
+func (h *history) ensureBlock() {
+	if cap(h.b) < h.allocFrameBuffer {
+		h.b = make([]byte, 0, h.allocFrameBuffer)
+		return
+	}
+
+	avail := cap(h.b) - len(h.b)
+	if avail >= h.windowSize || avail > maxCompressedBlockSize {
+		return
+	}
+	// Move data down so we only have window size left.
+	// We know we have less than window size in b at this point.
+	discard := len(h.b) - h.windowSize
+	copy(h.b, h.b[discard:])
+	h.b = h.b[:h.windowSize]
 }
 
 // append bytes to history without ever discarding anything.

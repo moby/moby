@@ -3,7 +3,7 @@ package ioutils // import "github.com/docker/docker/pkg/ioutils"
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -58,18 +58,6 @@ func TestReaderErrWrapperRead(t *testing.T) {
 	}
 }
 
-func TestHashData(t *testing.T) {
-	reader := strings.NewReader("hash-me")
-	actual, err := HashData(reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expected := "sha256:4d11186aed035cc624d553e10db358492c84a7cd6b9670d92123c144930450aa"
-	if actual != expected {
-		t.Fatalf("Expecting %s, got %s", expected, actual)
-	}
-}
-
 type perpetualReader struct{}
 
 func (p *perpetualReader) Read(buf []byte) (n int, err error) {
@@ -82,7 +70,7 @@ func (p *perpetualReader) Read(buf []byte) (n int, err error) {
 func TestCancelReadCloser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	cancelReadCloser := NewCancelReadCloser(ctx, ioutil.NopCloser(&perpetualReader{}))
+	cancelReadCloser := NewCancelReadCloser(ctx, io.NopCloser(&perpetualReader{}))
 	for {
 		var buf [128]byte
 		_, err := cancelReadCloser.Read(buf[:])

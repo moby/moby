@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package overlay
@@ -5,7 +6,6 @@ package overlay
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -119,7 +119,7 @@ func setDefaultVlan() {
 	path := filepath.Join("/sys/class/net", brName, "bridge/default_pvid")
 	data := []byte{'0', '\n'}
 
-	if err = ioutil.WriteFile(path, data, 0644); err != nil {
+	if err = os.WriteFile(path, data, 0644); err != nil {
 		logrus.Errorf("enabling default vlan on bridge %s failed %v", brName, err)
 		os.Exit(1)
 	}
@@ -319,7 +319,7 @@ func (n *network) joinSandbox(s *subnet, restore bool, incJoinCount bool) error 
 	defer func() {
 		n.Unlock()
 		if doInitPeerDB {
-			n.driver.initSandboxPeerDB(n.id)
+			go n.driver.initSandboxPeerDB(n.id)
 		}
 	}()
 
@@ -436,7 +436,7 @@ func populateVNITbl() {
 				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
 				return nil
 			}
-			defer nlh.Delete()
+			defer nlh.Close()
 
 			err = nlh.SetSocketTimeout(soTimeout)
 			if err != nil {

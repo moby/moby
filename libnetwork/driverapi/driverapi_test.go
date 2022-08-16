@@ -5,7 +5,6 @@ import (
 	"net"
 	"testing"
 
-	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 )
 

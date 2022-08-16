@@ -18,13 +18,13 @@ package proxy
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 type remoteWriter struct {
@@ -57,7 +57,7 @@ func (rw *remoteWriter) Status() (content.Status, error) {
 		Action: contentapi.WriteActionStat,
 	})
 	if err != nil {
-		return content.Status{}, errors.Wrap(errdefs.FromGRPC(err), "error getting writer status")
+		return content.Status{}, fmt.Errorf("error getting writer status: %w", errdefs.FromGRPC(err))
 	}
 
 	return content.Status{
@@ -82,7 +82,7 @@ func (rw *remoteWriter) Write(p []byte) (n int, err error) {
 		Data:   p,
 	})
 	if err != nil {
-		return 0, errors.Wrap(errdefs.FromGRPC(err), "failed to send write")
+		return 0, fmt.Errorf("failed to send write: %w", errdefs.FromGRPC(err))
 	}
 
 	n = int(resp.Offset - offset)
@@ -119,15 +119,15 @@ func (rw *remoteWriter) Commit(ctx context.Context, size int64, expected digest.
 		Labels:   base.Labels,
 	})
 	if err != nil {
-		return errors.Wrap(errdefs.FromGRPC(err), "commit failed")
+		return fmt.Errorf("commit failed: %w", errdefs.FromGRPC(err))
 	}
 
 	if size != 0 && resp.Offset != size {
-		return errors.Errorf("unexpected size: %v != %v", resp.Offset, size)
+		return fmt.Errorf("unexpected size: %v != %v", resp.Offset, size)
 	}
 
 	if expected != "" && resp.Digest != expected {
-		return errors.Errorf("unexpected digest: %v != %v", resp.Digest, expected)
+		return fmt.Errorf("unexpected digest: %v != %v", resp.Digest, expected)
 	}
 
 	rw.digest = resp.Digest

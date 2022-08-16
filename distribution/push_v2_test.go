@@ -11,13 +11,13 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	refstore "github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
-	digest "github.com/opencontainers/go-digest"
+	registrypkg "github.com/docker/docker/registry"
+	"github.com/opencontainers/go-digest"
 )
 
 func TestGetRepositoryMountCandidates(t *testing.T) {
@@ -395,16 +395,16 @@ func TestLayerAlreadyExists(t *testing.T) {
 		}
 		ctx := context.Background()
 		ms := &mockV2MetadataService{}
-		pd := &v2PushDescriptor{
+		pd := &pushDescriptor{
 			hmacKey:  []byte(tc.hmacKey),
 			repoInfo: repoInfo,
 			layer: &storeLayer{
 				Layer: layer.EmptyLayer,
 			},
-			repo:              repo,
-			v2MetadataService: ms,
-			pushState:         &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
-			checkedDigests:    make(map[digest.Digest]struct{}),
+			repo:            repo,
+			metadataService: ms,
+			pushState:       &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
+			checkedDigests:  make(map[digest.Digest]struct{}),
 		}
 
 		desc, exists, err := pd.layerAlreadyExists(ctx, &progressSink{t}, layer.EmptyLayer.DiffID(), tc.checkOtherRepositories, tc.maxExistenceChecks, tc.metadata)
@@ -515,28 +515,28 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 		},
 	} {
 		imagePushConfig := &ImagePushConfig{}
-		imagePushConfig.AuthConfig = &types.AuthConfig{
+		imagePushConfig.AuthConfig = &registry.AuthConfig{
 			Username:      authInfo.username,
 			Password:      authInfo.password,
 			RegistryToken: authInfo.registryToken,
 		}
 		imagePushConfig.ReferenceStore = &mockReferenceStore{}
 		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
-		pusher := &v2Pusher{
+		pusher := &pusher{
 			config: imagePushConfig,
-			repoInfo: &registry.RepositoryInfo{
+			repoInfo: &registrypkg.RepositoryInfo{
 				Name: repoInfo,
 			},
-			endpoint: registry.APIEndpoint{
+			endpoint: registrypkg.APIEndpoint{
 				URL: &url.URL{
 					Scheme: "https",
 					Host:   "index.docker.io",
 				},
-				Version:      registry.APIVersion2,
+				Version:      registrypkg.APIVersion2,
 				TrimHostname: true,
 			},
 		}
-		pusher.Push(context.Background())
+		pusher.push(context.Background())
 		if pusher.pushState.hasAuthInfo != authInfo.expected {
 			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, pusher.pushState.hasAuthInfo)
 		}
@@ -598,14 +598,14 @@ func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
 			requests: []string{},
 		},
 	}
-	pd := &v2PushDescriptor{
+	pd := &pushDescriptor{
 		hmacKey:  []byte("abcd"),
 		repoInfo: repoInfo,
 		layer: &storeLayer{
 			Layer: layer.EmptyLayer,
 		},
-		repo:              repo,
-		v2MetadataService: ms,
+		repo:            repo,
+		metadataService: ms,
 		pushState: &pushState{
 			remoteLayers: make(map[layer.DiffID]distribution.Descriptor),
 			hasAuthInfo:  false,

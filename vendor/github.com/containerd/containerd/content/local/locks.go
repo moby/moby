@@ -17,11 +17,11 @@
 package local
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
-	"github.com/pkg/errors"
 )
 
 // Handles locking references
@@ -41,7 +41,13 @@ func tryLock(ref string) error {
 	defer locksMu.Unlock()
 
 	if v, ok := locks[ref]; ok {
-		return errors.Wrapf(errdefs.ErrUnavailable, "ref %s locked since %s", ref, v.since)
+		// Returning the duration may help developers distinguish dead locks (long duration) from
+		// lock contentions (short duration).
+		now := time.Now()
+		return fmt.Errorf(
+			"ref %s locked for %s (since %s): %w", ref, now.Sub(v.since), v.since,
+			errdefs.ErrUnavailable,
+		)
 	}
 
 	locks[ref] = &lock{time.Now()}

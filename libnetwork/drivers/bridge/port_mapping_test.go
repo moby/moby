@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package bridge
@@ -7,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/reexec"
@@ -100,6 +102,10 @@ func TestPortMappingConfig(t *testing.T) {
 
 func TestPortMappingV6Config(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+	if err := loopbackUp(); err != nil {
+		t.Fatalf("Could not bring loopback iface up: %v", err)
+	}
+
 	d := newDriver()
 
 	config := &configuration{
@@ -167,4 +173,13 @@ func TestPortMappingV6Config(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func loopbackUp() error {
+	nlHandle := ns.NlHandle()
+	iface, err := nlHandle.LinkByName("lo")
+	if err != nil {
+		return err
+	}
+	return nlHandle.LinkSetUp(iface)
 }

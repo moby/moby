@@ -17,11 +17,11 @@
 package boltutil
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -99,7 +99,7 @@ func writeMap(bkt *bolt.Bucket, bucketName []byte, labels map[string]string) err
 		}
 
 		if err := lbkt.Put([]byte(k), []byte(v)); err != nil {
-			return errors.Wrapf(err, "failed to set label %q=%q", k, v)
+			return fmt.Errorf("failed to set label %q=%q: %w", k, v, err)
 		}
 	}
 
@@ -228,7 +228,7 @@ func ReadAny(bkt *bolt.Bucket, name []byte) (*types.Any, error) {
 
 	out := types.Any{}
 	if err := proto.Unmarshal(bytes, &out); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal any")
+		return nil, fmt.Errorf("failed to unmarshal any: %w", err)
 	}
 
 	return &out, nil

@@ -18,22 +18,37 @@ type contextKeyT string
 
 var contextKey = contextKeyT("buildkit/util/progress")
 
-// FromContext returns a progress writer from a context.
-func FromContext(ctx context.Context, opts ...WriterOption) (Writer, bool, context.Context) {
+// WriterFactory will generate a new progress Writer and return a new Context
+// with the new Writer stored.  It is the callers responsibility to Close the
+// returned Writer to avoid resource leaks.
+type WriterFactory func(ctx context.Context) (Writer, bool, context.Context)
+
+// FromContext returns a WriterFactory to generate new progress writers based
+// on a Writer previously stored in the Context.
+func FromContext(ctx context.Context, opts ...WriterOption) WriterFactory {
 	v := ctx.Value(contextKey)
-	pw, ok := v.(*progressWriter)
-	if !ok {
-		if pw, ok := v.(*MultiWriter); ok {
-			return pw, true, ctx
+	return func(ctx context.Context) (Writer, bool, context.Context) {
+		pw, ok := v.(*progressWriter)
+		if !ok {
+			if pw, ok := v.(*MultiWriter); ok {
+				return pw, true, ctx
+			}
+			return &noOpWriter{}, false, ctx
 		}
-		return &noOpWriter{}, false, ctx
+		pw = newWriter(pw)
+		for _, o := range opts {
+			o(pw)
+		}
+		ctx = context.WithValue(ctx, contextKey, pw)
+		return pw, true, ctx
 	}
-	pw = newWriter(pw)
-	for _, o := range opts {
-		o(pw)
-	}
-	ctx = context.WithValue(ctx, contextKey, pw)
-	return pw, true, ctx
+}
+
+// NewFromContext creates a new Writer based on a Writer previously stored
+// in the Context and returns a new Context with the new Writer stored.  It is
+// the callers responsibility to Close the returned Writer to avoid resource leaks.
+func NewFromContext(ctx context.Context, opts ...WriterOption) (Writer, bool, context.Context) {
+	return FromContext(ctx, opts...)(ctx)
 }
 
 type WriterOption func(Writer)

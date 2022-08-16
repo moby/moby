@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/containerd/typeurl"
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/jsonpb" //nolint:staticcheck
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"
 )
@@ -14,7 +14,7 @@ func init() {
 	typeurl.Register((*Solve)(nil), "github.com/moby/buildkit", "errdefs.Solve+json")
 }
 
-//nolint:golint
+//nolint:revive
 type IsSolve_Subject isSolve_Subject
 
 // SolveError will be returned when an error is encountered during a solve that

@@ -43,8 +43,32 @@ func TestHealthKillContainer(t *testing.T) {
 	client := testEnv.APIClient()
 
 	id := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+		cmd := `
+# Set the initial HEALTH value so the healthcheck passes
+HEALTH="1"
+echo $HEALTH > /health
+
+# Any time doHealth is run we flip the value
+# This lets us use kill signals to determine when healtchecks have run.
+doHealth() {
+	case "$HEALTH" in
+		"0")
+			HEALTH="1"
+			;;
+		"1")
+			HEALTH="0"
+			;;
+	esac
+	echo $HEALTH > /health
+}
+
+trap 'doHealth' USR1
+
+while true; do sleep 1; done
+`
+		c.Config.Cmd = []string{"/bin/sh", "-c", cmd}
 		c.Config.Healthcheck = &containertypes.HealthConfig{
-			Test:     []string{"CMD-SHELL", "sleep 1"},
+			Test:     []string{"CMD-SHELL", `[ "$(cat /health)" = "1" ]`},
 			Interval: time.Second,
 			Retries:  5,
 		}
@@ -55,6 +79,13 @@ func TestHealthKillContainer(t *testing.T) {
 	poll.WaitOn(t, pollForHealthStatus(ctxPoll, client, id, "healthy"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerKill(ctx, id, "SIGUSR1")
+	assert.NilError(t, err)
+
+	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	poll.WaitOn(t, pollForHealthStatus(ctxPoll, client, id, "unhealthy"), poll.WithDelay(100*time.Millisecond))
+
+	err = client.ContainerKill(ctx, id, "SIGUSR1")
 	assert.NilError(t, err)
 
 	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)

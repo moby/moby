@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sort"
 	"strings"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
@@ -37,6 +35,7 @@ var validCommitCommands = map[string]bool{
 	"expose":      true,
 	"label":       true,
 	"onbuild":     true,
+	"stopsignal":  true,
 	"user":        true,
 	"volume":      true,
 	"workdir":     true,
@@ -48,13 +47,13 @@ const (
 
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
-	idMapping *idtools.IdentityMapping
+	idMapping idtools.IdentityMapping
 	backend   builder.Backend
 	pathCache pathCache // TODO: make this persistent
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, identityMapping *idtools.IdentityMapping) (*BuildManager, error) {
+func NewBuildManager(b builder.Backend, identityMapping idtools.IdentityMapping) (*BuildManager, error) {
 	bm := &BuildManager{
 		backend:   b,
 		pathCache: &syncmap.Map{},
@@ -105,7 +104,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
-	IDMapping      *idtools.IdentityMapping
+	IDMapping      idtools.IdentityMapping
 }
 
 // Builder is a Dockerfile builder
@@ -121,7 +120,7 @@ type Builder struct {
 	docker    builder.Backend
 	clientCtx context.Context
 
-	idMapping        *idtools.IdentityMapping
+	idMapping        idtools.IdentityMapping
 	disableCommit    bool
 	imageSources     *imageSources
 	pathCache        pathCache
@@ -187,7 +186,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 
 	stages, metaArgs, err := instructions.Parse(dockerfile.AST)
 	if err != nil {
-		var uiErr *instructions.UnknownInstruction
+		var uiErr *instructions.UnknownInstructionError
 		if errors.As(err, &uiErr) {
 			buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
 		}
@@ -320,9 +319,6 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string, os string) (*container.Config, error) {
-	if !system.IsOSSupported(os) {
-		return nil, errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
-	}
 	if len(changes) == 0 {
 		return config, nil
 	}
@@ -341,13 +337,13 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
-		if !validCommitCommands[n.Value] {
+		if !validCommitCommands[strings.ToLower(n.Value)] {
 			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
 		}
 	}
 
-	b.Stdout = ioutil.Discard
-	b.Stderr = ioutil.Discard
+	b.Stdout = io.Discard
+	b.Stderr = io.Discard
 	b.disableCommit = true
 
 	var commands []instructions.Command

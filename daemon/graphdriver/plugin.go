@@ -51,5 +51,5 @@ func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) 
 		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", pt))
 	}
 
-	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
+	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.IDMap)
 }

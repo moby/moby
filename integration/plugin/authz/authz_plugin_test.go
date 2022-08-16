@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package authz // import "github.com/docker/docker/integration/plugin/authz"
@@ -6,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -60,7 +60,7 @@ func setupTestV1(t *testing.T) func() {
 	assert.NilError(t, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", testAuthZPlugin)
-	err = ioutil.WriteFile(fileName, []byte(server.URL), 0644)
+	err = os.WriteFile(fileName, []byte(server.URL), 0644)
 	assert.NilError(t, err)
 
 	return func() {
@@ -335,7 +335,7 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 	c := d.NewClientT(t)
 	ctx := context.Background()
 
-	tmp, err := ioutil.TempDir("", "test-authz-load-import")
+	tmp, err := os.MkdirTemp("", "test-authz-load-import")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmp)
 
@@ -369,11 +369,11 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	ctrl.resRes.Allow = true
 	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
-	f, err := ioutil.TempFile(dir, "send")
+	f, err := os.CreateTemp(dir, "send")
 	assert.NilError(t, err)
 	defer f.Close()
 
@@ -408,7 +408,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 
 	rdr, _, err := c.CopyFromContainer(ctx, cID, "/test")
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, rdr)
+	_, err = io.Copy(io.Discard, rdr)
 	assert.NilError(t, err)
 }
 

@@ -32,7 +32,7 @@ type invalidFilter struct {
 }
 
 func (e invalidFilter) Error() string {
-	msg := "Invalid filter '" + e.filter
+	msg := "invalid filter '" + e.filter
 	if len(e.value) > 0 {
 		msg += fmt.Sprintf("=%s", e.value)
 	}

@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -11,9 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
-	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/truncindex"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
@@ -58,22 +55,20 @@ func TestGetContainer(t *testing.T) {
 	store.Add(c4.ID, c4)
 	store.Add(c5.ID, c5)
 
-	index := truncindex.NewTruncIndex([]string{})
-	index.Add(c1.ID)
-	index.Add(c2.ID)
-	index.Add(c3.ID)
-	index.Add(c4.ID)
-	index.Add(c5.ID)
-
 	containersReplica, err := container.NewViewDB()
 	if err != nil {
 		t.Fatalf("could not create ViewDB: %v", err)
 	}
 
+	containersReplica.Save(c1)
+	containersReplica.Save(c2)
+	containersReplica.Save(c3)
+	containersReplica.Save(c4)
+	containersReplica.Save(c5)
+
 	daemon := &Daemon{
 		containers:        store,
 		containersReplica: containersReplica,
-		idIndex:           index,
 	}
 
 	daemon.reserveName(c1.ID, c1.Name)
@@ -147,7 +142,7 @@ func TestContainerInitDNS(t *testing.T) {
 		t.Skip("root required") // for chown
 	}
 
-	tmp, err := ioutil.TempDir("", "docker-container-test-")
+	tmp, err := os.MkdirTemp("", "docker-container-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +176,7 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ioutil.WriteFile(configPath, []byte(config), 0644); err != nil {
+	if err = os.WriteFile(configPath, []byte(config), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -194,7 +189,7 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ioutil.WriteFile(hostConfigPath, []byte(hostConfig), 0644); err != nil {
+	if err = os.WriteFile(hostConfigPath, []byte(hostConfig), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -305,7 +300,7 @@ func TestMerge(t *testing.T) {
 func TestValidateContainerIsolation(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings(runtime.GOOS, &containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false)
+	_, err := d.verifyContainerSettings(&containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'invalid' on "+runtime.GOOS))
 }
 

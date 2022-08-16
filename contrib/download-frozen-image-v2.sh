@@ -245,7 +245,7 @@ get_target_arch() {
 				;;
 			mips*)
 				echo >&2 "I see you are running on mips but I don't know how to determine endianness yet, so I cannot select a correct arch to fetch."
-				echo >&2 "Consider installing \"go\" on the system which I can use to determine the correct arch or specify it explictly by setting TARGETARCH"
+				echo >&2 "Consider installing \"go\" on the system which I can use to determine the correct arch or specify it explicitly by setting TARGETARCH"
 				exit 1
 				;;
 			*)

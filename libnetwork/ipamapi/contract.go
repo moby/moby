@@ -9,10 +9,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 )
 
-/********************
- * IPAM plugin types
- ********************/
-
+// IPAM plugin types
 const (
 	// DefaultIPAM is the name of the built-in default ipam driver
 	DefaultIPAM = "default"
@@ -34,10 +31,6 @@ type Callback interface {
 	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
 }
 
-/**************
- * IPAM Errors
- **************/
-
 // Well-known errors returned by IPAM
 var (
 	ErrIpamInternalError   = types.InternalErrorf("IPAM Internal Error")
@@ -56,10 +49,6 @@ var (
 	ErrBadPool             = types.BadRequestErrorf("Address space does not contain specified address pool")
 )
 
-/*******************************
- * IPAM Service Interface
- *******************************/
-
 // Ipam represents the interface the IPAM service plugins must implement
 // in order to allow injection/modification of IPAM database.
 type Ipam interface {
@@ -76,12 +65,12 @@ type Ipam interface {
 	RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error)
 	// ReleasePool releases the address pool identified by the passed id
 	ReleasePool(poolID string) error
-	// Request address from the specified pool ID. Input options or required IP can be passed.
+	// RequestAddress request an address from the specified pool ID. Input options or required IP can be passed.
 	RequestAddress(string, net.IP, map[string]string) (*net.IPNet, map[string]string, error)
-	// Release the address from the specified pool ID
+	// ReleaseAddress releases the address from the specified pool ID.
 	ReleaseAddress(string, net.IP) error
 
-	//IsBuiltIn returns true if it is a built-in driver.
+	// IsBuiltIn returns true if it is a built-in driver.
 	IsBuiltIn() bool
 }
 

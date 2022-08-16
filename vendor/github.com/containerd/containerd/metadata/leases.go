@@ -18,6 +18,7 @@ package metadata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -29,26 +30,25 @@ import (
 	"github.com/containerd/containerd/metadata/boltutil"
 	"github.com/containerd/containerd/namespaces"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
-// LeaseManager manages the create/delete lifecycle of leases
+// leaseManager manages the create/delete lifecycle of leases
 // and also returns existing leases
-type LeaseManager struct {
+type leaseManager struct {
 	db *DB
 }
 
 // NewLeaseManager creates a new lease manager for managing leases using
 // the provided database transaction.
-func NewLeaseManager(db *DB) *LeaseManager {
-	return &LeaseManager{
+func NewLeaseManager(db *DB) leases.Manager {
+	return &leaseManager{
 		db: db,
 	}
 }
 
 // Create creates a new lease using the provided lease
-func (lm *LeaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.Lease, error) {
+func (lm *leaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.Lease, error) {
 	var l leases.Lease
 	for _, opt := range opts {
 		if err := opt(&l); err != nil {
@@ -75,7 +75,7 @@ func (lm *LeaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.
 			if err == bolt.ErrBucketExists {
 				err = errdefs.ErrAlreadyExists
 			}
-			return errors.Wrapf(err, "lease %q", l.ID)
+			return fmt.Errorf("lease %q: %w", l.ID, err)
 		}
 
 		t := time.Now().UTC()
@@ -102,7 +102,7 @@ func (lm *LeaseManager) Create(ctx context.Context, opts ...leases.Opt) (leases.
 }
 
 // Delete deletes the lease with the provided lease ID
-func (lm *LeaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...leases.DeleteOpt) error {
+func (lm *leaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...leases.DeleteOpt) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return err
@@ -111,11 +111,11 @@ func (lm *LeaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...lea
 	return update(ctx, lm.db, func(tx *bolt.Tx) error {
 		topbkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases)
 		if topbkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "lease %q", lease.ID)
+			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
 		}
 		if err := topbkt.DeleteBucket([]byte(lease.ID)); err != nil {
 			if err == bolt.ErrBucketNotFound {
-				err = errors.Wrapf(errdefs.ErrNotFound, "lease %q", lease.ID)
+				err = fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
 			}
 			return err
 		}
@@ -127,7 +127,7 @@ func (lm *LeaseManager) Delete(ctx context.Context, lease leases.Lease, _ ...lea
 }
 
 // List lists all active leases
-func (lm *LeaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease, error) {
+func (lm *leaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease, error) {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (lm *LeaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease,
 
 	filter, err := filters.ParseAll(fs...)
 	if err != nil {
-		return nil, errors.Wrap(errdefs.ErrInvalidArgument, err.Error())
+		return nil, fmt.Errorf("%s: %w", err.Error(), errdefs.ErrInvalidArgument)
 	}
 
 	var ll []leases.Lease
@@ -183,7 +183,7 @@ func (lm *LeaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease,
 }
 
 // AddResource references the resource by the provided lease.
-func (lm *LeaseManager) AddResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
+func (lm *leaseManager) AddResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func (lm *LeaseManager) AddResource(ctx context.Context, lease leases.Lease, r l
 	return update(ctx, lm.db, func(tx *bolt.Tx) error {
 		topbkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lease.ID))
 		if topbkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "lease %q", lease.ID)
+			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
 		}
 
 		keys, ref, err := parseLeaseResource(r)
@@ -212,7 +212,7 @@ func (lm *LeaseManager) AddResource(ctx context.Context, lease leases.Lease, r l
 }
 
 // DeleteResource dereferences the resource by the provided lease.
-func (lm *LeaseManager) DeleteResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
+func (lm *leaseManager) DeleteResource(ctx context.Context, lease leases.Lease, r leases.Resource) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return err
@@ -221,7 +221,7 @@ func (lm *LeaseManager) DeleteResource(ctx context.Context, lease leases.Lease, 
 	return update(ctx, lm.db, func(tx *bolt.Tx) error {
 		topbkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lease.ID))
 		if topbkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "lease %q", lease.ID)
+			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
 		}
 
 		keys, ref, err := parseLeaseResource(r)
@@ -250,7 +250,7 @@ func (lm *LeaseManager) DeleteResource(ctx context.Context, lease leases.Lease, 
 }
 
 // ListResources lists all the resources referenced by the lease.
-func (lm *LeaseManager) ListResources(ctx context.Context, lease leases.Lease) ([]leases.Resource, error) {
+func (lm *leaseManager) ListResources(ctx context.Context, lease leases.Lease) ([]leases.Resource, error) {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -262,7 +262,7 @@ func (lm *LeaseManager) ListResources(ctx context.Context, lease leases.Lease) (
 
 		topbkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lease.ID))
 		if topbkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "lease %q", lease.ID)
+			return fmt.Errorf("lease %q: %w", lease.ID, errdefs.ErrNotFound)
 		}
 
 		// content resources
@@ -333,7 +333,7 @@ func addSnapshotLease(ctx context.Context, tx *bolt.Tx, snapshotter, key string)
 
 	bkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lid))
 	if bkt == nil {
-		return errors.Wrap(errdefs.ErrNotFound, "lease does not exist")
+		return fmt.Errorf("lease does not exist: %w", errdefs.ErrNotFound)
 	}
 
 	bkt, err := bkt.CreateBucketIfNotExists(bucketKeyObjectSnapshots)
@@ -382,7 +382,7 @@ func addContentLease(ctx context.Context, tx *bolt.Tx, dgst digest.Digest) error
 
 	bkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lid))
 	if bkt == nil {
-		return errors.Wrap(errdefs.ErrNotFound, "lease does not exist")
+		return fmt.Errorf("lease does not exist: %w", errdefs.ErrNotFound)
 	}
 
 	bkt, err := bkt.CreateBucketIfNotExists(bucketKeyObjectContent)
@@ -426,7 +426,7 @@ func addIngestLease(ctx context.Context, tx *bolt.Tx, ref string) (bool, error) 
 
 	bkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lid))
 	if bkt == nil {
-		return false, errors.Wrap(errdefs.ErrNotFound, "lease does not exist")
+		return false, fmt.Errorf("lease does not exist: %w", errdefs.ErrNotFound)
 	}
 
 	bkt, err := bkt.CreateBucketIfNotExists(bucketKeyObjectIngests)
@@ -473,22 +473,22 @@ func parseLeaseResource(r leases.Resource) ([]string, string, error) {
 		string(bucketKeyObjectIngests):
 
 		if len(keys) != 1 {
-			return nil, "", errors.Wrapf(errdefs.ErrInvalidArgument, "invalid resource type %s", typ)
+			return nil, "", fmt.Errorf("invalid resource type %s: %w", typ, errdefs.ErrInvalidArgument)
 		}
 
 		if k == string(bucketKeyObjectContent) {
 			dgst, err := digest.Parse(ref)
 			if err != nil {
-				return nil, "", errors.Wrapf(errdefs.ErrInvalidArgument, "invalid content resource id %s: %v", ref, err)
+				return nil, "", fmt.Errorf("invalid content resource id %s: %v: %w", ref, err, errdefs.ErrInvalidArgument)
 			}
 			ref = dgst.String()
 		}
 	case string(bucketKeyObjectSnapshots):
 		if len(keys) != 2 {
-			return nil, "", errors.Wrapf(errdefs.ErrInvalidArgument, "invalid snapshot resource type %s", typ)
+			return nil, "", fmt.Errorf("invalid snapshot resource type %s: %w", typ, errdefs.ErrInvalidArgument)
 		}
 	default:
-		return nil, "", errors.Wrapf(errdefs.ErrNotImplemented, "resource type %s not supported yet", typ)
+		return nil, "", fmt.Errorf("resource type %s not supported yet: %w", typ, errdefs.ErrNotImplemented)
 	}
 
 	return keys, ref, nil

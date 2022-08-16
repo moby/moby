@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -30,33 +29,24 @@ import (
 func (daemon *Daemon) SystemInfo() *types.Info {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
-	sysInfo := daemon.RawSysInfo(true)
-	cRunning, cPaused, cStopped := stateCtr.get()
+	sysInfo := daemon.RawSysInfo()
 
 	v := &types.Info{
-		ID:                 daemon.ID,
-		Containers:         cRunning + cPaused + cStopped,
-		ContainersRunning:  cRunning,
-		ContainersPaused:   cPaused,
-		ContainersStopped:  cStopped,
+		ID:                 daemon.id,
 		Images:             daemon.imageService.CountImages(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNFCallIP6TablesDisabled,
-		Debug:              debug.IsEnabled(),
 		Name:               hostName(),
-		NFd:                fileutils.GetTotalUsedFds(),
-		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      daemon.defaultLogConfig.Type,
-		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion(),
 		OperatingSystem:    operatingSystem(),
 		OSVersion:          osVersion(),
 		IndexServerAddress: registry.IndexServer,
 		OSType:             platform.OSType,
 		Architecture:       platform.Architecture,
-		RegistryConfig:     daemon.RegistryService.ServiceConfig(),
+		RegistryConfig:     daemon.registryService.ServiceConfig(),
 		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           memInfo().MemTotal,
 		GenericResources:   daemon.genericResources,
@@ -64,14 +54,15 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,
 		ServerVersion:      dockerversion.Version,
-		HTTPProxy:          maskCredentials(getEnvAny("HTTP_PROXY", "http_proxy")),
-		HTTPSProxy:         maskCredentials(getEnvAny("HTTPS_PROXY", "https_proxy")),
-		NoProxy:            getEnvAny("NO_PROXY", "no_proxy"),
+		HTTPProxy:          config.MaskCredentials(getConfigOrEnv(daemon.configStore.HTTPProxy, "HTTP_PROXY", "http_proxy")),
+		HTTPSProxy:         config.MaskCredentials(getConfigOrEnv(daemon.configStore.HTTPSProxy, "HTTPS_PROXY", "https_proxy")),
+		NoProxy:            getConfigOrEnv(daemon.configStore.NoProxy, "NO_PROXY", "no_proxy"),
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
 	}
 
-	daemon.fillClusterInfo(v)
+	daemon.fillContainerStates(v)
+	daemon.fillDebugInfo(v)
 	daemon.fillAPIInfo(v)
 	// Retrieve platform specific info
 	daemon.fillPlatformInfo(v, sysInfo)
@@ -80,10 +71,6 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	daemon.fillSecurityOptions(v, sysInfo)
 	daemon.fillLicense(v)
 	daemon.fillDefaultAddressPools(v)
-
-	if v.DefaultRuntime == config.LinuxV1RuntimeName {
-		v.Warnings = append(v.Warnings, fmt.Sprintf("Configured default runtime %q is deprecated and will be removed in the next release.", config.LinuxV1RuntimeName))
-	}
 
 	return v
 }
@@ -132,20 +119,14 @@ func (daemon *Daemon) SystemVersion() types.Version {
 	return v
 }
 
-func (daemon *Daemon) fillClusterInfo(v *types.Info) {
-	v.ClusterAdvertise = daemon.configStore.ClusterAdvertise
-	v.ClusterStore = daemon.configStore.ClusterStore
-
-	if v.ClusterAdvertise != "" || v.ClusterStore != "" {
-		v.Warnings = append(v.Warnings, `WARNING: node discovery and overlay networks with an external k/v store (cluster-advertise,
-         cluster-store, cluster-store-opt) are deprecated and will be removed in a future release.`)
-	}
-}
-
 func (daemon *Daemon) fillDriverInfo(v *types.Info) {
+	const warnMsg = `
+WARNING: The %s storage-driver is deprecated, and will be removed in a future release.
+         Refer to the documentation for more information: https://docs.docker.com/go/storage-driver/`
+
 	switch daemon.graphDriver {
 	case "aufs", "devicemapper", "overlay":
-		v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", daemon.graphDriver))
+		v.Warnings = append(v.Warnings, fmt.Sprintf(warnMsg, daemon.graphDriver))
 	}
 
 	v.Driver = daemon.graphDriver
@@ -172,11 +153,10 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 		securityOptions = append(securityOptions, "name=apparmor")
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
-		profile := daemon.seccompProfilePath
-		if profile == "" {
-			profile = "default"
+		if daemon.seccompProfilePath != config.SeccompProfileDefault {
+			v.Warnings = append(v.Warnings, "WARNING: daemon is not using the default seccomp profile")
 		}
-		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
+		securityOptions = append(securityOptions, "name=seccomp,profile="+daemon.seccompProfilePath)
 	}
 	if selinux.GetEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
@@ -192,6 +172,29 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	}
 
 	v.SecurityOptions = securityOptions
+}
+
+func (daemon *Daemon) fillContainerStates(v *types.Info) {
+	cRunning, cPaused, cStopped := stateCtr.get()
+	v.Containers = cRunning + cPaused + cStopped
+	v.ContainersPaused = cPaused
+	v.ContainersRunning = cRunning
+	v.ContainersStopped = cStopped
+}
+
+// fillDebugInfo sets the current debugging state of the daemon, and additional
+// debugging information, such as the number of Go-routines, and file descriptors.
+//
+// Note that this currently always collects the information, but the CLI only
+// prints it if the daemon has debug enabled. We should consider to either make
+// this information optional (cli to request "with debugging information"), or
+// only collect it if the daemon has debug enabled. For the CLI code, see
+// https://github.com/docker/cli/blob/v20.10.12/cli/command/system/info.go#L239-L244
+func (daemon *Daemon) fillDebugInfo(v *types.Info) {
+	v.Debug = debug.IsEnabled()
+	v.NFd = fileutils.GetTotalUsedFds()
+	v.NGoroutines = runtime.NumGoroutine()
+	v.NEventsListener = daemon.EventsService.SubscribersCount()
 }
 
 func (daemon *Daemon) fillAPIInfo(v *types.Info) {
@@ -266,14 +269,11 @@ func operatingSystem() (operatingSystem string) {
 	} else {
 		operatingSystem = s
 	}
-	// Don't do containerized check on Windows
-	if runtime.GOOS != "windows" {
-		if inContainer, err := operatingsystem.IsContainerized(); err != nil {
-			logrus.Errorf("Could not determine if daemon is containerized: %v", err)
-			operatingSystem += " (error determining if containerized)"
-		} else if inContainer {
-			operatingSystem += " (containerized)"
-		}
+	if inContainer, err := operatingsystem.IsContainerized(); err != nil {
+		logrus.Errorf("Could not determine if daemon is containerized: %v", err)
+		operatingSystem += " (error determining if containerized)"
+	} else if inContainer {
+		operatingSystem += " (containerized)"
 	}
 
 	return operatingSystem
@@ -290,16 +290,6 @@ func osVersion() (version string) {
 	return version
 }
 
-func maskCredentials(rawURL string) string {
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil || parsedURL.User == nil {
-		return rawURL
-	}
-	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
-	maskedURL := parsedURL.String()
-	return maskedURL
-}
-
 func getEnvAny(names ...string) string {
 	for _, n := range names {
 		if val := os.Getenv(n); val != "" {
@@ -307,4 +297,11 @@ func getEnvAny(names ...string) string {
 		}
 	}
 	return ""
+}
+
+func getConfigOrEnv(config string, env ...string) string {
+	if config != "" {
+		return config
+	}
+	return getEnvAny(env...)
 }

@@ -4,17 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/Microsoft/hcsshim/internal/cow"
+	"github.com/Microsoft/hcsshim/internal/hcs/schema1"
+	hcsschema "github.com/Microsoft/hcsshim/internal/hcs/schema2"
+	"github.com/Microsoft/hcsshim/internal/jobobject"
 	"github.com/Microsoft/hcsshim/internal/log"
+	"github.com/Microsoft/hcsshim/internal/logfields"
 	"github.com/Microsoft/hcsshim/internal/oc"
-	"github.com/Microsoft/hcsshim/internal/schema1"
-	hcsschema "github.com/Microsoft/hcsshim/internal/schema2"
 	"github.com/Microsoft/hcsshim/internal/timeout"
 	"github.com/Microsoft/hcsshim/internal/vmcompute"
+	"github.com/sirupsen/logrus"
 	"go.opencensus.io/trace"
 )
 
@@ -28,7 +33,8 @@ type System struct {
 	waitBlock      chan struct{}
 	waitError      error
 	exitError      error
-	os, typ        string
+	os, typ, owner string
+	startTime      time.Time
 }
 
 func newSystem(id string) *System {
@@ -38,9 +44,14 @@ func newSystem(id string) *System {
 	}
 }
 
+// Implementation detail for silo naming, this should NOT be relied upon very heavily.
+func siloNameFmt(containerID string) string {
+	return fmt.Sprintf(`\Container_%s`, containerID)
+}
+
 // CreateComputeSystem creates a new compute system with the given configuration but does not start it.
 func CreateComputeSystem(ctx context.Context, id string, hcsDocumentInterface interface{}) (_ *System, err error) {
-	operation := "hcsshim::CreateComputeSystem"
+	operation := "hcs::CreateComputeSystem"
 
 	// hcsCreateComputeSystemContext is an async operation. Start the outer span
 	// here to measure the full create time.
@@ -96,7 +107,7 @@ func CreateComputeSystem(ctx context.Context, id string, hcsDocumentInterface in
 
 // OpenComputeSystem opens an existing compute system by ID.
 func OpenComputeSystem(ctx context.Context, id string) (*System, error) {
-	operation := "hcsshim::OpenComputeSystem"
+	operation := "hcs::OpenComputeSystem"
 
 	computeSystem := newSystem(id)
 	handle, resultJSON, err := vmcompute.HcsOpenComputeSystem(ctx, id)
@@ -127,6 +138,7 @@ func (computeSystem *System) getCachedProperties(ctx context.Context) error {
 	}
 	computeSystem.typ = strings.ToLower(props.SystemType)
 	computeSystem.os = strings.ToLower(props.RuntimeOSType)
+	computeSystem.owner = strings.ToLower(props.Owner)
 	if computeSystem.os == "" && computeSystem.typ == "container" {
 		// Pre-RS5 HCS did not return the OS, but it only supported containers
 		// that ran Windows.
@@ -148,7 +160,7 @@ func (computeSystem *System) IsOCI() bool {
 
 // GetComputeSystems gets a list of the compute systems on the system that match the query
 func GetComputeSystems(ctx context.Context, q schema1.ComputeSystemQuery) ([]schema1.ContainerProperties, error) {
-	operation := "hcsshim::GetComputeSystems"
+	operation := "hcs::GetComputeSystems"
 
 	queryb, err := json.Marshal(q)
 	if err != nil {
@@ -174,7 +186,7 @@ func GetComputeSystems(ctx context.Context, q schema1.ComputeSystemQuery) ([]sch
 
 // Start synchronously starts the computeSystem.
 func (computeSystem *System) Start(ctx context.Context) (err error) {
-	operation := "hcsshim::System::Start"
+	operation := "hcs::System::Start"
 
 	// hcsStartComputeSystemContext is an async operation. Start the outer span
 	// here to measure the full start time.
@@ -195,7 +207,7 @@ func (computeSystem *System) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return makeSystemError(computeSystem, operation, err, events)
 	}
-
+	computeSystem.startTime = time.Now()
 	return nil
 }
 
@@ -209,7 +221,7 @@ func (computeSystem *System) Shutdown(ctx context.Context) error {
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Shutdown"
+	operation := "hcs::System::Shutdown"
 
 	if computeSystem.handle == 0 {
 		return nil
@@ -230,7 +242,7 @@ func (computeSystem *System) Terminate(ctx context.Context) error {
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Terminate"
+	operation := "hcs::System::Terminate"
 
 	if computeSystem.handle == 0 {
 		return nil
@@ -252,7 +264,7 @@ func (computeSystem *System) Terminate(ctx context.Context) error {
 // This MUST be called exactly once per `computeSystem.handle` but `Wait` is
 // safe to call multiple times.
 func (computeSystem *System) waitBackground() {
-	operation := "hcsshim::System::waitBackground"
+	operation := "hcs::System::waitBackground"
 	ctx, span := trace.StartSpan(context.Background(), operation)
 	defer span.End()
 	span.AddAttributes(trace.StringAttribute("cid", computeSystem.id))
@@ -300,7 +312,7 @@ func (computeSystem *System) Properties(ctx context.Context, types ...schema1.Pr
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Properties"
+	operation := "hcs::System::Properties"
 
 	queryBytes, err := json.Marshal(schema1.PropertyQuery{PropertyTypes: types})
 	if err != nil {
@@ -324,12 +336,116 @@ func (computeSystem *System) Properties(ctx context.Context, types ...schema1.Pr
 	return properties, nil
 }
 
-// PropertiesV2 returns the requested container properties targeting a V2 schema container.
-func (computeSystem *System) PropertiesV2(ctx context.Context, types ...hcsschema.PropertyType) (*hcsschema.Properties, error) {
-	computeSystem.handleLock.RLock()
-	defer computeSystem.handleLock.RUnlock()
+// queryInProc handles querying for container properties without reaching out to HCS. `props`
+// will be updated to contain any data returned from the queries present in `types`. If any properties
+// failed to be queried they will be tallied up and returned in as the first return value. Failures on
+// query are NOT considered errors; the only failure case for this method is if the containers job object
+// cannot be opened.
+func (computeSystem *System) queryInProc(ctx context.Context, props *hcsschema.Properties, types []hcsschema.PropertyType) ([]hcsschema.PropertyType, error) {
+	// In the future we can make use of some new functionality in the HCS that allows you
+	// to pass a job object for HCS to use for the container. Currently, the only way we'll
+	// be able to open the job/silo is if we're running as SYSTEM.
+	jobOptions := &jobobject.Options{
+		UseNTVariant: true,
+		Name:         siloNameFmt(computeSystem.id),
+	}
+	job, err := jobobject.Open(ctx, jobOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer job.Close()
 
-	operation := "hcsshim::System::PropertiesV2"
+	var fallbackQueryTypes []hcsschema.PropertyType
+	for _, propType := range types {
+		switch propType {
+		case hcsschema.PTStatistics:
+			// Handle a bad caller asking for the same type twice. No use in re-querying if this is
+			// filled in already.
+			if props.Statistics == nil {
+				props.Statistics, err = computeSystem.statisticsInProc(job)
+				if err != nil {
+					log.G(ctx).WithError(err).Warn("failed to get statistics in-proc")
+
+					fallbackQueryTypes = append(fallbackQueryTypes, propType)
+				}
+			}
+		default:
+			fallbackQueryTypes = append(fallbackQueryTypes, propType)
+		}
+	}
+
+	return fallbackQueryTypes, nil
+}
+
+// statisticsInProc emulates what HCS does to grab statistics for a given container with a small
+// change to make grabbing the private working set total much more efficient.
+func (computeSystem *System) statisticsInProc(job *jobobject.JobObject) (*hcsschema.Statistics, error) {
+	// Start timestamp for these stats before we grab them to match HCS
+	timestamp := time.Now()
+
+	memInfo, err := job.QueryMemoryStats()
+	if err != nil {
+		return nil, err
+	}
+
+	processorInfo, err := job.QueryProcessorStats()
+	if err != nil {
+		return nil, err
+	}
+
+	storageInfo, err := job.QueryStorageStats()
+	if err != nil {
+		return nil, err
+	}
+
+	// This calculates the private working set more efficiently than HCS does. HCS calls NtQuerySystemInformation
+	// with the class SystemProcessInformation which returns an array containing system information for *every*
+	// process running on the machine. They then grab the pids that are running in the container and filter down
+	// the entries in the array to only what's running in that silo and start tallying up the total. This doesn't
+	// work well as performance should get worse if more processess are running on the machine in general and not
+	// just in the container. All of the additional information besides the WorkingSetPrivateSize field is ignored
+	// as well which isn't great and is wasted work to fetch.
+	//
+	// HCS only let's you grab statistics in an all or nothing fashion, so we can't just grab the private
+	// working set ourselves and ask for everything else seperately. The optimization we can make here is
+	// to open the silo ourselves and do the same queries for the rest of the info, as well as calculating
+	// the private working set in a more efficient manner by:
+	//
+	// 1. Find the pids running in the silo
+	// 2. Get a process handle for every process (only need PROCESS_QUERY_LIMITED_INFORMATION access)
+	// 3. Call NtQueryInformationProcess on each process with the class ProcessVmCounters
+	// 4. Tally up the total using the field PrivateWorkingSetSize in VM_COUNTERS_EX2.
+	privateWorkingSet, err := job.QueryPrivateWorkingSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return &hcsschema.Statistics{
+		Timestamp:          timestamp,
+		ContainerStartTime: computeSystem.startTime,
+		Uptime100ns:        uint64(time.Since(computeSystem.startTime).Nanoseconds()) / 100,
+		Memory: &hcsschema.MemoryStats{
+			MemoryUsageCommitBytes:            memInfo.JobMemory,
+			MemoryUsageCommitPeakBytes:        memInfo.PeakJobMemoryUsed,
+			MemoryUsagePrivateWorkingSetBytes: privateWorkingSet,
+		},
+		Processor: &hcsschema.ProcessorStats{
+			RuntimeKernel100ns: uint64(processorInfo.TotalKernelTime),
+			RuntimeUser100ns:   uint64(processorInfo.TotalUserTime),
+			TotalRuntime100ns:  uint64(processorInfo.TotalKernelTime + processorInfo.TotalUserTime),
+		},
+		Storage: &hcsschema.StorageStats{
+			ReadCountNormalized:  uint64(storageInfo.ReadStats.IoCount),
+			ReadSizeBytes:        storageInfo.ReadStats.TotalSize,
+			WriteCountNormalized: uint64(storageInfo.WriteStats.IoCount),
+			WriteSizeBytes:       storageInfo.WriteStats.TotalSize,
+		},
+	}, nil
+}
+
+// hcsPropertiesV2Query is a helper to make a HcsGetComputeSystemProperties call using the V2 schema property types.
+func (computeSystem *System) hcsPropertiesV2Query(ctx context.Context, types []hcsschema.PropertyType) (*hcsschema.Properties, error) {
+	operation := "hcs::System::PropertiesV2"
 
 	queryBytes, err := json.Marshal(hcsschema.PropertyQuery{PropertyTypes: types})
 	if err != nil {
@@ -345,17 +461,71 @@ func (computeSystem *System) PropertiesV2(ctx context.Context, types ...hcsschem
 	if propertiesJSON == "" {
 		return nil, ErrUnexpectedValue
 	}
-	properties := &hcsschema.Properties{}
-	if err := json.Unmarshal([]byte(propertiesJSON), properties); err != nil {
+	props := &hcsschema.Properties{}
+	if err := json.Unmarshal([]byte(propertiesJSON), props); err != nil {
 		return nil, makeSystemError(computeSystem, operation, err, nil)
 	}
 
-	return properties, nil
+	return props, nil
+}
+
+// PropertiesV2 returns the requested compute systems properties targeting a V2 schema compute system.
+func (computeSystem *System) PropertiesV2(ctx context.Context, types ...hcsschema.PropertyType) (_ *hcsschema.Properties, err error) {
+	computeSystem.handleLock.RLock()
+	defer computeSystem.handleLock.RUnlock()
+
+	// Let HCS tally up the total for VM based queries instead of querying ourselves.
+	if computeSystem.typ != "container" {
+		return computeSystem.hcsPropertiesV2Query(ctx, types)
+	}
+
+	// Define a starter Properties struct with the default fields returned from every
+	// query. Owner is only returned from Statistics but it's harmless to include.
+	properties := &hcsschema.Properties{
+		Id:            computeSystem.id,
+		SystemType:    computeSystem.typ,
+		RuntimeOsType: computeSystem.os,
+		Owner:         computeSystem.owner,
+	}
+
+	logEntry := log.G(ctx)
+	// First lets try and query ourselves without reaching to HCS. If any of the queries fail
+	// we'll take note and fallback to querying HCS for any of the failed types.
+	fallbackTypes, err := computeSystem.queryInProc(ctx, properties, types)
+	if err == nil && len(fallbackTypes) == 0 {
+		return properties, nil
+	} else if err != nil {
+		logEntry.WithError(fmt.Errorf("failed to query compute system properties in-proc: %w", err))
+		fallbackTypes = types
+	}
+
+	logEntry.WithFields(logrus.Fields{
+		logfields.ContainerID: computeSystem.id,
+		"propertyTypes":       fallbackTypes,
+	}).Info("falling back to HCS for property type queries")
+
+	hcsProperties, err := computeSystem.hcsPropertiesV2Query(ctx, fallbackTypes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now add in anything that we might have successfully queried in process.
+	if properties.Statistics != nil {
+		hcsProperties.Statistics = properties.Statistics
+		hcsProperties.Owner = properties.Owner
+	}
+
+	// For future support for querying processlist in-proc as well.
+	if properties.ProcessList != nil {
+		hcsProperties.ProcessList = properties.ProcessList
+	}
+
+	return hcsProperties, nil
 }
 
 // Pause pauses the execution of the computeSystem. This feature is not enabled in TP5.
 func (computeSystem *System) Pause(ctx context.Context) (err error) {
-	operation := "hcsshim::System::Pause"
+	operation := "hcs::System::Pause"
 
 	// hcsPauseComputeSystemContext is an async peration. Start the outer span
 	// here to measure the full pause time.
@@ -382,7 +552,7 @@ func (computeSystem *System) Pause(ctx context.Context) (err error) {
 
 // Resume resumes the execution of the computeSystem. This feature is not enabled in TP5.
 func (computeSystem *System) Resume(ctx context.Context) (err error) {
-	operation := "hcsshim::System::Resume"
+	operation := "hcs::System::Resume"
 
 	// hcsResumeComputeSystemContext is an async operation. Start the outer span
 	// here to measure the full restore time.
@@ -409,7 +579,7 @@ func (computeSystem *System) Resume(ctx context.Context) (err error) {
 
 // Save the compute system
 func (computeSystem *System) Save(ctx context.Context, options interface{}) (err error) {
-	operation := "hcsshim::System::Save"
+	operation := "hcs::System::Save"
 
 	// hcsSaveComputeSystemContext is an async peration. Start the outer span
 	// here to measure the full save time.
@@ -465,7 +635,7 @@ func (computeSystem *System) createProcess(ctx context.Context, operation string
 
 // CreateProcess launches a new process within the computeSystem.
 func (computeSystem *System) CreateProcess(ctx context.Context, c interface{}) (cow.Process, error) {
-	operation := "hcsshim::System::CreateProcess"
+	operation := "hcs::System::CreateProcess"
 	process, processInfo, err := computeSystem.createProcess(ctx, operation, c)
 	if err != nil {
 		return nil, err
@@ -498,7 +668,7 @@ func (computeSystem *System) OpenProcess(ctx context.Context, pid int) (*Process
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::OpenProcess"
+	operation := "hcs::System::OpenProcess"
 
 	if computeSystem.handle == 0 {
 		return nil, makeSystemError(computeSystem, operation, ErrAlreadyClosed, nil)
@@ -521,7 +691,7 @@ func (computeSystem *System) OpenProcess(ctx context.Context, pid int) (*Process
 
 // Close cleans up any state associated with the compute system but does not terminate or wait for it.
 func (computeSystem *System) Close() (err error) {
-	operation := "hcsshim::System::Close"
+	operation := "hcs::System::Close"
 	ctx, span := trace.StartSpan(context.Background(), operation)
 	defer span.End()
 	defer func() { oc.SetSpanStatus(span, err) }()
@@ -554,7 +724,7 @@ func (computeSystem *System) Close() (err error) {
 }
 
 func (computeSystem *System) registerCallback(ctx context.Context) error {
-	callbackContext := &notifcationWatcherContext{
+	callbackContext := &notificationWatcherContext{
 		channels: newSystemChannels(),
 		systemID: computeSystem.id,
 	}
@@ -615,7 +785,7 @@ func (computeSystem *System) Modify(ctx context.Context, config interface{}) err
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Modify"
+	operation := "hcs::System::Modify"
 
 	if computeSystem.handle == 0 {
 		return makeSystemError(computeSystem, operation, ErrAlreadyClosed, nil)

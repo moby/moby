@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	types "github.com/docker/docker/api/types/swarm"
-	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/ca"
 	gogotypes "github.com/gogo/protobuf/types"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/ca"
 )
 
 // SwarmFromGRPC converts a grpc Cluster to a Swarm.

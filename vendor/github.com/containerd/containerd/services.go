@@ -55,10 +55,17 @@ func WithContentStore(contentStore content.Store) ServicesOpt {
 	}
 }
 
-// WithImageService sets the image service.
-func WithImageService(imageService imagesapi.ImagesClient) ServicesOpt {
+// WithImageClient sets the image service to use using an images client.
+func WithImageClient(imageService imagesapi.ImagesClient) ServicesOpt {
 	return func(s *services) {
 		s.imageStore = NewImageStoreFromClient(imageService)
+	}
+}
+
+// WithImageStore sets the image store.
+func WithImageStore(imageStore images.Store) ServicesOpt {
+	return func(s *services) {
+		s.imageStore = imageStore
 	}
 }
 
@@ -72,24 +79,38 @@ func WithSnapshotters(snapshotters map[string]snapshots.Snapshotter) ServicesOpt
 	}
 }
 
-// WithContainerService sets the container service.
-func WithContainerService(containerService containersapi.ContainersClient) ServicesOpt {
+// WithContainerClient sets the container service to use using a containers client.
+func WithContainerClient(containerService containersapi.ContainersClient) ServicesOpt {
 	return func(s *services) {
 		s.containerStore = NewRemoteContainerStore(containerService)
 	}
 }
 
-// WithTaskService sets the task service.
-func WithTaskService(taskService tasks.TasksClient) ServicesOpt {
+// WithContainerStore sets the container store.
+func WithContainerStore(containerStore containers.Store) ServicesOpt {
+	return func(s *services) {
+		s.containerStore = containerStore
+	}
+}
+
+// WithTaskClient sets the task service to use from a tasks client.
+func WithTaskClient(taskService tasks.TasksClient) ServicesOpt {
 	return func(s *services) {
 		s.taskService = taskService
 	}
 }
 
-// WithDiffService sets the diff service.
-func WithDiffService(diffService diff.DiffClient) ServicesOpt {
+// WithDiffClient sets the diff service to use from a diff client.
+func WithDiffClient(diffService diff.DiffClient) ServicesOpt {
 	return func(s *services) {
 		s.diffService = NewDiffServiceFromClient(diffService)
+	}
+}
+
+// WithDiffService sets the diff store.
+func WithDiffService(diffService DiffService) ServicesOpt {
+	return func(s *services) {
+		s.diffService = diffService
 	}
 }
 
@@ -100,10 +121,17 @@ func WithEventService(eventService EventService) ServicesOpt {
 	}
 }
 
-// WithNamespaceService sets the namespace service.
-func WithNamespaceService(namespaceService namespacesapi.NamespacesClient) ServicesOpt {
+// WithNamespaceClient sets the namespace service using a namespaces client.
+func WithNamespaceClient(namespaceService namespacesapi.NamespacesClient) ServicesOpt {
 	return func(s *services) {
 		s.namespaceStore = NewNamespaceStoreFromClient(namespaceService)
+	}
+}
+
+// WithNamespaceService sets the namespace service.
+func WithNamespaceService(namespaceService namespaces.Store) ServicesOpt {
+	return func(s *services) {
+		s.namespaceStore = namespaceService
 	}
 }
 
@@ -114,9 +142,16 @@ func WithLeasesService(leasesService leases.Manager) ServicesOpt {
 	}
 }
 
-// WithIntrospectionService sets the introspection service.
-func WithIntrospectionService(in introspectionapi.IntrospectionClient) ServicesOpt {
+// WithIntrospectionClient sets the introspection service using an introspection client.
+func WithIntrospectionClient(in introspectionapi.IntrospectionClient) ServicesOpt {
 	return func(s *services) {
 		s.introspectionService = introspection.NewIntrospectionServiceFromClient(in)
+	}
+}
+
+// WithIntrospectionService sets the introspection service.
+func WithIntrospectionService(in introspection.Service) ServicesOpt {
+	return func(s *services) {
+		s.introspectionService = in
 	}
 }

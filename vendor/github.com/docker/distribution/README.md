@@ -2,7 +2,7 @@
 
 The Docker toolset to pack, ship, store, and deliver content.
 
-This repository's main product is the Docker Registry 2.0 implementation
+This repository provides the Docker Registry 2.0 implementation
 for storing and distributing Docker images. It supersedes the
 [docker/docker-registry](https://github.com/docker/docker-registry)
 project with a new API design, focused around security and performance.

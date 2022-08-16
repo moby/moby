@@ -10,7 +10,7 @@ import (
 )
 
 type asyncState struct {
-	f      func(context.Context, State) (State, error)
+	f      func(context.Context, State, *Constraints) (State, error)
 	prev   State
 	target State
 	set    bool
@@ -22,8 +22,8 @@ func (as *asyncState) Output() Output {
 	return as
 }
 
-func (as *asyncState) Vertex(ctx context.Context) Vertex {
-	err := as.Do(ctx)
+func (as *asyncState) Vertex(ctx context.Context, c *Constraints) Vertex {
+	err := as.Do(ctx, c)
 	if err != nil {
 		return &errVertex{err}
 	}
@@ -32,13 +32,13 @@ func (as *asyncState) Vertex(ctx context.Context) Vertex {
 		if out == nil {
 			return nil
 		}
-		return out.Vertex(ctx)
+		return out.Vertex(ctx, c)
 	}
 	return nil
 }
 
 func (as *asyncState) ToInput(ctx context.Context, c *Constraints) (*pb.Input, error) {
-	err := as.Do(ctx)
+	err := as.Do(ctx, c)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +52,12 @@ func (as *asyncState) ToInput(ctx context.Context, c *Constraints) (*pb.Input, e
 	return nil, nil
 }
 
-func (as *asyncState) Do(ctx context.Context) error {
+func (as *asyncState) Do(ctx context.Context, c *Constraints) error {
 	_, err := as.g.Do(ctx, "", func(ctx context.Context) (interface{}, error) {
 		if as.set {
 			return as.target, as.err
 		}
-		res, err := as.f(ctx, as.prev)
+		res, err := as.f(ctx, as.prev, c)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -82,7 +82,7 @@ type errVertex struct {
 	err error
 }
 
-func (v *errVertex) Validate(context.Context) error {
+func (v *errVertex) Validate(context.Context, *Constraints) error {
 	return v.err
 }
 func (v *errVertex) Marshal(context.Context, *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {

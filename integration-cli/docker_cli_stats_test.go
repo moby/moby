@@ -13,7 +13,19 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestStatsNoStream(c *testing.T) {
+type DockerCLIStatsSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIStatsSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIStatsSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
+
+func (s *DockerCLIStatsSuite) TestStatsNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -42,7 +54,7 @@ func (s *DockerSuite) TestStatsNoStream(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestStatsContainerNotFound(c *testing.T) {
+func (s *DockerCLIStatsSuite) TestStatsContainerNotFound(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -55,7 +67,7 @@ func (s *DockerSuite) TestStatsContainerNotFound(c *testing.T) {
 	assert.Assert(c, is.Contains(out, "No such container: notfound"), "Expected to fail on not found container stats with --no-stream, got %q instead", out)
 }
 
-func (s *DockerSuite) TestStatsAllRunningNoStream(c *testing.T) {
+func (s *DockerCLIStatsSuite) TestStatsAllRunningNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -91,7 +103,7 @@ func (s *DockerSuite) TestStatsAllRunningNoStream(c *testing.T) {
 	assert.Assert(c, realData != nil, "stat result are empty: %s", out)
 }
 
-func (s *DockerSuite) TestStatsAllNoStream(c *testing.T) {
+func (s *DockerCLIStatsSuite) TestStatsAllNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -121,7 +133,7 @@ func (s *DockerSuite) TestStatsAllNoStream(c *testing.T) {
 	assert.Assert(c, realData == nil, "stat result of %s should be empty : %s", id1, out)
 }
 
-func (s *DockerSuite) TestStatsAllNewContainersAdded(c *testing.T) {
+func (s *DockerCLIStatsSuite) TestStatsAllNewContainersAdded(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
@@ -162,7 +174,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestStatsFormatAll(c *testing.T) {
+func (s *DockerCLIStatsSuite) TestStatsFormatAll(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 

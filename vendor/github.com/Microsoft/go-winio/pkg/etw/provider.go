@@ -83,15 +83,6 @@ func providerCallback(sourceID guid.GUID, state ProviderState, level Level, matc
 	}
 }
 
-// providerCallbackAdapter acts as the first-level callback from the C/ETW side
-// for provider notifications. Because Go has trouble with callback arguments of
-// different size, it has only pointer-sized arguments, which are then cast to
-// the appropriate types when calling providerCallback.
-func providerCallbackAdapter(sourceID *guid.GUID, state uintptr, level uintptr, matchAnyKeyword uintptr, matchAllKeyword uintptr, filterData uintptr, i uintptr) uintptr {
-	providerCallback(*sourceID, ProviderState(state), Level(level), uint64(matchAnyKeyword), uint64(matchAllKeyword), filterData, i)
-	return 0
-}
-
 // providerIDFromName generates a provider ID based on the provider name. It
 // uses the same algorithm as used by .NET's EventSource class, which is based
 // on RFC 4122. More information on the algorithm can be found here:

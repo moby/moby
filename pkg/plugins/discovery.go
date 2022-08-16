@@ -3,7 +3,6 @@ package plugins // import "github.com/docker/docker/pkg/plugins"
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -29,33 +28,35 @@ func newLocalRegistry() localRegistry {
 // Scan scans all the plugin paths and returns all the names it found
 func Scan() ([]string, error) {
 	var names []string
-	dirEntries, err := ioutil.ReadDir(socketsPath)
+	dirEntries, err := os.ReadDir(socketsPath)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, errors.Wrap(err, "error reading dir entries")
 	}
 
-	for _, fi := range dirEntries {
-		if fi.IsDir() {
-			fi, err = os.Stat(filepath.Join(socketsPath, fi.Name(), fi.Name()+".sock"))
+	for _, entry := range dirEntries {
+		if entry.IsDir() {
+			fi, err := os.Stat(filepath.Join(socketsPath, entry.Name(), entry.Name()+".sock"))
 			if err != nil {
 				continue
 			}
+
+			entry = fileInfoToDirEntry(fi)
 		}
 
-		if fi.Mode()&os.ModeSocket != 0 {
-			names = append(names, strings.TrimSuffix(filepath.Base(fi.Name()), filepath.Ext(fi.Name())))
+		if entry.Type()&os.ModeSocket != 0 {
+			names = append(names, strings.TrimSuffix(filepath.Base(entry.Name()), filepath.Ext(entry.Name())))
 		}
 	}
 
 	for _, p := range specsPaths {
-		dirEntries, err := ioutil.ReadDir(p)
+		dirEntries, err := os.ReadDir(p)
 		if err != nil && !os.IsNotExist(err) {
 			return nil, errors.Wrap(err, "error reading dir entries")
 		}
 
 		for _, fi := range dirEntries {
 			if fi.IsDir() {
-				infos, err := ioutil.ReadDir(filepath.Join(p, fi.Name()))
+				infos, err := os.ReadDir(filepath.Join(p, fi.Name()))
 				if err != nil {
 					continue
 				}
@@ -108,7 +109,7 @@ func (l *localRegistry) Plugin(name string) (*Plugin, error) {
 }
 
 func readPluginInfo(name, path string) (*Plugin, error) {
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

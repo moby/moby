@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -27,6 +27,18 @@ var (
 	pNameWithTag      = pName + ":" + pTag
 	npNameWithTag     = npName + ":" + pTag
 )
+
+type DockerCLIPluginsSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIPluginsSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPluginsSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
 
 func (ps *DockerPluginSuite) TestPluginBasicOps(c *testing.T) {
 	plugin := ps.getPluginRepoWithTag()
@@ -69,7 +81,7 @@ func (ps *DockerPluginSuite) TestPluginForceRemove(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, pNameWithTag))
 }
 
-func (s *DockerSuite) TestPluginActive(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginActive(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
@@ -91,7 +103,7 @@ func (s *DockerSuite) TestPluginActive(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, pNameWithTag))
 }
 
-func (s *DockerSuite) TestPluginActiveNetwork(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginActiveNetwork(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", npNameWithTag)
 	assert.NilError(c, err)
@@ -136,7 +148,7 @@ func (ps *DockerPluginSuite) TestPluginInstallDisable(c *testing.T) {
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), pName))
 }
 
-func (s *DockerSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, Network)
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pName)
 	assert.NilError(c, err)
@@ -241,12 +253,12 @@ func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *testing.T) {
 
 func (ps *DockerPluginSuite) TestPluginCreate(c *testing.T) {
 	name := "foo/bar-driver"
-	temp, err := ioutil.TempDir("", "foo")
+	temp, err := os.MkdirTemp("", "foo")
 	assert.NilError(c, err)
 	defer os.RemoveAll(temp)
 
 	data := `{"description": "foo plugin"}`
-	err = ioutil.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0644)
+	err = os.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0644)
 	assert.NilError(c, err)
 
 	err = os.MkdirAll(filepath.Join(temp, "rootfs"), 0700)
@@ -316,7 +328,7 @@ func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
 }
 
 // Test case for https://github.com/docker/docker/pull/29186#discussion_r91277345
-func (s *DockerSuite) TestPluginInspectOnWindows(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginInspectOnWindows(c *testing.T) {
 	// This test should work on Windows only
 	testRequires(c, DaemonIsWindows)
 
@@ -381,11 +393,11 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
-	config, err := ioutil.TempDir("", "config-file-")
+	config, err := os.MkdirTemp("", "config-file-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(config)
 
-	err = ioutil.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0644)
+	err = os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0644)
 	assert.NilError(c, err)
 
 	name := "test:latest"
@@ -411,7 +423,7 @@ enabled: false`, id, name)
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), expectedOutput))
 }
 
-func (s *DockerSuite) TestPluginUpgrade(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginUpgrade(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network, testEnv.IsLocalDaemon, IsAmd64, NotUserNamespace)
 	plugin := "cpuguy83/docker-volume-driver-plugin-local:latest"
 	pluginV2 := "cpuguy83/docker-volume-driver-plugin-local:v2"
@@ -442,7 +454,7 @@ func (s *DockerSuite) TestPluginUpgrade(c *testing.T) {
 	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "ls -lh /apple/core")
 }
 
-func (s *DockerSuite) TestPluginMetricsCollector(c *testing.T) {
+func (s *DockerCLIPluginsSuite) TestPluginMetricsCollector(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network, testEnv.IsLocalDaemon, IsAmd64)
 	d := daemon.New(c, dockerBinary, dockerdBinary)
 	d.Start(c)
@@ -457,7 +469,7 @@ func (s *DockerSuite) TestPluginMetricsCollector(c *testing.T) {
 	assert.NilError(c, err)
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	assert.NilError(c, err)
 	// check that a known metric is there... don't expect this metric to change over time.. probably safe
 	assert.Assert(c, strings.Contains(string(b), "container_actions"))

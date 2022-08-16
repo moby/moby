@@ -5,8 +5,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/moby/buildkit/util/bklog"
+
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // SharedResult is a result that can be cloned
@@ -48,7 +49,7 @@ type splitResult struct {
 func (r *splitResult) Release(ctx context.Context) error {
 	if atomic.AddInt64(&r.released, 1) > 1 {
 		err := errors.Errorf("releasing already released reference %+v", r.Result.ID())
-		logrus.Error(err)
+		bklog.G(ctx).Error(err)
 		return err
 	}
 	if atomic.AddInt64(r.sem, 1) == 2 {

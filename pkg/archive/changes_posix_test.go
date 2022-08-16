@@ -4,11 +4,12 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
 	"testing"
+
+	"github.com/docker/docker/pkg/idtools"
 )
 
 func TestHardLinkOrder(t *testing.T) {
@@ -16,7 +17,7 @@ func TestHardLinkOrder(t *testing.T) {
 	msg := []byte("Hey y'all")
 
 	// Create dir
-	src, err := ioutil.TempDir("", "docker-hardlink-test-src-")
+	src, err := os.MkdirTemp("", "docker-hardlink-test-src-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +35,7 @@ func TestHardLinkOrder(t *testing.T) {
 		}()
 	}
 	// Create dest, with changes that includes hardlinks
-	dest, err := ioutil.TempDir("", "docker-hardlink-test-dest-")
+	dest, err := os.MkdirTemp("", "docker-hardlink-test-dest-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func TestHardLinkOrder(t *testing.T) {
 	sort.Sort(changesByPath(changes))
 
 	// ExportChanges
-	ar, err := ExportChanges(dest, changes, nil, nil)
+	ar, err := ExportChanges(dest, changes, idtools.IdentityMapping{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func TestHardLinkOrder(t *testing.T) {
 	// reverse sort
 	sort.Sort(sort.Reverse(changesByPath(changes)))
 	// ExportChanges
-	arRev, err := ExportChanges(dest, changes, nil, nil)
+	arRev, err := ExportChanges(dest, changes, idtools.IdentityMapping{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,5 +1,3 @@
-// +build freebsd
-
 /*
    Copyright The containerd Authors.
 
@@ -19,11 +17,12 @@
 package mount
 
 import (
+	"errors"
+	"fmt"
 	"os"
-	"os/exec"
 	"time"
 
-	"github.com/pkg/errors"
+	exec "golang.org/x/sys/execabs"
 	"golang.org/x/sys/unix"
 )
 
@@ -66,7 +65,7 @@ func (m *Mount) mountWithHelper(target string) error {
 			return nil
 		}
 		if !errors.Is(err, unix.ECHILD) {
-			return errors.Wrapf(err, "mount [%v] failed: %q", args, string(out))
+			return fmt.Errorf("mount [%v] failed: %q: %w", args, string(out), err)
 		}
 		// We got ECHILD, we are not sure whether the mount was successful.
 		// If the mount ID has changed, we are sure we got some new mount, but still not sure it is fully completed.
@@ -79,7 +78,7 @@ func (m *Mount) mountWithHelper(target string) error {
 			_ = unmount(target, 0)
 		}
 	}
-	return errors.Errorf("mount [%v] failed with ECHILD (retired %d times)", args, retriesOnECHILD)
+	return fmt.Errorf("mount [%v] failed with ECHILD (retired %d times)", args, retriesOnECHILD)
 }
 
 // Unmount the provided mount path with the flags
@@ -103,7 +102,7 @@ func unmount(target string, flags int) error {
 		}
 		return nil
 	}
-	return errors.Wrapf(unix.EBUSY, "failed to unmount target %s", target)
+	return fmt.Errorf("failed to unmount target %s: %w", target, unix.EBUSY)
 }
 
 // UnmountAll repeatedly unmounts the given mount point until there

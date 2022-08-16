@@ -35,12 +35,14 @@ const (
 	logGroupKey            = "awslogs-group"
 	logStreamKey           = "awslogs-stream"
 	logCreateGroupKey      = "awslogs-create-group"
+	logCreateStreamKey     = "awslogs-create-stream"
 	tagKey                 = "tag"
 	datetimeFormatKey      = "awslogs-datetime-format"
 	multilinePatternKey    = "awslogs-multiline-pattern"
-	credentialsEndpointKey = "awslogs-credentials-endpoint"
+	credentialsEndpointKey = "awslogs-credentials-endpoint" //nolint:gosec // G101: Potential hardcoded credentials
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
 	maxBufferedEventsKey   = "awslogs-max-buffered-events"
+	logFormatKey           = "awslogs-format"
 
 	defaultForceFlushInterval = 5 * time.Second
 	defaultMaxBufferedEvents  = 4096
@@ -62,15 +64,20 @@ const (
 	invalidSequenceTokenCode  = "InvalidSequenceTokenException"
 	resourceNotFoundCode      = "ResourceNotFoundException"
 
-	credentialsEndpoint = "http://169.254.170.2"
+	credentialsEndpoint = "http://169.254.170.2" //nolint:gosec // G101: Potential hardcoded credentials
 
 	userAgentHeader = "User-Agent"
+
+	// See: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html
+	logsFormatHeader = "x-amzn-logs-format"
+	jsonEmfLogFormat = "json/emf"
 )
 
 type logStream struct {
 	logStreamName      string
 	logGroupName       string
 	logCreateGroup     bool
+	logCreateStream    bool
 	logNonBlocking     bool
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
@@ -85,6 +92,7 @@ type logStreamConfig struct {
 	logStreamName      string
 	logGroupName       string
 	logCreateGroup     bool
+	logCreateStream    bool
 	logNonBlocking     bool
 	forceFlushInterval time.Duration
 	maxBufferedEvents  int
@@ -112,10 +120,10 @@ type byTimestamp []wrappedEvent
 // init registers the awslogs driver
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -151,6 +159,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		logStreamName:      containerStreamConfig.logStreamName,
 		logGroupName:       containerStreamConfig.logGroupName,
 		logCreateGroup:     containerStreamConfig.logCreateGroup,
+		logCreateStream:    containerStreamConfig.logCreateStream,
 		logNonBlocking:     containerStreamConfig.logNonBlocking,
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
@@ -237,6 +246,13 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 	if info.Config[logStreamKey] != "" {
 		logStreamName = info.Config[logStreamKey]
 	}
+	logCreateStream := true
+	if info.Config[logCreateStreamKey] != "" {
+		logCreateStream, err = strconv.ParseBool(info.Config[logCreateStreamKey])
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	multilinePattern, err := parseMultilineOptions(info)
 	if err != nil {
@@ -247,6 +263,7 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		logStreamName:      logStreamName,
 		logGroupName:       logGroupName,
 		logCreateGroup:     logCreateGroup,
+		logCreateStream:    logCreateStream,
 		logNonBlocking:     logNonBlocking,
 		forceFlushInterval: forceFlushInterval,
 		maxBufferedEvents:  maxBufferedEvents,
@@ -392,6 +409,16 @@ func newAWSLogsClient(info logger.Info) (api, error) {
 					dockerversion.Version, runtime.GOOS, currentAgent))
 		},
 	})
+
+	if info.Config[logFormatKey] != "" {
+		client.Handlers.Build.PushBackNamed(request.NamedHandler{
+			Name: "LogFormatHeaderHandler",
+			Fn: func(req *request.Request) {
+				req.HTTPRequest.Header.Set(logsFormatHeader, info.Config[logFormatKey])
+			},
+		})
+	}
+
 	return client, nil
 }
 
@@ -480,6 +507,16 @@ func (l *logStream) createLogGroup() error {
 
 // createLogStream creates a log stream for the instance of the awslogs logging driver
 func (l *logStream) createLogStream() error {
+	// Directly return if we do not want to create log stream.
+	if !l.logCreateStream {
+		logrus.WithFields(logrus.Fields{
+			"logGroupName":    l.logGroupName,
+			"logStreamName":   l.logStreamName,
+			"logCreateStream": l.logCreateStream,
+		}).Info("Skipping creating log stream")
+		return nil
+	}
+
 	input := &cloudwatchlogs.CreateLogStreamInput{
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
@@ -733,6 +770,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case credentialsEndpointKey:
 		case forceFlushIntervalKey:
 		case maxBufferedEventsKey:
+		case logFormatKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}
@@ -760,6 +798,17 @@ func ValidateLogOpt(cfg map[string]string) error {
 	if datetimeFormatKeyExists && multilinePatternKeyExists {
 		return fmt.Errorf("you cannot configure log opt '%s' and '%s' at the same time", datetimeFormatKey, multilinePatternKey)
 	}
+
+	if cfg[logFormatKey] != "" {
+		// For now, only the "json/emf" log format is supported
+		if cfg[logFormatKey] != jsonEmfLogFormat {
+			return fmt.Errorf("unsupported log format '%s'", cfg[logFormatKey])
+		}
+		if datetimeFormatKeyExists || multilinePatternKeyExists {
+			return fmt.Errorf("you cannot configure log opt '%s' or '%s' when log opt '%s' is set to '%s'", datetimeFormatKey, multilinePatternKey, logFormatKey, jsonEmfLogFormat)
+		}
+	}
+
 	return nil
 }
 

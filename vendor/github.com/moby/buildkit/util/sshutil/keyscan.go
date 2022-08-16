@@ -23,7 +23,7 @@ func addDefaultPort(hostport string, defaultPort int) string {
 	return hostport
 }
 
-// SshKeyScan scans a ssh server for the hostkey; server should be in the form hostname, or hostname:port
+// SSHKeyScan scans a ssh server for the hostkey; server should be in the form hostname, or hostname:port
 func SSHKeyScan(server string) (string, error) {
 	var key string
 	KeyScanCallback := func(hostport string, remote net.Addr, pubKey ssh.PublicKey) error {
@@ -45,7 +45,7 @@ func SSHKeyScan(server string) (string, error) {
 		err = nil
 	}
 	if conn != nil {
-		conn.Close()
+		_ = conn.Close()
 	}
 	return key, err
 }

@@ -11,16 +11,20 @@ type Check func(t LogT) Result
 // FileExists looks on filesystem and check that path exists.
 func FileExists(path string) Check {
 	return func(t LogT) Result {
-		_, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			t.Logf("waiting on file %s to exist", path)
-			return Continue("file %s does not exist", path)
-		}
-		if err != nil {
-			return Error(err)
+		if h, ok := t.(helperT); ok {
+			h.Helper()
 		}
 
-		return Success()
+		_, err := os.Stat(path)
+		switch {
+		case os.IsNotExist(err):
+			t.Logf("waiting on file %s to exist", path)
+			return Continue("file %s does not exist", path)
+		case err != nil:
+			return Error(err)
+		default:
+			return Success()
+		}
 	}
 }
 
@@ -29,6 +33,10 @@ func FileExists(path string) Check {
 // address parameters.
 func Connection(network, address string) Check {
 	return func(t LogT) Result {
+		if h, ok := t.(helperT); ok {
+			h.Helper()
+		}
+
 		_, err := net.Dial(network, address)
 		if err != nil {
 			t.Logf("waiting on socket %s://%s to be available...", network, address)

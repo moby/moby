@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -42,7 +41,7 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	r, err := apiclient.PluginPush(context.Background(), repo, "")
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, r)
+	_, err = io.Copy(io.Discard, r)
 	assert.NilError(t, err)
 	err = apiclient.PluginRemove(context.Background(), repo, types.PluginRemoveOptions{})
 	assert.NilError(t, err)
@@ -50,7 +49,7 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	r, err = apiclient.PluginPush(context.Background(), repo2, "")
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, r)
+	_, err = io.Copy(io.Discard, r)
 	assert.NilError(t, err)
 	err = apiclient.PluginRemove(context.Background(), repo2, types.PluginRemoveOptions{})
 	assert.NilError(t, err)

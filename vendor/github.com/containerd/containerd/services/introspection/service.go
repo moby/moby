@@ -18,12 +18,12 @@ package introspection
 
 import (
 	context "context"
+	"errors"
 
 	api "github.com/containerd/containerd/api/services/introspection/v1"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/services"
 	ptypes "github.com/gogo/protobuf/types"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
@@ -31,11 +31,8 @@ func init() {
 	plugin.Register(&plugin.Registration{
 		Type:     plugin.GRPCPlugin,
 		ID:       "introspection",
-		Requires: []plugin.Type{"*"},
+		Requires: []plugin.Type{plugin.ServicePlugin},
 		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
-			// this service works by using the plugin context up till the point
-			// this service is initialized. Since we require this service last,
-			// it should provide the full set of plugins.
 			plugins, err := ic.GetByType(plugin.ServicePlugin)
 			if err != nil {
 				return nil, err
@@ -50,13 +47,11 @@ func init() {
 				return nil, err
 			}
 
-			allPluginsPB := pluginsToPB(ic.GetAll())
-
 			localClient, ok := i.(*Local)
 			if !ok {
-				return nil, errors.Errorf("Could not create a local client for introspection service")
+				return nil, errors.New("Could not create a local client for introspection service")
 			}
-			localClient.UpdateLocal(ic.Root, allPluginsPB)
+			localClient.UpdateLocal(ic.Root)
 
 			return &server{
 				local: localClient,

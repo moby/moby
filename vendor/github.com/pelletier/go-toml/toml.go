@@ -15,6 +15,7 @@ type tomlValue struct {
 	comment   string
 	commented bool
 	multiline bool
+	literal   bool
 	position  Position
 }
 
@@ -314,6 +315,7 @@ type SetOptions struct {
 	Comment   string
 	Commented bool
 	Multiline bool
+	Literal   bool
 }
 
 // SetWithOptions is the same as Set, but allows you to provide formatting
@@ -362,12 +364,14 @@ func (t *Tree) SetPathWithOptions(keys []string, opts SetOptions, value interfac
 		v.comment = opts.Comment
 		v.commented = opts.Commented
 		v.multiline = opts.Multiline
+		v.literal = opts.Literal
 		toInsert = v
 	default:
 		toInsert = &tomlValue{value: value,
 			comment:   opts.Comment,
 			commented: opts.Commented,
 			multiline: opts.Multiline,
+			literal:   opts.Literal,
 			position:  Position{Line: subtree.position.Line + len(subtree.values) + 1, Col: subtree.position.Col}}
 	}
 

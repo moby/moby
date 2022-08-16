@@ -5,9 +5,8 @@ package local // import "github.com/docker/docker/libcontainerd/local"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -17,7 +16,6 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	containerderrdefs "github.com/containerd/containerd/errdefs"
@@ -47,7 +45,6 @@ type container struct {
 	// have access to the Spec
 	ociSpec *specs.Spec
 
-	isWindows    bool
 	hcsContainer hcsshim.Container
 
 	id               string
@@ -105,43 +102,43 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //
 // Isolation=Process example:
 //
-// {
-// 	"SystemType": "Container",
-// 	"Name": "5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
-// 	"Owner": "docker",
-// 	"VolumePath": "\\\\\\\\?\\\\Volume{66d1ef4c-7a00-11e6-8948-00155ddbef9d}",
-// 	"IgnoreFlushesDuringBoot": true,
-// 	"LayerFolderPath": "C:\\\\control\\\\windowsfilter\\\\5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
-// 	"Layers": [{
-// 		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
-// 		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
-// 	}],
-// 	"HostName": "5e0055c814a6",
-// 	"MappedDirectories": [],
-// 	"HvPartition": false,
-// 	"EndpointList": ["eef2649d-bb17-4d53-9937-295a8efe6f2c"],
-// }
+//	{
+//		"SystemType": "Container",
+//		"Name": "5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+//		"Owner": "docker",
+//		"VolumePath": "\\\\\\\\?\\\\Volume{66d1ef4c-7a00-11e6-8948-00155ddbef9d}",
+//		"IgnoreFlushesDuringBoot": true,
+//		"LayerFolderPath": "C:\\\\control\\\\windowsfilter\\\\5e0055c814a6005b8e57ac59f9a522066e0af12b48b3c26a9416e23907698776",
+//		"Layers": [{
+//			"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+//			"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+//		}],
+//		"HostName": "5e0055c814a6",
+//		"MappedDirectories": [],
+//		"HvPartition": false,
+//		"EndpointList": ["eef2649d-bb17-4d53-9937-295a8efe6f2c"],
+//	}
 //
 // Isolation=Hyper-V example:
 //
-// {
-// 	"SystemType": "Container",
-// 	"Name": "475c2c58933b72687a88a441e7e0ca4bd72d76413c5f9d5031fee83b98f6045d",
-// 	"Owner": "docker",
-// 	"IgnoreFlushesDuringBoot": true,
-// 	"Layers": [{
-// 		"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
-// 		"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
-// 	}],
-// 	"HostName": "475c2c58933b",
-// 	"MappedDirectories": [],
-// 	"HvPartition": true,
-// 	"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
-// 	"DNSSearchList": "a.com,b.com,c.com",
-// 	"HvRuntime": {
-// 		"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
-// 	},
-// }
+//	{
+//		"SystemType": "Container",
+//		"Name": "475c2c58933b72687a88a441e7e0ca4bd72d76413c5f9d5031fee83b98f6045d",
+//		"Owner": "docker",
+//		"IgnoreFlushesDuringBoot": true,
+//		"Layers": [{
+//			"ID": "18955d65-d45a-557b-bf1c-49d6dfefc526",
+//			"Path": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c"
+//		}],
+//		"HostName": "475c2c58933b",
+//		"MappedDirectories": [],
+//		"HvPartition": true,
+//		"EndpointList": ["e1bb1e61-d56f-405e-b75d-fd520cefa0cb"],
+//		"DNSSearchList": "a.com,b.com,c.com",
+//		"HvRuntime": {
+//			"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
+//		},
+//	}
 func (c *client) Create(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error {
 	if ctr := c.getContainer(id); ctr != nil {
 		return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
@@ -307,9 +304,6 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		}
 	}
 	configuration.MappedDirectories = mds
-	if len(mps) > 0 && osversion.Build() < osversion.RS3 {
-		return errors.New("named pipe mounts are not supported on this version of Windows")
-	}
 	configuration.MappedPipes = mps
 
 	if len(spec.Windows.Devices) > 0 {
@@ -317,10 +311,12 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		if configuration.HvPartition {
 			return errors.New("device assignment is not supported for HyperV containers")
 		}
-		if osversion.Build() < osversion.RS5 {
-			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
-		}
 		for _, d := range spec.Windows.Devices {
+			// Per https://github.com/microsoft/hcsshim/blob/v0.9.2/internal/uvm/virtual_device.go#L17-L18,
+			// these represent an Interface Class GUID.
+			if d.IDType != "class" && d.IDType != "vpci-class-guid" {
+				return errors.Errorf("device assignment of type '%s' is not supported", d.IDType)
+			}
 			configuration.AssignedDevices = append(configuration.AssignedDevices, hcsshim.AssignedDevice{InterfaceClassGUID: d.ID})
 		}
 	}
@@ -334,7 +330,6 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	ctr := &container{
 		id:           id,
 		execs:        make(map[string]*process),
-		isWindows:    true,
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
 		status:       containerd.Created,
@@ -435,23 +430,10 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
 
 	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(ctr.isWindows, ctr.ociSpec.Process, createProcessParms)
-	if ctr.isWindows {
-		logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
-	}
+	setCommandLineAndArgs(ctr.ociSpec.Process, createProcessParms)
+	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
-
-	// LCOW requires the raw OCI spec passed through HCS and onwards to
-	// GCS for the utility VM.
-	if !ctr.isWindows {
-		ociBuf, err := json.Marshal(ctr.ociSpec)
-		if err != nil {
-			return -1, err
-		}
-		ociRaw := json.RawMessage(ociBuf)
-		createProcessParms.OCISpecification = &ociRaw
-	}
 
 	ctr.Lock()
 
@@ -546,15 +528,11 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 }
 
 // setCommandLineAndArgs configures the HCS ProcessConfig based on an OCI process spec
-func setCommandLineAndArgs(isWindows bool, process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
-	if isWindows {
-		if process.CommandLine != "" {
-			createProcessParms.CommandLine = process.CommandLine
-		} else {
-			createProcessParms.CommandLine = system.EscapeArgs(process.Args)
-		}
+func setCommandLineAndArgs(process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
+	if process.CommandLine != "" {
+		createProcessParms.CommandLine = process.CommandLine
 	} else {
-		createProcessParms.CommandArgs = process.Args
+		createProcessParms.CommandLine = system.EscapeArgs(process.Args)
 	}
 }
 
@@ -568,10 +546,10 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
-		dio.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
+		dio.Stdout = io.NopCloser(&autoClosingReader{ReadCloser: stdout})
 	}
 	if stderr != nil {
-		dio.Stderr = ioutil.NopCloser(&autoClosingReader{ReadCloser: stderr})
+		dio.Stderr = io.NopCloser(&autoClosingReader{ReadCloser: stderr})
 	}
 	return dio, nil
 }
@@ -622,7 +600,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
 
 	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(ctr.isWindows, spec, createProcessParms)
+	setCommandLineAndArgs(spec, createProcessParms)
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = spec.User.Username
@@ -707,10 +685,10 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	return pid, nil
 }
 
-// Signal handles `docker stop` on Windows. While Linux has support for
+// SignalProcess handles `docker stop` on Windows. While Linux has support for
 // the full range of signals, signals aren't really implemented on Windows.
 // We fake supporting regular stop and -9 to force kill.
-func (c *client) SignalProcess(_ context.Context, containerID, processID string, signal int) error {
+func (c *client) SignalProcess(_ context.Context, containerID, processID string, signal syscall.Signal) error {
 	ctr, p, err := c.getProcess(containerID, processID)
 	if err != nil {
 		return err
@@ -751,7 +729,7 @@ func (c *client) SignalProcess(_ context.Context, containerID, processID string,
 	return nil
 }
 
-// Resize handles a CLI event to resize an interactive docker run or docker
+// ResizeTerminal handles a CLI event to resize an interactive docker run or docker
 // exec window.
 func (c *client) ResizeTerminal(_ context.Context, containerID, processID string, width, height int) error {
 	_, p, err := c.getProcess(containerID, processID)
@@ -908,8 +886,8 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio libcontaine
 	}, nil
 }
 
-// GetPidsForContainer returns a list of process IDs running in a container.
-// Not used on Windows.
+// ListPids returns a list of process IDs running in a container. It is not
+// implemented on Windows.
 func (c *client) ListPids(_ context.Context, _ string) ([]uint32, error) {
 	return nil, errors.New("not implemented on Windows")
 }

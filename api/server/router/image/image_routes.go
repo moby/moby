@@ -2,40 +2,41 @@ package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 // Creates an image from Pull or from Import
-func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-
+func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
 	var (
-		image    = r.Form.Get("fromImage")
-		repo     = r.Form.Get("repo")
-		tag      = r.Form.Get("tag")
-		message  = r.Form.Get("message")
-		err      error
-		output   = ioutils.NewWriteFlusher(w)
-		platform *specs.Platform
+		img         = r.Form.Get("fromImage")
+		repo        = r.Form.Get("repo")
+		tag         = r.Form.Get("tag")
+		message     = r.Form.Get("message")
+		progressErr error
+		output      = ioutils.NewWriteFlusher(w)
+		platform    *specs.Platform
 	)
 	defer output.Close()
 
@@ -43,9 +44,8 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
-		apiPlatform := r.FormValue("platform")
-		if apiPlatform != "" {
-			sp, err := platforms.Parse(apiPlatform)
+		if p := r.FormValue("platform"); p != "" {
+			sp, err := platforms.Parse(p)
 			if err != nil {
 				return err
 			}
@@ -53,7 +53,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		}
 	}
 
-	if image != "" { // pull
+	if img != "" { // pull
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
 			if strings.HasPrefix(k, "X-Meta-") {
@@ -61,39 +61,25 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 
-		authEncoded := r.Header.Get("X-Registry-Auth")
-		authConfig := &types.AuthConfig{}
-		if authEncoded != "" {
-			authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-			if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-				// for a pull it is not an error if no auth was given
-				// to increase compatibility with the existing api it is defaulting to be empty
-				authConfig = &types.AuthConfig{}
-			}
-		}
-		err = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
+		// For a pull it is not an error if no auth was given. Ignore invalid
+		// AuthConfig to increase compatibility with the existing API.
+		authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+		progressErr = ir.backend.PullImage(ctx, img, tag, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
-		// 'err' MUST NOT be defined within this block, we need any error
-		// generated from the download to be available to the output
-		// stream processing below
-		os := ""
-		if platform != nil {
-			os = platform.OS
-		}
-		err = s.backend.ImportImage(src, repo, os, tag, message, r.Body, output, r.Form["changes"])
+		progressErr = ir.backend.ImportImage(src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
 	}
-	if err != nil {
+	if progressErr != nil {
 		if !output.Flushed() {
-			return err
+			return progressErr
 		}
-		_, _ = output.Write(streamformatter.FormatError(err))
+		_, _ = output.Write(streamformatter.FormatError(progressErr))
 	}
 
 	return nil
 }
 
-func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -103,32 +89,29 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	authConfig := &types.AuthConfig{}
 
-	authEncoded := r.Header.Get("X-Registry-Auth")
-	if authEncoded != "" {
-		// the new format is to handle the authConfig as a header
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			// to increase compatibility to existing api it is defaulting to be empty
-			authConfig = &types.AuthConfig{}
-		}
+	var authConfig *registry.AuthConfig
+	if authEncoded := r.Header.Get(registry.AuthHeader); authEncoded != "" {
+		// the new format is to handle the authConfig as a header. Ignore invalid
+		// AuthConfig to increase compatibility with the existing API.
+		authConfig, _ = registry.DecodeAuthConfig(authEncoded)
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
-		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-			return errors.Wrap(errdefs.InvalidParameter(err), "Bad parameters and missing X-Registry-Auth")
+		var err error
+		authConfig, err = registry.DecodeAuthConfigBody(r.Body)
+		if err != nil {
+			return errors.Wrap(err, "bad parameters and missing X-Registry-Auth")
 		}
 	}
-
-	image := vars["name"]
-	tag := r.Form.Get("tag")
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.backend.PushImage(ctx, image, tag, metaHeaders, authConfig, output); err != nil {
+	img := vars["name"]
+	tag := r.Form.Get("tag")
+	if err := ir.backend.PushImage(ctx, img, tag, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -137,7 +120,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
-func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -153,7 +136,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		names = r.Form["names"]
 	}
 
-	if err := s.backend.ExportImage(names, output); err != nil {
+	if err := ir.backend.ExportImage(ctx, names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -162,7 +145,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 	return nil
 }
 
-func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -172,7 +155,7 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+	if err := ir.backend.LoadImage(ctx, r.Body, output, quiet); err != nil {
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
@@ -186,7 +169,7 @@ func (missingImageError) Error() string {
 
 func (missingImageError) InvalidParameter() {}
 
-func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -200,7 +183,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := s.backend.ImageDelete(name, force, prune)
+	list, err := ir.backend.ImageDelete(ctx, name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -208,8 +191,13 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
-func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	imageInspect, err := s.backend.LookupImage(vars["name"])
+func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	img, err := ir.backend.GetImage(vars["name"], nil)
+	if err != nil {
+		return err
+	}
+
+	imageInspect, err := ir.toImageInspect(img)
 	if err != nil {
 		return err
 	}
@@ -217,7 +205,84 @@ func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, error) {
+	refs := ir.referenceBackend.References(img.ID().Digest())
+	var repoTags, repoDigests []string
+	for _, ref := range refs {
+		switch ref.(type) {
+		case reference.NamedTagged:
+			repoTags = append(repoTags, reference.FamiliarString(ref))
+		case reference.Canonical:
+			repoDigests = append(repoDigests, reference.FamiliarString(ref))
+		}
+	}
+
+	var size int64
+	var layerMetadata map[string]string
+	if layerID := img.RootFS.ChainID(); layerID != "" {
+		l, err := ir.layerStore.Get(layerID)
+		if err != nil {
+			return nil, err
+		}
+		defer layer.ReleaseAndLog(ir.layerStore, l)
+		size = l.Size()
+		layerMetadata, err = l.Metadata()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	comment := img.Comment
+	if len(comment) == 0 && len(img.History) > 0 {
+		comment = img.History[len(img.History)-1].Comment
+	}
+
+	lastUpdated, err := ir.imageStore.GetLastUpdated(img.ID())
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.ImageInspect{
+		ID:              img.ID().String(),
+		RepoTags:        repoTags,
+		RepoDigests:     repoDigests,
+		Parent:          img.Parent.String(),
+		Comment:         comment,
+		Created:         img.Created.Format(time.RFC3339Nano),
+		Container:       img.Container,
+		ContainerConfig: &img.ContainerConfig,
+		DockerVersion:   img.DockerVersion,
+		Author:          img.Author,
+		Config:          img.Config,
+		Architecture:    img.Architecture,
+		Variant:         img.Variant,
+		Os:              img.OperatingSystem(),
+		OsVersion:       img.OSVersion,
+		Size:            size,
+		VirtualSize:     size, // TODO: field unused, deprecate
+		GraphDriver: types.GraphDriverData{
+			Name: ir.layerStore.DriverName(),
+			Data: layerMetadata,
+		},
+		RootFS: rootFSToAPIType(img.RootFS),
+		Metadata: types.ImageMetadata{
+			LastTagTime: lastUpdated,
+		},
+	}, nil
+}
+
+func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
+	var layers []string
+	for _, l := range rootfs.DiffIDs {
+		layers = append(layers, l.String())
+	}
+	return types.RootFS{
+		Type:   rootfs.Type,
+		Layers: layers,
+	}
+}
+
+func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -229,13 +294,24 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.LessThan(version, "1.41") {
+		// NOTE: filter is a shell glob string applied to repository names.
 		filterParam := r.Form.Get("filter")
 		if filterParam != "" {
 			imageFilters.Add("reference", filterParam)
 		}
 	}
 
-	images, err := s.backend.Images(imageFilters, httputils.BoolValue(r, "all"), false)
+	var sharedSize bool
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		// NOTE: Support for the "shared-size" parameter was added in API 1.42.
+		sharedSize = httputils.BoolValue(r, "shared-size")
+	}
+
+	images, err := ir.backend.Images(ctx, types.ImageListOptions{
+		All:        httputils.BoolValue(r, "all"),
+		Filters:    imageFilters,
+		SharedSize: sharedSize,
+	})
 	if err != nil {
 		return err
 	}
@@ -243,9 +319,8 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 	return httputils.WriteJSON(w, http.StatusOK, images)
 }
 
-func (s *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	name := vars["name"]
-	history, err := s.backend.ImageHistory(name)
+func (ir *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	history, err := ir.backend.ImageHistory(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -253,56 +328,53 @@ func (s *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, history)
 }
 
-func (s *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if _, err := s.backend.TagImage(vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
+	if _, err := ir.backend.TagImage(vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
 	return nil
 }
 
-func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	var (
-		config      *types.AuthConfig
-		authEncoded = r.Header.Get("X-Registry-Auth")
-		headers     = map[string][]string{}
-	)
 
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
-			// for a search it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &types.AuthConfig{}
-		}
-	}
+	var headers = map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
 			headers[k] = v
 		}
 	}
-	limit := registry.DefaultSearchLimit
+
+	var limit int
 	if r.Form.Get("limit") != "" {
-		limitValue, err := strconv.Atoi(r.Form.Get("limit"))
-		if err != nil {
-			return err
+		var err error
+		limit, err = strconv.Atoi(r.Form.Get("limit"))
+		if err != nil || limit < 0 {
+			return errdefs.InvalidParameter(errors.Wrap(err, "invalid limit specified"))
 		}
-		limit = limitValue
 	}
-	query, err := s.backend.SearchRegistryForImages(ctx, r.Form.Get("filters"), r.Form.Get("term"), limit, config, headers)
+	searchFilters, err := filters.FromJSON(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	// For a search it is not an error if no auth was given. Ignore invalid
+	// AuthConfig to increase compatibility with the existing API.
+	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+	query, err := ir.backend.SearchRegistryForImages(ctx, searchFilters, r.Form.Get("term"), limit, authConfig, headers)
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, query.Results)
 }
 
-func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -312,7 +384,7 @@ func (s *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	pruneReport, err := s.backend.ImagesPrune(ctx, pruneFilters)
+	pruneReport, err := ir.backend.ImagesPrune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

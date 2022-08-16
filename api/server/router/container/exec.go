@@ -2,8 +2,6 @@ package container // import "github.com/docker/docker/api/server/router/containe
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -38,27 +37,26 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
-	name := vars["name"]
 
 	execConfig := &types.ExecConfig{}
-	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, execConfig); err != nil {
+		return err
 	}
 
 	if len(execConfig.Cmd) == 0 {
 		return execCommandError{}
 	}
 
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.42") {
+		// Not supported by API versions before 1.42
+		execConfig.ConsoleSize = nil
+	}
+
 	// Register an instance of Exec in container.
-	id, err := s.backend.ContainerExecCreate(name, execConfig)
+	id, err := s.backend.ContainerExecCreate(vars["name"], execConfig)
 	if err != nil {
-		logrus.Errorf("Error setting up exec command in container %s: %v", name, err)
+		logrus.Errorf("Error setting up exec command in container %s: %v", vars["name"], err)
 		return err
 	}
 
@@ -74,9 +72,11 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	}
 
 	version := httputils.VersionFromContext(ctx)
-	if versions.GreaterThan(version, "1.21") {
-		if err := httputils.CheckForJSON(r); err != nil {
-			return err
+	if versions.LessThan(version, "1.22") {
+		// API versions before 1.22 did not enforce application/json content-type.
+		// Allow older clients to work by patching the content-type.
+		if r.Header.Get("Content-Type") != "application/json" {
+			r.Header.Set("Content-Type", "application/json")
 		}
 	}
 
@@ -87,15 +87,24 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	)
 
 	execStartCheck := &types.ExecStartCheck{}
-	if err := json.NewDecoder(r.Body).Decode(execStartCheck); err != nil {
-		if err == io.EOF {
-			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
-		}
-		return errdefs.InvalidParameter(err)
+	if err := httputils.ReadJSON(r, execStartCheck); err != nil {
+		return err
 	}
 
 	if exists, err := s.backend.ExecExists(execName); !exists {
 		return err
+	}
+
+	if execStartCheck.ConsoleSize != nil {
+		// Not supported before 1.42
+		if versions.LessThan(version, "1.42") {
+			execStartCheck.ConsoleSize = nil
+		}
+
+		// No console without tty
+		if !execStartCheck.Tty {
+			execStartCheck.ConsoleSize = nil
+		}
 	}
 
 	if !execStartCheck.Detach {
@@ -108,7 +117,11 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		defer httputils.CloseStreams(inStream, outStream)
 
 		if _, ok := r.Header["Upgrade"]; ok {
-			fmt.Fprint(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
+			contentType := types.MediaTypeRawStream
+			if !execStartCheck.Tty && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
+				contentType = types.MediaTypeMultiplexedStream
+			}
+			fmt.Fprint(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: "+contentType+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
 		} else {
 			fmt.Fprint(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n")
 		}
@@ -127,9 +140,16 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		}
 	}
 
+	options := container.ExecStartOptions{
+		Stdin:       stdin,
+		Stdout:      stdout,
+		Stderr:      stderr,
+		ConsoleSize: execStartCheck.ConsoleSize,
+	}
+
 	// Now run the user process in container.
 	// Maybe we should we pass ctx here if we're not detaching?
-	if err := s.backend.ContainerExecStart(context.Background(), execName, stdin, stdout, stderr); err != nil {
+	if err := s.backend.ContainerExecStart(context.Background(), execName, options); err != nil {
 		if execStartCheck.Detach {
 			return err
 		}

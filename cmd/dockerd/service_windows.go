@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -12,7 +12,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
@@ -167,19 +166,11 @@ func registerService() error {
 	}
 	defer m.Disconnect()
 
-	depends := []string{}
-
-	// This dependency is required on build 14393 (RS1)
-	// it is added to the platform in newer builds
-	if osversion.Build() == osversion.RS1 {
-		depends = append(depends, "ConDrv")
-	}
-
 	c := mgr.Config{
 		ServiceType:  windows.SERVICE_WIN32_OWN_PROCESS,
 		StartType:    mgr.StartAutomatic,
 		ErrorControl: mgr.ErrorNormal,
-		Dependencies: depends,
+		Dependencies: []string{},
 		DisplayName:  "Docker Engine",
 	}
 
@@ -293,7 +284,7 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 	}
 
 	logrus.AddHook(&etwHook{log})
-	logrus.SetOutput(ioutil.Discard)
+	logrus.SetOutput(io.Discard)
 
 	service = h
 	go func() {
@@ -372,7 +363,7 @@ Loop:
 
 func initPanicFile(path string) error {
 	var err error
-	panicFile, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0)
+	panicFile, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o200)
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,7 @@
 			"akihirosuda",
 			"anusha",
 			"coolljt0725",
+			"corhere",
 			"cpuguy83",
 			"estesp",
 			"johnstep",
@@ -61,13 +62,18 @@
 		people = [
 			"alexellis",
 			"andrewhsu",
+			"bsousaa",
 			"fntlnz",
 			"gianarb",
+			"ndeloof",
+			"neersighted",
 			"olljanat",
 			"programmerq",
 			"ripcurld",
+			"rumpl",
 			"samwhited",
-			"thajeztah"
+			"thajeztah",
+			"vvoland"
 		]
 
 	[Org.Alumni]
@@ -302,6 +308,11 @@
 	Name = "Anusha Ragunathan"
 	Email = "anusha@docker.com"
 	GitHub = "anusha-ragunathan"
+	
+	[people.bsousaa]
+	Name = "Bruno de Sousa"
+	Email = "bruno.sousa@docker.com"
+	GitHub = "bsousaa"
 
 	[people.calavera]
 	Name = "David Calavera"
@@ -312,6 +323,11 @@
 	Name = "Lei Jitang"
 	Email = "leijitang@huawei.com"
 	GitHub = "coolljt0725"
+
+	[people.corhere]
+	Name = "Cory Snider"
+	Email = "csnider@mirantis.com"
+	GitHub = "corhere"
 
 	[people.cpuguy83]
 	Name = "Brian Goff"
@@ -423,6 +439,16 @@
 	Email = "mrjana@docker.com"
 	GitHub = "mrjana"
 
+	[people.ndeloof]
+	Name = "Nicolas De Loof"
+	Email = "nicolas.deloof@gmail.com"
+	GitHub = "ndeloof"
+
+	[people.neersighted]
+	Name = "Bjorn Neergaard"
+	Email = "bneergaard@mirantis.com"
+	GitHub = "neersighted"
+
 	[people.olljanat]
 	Name = "Olli Janatuinen"
 	Email = "olli.janatuinen@gmail.com"
@@ -438,6 +464,11 @@
 	Email = "ripcurld.github@gmail.com"
 	GitHub = "ripcurld"
 
+	[people.rumpl]
+	Name = "Djordje Lukic"
+	Email = "djordje.lukic@docker.com"
+	GitHub = "rumpl"
+
 	[people.runcom]
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
@@ -445,7 +476,7 @@
 
 	[people.samuelkarp]
 	Name = "Samuel Karp"
-	Email = "skarp@amazon.com"
+	Email = "me@samuelkarp.com"
 	GitHub = "samuelkarp"
 
 	[people.samwhited]
@@ -512,6 +543,11 @@
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
+	
+	[people.vvoland]
+	Name = "Paweł Gronowski"
+	Email = "pawel.gronowski@docker.com"
+	GitHub = "vvoland"
 
 	[people.yongtang]
 	Name = "Yong Tang"

@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
@@ -96,9 +95,10 @@ func NewStore(rootPath string, drivers *drivers.Store, opts ...StoreOpt) (*Volum
 		}
 
 		var err error
-		vs.db, err = bolt.Open(filepath.Join(volPath, "metadata.db"), 0600, &bolt.Options{Timeout: 1 * time.Second})
+		dbPath := filepath.Join(volPath, "metadata.db")
+		vs.db, err = bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
-			return nil, errors.Wrap(err, "error while opening volume store metadata database")
+			return nil, errors.Wrapf(err, "error while opening volume store metadata database (%s)", dbPath)
 		}
 
 		// initialize volumes bucket
@@ -571,15 +571,14 @@ func volumeExists(ctx context.Context, store *drivers.Store, v volume.Volume) (b
 // create asks the given driver to create a volume with the name/opts.
 // If a volume with the name is already known, it will ask the stored driver for the volume.
 // If the passed in driver name does not match the driver name which is stored
-//  for the given volume name, an error is returned after checking if the reference is stale.
+// for the given volume name, an error is returned after checking if the reference is stale.
 // If the reference is stale, it will be purged and this create can continue.
 // It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(ctx context.Context, name, driverName string, opts, labels map[string]string) (volume.Volume, bool, error) {
 	// Validate the name in a platform-specific manner
 
 	// volume name validation is specific to the host os and not on container image
-	// windows/lcow should have an equivalent volumename validation logic so we create a parser for current host OS
-	parser := volumemounts.NewParser(runtime.GOOS)
+	parser := volumemounts.NewParser()
 	err := parser.ValidateVolumeName(name)
 	if err != nil {
 		return nil, false, err
@@ -750,9 +749,9 @@ func (s *VolumeStore) getVolume(ctx context.Context, name, driverName string) (v
 
 // lookupVolume gets the specified volume from the specified driver.
 // This will only return errors related to communications with the driver.
-// If the driver returns an error that is not communication related the
-//   error is logged but not returned.
-// If the volume is not found it will return `nil, nil``
+// If the driver returns an error that is not communication related, the error
+// is logged but not returned.
+// If the volume is not found it will return `nil, nil`
 // TODO(@cpuguy83): plumb through the context to lower level components
 func lookupVolume(ctx context.Context, store *drivers.Store, driverName, volumeName string) (volume.Volume, error) {
 	if driverName == "" {

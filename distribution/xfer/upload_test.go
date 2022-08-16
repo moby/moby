@@ -69,12 +69,12 @@ func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progre
 
 func uploadDescriptors(currentUploads *int32) []UploadDescriptor {
 	return []UploadDescriptor{
-		&mockUploadDescriptor{currentUploads, layer.DiffID("sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"), 0},
-		&mockUploadDescriptor{currentUploads, layer.DiffID("sha256:1515325234325236634634608943609283523908626098235490238423902343"), 0},
-		&mockUploadDescriptor{currentUploads, layer.DiffID("sha256:6929356290463485374960346430698374523437683470934634534953453453"), 0},
-		&mockUploadDescriptor{currentUploads, layer.DiffID("sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"), 0},
-		&mockUploadDescriptor{currentUploads, layer.DiffID("sha256:8159352387436803946235346346368745389534789534897538734598734987"), 1},
-		&mockUploadDescriptor{currentUploads, layer.DiffID("sha256:4637863963478346897346987346987346789346789364879364897364987346"), 0},
+		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"},
+		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:1515325234325236634634608943609283523908626098235490238423902343"},
+		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:6929356290463485374960346430698374523437683470934634534953453453"},
+		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"},
+		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:8159352387436803946235346346368745389534789534897538734598734987", simulateRetries: 1},
+		&mockUploadDescriptor{currentUploads: currentUploads, diffID: "sha256:4637863963478346897346987346987346789346789364879364897364987346"},
 	}
 }
 

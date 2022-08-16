@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package main
@@ -8,7 +9,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	remoteipam "github.com/docker/docker/libnetwork/ipams/remote/api"
-	"github.com/docker/swarmkit/ca/keyutils"
+	"github.com/moby/swarmkit/v2/ca/keyutils"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
@@ -62,7 +62,7 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 		"--external-ca", "protocol=cfssl,url=https://somethingelse.org,cacert=fixtures/https/ca.pem"),
 		cli.Daemon(d)).Assert(c, icmd.Success)
 
-	expected, err := ioutil.ReadFile("fixtures/https/ca.pem")
+	expected, err := os.ReadFile("fixtures/https/ca.pem")
 	assert.NilError(c, err)
 
 	spec = getSpec()
@@ -108,7 +108,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 		"--external-ca", "protocol=cfssl,url=https://somethingelse.org,cacert=fixtures/https/ca.pem"),
 		cli.Daemon(d)).Assert(c, icmd.Success)
 
-	expected, err := ioutil.ReadFile("fixtures/https/ca.pem")
+	expected, err := os.ReadFile("fixtures/https/ca.pem")
 	assert.NilError(c, err)
 
 	spec := getSpec()
@@ -152,16 +152,10 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
 	d.Stop(c)
 
-	// start a daemon with --cluster-store and --cluster-advertise
-	err := d.StartWithError("--cluster-store=consul://consuladdr:consulport/some/path", "--cluster-advertise=1.1.1.1:2375")
+	// start a daemon with --live-restore
+	err := d.StartWithError("--live-restore")
 	assert.ErrorContains(c, err, "")
 	content, err := d.ReadLogFile()
-	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(content), "--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode"))
-	// start a daemon with --live-restore
-	err = d.StartWithError("--live-restore")
-	assert.ErrorContains(c, err, "")
-	content, err = d.ReadLogFile()
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), "--live-restore daemon configuration is incompatible with swarm mode"))
 	// restart for teardown
@@ -780,11 +774,11 @@ func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDr
 	assert.NilError(c, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
-	err = ioutil.WriteFile(fileName, []byte(url), 0644)
+	err = os.WriteFile(fileName, []byte(url), 0644)
 	assert.NilError(c, err)
 
 	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
-	err = ioutil.WriteFile(ipamFileName, []byte(url), 0644)
+	err = os.WriteFile(ipamFileName, []byte(url), 0644)
 	assert.NilError(c, err)
 }
 
@@ -811,7 +805,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceEnvFile(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
 
 	path := filepath.Join(d.Folder, "env.txt")
-	err := ioutil.WriteFile(path, []byte("VAR1=A\nVAR2=A\n"), 0644)
+	err := os.WriteFile(path, []byte("VAR1=A\nVAR2=A\n"), 0644)
 	assert.NilError(c, err)
 
 	name := "worker"
@@ -985,7 +979,7 @@ func getNodeStatus(c *testing.T, d *daemon.Daemon) swarm.LocalNodeState {
 
 func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (interface{}, string) {
 	return func(c *testing.T) (interface{}, string) {
-		keyBytes, err := ioutil.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
+		keyBytes, err := os.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
 		if err != nil {
 			return fmt.Errorf("error reading key: %v", err), ""
 		}
@@ -1215,7 +1209,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// is set to autolock)
 	poll.WaitOn(c, pollCheck(c, d3.CheckControlAvailable, checker.False()), poll.WithTimeout(defaultReconciliationTimeout))
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		certBytes, err := ioutil.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
+		certBytes, err := os.ReadFile(filepath.Join(d3.Folder, "root", "swarm", "certificates", "swarm-node.crt"))
 		if err != nil {
 			return "", fmt.Sprintf("error: %v", err)
 		}

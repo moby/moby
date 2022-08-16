@@ -74,7 +74,7 @@ func (d *Daemon) inspectFilter(name, filter string) (string, error) {
 }
 
 func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
-	return d.inspectFilter(name, fmt.Sprintf(".%s", field))
+	return d.inspectFilter(name, "."+field)
 }
 
 // CheckActiveContainerCount returns the number of active containers

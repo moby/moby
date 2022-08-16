@@ -24,7 +24,7 @@ import (
 // multiplexed.
 // The format of the multiplexed stream is as follows:
 //
-//    [8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
+//	[8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
 //
 // STREAM_TYPE can be 1 for stdout and 2 for stderr
 //
@@ -74,7 +74,7 @@ func (cli *Client) ContainerLogs(ctx context.Context, container string, options 
 
 	resp, err := cli.get(ctx, "/containers/"+container+"/logs", query, nil)
 	if err != nil {
-		return nil, wrapResponseError(err, resp, "container", container)
+		return nil, err
 	}
 	return resp.body, nil
 }

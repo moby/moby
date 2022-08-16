@@ -17,12 +17,12 @@
 package archive
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/containerd/containerd/reference"
 	distref "github.com/containerd/containerd/reference/docker"
 	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 // FilterRefPrefix restricts references to having the given image
@@ -72,7 +72,7 @@ func normalizeReference(ref string) (string, error) {
 	// TODO: Replace this function to not depend on reference package
 	normalized, err := distref.ParseDockerRef(ref)
 	if err != nil {
-		return "", errors.Wrapf(err, "normalize image ref %q", ref)
+		return "", fmt.Errorf("normalize image ref %q: %w", ref, err)
 	}
 
 	return normalized.String(), nil
@@ -81,7 +81,7 @@ func normalizeReference(ref string) (string, error) {
 func familiarizeReference(ref string) (string, error) {
 	named, err := distref.ParseNormalizedNamed(ref)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to parse %q", ref)
+		return "", fmt.Errorf("failed to parse %q: %w", ref, err)
 	}
 	named = distref.TagNameOnly(named)
 

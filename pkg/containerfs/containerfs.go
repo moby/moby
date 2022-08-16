@@ -28,8 +28,7 @@ type ContainerFS interface {
 // Driver combines both continuity's Driver and PathDriver interfaces with a Platform
 // field to determine the OS.
 type Driver interface {
-	// OS returns the OS where the rootfs is located. Essentially,
-	// runtime.GOOS for everything aside from LCOW, which is "linux"
+	// OS returns the OS where the rootfs is located. Essentially, runtime.GOOS.
 	OS() string
 
 	// Architecture returns the hardware architecture where the

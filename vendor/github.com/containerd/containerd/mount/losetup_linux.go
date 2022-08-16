@@ -17,6 +17,7 @@
 package mount
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -59,12 +59,12 @@ func ioctl(fd, req, args uintptr) (uintptr, uintptr, error) {
 func getFreeLoopDev() (uint32, error) {
 	ctrl, err := os.OpenFile(loopControlPath, os.O_RDWR, 0)
 	if err != nil {
-		return 0, errors.Errorf("could not open %v: %v", loopControlPath, err)
+		return 0, fmt.Errorf("could not open %v: %v", loopControlPath, err)
 	}
 	defer ctrl.Close()
 	num, _, err := ioctl(ctrl.Fd(), unix.LOOP_CTL_GET_FREE, 0)
 	if err != nil {
-		return 0, errors.Wrap(err, "could not get free loop device")
+		return 0, fmt.Errorf("could not get free loop device: %w", err)
 	}
 	return uint32(num), nil
 }
@@ -81,13 +81,13 @@ func setupLoopDev(backingFile, loopDev string, param LoopParams) (_ *os.File, re
 
 	back, err := os.OpenFile(backingFile, flags, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not open backing file: %s", backingFile)
+		return nil, fmt.Errorf("could not open backing file: %s: %w", backingFile, err)
 	}
 	defer back.Close()
 
 	loop, err := os.OpenFile(loopDev, flags, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not open loop device: %s", loopDev)
+		return nil, fmt.Errorf("could not open loop device: %s: %w", loopDev, err)
 	}
 	defer func() {
 		if retErr != nil {
@@ -97,7 +97,7 @@ func setupLoopDev(backingFile, loopDev string, param LoopParams) (_ *os.File, re
 
 	// 2. Set FD
 	if _, _, err = ioctl(loop.Fd(), unix.LOOP_SET_FD, back.Fd()); err != nil {
-		return nil, errors.Wrapf(err, "could not set loop fd for device: %s", loopDev)
+		return nil, fmt.Errorf("could not set loop fd for device: %s: %w", loopDev, err)
 	}
 
 	// 3. Set Info
@@ -131,7 +131,7 @@ func setupLoopDev(backingFile, loopDev string, param LoopParams) (_ *os.File, re
 	}
 
 	_, _, _ = ioctl(loop.Fd(), unix.LOOP_CLR_FD, 0)
-	return nil, errors.Errorf("failed to set loop device info: %v", err)
+	return nil, fmt.Errorf("failed to set loop device info: %v", err)
 }
 
 // setupLoop looks for (and possibly creates) a free loop device, and
@@ -200,7 +200,7 @@ func AttachLoopDevice(backingFile string) (string, error) {
 func DetachLoopDevice(devices ...string) error {
 	for _, dev := range devices {
 		if err := removeLoop(dev); err != nil {
-			return errors.Wrapf(err, "failed to remove loop device: %s", dev)
+			return fmt.Errorf("failed to remove loop device: %s: %w", dev, err)
 		}
 	}
 

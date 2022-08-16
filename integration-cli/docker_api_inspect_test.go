@@ -13,7 +13,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestInspectAPIContainerResponse(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -57,7 +57,7 @@ func (s *DockerSuite) TestInspectAPIContainerResponse(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
 	// No legacy implications for Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -80,7 +80,7 @@ func (s *DockerSuite) TestInspectAPIContainerVolumeDriverLegacy(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -104,7 +104,7 @@ func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 	assert.Assert(c, ok, "API version 1.25 expected to include VolumeDriver in 'HostConfig'")
 }
 
-func (s *DockerSuite) TestInspectAPIImageResponse(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
 	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -119,7 +119,7 @@ func (s *DockerSuite) TestInspectAPIImageResponse(c *testing.T) {
 }
 
 // #17131, #17139, #17173
-func (s *DockerSuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 	// Not relevant on Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -143,7 +143,7 @@ func (s *DockerSuite) TestInspectAPIEmptyFieldsInConfigPre121(c *testing.T) {
 	}
 }
 
-func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 	// Not relevant on Windows, and besides it doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -160,7 +160,7 @@ func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings120(c *testing.T) {
 	assert.Assert(c, len(settings.IPAddress) != 0)
 }
 
-func (s *DockerSuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
+func (s *DockerAPISuite) TestInspectAPIBridgeNetworkSettings121(c *testing.T) {
 	// Windows doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")

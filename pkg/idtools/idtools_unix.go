@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package idtools // import "github.com/docker/docker/pkg/idtools"
@@ -236,27 +237,27 @@ func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT
 	return os.Chown(p, uid, gid)
 }
 
-// NewIdentityMapping takes a requested username and
+// LoadIdentityMapping takes a requested username and
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
-func NewIdentityMapping(name string) (*IdentityMapping, error) {
+func LoadIdentityMapping(name string) (IdentityMapping, error) {
 	usr, err := LookupUser(name)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get user for username %s: %v", name, err)
+		return IdentityMapping{}, fmt.Errorf("Could not get user for username %s: %v", name, err)
 	}
 
 	subuidRanges, err := lookupSubUIDRanges(usr)
 	if err != nil {
-		return nil, err
+		return IdentityMapping{}, err
 	}
 	subgidRanges, err := lookupSubGIDRanges(usr)
 	if err != nil {
-		return nil, err
+		return IdentityMapping{}, err
 	}
 
-	return &IdentityMapping{
-		uids: subuidRanges,
-		gids: subgidRanges,
+	return IdentityMapping{
+		UIDMaps: subuidRanges,
+		GIDMaps: subgidRanges,
 	}, nil
 }
 

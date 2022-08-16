@@ -8,7 +8,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var (
@@ -22,6 +22,9 @@ var (
 
 func init() {
 	ocischemaFunc := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
+		if err := validateManifest(b); err != nil {
+			return nil, distribution.Descriptor{}, err
+		}
 		m := new(DeserializedManifest)
 		err := m.UnmarshalJSON(b)
 		if err != nil {
@@ -121,4 +124,23 @@ func (m *DeserializedManifest) MarshalJSON() ([]byte, error) {
 // calculate the content identifier.
 func (m DeserializedManifest) Payload() (string, []byte, error) {
 	return v1.MediaTypeImageManifest, m.canonical, nil
+}
+
+// unknownDocument represents a manifest, manifest list, or index that has not
+// yet been validated
+type unknownDocument struct {
+	Manifests interface{} `json:"manifests,omitempty"`
+}
+
+// validateManifest returns an error if the byte slice is invalid JSON or if it
+// contains fields that belong to a index
+func validateManifest(b []byte) error {
+	var doc unknownDocument
+	if err := json.Unmarshal(b, &doc); err != nil {
+		return err
+	}
+	if doc.Manifests != nil {
+		return errors.New("ocimanifest: expected manifest but found index")
+	}
+	return nil
 }

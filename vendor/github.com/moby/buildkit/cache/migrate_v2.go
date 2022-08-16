@@ -13,22 +13,23 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/util/bklog"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func migrateChainID(si *metadata.StorageItem, all map[string]*metadata.StorageItem) (digest.Digest, digest.Digest, error) {
-	diffID := digest.Digest(getDiffID(si))
+	md := &cacheMetadata{si}
+	diffID := md.getDiffID()
 	if diffID == "" {
 		return "", "", nil
 	}
-	blobID := digest.Digest(getBlob(si))
+	blobID := md.getBlob()
 	if blobID == "" {
 		return "", "", nil
 	}
-	chainID := digest.Digest(getChainID(si))
-	blobChainID := digest.Digest(getBlobChainID(si))
+	chainID := md.getChainID()
+	blobChainID := md.getBlobChainID()
 
 	if chainID != "" && blobChainID != "" {
 		return chainID, blobChainID, nil
@@ -37,7 +38,7 @@ func migrateChainID(si *metadata.StorageItem, all map[string]*metadata.StorageIt
 	chainID = diffID
 	blobChainID = digest.FromBytes([]byte(blobID + " " + diffID))
 
-	parent := getParent(si)
+	parent := md.getParent()
 	if parent != "" {
 		pChainID, pBlobChainID, err := migrateChainID(all[parent], all)
 		if err != nil {
@@ -47,10 +48,10 @@ func migrateChainID(si *metadata.StorageItem, all map[string]*metadata.StorageIt
 		blobChainID = digest.FromBytes([]byte(pBlobChainID + " " + blobChainID))
 	}
 
-	queueChainID(si, chainID.String())
-	queueBlobChainID(si, blobChainID.String())
+	md.queueChainID(chainID)
+	md.queueBlobChainID(blobChainID)
 
-	return chainID, blobChainID, si.Commit()
+	return chainID, blobChainID, md.commitMetadata()
 }
 
 func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapshot.Snapshotter, lm leases.Manager) error {
@@ -105,31 +106,34 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 
 	// add committed, parent, snapshot
 	for id, item := range byID {
-		em := getEqualMutable(item)
+		md := &cacheMetadata{item}
+		em := md.getEqualMutable()
 		if em == "" {
 			info, err := s.Stat(ctx, id)
 			if err != nil {
 				return err
 			}
 			if info.Kind == snapshots.KindCommitted {
-				queueCommitted(item)
+				md.queueCommitted(true)
 			}
 			if info.Parent != "" {
-				queueParent(item, info.Parent)
+				md.queueParent(info.Parent)
 			}
 		} else {
-			queueCommitted(item)
+			md.queueCommitted(true)
 		}
-		queueSnapshotID(item, id)
-		item.Commit()
+		md.queueSnapshotID(id)
+		md.commitMetadata()
 	}
 
 	for _, item := range byID {
-		em := getEqualMutable(item)
+		md := &cacheMetadata{item}
+		em := md.getEqualMutable()
 		if em != "" {
-			if getParent(item) == "" {
-				queueParent(item, getParent(byID[em]))
-				item.Commit()
+			if md.getParent() == "" {
+				emMd := &cacheMetadata{byID[em]}
+				md.queueParent(emMd.getParent())
+				md.commitMetadata()
 			}
 		}
 	}
@@ -151,13 +155,13 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 		if _, err := cs.Info(ctx, digest.Digest(blob.Blobsum)); err != nil {
 			continue
 		}
-		queueDiffID(item, blob.DiffID)
-		queueBlob(item, blob.Blobsum)
-		queueMediaType(item, images.MediaTypeDockerSchema2LayerGzip)
-		if err := item.Commit(); err != nil {
+		md := &cacheMetadata{item}
+		md.queueDiffID(digest.Digest(blob.DiffID))
+		md.queueBlob(digest.Digest(blob.Blobsum))
+		md.queueMediaType(images.MediaTypeDockerSchema2LayerGzip)
+		if err := md.commitMetadata(); err != nil {
 			return err
 		}
-
 	}
 
 	// calculate new chainid/blobsumid
@@ -171,6 +175,7 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 
 	// add new leases
 	for _, item := range byID {
+		md := &cacheMetadata{item}
 		l, err := lm.Create(ctx, func(l *leases.Lease) error {
 			l.ID = item.ID()
 			l.Labels = map[string]string{
@@ -187,15 +192,15 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 		}
 
 		if err := lm.AddResource(ctx, l, leases.Resource{
-			ID:   getSnapshotID(item),
+			ID:   md.getSnapshotID(),
 			Type: "snapshots/" + s.Name(),
 		}); err != nil {
 			return errors.Wrapf(err, "failed to add snapshot %s to lease", item.ID())
 		}
 
-		if blobID := getBlob(item); blobID != "" {
+		if blobID := md.getBlob(); blobID != "" {
 			if err := lm.AddResource(ctx, l, leases.Resource{
-				ID:   blobID,
+				ID:   string(blobID),
 				Type: "content",
 			}); err != nil {
 				return errors.Wrapf(err, "failed to add blob %s to lease", item.ID())
@@ -205,17 +210,18 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 
 	// remove old root labels
 	for _, item := range byID {
-		em := getEqualMutable(item)
+		md := &cacheMetadata{item}
+		em := md.getEqualMutable()
 		if em == "" {
 			if _, err := s.Update(ctx, snapshots.Info{
-				Name: getSnapshotID(item),
+				Name: md.getSnapshotID(),
 			}, "labels.containerd.io/gc.root"); err != nil {
 				if !errors.Is(err, errdefs.ErrNotFound) {
 					return err
 				}
 			}
 
-			if blob := getBlob(item); blob != "" {
+			if blob := md.getBlob(); blob != "" {
 				if _, err := cs.Update(ctx, content.Info{
 					Digest: digest.Digest(blob),
 				}, "labels.containerd.io/gc.root"); err != nil {
@@ -252,8 +258,9 @@ func MigrateV2(ctx context.Context, from, to string, cs content.Store, s snapsho
 	}
 
 	for _, item := range byID {
-		logrus.Infof("migrated %s parent:%q snapshot:%v committed:%v blob:%v diffid:%v chainID:%v blobChainID:%v",
-			item.ID(), getParent(item), getSnapshotID(item), getCommitted(item), getBlob(item), getDiffID(item), getChainID(item), getBlobChainID(item))
+		md := &cacheMetadata{item}
+		bklog.G(ctx).Infof("migrated %s parent:%q snapshot:%v blob:%v diffid:%v chainID:%v blobChainID:%v",
+			item.ID(), md.getParent(), md.getSnapshotID(), md.getBlob(), md.getDiffID(), md.getChainID(), md.getBlobChainID())
 	}
 
 	return nil

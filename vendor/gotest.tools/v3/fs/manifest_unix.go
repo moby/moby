@@ -1,16 +1,24 @@
+//go:build !windows
 // +build !windows
 
 package fs
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 )
 
-const (
-	defaultRootDirMode = os.ModeDir | 0700
-	defaultSymlinkMode = os.ModeSymlink | 0777
-)
+const defaultRootDirMode = os.ModeDir | 0700
+
+var defaultSymlinkMode = os.ModeSymlink | 0777
+
+func init() {
+	switch runtime.GOOS {
+	case "darwin":
+		defaultSymlinkMode = os.ModeSymlink | 0755
+	}
+}
 
 func newResourceFromInfo(info os.FileInfo) resource {
 	statT := info.Sys().(*syscall.Stat_t)

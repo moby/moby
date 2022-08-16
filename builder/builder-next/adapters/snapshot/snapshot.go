@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
@@ -15,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
@@ -31,7 +32,7 @@ type Opt struct {
 	GraphDriver     graphdriver.Driver
 	LayerStore      layer.Store
 	Root            string
-	IdentityMapping *idtools.IdentityMapping
+	IdentityMapping idtools.IdentityMapping
 }
 
 type graphIDRegistrar interface {
@@ -99,7 +100,12 @@ func (s *snapshotter) Name() string {
 }
 
 func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
-	return s.opt.IdentityMapping
+	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
+	// https://github.com/moby/moby/pull/39444
+	if s.opt.IdentityMapping.Empty() {
+		return nil
+	}
+	return &s.opt.IdentityMapping
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
@@ -198,7 +204,7 @@ func (s *snapshotter) getGraphDriverID(key string) (string, bool) {
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(key))
 		if b == nil {
-			return errors.Errorf("not found") // TODO: typed
+			return errors.Wrapf(errdefs.ErrNotFound, "key %s", key)
 		}
 		v := b.Get(keyCommitted)
 		if v != nil {
@@ -242,7 +248,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(id))
 		if b == nil && l == nil {
-			return errors.Errorf("snapshot %s not found", id) // TODO: typed
+			return errors.Wrapf(errdefs.ErrNotFound, "snapshot %s", id)
 		}
 		inf.Name = key
 		if b != nil {
@@ -405,11 +411,7 @@ func (s *snapshotter) Usage(ctx context.Context, key string) (us snapshots.Usage
 	if l, err := s.getLayer(key, true); err != nil {
 		return usage, err
 	} else if l != nil {
-		s, err := l.DiffSize()
-		if err != nil {
-			return usage, err
-		}
-		usage.Size = s
+		usage.Size = l.DiffSize()
 		return usage, nil
 	}
 
@@ -485,7 +487,7 @@ type mountable struct {
 	acquire  func() ([]mount.Mount, func() error, error)
 	release  func() error
 	refCount int
-	idmap    *idtools.IdentityMapping
+	idmap    idtools.IdentityMapping
 }
 
 func (m *mountable) Mount() ([]mount.Mount, func() error, error) {
@@ -530,5 +532,10 @@ func (m *mountable) releaseMount() error {
 }
 
 func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
-	return m.idmap
+	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
+	// https://github.com/moby/moby/pull/39444
+	if m.idmap.Empty() {
+		return nil
+	}
+	return &m.idmap
 }

@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	exec "golang.org/x/sys/execabs"
 )
 
 // NvidiaCLI is the path to the Nvidia helper binary
@@ -111,6 +111,7 @@ type config struct {
 	LDConfig     string
 	Requirements []string
 	OCIHookPath  string
+	NoCgroups    bool
 }
 
 func (c *config) args() []string {
@@ -136,6 +137,9 @@ func (c *config) args() []string {
 	}
 	for _, r := range c.Requirements {
 		args = append(args, fmt.Sprintf("--require=%s", r))
+	}
+	if c.NoCgroups {
+		args = append(args, "--no-cgroups")
 	}
 	args = append(args, "--pid={{pid}}", "{{rootfs}}")
 	return args
@@ -208,4 +212,10 @@ func WithLookupOCIHookPath(name string) Opts {
 		c.OCIHookPath = path
 		return nil
 	}
+}
+
+// WithNoCgroups passes --no-cgroups option to nvidia-container-cli.
+func WithNoCgroups(c *config) error {
+	c.NoCgroups = true
+	return nil
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
@@ -22,7 +21,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func (s *DockerSuite) TestBuildAPIDockerFileRemote(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAPIDockerFileRemote(c *testing.T) {
 	testRequires(c, NotUserNamespace)
 
 	var testD string
@@ -53,7 +52,7 @@ RUN find /tmp/`
 	assert.Assert(c, !strings.Contains(out, "baz"))
 }
 
-func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAPIRemoteTarballContext(c *testing.T) {
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -80,7 +79,7 @@ func (s *DockerSuite) TestBuildAPIRemoteTarballContext(c *testing.T) {
 	b.Close()
 }
 
-func (s *DockerSuite) TestBuildAPIRemoteTarballContextWithCustomDockerfile(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAPIRemoteTarballContextWithCustomDockerfile(c *testing.T) {
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	defer tw.Close()
@@ -134,7 +133,7 @@ RUN echo 'right'
 	assert.Assert(c, !strings.Contains(string(content), "wrong"))
 }
 
-func (s *DockerSuite) TestBuildAPILowerDockerfile(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAPILowerDockerfile(c *testing.T) {
 	git := fakegit.New(c, "repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
@@ -152,7 +151,7 @@ RUN echo from dockerfile`,
 	assert.Assert(c, is.Contains(out, "from dockerfile"))
 }
 
-func (s *DockerSuite) TestBuildAPIBuildGitWithF(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAPIBuildGitWithF(c *testing.T) {
 	git := fakegit.New(c, "repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,
@@ -173,7 +172,7 @@ RUN echo from Dockerfile`,
 	assert.Assert(c, is.Contains(out, "from baz"))
 }
 
-func (s *DockerSuite) TestBuildAPIDoubleDockerfile(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAPIDoubleDockerfile(c *testing.T) {
 	testRequires(c, UnixCli) // dockerfile overwrites Dockerfile on Windows
 	git := fakegit.New(c, "repo", map[string]string{
 		"Dockerfile": `FROM busybox
@@ -195,7 +194,7 @@ RUN echo from dockerfile`,
 	assert.Assert(c, is.Contains(out, "from Dockerfile"))
 }
 
-func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAPIUnnormalizedTarPaths(c *testing.T) {
 	// Make sure that build context tars with entries of the form
 	// x/./y don't cause caching false positives.
 
@@ -226,7 +225,7 @@ func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *testing.T) {
 
 		assert.NilError(c, tw.Close(), "failed to close tar archive")
 
-		res, body, err := request.Post("/build", request.RawContent(ioutil.NopCloser(buffer)), request.ContentType("application/x-tar"))
+		res, body, err := request.Post("/build", request.RawContent(io.NopCloser(buffer)), request.ContentType("application/x-tar"))
 		assert.NilError(c, err)
 		assert.Equal(c, res.StatusCode, http.StatusOK)
 
@@ -249,7 +248,7 @@ func (s *DockerSuite) TestBuildAPIUnnormalizedTarPaths(c *testing.T) {
 	assert.Assert(c, imageA != imageB)
 }
 
-func (s *DockerSuite) TestBuildOnBuildWithCopy(c *testing.T) {
+func (s *DockerAPISuite) TestBuildOnBuildWithCopy(c *testing.T) {
 	dockerfile := `
 		FROM ` + minimalBaseImage() + ` as onbuildbase
 		ONBUILD COPY file /file
@@ -274,7 +273,7 @@ func (s *DockerSuite) TestBuildOnBuildWithCopy(c *testing.T) {
 	assert.Assert(c, is.Contains(string(out), "Successfully built"))
 }
 
-func (s *DockerSuite) TestBuildOnBuildCache(c *testing.T) {
+func (s *DockerAPISuite) TestBuildOnBuildCache(c *testing.T) {
 	build := func(dockerfile string) []byte {
 		ctx := fakecontext.New(c, "",
 			fakecontext.WithDockerfile(dockerfile),
@@ -326,7 +325,7 @@ func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *testing.T) {
 	// push the image to the registry
 	rc, err := client.ImagePush(context.TODO(), repoName, types.ImagePushOptions{RegistryAuth: "{}"})
 	assert.Check(c, err)
-	_, err = io.Copy(ioutil.Discard, rc)
+	_, err = io.Copy(io.Discard, rc)
 	assert.Check(c, err)
 
 	dockerfile := fmt.Sprintf(`
@@ -353,7 +352,7 @@ func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *testing.T) {
 	assert.Check(c, is.Contains(string(out), "Successfully built"))
 }
 
-func (s *DockerSuite) TestBuildAddRemoteNoDecompress(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAddRemoteNoDecompress(c *testing.T) {
 	buffer := new(bytes.Buffer)
 	tw := tar.NewWriter(buffer)
 	dt := []byte("contents")
@@ -397,7 +396,7 @@ func (s *DockerSuite) TestBuildAddRemoteNoDecompress(c *testing.T) {
 	assert.Check(c, is.Contains(string(out), "Successfully built"))
 }
 
-func (s *DockerSuite) TestBuildChownOnCopy(c *testing.T) {
+func (s *DockerAPISuite) TestBuildChownOnCopy(c *testing.T) {
 	// new feature added in 1.31 - https://github.com/moby/moby/pull/34263
 	testRequires(c, DaemonIsLinux, MinimumAPIVersion("1.31"))
 	dockerfile := `FROM busybox
@@ -427,7 +426,7 @@ func (s *DockerSuite) TestBuildChownOnCopy(c *testing.T) {
 	assert.Check(c, is.Contains(string(out), "Successfully built"))
 }
 
-func (s *DockerSuite) TestBuildCopyCacheOnFileChange(c *testing.T) {
+func (s *DockerAPISuite) TestBuildCopyCacheOnFileChange(c *testing.T) {
 
 	dockerfile := `FROM busybox
 COPY file /file`
@@ -468,7 +467,7 @@ COPY file /file`
 	}
 }
 
-func (s *DockerSuite) TestBuildAddCacheOnFileChange(c *testing.T) {
+func (s *DockerAPISuite) TestBuildAddCacheOnFileChange(c *testing.T) {
 
 	dockerfile := `FROM busybox
 ADD file /file`
@@ -509,7 +508,7 @@ ADD file /file`
 	}
 }
 
-func (s *DockerSuite) TestBuildScratchCopy(c *testing.T) {
+func (s *DockerAPISuite) TestBuildScratchCopy(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerfile := `FROM scratch
 ADD Dockerfile /

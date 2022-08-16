@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,17 +24,6 @@ func ArchitectureIsNot(arch string) bool {
 
 func DaemonIsWindows() bool {
 	return testEnv.OSType == "windows"
-}
-
-func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
-	return func() bool {
-		if testEnv.OSType != "windows" {
-			return false
-		}
-		version := testEnv.DaemonInfo.KernelVersion
-		numVersion, _ := strconv.Atoi(strings.Split(version, " ")[1])
-		return numVersion >= buildNumber
-	}
 }
 
 func DaemonIsLinux() bool {
@@ -104,7 +91,7 @@ func Apparmor() bool {
 	if strings.HasPrefix(testEnv.DaemonInfo.OperatingSystem, "SUSE Linux Enterprise Server ") {
 		return false
 	}
-	buf, err := ioutil.ReadFile("/sys/module/apparmor/parameters/enabled")
+	buf, err := os.ReadFile("/sys/module/apparmor/parameters/enabled")
 	return err == nil && len(buf) > 1 && buf[0] == 'Y'
 }
 
@@ -155,21 +142,9 @@ func UserNamespaceInKernel() bool {
 
 func IsPausable() bool {
 	if testEnv.OSType == "windows" {
-		return testEnv.DaemonInfo.Isolation == "hyperv"
+		return testEnv.DaemonInfo.Isolation.IsHyperV()
 	}
 	return true
-}
-
-func IsolationIs(expectedIsolation string) bool {
-	return testEnv.OSType == "windows" && string(testEnv.DaemonInfo.Isolation) == expectedIsolation
-}
-
-func IsolationIsHyperv() bool {
-	return IsolationIs("hyperv")
-}
-
-func IsolationIsProcess() bool {
-	return IsolationIs("process")
 }
 
 // RegistryHosting returns whether the host can host a registry (v2) or not
@@ -179,6 +154,10 @@ func RegistryHosting() bool {
 	// registry binary is in PATH.
 	_, err := exec.LookPath(registry.V2binary)
 	return err == nil
+}
+
+func RuntimeIsWindowsContainerd() bool {
+	return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") == "1"
 }
 
 func SwarmInactive() bool {

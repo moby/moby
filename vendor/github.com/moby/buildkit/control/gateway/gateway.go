@@ -176,3 +176,11 @@ func (gwf *GatewayForwarder) ExecProcess(srv gwapi.LLBBridge_ExecProcessServer) 
 	}
 	return fwd.ExecProcess(srv)
 }
+
+func (gwf *GatewayForwarder) Warn(ctx context.Context, req *gwapi.WarnRequest) (*gwapi.WarnResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding Warn")
+	}
+	return fwd.Warn(ctx, req)
+}

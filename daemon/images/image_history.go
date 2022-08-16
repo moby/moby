@@ -7,7 +7,6 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
@@ -32,20 +31,13 @@ func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, 
 			if len(img.RootFS.DiffIDs) <= layerCounter {
 				return nil, fmt.Errorf("too many non-empty layers in History section")
 			}
-			if !system.IsOSSupported(img.OperatingSystem()) {
-				return nil, system.ErrNotSupportedOperatingSystem
-			}
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
 			l, err := i.layerStore.Get(rootFS.ChainID())
 			if err != nil {
 				return nil, err
 			}
-			layerSize, err = l.DiffSize()
+			layerSize = l.DiffSize()
 			layer.ReleaseAndLog(i.layerStore, l)
-			if err != nil {
-				return nil, err
-			}
-
 			layerCounter++
 		}
 

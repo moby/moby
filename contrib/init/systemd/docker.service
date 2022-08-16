@@ -1,7 +1,7 @@
 [Unit]
 Description=Docker Application Container Engine
 Documentation=https://docs.docker.com
-After=network-online.target docker.socket firewalld.service containerd.service
+After=network-online.target docker.socket firewalld.service containerd.service time-set.target
 Wants=network-online.target containerd.service
 Requires=docker.socket
 

@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceRemoveError(t *testing.T) {
@@ -27,11 +26,11 @@ func TestServiceRemoveError(t *testing.T) {
 
 func TestServiceRemoveNotFoundError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
+		client: newMockClient(errorMock(http.StatusNotFound, "no such service: service_id")),
 	}
 
 	err := client.ServiceRemove(context.Background(), "service_id")
-	assert.Check(t, is.Error(err, "Error: No such service: service_id"))
+	assert.ErrorContains(t, err, "no such service: service_id")
 	assert.Check(t, IsErrNotFound(err))
 }
 
@@ -48,7 +47,7 @@ func TestServiceRemove(t *testing.T) {
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte("body"))),
+				Body:       io.NopCloser(bytes.NewReader([]byte("body"))),
 			}, nil
 		}),
 	}

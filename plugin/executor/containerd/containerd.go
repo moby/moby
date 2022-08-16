@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"syscall"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
@@ -15,9 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
-
-// PluginNamespace is the name used for the plugins namespace
-const PluginNamespace = "plugins.moby"
 
 // ExitHandler represents an object that is called when the exit event is received from containerd
 type ExitHandler interface {
@@ -115,7 +113,7 @@ func (e *Executor) IsRunning(id string) (bool, error) {
 }
 
 // Signal sends the specified signal to the container
-func (e *Executor) Signal(id string, signal int) error {
+func (e *Executor) Signal(id string, signal syscall.Signal) error {
 	return e.client.SignalProcess(context.Background(), id, libcontainerdtypes.InitProcessName, signal)
 }
 

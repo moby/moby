@@ -3,12 +3,13 @@ package client
 import (
 	"context"
 	"io"
+	"syscall"
 
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	digest "github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
@@ -18,6 +19,7 @@ type Client interface {
 	BuildOpts() BuildOpts
 	Inputs(ctx context.Context) (map[string]llb.State, error)
 	NewContainer(ctx context.Context, req NewContainerRequest) (Container, error)
+	Warn(ctx context.Context, dgst digest.Digest, msg string, opts WarnOpts) error
 }
 
 // NewContainerRequest encapsulates the requirements for a client to define a
@@ -25,6 +27,7 @@ type Client interface {
 type NewContainerRequest struct {
 	Mounts      []Mount
 	NetMode     pb.NetMode
+	ExtraHosts  []*pb.HostIP
 	Platform    *pb.Platform
 	Constraints *pb.WorkerConstraints
 }
@@ -74,7 +77,7 @@ type WinSize struct {
 type ContainerProcess interface {
 	Wait() error
 	Resize(ctx context.Context, size WinSize) error
-	// TODO Signal(ctx context.Context, sig os.Signal)
+	Signal(ctx context.Context, sig syscall.Signal) error
 }
 
 type Reference interface {
@@ -121,7 +124,7 @@ type CacheOptionsEntry struct {
 type WorkerInfo struct {
 	ID        string
 	Labels    map[string]string
-	Platforms []specs.Platform
+	Platforms []ocispecs.Platform
 }
 
 type BuildOpts struct {
@@ -131,4 +134,12 @@ type BuildOpts struct {
 	Product   string
 	LLBCaps   apicaps.CapSet
 	Caps      apicaps.CapSet
+}
+
+type WarnOpts struct {
+	Level      int
+	SourceInfo *pb.SourceInfo
+	Range      []*pb.Range
+	Detail     [][]byte
+	URL        string
 }

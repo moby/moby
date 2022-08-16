@@ -5,14 +5,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/env"
 )
 
 // Validate options
@@ -86,8 +84,7 @@ func TestNewMissedToken(t *testing.T) {
 
 func TestNewWithProxy(t *testing.T) {
 	proxy := "http://proxy.testing:8888"
-	reset := env.Patch(t, "HTTP_PROXY", proxy)
-	defer reset()
+	t.Setenv("HTTP_PROXY", proxy)
 
 	// must not be localhost
 	splunkURL := "http://example.com:12345"
@@ -807,9 +804,7 @@ func TestRawFormatWithoutTag(t *testing.T) {
 // Verify that we will send messages in batches with default batching parameters,
 // but change frequency to be sure that numOfRequests will match expected 17 requests
 func TestBatching(t *testing.T) {
-	if err := os.Setenv(envVarPostMessagesFrequency, "10h"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv(envVarPostMessagesFrequency, "10h")
 
 	hec := NewHTTPEventCollectorMock(t)
 
@@ -865,17 +860,11 @@ func TestBatching(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if err := os.Setenv(envVarPostMessagesFrequency, ""); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // Verify that test is using time to fire events not rare than specified frequency
 func TestFrequency(t *testing.T) {
-	if err := os.Setenv(envVarPostMessagesFrequency, "5ms"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv(envVarPostMessagesFrequency, "5ms")
 
 	hec := NewHTTPEventCollectorMock(t)
 
@@ -938,30 +927,15 @@ func TestFrequency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if err := os.Setenv(envVarPostMessagesFrequency, ""); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // Simulate behavior similar to first version of Splunk Logging Driver, when we were sending one message
 // per request
 func TestOneMessagePerRequest(t *testing.T) {
-	if err := os.Setenv(envVarPostMessagesFrequency, "10h"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarPostMessagesBatchSize, "1"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarBufferMaximum, "1"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarStreamChannelSize, "0"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv(envVarPostMessagesFrequency, "10h")
+	t.Setenv(envVarPostMessagesBatchSize, "1")
+	t.Setenv(envVarBufferMaximum, "1")
+	t.Setenv(envVarStreamChannelSize, "0")
 
 	hec := NewHTTPEventCollectorMock(t)
 
@@ -1015,22 +989,6 @@ func TestOneMessagePerRequest(t *testing.T) {
 
 	err = hec.Close()
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarPostMessagesFrequency, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarPostMessagesBatchSize, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarBufferMaximum, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarStreamChannelSize, ""); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1136,17 +1094,9 @@ func TestSkipVerify(t *testing.T) {
 
 // Verify logic for when we filled whole buffer
 func TestBufferMaximum(t *testing.T) {
-	if err := os.Setenv(envVarPostMessagesBatchSize, "2"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarBufferMaximum, "10"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarStreamChannelSize, "0"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv(envVarPostMessagesBatchSize, "2")
+	t.Setenv(envVarBufferMaximum, "10")
+	t.Setenv(envVarStreamChannelSize, "0")
 
 	hec := NewHTTPEventCollectorMock(t)
 	hec.simulateErr(true)
@@ -1209,33 +1159,13 @@ func TestBufferMaximum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if err := os.Setenv(envVarPostMessagesBatchSize, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarBufferMaximum, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarStreamChannelSize, ""); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // Verify that we are not blocking close when HEC is down for the whole time
 func TestServerAlwaysDown(t *testing.T) {
-	if err := os.Setenv(envVarPostMessagesBatchSize, "2"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarBufferMaximum, "4"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarStreamChannelSize, "0"); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv(envVarPostMessagesBatchSize, "2")
+	t.Setenv(envVarBufferMaximum, "4")
+	t.Setenv(envVarStreamChannelSize, "0")
 
 	hec := NewHTTPEventCollectorMock(t)
 	hec.simulateServerError = true
@@ -1279,18 +1209,6 @@ func TestServerAlwaysDown(t *testing.T) {
 
 	err = hec.Close()
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarPostMessagesBatchSize, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarBufferMaximum, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Setenv(envVarStreamChannelSize, ""); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/moby/buildkit/cache"
-	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
@@ -20,6 +19,8 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
+	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -31,24 +32,26 @@ const fileCacheType = "buildkit.file.v0"
 
 type fileOp struct {
 	op          *pb.FileOp
-	md          *metadata.Store
+	md          cache.MetadataStore
 	w           worker.Worker
 	solver      *FileOpSolver
 	numInputs   int
 	parallelism *semaphore.Weighted
+	vtx         solver.Vertex
 }
 
-func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, parallelism *semaphore.Weighted, md *metadata.Store, w worker.Worker) (solver.Op, error) {
+func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, parallelism *semaphore.Weighted, w worker.Worker) (solver.Op, error) {
 	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
 		return nil, err
 	}
 	return &fileOp{
 		op:          op.File,
-		md:          md,
+		md:          cm,
 		numInputs:   len(v.Inputs()),
 		w:           w,
 		solver:      NewFileOpSolver(w, &file.Backend{}, file.NewRefManager(cm)),
 		parallelism: parallelism,
+		vtx:         v,
 	}, nil
 }
 
@@ -135,6 +138,14 @@ func (f *fileOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
 		}, f.numInputs),
+		Opts: solver.CacheOpts(map[interface{}]interface{}{
+			cache.ProgressKey{}: &controller.Controller{
+				WriterFactory: progress.FromContext(ctx),
+				Digest:        f.vtx.Digest(),
+				Name:          f.vtx.Name(),
+				ProgressGroup: f.vtx.Options().ProgressGroup,
+			},
+		}),
 	}
 
 	for idx, m := range selectors {
@@ -452,7 +463,7 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 					}
 				}
 
-				err = errdefs.WithExecError(err, inputRes, outputRes)
+				err = errdefs.WithExecErrorWithContext(ctx, err, inputRes, outputRes)
 			}
 			for _, m := range toRelease {
 				m.Release(context.TODO())

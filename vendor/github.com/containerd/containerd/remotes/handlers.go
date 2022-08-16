@@ -18,6 +18,7 @@ package remotes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -29,7 +30,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
@@ -127,13 +127,13 @@ func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 		// most likely a poorly configured registry/web front end which responded with no
 		// Content-Length header; unable (not to mention useless) to commit a 0-length entry
 		// into the content store. Error out here otherwise the error sent back is confusing
-		return errors.Wrapf(errdefs.ErrInvalidArgument, "unable to fetch descriptor (%s) which reports content size of zero", desc.Digest)
+		return fmt.Errorf("unable to fetch descriptor (%s) which reports content size of zero: %w", desc.Digest, errdefs.ErrInvalidArgument)
 	}
 	if ws.Offset == desc.Size {
 		// If writer is already complete, commit and return
 		err := cw.Commit(ctx, desc.Size, desc.Digest)
 		if err != nil && !errdefs.IsAlreadyExists(err) {
-			return errors.Wrapf(err, "failed commit on ref %q", ws.Ref)
+			return fmt.Errorf("failed commit on ref %q: %w", ws.Ref, err)
 		}
 		return nil
 	}
@@ -243,14 +243,51 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, st
 			// as a marker for this problem
 			if (manifestStack[i].MediaType == ocispec.MediaTypeImageIndex ||
 				manifestStack[i].MediaType == images.MediaTypeDockerSchema2ManifestList) &&
-				errors.Cause(err) != nil && strings.Contains(errors.Cause(err).Error(), "400 Bad Request") {
-				return errors.Wrap(err, "manifest list/index references to blobs and/or manifests are missing in your target registry")
+				errors.Unwrap(err) != nil && strings.Contains(errors.Unwrap(err).Error(), "400 Bad Request") {
+				return fmt.Errorf("manifest list/index references to blobs and/or manifests are missing in your target registry: %w", err)
 			}
 			return err
 		}
 	}
 
 	return nil
+}
+
+// SkipNonDistributableBlobs returns a handler that skips blobs that have a media type that is "non-distributeable".
+// An example of this kind of content would be a Windows base layer, which is not supposed to be redistributed.
+//
+// This is based on the media type of the content:
+// 	- application/vnd.oci.image.layer.nondistributable
+// 	- application/vnd.docker.image.rootfs.foreign
+func SkipNonDistributableBlobs(f images.HandlerFunc) images.HandlerFunc {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if images.IsNonDistributable(desc.MediaType) {
+			log.G(ctx).WithField("digest", desc.Digest).WithField("mediatype", desc.MediaType).Debug("Skipping non-distributable blob")
+			return nil, images.ErrSkipDesc
+		}
+
+		if images.IsLayerType(desc.MediaType) {
+			return nil, nil
+		}
+
+		children, err := f(ctx, desc)
+		if err != nil {
+			return nil, err
+		}
+		if len(children) == 0 {
+			return nil, nil
+		}
+
+		out := make([]ocispec.Descriptor, 0, len(children))
+		for _, child := range children {
+			if !images.IsNonDistributable(child.MediaType) {
+				out = append(out, child)
+			} else {
+				log.G(ctx).WithField("digest", child.Digest).WithField("mediatype", child.MediaType).Debug("Skipping non-distributable blob")
+			}
+		}
+		return out, nil
+	}
 }
 
 // FilterManifestByPlatformHandler allows Handler to handle non-target

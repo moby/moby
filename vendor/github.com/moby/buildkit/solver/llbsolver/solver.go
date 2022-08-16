@@ -2,11 +2,13 @@ package llbsolver
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/moby/buildkit/cache"
+	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
 	controlgateway "github.com/moby/buildkit/control/gateway"
@@ -14,8 +16,10 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/gateway"
+	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/buildinfo"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/progress"
@@ -154,6 +158,36 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		return nil, err
 	}
 
+	if r := res.Ref; r != nil {
+		dtbi, err := buildinfo.Encode(ctx, res.Metadata, exptypes.ExporterBuildInfo, r.BuildSources())
+		if err != nil {
+			return nil, err
+		}
+		if dtbi != nil && len(dtbi) > 0 {
+			if res.Metadata == nil {
+				res.Metadata = make(map[string][]byte)
+			}
+			res.Metadata[exptypes.ExporterBuildInfo] = dtbi
+		}
+	}
+	if res.Refs != nil {
+		for k, r := range res.Refs {
+			if r == nil {
+				continue
+			}
+			dtbi, err := buildinfo.Encode(ctx, res.Metadata, fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k), r.BuildSources())
+			if err != nil {
+				return nil, err
+			}
+			if dtbi != nil && len(dtbi) > 0 {
+				if res.Metadata == nil {
+					res.Metadata = make(map[string][]byte)
+				}
+				res.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k)] = dtbi
+			}
+		}
+	}
+
 	var exporterResponse map[string]string
 	if e := exp.Exporter; e != nil {
 		inp := exporter.Source{
@@ -162,6 +196,8 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		if inp.Metadata == nil {
 			inp.Metadata = make(map[string][]byte)
 		}
+		var cr solver.CachedResult
+		var crMap = map[string]solver.CachedResult{}
 		if res := res.Ref; res != nil {
 			r, err := res.Result(ctx)
 			if err != nil {
@@ -172,14 +208,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 				return nil, errors.Errorf("invalid reference: %T", r.Sys())
 			}
 			inp.Ref = workerRef.ImmutableRef
-
-			dt, err := inlineCache(ctx, exp.CacheExporter, r, session.NewGroup(sessionID))
-			if err != nil {
-				return nil, err
-			}
-			if dt != nil {
-				inp.Metadata[exptypes.ExporterInlineCache] = dt
-			}
+			cr = r
 		}
 		if res.Refs != nil {
 			m := make(map[string]cache.ImmutableRef, len(res.Refs))
@@ -196,19 +225,37 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 						return nil, errors.Errorf("invalid reference: %T", r.Sys())
 					}
 					m[k] = workerRef.ImmutableRef
-
-					dt, err := inlineCache(ctx, exp.CacheExporter, r, session.NewGroup(sessionID))
-					if err != nil {
-						return nil, err
-					}
-					if dt != nil {
-						inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterInlineCache, k)] = dt
-					}
+					crMap[k] = r
 				}
 			}
 			inp.Refs = m
 		}
-
+		if _, ok := asInlineCache(exp.CacheExporter); ok {
+			if err := inBuilderContext(ctx, j, "preparing layers for inline cache", "", func(ctx context.Context, _ session.Group) error {
+				if cr != nil {
+					dtic, err := inlineCache(ctx, exp.CacheExporter, cr, e.Config().Compression, session.NewGroup(sessionID))
+					if err != nil {
+						return err
+					}
+					if dtic != nil {
+						inp.Metadata[exptypes.ExporterInlineCache] = dtic
+					}
+				}
+				for k, res := range crMap {
+					dtic, err := inlineCache(ctx, exp.CacheExporter, res, e.Config().Compression, session.NewGroup(sessionID))
+					if err != nil {
+						return err
+					}
+					if dtic != nil {
+						inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterInlineCache, k)] = dtic
+					}
+				}
+				exp.CacheExporter = nil
+				return nil
+			}); err != nil {
+				return nil, err
+			}
+		}
 		if err := inBuilderContext(ctx, j, e.Name(), "", func(ctx context.Context, _ session.Group) error {
 			exporterResponse, err = e.Export(ctx, inp, j.SessionID)
 			return err
@@ -227,11 +274,22 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 				if err != nil {
 					return err
 				}
+
+				workerRef, ok := r.Sys().(*worker.WorkerRef)
+				if !ok {
+					return errors.Errorf("invalid reference: %T", r.Sys())
+				}
+				ctx = withDescHandlerCacheOpts(ctx, workerRef.ImmutableRef)
+
+				// Configure compression
+				compressionConfig := e.Config().Compression
+
 				// all keys have same export chain so exporting others is not needed
 				_, err = r.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
-					Convert: workerRefConverter(g),
-					Mode:    exp.CacheExportMode,
-					Session: g,
+					ResolveRemotes: workerRefResolver(cacheconfig.RefConfig{Compression: compressionConfig}, false, g),
+					Mode:           exp.CacheExportMode,
+					Session:        g,
+					CompressionOpt: &compressionConfig,
 				})
 				return err
 			}); err != nil {
@@ -253,6 +311,9 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		if strings.HasPrefix(k, "frontend.") {
 			exporterResponse[k] = string(v)
 		}
+		if strings.HasPrefix(k, exptypes.ExporterBuildInfo) {
+			exporterResponse[k] = base64.StdEncoding.EncodeToString(v)
+		}
 	}
 	for k, v := range cacheExporterResponse {
 		if strings.HasPrefix(k, "cache.") {
@@ -265,36 +326,61 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}, nil
 }
 
-func inlineCache(ctx context.Context, e remotecache.Exporter, res solver.CachedResult, g session.Group) ([]byte, error) {
-	if efl, ok := e.(interface {
-		ExportForLayers([]digest.Digest) ([]byte, error)
-	}); ok {
-		workerRef, ok := res.Sys().(*worker.WorkerRef)
-		if !ok {
-			return nil, errors.Errorf("invalid reference: %T", res.Sys())
-		}
+type inlineCacheExporter interface {
+	ExportForLayers(context.Context, []digest.Digest) ([]byte, error)
+}
 
-		remote, err := workerRef.GetRemote(ctx, true, compression.Default, g)
-		if err != nil || remote == nil {
-			return nil, nil
-		}
+func asInlineCache(e remotecache.Exporter) (inlineCacheExporter, bool) {
+	ie, ok := e.(inlineCacheExporter)
+	return ie, ok
+}
 
-		digests := make([]digest.Digest, 0, len(remote.Descriptors))
-		for _, desc := range remote.Descriptors {
-			digests = append(digests, desc.Digest)
-		}
-
-		if _, err := res.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
-			Convert: workerRefConverter(g),
-			Mode:    solver.CacheExportModeMin,
-			Session: g,
-		}); err != nil {
-			return nil, err
-		}
-
-		return efl.ExportForLayers(digests)
+func inlineCache(ctx context.Context, e remotecache.Exporter, res solver.CachedResult, compressionopt compression.Config, g session.Group) ([]byte, error) {
+	ie, ok := asInlineCache(e)
+	if !ok {
+		return nil, nil
 	}
-	return nil, nil
+	workerRef, ok := res.Sys().(*worker.WorkerRef)
+	if !ok {
+		return nil, errors.Errorf("invalid reference: %T", res.Sys())
+	}
+
+	remotes, err := workerRef.GetRemotes(ctx, true, cacheconfig.RefConfig{Compression: compressionopt}, false, g)
+	if err != nil || len(remotes) == 0 {
+		return nil, nil
+	}
+	remote := remotes[0]
+
+	digests := make([]digest.Digest, 0, len(remote.Descriptors))
+	for _, desc := range remote.Descriptors {
+		digests = append(digests, desc.Digest)
+	}
+
+	ctx = withDescHandlerCacheOpts(ctx, workerRef.ImmutableRef)
+	refCfg := cacheconfig.RefConfig{Compression: compressionopt}
+	if _, err := res.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
+		ResolveRemotes: workerRefResolver(refCfg, true, g), // load as many compression blobs as possible
+		Mode:           solver.CacheExportModeMin,
+		Session:        g,
+		CompressionOpt: &compressionopt, // cache possible compression variants
+	}); err != nil {
+		return nil, err
+	}
+	return ie.ExportForLayers(ctx, digests)
+}
+
+func withDescHandlerCacheOpts(ctx context.Context, ref cache.ImmutableRef) context.Context {
+	return solver.WithCacheOptGetter(ctx, func(includeAncestors bool, keys ...interface{}) map[interface{}]interface{} {
+		vals := make(map[interface{}]interface{})
+		for _, k := range keys {
+			if key, ok := k.(cache.DescHandlerKey); ok {
+				if handler := ref.DescHandler(digest.Digest(key)); handler != nil {
+					vals[k] = handler
+				}
+			}
+		}
+		return vals
+	})
 }
 
 func (s *Solver) Status(ctx context.Context, id string, statusChan chan *client.SolveStatus) error {
@@ -327,7 +413,7 @@ func allWorkers(wc *worker.Controller) func(func(w worker.Worker) error) error {
 }
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.FromContext(ctx)
+	pw, _, _ := progress.NewFromContext(ctx)
 	now := time.Now()
 	st := progress.Status{
 		Started: &now,
@@ -352,38 +438,33 @@ func inBuilderContext(ctx context.Context, b solver.Builder, name, id string, f 
 		Name:   name,
 	}
 	return b.InContext(ctx, func(ctx context.Context, g session.Group) error {
-		pw, _, ctx := progress.FromContext(ctx, progress.WithMetadata("vertex", v.Digest))
-		notifyStarted(ctx, &v, false)
+		pw, _, ctx := progress.NewFromContext(ctx, progress.WithMetadata("vertex", v.Digest))
+		notifyCompleted := notifyStarted(ctx, &v, false)
 		defer pw.Close()
 		err := f(ctx, g)
-		notifyCompleted(ctx, &v, err, false)
+		notifyCompleted(err, false)
 		return err
 	})
 }
 
-func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) {
-	pw, _, _ := progress.FromContext(ctx)
-	defer pw.Close()
-	now := time.Now()
-	v.Started = &now
+func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) func(err error, cached bool) {
+	pw, _, _ := progress.NewFromContext(ctx)
+	start := time.Now()
+	v.Started = &start
 	v.Completed = nil
 	v.Cached = cached
-	pw.Write(v.Digest.String(), *v)
-}
-
-func notifyCompleted(ctx context.Context, v *client.Vertex, err error, cached bool) {
-	pw, _, _ := progress.FromContext(ctx)
-	defer pw.Close()
-	now := time.Now()
-	if v.Started == nil {
-		v.Started = &now
+	id := identity.NewID()
+	pw.Write(id, *v)
+	return func(err error, cached bool) {
+		defer pw.Close()
+		stop := time.Now()
+		v.Completed = &stop
+		v.Cached = cached
+		if err != nil {
+			v.Error = err.Error()
+		}
+		pw.Write(id, *v)
 	}
-	v.Completed = &now
-	v.Cached = cached
-	if err != nil {
-		v.Error = err.Error()
-	}
-	pw.Write(v.Digest.String(), *v)
 }
 
 func supportedEntitlements(ents []string) []entitlements.Entitlement {

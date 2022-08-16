@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -7,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -117,8 +117,7 @@ type DeviceSet struct {
 	BaseDeviceFilesystem  string // save filesystem of base device
 	nrDeletedDevices      uint   // number of deleted devices
 	deletionWorkerTicker  *time.Ticker
-	uidMaps               []idtools.IDMap
-	gidMaps               []idtools.IDMap
+	idMap                 idtools.IdentityMapping
 	minFreeSpacePercent   uint32 // min free space percentage in thinpool
 	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
 	lvmSetupConfig        directLVMConfig
@@ -264,11 +263,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	uid, gid, err := idtools.GetRootUIDGID(devices.uidMaps, devices.gidMaps)
-	if err != nil {
-		return "", err
-	}
-	if err := idtools.MkdirAllAndChown(dirname, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil {
+	if err := idtools.MkdirAllAndChown(dirname, 0700, devices.idMap.RootPair()); err != nil {
 		return "", err
 	}
 
@@ -325,7 +320,7 @@ func (devices *DeviceSet) removeMetadata(info *devInfo) error {
 
 // Given json data and file path, write it to disk
 func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error {
-	tmpFile, err := ioutil.TempFile(devices.metadataDir(), ".tmp")
+	tmpFile, err := os.CreateTemp(devices.metadataDir(), ".tmp")
 	if err != nil {
 		return fmt.Errorf("devmapper: Error creating metadata file: %s", err)
 	}
@@ -540,7 +535,7 @@ func xfsSupported() error {
 		return err // error text is descriptive enough
 	}
 
-	mountTarget, err := ioutil.TempDir("", "supportsXFS")
+	mountTarget, err := os.MkdirTemp("", "supportsXFS")
 	if err != nil {
 		return errors.Wrapf(err, "error checking for xfs support")
 	}
@@ -633,7 +628,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 
 func (devices *DeviceSet) migrateOldMetaData() error {
 	// Migrate old metadata file
-	jsonData, err := ioutil.ReadFile(devices.oldMetadataFile())
+	jsonData, err := os.ReadFile(devices.oldMetadataFile())
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -955,7 +950,7 @@ func (devices *DeviceSet) loadMetadata(hash string) *devInfo {
 	info := &devInfo{Hash: hash, devices: devices}
 	logger := logrus.WithField("storage-driver", "devicemapper")
 
-	jsonData, err := ioutil.ReadFile(devices.metadataFile(info))
+	jsonData, err := os.ReadFile(devices.metadataFile(info))
 	if err != nil {
 		logger.Debugf("Failed to read %s with err: %v", devices.metadataFile(info), err)
 		return nil
@@ -1263,7 +1258,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 }
 
 func setCloseOnExec(name string) {
-	fileInfos, _ := ioutil.ReadDir("/proc/self/fd")
+	fileInfos, _ := os.ReadDir("/proc/self/fd")
 	for _, i := range fileInfos {
 		link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
 		if link == name {
@@ -1357,7 +1352,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 }
 
 func (devices *DeviceSet) loadTransactionMetaData() error {
-	jsonData, err := ioutil.ReadFile(devices.transactionMetaFile())
+	jsonData, err := os.ReadFile(devices.transactionMetaFile())
 	if err != nil {
 		// There is no active transaction. This will be the case
 		// during upgrade.
@@ -1440,7 +1435,7 @@ func (devices *DeviceSet) processPendingTransaction() error {
 }
 
 func (devices *DeviceSet) loadDeviceSetMetaData() error {
-	jsonData, err := ioutil.ReadFile(devices.deviceSetMetaFile())
+	jsonData, err := os.ReadFile(devices.deviceSetMetaFile())
 	if err != nil {
 		// For backward compatibility return success if file does
 		// not exist.
@@ -1694,11 +1689,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 	// create the root dir of the devmapper driver ownership to match this
 	// daemon's remapped root uid/gid so containers can start properly
-	uid, gid, err := idtools.GetRootUIDGID(devices.uidMaps, devices.gidMaps)
-	if err != nil {
-		return err
-	}
-	if err := idtools.MkdirAndChown(devices.root, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil {
+	if err := idtools.MkdirAndChown(devices.root, 0700, devices.idMap.RootPair()); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil {
@@ -2245,7 +2236,7 @@ func (devices *DeviceSet) cancelDeferredRemoval(info *devInfo) error {
 func (devices *DeviceSet) unmountAndDeactivateAll(dir string) {
 	logger := logrus.WithField("storage-driver", "devicemapper")
 
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		logger.Warnf("unmountAndDeactivate: %s", err)
 		return
@@ -2622,7 +2613,7 @@ func (devices *DeviceSet) exportDeviceMetadata(hash string) (*deviceMetadata, er
 }
 
 // NewDeviceSet creates the device set based on the options provided.
-func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps []idtools.IDMap) (*DeviceSet, error) {
+func NewDeviceSet(root string, doInit bool, options []string, idMap idtools.IdentityMapping) (*DeviceSet, error) {
 	devicemapper.SetDevDir("/dev")
 
 	devices := &DeviceSet{
@@ -2636,8 +2627,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		thinpBlockSize:        defaultThinpBlockSize,
 		deviceIDMap:           make([]byte, deviceIDMapSz),
 		deletionWorkerTicker:  time.NewTicker(time.Second * 30),
-		uidMaps:               uidMaps,
-		gidMaps:               gidMaps,
+		idMap:                 idMap,
 		minFreeSpacePercent:   defaultMinFreeSpacePercent,
 	}
 

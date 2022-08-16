@@ -137,7 +137,7 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 	var routes []string
 
 	// TODO(cpuguy83): linter noticed we don't check the error here... no idea why but it seems like it could introduce problems if we start checking
-	json.Unmarshal(rb, &routes) // nolint:errcheck
+	json.Unmarshal(rb, &routes) //nolint:errcheck
 
 	epi.routes = make([]*net.IPNet, 0)
 	for _, route := range routes {
@@ -444,7 +444,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 		// This is why I'm not adding the error check.
 		//
 		// In any case for posterity please if you figure this out document it or check the error
-		json.Unmarshal(tb, &tStaticRoute) // nolint:errcheck
+		json.Unmarshal(tb, &tStaticRoute) //nolint:errcheck
 	}
 	var StaticRoutes []*types.StaticRoute
 	for _, r := range tStaticRoute {

@@ -13,12 +13,12 @@ const (
 	Thawed    FreezerState = "THAWED"
 )
 
+// Cgroup holds properties of a cgroup on Linux.
 type Cgroup struct {
-	// Deprecated, use Path instead
+	// Name specifies the name of the cgroup
 	Name string `json:"name,omitempty"`
 
-	// name of parent of cgroup or slice
-	// Deprecated, use Path instead
+	// Parent specifies the name of parent of cgroup or slice
 	Parent string `json:"parent,omitempty"`
 
 	// Path specifies the path to cgroups that are created and/or joined by the container.
@@ -28,17 +28,26 @@ type Cgroup struct {
 	// ScopePrefix describes prefix for the scope name
 	ScopePrefix string `json:"scope_prefix"`
 
-	// Paths represent the absolute cgroups paths to join.
-	// This takes precedence over Path.
-	Paths map[string]string
-
 	// Resources contains various cgroups settings to apply
 	*Resources
+
+	// Systemd tells if systemd should be used to manage cgroups.
+	Systemd bool
 
 	// SystemdProps are any additional properties for systemd,
 	// derived from org.systemd.property.xxx annotations.
 	// Ignored unless systemd is used for managing cgroups.
 	SystemdProps []systemdDbus.Property `json:"-"`
+
+	// Rootless tells if rootless cgroups should be used.
+	Rootless bool
+
+	// The host UID that should own the cgroup, or nil to accept
+	// the default ownership.  This should only be set when the
+	// cgroupfs is to be mounted read/write.
+	// Not all cgroup manager implementations support changing
+	// the ownership.
+	OwnerUID *int `json:"owner_uid,omitempty"`
 }
 
 type Resources struct {
@@ -117,6 +126,9 @@ type Resources struct {
 	// Set class identifier for container's network packets
 	NetClsClassid uint32 `json:"net_cls_classid_u"`
 
+	// Rdma resource restriction configuration
+	Rdma map[string]LinuxRdma `json:"rdma"`
+
 	// Used on cgroups v2:
 
 	// CpuWeight sets a proportional bandwidth limit.
@@ -127,8 +139,20 @@ type Resources struct {
 
 	// SkipDevices allows to skip configuring device permissions.
 	// Used by e.g. kubelet while creating a parent cgroup (kubepods)
-	// common for many containers.
+	// common for many containers, and by runc update.
 	//
 	// NOTE it is impossible to start a container which has this flag set.
-	SkipDevices bool `json:"skip_devices"`
+	SkipDevices bool `json:"-"`
+
+	// SkipFreezeOnSet is a flag for cgroup manager to skip the cgroup
+	// freeze when setting resources. Only applicable to systemd legacy
+	// (i.e. cgroup v1) manager (which uses freeze by default to avoid
+	// spurious permission errors caused by systemd inability to update
+	// device rules in a non-disruptive manner).
+	//
+	// If not set, a few methods (such as looking into cgroup's
+	// devices.list and querying the systemd unit properties) are used
+	// during Set() to figure out whether the freeze is required. Those
+	// methods may be relatively slow, thus this flag.
+	SkipFreezeOnSet bool `json:"-"`
 }

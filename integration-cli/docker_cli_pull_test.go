@@ -8,10 +8,22 @@ import (
 	"testing"
 	"time"
 
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+type DockerCLIPullSuite struct {
+	ds *DockerSuite
+}
+
+func (s *DockerCLIPullSuite) TearDownTest(c *testing.T) {
+	s.ds.TearDownTest(c)
+}
+
+func (s *DockerCLIPullSuite) OnTimeout(c *testing.T) {
+	s.ds.OnTimeout(c)
+}
 
 // TestPullFromCentralRegistry pulls an image from the central registry and verifies that the client
 // prints all expected output.
@@ -263,14 +275,14 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 }
 
 // Regression test for https://github.com/docker/docker/issues/26429
-func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
+func (s *DockerCLIPullSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
 	assert.ErrorContains(c, err, "no matching manifest for windows")
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
-func (s *DockerSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
+func (s *DockerCLIPullSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2019")
 	assert.ErrorContains(c, err, "no matching manifest for linux")

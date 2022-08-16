@@ -16,17 +16,18 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/registry"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/libnetwork"
 	volumeopts "github.com/docker/docker/volume/service/opts"
-	"github.com/docker/swarmkit/agent/exec"
-	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/log"
 	gogotypes "github.com/gogo/protobuf/types"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/log"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
@@ -74,7 +75,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.imageBackend.LookupImage(spec.Image)
+			_, err := c.imageBackend.GetImage(spec.Image, nil)
 			if err == nil {
 				return nil
 			}
@@ -87,7 +88,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 		encodedAuthConfig = spec.PullOptions.RegistryAuth
 	}
 
-	authConfig := &types.AuthConfig{}
+	authConfig := &registry.AuthConfig{}
 	if encodedAuthConfig != "" {
 		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuthConfig))).Decode(authConfig); err != nil {
 			logrus.Warnf("invalid authconfig: %v", err)
@@ -283,12 +284,12 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 }
 
 func (c *containerAdapter) create(ctx context.Context) error {
-	var cr containertypes.ContainerCreateCreatedBody
+	var cr containertypes.CreateResponse
 	var err error
 	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
-		HostConfig: c.container.hostConfig(),
+		HostConfig: c.container.hostConfig(c.dependencies.Volumes()),
 		// Use the first network in container create
 		NetworkingConfig: c.container.createNetworkingConfig(c.backend),
 	}); err != nil {
@@ -407,18 +408,17 @@ func (c *containerAdapter) wait(ctx context.Context) (<-chan containerpkg.StateS
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {
+	var options = containertypes.StopOptions{}
 	// Default stop grace period to nil (daemon will use the stopTimeout of the container)
-	var stopgrace *int
-	spec := c.container.spec()
-	if spec.StopGracePeriod != nil {
-		stopgraceValue := int(spec.StopGracePeriod.Seconds)
-		stopgrace = &stopgraceValue
+	if spec := c.container.spec(); spec.StopGracePeriod != nil {
+		timeout := int(spec.StopGracePeriod.Seconds)
+		options.Timeout = &timeout
 	}
-	return c.backend.ContainerStop(c.container.name(), stopgrace)
+	return c.backend.ContainerStop(ctx, c.container.name(), options)
 }
 
 func (c *containerAdapter) terminate(ctx context.Context) error {
-	return c.backend.ContainerKill(c.container.name(), uint64(syscall.SIGKILL))
+	return c.backend.ContainerKill(c.container.name(), syscall.SIGKILL.String())
 }
 
 func (c *containerAdapter) remove(ctx context.Context) error {
@@ -459,6 +459,30 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 
 	}
 
+	return nil
+}
+
+// waitClusterVolumes blocks until the VolumeGetter returns a path for each
+// cluster volume in use by this task
+func (c *containerAdapter) waitClusterVolumes(ctx context.Context) error {
+	for _, attached := range c.container.task.Volumes {
+		// for every attachment, try until we succeed or until the context
+		// is canceled.
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				// continue through the code.
+			}
+			path, err := c.dependencies.Volumes().Get(attached.ID)
+			if err == nil && path != "" {
+				// break out of the inner-most loop
+				break
+			}
+		}
+	}
+	log.G(ctx).Debug("volumes ready")
 	return nil
 }
 

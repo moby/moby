@@ -22,7 +22,6 @@ import (
 	containerderrors "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
@@ -217,12 +216,6 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 				opts.IoUid = uint32(uid)
 				opts.IoGid = uint32(gid)
 				info.Options = &opts
-			} else {
-				info.Options = &runctypes.CreateOptions{
-					IoUid:       uint32(uid),
-					IoGid:       uint32(gid),
-					NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
-				}
 			}
 			return nil
 		})
@@ -333,12 +326,12 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	return int(p.Pid()), nil
 }
 
-func (c *client) SignalProcess(ctx context.Context, containerID, processID string, signal int) error {
+func (c *client) SignalProcess(ctx context.Context, containerID, processID string, signal syscall.Signal) error {
 	p, err := c.getProcess(ctx, containerID, processID)
 	if err != nil {
 		return err
 	}
-	return wrapError(p.Kill(ctx, syscall.Signal(signal)))
+	return wrapError(p.Kill(ctx, signal))
 }
 
 func (c *client) ResizeTerminal(ctx context.Context, containerID, processID string, width, height int) error {
@@ -515,21 +508,16 @@ func (c *client) getCheckpointOptions(id string, exit bool) containerd.Checkpoin
 	return func(r *containerd.CheckpointTaskInfo) error {
 		if r.Options == nil {
 			c.v2runcoptionsMu.Lock()
-			_, isV2 := c.v2runcoptions[id]
+			_, ok := c.v2runcoptions[id]
 			c.v2runcoptionsMu.Unlock()
-
-			if isV2 {
+			if ok {
 				r.Options = &v2runcoptions.CheckpointOptions{Exit: exit}
-			} else {
-				r.Options = &runctypes.CheckpointOptions{Exit: exit}
 			}
 			return nil
 		}
 
 		switch opts := r.Options.(type) {
 		case *v2runcoptions.CheckpointOptions:
-			opts.Exit = exit
-		case *runctypes.CheckpointOptions:
 			opts.Exit = exit
 		}
 
@@ -570,7 +558,7 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 	for _, m := range index.Manifests {
 		m := m
 		if m.MediaType == images.MediaTypeContainerd1Checkpoint {
-			cpDesc = &m // nolint:gosec
+			cpDesc = &m //nolint:gosec
 			break
 		}
 	}

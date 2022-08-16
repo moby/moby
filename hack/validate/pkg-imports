@@ -10,6 +10,12 @@ unset IFS
 
 badFiles=()
 for f in "${files[@]}"; do
+	if [ "$f" = "pkg/urlutil/deprecated.go" ]; then
+		# pkg/urlutil is deprecated, but has a temporary alias to help migration,
+		# see https://github.com/moby/moby/pull/43477
+		# TODO(thaJeztah) remove this exception once pkg/urlutil aliases are removed
+		continue
+	fi
 	IFS=$'\n'
 	badImports=($(go list -e -f '{{ join .Deps "\n" }}' "$f" | sort -u | grep -vE '^github.com/docker/docker/pkg/' | grep -vE '^github.com/docker/docker/vendor' | grep -E '^github.com/docker/docker' || true))
 	unset IFS

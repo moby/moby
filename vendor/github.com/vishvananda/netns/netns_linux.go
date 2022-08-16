@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,go1.10
 
 package netns
 
@@ -218,12 +218,18 @@ func getPidForContainer(id string) (int, error) {
 		filepath.Join(cgroupRoot, "system.slice", "docker-"+id+".scope", "tasks"),
 		// Even more recent docker versions under cgroup/systemd/docker/<id>/
 		filepath.Join(cgroupRoot, "..", "systemd", "docker", id, "tasks"),
-		// Kubernetes with docker and CNI is even more different
+		// Kubernetes with docker and CNI is even more different. Works for BestEffort and Burstable QoS
 		filepath.Join(cgroupRoot, "..", "systemd", "kubepods", "*", "pod*", id, "tasks"),
-		// Another flavor of containers location in recent kubernetes 1.11+
-		filepath.Join(cgroupRoot, cgroupThis, "kubepods.slice", "kubepods-besteffort.slice", "*", "docker-"+id+".scope", "tasks"),
-		// When runs inside of a container with recent kubernetes 1.11+
-		filepath.Join(cgroupRoot, "kubepods.slice", "kubepods-besteffort.slice", "*", "docker-"+id+".scope", "tasks"),
+		// Same as above but for Guaranteed QoS
+		filepath.Join(cgroupRoot, "..", "systemd", "kubepods", "pod*", id, "tasks"),
+		// Another flavor of containers location in recent kubernetes 1.11+. Works for BestEffort and Burstable QoS
+		filepath.Join(cgroupRoot, cgroupThis, "kubepods.slice", "*.slice", "*", "docker-"+id+".scope", "tasks"),
+		// Same as above but for Guaranteed QoS
+		filepath.Join(cgroupRoot, cgroupThis, "kubepods.slice", "*", "docker-"+id+".scope", "tasks"),
+		// When runs inside of a container with recent kubernetes 1.11+. Works for BestEffort and Burstable QoS
+		filepath.Join(cgroupRoot, "kubepods.slice", "*.slice", "*", "docker-"+id+".scope", "tasks"),
+		// Same as above but for Guaranteed QoS
+		filepath.Join(cgroupRoot, "kubepods.slice", "*", "docker-"+id+".scope", "tasks"),
 	}
 
 	var filename string

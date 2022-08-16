@@ -224,16 +224,12 @@ func allocate(t *testing.T, tctx *testContext, parallel int64) {
 		}
 		if there, ok := tctx.ipMap[ip.String()]; ok && there {
 			t.Fatalf("Got duplicate IP %s", ip.String())
-			break
 		}
 		tctx.ipList = append(tctx.ipList, ip)
 		tctx.ipMap[ip.String()] = true
 	}
 
-	assert.Check(t, is.Len(tctx.ipList, tctx.maxIP))
-	if len(tctx.ipList) != tctx.maxIP {
-		t.Fatal("mismatch number allocation")
-	}
+	assert.Assert(t, is.Len(tctx.ipList, tctx.maxIP))
 }
 
 func release(t *testing.T, tctx *testContext, mode releaseMode, parallel int64) {

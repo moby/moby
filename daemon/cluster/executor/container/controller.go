@@ -13,10 +13,10 @@ import (
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/swarmkit/agent/exec"
-	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/log"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/swarmkit/v2/agent/exec"
+	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 )
@@ -118,6 +118,15 @@ func (r *controller) Prepare(ctx context.Context) error {
 	waitNodeAttachmentsContext, waitCancel := context.WithTimeout(ctx, waitNodeAttachmentsTimeout)
 	defer waitCancel()
 	if err := r.adapter.waitNodeAttachments(waitNodeAttachmentsContext); err != nil {
+		return err
+	}
+
+	// could take a while for the cluster volumes to become available. set for
+	// 5 minutes, I guess?
+	// TODO(dperny): do this more intelligently. return a better error.
+	waitClusterVolumesCtx, wcvcancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer wcvcancel()
+	if err := r.adapter.waitClusterVolumes(waitClusterVolumesCtx); err != nil {
 		return err
 	}
 

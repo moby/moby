@@ -3,7 +3,6 @@ package layer // import "github.com/docker/docker/layer"
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 )
 
 func init() {
@@ -42,12 +41,12 @@ func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
 		},
 	}
 
-	options := graphdriver.Options{Root: td, UIDMaps: uidMap, GIDMaps: gidMap}
+	options := graphdriver.Options{Root: td, IDMap: idtools.IdentityMapping{UIDMaps: uidMap, GIDMaps: gidMap}}
 	return graphdriver.GetDriver("vfs", nil, options)
 }
 
 func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {
-	td, err := ioutil.TempDir("", "graph-")
+	td, err := os.MkdirTemp("", "graph-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,14 +62,14 @@ func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {
 }
 
 func newTestStore(t *testing.T) (Store, string, func()) {
-	td, err := ioutil.TempDir("", "layerstore-")
+	td, err := os.MkdirTemp("", "layerstore-")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	graph, graphcleanup := newTestGraphDriver(t)
 
-	ls, err := newStoreFromGraphDriver(td, graph, runtime.GOOS)
+	ls, err := newStoreFromGraphDriver(td, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,14 +173,9 @@ func getCachedLayer(l Layer) *roLayer {
 func createMetadata(layers ...Layer) []Metadata {
 	metadata := make([]Metadata, len(layers))
 	for i := range layers {
-		size, err := layers[i].Size()
-		if err != nil {
-			panic(err)
-		}
-
 		metadata[i].ChainID = layers[i].ChainID()
 		metadata[i].DiffID = layers[i].DiffID()
-		metadata[i].Size = size
+		metadata[i].Size = layers[i].Size()
 		metadata[i].DiffSize = getCachedLayer(layers[i]).size
 	}
 
@@ -230,15 +224,8 @@ func assertLayerEqual(t *testing.T, l1, l2 Layer) {
 		t.Fatalf("Mismatched DiffID: %s vs %s", l1.DiffID(), l2.DiffID())
 	}
 
-	size1, err := l1.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	size2, err := l2.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
+	size1 := l1.Size()
+	size2 := l2.Size()
 
 	if size1 != size2 {
 		t.Fatalf("Mismatched size: %d vs %d", size1, size2)
@@ -267,7 +254,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	size, _ := layer.Size()
+	size := layer.Size()
 	t.Logf("Layer size: %d", size)
 
 	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), nil)
@@ -396,7 +383,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ls2, err := newStoreFromGraphDriver(ls.(*layerStore).store.root, ls.(*layerStore).driver, runtime.GOOS)
+	ls2, err := newStoreFromGraphDriver(ls.(*layerStore).store.root, ls.(*layerStore).driver)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -555,7 +542,7 @@ func assertLayerDiff(t *testing.T, expected []byte, layer Layer) {
 	}
 	defer ts.Close()
 
-	actual, err := ioutil.ReadAll(ts)
+	actual, err := io.ReadAll(ts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,7 +590,7 @@ func byteDiff(b1, b2 []byte) ([]byte, []byte) {
 }
 
 func tarFromFiles(files ...FileApplier) ([]byte, error) {
-	td, err := ioutil.TempDir("", "tar-")
+	td, err := os.MkdirTemp("", "tar-")
 	if err != nil {
 		return nil, err
 	}
@@ -754,7 +741,7 @@ func TestTarStreamVerification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = io.Copy(ioutil.Discard, ts)
+	_, err = io.Copy(io.Discard, ts)
 	if err == nil {
 		t.Fatal("expected data verification to fail")
 	}

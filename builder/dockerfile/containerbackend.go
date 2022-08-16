@@ -28,7 +28,7 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 }
 
 // Create a container
-func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
+func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.CreateResponse, error) {
 	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(types.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,
@@ -61,7 +61,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		select {
 		case <-ctx.Done():
 			logrus.Debugln("Build cancelled, killing and removing container:", cID)
-			c.backend.ContainerKill(cID, 0)
+			c.backend.ContainerKill(cID, "")
 			c.removeContainer(cID, stdout)
 			cancelErrCh <- errCancelled
 		case <-finished:
