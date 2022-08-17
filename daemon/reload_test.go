@@ -19,15 +19,24 @@ func muteLogs() {
 	logrus.SetLevel(logrus.ErrorLevel)
 }
 
-func TestDaemonReloadLabels(t *testing.T) {
+func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
+	t.Helper()
 	daemon := &Daemon{
-		configStore: &config.Config{
-			CommonConfig: config.CommonConfig{
-				Labels: []string{"foo:bar"},
-			},
-		},
+		configStore:  cfg,
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
+	var err error
+	daemon.registryService, err = registry.NewService(registry.ServiceOptions{})
+	assert.Assert(t, err)
+	return daemon
+}
+
+func TestDaemonReloadLabels(t *testing.T) {
+	daemon := newDaemonForReloadT(t, &config.Config{
+		CommonConfig: config.CommonConfig{
+			Labels: []string{"foo:bar"},
+		},
+	})
 	muteLogs()
 
 	valuesSets := make(map[string]interface{})
@@ -50,10 +59,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 }
 
 func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
-	daemon := &Daemon{
-		configStore:  &config.Config{},
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
+	daemon := newDaemonForReloadT(t, &config.Config{})
 	muteLogs()
 
 	var err error
@@ -308,17 +314,13 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 }
 
 func TestDaemonReloadNotAffectOthers(t *testing.T) {
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	muteLogs()
-
-	daemon.configStore = &config.Config{
+	daemon := newDaemonForReloadT(t, &config.Config{
 		CommonConfig: config.CommonConfig{
 			Labels: []string{"foo:bar"},
 			Debug:  true,
 		},
-	}
+	})
+	muteLogs()
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"
@@ -347,10 +349,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("root required")
 	}
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-		configStore:  &config.Config{},
-	}
+	daemon := newDaemonForReloadT(t, &config.Config{})
 
 	enableConfig := &config.Config{
 		CommonConfig: config.CommonConfig{

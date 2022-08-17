@@ -35,28 +35,18 @@ func (s *Service) ServiceConfig() *registry.ServiceConfig {
 	return s.config.copy()
 }
 
-// LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.
-func (s *Service) LoadAllowNondistributableArtifacts(registries []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.config.loadAllowNondistributableArtifacts(registries)
-}
-
-// LoadMirrors loads registry mirrors for Service
-func (s *Service) LoadMirrors(mirrors []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.config.loadMirrors(mirrors)
-}
-
-// LoadInsecureRegistries loads insecure registries for Service
-func (s *Service) LoadInsecureRegistries(registries []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.config.loadInsecureRegistries(registries)
+// ReplaceConfig prepares a transaction which will atomically replace the
+// registry service's configuration when the returned commit function is called.
+func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), err error) {
+	config, err := newServiceConfig(options)
+	if err != nil {
+		return nil, err
+	}
+	return func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.config = config
+	}, nil
 }
 
 // Auth contacts the public registry with the provided credentials,

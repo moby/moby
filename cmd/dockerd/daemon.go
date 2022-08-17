@@ -397,17 +397,20 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 
 func (cli *DaemonCli) reloadConfig() {
 	reload := func(c *config.Config) {
-		// Revalidate and reload the authorization plugins
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 			logrus.Fatalf("Error validating authorization plugin: %v", err)
 			return
 		}
-		cli.authzMiddleware.SetPlugins(c.AuthorizationPlugins)
 
 		if err := cli.d.Reload(c); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
+
+		// Apply our own configuration only after the daemon reload has succeeded. We
+		// don't want to partially apply the config if the daemon is unhappy with it.
+
+		cli.authzMiddleware.SetPlugins(c.AuthorizationPlugins)
 
 		if c.IsValueSet("debug") {
 			debugEnabled := debug.IsEnabled()
