@@ -36,15 +36,15 @@ import (
 
 const inContainerInitPath = "/sbin/" + dconfig.DefaultInitBinary
 
-// WithRlimits sets the container's rlimits along with merging the daemon's rlimits
-func WithRlimits(daemon *Daemon, c *container.Container) coci.SpecOpts {
+// withRlimits sets the container's rlimits along with merging the daemon's rlimits
+func withRlimits(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var rlimits []specs.POSIXRlimit
 
 		// We want to leave the original HostConfig alone so make a copy here
 		hostConfig := *c.HostConfig
 		// Merge with the daemon defaults
-		daemon.mergeUlimits(&hostConfig)
+		daemon.mergeUlimits(&hostConfig, daemonCfg)
 		for _, ul := range hostConfig.Ulimits {
 			rlimits = append(rlimits, specs.POSIXRlimit{
 				Type: "RLIMIT_" + strings.ToUpper(ul.Name),
@@ -58,8 +58,8 @@ func WithRlimits(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	}
 }
 
-// WithLibnetwork sets the libnetwork hook
-func WithLibnetwork(daemon *Daemon, c *container.Container) coci.SpecOpts {
+// withLibnetwork sets the libnetwork hook
+func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if s.Hooks == nil {
 			s.Hooks = &specs.Hooks{}
@@ -72,7 +72,7 @@ func WithLibnetwork(daemon *Daemon, c *container.Container) coci.SpecOpts {
 					Path: target,
 					Args: []string{
 						"libnetwork-setkey",
-						"-exec-root=" + daemon.configStore.GetExecRoot(),
+						"-exec-root=" + daemonCfg.GetExecRoot(),
 						c.ID,
 						shortNetCtlrID,
 					},
@@ -83,11 +83,11 @@ func WithLibnetwork(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	}
 }
 
-// WithRootless sets the spec to the rootless configuration
-func WithRootless(daemon *Daemon) coci.SpecOpts {
+// withRootless sets the spec to the rootless configuration
+func withRootless(daemon *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
 	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var v2Controllers []string
-		if daemon.getCgroupDriver() == cgroupSystemdDriver {
+		if cgroupDriver(daemonCfg) == cgroupSystemdDriver {
 			if cdcgroups.Mode() != cdcgroups.Unified {
 				return errors.New("rootless systemd driver doesn't support cgroup v1")
 			}
@@ -488,8 +488,8 @@ func inSlice(slice []string, s string) bool {
 	return false
 }
 
-// WithMounts sets the container's mounts
-func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
+// withMounts sets the container's mounts
+func withMounts(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) (err error) {
 		if err := daemon.setupContainerMountsRoot(c); err != nil {
 			return err
@@ -652,7 +652,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 						return errors.New("mount options conflict: ReadOnlyNonRecursive && ReadOnlyForceRecursive")
 					}
 				}
-				if rroErr := daemon.supportsRecursivelyReadOnly(c.HostConfig.Runtime); rroErr != nil {
+				if rroErr := supportsRecursivelyReadOnly(daemonCfg, c.HostConfig.Runtime); rroErr != nil {
 					rro = false
 					if m.ReadOnlyForceRecursive {
 						return rroErr
@@ -673,7 +673,7 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			// "mount" when we bind-mount. The reason for this is that at the point
 			// when runc sets up the root filesystem, it is already inside a user
 			// namespace, and thus cannot change any flags that are locked.
-			if daemon.configStore.RemappedRoot != "" || userns.RunningInUserNS() {
+			if daemonCfg.RemappedRoot != "" || userns.RunningInUserNS() {
 				unprivOpts, err := getUnprivilegedMountFlags(m.Source)
 				if err != nil {
 					return err
@@ -732,8 +732,8 @@ func sysctlExists(s string) bool {
 	return err == nil
 }
 
-// WithCommonOptions sets common docker options
-func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
+// withCommonOptions sets common docker options
+func withCommonOptions(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if c.BaseFS == "" && !daemon.UsesSnapshotter() {
 			return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly empty")
@@ -762,9 +762,9 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// host namespace or another container's pid namespace where we already have an init
 		if c.HostConfig.PidMode.IsPrivate() {
 			if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
-				(c.HostConfig.Init == nil && daemon.configStore.Init) {
+				(c.HostConfig.Init == nil && daemonCfg.Init) {
 				s.Process.Args = append([]string{inContainerInitPath, "--", c.Path}, c.Args...)
-				path, err := daemon.configStore.LookupInitPath() // this will fall back to DefaultInitBinary and return an absolute path
+				path, err := daemonCfg.LookupInitPath() // this will fall back to DefaultInitBinary and return an absolute path
 				if err != nil {
 					return err
 				}
@@ -790,7 +790,7 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// joining an existing namespace, only if we create a new net namespace.
 		if c.HostConfig.NetworkMode.IsPrivate() {
 			// We cannot set up ping socket support in a user namespace
-			userNS := daemon.configStore.RemappedRoot != "" && c.HostConfig.UsernsMode.IsPrivate()
+			userNS := daemonCfg.RemappedRoot != "" && c.HostConfig.UsernsMode.IsPrivate()
 			if !userNS && !userns.RunningInUserNS() && sysctlExists("net.ipv4.ping_group_range") {
 				// allow unprivileged ICMP echo sockets without CAP_NET_RAW
 				s.Linux.Sysctl["net.ipv4.ping_group_range"] = "0 2147483647"
@@ -805,24 +805,24 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	}
 }
 
-// WithCgroups sets the container's cgroups
-func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
+// withCgroups sets the container's cgroups
+func withCgroups(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var cgroupsPath string
 		scopePrefix := "docker"
 		parent := "/docker"
-		useSystemd := UsingSystemd(daemon.configStore)
+		useSystemd := UsingSystemd(daemonCfg)
 		if useSystemd {
 			parent = "system.slice"
-			if daemon.configStore.Rootless {
+			if daemonCfg.Rootless {
 				parent = "user.slice"
 			}
 		}
 
 		if c.HostConfig.CgroupParent != "" {
 			parent = c.HostConfig.CgroupParent
-		} else if daemon.configStore.CgroupParent != "" {
-			parent = daemon.configStore.CgroupParent
+		} else if daemonCfg.CgroupParent != "" {
+			parent = daemonCfg.CgroupParent
 		}
 
 		if useSystemd {
@@ -835,7 +835,7 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		// the rest is only needed for CPU RT controller
 
-		if daemon.configStore.CPURealtimePeriod == 0 && daemon.configStore.CPURealtimeRuntime == 0 {
+		if daemonCfg.CPURealtimePeriod == 0 && daemonCfg.CPURealtimeRuntime == 0 {
 			return nil
 		}
 
@@ -869,7 +869,7 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		mnt = filepath.Join(mnt, root)
 
-		if err := daemon.initCPURtController(mnt, parentPath); err != nil {
+		if err := daemon.initCPURtController(daemonCfg, mnt, parentPath); err != nil {
 			return errors.Wrap(err, "unable to init CPU RT controller")
 		}
 		return nil
@@ -1019,23 +1019,23 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (retSpec *specs.Spec, err error) {
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *dconfig.Config, c *container.Container) (retSpec *specs.Spec, err error) {
 	var (
 		opts []coci.SpecOpts
 		s    = oci.DefaultSpec()
 	)
 	opts = append(opts,
-		WithCommonOptions(daemon, c),
-		WithCgroups(daemon, c),
+		withCommonOptions(daemon, daemonCfg, c),
+		withCgroups(daemon, daemonCfg, c),
 		WithResources(c),
 		WithSysctls(c),
 		WithDevices(daemon, c),
-		WithRlimits(daemon, c),
+		withRlimits(daemon, daemonCfg, c),
 		WithNamespaces(daemon, c),
 		WithCapabilities(c),
 		WithSeccomp(daemon, c),
-		WithMounts(daemon, c),
-		WithLibnetwork(daemon, c),
+		withMounts(daemon, daemonCfg, c),
+		withLibnetwork(daemon, daemonCfg, c),
 		WithApparmor(c),
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
@@ -1068,8 +1068,8 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (r
 	if c.HostConfig.ReadonlyPaths != nil {
 		opts = append(opts, coci.WithReadonlyPaths(c.HostConfig.ReadonlyPaths))
 	}
-	if daemon.configStore.Rootless {
-		opts = append(opts, WithRootless(daemon))
+	if daemonCfg.Rootless {
+		opts = append(opts, withRootless(daemon, daemonCfg))
 	}
 
 	var snapshotter, snapshotKey string
@@ -1096,14 +1096,14 @@ func clearReadOnly(m *specs.Mount) {
 }
 
 // mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
-func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
+func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig, daemonCfg *dconfig.Config) {
 	ulimits := c.Ulimits
 	// Merge ulimits with daemon defaults
 	ulIdx := make(map[string]struct{})
 	for _, ul := range ulimits {
 		ulIdx[ul.Name] = struct{}{}
 	}
-	for name, ul := range daemon.configStore.Ulimits {
+	for name, ul := range daemonCfg.Ulimits {
 		if _, exists := ulIdx[name]; !exists {
 			ulimits = append(ulimits, ul)
 		}

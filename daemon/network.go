@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
+	"github.com/docker/docker/daemon/config"
 	internalnetwork "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
@@ -160,7 +161,7 @@ func (daemon *Daemon) startIngressWorker() {
 			select {
 			case r := <-ingressJobsChannel:
 				if r.create != nil {
-					daemon.setupIngress(r.create, r.ip, ingressID)
+					daemon.setupIngress(daemon.config(), r.create, r.ip, ingressID)
 					ingressID = r.create.ID
 				} else {
 					daemon.releaseIngress(ingressID)
@@ -199,7 +200,7 @@ func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
 	return done, nil
 }
 
-func (daemon *Daemon) setupIngress(create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
+func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
 	controller := daemon.netController
 	controller.AgentInitWait()
 
@@ -207,7 +208,7 @@ func (daemon *Daemon) setupIngress(create *clustertypes.NetworkCreateRequest, ip
 		daemon.releaseIngress(staleID)
 	}
 
-	if _, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true); err != nil {
+	if _, err := daemon.createNetwork(cfg, create.NetworkCreateRequest, create.ID, true); err != nil {
 		// If it is any other error other than already
 		// exists error log error and return.
 		if _, ok := err.(libnetwork.NetworkNameError); !ok {
@@ -277,16 +278,16 @@ func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networ
 
 // CreateManagedNetwork creates an agent network.
 func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true)
+	_, err := daemon.createNetwork(daemon.config(), create.NetworkCreateRequest, create.ID, true)
 	return err
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
-	return daemon.createNetwork(create, "", false)
+	return daemon.createNetwork(daemon.config(), create, "", false)
 }
 
-func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
+func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
 	if runconfig.IsPreDefinedNetwork(create.Name) {
 		return nil, PredefinedNetworkError(create.Name)
 	}
@@ -319,7 +320,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	for k, v := range create.Options {
 		networkOptions[k] = v
 	}
-	if defaultOpts, ok := daemon.configStore.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
+	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
 		for k, v := range defaultOpts {
 			if _, ok := networkOptions[k]; !ok {
 				logrus.WithFields(logrus.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")

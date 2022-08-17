@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
@@ -28,6 +29,8 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
 	var exitStatus container.ExitStatus
 	c.Lock()
+
+	cfg := daemon.config()
 
 	// Health checks will be automatically restarted if/when the
 	// container is started again.
@@ -99,7 +102,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	} else {
 		c.SetStopped(&exitStatus)
 		if !c.HasBeenManuallyRestarted {
-			defer daemon.autoRemove(c)
+			defer daemon.autoRemove(cfg, c)
 		}
 	}
 	defer c.Unlock() // needs to be called before autoRemove
@@ -117,7 +120,8 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				// But containerStart will use daemon.netController segment.
 				// So to avoid panic at startup process, here must wait util daemon restore done.
 				daemon.waitForStartupDone()
-				if err = daemon.containerStart(context.Background(), c, "", "", false); err != nil {
+				cfg := daemon.config() // Apply the most up-to-date daemon config to the restarted container.
+				if err = daemon.containerStart(context.Background(), cfg, c, "", "", false); err != nil {
 					logrus.Debugf("failed to restart container: %+v", err)
 				}
 			}
@@ -127,7 +131,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				daemon.setStateCounter(c)
 				c.CheckpointTo(daemon.containersReplica)
 				c.Unlock()
-				defer daemon.autoRemove(c)
+				defer daemon.autoRemove(cfg, c)
 				if err != restartmanager.ErrRestartCanceled {
 					logrus.Errorf("restartmanger wait error: %+v", err)
 				}
@@ -280,7 +284,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 	return nil
 }
 
-func (daemon *Daemon) autoRemove(c *container.Container) {
+func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
 	c.Lock()
 	ar := c.HostConfig.AutoRemove
 	c.Unlock()
@@ -288,7 +292,7 @@ func (daemon *Daemon) autoRemove(c *container.Container) {
 		return
 	}
 
-	err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+	err := daemon.containerRm(cfg, c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
 	if err == nil {
 		return
 	}

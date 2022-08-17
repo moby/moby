@@ -50,7 +50,9 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 		},
 	}
 
-	d := &Daemon{configStore: &config.Config{}}
+	cfg := &config.Config{}
+	d := &Daemon{}
+	d.configStore.Store(cfg)
 
 	// Currently, `docker exec --privileged` inherits the Privileged configuration
 	// of the container, and does not disable AppArmor.
@@ -81,7 +83,7 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 				ec := &container.ExecConfig{Container: c, Privileged: execPrivileged}
 				p := &specs.Process{}
 
-				err := d.execSetPlatformOpt(context.Background(), ec, p)
+				err := d.execSetPlatformOpt(context.Background(), cfg, ec, p)
 				assert.NilError(t, err)
 				assert.Equal(t, p.ApparmorProfile, tc.expectedProfile)
 			})

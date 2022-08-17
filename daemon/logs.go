@@ -10,6 +10,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
 	logcache "github.com/docker/docker/daemon/logger/loggerutils/cache"
 	"github.com/docker/docker/errdefs"
@@ -196,18 +197,14 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
 }
 
-func (daemon *Daemon) setupDefaultLogConfig() error {
-	config := daemon.configStore
-	if len(config.LogConfig.Config) > 0 {
-		if err := logger.ValidateLogOpts(config.LogConfig.Type, config.LogConfig.Config); err != nil {
-			return errors.Wrap(err, "failed to set log opts")
+func defaultLogConfig(cfg *config.Config) (containertypes.LogConfig, error) {
+	if len(cfg.LogConfig.Config) > 0 {
+		if err := logger.ValidateLogOpts(cfg.LogConfig.Type, cfg.LogConfig.Config); err != nil {
+			return containertypes.LogConfig{}, errors.Wrap(err, "failed to set log opts")
 		}
 	}
-	daemon.defaultLogConfig = containertypes.LogConfig{
-		Type:   config.LogConfig.Type,
-		Config: config.LogConfig.Config,
-	}
-
-	logrus.Debugf("Using default logging driver %s", daemon.defaultLogConfig.Type)
-	return nil
+	return containertypes.LogConfig{
+		Type:   cfg.LogConfig.Type,
+		Config: cfg.LogConfig.Config,
+	}, nil
 }

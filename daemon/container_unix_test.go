@@ -33,8 +33,9 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 		}
 		cs := &config.Config{}
 		configureRuntimes(cs)
-		d := &Daemon{configStore: cs}
-		wrns, err := d.verifyContainerSettings(hostConfig, &containertypes.Config{}, false)
+		d := &Daemon{}
+		d.configStore.Store(cs)
+		wrns, err := d.verifyContainerSettings(cs, hostConfig, &containertypes.Config{}, false)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, tc.warnings, wrns)
 	}

@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -27,7 +28,7 @@ const (
 	credentialSpecFileLocation     = "CredentialSpecs"
 )
 
-func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (*specs.Spec, error) {
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *config.Config, c *container.Container) (*specs.Spec, error) {
 	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
 	if err != nil {
 		return nil, err
@@ -142,7 +143,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (*
 		return nil, errors.Wrapf(err, "container %s", c.ID)
 	}
 
-	dnsSearch := daemon.getDNSSearchSettings(c)
+	dnsSearch := daemon.getDNSSearchSettings(daemonCfg, c)
 
 	// Get endpoints for the libnetwork allocated networks to the container
 	var epList []string
@@ -404,7 +405,7 @@ func setResourcesInSpec(c *container.Container, s *specs.Spec, isHyperV bool) {
 
 // mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
 // It will do nothing on non-Linux platform
-func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
+func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig, daemonCfg *config.Config) {
 	return
 }
 

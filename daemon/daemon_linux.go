@@ -76,7 +76,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 }
 
 // cleanupMounts umounts used by container resources and the daemon root mount
-func (daemon *Daemon) cleanupMounts() error {
+func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 	if err := daemon.cleanupMountsByID(""); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (daemon *Daemon) cleanupMounts() error {
 		return nil
 	}
 
-	unmountFile := getUnmountOnShutdownPath(daemon.configStore)
+	unmountFile := getUnmountOnShutdownPath(cfg)
 	if _, err := os.Stat(unmountFile); err != nil {
 		return nil
 	}
@@ -239,14 +239,14 @@ func kernelSupportsRecursivelyReadOnly() error {
 	return kernelSupportsRROErr
 }
 
-func (daemon *Daemon) supportsRecursivelyReadOnly(runtime string) error {
+func supportsRecursivelyReadOnly(cfg *config.Config, runtime string) error {
 	if err := kernelSupportsRecursivelyReadOnly(); err != nil {
 		return fmt.Errorf("rro is not supported: %w (kernel is older than 5.12?)", err)
 	}
 	if runtime == "" {
-		runtime = daemon.configStore.GetDefaultRuntimeName()
+		runtime = cfg.DefaultRuntime
 	}
-	rt := daemon.configStore.GetRuntime(runtime)
+	rt := cfg.GetRuntime(runtime)
 	if rt.Features == nil {
 		return fmt.Errorf("rro is not supported by runtime %q: OCI features struct is not available", runtime)
 	}

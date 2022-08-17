@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
@@ -18,8 +19,8 @@ import (
 )
 
 // fillPlatformInfo fills the platform related info.
-func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) {
-	v.CgroupDriver = daemon.getCgroupDriver()
+func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
+	v.CgroupDriver = cgroupDriver(cfg)
 	v.CgroupVersion = "1"
 	if sysInfo.CgroupUnified {
 		v.CgroupVersion = "2"
@@ -37,13 +38,13 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		v.CPUSet = sysInfo.Cpuset
 		v.PidsLimit = sysInfo.PidsLimit
 	}
-	v.Runtimes = daemon.configStore.GetAllRuntimes()
-	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
+	v.Runtimes = cfg.GetAllRuntimes()
+	v.DefaultRuntime = cfg.DefaultRuntime
 	v.RuncCommit.ID = "N/A"
 	v.ContainerdCommit.ID = "N/A"
 	v.InitCommit.ID = "N/A"
 
-	if rt := daemon.configStore.GetRuntime(v.DefaultRuntime); rt != nil {
+	if rt := cfg.GetRuntime(v.DefaultRuntime); rt != nil {
 		if rv, err := exec.Command(rt.Path, "--version").Output(); err == nil {
 			if _, _, commit, err := parseRuntimeVersion(string(rv)); err != nil {
 				logrus.Warnf("failed to parse %s version: %v", rt.Path, err)
@@ -61,8 +62,8 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		logrus.Warnf("failed to retrieve containerd version: %v", err)
 	}
 
-	v.InitBinary = daemon.configStore.GetInitPath()
-	if initBinary, err := daemon.configStore.LookupInitPath(); err != nil {
+	v.InitBinary = cfg.GetInitPath()
+	if initBinary, err := cfg.LookupInitPath(); err != nil {
 		logrus.Warnf("failed to find docker-init: %s", err)
 	} else if rv, err := exec.Command(initBinary, "--version").Output(); err == nil {
 		if _, commit, err := parseInitVersion(string(rv)); err != nil {
@@ -165,7 +166,7 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	}
 }
 
-func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
+func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *config.Config) {
 	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
 		v.Components = append(v.Components, types.ComponentVersion{
 			Name:    "containerd",
@@ -176,8 +177,8 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 		})
 	}
 
-	defaultRuntime := daemon.configStore.GetDefaultRuntimeName()
-	if rt := daemon.configStore.GetRuntime(defaultRuntime); rt != nil {
+	defaultRuntime := cfg.DefaultRuntime
+	if rt := cfg.GetRuntime(defaultRuntime); rt != nil {
 		if rv, err := exec.Command(rt.Path, "--version").Output(); err == nil {
 			if _, ver, commit, err := parseRuntimeVersion(string(rv)); err != nil {
 				logrus.Warnf("failed to parse %s version: %v", rt.Path, err)
@@ -195,7 +196,7 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 		}
 	}
 
-	if initBinary, err := daemon.configStore.LookupInitPath(); err != nil {
+	if initBinary, err := cfg.LookupInitPath(); err != nil {
 		logrus.Warnf("failed to find docker-init: %s", err)
 	} else if rv, err := exec.Command(initBinary, "--version").Output(); err == nil {
 		if ver, commit, err := parseInitVersion(string(rv)); err != nil {
@@ -337,15 +338,15 @@ func parseRuntimeVersion(v string) (runtime string, version string, commit strin
 	return runtime, version, commit, err
 }
 
-func (daemon *Daemon) cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo) bool {
-	return sysInfo.CgroupNamespaces && containertypes.CgroupnsMode(daemon.configStore.CgroupNamespaceMode).IsPrivate()
+func cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo, cfg *config.Config) bool {
+	return sysInfo.CgroupNamespaces && containertypes.CgroupnsMode(cfg.CgroupNamespaceMode).IsPrivate()
 }
 
 // Rootless returns true if daemon is running in rootless mode
-func (daemon *Daemon) Rootless() bool {
-	return daemon.configStore.Rootless
+func Rootless(cfg *config.Config) bool {
+	return cfg.Rootless
 }
 
-func (daemon *Daemon) noNewPrivileges() bool {
-	return daemon.configStore.NoNewPrivileges
+func noNewPrivileges(cfg *config.Config) bool {
+	return cfg.NoNewPrivileges
 }

@@ -178,7 +178,7 @@ func TestNotCleanupMounts(t *testing.T) {
 func TestValidateContainerIsolationLinux(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings(&containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
+	_, err := d.verifyContainerSettings(&config.Config{}, &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'hyperv' on linux"))
 }
 
@@ -264,7 +264,8 @@ func TestRootMountCleanup(t *testing.T) {
 	err = os.Mkdir(cfg.Root, 0755)
 	assert.NilError(t, err)
 
-	d := &Daemon{configStore: cfg, root: cfg.Root}
+	d := &Daemon{root: cfg.Root}
+	d.configStore.Store(cfg)
 	unmountFile := getUnmountOnShutdownPath(cfg)
 
 	t.Run("regular dir no mountpoint", func(t *testing.T) {
@@ -274,7 +275,7 @@ func TestRootMountCleanup(t *testing.T) {
 		assert.NilError(t, err)
 		checkMounted(t, cfg.Root, true)
 
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(cfg))
 		checkMounted(t, cfg.Root, false)
 
 		_, err = os.Stat(unmountFile)
@@ -292,7 +293,7 @@ func TestRootMountCleanup(t *testing.T) {
 
 		_, err = os.Stat(unmountFile)
 		assert.Assert(t, os.IsNotExist(err))
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(cfg))
 		checkMounted(t, cfg.Root, true)
 	})
 
@@ -309,7 +310,7 @@ func TestRootMountCleanup(t *testing.T) {
 			t.Fatal("unmount file should not exist")
 		}
 
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(cfg))
 		checkMounted(t, cfg.Root, true)
 		assert.Assert(t, mount.Unmount(cfg.Root))
 	})
@@ -328,7 +329,7 @@ func TestRootMountCleanup(t *testing.T) {
 		_, err = os.Stat(unmountFile)
 		assert.Check(t, os.IsNotExist(err), err)
 		checkMounted(t, cfg.Root, false)
-		assert.Assert(t, d.cleanupMounts())
+		assert.Assert(t, d.cleanupMounts(cfg))
 	})
 }
 

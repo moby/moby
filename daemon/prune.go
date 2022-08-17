@@ -56,6 +56,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		return nil, err
 	}
 
+	cfg := daemon.config()
 	allContainers := daemon.List()
 	for _, c := range allContainers {
 		select {
@@ -77,7 +78,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 				return nil, err
 			}
 			// TODO: sets RmLink to true?
-			err = daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
+			err = daemon.containerRm(cfg, c.ID, &types.ContainerRmConfig{})
 			if err != nil {
 				logrus.Warnf("failed to prune container %s: %v", c.ID, err)
 				continue

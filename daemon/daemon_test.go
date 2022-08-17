@@ -8,6 +8,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
@@ -300,7 +301,7 @@ func TestMerge(t *testing.T) {
 func TestValidateContainerIsolation(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings(&containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false)
+	_, err := d.verifyContainerSettings(&config.Config{}, &containertypes.HostConfig{Isolation: containertypes.Isolation("invalid")}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'invalid' on "+runtime.GOOS))
 }
 

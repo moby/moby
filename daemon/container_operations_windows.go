@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
@@ -161,7 +162,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return true
 }
 
-func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
+func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
 	return nil
 }
 

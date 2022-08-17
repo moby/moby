@@ -51,15 +51,15 @@ func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimCon
 }
 
 func (daemon *Daemon) loadRuntimes() error {
-	return daemon.initRuntimes(daemon.configStore.Runtimes)
+	return daemon.initRuntimes(daemon.config())
 }
 
-func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error) {
-	runtimeDir := filepath.Join(daemon.configStore.Root, "runtimes")
+func (daemon *Daemon) initRuntimes(cfg *config.Config) (err error) {
+	runtimeDir := filepath.Join(cfg.Root, "runtimes")
 	runtimeOldDir := runtimeDir + "-old"
 	// Remove old temp directory if any
 	os.RemoveAll(runtimeOldDir)
-	tmpDir, err := os.MkdirTemp(daemon.configStore.Root, "gen-runtimes")
+	tmpDir, err := os.MkdirTemp(cfg.Root, "gen-runtimes")
 	if err != nil {
 		return errors.Wrap(err, "failed to get temp dir to generate runtime scripts")
 	}
@@ -91,8 +91,8 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 		}
 	}()
 
-	for name := range runtimes {
-		rt := runtimes[name]
+	for name := range cfg.Runtimes {
+		rt := cfg.Runtimes[name]
 		if rt.Path == "" && rt.Type == "" {
 			return errors.Errorf("runtime %s: either a runtimeType or a path must be configured", name)
 		}
@@ -111,7 +111,7 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 					return err
 				}
 			}
-			rt.ShimConfig = defaultV2ShimConfig(daemon.configStore, daemon.rewriteRuntimePath(name, rt.Path, rt.Args))
+			rt.ShimConfig = defaultV2ShimConfig(cfg, daemon.rewriteRuntimePath(cfg, name, rt.Path, rt.Args))
 			var featuresStderr bytes.Buffer
 			featuresCmd := exec.Command(rt.Path, append(rt.Args, "features")...)
 			featuresCmd.Stderr = &featuresStderr
@@ -139,7 +139,7 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 				}
 			}
 		}
-		runtimes[name] = rt
+		cfg.Runtimes[name] = rt
 	}
 	return nil
 }
@@ -147,16 +147,16 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 // rewriteRuntimePath is used for runtimes which have custom arguments supplied.
 // This is needed because the containerd API only calls the OCI runtime binary, there is no options for extra arguments.
 // To support this case, the daemon wraps the specified runtime in a script that passes through those arguments.
-func (daemon *Daemon) rewriteRuntimePath(name, p string, args []string) string {
+func (daemon *Daemon) rewriteRuntimePath(cfg *config.Config, name, p string, args []string) string {
 	if len(args) == 0 {
 		return p
 	}
 
-	return filepath.Join(daemon.configStore.Root, "runtimes", name)
+	return filepath.Join(cfg.Root, "runtimes", name)
 }
 
-func (daemon *Daemon) getRuntime(name string) (shim string, opts interface{}, err error) {
-	rt := daemon.configStore.GetRuntime(name)
+func (daemon *Daemon) getRuntime(cfg *config.Config, name string) (shim string, opts interface{}, err error) {
+	rt := cfg.GetRuntime(name)
 	if rt == nil {
 		if !config.IsPermissibleC8dRuntimeName(name) {
 			return "", nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))

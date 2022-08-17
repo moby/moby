@@ -268,7 +268,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// Restart all autostart containers which has a swarm endpoint
 	// and is not yet running now that we have successfully
 	// initialized the cluster.
-	d.RestartSwarmContainers()
+	d.RestartSwarmContainers(cli.Config)
 
 	logrus.Info("Daemon has completed initialization")
 
@@ -371,7 +371,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		DefaultCgroupParent: cgroupParent,
 		RegistryHosts:       d.RegistryHosts,
 		BuilderConfig:       config.Builder,
-		Rootless:            d.Rootless(),
+		Rootless:            daemon.Rootless(config),
 		IdentityMapping:     d.IdentityMapping(),
 		DNSConfig:           config.DNSConfig,
 		ApparmorProfile:     daemon.DefaultApparmorProfile(),

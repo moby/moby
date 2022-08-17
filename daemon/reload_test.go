@@ -22,12 +22,12 @@ func muteLogs() {
 func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
 	t.Helper()
 	daemon := &Daemon{
-		configStore:  cfg,
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	var err error
 	daemon.registryService, err = registry.NewService(registry.ServiceOptions{})
 	assert.Assert(t, err)
+	daemon.configStore.Store(cfg)
 	return daemon
 }
 
@@ -52,7 +52,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	label := daemon.configStore.Labels[0]
+	label := daemon.config().Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
@@ -130,8 +130,6 @@ func TestDaemonReloadMirrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	daemon.configStore = &config.Config{}
 
 	type pair struct {
 		valid   bool
@@ -234,8 +232,6 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon.configStore = &config.Config{}
-
 	insecureRegistries := []string{
 		"127.0.0.0/8",         // this will be kept
 		"10.10.1.11:5000",     // this will be kept
@@ -335,11 +331,11 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	label := daemon.configStore.Labels[0]
+	label := daemon.config().Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
-	debug := daemon.configStore.Debug
+	debug := daemon.config().Debug
 	if !debug {
 		t.Fatal("Expected debug 'enabled', got 'disabled'")
 	}
@@ -360,7 +356,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		},
 	}
 
-	netOptions, err := daemon.networkOptions(nil, nil)
+	netOptions, err := daemon.networkOptions(&config.Config{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

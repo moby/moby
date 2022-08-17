@@ -86,11 +86,13 @@ func TestInitRuntimes_InvalidConfigs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg, err := config.New()
 			assert.NilError(t, err)
-			d := &Daemon{configStore: cfg}
-			d.configStore.Root = t.TempDir()
-			assert.Assert(t, os.Mkdir(filepath.Join(d.configStore.Root, "runtimes"), 0700))
+			cfg.Root = t.TempDir()
+			cfg.Runtimes["myruntime"] = tt.runtime
+			d := &Daemon{}
+			d.configStore.Store(cfg)
+			assert.Assert(t, os.Mkdir(filepath.Join(d.config().Root, "runtimes"), 0700))
 
-			err = d.initRuntimes(map[string]types.Runtime{"myruntime": tt.runtime})
+			err = d.initRuntimes(d.config())
 			assert.Check(t, is.ErrorContains(err, tt.expectErr))
 		})
 	}
@@ -124,20 +126,22 @@ func TestGetRuntime(t *testing.T) {
 	cfg, err := config.New()
 	assert.NilError(t, err)
 
-	d := &Daemon{configStore: cfg}
-	d.configStore.Root = t.TempDir()
-	assert.Assert(t, os.Mkdir(filepath.Join(d.configStore.Root, "runtimes"), 0700))
-	d.configStore.Runtimes = map[string]types.Runtime{
+	cfg.Root = t.TempDir()
+	assert.Assert(t, os.Mkdir(filepath.Join(cfg.Root, "runtimes"), 0700))
+	cfg.Runtimes = map[string]types.Runtime{
 		configuredRtName:         configuredRuntime,
 		rtWithArgsName:           rtWithArgs,
 		shimWithOptsName:         shimWithOpts,
 		shimAliasName:            shimAlias,
 		configuredShimByPathName: configuredShimByPath,
 	}
-	configureRuntimes(d.configStore)
+	configureRuntimes(cfg)
+
+	d := &Daemon{}
+	d.configStore.Store(cfg)
 	assert.Assert(t, d.loadRuntimes())
 
-	stockRuntime, ok := d.configStore.Runtimes[config.StockRuntimeName]
+	stockRuntime, ok := cfg.Runtimes[config.StockRuntimeName]
 	assert.Assert(t, ok, "stock runtime could not be found (test needs to be updated)")
 
 	configdOpts := *stockRuntime.ShimConfig.Opts.(*v2runcoptions.Options)
@@ -199,8 +203,9 @@ func TestGetRuntime(t *testing.T) {
 			runtime:  rtWithArgsName,
 			wantShim: stockRuntime.ShimConfig.Binary,
 			wantOpts: defaultV2ShimConfig(
-				d.configStore,
+				d.config(),
 				d.rewriteRuntimePath(
+					d.config(),
 					rtWithArgsName,
 					rtWithArgs.Path,
 					rtWithArgs.Args)).Opts,
@@ -224,7 +229,7 @@ func TestGetRuntime(t *testing.T) {
 	} {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			gotShim, gotOpts, err := d.getRuntime(tt.runtime)
+			gotShim, gotOpts, err := d.getRuntime(cfg, tt.runtime)
 			assert.Check(t, is.Equal(gotShim, tt.wantShim))
 			assert.Check(t, is.DeepEqual(gotOpts, tt.wantOpts))
 			if tt.wantShim != "" {

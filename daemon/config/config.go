@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/unicode"
@@ -227,7 +226,6 @@ type CommonConfig struct {
 	NetworkConfig
 	registry.ServiceOptions
 
-	sync.Mutex
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
 	// It should probably be handled outside this package.
 	ValuesSet map[string]interface{} `json:"-"`
@@ -650,11 +648,11 @@ func Validate(config *Config) error {
 		return err
 	}
 
-	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" {
-		if !builtinRuntimes[defaultRuntime] {
+	if config.DefaultRuntime != "" {
+		if !builtinRuntimes[config.DefaultRuntime] {
 			runtimes := config.GetAllRuntimes()
-			if _, ok := runtimes[defaultRuntime]; !ok && !IsPermissibleC8dRuntimeName(defaultRuntime) {
-				return errors.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
+			if _, ok := runtimes[config.DefaultRuntime]; !ok && !IsPermissibleC8dRuntimeName(config.DefaultRuntime) {
+				return fmt.Errorf("specified default runtime '%s' does not exist", config.DefaultRuntime)
 			}
 		}
 	}
@@ -667,15 +665,6 @@ func Validate(config *Config) error {
 
 	// validate platform-specific settings
 	return config.ValidatePlatformConfig()
-}
-
-// GetDefaultRuntimeName returns the current default runtime
-func (conf *Config) GetDefaultRuntimeName() string {
-	conf.Lock()
-	rt := conf.DefaultRuntime
-	conf.Unlock()
-
-	return rt
 }
 
 // MaskCredentials masks credentials that are in an URL.
