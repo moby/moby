@@ -12,20 +12,6 @@ const defaultTrustKeyFile = "key.json"
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
-	var err error
-	conf.Pidfile, err = getDefaultPidFile()
-	if err != nil {
-		return err
-	}
-	conf.Root, err = getDefaultDataRoot()
-	if err != nil {
-		return err
-	}
-	conf.ExecRoot, err = getDefaultExecRoot()
-	if err != nil {
-		return err
-	}
-
 	var (
 		allowNonDistributable = opts.NewNamedListOptsRef("allow-nondistributable-artifacts", &conf.AllowNondistributableArtifacts, registry.ValidateIndexName)
 		registryMirrors       = opts.NewNamedListOptsRef("registry-mirrors", &conf.Mirrors, registry.ValidateMirror)

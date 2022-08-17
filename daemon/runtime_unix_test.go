@@ -24,7 +24,10 @@ func TestGetRuntime(t *testing.T) {
 	const configuredRtName = "my/custom.shim.v1"
 	configuredRuntime := types.Runtime{Path: "/bin/true"}
 
-	d := &Daemon{configStore: config.New()}
+	cfg, err := config.New()
+	assert.NilError(t, err)
+
+	d := &Daemon{configStore: cfg}
 	d.configStore.Root = t.TempDir()
 	assert.Assert(t, os.Mkdir(filepath.Join(d.configStore.Root, "runtimes"), 0700))
 	d.configStore.Runtimes = map[string]types.Runtime{

@@ -23,7 +23,8 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 
 	f.Close()
 
-	conf := New()
+	conf, err := New()
+	assert.NilError(t, err)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.BoolVarP(&conf.Debug, "debug", "D", false, "")
