@@ -591,10 +591,10 @@ func Validate(config *Config) error {
 		}
 	}
 
-	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.Mtu < 0 {
+	if config.Mtu <= 0 {
 		return errors.Errorf("invalid default MTU: %d", config.Mtu)
 	}
+	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
 	if config.MaxConcurrentDownloads < 0 {
 		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
