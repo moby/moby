@@ -43,7 +43,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-memdb v1.3.2
-	github.com/hashicorp/memberlist v0.2.4
+	github.com/hashicorp/memberlist v0.4.0
 	github.com/hashicorp/serf v0.8.5
 	github.com/imdario/mergo v0.3.12
 	github.com/ishidawataru/sctp v0.0.0-20210707070123-9a39160e9062
@@ -80,7 +80,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
+	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
 	google.golang.org/grpc v1.45.0

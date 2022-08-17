@@ -111,3 +111,50 @@ func (t *shimNodeAwareTransport) WriteToAddress(b []byte, addr Address) (time.Ti
 func (t *shimNodeAwareTransport) DialAddressTimeout(addr Address, timeout time.Duration) (net.Conn, error) {
 	return t.DialTimeout(addr.Addr, timeout)
 }
+
+type labelWrappedTransport struct {
+	label string
+	NodeAwareTransport
+}
+
+var _ NodeAwareTransport = (*labelWrappedTransport)(nil)
+
+func (t *labelWrappedTransport) WriteToAddress(buf []byte, addr Address) (time.Time, error) {
+	var err error
+	buf, err = AddLabelHeaderToPacket(buf, t.label)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to add label header to packet: %w", err)
+	}
+	return t.NodeAwareTransport.WriteToAddress(buf, addr)
+}
+
+func (t *labelWrappedTransport) WriteTo(buf []byte, addr string) (time.Time, error) {
+	var err error
+	buf, err = AddLabelHeaderToPacket(buf, t.label)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return t.NodeAwareTransport.WriteTo(buf, addr)
+}
+
+func (t *labelWrappedTransport) DialAddressTimeout(addr Address, timeout time.Duration) (net.Conn, error) {
+	conn, err := t.NodeAwareTransport.DialAddressTimeout(addr, timeout)
+	if err != nil {
+		return nil, err
+	}
+	if err := AddLabelHeaderToStream(conn, t.label); err != nil {
+		return nil, fmt.Errorf("failed to add label header to stream: %w", err)
+	}
+	return conn, nil
+}
+
+func (t *labelWrappedTransport) DialTimeout(addr string, timeout time.Duration) (net.Conn, error) {
+	conn, err := t.NodeAwareTransport.DialTimeout(addr, timeout)
+	if err != nil {
+		return nil, err
+	}
+	if err := AddLabelHeaderToStream(conn, t.label); err != nil {
+		return nil, fmt.Errorf("failed to add label header to stream: %w", err)
+	}
+	return conn, nil
+}
