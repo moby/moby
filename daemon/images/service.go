@@ -24,10 +24,11 @@ import (
 )
 
 type containerStore interface {
-	// used by image delete
+	// First is used by image delete
 	First(container.StoreFilter) *container.Container
-	// used by image prune, and image list
+	// List is used by image prune, and image list
 	List() []*container.Container
+	// Get is used by CommitBuildStep
 	// TODO: remove, only used for CommitBuildStep
 	Get(string) *container.Container
 }
@@ -144,7 +145,7 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 }
 
 // GetLayerByID returns a layer by ID
-// called from daemon.go Daemon.restore(), and Daemon.containerExport()
+// called from daemon.go Daemon.restore(), and Daemon.containerExport().
 func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
 	return i.layerStore.GetRWLayer(cid)
 }
@@ -182,8 +183,8 @@ func (i *ImageService) GraphDriverName() string {
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	metadata, err := i.layerStore.ReleaseRWLayer(rwlayer)
-	layer.LogReleaseMetadata(metadata)
+	metaData, err := i.layerStore.ReleaseRWLayer(rwlayer)
+	layer.LogReleaseMetadata(metaData)
 	if err != nil && !errors.Is(err, layer.ErrMountDoesNotExist) && !errors.Is(err, os.ErrNotExist) {
 		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
 			i.layerStore.DriverName())

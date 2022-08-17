@@ -150,9 +150,9 @@ func (s *Server) ListSecrets(ctx context.Context, request *api.ListSecretsReques
 
 // CreateSecret creates and returns a `CreateSecretResponse` with a `Secret` based
 // on the provided `CreateSecretRequest.SecretSpec`.
-// - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
-//   or if the secret data is too long or contains invalid characters.
-// - Returns an error if the creation fails.
+//   - Returns `InvalidArgument` if the `CreateSecretRequest.SecretSpec` is malformed,
+//     or if the secret data is too long or contains invalid characters.
+//   - Returns an error if the creation fails.
 func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequest) (*api.CreateSecretResponse, error) {
 	if err := validateSecretSpec(request.Spec); err != nil {
 		return nil, err

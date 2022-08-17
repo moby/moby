@@ -748,17 +748,17 @@ func (s *Scheduler) scheduleTaskGroup(ctx context.Context, taskGroup map[string]
 // are at a leaf node, past which there are no subtrees, then we try to
 // schedule a proportional number of tasks to the nodes of that branch.
 //
-// - n is the number of tasks being scheduled on this subtree
-// - taskGroup is a set of tasks to schedule, taking the form of a map from the
-//   task ID to the task object.
-// - tree is the decision tree we're scheduling on. this is, effectively, the
-//   set of nodes that meet scheduling constraints. these nodes are arranged
-//   into a tree so that placement preferences can be taken into account when
-//   spreading tasks across nodes.
-// - schedulingDecisions is a set of the scheduling decisions already made for
-//   this tree
-// - nodeLess is a comparator that chooses which of the two nodes is preferable
-//   to schedule on.
+//   - n is the number of tasks being scheduled on this subtree
+//   - taskGroup is a set of tasks to schedule, taking the form of a map from the
+//     task ID to the task object.
+//   - tree is the decision tree we're scheduling on. this is, effectively, the
+//     set of nodes that meet scheduling constraints. these nodes are arranged
+//     into a tree so that placement preferences can be taken into account when
+//     spreading tasks across nodes.
+//   - schedulingDecisions is a set of the scheduling decisions already made for
+//     this tree
+//   - nodeLess is a comparator that chooses which of the two nodes is preferable
+//     to schedule on.
 func (s *Scheduler) scheduleNTasksOnSubtree(ctx context.Context, n int, taskGroup map[string]*api.Task, tree *decisionTree, schedulingDecisions map[string]schedulingDecision, nodeLess func(a *NodeInfo, b *NodeInfo) bool) int {
 	if tree.next == nil {
 		nodes := tree.orderedNodes(s.pipeline.Process, nodeLess)
@@ -819,15 +819,15 @@ func (s *Scheduler) scheduleNTasksOnSubtree(ctx context.Context, n int, taskGrou
 // fewer than the number of tasks desired to be scheduled, if there are
 // insufficient nodes to meet resource constraints.
 //
-// - n is the number of tasks desired to be scheduled to this set of nodes
-// - taskGroup is the tasks desired to be scheduled, in the form of a map from
-//   task ID to task object. this argument is mutated; tasks which have been
-//   scheduled are removed from the map.
-// - nodes is the set of nodes to schedule to
-// - schedulingDecisions is the set of scheduling decisions that have been made
-//   thus far, in the form of a map from task ID to the decision made.
-// - nodeLess is a simple comparator that chooses which of two nodes would be
-//   preferable to schedule on.
+//   - n is the number of tasks desired to be scheduled to this set of nodes
+//   - taskGroup is the tasks desired to be scheduled, in the form of a map from
+//     task ID to task object. this argument is mutated; tasks which have been
+//     scheduled are removed from the map.
+//   - nodes is the set of nodes to schedule to
+//   - schedulingDecisions is the set of scheduling decisions that have been made
+//     thus far, in the form of a map from task ID to the decision made.
+//   - nodeLess is a simple comparator that chooses which of two nodes would be
+//     preferable to schedule on.
 func (s *Scheduler) scheduleNTasksOnNodes(ctx context.Context, n int, taskGroup map[string]*api.Task, nodes []NodeInfo, schedulingDecisions map[string]schedulingDecision, nodeLess func(a *NodeInfo, b *NodeInfo) bool) int {
 	tasksScheduled := 0
 	failedConstraints := make(map[int]bool) // key is index in nodes slice

@@ -206,6 +206,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
 	}
 
+	container.HasBeenManuallyRestarted = false
 	container.SetRunning(pid, true)
 	container.HasBeenStartedBefore = true
 	daemon.setStateCounter(container)

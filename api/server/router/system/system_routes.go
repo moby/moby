@@ -174,6 +174,15 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	if versions.LessThan(version, "1.42") {
 		for _, b := range buildCache {
 			builderSize += b.Size
+			// Parents field was added in API 1.42 to replace the Parent field.
+			b.Parents = nil
+		}
+	}
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		for _, b := range buildCache {
+			// Parent field is deprecated in API v1.42 and up, as it is deprecated
+			// in BuildKit. Empty the field to omit it in the API response.
+			b.Parent = "" //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
 		}
 	}
 
@@ -281,7 +290,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 }
 
 func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var config *types.AuthConfig
+	var config *registry.AuthConfig
 	err := json.NewDecoder(r.Body).Decode(&config)
 	r.Body.Close()
 	if err != nil {

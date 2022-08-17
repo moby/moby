@@ -17,7 +17,7 @@
 
 # Vagrantfile for Fedora and EL
 Vagrant.configure("2") do |config|
-  config.vm.box = ENV["BOX"] || "fedora/35-cloud-base"
+  config.vm.box = ENV["BOX"] || "fedora/36-cloud-base"
   config.vm.box_version = ENV["BOX_VERSION"]
   memory = 4096
   cpus = 2
@@ -91,7 +91,7 @@ EOF
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.upload_path = "/tmp/vagrant-install-golang"
     sh.env = {
-        'GO_VERSION': ENV['GO_VERSION'] || "1.17.11",
+        'GO_VERSION': ENV['GO_VERSION'] || "1.17.13",
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash

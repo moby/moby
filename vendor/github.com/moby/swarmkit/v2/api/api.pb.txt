@@ -2779,10 +2779,10 @@ file {
         }
       }
       value {
-        name: "CSI"
+        name: "CLUSTER"
         number: 4
         options {
-          66001: "MountTypeCSI"
+          66001: "MountTypeCluster"
         }
       }
       options {

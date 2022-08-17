@@ -2,7 +2,7 @@
 
 ARG CROSS="false"
 ARG SYSTEMD="false"
-ARG GO_VERSION=1.18.4
+ARG GO_VERSION=1.18.5
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.5.0
 
@@ -333,6 +333,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             python3-setuptools \
             python3-wheel \
             sudo \
+            systemd-journal-remote \
             thin-provisioning-tools \
             uidmap \
             vim \
@@ -386,9 +387,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             dbus-user-session \
             systemd \
             systemd-sysv
-RUN mkdir -p hack \
-  && curl -o hack/dind-systemd https://raw.githubusercontent.com/AkihiroSuda/containerized-systemd/b70bac0daeea120456764248164c21684ade7d0d/docker-entrypoint.sh \
-  && chmod +x hack/dind-systemd
 ENTRYPOINT ["hack/dind-systemd"]
 
 FROM dev-systemd-${SYSTEMD} AS dev

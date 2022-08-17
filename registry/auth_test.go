@@ -3,16 +3,15 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 )
 
-func buildAuthConfigs() map[string]types.AuthConfig {
-	authConfigs := map[string]types.AuthConfig{}
+func buildAuthConfigs() map[string]registry.AuthConfig {
+	authConfigs := map[string]registry.AuthConfig{}
 
 	for _, reg := range []string{"testIndex", IndexServer} {
-		authConfigs[reg] = types.AuthConfig{
+		authConfigs[reg] = registry.AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
 		}
@@ -42,21 +41,21 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 func TestResolveAuthConfigFullURL(t *testing.T) {
 	authConfigs := buildAuthConfigs()
 
-	registryAuth := types.AuthConfig{
+	registryAuth := registry.AuthConfig{
 		Username: "foo-user",
 		Password: "foo-pass",
 	}
-	localAuth := types.AuthConfig{
+	localAuth := registry.AuthConfig{
 		Username: "bar-user",
 		Password: "bar-pass",
 	}
-	officialAuth := types.AuthConfig{
+	officialAuth := registry.AuthConfig{
 		Username: "baz-user",
 		Password: "baz-pass",
 	}
 	authConfigs[IndexServer] = officialAuth
 
-	expectedAuths := map[string]types.AuthConfig{
+	expectedAuths := map[string]registry.AuthConfig{
 		"registry.example.com": registryAuth,
 		"localhost:8000":       localAuth,
 		"example.com":          localAuth,

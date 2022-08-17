@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
@@ -195,8 +196,8 @@ func getExistingPlugins(t testing.TB, testEnv *Execution) []string {
 // ProtectVolume adds the specified volume(s) to be protected in case of clean
 func (e *Execution) ProtectVolume(t testing.TB, volumes ...string) {
 	t.Helper()
-	for _, volume := range volumes {
-		e.protectedElements.volumes[volume] = struct{}{}
+	for _, vol := range volumes {
+		e.protectedElements.volumes[vol] = struct{}{}
 	}
 }
 
@@ -211,12 +212,12 @@ func ProtectVolumes(t testing.TB, testEnv *Execution) {
 func getExistingVolumes(t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	volumeList, err := client.VolumeList(context.Background(), filters.Args{})
+	volumeList, err := client.VolumeList(context.Background(), volume.ListOptions{})
 	assert.NilError(t, err, "failed to list volumes")
 
 	var volumes []string
-	for _, volume := range volumeList.Volumes {
-		volumes = append(volumes, volume.Name)
+	for _, vol := range volumeList.Volumes {
+		volumes = append(volumes, vol.Name)
 	}
 	return volumes
 }

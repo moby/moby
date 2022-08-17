@@ -7,8 +7,8 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/registry"
+	registrypkg "github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -136,22 +136,22 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 	}
 	// Hold a reference to the image layer so that it can't be removed before
 	// it is released
-	layer, err := layerStore.Get(img.RootFS.ChainID())
+	lyr, err := layerStore.Get(img.RootFS.ChainID())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get layer for image %s", img.ImageID())
 	}
-	return &roLayer{layerStore: layerStore, roLayer: layer}, nil
+	return &roLayer{layerStore: layerStore, roLayer: lyr}, nil
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]registry.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
 	}
 	ref = reference.TagNameOnly(ref)
 
-	pullRegistryAuth := &types.AuthConfig{}
+	pullRegistryAuth := &registry.AuthConfig{}
 	if len(authConfigs) > 0 {
 		// The request came with a full auth config, use it
 		repoInfo, err := i.registryService.ResolveRepository(ref)
@@ -159,7 +159,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 			return nil, err
 		}
 
-		resolvedConfig := registry.ResolveAuthConfig(authConfigs, repoInfo.Index)
+		resolvedConfig := registrypkg.ResolveAuthConfig(authConfigs, repoInfo.Index)
 		pullRegistryAuth = &resolvedConfig
 	}
 
@@ -206,34 +206,34 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		if !system.IsOSSupported(os) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}
-		layer, err := newROLayerForImage(nil, i.layerStore)
-		return nil, layer, err
+		lyr, err := newROLayerForImage(nil, i.layerStore)
+		return nil, lyr, err
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		image, err := i.GetImage(refOrID, opts.Platform)
+		img, err := i.GetImage(refOrID, opts.Platform)
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
 		// TODO: shouldn't we error out if error is different from "not found" ?
-		if image != nil {
-			if !system.IsOSSupported(image.OperatingSystem()) {
+		if img != nil {
+			if !system.IsOSSupported(img.OperatingSystem()) {
 				return nil, nil, system.ErrNotSupportedOperatingSystem
 			}
-			layer, err := newROLayerForImage(image, i.layerStore)
-			return image, layer, err
+			lyr, err := newROLayerForImage(img, i.layerStore)
+			return img, lyr, err
 		}
 	}
 
-	image, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
+	img, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
 	if err != nil {
 		return nil, nil, err
 	}
-	if !system.IsOSSupported(image.OperatingSystem()) {
+	if !system.IsOSSupported(img.OperatingSystem()) {
 		return nil, nil, system.ErrNotSupportedOperatingSystem
 	}
-	layer, err := newROLayerForImage(image, i.layerStore)
-	return image, layer, err
+	lyr, err := newROLayerForImage(img, i.layerStore)
+	return img, lyr, err
 }
 
 // CreateImage creates a new image by adding a config and ID to the image store.

@@ -105,7 +105,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = c.VolumeList(context.Background(), filters.Args{})
+	_, err = c.VolumeList(context.Background(), volume.ListOptions{})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 

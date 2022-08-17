@@ -1,8 +1,8 @@
 package store
 
 import (
-	"github.com/moby/swarmkit/v2/api"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/moby/swarmkit/v2/api"
 )
 
 // ObjectStoreConfig provides the necessary methods to store a particular object

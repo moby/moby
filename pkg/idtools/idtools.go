@@ -162,20 +162,6 @@ func (i IdentityMapping) Empty() bool {
 	return len(i.UIDMaps) == 0 && len(i.GIDMaps) == 0
 }
 
-// UIDs returns the mapping for UID.
-//
-// Deprecated: reference the UIDMaps field directly.
-func (i IdentityMapping) UIDs() []IDMap {
-	return i.UIDMaps
-}
-
-// GIDs returns the mapping for GID.
-//
-// Deprecated: reference the GIDMaps field directly.
-func (i IdentityMapping) GIDs() []IDMap {
-	return i.GIDMaps
-}
-
 func createIDMap(subidRanges ranges) []IDMap {
 	idMap := []IDMap{}
 

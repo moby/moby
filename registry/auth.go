@@ -9,7 +9,6 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -19,7 +18,7 @@ import (
 const AuthClientID = "docker"
 
 type loginCredentialStore struct {
-	authConfig *types.AuthConfig
+	authConfig *registry.AuthConfig
 }
 
 func (lcs loginCredentialStore) Basic(*url.URL) (string, string) {
@@ -35,12 +34,12 @@ func (lcs loginCredentialStore) SetRefreshToken(u *url.URL, service, token strin
 }
 
 type staticCredentialStore struct {
-	auth *types.AuthConfig
+	auth *registry.AuthConfig
 }
 
 // NewStaticCredentialStore returns a credential store
 // which always returns the same credential values.
-func NewStaticCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
+func NewStaticCredentialStore(auth *registry.AuthConfig) auth.CredentialStore {
 	return staticCredentialStore{
 		auth: auth,
 	}
@@ -66,7 +65,7 @@ func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
+func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
 	var (
 		endpointStr          = strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 		modifiers            = Headers(userAgent, nil)
@@ -138,7 +137,7 @@ func ConvertToHostname(url string) string {
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
-func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registry.IndexInfo) types.AuthConfig {
+func ResolveAuthConfig(authConfigs map[string]registry.AuthConfig, index *registry.IndexInfo) registry.AuthConfig {
 	configKey := GetAuthConfigKey(index)
 	// First try the happy case
 	if c, found := authConfigs[configKey]; found || index.Official {
@@ -154,7 +153,7 @@ func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registry.
 	}
 
 	// When all else fails, return an empty auth config
-	return types.AuthConfig{}
+	return registry.AuthConfig{}
 }
 
 // PingResponseError is used when the response from a ping

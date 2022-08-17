@@ -9,17 +9,18 @@ go 1.17
 require (
 	cloud.google.com/go v0.93.3
 	cloud.google.com/go/logging v1.4.2
+	code.cloudfoundry.org/clock v1.0.0
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
 	github.com/Microsoft/go-winio v0.5.2
-	github.com/Microsoft/hcsshim v0.9.3
+	github.com/Microsoft/hcsshim v0.9.4
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310
 	github.com/aws/aws-sdk-go v1.31.6
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.4
-	github.com/containerd/containerd v1.6.6
+	github.com/containerd/containerd v1.6.7
 	github.com/containerd/continuity v0.3.0
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
@@ -49,10 +50,10 @@ require (
 	github.com/klauspost/compress v1.15.1
 	github.com/miekg/dns v1.1.27
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
-	github.com/moby/buildkit v0.10.3 // FIXME(thaJeztah) when updating, remove the temporary override in /.github/workflows/ci.yml
+	github.com/moby/buildkit v0.10.4-0.20220719175648-8e2d9b9006ca // v0.10 branch
 	github.com/moby/ipvs v1.0.2
 	github.com/moby/locker v1.0.1
-	github.com/moby/swarmkit/v2 v2.0.0-20220420172245-6068d1894d46
+	github.com/moby/swarmkit/v2 v2.0.0-20220721174824-48dd89375d0a
 	github.com/moby/sys/mount v0.3.3
 	github.com/moby/sys/mountinfo v0.6.2
 	github.com/moby/sys/signal v0.7.0
@@ -87,7 +88,6 @@ require (
 )
 
 require (
-	code.cloudfoundry.org/clock v1.0.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect

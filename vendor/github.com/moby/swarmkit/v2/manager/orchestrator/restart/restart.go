@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/docker/go-events"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/defaults"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/orchestrator"
 	"github.com/moby/swarmkit/v2/manager/state"
 	"github.com/moby/swarmkit/v2/manager/state/store"
-	gogotypes "github.com/gogo/protobuf/types"
 )
 
 const defaultOldTaskTimeout = time.Minute

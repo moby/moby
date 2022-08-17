@@ -129,7 +129,8 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 	for _, r := range duResp.Record {
 		items = append(items, &types.BuildCache{
 			ID:          r.ID,
-			Parent:      r.Parent,
+			Parent:      r.Parent, //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
+			Parents:     r.Parents,
 			Type:        r.RecordType,
 			Description: r.Description,
 			InUse:       r.InUse,

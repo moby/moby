@@ -239,13 +239,13 @@ Cluster Volumes are only compatible with Docker Services, not plain Docker
 Containers.
 
 In Docker Services, a Cluster Volume is used the same way any other volume
-would be used. The `type` should be set to `csi`. For example, to create a
+would be used. The `type` should be set to `cluster`. For example, to create a
 Service that uses `my-volume` created above, one would execute a command like:
 
 ```bash
 docker service create \
   --name my-service \
-  --mount type=csi,src=my-volume,dst=/srv/www \
+  --mount type=cluster,src=my-volume,dst=/srv/www \
   nginx:alpine
 ```
 
@@ -278,7 +278,7 @@ To use a Cluster Volume by Group instead of by Name, the mount `src` option is
 prefixed with `group:`, followed by the group name. For example:
 
 ```
---mount type=csi,src=group:my-group,dst=/srv/www
+--mount type=cluster,src=group:my-group,dst=/srv/www
 ```
 
 This instructs Docker Swarm that any Volume with the Group `my-group` can be

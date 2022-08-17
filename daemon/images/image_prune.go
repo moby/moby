@@ -119,7 +119,7 @@ deleteImagesLoop:
 
 			if shouldDelete {
 				for _, ref := range refs {
-					imgDel, err := i.ImageDelete(ref.String(), false, true)
+					imgDel, err := i.ImageDelete(ctx, ref.String(), false, true)
 					if imageDeleteFailed(ref.String(), err) {
 						continue
 					}
@@ -128,7 +128,7 @@ deleteImagesLoop:
 			}
 		} else {
 			hex := id.Digest().Hex()
-			imgDel, err := i.ImageDelete(hex, false, true)
+			imgDel, err := i.ImageDelete(ctx, hex, false, true)
 			if imageDeleteFailed(hex, err) {
 				continue
 			}
@@ -163,7 +163,7 @@ func imageDeleteFailed(ref string, err error) bool {
 	switch {
 	case err == nil:
 		return false
-	case errdefs.IsConflict(err):
+	case errdefs.IsConflict(err), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return true
 	default:
 		logrus.Warnf("failed to prune image %s: %v", ref, err)

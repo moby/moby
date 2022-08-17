@@ -5,8 +5,9 @@ import (
 )
 
 const (
-	// This is used by the `default-runtime` flag in dockerd as the default value.
-	// On windows we'd prefer to keep this empty so the value is auto-detected based on other options.
+	// StockRuntimeName is used by the 'default-runtime' flag in dockerd as the
+	// default value. On Windows keep this empty so the value is auto-detected
+	// based on other options.
 	StockRuntimeName = ""
 )
 

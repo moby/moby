@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
@@ -125,7 +126,7 @@ func TestPluginInstall(t *testing.T) {
 
 		name := "test-" + strings.ToLower(t.Name())
 		repo := path.Join(registry.DefaultURL, name+":latest")
-		auth := &types.AuthConfig{ServerAddress: registry.DefaultURL, Username: "testuser", Password: "testpassword"}
+		auth := &registrytypes.AuthConfig{ServerAddress: registry.DefaultURL, Username: "testuser", Password: "testpassword"}
 		assert.NilError(t, plugin.CreateInRegistry(ctx, repo, auth))
 
 		authEncoded, err := json.Marshal(auth)

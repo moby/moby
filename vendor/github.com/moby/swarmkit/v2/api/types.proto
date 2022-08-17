@@ -239,7 +239,7 @@ message Mount {
 		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
 		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
 		NPIPE = 3 [(gogoproto.enumvalue_customname) = "MountTypeNamedPipe"]; // Windows named pipes
-		CSI = 4 [(gogoproto.enumvalue_customname) = "MountTypeCSI"]; // CSI volume
+		CLUSTER = 4 [(gogoproto.enumvalue_customname) = "MountTypeCluster"]; // CSI volume
 	}
 
 	// Type defines the nature of the mount.

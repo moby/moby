@@ -237,19 +237,6 @@ func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT
 	return os.Chown(p, uid, gid)
 }
 
-// NewIdentityMapping takes a requested username and
-// using the data from /etc/sub{uid,gid} ranges, creates the
-// proper uid and gid remapping ranges for that user/group pair
-//
-// Deprecated: Use LoadIdentityMapping.
-func NewIdentityMapping(name string) (*IdentityMapping, error) {
-	m, err := LoadIdentityMapping(name)
-	if err != nil {
-		return nil, err
-	}
-	return &m, err
-}
-
 // LoadIdentityMapping takes a requested username and
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair

@@ -707,8 +707,8 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		hostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
 	}
 
-	if rt := daemon.configStore.GetRuntime(hostConfig.Runtime); rt == nil {
-		return warnings, fmt.Errorf("Unknown runtime specified %s", hostConfig.Runtime)
+	if _, err := daemon.getRuntime(hostConfig.Runtime); err != nil {
+		return warnings, err
 	}
 
 	parser := volumemounts.NewParser()

@@ -23,6 +23,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/authorization"
@@ -121,12 +122,12 @@ func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 			Value:       []string{"true"},
 		})
 	}
-	for _, mount := range c.Mounts {
-		if mount.Source != nil {
+	for _, mnt := range c.Mounts {
+		if mnt.Source != nil {
 			privileges = append(privileges, types.PluginPrivilege{
 				Name:        "mount",
 				Description: "host path to mount",
-				Value:       []string{*mount.Source},
+				Value:       []string{*mnt.Source},
 			})
 		}
 	}
@@ -158,7 +159,7 @@ func computePrivileges(c types.PluginConfig) types.PluginPrivileges {
 }
 
 // Privileges pulls a plugin config and computes the privileges required to install it.
-func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
+func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHeader http.Header, authConfig *registry.AuthConfig) (types.PluginPrivileges, error) {
 	var (
 		config     types.PluginConfig
 		configSeen bool
@@ -206,7 +207,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 // Upgrade upgrades a plugin
 //
 // TODO: replace reference package usage with simpler url.Parse semantics
-func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) (err error) {
+func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) (err error) {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
 		return err
@@ -254,7 +255,7 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 // Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
 //
 // TODO: replace reference package usage with simpler url.Parse semantics
-func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...CreateOpt) (err error) {
+func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...CreateOpt) (err error) {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 
@@ -350,7 +351,7 @@ next:
 }
 
 // Push pushes a plugin to the registry.
-func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header, authConfig *registry.AuthConfig, outStream io.Writer) error {
 	p, err := pm.config.Store.GetV2Plugin(name)
 	if err != nil {
 		return err

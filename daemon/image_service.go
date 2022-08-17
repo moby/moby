@@ -25,12 +25,12 @@ import (
 type ImageService interface {
 	// Images
 
-	PullImage(ctx context.Context, image, tag string, platform *v1.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
+	PullImage(ctx context.Context, image, tag string, platform *v1.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	CreateImage(config []byte, parent string) (builder.Image, error)
-	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
-	ExportImage(names []string, outStream io.Writer) error
-	LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error
+	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
+	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
+	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
 	LogImageEvent(imageID, refName, action string)
 	LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string)
@@ -67,9 +67,8 @@ type ImageService interface {
 
 	// Other
 
-	GetRepository(ctx context.Context, ref reference.Named, authConfig *types.AuthConfig) (distribution.Repository, error)
-	Map() map[image.ID]*image.Image
-	SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *types.AuthConfig, headers map[string][]string) (*registry.SearchResults, error)
+	GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (distribution.Repository, error)
+	SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *registry.AuthConfig, headers map[string][]string) (*registry.SearchResults, error)
 	DistributionServices() images.DistributionServices
 	Children(id image.ID) []image.ID
 	Cleanup() error

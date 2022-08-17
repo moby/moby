@@ -479,22 +479,43 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
 
+	dbChangeWitness := func(db *NetworkDB) func(network string, expectNodeCount int) {
+		staleNetworkTime := db.networkClock.Time()
+		return func(network string, expectNodeCount int) {
+			check := func(t poll.LogT) poll.Result {
+				networkTime := db.networkClock.Time()
+				if networkTime <= staleNetworkTime {
+					return poll.Continue("network time is stale, no change registered yet.")
+				}
+				count := -1
+				db.Lock()
+				if nodes, ok := db.networkNodes[network]; ok {
+					count = len(nodes)
+				}
+				db.Unlock()
+				if count != expectNodeCount {
+					return poll.Continue("current number of nodes is %d, expect %d.", count, expectNodeCount)
+				}
+				return poll.Success()
+			}
+			t.Helper()
+			poll.WaitOn(t, check, poll.WithTimeout(3*time.Second), poll.WithDelay(5*time.Millisecond))
+		}
+	}
+
 	// Single node Join/Leave
+	witness0 := dbChangeWitness(dbs[0])
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
+	witness0("network1", 1)
 
-	if len(dbs[0].networkNodes["network1"]) != 1 {
-		t.Fatalf("The networkNodes list has to have be 1 instead of %d", len(dbs[0].networkNodes["network1"]))
-	}
-
+	witness0 = dbChangeWitness(dbs[0])
 	err = dbs[0].LeaveNetwork("network1")
 	assert.NilError(t, err)
-
-	if len(dbs[0].networkNodes["network1"]) != 0 {
-		t.Fatalf("The networkNodes list has to have be 0 instead of %d", len(dbs[0].networkNodes["network1"]))
-	}
+	witness0("network1", 0)
 
 	// Multiple nodes Join/Leave
+	witness0, witness1 := dbChangeWitness(dbs[0]), dbChangeWitness(dbs[1])
 	err = dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
@@ -503,37 +524,30 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 
 	// Wait for the propagation on db[0]
 	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-	if len(dbs[0].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
-	}
+	witness0("network1", 2)
 	if n, ok := dbs[0].networks[dbs[0].config.NodeID]["network1"]; !ok || n.leaving {
 		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
 	}
 
 	// Wait for the propagation on db[1]
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-	if len(dbs[1].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
-	}
+	witness1("network1", 2)
 	if n, ok := dbs[1].networks[dbs[1].config.NodeID]["network1"]; !ok || n.leaving {
 		t.Fatalf("The network should not be marked as leaving:%t", n.leaving)
 	}
 
 	// Try a quick leave/join
+	witness0, witness1 = dbChangeWitness(dbs[0]), dbChangeWitness(dbs[1])
 	err = dbs[0].LeaveNetwork("network1")
 	assert.NilError(t, err)
 	err = dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
 	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
-	if len(dbs[0].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
-	}
+	witness0("network1", 2)
 
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
-	if len(dbs[1].networkNodes["network1"]) != 2 {
-		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
-	}
+	witness1("network1", 2)
 
 	closeNetworkDBInstances(t, dbs)
 }

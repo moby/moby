@@ -167,7 +167,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	waitForContainerDShutdown, err := cli.initContainerD(ctx)
+	waitForContainerDShutdown, err := cli.initContainerd(ctx)
 	if waitForContainerDShutdown != nil {
 		defer waitForContainerDShutdown(10 * time.Second)
 	}
@@ -288,34 +288,39 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, err
 	}
 	cgroupParent := newCgroupParent(config)
-	bk, err := buildkit.New(buildkit.Opt{
-		SessionManager:      sm,
-		Root:                filepath.Join(config.Root, "buildkit"),
-		Dist:                d.DistributionServices(),
-		NetworkController:   d.NetworkController(),
-		DefaultCgroupParent: cgroupParent,
-		RegistryHosts:       d.RegistryHosts(),
-		BuilderConfig:       config.Builder,
-		Rootless:            d.Rootless(),
-		IdentityMapping:     d.IdentityMapping(),
-		DNSConfig:           config.DNSConfig,
-		ApparmorProfile:     daemon.DefaultApparmorProfile(),
-	})
-	if err != nil {
-		return opts, err
-	}
-
-	bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
-	if err != nil {
-		return opts, errors.Wrap(err, "failed to create buildmanager")
-	}
-	return routerOptions{
+	ro := routerOptions{
 		sessionManager: sm,
-		buildBackend:   bb,
-		buildkit:       bk,
 		features:       d.Features(),
 		daemon:         d,
-	}, nil
+	}
+	if !d.UsesSnapshotter() {
+		bk, err := buildkit.New(buildkit.Opt{
+			SessionManager:      sm,
+			Root:                filepath.Join(config.Root, "buildkit"),
+			Dist:                d.DistributionServices(),
+			NetworkController:   d.NetworkController(),
+			DefaultCgroupParent: cgroupParent,
+			RegistryHosts:       d.RegistryHosts(),
+			BuilderConfig:       config.Builder,
+			Rootless:            d.Rootless(),
+			IdentityMapping:     d.IdentityMapping(),
+			DNSConfig:           config.DNSConfig,
+			ApparmorProfile:     daemon.DefaultApparmorProfile(),
+		})
+		if err != nil {
+			return opts, err
+		}
+
+		bb, err := buildbackend.NewBackend(d.ImageService(), manager, bk, d.EventsService)
+		if err != nil {
+			return opts, errors.Wrap(err, "failed to create buildmanager")
+		}
+
+		ro.buildBackend = bb
+		ro.buildkit = bk
+	}
+
+	return ro, nil
 }
 
 func (cli *DaemonCli) reloadConfig() {
@@ -536,14 +541,8 @@ func initRouter(opts routerOptions) {
 		distributionrouter.NewRouter(opts.daemon.ImageService()),
 	}
 
-	grpcBackends := []grpcrouter.Backend{}
-	for _, b := range []interface{}{opts.daemon, opts.buildBackend} {
-		if b, ok := b.(grpcrouter.Backend); ok {
-			grpcBackends = append(grpcBackends, b)
-		}
-	}
-	if len(grpcBackends) > 0 {
-		routers = append(routers, grpcrouter.NewRouter(grpcBackends...))
+	if opts.buildBackend != nil {
+		routers = append(routers, grpcrouter.NewRouter(opts.buildBackend))
 	}
 
 	if opts.daemon.NetworkControllerEnabled() {
@@ -590,14 +589,26 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 		return nil, err
 	}
 
-	if cli.Config.Debug {
+	if cli.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
-	} else if cli.Config.LogLevel != "" {
-		opts = append(opts, supervisor.WithLogLevel(cli.Config.LogLevel))
+	} else {
+		opts = append(opts, supervisor.WithLogLevel(cli.LogLevel))
 	}
 
-	if !cli.Config.CriContainerd {
-		opts = append(opts, supervisor.WithPlugin("cri", nil))
+	if !cli.CriContainerd {
+		// CRI support in the managed daemon is currently opt-in.
+		//
+		// It's disabled by default, originally because it was listening on
+		// a TCP connection at 0.0.0.0:10010, which was considered a security
+		// risk, and could conflict with user's container ports.
+		//
+		// Current versions of containerd started now listen on localhost on
+		// an ephemeral port instead, but could still conflict with container
+		// ports, and running kubernetes using the static binaries is not a
+		// common scenario, so we (for now) continue disabling it by default.
+		//
+		// Also see https://github.com/containerd/containerd/issues/2483#issuecomment-407530608
+		opts = append(opts, supervisor.WithCRIDisabled())
 	}
 
 	return opts, nil

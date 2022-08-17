@@ -21,7 +21,7 @@ type Backend interface {
 }
 
 type imageBackend interface {
-	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
+	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
 	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
 	GetImage(refOrID string, platform *specs.Platform) (retImg *dockerimage.Image, retErr error)
@@ -30,13 +30,13 @@ type imageBackend interface {
 }
 
 type importExportBackend interface {
-	LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error
+	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	ImportImage(src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
-	ExportImage(names []string, outStream io.Writer) error
+	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
 }
 
 type registryBackend interface {
-	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error)
+	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *registry.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error)
 }

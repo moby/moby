@@ -166,7 +166,7 @@ type SwarmAPIClient interface {
 type SystemAPIClient interface {
 	Events(ctx context.Context, options types.EventsOptions) (<-chan events.Message, <-chan error)
 	Info(ctx context.Context) (types.Info, error)
-	RegistryLogin(ctx context.Context, auth types.AuthConfig) (registry.AuthenticateOKBody, error)
+	RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error)
 	DiskUsage(ctx context.Context, options types.DiskUsageOptions) (types.DiskUsage, error)
 	Ping(ctx context.Context) (types.Ping, error)
 }
@@ -176,7 +176,7 @@ type VolumeAPIClient interface {
 	VolumeCreate(ctx context.Context, options volume.CreateOptions) (volume.Volume, error)
 	VolumeInspect(ctx context.Context, volumeID string) (volume.Volume, error)
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error)
-	VolumeList(ctx context.Context, filter filters.Args) (volume.ListResponse, error)
+	VolumeList(ctx context.Context, options volume.ListOptions) (volume.ListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (types.VolumesPruneReport, error)
 	VolumeUpdate(ctx context.Context, volumeID string, version swarm.Version, options volume.UpdateOptions) error

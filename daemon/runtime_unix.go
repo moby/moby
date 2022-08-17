@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
@@ -116,7 +117,10 @@ func (daemon *Daemon) rewriteRuntimePath(name, p string, args []string) (string,
 func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
 	rt := daemon.configStore.GetRuntime(name)
 	if rt == nil {
-		return nil, errdefs.InvalidParameter(errors.Errorf("runtime not found in config: %s", name))
+		if !isPermissibleC8dRuntimeName(name) {
+			return nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
+		}
+		return &types.Runtime{Shim: &types.ShimConfig{Binary: name}}, nil
 	}
 
 	if len(rt.Args) > 0 {
@@ -133,4 +137,38 @@ func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
 	}
 
 	return rt, nil
+}
+
+// isPermissibleC8dRuntimeName tests whether name is safe to pass into
+// containerd as a runtime name, and whether the name is well-formed.
+// It does not check if the runtime is installed.
+//
+// A runtime name containing slash characters is interpreted by containerd as
+// the path to a runtime binary. If we allowed this, anyone with Engine API
+// access could get containerd to execute an arbitrary binary as root. Although
+// Engine API access is already equivalent to root on the host, the runtime name
+// has not historically been a vector to run arbitrary code as root so users are
+// not expecting it to become one.
+//
+// This restriction is not configurable. There are viable workarounds for
+// legitimate use cases: administrators and runtime developers can make runtimes
+// available for use with Docker by installing them onto PATH following the
+// [binary naming convention] for containerd Runtime v2.
+//
+// [binary naming convention]: https://github.com/containerd/containerd/blob/main/runtime/v2/README.md#binary-naming
+func isPermissibleC8dRuntimeName(name string) bool {
+	// containerd uses a rather permissive test to validate runtime names:
+	//
+	//   - Any name for which filepath.IsAbs(name) is interpreted as the absolute
+	//     path to a shim binary. We want to block this behaviour.
+	//   - Any name which contains at least one '.' character and no '/' characters
+	//     and does not begin with a '.' character is a valid runtime name. The shim
+	//     binary name is derived from the final two components of the name and
+	//     searched for on the PATH. The name "a.." is technically valid per
+	//     containerd's implementation: it would resolve to a binary named
+	//     "containerd-shim---".
+	//
+	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/manager.go#L297-L317
+	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/shim/util.go#L83-L93
+	return !filepath.IsAbs(name) && !strings.ContainsRune(name, '/') && shim.BinaryName(name) != ""
 }

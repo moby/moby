@@ -52,7 +52,20 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		}
 	}
 
-	restart, wait, err := c.RestartManager().ShouldRestart(ec, daemon.IsShuttingDown() || c.HasBeenManuallyStopped, time.Since(c.StartedAt))
+	daemonShutdown := daemon.IsShuttingDown()
+	execDuration := time.Since(c.StartedAt)
+	restart, wait, err := c.RestartManager().ShouldRestart(ec, daemonShutdown || c.HasBeenManuallyStopped, execDuration)
+	if err != nil {
+		logrus.WithError(err).
+			WithField("container", c.ID).
+			WithField("restartCount", c.RestartCount).
+			WithField("exitStatus", exitStatus).
+			WithField("daemonShuttingDown", daemonShutdown).
+			WithField("hasBeenManuallyStopped", c.HasBeenManuallyStopped).
+			WithField("execDuration", execDuration).
+			Warn("ShouldRestart failed, container will not be restarted")
+		restart = false
+	}
 
 	// cancel healthcheck here, they will be automatically
 	// restarted if/when the container is started again
@@ -62,12 +75,19 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	}
 	daemon.Cleanup(c)
 
-	if err == nil && restart {
+	if restart {
 		c.RestartCount++
+		logrus.WithField("container", c.ID).
+			WithField("restartCount", c.RestartCount).
+			WithField("exitStatus", exitStatus).
+			WithField("manualRestart", c.HasBeenManuallyRestarted).
+			Debug("Restarting container")
 		c.SetRestarting(&exitStatus)
 	} else {
 		c.SetStopped(&exitStatus)
-		defer daemon.autoRemove(c)
+		if !c.HasBeenManuallyRestarted {
+			defer daemon.autoRemove(c)
+		}
 	}
 	defer c.Unlock() // needs to be called before autoRemove
 
@@ -76,7 +96,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 
 	daemon.LogContainerEventWithAttributes(c, "die", attributes)
 
-	if err == nil && restart {
+	if restart {
 		go func() {
 			err := <-wait
 			if err == nil {

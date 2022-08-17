@@ -20,7 +20,7 @@ func TestVolumeListError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.VolumeList(context.Background(), filters.NewArgs())
+	_, err := client.VolumeList(context.Background(), volume.ListOptions{})
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
@@ -87,7 +87,7 @@ func TestVolumeList(t *testing.T) {
 			}),
 		}
 
-		volumeResponse, err := client.VolumeList(context.Background(), listCase.filters)
+		volumeResponse, err := client.VolumeList(context.Background(), volume.ListOptions{Filters: listCase.filters})
 		if err != nil {
 			t.Fatal(err)
 		}
