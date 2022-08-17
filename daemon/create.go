@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/containerd"
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -192,6 +193,16 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 		if _, err := s.Prepare(ctx, ctr.ID, parent); err != nil {
 			return nil, err
 		}
+		// Add a lease so that containerd doesn't garbage collect our snapshot
+		ls := daemon.containerdCli.LeasesService()
+		lease, err := ls.Create(ctx, leases.WithID(ctr.ID))
+		if err != nil {
+			return nil, err
+		}
+		ls.AddResource(ctx, lease, leases.Resource{
+			ID:   ctr.ID,
+			Type: "snapshots/" + daemon.imageService.StorageDriver(),
+		})
 	} else {
 		// Set RWLayer for container after mount labels have been set
 		rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping))

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/leases"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -136,6 +137,17 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 			return err
 		}
 		container.RWLayer = nil
+	} else {
+		if daemon.UsesSnapshotter() {
+			ls := daemon.containerdCli.LeasesService()
+			lease := leases.Lease{
+				ID: container.ID,
+			}
+			if err := ls.Delete(context.Background(), lease, leases.SynchronousDelete); err != nil {
+				container.SetRemovalError(err)
+				return err
+			}
+		}
 	}
 
 	// Hold the container lock while deleting the container root directory
