@@ -61,21 +61,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	finishProgress := showProgress(ctx, jobs, outStream, pullProgress(i.client.ContentStore()))
 	defer finishProgress()
 
-	img, err := i.client.Pull(ctx, ref.String(), opts...)
-	if err != nil {
-		return err
-	}
-
-	unpacked, err := img.IsUnpacked(ctx, i.snapshotter)
-	if err != nil {
-		return err
-	}
-
-	if !unpacked {
-		if err := img.Unpack(ctx, i.snapshotter); err != nil {
-			return err
-		}
-	}
+	_, err = i.client.Pull(ctx, ref.String(), opts...)
 	return err
 }
 
