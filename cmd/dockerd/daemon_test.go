@@ -12,12 +12,13 @@ import (
 )
 
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {
-	opts := newDaemonOptions(&config.Config{})
+	cfg, err := config.New()
+	assert.NilError(t, err)
+	opts := newDaemonOptions(cfg)
 	opts.flags = &pflag.FlagSet{}
 	opts.installFlags(opts.flags)
-	if err := installConfigFlags(opts.daemonConfig, opts.flags); err != nil {
-		t.Fatal(err)
-	}
+	err = installConfigFlags(opts.daemonConfig, opts.flags)
+	assert.NilError(t, err)
 	defaultDaemonConfigFile, err := getDefaultDaemonConfigFile()
 	assert.NilError(t, err)
 	opts.flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "")
