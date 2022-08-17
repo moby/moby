@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/images"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 )
 
@@ -47,16 +46,15 @@ import (
 // TODO(thaJeztah): add support for image delete using image (short)ID; see https://github.com/moby/moby/issues/43854
 // TODO(thaJeztah): mage delete should send image "untag" events and prometheus counters; see https://github.com/moby/moby/issues/43855
 func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
-	parsedRef, err := reference.ParseNormalizedNamed(imageRef)
-	if err != nil {
-		return nil, err
-	}
-	ref := reference.TagNameOnly(parsedRef)
-
-	err = i.client.ImageService().Delete(ctx, ref.String(), images.SynchronousDelete())
+	c8dImg, _, err := i.getImage(ctx, imageRef)
 	if err != nil {
 		return nil, err
 	}
 
-	return []types.ImageDeleteResponseItem{{Untagged: reference.FamiliarString(parsedRef)}}, nil
+	err = i.client.ImageService().Delete(ctx, c8dImg.Name(), images.SynchronousDelete())
+	if err != nil {
+		return nil, err
+	}
+
+	return []types.ImageDeleteResponseItem{{Untagged: c8dImg.Name()}}, nil
 }
