@@ -23,9 +23,7 @@ type Service interface {
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
 	Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error)
 	ServiceConfig() *registry.ServiceConfig
-	LoadAllowNondistributableArtifacts([]string) error
-	LoadMirrors([]string) error
-	LoadInsecureRegistries([]string) error
+	ReplaceConfig(ServiceOptions) (func(), error)
 }
 
 // defaultService is a registry service. It tracks configuration data such as a list
@@ -50,28 +48,18 @@ func (s *defaultService) ServiceConfig() *registry.ServiceConfig {
 	return s.config.copy()
 }
 
-// LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.
-func (s *defaultService) LoadAllowNondistributableArtifacts(registries []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.config.loadAllowNondistributableArtifacts(registries)
-}
-
-// LoadMirrors loads registry mirrors for Service
-func (s *defaultService) LoadMirrors(mirrors []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.config.loadMirrors(mirrors)
-}
-
-// LoadInsecureRegistries loads insecure registries for Service
-func (s *defaultService) LoadInsecureRegistries(registries []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.config.loadInsecureRegistries(registries)
+// ReplaceConfig prepares a transaction which will atomically replace the
+// registry service's configuration when the returned commit function is called.
+func (s *defaultService) ReplaceConfig(options ServiceOptions) (commit func(), err error) {
+	config, err := newServiceConfig(options)
+	if err != nil {
+		return nil, err
+	}
+	return func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.config = config
+	}, nil
 }
 
 // Auth contacts the public registry with the provided credentials,
