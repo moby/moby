@@ -28,8 +28,8 @@ func (i *ImageService) Mount(ctx context.Context, container *container.Container
 		// on non-Windows operating systems.
 		if runtime.GOOS != "windows" {
 			i.Unmount(ctx, container)
-			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				i.StorageDriver(), container.ID, container.BaseFS, dir)
+			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+				container.Driver, container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields

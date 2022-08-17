@@ -1394,19 +1394,19 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
-	if !daemon.UsesSnapshotter() {
-		return daemon.Mount(container)
+	if daemon.UsesSnapshotter() {
+		return nil
 	}
-	return nil
+	return daemon.Mount(container)
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
-	if !daemon.UsesSnapshotter() {
-		return daemon.Unmount(container)
+	if daemon.UsesSnapshotter() {
+		return nil
 	}
-	return nil
+	return daemon.Unmount(container)
 }
 
 func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []types.BlkioStatEntry {
