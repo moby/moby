@@ -60,21 +60,10 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	finishProgress := jobs.showProgress(ctx, out, pullProgress{Store: i.client.ContentStore(), ShowExists: true})
 	defer finishProgress()
 
-	img, err := i.client.Pull(ctx, ref.String(), opts...)
-	if err != nil {
-		return err
-	}
+	opts = append(opts, containerd.WithPullUnpack)
+	opts = append(opts, containerd.WithPullSnapshotter(i.snapshotter))
 
-	unpacked, err := img.IsUnpacked(ctx, i.snapshotter)
-	if err != nil {
-		return err
-	}
-
-	if !unpacked {
-		if err := img.Unpack(ctx, i.snapshotter); err != nil {
-			return err
-		}
-	}
+	_, err = i.client.Pull(ctx, ref.String(), opts...)
 	return err
 }
 
