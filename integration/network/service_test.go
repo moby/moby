@@ -292,6 +292,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	assert.Assert(t, ok, "ingress-sbox not present in ingress network")
 }
 
+//nolint:unused // for some reason, the "unused" linter marks this function as "unused"
 func swarmIngressReady(client client.NetworkAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		netInfo, err := client.NetworkInspect(context.Background(), ingressNet, types.NetworkInspectOptions{

@@ -35,28 +35,54 @@ issues:
   exclude-use-default: false
 
   exclude-rules:
-    # These are copied from the default exclude rules, except for "ineffective break statement"
-    # and GoDoc checks.
-    # https://github.com/golangci/golangci-lint/blob/0cc87df732aaf1d5ad9ce9ca538d38d916918b36/pkg/config/config.go#L36
-    - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv). is not checked"
+    # We prefer to use an "exclude-list" so that new "default" exclusions are not
+    # automatically inherited. We can decide whether or not to follow upstream
+    # defaults when updating golang-ci-lint versions.
+    # Unfortunately, this means we have to copy the whole exclusion pattern, as
+    # (unlike the "include" option), the "exclude" option does not take exclusion
+    # ID's.
+    #
+    # These exclusion patterns are copied from the default excluses at:
+    # https://github.com/golangci/golangci-lint/blob/v1.44.0/pkg/config/issues.go#L10-L104
+
+    # EXC0001
+    - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
       linters:
         - errcheck
+    # EXC0003
     - text: "func name will be used as test\\.Test.* by other packages, and that stutters; consider calling this"
       linters:
         - golint
-    - text: "G103: Use of unsafe calls should be audited"
+    # EXC0006
+    - text: "Use of unsafe calls should be audited"
       linters:
         - gosec
-    - text: "G104: Errors unhandled"
+    # EXC0007
+    - text: "Subprocess launch(ed with variable|ing should be audited)"
       linters:
         - gosec
-    - text: "G204: Subprocess launch(ed with (variable|function call)|ing should be audited)"
+    # EXC0008
+    # TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
+    - text: "(G104|G307)"
       linters:
         - gosec
-    - text: "(G301|G302): (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)"
+    # EXC0009
+    - text: "(Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)"
       linters:
         - gosec
-    - text: "G304: Potential file inclusion via variable"
+    # EXC0010
+    - text: "Potential file inclusion via variable"
+      linters:
+        - gosec
+
+    # Looks like the match in "EXC0007" above doesn't catch this one
+    # TODO: consider upstreaming this to golangci-lint's default exclusion rules
+    - text: "G204: Subprocess launched with a potential tainted input or cmd arguments"
+      linters:
+        - gosec
+    # Looks like the match in "EXC0009" above doesn't catch this one
+    # TODO: consider upstreaming this to golangci-lint's default exclusion rules
+    - text: "G306: Expect WriteFile permissions to be 0600 or less"
       linters:
         - gosec
 
@@ -74,15 +100,30 @@ issues:
     - text: "(G201|G202): SQL string (formatting|concatenation)"
       linters:
         - gosec
+    # FIXME: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
+    - text: "G307: Deferring unsafe method"
+      linters:
+        - gosec
     # FIXME temporarily suppress these. See #39924
     - text: "SA1019: .*\\.Xattrs is deprecated: Use PAXRecords instead"
       linters:
         - staticcheck
     # FIXME temporarily suppress these. See #39926
-    - text: "SA1019: httputil.NewClientConn is deprecated"
+    - text: "SA1019: httputil.NewClientConn"
       linters:
         - staticcheck
     # FIXME temporarily suppress these (related to the ones above)
-    - text: "SA1019: httputil.ErrPersistEOF is deprecated"
+    - text: "SA1019: httputil.ErrPersistEOF"
       linters:
         - staticcheck
+    # FIXME temporarily suppress these for false positives in tests (see https://github.com/dominikh/go-tools/issues/1022)
+    - text: "SA5011"
+      path: _test\.go
+      linters:
+        - staticcheck
+
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0

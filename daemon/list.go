@@ -553,7 +553,7 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 
 	if len(ctx.expose) > 0 || len(ctx.publish) > 0 {
 		var (
-			shouldSkip    bool = true
+			shouldSkip    = true
 			publishedPort nat.Port
 			exposedPort   nat.Port
 		)

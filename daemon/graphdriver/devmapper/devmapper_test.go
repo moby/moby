@@ -42,7 +42,7 @@ func initLoopbacks() error {
 		// only create new loopback files if they don't exist
 		if _, err := os.Stat(loopPath); err != nil {
 			if mkerr := syscall.Mknod(loopPath,
-				uint32(statT.Mode|syscall.S_IFBLK), int((7<<8)|(i&0xff)|((i&0xfff00)<<12))); mkerr != nil { // nolint: unconvert
+				uint32(statT.Mode|syscall.S_IFBLK), int((7<<8)|(i&0xff)|((i&0xfff00)<<12))); mkerr != nil { //nolint: unconvert
 				return mkerr
 			}
 			os.Chown(loopPath, int(statT.Uid), int(statT.Gid))

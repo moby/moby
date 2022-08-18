@@ -383,10 +383,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		if err != nil {
 			return err
 		}
-		if err := b.Put(keyIsCommitted, []byte{}); err != nil {
-			return err
-		}
-		return nil
+		return b.Put(keyIsCommitted, []byte{})
 	})
 }
 

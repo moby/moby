@@ -52,8 +52,8 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (
 		// Currently go does not fill in the major/minors
 		if s.Mode&unix.S_IFBLK != 0 ||
 			s.Mode&unix.S_IFCHR != 0 {
-			hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) // nolint: unconvert
-			hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) // nolint: unconvert
+			hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) //nolint: unconvert
+			hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) //nolint: unconvert
 		}
 	}
 

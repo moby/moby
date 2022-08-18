@@ -279,7 +279,8 @@ func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) 
 	}
 	// Validate mounts; check if host directories still exist
 	parser := volumemounts.NewParser(platform)
-	for _, cfg := range hostConfig.Mounts {
+	for _, c := range hostConfig.Mounts {
+		cfg := c
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
 			return err
 		}

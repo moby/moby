@@ -354,6 +354,16 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 				return
 			}
 
+			// Ignoring GoSec G110. See https://github.com/securego/gosec/pull/433
+			// and https://cure53.de/pentest-report_opa.pdf, which recommends to
+			// replace io.Copy with io.CopyN7. The latter allows to specify the
+			// maximum number of bytes that should be read. By properly defining
+			// the limit, it can be assured that a GZip compression bomb cannot
+			// easily cause a Denial-of-Service.
+			// After reviewing with @tonistiigi and @cpuguy83, this should not
+			// affect us, because here we do not read into memory, hence should
+			// not be vulnerable to this code consuming memory.
+			//nolint:gosec // G110: Potential DoS vulnerability via decompression bomb (gosec)
 			if _, err = io.Copy(rebasedTar, srcTar); err != nil {
 				w.CloseWithError(err)
 				return
