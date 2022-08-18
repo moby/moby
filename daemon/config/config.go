@@ -157,7 +157,7 @@ type CommonConfig struct {
 	NetworkDiagnosticPort int                       `json:"network-diagnostic-port,omitempty"`
 	Pidfile               string                    `json:"pidfile,omitempty"`
 	RawLogs               bool                      `json:"raw-logs,omitempty"`
-	RootDeprecated        string                    `json:"graph,omitempty"`
+	RootDeprecated        string                    `json:"graph,omitempty"` // Deprecated: use Root instead. TODO(thaJeztah): remove in next release.
 	Root                  string                    `json:"data-root,omitempty"`
 	ExecRoot              string                    `json:"exec-root,omitempty"`
 	SocketGroup           string                    `json:"group,omitempty"`
@@ -479,16 +479,6 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return nil, err
 	}
 
-	if config.RootDeprecated != "" {
-		logrus.Warn(`The "graph" config file option is deprecated. Please use "data-root" instead.`)
-
-		if config.Root != "" {
-			return nil, errors.New(`cannot specify both "graph" and "data-root" config file options`)
-		}
-
-		config.Root = config.RootDeprecated
-	}
-
 	return &config, nil
 }
 
@@ -579,6 +569,11 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
+	//nolint:staticcheck // TODO(thaJeztah): remove in next release.
+	if config.RootDeprecated != "" {
+		return errors.New(`the "graph" config file option is deprecated; use "data-root" instead`)
+	}
+
 	// validate log-level
 	if config.LogLevel != "" {
 		if _, err := logrus.ParseLevel(config.LogLevel); err != nil {
