@@ -270,4 +270,24 @@ func TestRunWithAlternativeContainerdShim(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, strings.TrimSpace(b.String()), "Hello, world!")
+
+	d.Stop(t)
+	d.Start(t, "--default-runtime="+"io.containerd.realfake.v42")
+
+	cID = container.Run(ctx, t, client,
+		container.WithImage("busybox"),
+		container.WithCmd("sh", "-c", `echo 'Hello, world!'`),
+	)
+
+	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+
+	out, err = client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{ShowStdout: true})
+	assert.NilError(t, err)
+	defer out.Close()
+
+	b.Reset()
+	_, err = stdcopy.StdCopy(&b, io.Discard, out)
+	assert.NilError(t, err)
+
+	assert.Equal(t, strings.TrimSpace(b.String()), "Hello, world!")
 }
