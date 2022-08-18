@@ -65,10 +65,9 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	// Deprecated flags / options
 
-	// "--graph" is "soft-deprecated" in favor of "data-root". This flag was added
-	// before Docker 1.0, so won't be removed, only hidden, to discourage its usage.
-	flags.StringVarP(&conf.Root, "graph", "g", conf.Root, "Root of the Docker runtime")
-	_ = flags.MarkHidden("graph")
+	//nolint:staticcheck // TODO(thaJeztah): remove in next release.
+	flags.StringVarP(&conf.RootDeprecated, "graph", "g", conf.RootDeprecated, "Root of the Docker runtime")
+	_ = flags.MarkDeprecated("graph", "Use --data-root instead")
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	_ = flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
 

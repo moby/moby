@@ -397,9 +397,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.Hosts = opts.Hosts
 	conf.LogLevel = opts.LogLevel
 
-	if flags.Changed("graph") && flags.Changed("data-root") {
-		return nil, errors.New(`cannot specify both "--graph" and "--data-root" option`)
-	}
 	if flags.Changed(FlagTLS) {
 		conf.TLS = &opts.TLS
 	}
@@ -448,10 +445,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 
 	if err := config.Validate(conf); err != nil {
 		return nil, err
-	}
-
-	if flags.Changed("graph") {
-		logrus.Warnf(`The "-g / --graph" flag is deprecated. Please use "--data-root" instead`)
 	}
 
 	// Check if duplicate label-keys with different values are found
