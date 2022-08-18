@@ -729,6 +729,26 @@ func DefaultProfile() *Seccomp {
 				Caps: []string{"CAP_SYSLOG"},
 			},
 		},
+		{
+			Names: []string{
+				"bpf",
+			},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
+			Includes: Filter{
+				Caps: []string{"CAP_BPF"},
+			},
+		},
+		{
+			Names: []string{
+				"perf_event_open",
+			},
+			Action: specs.ActAllow,
+			Args:   []*specs.LinuxSeccompArg{},
+			Includes: Filter{
+				Caps: []string{"CAP_PERFMON"},
+			},
+		},
 	}
 
 	return &Seccomp{

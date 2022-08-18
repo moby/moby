@@ -851,6 +851,34 @@
 				]
 			},
 			"excludes": {}
+		},
+		{
+			"names": [
+				"bpf"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [],
+			"comment": "",
+			"includes": {
+				"caps": [
+					"CAP_BPF"
+				]
+			},
+			"excludes": {}
+		},
+		{
+			"names": [
+				"perf_event_open"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [],
+			"comment": "",
+			"includes": {
+				"caps": [
+					"CAP_PERFMON"
+				]
+			},
+			"excludes": {}
 		}
 	]
 }
