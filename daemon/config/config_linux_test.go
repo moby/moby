@@ -142,18 +142,6 @@ func TestUnixValidateConfigurationErrors(t *testing.T) {
 			},
 			expectedErr: `runtime name 'runc' is reserved`,
 		},
-		{
-			doc: `default runtime should be present in runtimes`,
-			config: &Config{
-				Runtimes: map[string]types.Runtime{
-					"foo": {},
-				},
-				CommonConfig: CommonConfig{
-					DefaultRuntime: "bar",
-				},
-			},
-			expectedErr: `specified default runtime 'bar' does not exist`,
-		},
 	}
 	for _, tc := range testCases {
 		tc := tc

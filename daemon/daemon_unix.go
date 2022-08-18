@@ -764,7 +764,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 	configureRuntimes(conf)
 	if rtName := conf.GetDefaultRuntimeName(); rtName != "" {
 		if conf.GetRuntime(rtName) == nil {
-			return fmt.Errorf("specified default runtime '%s' does not exist", rtName)
+			if !config.IsPermissibleC8dRuntimeName(rtName) {
+				return fmt.Errorf("specified default runtime '%s' does not exist", rtName)
+			}
 		}
 	}
 	return nil
