@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -37,6 +38,9 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		}
 
 		tagged, err := i.client.ImageService().List(ctx, fmt.Sprintf("target.digest==%s", containerdImage.Target().Digest.String()))
+		if err != nil {
+			return nil, err
+		}
 		tags := make([]reference.Named, 0, len(tagged))
 		for _, i := range tagged {
 			name, err := reference.ParseNamed(i.Name)
@@ -92,17 +96,23 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, platform *o
 	for _, id := range fs {
 		rootfs.Append(layer.DiffID(id))
 	}
+	exposedPorts := make(nat.PortSet, len(ociimage.Config.ExposedPorts))
+	for k, v := range ociimage.Config.ExposedPorts {
+		exposedPorts[nat.Port(k)] = v
+	}
 	return containerdImage, &image.Image{
 		V1Image: image.V1Image{
 			ID:           string(desc.Digest),
 			OS:           ociimage.OS,
 			Architecture: ociimage.Architecture,
 			Config: &containertypes.Config{
-				Entrypoint: ociimage.Config.Entrypoint,
-				Env:        ociimage.Config.Env,
-				Cmd:        ociimage.Config.Cmd,
-				User:       ociimage.Config.User,
-				WorkingDir: ociimage.Config.WorkingDir,
+				Entrypoint:   ociimage.Config.Entrypoint,
+				Env:          ociimage.Config.Env,
+				Cmd:          ociimage.Config.Cmd,
+				User:         ociimage.Config.User,
+				WorkingDir:   ociimage.Config.WorkingDir,
+				ExposedPorts: exposedPorts,
+				Volumes:      ociimage.Config.Volumes,
 			},
 		},
 		RootFS: rootfs,
