@@ -790,6 +790,28 @@
 					"CAP_SYSLOG"
 				]
 			}
+		},
+		{
+			"names": [
+				"bpf"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"includes": {
+				"caps": [
+					"CAP_BPF"
+				]
+			}
+		},
+		{
+			"names": [
+				"perf_event_open"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"includes": {
+				"caps": [
+					"CAP_PERFMON"
+				]
+			}
 		}
 	]
 }
