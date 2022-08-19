@@ -14,6 +14,7 @@ ARG SYSTEMD="false"
 ## build deps
 ARG GO_VERSION=1.18.5
 ARG TINI_VERSION=v0.19.0
+ARG GOWINRES_VERSION=v0.2.3
 
 ## extra tools
 ARG CONTAINERD_VERSION=v1.6.7
@@ -29,6 +30,13 @@ ARG XX_VERSION=1.1.2
 # install. Go-swagger is used in CI for validating swagger.yaml in
 # hack/validate/swagger-gen
 ARG GOSWAGGER_VERSION=c56166c036004ba7a3a321e5951ba472b9ae298c
+ARG GOLANGCI_LINT_VERSION=v1.46.2
+ARG GOTESTSUM_VERSION=v1.8.1
+ARG SHFMT_VERSION=v3.0.2
+# GOTOML_VERSION specifies the version of the tomll binary. When updating this
+# version, consider updating the github.com/pelletier/go-toml dependency in
+# vendor.mod accordingly.
+ARG GOTOML_VERSION=v1.8.1
 ARG SKOPEO_VERSION=v1.9.0
 ARG CRIU_VERSION=v3.16.1
 
@@ -273,26 +281,22 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
                 ;; \
         esac
 
+# tomll builds and installs from https://github.com/pelletier/go-toml. This
+# binary is used in CI in the hack/validate/toml script.
 FROM base AS tomll
-# GOTOML_VERSION specifies the version of the tomll binary to build and install
-# from the https://github.com/pelletier/go-toml repository. This binary is used
-# in CI in the hack/validate/toml script.
-#
-# When updating this version, consider updating the github.com/pelletier/go-toml
-# dependency in vendor.mod accordingly.
-ARG GOTOML_VERSION=v1.8.1
+ARG GOTOML_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
-     && /build/tomll --help
+    GO111MODULE=on GOBIN=/out go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
+    && /out/tomll --help
 
+# go-winres
 FROM base AS gowinres
-# GOWINRES_VERSION defines go-winres tool version
-ARG GOWINRES_VERSION=v0.2.3
+ARG GOWINRES_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
-     && /build/go-winres --help
+    GO111MODULE=on GOBIN=/out go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+    && /out/go-winres --help
 
 # containerd
 FROM base AS containerd-src
@@ -342,26 +346,29 @@ FROM containerd-build AS containerd-linux
 FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
-FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v1.46.2
+# golangci-lint
+FROM base AS golangci-lint
+ARG GOLANGCI_LINT_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
-     && /build/golangci-lint --version
+    GO111MODULE=on GOBIN=/out go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+    && /out/golangci-lint --version
 
+# gotestsum
 FROM base AS gotestsum
-ARG GOTESTSUM_VERSION=v1.8.1
+ARG GOTESTSUM_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
-     && /build/gotestsum --version
+    GO111MODULE=on GOBIN=/out go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+    && /out/gotestsum --version
 
+# shfmt
 FROM base AS shfmt
-ARG SHFMT_VERSION=v3.0.2
+ARG SHFMT_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
-     && /build/shfmt --version
+    GO111MODULE=on GOBIN=/out go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+    && /out/shfmt --version
 
 FROM dev-base AS dockercli
 ARG DOCKERCLI_CHANNEL
@@ -620,14 +627,14 @@ COPY --from=dockercli        /build/ /usr/local/cli
 COPY --from=frozen-images    /out/   /docker-frozen-images
 COPY --from=swagger          /out/   /usr/local/bin/
 COPY --from=delve            /build/ /usr/local/bin/
-COPY --from=tomll            /build/ /usr/local/bin/
-COPY --from=gowinres         /build/ /usr/local/bin/
+COPY --from=tomll            /out/   /usr/local/bin/
+COPY --from=gowinres         /out/   /usr/local/bin/
 COPY --from=tini             /out/   /usr/local/bin/
 COPY --from=registry         /build/ /usr/local/bin/
 COPY --from=criu             /out/   /usr/local/bin/
-COPY --from=gotestsum        /build/ /usr/local/bin/
-COPY --from=golangci_lint    /build/ /usr/local/bin/
-COPY --from=shfmt            /build/ /usr/local/bin/
+COPY --from=gotestsum        /out/   /usr/local/bin/
+COPY --from=golangci-lint    /out/   /usr/local/bin/
+COPY --from=shfmt            /out/   /usr/local/bin/
 COPY --from=runc             /out/   /usr/local/bin/
 COPY --from=containerd       /out/   /usr/local/bin/
 COPY --from=rootlesskit      /out/   /usr/local/bin/
@@ -681,7 +688,7 @@ COPY --from=containerd       /out/   /usr/local/bin/
 COPY --from=rootlesskit      /out/   /usr/local/bin/
 COPY --from=vpnkit           /       /usr/local/bin/
 COPY --from=containerutility /out/   /usr/local/bin/
-COPY --from=gowinres         /build/ /usr/local/bin/
+COPY --from=gowinres         /out/   /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 
 FROM binary-base AS build-binary
