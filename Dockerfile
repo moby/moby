@@ -18,6 +18,7 @@ ARG TINI_VERSION=v0.19.0
 ## extra tools
 ARG CONTAINERD_VERSION=v1.6.8
 ARG RUNC_VERSION=v1.1.4
+ARG ROOTLESSKIT_VERSION=1920341cd41e047834a21007424162a2dc946315
 ARG VPNKIT_VERSION=0.5.0
 
 ## dev deps
@@ -423,17 +424,47 @@ FROM tini-build AS tini-linux
 FROM binary-dummy AS tini-windows
 FROM tini-${TARGETOS} AS tini
 
-FROM dev-base AS rootlesskit
+# rootlesskit
+FROM base AS rootlesskit-src
+WORKDIR /usr/src/rootlesskit
+RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
 ARG ROOTLESSKIT_VERSION
-ARG PREFIX=/build
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/rootlesskit.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        /install.sh rootlesskit \
-     && "${PREFIX}"/rootlesskit --version \
-     && "${PREFIX}"/rootlesskit-docker-proxy --help
-COPY ./contrib/dockerd-rootless.sh /build
-COPY ./contrib/dockerd-rootless-setuptool.sh /build
+RUN git fetch --depth 1 origin "${ROOTLESSKIT_VERSION}" && git checkout -q FETCH_HEAD
+
+FROM base AS rootlesskit-build
+WORKDIR /go/src/github.com/rootless-containers/rootlesskit
+ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptcache,target=/var/cache/apt \
+    xx-apt-get update && xx-apt-get install -y \
+      gcc \
+      libc6-dev \
+    && xx-go --wrap
+ARG DOCKER_LINKMODE
+ENV GOBIN=/out
+ENV GO111MODULE=on
+COPY ./contrib/dockerd-rootless.sh /out/
+COPY ./contrib/dockerd-rootless-setuptool.sh /out/
+RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  if [ "$DOCKER_LINKMODE" = "static" ]; then
+    export CGO_ENABLED=0
+  else
+    export ROOTLESSKIT_LDFLAGS="-linkmode=external"
+  fi
+  go build -o /out/rootlesskit -ldflags="$ROOTLESSKIT_LDFLAGS" -v ./cmd/rootlesskit
+  xx-verify $([ "$DOCKER_LINKMODE" = "static" ] && echo "--static") /out/rootlesskit
+  go build -o /out/rootlesskit-docker-proxy -ldflags="$ROOTLESSKIT_LDFLAGS" -v ./cmd/rootlesskit-docker-proxy
+  xx-verify $([ "$DOCKER_LINKMODE" = "static" ] && echo "--static") /out/rootlesskit-docker-proxy
+EOT
+
+FROM binary-dummy AS rootlesskit-darwin
+FROM binary-dummy AS rootlesskit-freebsd
+FROM rootlesskit-build AS rootlesskit-linux
+FROM binary-dummy AS rootlesskit-windows
+FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
 ARG CRUN_VERSION=1.4.5
@@ -544,7 +575,7 @@ COPY --from=golangci_lint /build/ /usr/local/bin/
 COPY --from=shfmt         /build/ /usr/local/bin/
 COPY --from=runc          /out/   /usr/local/bin/
 COPY --from=containerd    /out/   /usr/local/bin/
-COPY --from=rootlesskit   /build/ /usr/local/bin/
+COPY --from=rootlesskit   /out/   /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
 COPY --from=crun          /build/ /usr/local/bin/
 COPY hack/dockerfile/etc/docker/  /etc/docker/
@@ -591,7 +622,7 @@ ENV PREFIX=/build
 COPY --from=tini          /out/   /usr/local/bin/
 COPY --from=runc          /out/   /usr/local/bin/
 COPY --from=containerd    /out/   /usr/local/bin/
-COPY --from=rootlesskit   /build/ /usr/local/bin/
+COPY --from=rootlesskit   /out/   /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
