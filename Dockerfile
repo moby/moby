@@ -43,6 +43,7 @@ ARG GOTOML_VERSION=v1.8.1
 # attaching debugger to it.
 ARG DELVE_VERSION=v1.8.1
 ARG CRIU_VERSION=v3.16.1
+ARG CRUN_VERSION=1.4.5
 ARG DOCKERCLI_VERSION=v17.06.2-ce
 # REGISTRY_VERSION specifies the version of the registry to build and install
 # from the https://github.com/docker/distribution repository. This version of
@@ -515,30 +516,37 @@ FROM rootlesskit-build AS rootlesskit-linux
 FROM binary-dummy AS rootlesskit-windows
 FROM rootlesskit-${TARGETOS} AS rootlesskit
 
+# crun
+FROM base AS crun-src
+WORKDIR /usr/src/crun
+RUN git init . && git remote add origin "https://github.com/containers/crun.git"
+ARG CRUN_VERSION
+RUN git fetch --depth 1 origin "${CRUN_VERSION}" && git checkout -q FETCH_HEAD
+
 FROM base AS crun
-ARG CRUN_VERSION=1.4.5
+WORKDIR /go/src/github.com/containers/crun
+ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            autoconf \
-            automake \
-            build-essential \
-            libcap-dev \
-            libprotobuf-c-dev \
-            libseccomp-dev \
-            libsystemd-dev \
-            libtool \
-            libudev-dev \
-            libyajl-dev \
-            python3 \
-            ;
-RUN --mount=type=tmpfs,target=/tmp/crun-build \
-    git clone https://github.com/containers/crun.git /tmp/crun-build && \
-    cd /tmp/crun-build && \
-    git checkout -q "${CRUN_VERSION}" && \
-    ./autogen.sh && \
-    ./configure --bindir=/build && \
-    make -j install
+    apt-get update && apt-get install -y --no-install-recommends \
+      autoconf \
+      automake \
+      build-essential \
+      libcap-dev \
+      libprotobuf-c-dev \
+      libseccomp-dev \
+      libsystemd-dev \
+      libtool \
+      libudev-dev \
+      libyajl-dev \
+      python3
+RUN --mount=from=crun-src,src=/usr/src/crun,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  ./autogen.sh
+  ./configure --bindir=/out
+  make -j install
+EOT
 
 # vpnkit
 # TODO: build from source instead
@@ -662,7 +670,7 @@ COPY --from=containerd       /out/   /usr/local/bin/
 COPY --from=rootlesskit      /out/   /usr/local/bin/
 COPY --from=vpnkit           /       /usr/local/bin/
 COPY --from=containerutility /out/   /usr/local/bin/
-COPY --from=crun             /build/ /usr/local/bin/
+COPY --from=crun             /out/   /usr/local/bin/
 COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
 ARG DOCKER_BUILDTAGS
