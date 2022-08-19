@@ -37,6 +37,11 @@ ARG SHFMT_VERSION=v3.0.2
 # version, consider updating the github.com/pelletier/go-toml dependency in
 # vendor.mod accordingly.
 ARG GOTOML_VERSION=v1.8.1
+# DELVE_VERSION specifies the version of the Delve debugger binary
+# from the https://github.com/go-delve/delve repository.
+# It can be used to run Docker with a possibility of
+# attaching debugger to it.
+ARG DELVE_VERSION=v1.8.1
 ARG SKOPEO_VERSION=v1.9.0
 ARG CRIU_VERSION=v3.16.1
 
@@ -260,26 +265,24 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
+# delve builds and installs from https://github.com/go-delve/delve. It can be
+# used to run Docker with a possibility of attaching debugger to it.
 FROM base AS delve
-# DELVE_VERSION specifies the version of the Delve debugger binary
-# from the https://github.com/go-delve/delve repository.
-# It can be used to run Docker with a possibility of
-# attaching debugger to it.
-#
-ARG DELVE_VERSION=v1.8.1
-# Delve on Linux is currently only supported on amd64 and arm64;
-# https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
+ARG DELVE_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        case $(dpkg --print-architecture) in \
-            amd64|arm64) \
-                GOBIN=/build/ GO111MODULE=on go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}" \
-                && /build/dlv --help \
-                ;; \
-            *) \
-                mkdir -p /build/ \
-                ;; \
-        esac
+    --mount=type=cache,target=/go/pkg/mod  <<EOT
+  set -e
+  mkdir /out
+  case ${TARGETPLATFORM} in
+    # Delve on Linux is currently only supported on amd64 and arm64;
+    # https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
+    linux/amd64 | linux/arm64)
+      GO111MODULE=on GOBIN=/out go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}"
+      xx-verify /out/dlv
+      /out/dlv --help
+      ;;
+  esac
+EOT
 
 # tomll builds and installs from https://github.com/pelletier/go-toml. This
 # binary is used in CI in the hack/validate/toml script.
@@ -626,7 +629,7 @@ RUN pip3 install yamllint==1.26.1
 COPY --from=dockercli        /build/ /usr/local/cli
 COPY --from=frozen-images    /out/   /docker-frozen-images
 COPY --from=swagger          /out/   /usr/local/bin/
-COPY --from=delve            /build/ /usr/local/bin/
+COPY --from=delve            /out/   /usr/local/bin/
 COPY --from=tomll            /out/   /usr/local/bin/
 COPY --from=gowinres         /out/   /usr/local/bin/
 COPY --from=tini             /out/   /usr/local/bin/
