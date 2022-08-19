@@ -5,6 +5,9 @@
 ARG DEBIAN_BASE="debian:bullseye"
 ARG UBUNTU_BASE="ubuntu:22.04"
 
+# XX_VERSION specifies the version of xx, an helper for cross-compilation.
+ARG XX_VERSION=1.1.2
+
 ARG GO_VERSION=1.19.1
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -13,6 +16,9 @@ ARG CROSS="false"
 ARG SYSTEMD="false"
 
 ARG VPNKIT_VERSION=0.5.0
+
+# cross compilation helper
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
 # go base image to retrieve /usr/local/go
 FROM golang:${GO_VERSION} AS golang
@@ -32,6 +38,7 @@ FROM base-debian AS base-linux-s390x
 
 FROM base-linux-${TARGETARCH}${TARGETVARIANT} AS base-linux
 FROM base-${TARGETOS} AS base
+COPY --from=xx / /
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
