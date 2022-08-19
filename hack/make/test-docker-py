@@ -4,7 +4,7 @@ set -e
 source hack/make/.integration-test-helpers
 
 # The commit or tag to use for testing
-: "${DOCKER_PY_COMMIT:=5.0.3}"
+: "${DOCKER_PY_COMMIT:=6.0.1}"
 
 # The version (and variant) of the python image to use for the tests;
 # see https://github.com/docker/docker-py/blob/5.0.3/tests/Dockerfile#L1C5-L3
@@ -18,9 +18,7 @@ source hack/make/.integration-test-helpers
 # flag) until they are fixed upstream. For example:
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
-# TODO re-enable test_create_with_device_cgroup_rules after https://github.com/docker/docker-py/issues/2939 is resolved
-# TODO re-enable test_prune_volumes after https://github.com/docker/docker-py/pull/3051 is resolved
-: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_device_cgroup_rules --deselect=tests/integration/api_volume_test.py::TestVolumes::test_prune_volumes}"
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream}"
 (
 	bundle .integration-daemon-start
 
