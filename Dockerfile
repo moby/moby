@@ -16,6 +16,7 @@ ARG CROSS="false"
 ARG SYSTEMD="false"
 
 ARG VPNKIT_VERSION=0.5.0
+ARG CRIU_VERSION=v3.16.1
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
@@ -65,15 +66,38 @@ ENV GOPATH="/go"
 ENV PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 
+# criu
+FROM base AS criu-src
+WORKDIR /usr/src/criu
+RUN git init . && git remote add origin "https://github.com/checkpoint-restore/criu.git"
+ARG CRIU_VERSION
+RUN git fetch --depth 1 origin "${CRIU_VERSION}" && git checkout -q FETCH_HEAD
+
 FROM base AS criu
+WORKDIR /go/src/github.com/checkpoint-restore/criu
 ARG DEBIAN_FRONTEND
-ADD --chmod=0644 https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_11/Release.key /etc/apt/trusted.gpg.d/criu.gpg.asc
 RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
-        echo 'deb https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_11/ /' > /etc/apt/sources.list.d/criu.list \
-        && apt-get update \
-        && apt-get install -y --no-install-recommends criu \
-        && install -D /usr/sbin/criu /build/criu
+    apt-get update && apt-get install -y --no-install-recommends \
+      clang \
+      gcc \
+      libc6-dev \
+      libcap-dev \
+      libnet1-dev \
+      libnl-3-dev \
+      libprotobuf-dev \
+      libprotobuf-c-dev \
+      protobuf-c-compiler \
+      protobuf-compiler \
+      python3-protobuf
+RUN --mount=from=criu-src,src=/usr/src/criu,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  make
+  xx-verify ./criu/criu
+  mkdir /out
+  mv ./criu/criu /out/
+EOT
 
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
@@ -418,7 +442,7 @@ COPY --from=tomll         /build/ /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
-COPY --from=criu          /build/ /usr/local/bin/
+COPY --from=criu          /out/   /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
 COPY --from=shfmt         /build/ /usr/local/bin/
