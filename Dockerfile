@@ -1,21 +1,63 @@
 # syntax=docker/dockerfile:1
 
+# ubuntu base is only used for riscv64 builds
+# we also need to keep debian to be able to build for armel
+ARG DEBIAN_BASE="debian:bullseye"
+ARG UBUNTU_BASE="ubuntu:22.04"
+
+ARG GO_VERSION=1.18.5
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG APT_MIRROR=deb.debian.org
 ARG CROSS="false"
 ARG SYSTEMD="false"
-ARG GO_VERSION=1.18.5
-ARG DEBIAN_FRONTEND=noninteractive
+
 ARG VPNKIT_VERSION=0.5.0
 ARG SKOPEO_VERSION=v1.9.0
 
-ARG BASE_DEBIAN_DISTRO="bullseye"
-ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
+# go base image to retrieve /usr/local/go
+FROM golang:${GO_VERSION} AS golang
 
-FROM ${GOLANG_IMAGE} AS base
+# base
+FROM ${UBUNTU_BASE} AS base-ubuntu
+FROM ${DEBIAN_BASE} AS base-debian
+FROM base-debian AS base-windows
+FROM base-debian AS base-linux-amd64
+FROM base-debian AS base-linux-armv5
+FROM base-debian AS base-linux-armv6
+FROM base-debian AS base-linux-armv7
+FROM base-debian AS base-linux-arm64
+FROM base-debian AS base-linux-ppc64le
+FROM base-ubuntu AS base-linux-riscv64
+FROM base-debian AS base-linux-s390x
+
+FROM base-linux-${TARGETARCH}${TARGETVARIANT} AS base-linux
+FROM base-${TARGETOS} AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
 ENV GO111MODULE=off
+ARG DEBIAN_FRONTEND
+RUN --mount=type=cache,sharing=locked,id=moby-base-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-base-aptcache,target=/var/cache/apt \
+    apt-get update && apt-get install --no-install-recommends -y \
+      bash \
+      ca-certificates \
+      cmake \
+      curl \
+      file \
+      gcc \
+      git \
+      libc6-dev \
+      lld \
+      make \
+      pkg-config
+COPY --from=golang /usr/local/go /usr/local/go
+ENV GOROOT="/usr/local/go"
+ENV GOPATH="/go"
+ENV PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 
 FROM base AS criu
 ARG DEBIAN_FRONTEND
