@@ -5,6 +5,7 @@ ARG SYSTEMD="false"
 ARG GO_VERSION=1.18.5
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.5.0
+ARG SKOPEO_VERSION=v1.9.0
 
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
@@ -74,24 +75,34 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         && git checkout -q "$GO_SWAGGER_COMMIT" \
         && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
 
-FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
-ARG DEBIAN_FRONTEND
-RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/lib/apt \
-    --mount=type=cache,sharing=locked,id=moby-frozen-images-aptcache,target=/var/cache/apt \
-       apt-get update && apt-get install -y --no-install-recommends \
-           ca-certificates \
-           curl \
-           jq
-# Get useful and necessary Hub images so we can "docker load" locally instead of pulling
-COPY contrib/download-frozen-image-v2.sh /
+# skopeo is used by frozen-images stage
+FROM base AS skopeo
+ARG SKOPEO_VERSION
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+      GO111MODULE=on CGO_ENABLED=0 GOBIN=/out go install -tags "exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp" "github.com/containers/skopeo/cmd/skopeo@${SKOPEO_VERSION}" \
+      && /out/skopeo --version
+
+# frozen-images gets useful and necessary Hub images so we can "docker load"
+# locally instead of pulling. See also frozenImages in
+# "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
+FROM base AS frozen-images
+ARG TARGETOS
 ARG TARGETARCH
-RUN /download-frozen-image-v2.sh /build \
-        busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
-        busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
-        debian:bullseye-slim@sha256:dacf278785a4daa9de07596ec739dbc07131e189942772210709c5c0777e8437 \
-        hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
-        arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1
-# See also frozenImages in "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
+ARG TARGETVARIANT
+# OS, ARCH, VARIANT are used by skopeo cli
+ENV OS=$TARGETOS
+ENV ARCH=$TARGETARCH
+ENV VARIANT=$TARGETVARIANT
+RUN --mount=from=skopeo,source=/out/skopeo,target=/usr/bin/skopeo <<EOT
+  set -e
+  mkdir /out
+  skopeo --insecure-policy copy docker://busybox@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 --additional-tag busybox:latest docker-archive:///out/busybox-latest.tar
+  skopeo --insecure-policy copy docker://busybox@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 --additional-tag busybox:glibc docker-archive:///out/busybox-glibc.tar
+  skopeo --insecure-policy copy docker://debian@sha256:dacf278785a4daa9de07596ec739dbc07131e189942772210709c5c0777e8437 --additional-tag debian:bullseye-slim docker-archive:///out/debian-bullseye-slim.tar
+  skopeo --insecure-policy copy docker://hello-world@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 --additional-tag hello-world:latest docker-archive:///out/hello-world-latest.tar
+  skopeo --insecure-policy --override-os linux --override-arch arm --override-variant v7 copy docker://arm32v7/hello-world@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1 --additional-tag arm32v7/hello-world:latest docker-archive:///out/arm32v7-hello-world-latest.tar
+EOT
 
 FROM base AS cross-false
 
@@ -353,7 +364,7 @@ RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
 RUN pip3 install yamllint==1.26.1
 
 COPY --from=dockercli     /build/ /usr/local/cli
-COPY --from=frozen-images /build/ /docker-frozen-images
+COPY --from=frozen-images /out/   /docker-frozen-images
 COPY --from=swagger       /build/ /usr/local/bin/
 COPY --from=delve         /build/ /usr/local/bin/
 COPY --from=tomll         /build/ /usr/local/bin/
