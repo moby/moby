@@ -22,6 +22,12 @@ ARG CRIU_VERSION=v3.16.1
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
+# dummy stage to make sure the image is built for unsupported deps
+FROM --platform=$BUILDPLATFORM busybox AS build-dummy
+RUN mkdir -p /out
+FROM scratch AS binary-dummy
+COPY --from=build-dummy /out /out
+
 # go base image to retrieve /usr/local/go
 FROM golang:${GO_VERSION} AS golang
 
