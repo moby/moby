@@ -2,10 +2,9 @@ package load // import "github.com/docker/docker/testutil/fixtures/load"
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -82,28 +81,36 @@ func imageExists(client client.APIClient, name string) bool {
 }
 
 func loadFrozenImages(ctx context.Context, client client.APIClient) error {
-	tar, err := exec.LookPath("tar")
-	if err != nil {
-		return errors.Wrap(err, "could not find tar binary")
-	}
-	tarCmd := exec.Command(tar, "-cC", frozenImgDir, ".")
-	out, err := tarCmd.StdoutPipe()
-	if err != nil {
-		return errors.Wrap(err, "error getting stdout pipe for tar command")
-	}
+	frozenImages, _ := os.ReadDir(frozenImgDir)
+	for _, frozenImage := range frozenImages {
+		if frozenImage.IsDir() {
+			continue
+		}
+		fi, err := frozenImage.Info()
+		if err != nil {
+			return err
+		}
+		err = func(tarfile fs.FileInfo) error {
+			reader, err := os.OpenFile(filepath.Join(frozenImgDir, tarfile.Name()), os.O_RDONLY, 0644)
+			if err != nil {
+				return err
+			}
+			defer reader.Close()
 
-	errBuf := bytes.NewBuffer(nil)
-	tarCmd.Stderr = errBuf
-	tarCmd.Start()
-	defer tarCmd.Wait()
+			resp, err := client.ImageLoad(ctx, reader, true)
+			if err != nil {
+				return errors.Wrap(err, "failed to load frozen images")
+			}
+			defer resp.Body.Close()
 
-	resp, err := client.ImageLoad(ctx, out, true)
-	if err != nil {
-		return errors.Wrap(err, "failed to load frozen images")
+			fd, isTerminal := term.GetFdInfo(os.Stdout)
+			return jsonmessage.DisplayJSONMessagesStream(resp.Body, os.Stdout, fd, isTerminal, nil)
+		}(fi)
+		if err != nil {
+			return err
+		}
 	}
-	defer resp.Body.Close()
-	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	return jsonmessage.DisplayJSONMessagesStream(resp.Body, os.Stdout, fd, isTerminal, nil)
+	return nil
 }
 
 func pullImages(ctx context.Context, client client.APIClient, images []string) error {
