@@ -17,6 +17,7 @@ ARG CROSS="false"
 ARG SYSTEMD="false"
 
 ARG CONTAINERD_VERSION=v1.6.8
+ARG RUNC_VERSION=v1.1.4
 
 ARG VPNKIT_VERSION=0.5.0
 ARG CRIU_VERSION=v3.16.1
@@ -345,13 +346,44 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         PREFIX=/build /install.sh dockercli
 
-FROM runtime-dev AS runc
+# runc
+FROM base AS runc-src
+WORKDIR /usr/src/runc
+RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
 ARG RUNC_VERSION
-ARG RUNC_BUILDTAGS
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/runc.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh runc
+RUN git fetch --depth 1 origin "${RUNC_VERSION}" && git checkout -q FETCH_HEAD
+
+FROM base AS runc-build
+WORKDIR /go/src/github.com/opencontainers/runc
+ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-runc-aptcache,target=/var/cache/apt \
+    xx-apt-get update && xx-apt-get install -y \
+      binutils \
+      g++ \
+      gcc \
+      dpkg-dev \
+      libseccomp-dev \
+      pkg-config \
+    && xx-go --wrap
+ENV CGO_ENABLED=1
+ARG DOCKER_LINKMODE
+# FIXME: should be built using clang but needs https://github.com/opencontainers/runc/pull/3465
+RUN --mount=from=runc-src,src=/usr/src/runc,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  make BUILDTAGS="seccomp" "$([ "$DOCKER_LINKMODE" = "static" ] && echo "static" || echo "runc")"
+  xx-verify $([ "$DOCKER_LINKMODE" = "static" ] && echo "--static") runc
+  mkdir /out
+  mv runc /out/
+EOT
+
+FROM binary-dummy AS runc-darwin
+FROM binary-dummy AS runc-freebsd
+FROM runc-build AS runc-linux
+FROM binary-dummy AS runc-windows
+FROM runc-${TARGETOS} AS runc
 
 FROM dev-base AS tini
 ARG DEBIAN_FRONTEND
@@ -485,7 +517,7 @@ COPY --from=criu          /out/   /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
 COPY --from=shfmt         /build/ /usr/local/bin/
-COPY --from=runc          /build/ /usr/local/bin/
+COPY --from=runc          /out/   /usr/local/bin/
 COPY --from=containerd    /out/   /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
@@ -532,7 +564,7 @@ ENV PREFIX=/build
 # from $PATH into the bundles dir.
 # It would be nice to handle this in a different way.
 COPY --from=tini          /build/ /usr/local/bin/
-COPY --from=runc          /build/ /usr/local/bin/
+COPY --from=runc          /out/   /usr/local/bin/
 COPY --from=containerd    /out/   /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
