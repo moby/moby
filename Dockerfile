@@ -43,6 +43,7 @@ ARG GOTOML_VERSION=v1.8.1
 # attaching debugger to it.
 ARG DELVE_VERSION=v1.8.1
 ARG CRIU_VERSION=v3.16.1
+ARG DOCKERCLI_VERSION=v17.06.2-ce
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
@@ -359,13 +360,33 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     GO111MODULE=on GOBIN=/out go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
     && /out/shfmt --version
 
-FROM dev-base AS dockercli
-ARG DOCKERCLI_CHANNEL
+# dockercli
+FROM base AS dockercli-src
+WORKDIR /usr/src/dockercli
+RUN git init . && git remote add origin "https://github.com/docker/cli.git"
 ARG DOCKERCLI_VERSION
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/dockercli.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh dockercli
+RUN git fetch --depth 1 origin "${DOCKERCLI_VERSION}" && git checkout -q FETCH_HEAD
+
+FROM base AS dockercli
+ENV GO111MODULE=off
+WORKDIR /go/src/github.com/docker/cli
+ENV CGO_ENABLED=0
+ARG DOCKERCLI_VERSION
+RUN --mount=from=dockercli-src,src=/usr/src/dockercli/components/cli,rw \
+    --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/go/pkg/mod <<EOT
+  set -e
+  DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$(xx-info march)/docker-${DOCKERCLI_VERSION#v}.tgz"
+  echo "checking $DOWNLOAD_URL"
+  if curl --head --silent --fail "${DOWNLOAD_URL}" 1>/dev/null 2>&1; then
+    mkdir /out
+    (set -x ; curl -Ls "${DOWNLOAD_URL}" | tar -xz docker/docker)
+    mv docker/docker /out/docker
+  else
+    (set -x ; go build -o /out/docker -v ./cmd/docker)
+  fi
+  xx-verify /out/docker
+EOT
 
 # runc
 FROM base AS runc-src
@@ -613,7 +634,7 @@ RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
 ARG YAMLLINT_VERSION=1.27.1
 RUN pip3 install yamllint==${YAMLLINT_VERSION}
 
-COPY --from=dockercli        /build/ /usr/local/cli
+COPY --from=dockercli        /out/   /usr/local/cli
 COPY --from=frozen-images    /out/   /docker-frozen-images
 COPY --from=swagger          /out/   /usr/local/bin/
 COPY --from=delve            /out/   /usr/local/bin/
