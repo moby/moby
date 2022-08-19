@@ -1,6 +1,9 @@
 variable "APT_MIRROR" {
   default = "deb.debian.org"
 }
+variable "DOCKER_LINKMODE" {
+  default = "static"
+}
 variable "BUNDLES_OUTPUT" {
   default = "./bundles"
 }
@@ -12,6 +15,7 @@ target "_common" {
   args = {
     BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1
     APT_MIRROR = APT_MIRROR
+    DOCKER_LINKMODE = DOCKER_LINKMODE
   }
 }
 

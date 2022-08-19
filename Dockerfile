@@ -12,8 +12,11 @@ ARG GO_VERSION=1.18.5
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG APT_MIRROR=deb.debian.org
+ARG DOCKER_LINKMODE=static
 ARG CROSS="false"
 ARG SYSTEMD="false"
+
+ARG CONTAINERD_VERSION=v1.6.7
 
 ARG VPNKIT_VERSION=0.5.0
 ARG SKOPEO_VERSION=v1.9.0
@@ -279,17 +282,53 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
      && /build/go-winres --help
 
-FROM dev-base AS containerd
+# containerd
+FROM base AS containerd-src
+WORKDIR /usr/src/containerd
+RUN git init . && git remote add origin "https://github.com/containerd/containerd.git"
+ARG CONTAINERD_VERSION
+RUN git fetch --depth 1 origin "${CONTAINERD_VERSION}" && git checkout -q FETCH_HEAD
+
+FROM base AS containerd-build
+WORKDIR /go/src/github.com/containerd/containerd
+ENV GO111MODULE=off
 ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            libbtrfs-dev
-ARG CONTAINERD_VERSION
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/containerd.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh containerd
+    xx-apt-get update && xx-apt-get install -y \
+      binutils \
+      g++ \
+      gcc \
+      libbtrfs-dev \
+      libsecret-1-dev \
+      pkg-config \
+    && xx-go --wrap
+ARG DOCKER_LINKMODE
+RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  if [ "$DOCKER_LINKMODE" = "static" ]; then
+    export CGO_ENABLED=1
+    export BUILDTAGS="netgo osusergo static_build"
+    export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
+  fi
+  export CC=$(xx-info)-gcc
+  make bin/containerd
+  xx-verify $([ "$DOCKER_LINKMODE" = "static" ] && echo "--static") bin/containerd
+  make bin/containerd-shim-runc-v2
+  xx-verify $([ "$DOCKER_LINKMODE" = "static" ] && echo "--static") bin/containerd-shim-runc-v2
+  make bin/ctr
+  # FIXME: ctr not statically linked: https://github.com/containerd/containerd/issues/5824
+  xx-verify bin/ctr
+  mv bin /out
+EOT
+
+FROM binary-dummy AS containerd-darwin
+FROM binary-dummy AS containerd-freebsd
+FROM containerd-build AS containerd-linux
+FROM binary-dummy AS containerd-windows
+FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
 ARG GOLANGCI_LINT_VERSION=v1.46.2
@@ -460,7 +499,7 @@ COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
 COPY --from=shfmt         /build/ /usr/local/bin/
 COPY --from=runc          /build/ /usr/local/bin/
-COPY --from=containerd    /build/ /usr/local/bin/
+COPY --from=containerd    /out/   /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
 COPY --from=crun          /build/ /usr/local/bin/
@@ -507,7 +546,7 @@ ENV PREFIX=/build
 # It would be nice to handle this in a different way.
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=runc          /build/ /usr/local/bin/
-COPY --from=containerd    /build/ /usr/local/bin/
+COPY --from=containerd    /out/   /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
