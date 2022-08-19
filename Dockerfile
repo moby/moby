@@ -20,6 +20,7 @@ ARG CONTAINERD_VERSION=v1.6.7
 ARG RUNC_VERSION=v1.1.3
 ARG ROOTLESSKIT_VERSION=1920341cd41e047834a21007424162a2dc946315
 ARG VPNKIT_VERSION=0.5.0
+ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
 
 ## dev deps
 # XX_VERSION specifies the version of xx, an helper for cross-compilation.
@@ -518,6 +519,41 @@ FROM scratch AS vpnkit-linux-s390x
 FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
 FROM vpnkit-${TARGETOS} AS vpnkit
 
+# containerutility
+FROM base AS containerutility-src
+WORKDIR /usr/src/containerutility
+RUN git init . && git remote add origin "https://github.com/docker-archive/windows-container-utility.git"
+
+FROM base AS containerutility-build
+WORKDIR /usr/src/containerutility
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-containerutility-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-containerutility-aptcache,target=/var/cache/apt \
+    xx-apt-get update && xx-apt-get install -y \
+      binutils \
+      dpkg-dev \
+      g++ \
+      gcc \
+      pkg-config
+ARG CONTAINERUTILITY_VERSION
+RUN --mount=from=containerutility-src,src=/usr/src/containerutility,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  git fetch --depth 1 origin "${CONTAINERUTILITY_VERSION}"
+  git checkout -q FETCH_HEAD
+  CC="$(xx-info)-gcc" CXX="$(xx-info)-g++" make
+  mkdir /out
+  mv containerutility.exe /out/
+EOT
+
+FROM binary-dummy AS containerutility-darwin
+FROM binary-dummy AS containerutility-freebsd
+FROM binary-dummy AS containerutility-linux
+FROM containerutility-build AS containerutility-windows-amd64
+FROM binary-dummy AS containerutility-windows-arm64
+FROM containerutility-windows-${TARGETARCH} AS containerutility-windows
+FROM containerutility-${TARGETOS} AS containerutility
+
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev-systemd-false
 ARG DEBIAN_FRONTEND
@@ -574,23 +610,24 @@ RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
 
 RUN pip3 install yamllint==1.26.1
 
-COPY --from=dockercli     /build/ /usr/local/cli
-COPY --from=frozen-images /out/   /docker-frozen-images
-COPY --from=swagger       /build/ /usr/local/bin/
-COPY --from=delve         /build/ /usr/local/bin/
-COPY --from=tomll         /build/ /usr/local/bin/
-COPY --from=gowinres      /build/ /usr/local/bin/
-COPY --from=tini          /out/   /usr/local/bin/
-COPY --from=registry      /build/ /usr/local/bin/
-COPY --from=criu          /out/   /usr/local/bin/
-COPY --from=gotestsum     /build/ /usr/local/bin/
-COPY --from=golangci_lint /build/ /usr/local/bin/
-COPY --from=shfmt         /build/ /usr/local/bin/
-COPY --from=runc          /out/   /usr/local/bin/
-COPY --from=containerd    /out/   /usr/local/bin/
-COPY --from=rootlesskit   /out/   /usr/local/bin/
-COPY --from=vpnkit        /       /usr/local/bin/
-COPY --from=crun          /build/ /usr/local/bin/
+COPY --from=dockercli        /build/ /usr/local/cli
+COPY --from=frozen-images    /out/   /docker-frozen-images
+COPY --from=swagger          /build/ /usr/local/bin/
+COPY --from=delve            /build/ /usr/local/bin/
+COPY --from=tomll            /build/ /usr/local/bin/
+COPY --from=gowinres         /build/ /usr/local/bin/
+COPY --from=tini             /out/   /usr/local/bin/
+COPY --from=registry         /build/ /usr/local/bin/
+COPY --from=criu             /out/   /usr/local/bin/
+COPY --from=gotestsum        /build/ /usr/local/bin/
+COPY --from=golangci_lint    /build/ /usr/local/bin/
+COPY --from=shfmt            /build/ /usr/local/bin/
+COPY --from=runc             /out/   /usr/local/bin/
+COPY --from=containerd       /out/   /usr/local/bin/
+COPY --from=rootlesskit      /out/   /usr/local/bin/
+COPY --from=vpnkit           /       /usr/local/bin/
+COPY --from=containerutility /out/   /usr/local/bin/
+COPY --from=crun             /build/ /usr/local/bin/
 COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
 ARG DOCKER_BUILDTAGS
@@ -632,12 +669,13 @@ ENV PREFIX=/build
 # TODO: This is here because hack/make.sh binary copies these extras binaries
 # from $PATH into the bundles dir.
 # It would be nice to handle this in a different way.
-COPY --from=tini          /out/   /usr/local/bin/
-COPY --from=runc          /out/   /usr/local/bin/
-COPY --from=containerd    /out/   /usr/local/bin/
-COPY --from=rootlesskit   /out/   /usr/local/bin/
-COPY --from=vpnkit        /       /usr/local/bin/
-COPY --from=gowinres      /build/ /usr/local/bin/
+COPY --from=tini             /out/   /usr/local/bin/
+COPY --from=runc             /out/   /usr/local/bin/
+COPY --from=containerd       /out/   /usr/local/bin/
+COPY --from=rootlesskit      /out/   /usr/local/bin/
+COPY --from=vpnkit           /       /usr/local/bin/
+COPY --from=containerutility /out/   /usr/local/bin/
+COPY --from=gowinres         /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 
 FROM binary-base AS build-binary
