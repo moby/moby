@@ -89,7 +89,6 @@ type Daemon struct {
 	sysInfo               *sysinfo.SysInfo
 	shutdown              bool
 	idMapping             idtools.IdentityMapping
-	graphDriver           string        // TODO: move graphDriver field to an InfoService
 	PluginStore           *plugin.Store // TODO: remove
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
@@ -239,7 +238,7 @@ func (daemon *Daemon) restore() error {
 				log.WithError(err).Error("failed to load container")
 				return
 			}
-			if c.Driver != daemon.graphDriver {
+			if c.Driver != daemon.imageService.StorageDriver() {
 				// Ignore the container if it wasn't created with the current storage-driver
 				log.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
 				return
@@ -834,18 +833,19 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
+	var graphDriver string
 	if isWindows {
 		// On Windows we don't support the environment variable, or a user supplied graphdriver
-		d.graphDriver = "windowsfilter"
+		graphDriver = "windowsfilter"
 	} else {
 		// Unix platforms however run a single graphdriver for all containers, and it can
 		// be set through an environment variable, a daemon start parameter, or chosen through
 		// initialization of the layerstore through driver priority order for example.
 		if drv := os.Getenv("DOCKER_DRIVER"); drv != "" {
-			d.graphDriver = drv
+			graphDriver = drv
 			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", drv)
 		} else {
-			d.graphDriver = config.GraphDriver // May still be empty. Layerstore init determines instead.
+			graphDriver = config.GraphDriver // May still be empty. Layerstore init determines instead.
 		}
 	}
 
@@ -941,7 +941,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 		Root:                      config.Root,
 		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
-		GraphDriver:               d.graphDriver,
+		GraphDriver:               graphDriver,
 		GraphDriverOptions:        config.GraphOptions,
 		IDMapping:                 idMapping,
 		PluginGetter:              d.PluginStore,
@@ -951,16 +951,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// As layerstore initialization may set the driver
-	d.graphDriver = layerStore.DriverName()
-
 	// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 	// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-	if err := configureKernelSecuritySupport(config, d.graphDriver); err != nil {
+	if err := configureKernelSecuritySupport(config, layerStore.DriverName()); err != nil {
 		return nil, err
 	}
 
-	imageRoot := filepath.Join(config.Root, "image", d.graphDriver)
+	imageRoot := filepath.Join(config.Root, "image", layerStore.DriverName())
 
 	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
@@ -1125,7 +1122,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	logrus.WithFields(logrus.Fields{
 		"version":     dockerversion.Version,
 		"commit":      dockerversion.GitCommit,
-		"graphdriver": d.graphDriver,
+		"graphdriver": d.ImageService().StorageDriver(),
 	}).Info("Docker daemon")
 
 	return d, nil
