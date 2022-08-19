@@ -44,6 +44,17 @@ ARG GOTOML_VERSION=v1.8.1
 ARG DELVE_VERSION=v1.8.1
 ARG CRIU_VERSION=v3.16.1
 ARG DOCKERCLI_VERSION=v17.06.2-ce
+# REGISTRY_VERSION specifies the version of the registry to build and install
+# from the https://github.com/docker/distribution repository. This version of
+# the registry is used to test both schema 1 and schema 2 manifests. Generally,
+# the version specified here should match a current release.
+ARG REGISTRY_VERSION=v2.3.0
+# REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
+# install from the https://github.com/docker/distribution repository. This is
+# an older (pre v2.3.0) version of the registry that only supports schema1
+# manifests. This version of the registry is not working on arm64, so installation
+# is skipped on that architecture.
+ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
@@ -132,36 +143,36 @@ RUN --mount=from=criu-src,src=/usr/src/criu,rw \
   mv ./criu/criu /out/
 EOT
 
+# registry
+FROM base AS registry-src
+WORKDIR /usr/src/registry
+RUN git init . && git remote add origin "https://github.com/distribution/distribution.git"
+
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
-
-# REGISTRY_VERSION specifies the version of the registry to build and install
-# from the https://github.com/docker/distribution repository. This version of
-# the registry is used to test both schema 1 and schema 2 manifests. Generally,
-# the version specified here should match a current release.
-ARG REGISTRY_VERSION=v2.3.0
-
-# REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
-# install from the https://github.com/docker/distribution repository. This is
-# an older (pre v2.3.0) version of the registry that only supports schema1
-# manifests. This version of the registry is not working on arm64, so installation
-# is skipped on that architecture.
-ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ \
-        set -x \
-        && git clone https://github.com/docker/distribution.git . \
-        && git checkout -q "$REGISTRY_VERSION" \
-        && GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-           go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
-        && case $(dpkg --print-architecture) in \
-               amd64|armhf|ppc64*|s390x) \
-               git checkout -q "$REGISTRY_VERSION_SCHEMA1"; \
-               GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
-                   go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
-                ;; \
-           esac
+ENV GO111MODULE=off
+ENV CGO_ENABLED=0
+ARG REGISTRY_VERSION
+ARG REGISTRY_VERSION_SCHEMA1
+ARG BUILDPLATFORM
+RUN --mount=from=registry-src,src=/usr/src/registry,rw \
+    --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/go/pkg/mod <<EOT
+  set -e
+  git fetch --depth 1 origin "${REGISTRY_VERSION}"
+  git checkout -q FETCH_HEAD
+  export GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"
+  go build -o /out/registry-v2 -v ./cmd/registry
+  xx-verify /out/registry-v2
+  case $BUILDPLATFORM in
+    linux/amd64|linux/arm/v7|linux/ppc64le|linux/s390x)
+      git fetch --depth 1 origin "${REGISTRY_VERSION_SCHEMA1}"
+      git checkout -q FETCH_HEAD
+      go build -o /out/registry-v2-schema1 -v ./cmd/registry
+      xx-verify /out/registry-v2-schema1
+      ;;
+  esac
+EOT
 
 # go-swagger
 FROM base AS swagger-src
@@ -641,7 +652,7 @@ COPY --from=delve            /out/   /usr/local/bin/
 COPY --from=tomll            /out/   /usr/local/bin/
 COPY --from=gowinres         /out/   /usr/local/bin/
 COPY --from=tini             /out/   /usr/local/bin/
-COPY --from=registry         /build/ /usr/local/bin/
+COPY --from=registry         /out/   /usr/local/bin/
 COPY --from=criu             /out/   /usr/local/bin/
 COPY --from=gotestsum        /out/   /usr/local/bin/
 COPY --from=golangci-lint    /out/   /usr/local/bin/
