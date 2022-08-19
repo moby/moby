@@ -25,6 +25,10 @@ ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
 ## dev deps
 # XX_VERSION specifies the version of xx, an helper for cross-compilation.
 ARG XX_VERSION=1.1.2
+# GOSWAGGER_VERSION specifies the version of the go-swagger binary to build and
+# install. Go-swagger is used in CI for validating swagger.yaml in
+# hack/validate/swagger-gen
+ARG GOSWAGGER_VERSION=c56166c036004ba7a3a321e5951ba472b9ae298c
 ARG CRIU_VERSION=v3.16.1
 
 # cross compilation helper
@@ -145,22 +149,24 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
                 ;; \
            esac
 
-FROM base AS swagger
-WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
-
-# GO_SWAGGER_COMMIT specifies the version of the go-swagger binary to build and
-# install. Go-swagger is used in CI for validating swagger.yaml in hack/validate/swagger-gen
-#
-# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix,
+# go-swagger
+FROM base AS swagger-src
+WORKDIR /usr/src/swagger
+# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
 # TODO: move to under moby/ or fix upstream go-swagger to work for us.
-ENV GO_SWAGGER_COMMIT c56166c036004ba7a3a321e5951ba472b9ae298c
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ \
-        set -x \
-        && git clone https://github.com/kolyshkin/go-swagger.git . \
-        && git checkout -q "$GO_SWAGGER_COMMIT" \
-        && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
+RUN git init . && git remote add origin "https://github.com/kolyshkin/go-swagger.git"
+ARG GOSWAGGER_VERSION
+RUN git fetch --depth 1 origin "${GOSWAGGER_VERSION}" && git checkout -q FETCH_HEAD
+
+FROM base AS swagger
+ENV GO111MODULE=off
+WORKDIR /go/src/github.com/go-swagger/go-swagger
+RUN --mount=from=swagger-src,src=/usr/src/swagger,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  go build -o /out/swagger ./cmd/swagger
+  xx-verify /out/swagger
+EOT
 
 # frozen-images
 # See also frozenImages in "testutil/environment/protect.go" (which needs to
@@ -599,7 +605,7 @@ RUN pip3 install yamllint==${YAMLLINT_VERSION}
 
 COPY --from=dockercli        /build/ /usr/local/cli
 COPY --from=frozen-images    /out/   /docker-frozen-images
-COPY --from=swagger          /build/ /usr/local/bin/
+COPY --from=swagger          /out/   /usr/local/bin/
 COPY --from=delve            /build/ /usr/local/bin/
 COPY --from=tomll            /build/ /usr/local/bin/
 COPY --from=gowinres         /build/ /usr/local/bin/
