@@ -90,7 +90,7 @@ RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.con
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
-ENV GO111MODULE=off
+ENV GO111MODULE=on
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-base-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-base-aptcache,target=/var/cache/apt \
@@ -200,7 +200,7 @@ FROM base AS skopeo
 ARG SKOPEO_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-      GO111MODULE=on CGO_ENABLED=0 GOBIN=/out go install -tags "exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp" "github.com/containers/skopeo/cmd/skopeo@${SKOPEO_VERSION}" \
+      CGO_ENABLED=0 GOBIN=/out go install -tags "exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp" "github.com/containers/skopeo/cmd/skopeo@${SKOPEO_VERSION}" \
       && /out/skopeo --version
 
 # frozen-images gets useful and necessary Hub images so we can "docker load"
@@ -290,7 +290,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     # Delve on Linux is currently only supported on amd64 and arm64;
     # https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
     linux/amd64 | linux/arm64)
-      GO111MODULE=on GOBIN=/out go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}"
+      GOBIN=/out go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}"
       xx-verify /out/dlv
       /out/dlv --help
       ;;
@@ -303,7 +303,7 @@ FROM base AS tomll
 ARG GOTOML_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    GO111MODULE=on GOBIN=/out go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
+    GOBIN=/out go install "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}" \
     && /out/tomll --help
 
 # go-winres
@@ -311,7 +311,7 @@ FROM base AS gowinres
 ARG GOWINRES_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    GO111MODULE=on GOBIN=/out go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+    GOBIN=/out go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
     && /out/go-winres --help
 
 # containerd
@@ -367,7 +367,7 @@ FROM base AS golangci-lint
 ARG GOLANGCI_LINT_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    GO111MODULE=on GOBIN=/out go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+    GOBIN=/out go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
     && /out/golangci-lint --version
 
 # gotestsum
@@ -375,7 +375,7 @@ FROM base AS gotestsum
 ARG GOTESTSUM_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    GO111MODULE=on GOBIN=/out go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+    GOBIN=/out go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
     && /out/gotestsum --version
 
 # shfmt
@@ -383,7 +383,7 @@ FROM base AS shfmt
 ARG SHFMT_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    GO111MODULE=on GOBIN=/out go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+    GOBIN=/out go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
     && /out/shfmt --version
 
 # dockercli
@@ -507,7 +507,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptlib,target=/var/lib
     && xx-go --wrap
 ARG DOCKER_LINKMODE
 ENV GOBIN=/out
-ENV GO111MODULE=on
 COPY ./contrib/dockerd-rootless.sh /out/
 COPY ./contrib/dockerd-rootless-setuptool.sh /out/
 RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
@@ -688,6 +687,7 @@ COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
+ENV GO111MODULE=off
 WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 VOLUME /home/unprivilegeduser/.local/share/docker
@@ -733,6 +733,7 @@ COPY --from=vpnkit           /       /usr/local/bin/
 COPY --from=containerutility /out/   /usr/local/bin/
 COPY --from=gowinres         /out/   /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
+ENV GO111MODULE=off
 
 FROM binary-base AS build-binary
 RUN --mount=type=cache,target=/root/.cache \
