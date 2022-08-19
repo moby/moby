@@ -5,21 +5,24 @@
 ARG DEBIAN_BASE="debian:bullseye"
 ARG UBUNTU_BASE="ubuntu:22.04"
 
-# XX_VERSION specifies the version of xx, an helper for cross-compilation.
-ARG XX_VERSION=1.1.2
-
-ARG GO_VERSION=1.18.5
-
 ARG DEBIAN_FRONTEND=noninteractive
 ARG APT_MIRROR=deb.debian.org
 ARG DOCKER_LINKMODE=static
 ARG CROSS="false"
 ARG SYSTEMD="false"
 
+## build deps
+ARG GO_VERSION=1.18.5
+ARG TINI_VERSION=v0.19.0
+
+## extra tools
 ARG CONTAINERD_VERSION=v1.6.7
 ARG RUNC_VERSION=v1.1.3
-
 ARG VPNKIT_VERSION=0.5.0
+
+## dev deps
+# XX_VERSION specifies the version of xx, an helper for cross-compilation.
+ARG XX_VERSION=1.1.2
 ARG SKOPEO_VERSION=v1.9.0
 ARG CRIU_VERSION=v3.16.1
 
@@ -399,18 +402,40 @@ FROM runc-build AS runc-linux
 FROM binary-dummy AS runc-windows
 FROM runc-${TARGETOS} AS runc
 
-FROM dev-base AS tini
-ARG DEBIAN_FRONTEND
+# tini (docker-init)
+FROM base AS tini-src
+WORKDIR /usr/src/tini
+RUN git init . && git remote add origin "https://github.com/krallin/tini.git"
 ARG TINI_VERSION
+RUN git fetch --depth 1 origin "${TINI_VERSION}" && git checkout -q FETCH_HEAD
+
+FROM base AS tini-build
+ENV GO111MODULE=off
+WORKDIR /go/src/github.com/krallin/tini
+ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            cmake \
-            vim-common
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/tini.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh tini
+    xx-apt-get update && xx-apt-get install -y \
+      gcc \
+      libc6-dev
+ARG DOCKER_LINKMODE
+RUN --mount=from=tini-src,src=/usr/src/tini,rw \
+    --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  export TINI_TARGET=$([ "$DOCKER_LINKMODE" = "static" ] && echo "tini-static" || echo "tini")
+  CC=$(xx-info)-gcc cmake .
+  make "$TINI_TARGET"
+  xx-verify $([ "$DOCKER_LINKMODE" = "static" ] && echo "--static") "$TINI_TARGET"
+  mkdir /out
+  mv "$TINI_TARGET" /out/docker-init
+EOT
+
+FROM binary-dummy AS tini-darwin
+FROM binary-dummy AS tini-freebsd
+FROM tini-build AS tini-linux
+FROM binary-dummy AS tini-windows
+FROM tini-${TARGETOS} AS tini
 
 FROM dev-base AS rootlesskit
 ARG ROOTLESSKIT_VERSION
@@ -524,7 +549,7 @@ COPY --from=swagger       /build/ /usr/local/bin/
 COPY --from=delve         /build/ /usr/local/bin/
 COPY --from=tomll         /build/ /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
-COPY --from=tini          /build/ /usr/local/bin/
+COPY --from=tini          /out/   /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
 COPY --from=criu          /out/   /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
@@ -576,7 +601,7 @@ ENV PREFIX=/build
 # TODO: This is here because hack/make.sh binary copies these extras binaries
 # from $PATH into the bundles dir.
 # It would be nice to handle this in a different way.
-COPY --from=tini          /build/ /usr/local/bin/
+COPY --from=tini          /out/   /usr/local/bin/
 COPY --from=runc          /out/   /usr/local/bin/
 COPY --from=containerd    /out/   /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
