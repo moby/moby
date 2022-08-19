@@ -1,3 +1,6 @@
+variable "APT_MIRROR" {
+  default = "deb.debian.org"
+}
 variable "BUNDLES_OUTPUT" {
   default = "./bundles"
 }
@@ -8,7 +11,7 @@ variable "DOCKER_CROSSPLATFORMS" {
 target "_common" {
   args = {
     BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1
-    APT_MIRROR = "cdn-fastly.deb.debian.org"
+    APT_MIRROR = APT_MIRROR
   }
 }
 
