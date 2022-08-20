@@ -10,10 +10,10 @@
 # To publish: Needs someone with publishing rights
 ARG WINDOWS_BASE_IMAGE=mcr.microsoft.com/windows/servercore
 ARG WINDOWS_BASE_IMAGE_TAG=ltsc2019
-ARG BUSYBOX_VERSION=FRP-3329-gcf0fa4d13
+ARG BUSYBOX_VERSION=FRP-4716-g31467ddfc
 
 # Checksum taken from https://frippery.org/files/busybox/SHA256SUM
-ARG BUSYBOX_SHA256SUM=bfaeb88638e580fc522a68e69072e305308f9747563e51fa085eec60ca39a5ae
+ARG BUSYBOX_SHA256SUM=b4fd02bb938f97e59a0242da6a7763104d9cd344f96427af178940271b22ed5c
 
 FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 RUN mkdir C:\tmp && mkdir C:\bin
