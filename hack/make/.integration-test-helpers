@@ -10,7 +10,6 @@ if [ -z "${MAKEDIR}" ]; then
 	MAKEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 	export MAKEDIR
 fi
-source "${MAKEDIR}/.go-autogen"
 
 # Set defaults
 : "${TEST_REPEAT:=1}"

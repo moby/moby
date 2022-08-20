@@ -1,23 +1,31 @@
 #!/usr/bin/env bash
-set -e
+set -eu
 
-# a helper to provide ".exe" when it's appropriate
-binary_extension() {
-	if [ "$(go env GOOS)" = 'windows' ]; then
-		echo -n '.exe'
-	fi
-}
+: "${OUTPUT=./bundles}"
+: "${PACKAGE=./cmd/dockerd}"
+: "${TARGETPLATFORM=}"
 
-BINARY_EXTENSION="$(binary_extension)"
-BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
+: "${CGO_ENABLED=}"
 
-source "${MAKEDIR}/.go-autogen"
+: "${DOCKER_DEBUG=}"
+: "${DOCKER_STRIP=}"
+: "${DOCKER_LINKMODE=static}"
+: "${DOCKER_LDFLAGS=}"
+: "${DOCKER_BUILDMODE=}"
+: "${DOCKER_BUILDFLAGS=}"
 
-(
-	export GOGC=${DOCKER_BUILD_GOGC:-1000}
+: "${VERSION=}"
+: "${GITCOMMIT=}"
+: "${BUILDTIME=}"
+: "${PLATFORM=}"
+: "${PRODUCT=}"
+: "${DEFAULT_PRODUCT_LICENSE=}"
+: "${PACKAGER_NAME=}"
 
+# for non-sandboxed invocation
+if ! command -v xx-go > /dev/null 2>&1; then
+	export GO111MODULE=off
 	if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-		# must be cross-compiling!
 		case "$(go env GOOS)/$(go env GOARCH)" in
 			windows/amd64)
 				export CC="${CC:-x86_64-w64-mingw32-gcc}"
@@ -67,30 +75,76 @@ source "${MAKEDIR}/.go-autogen"
 				;;
 		esac
 	fi
+fi
 
-	# -buildmode=pie is not supported on Windows and Linux on mips, riscv64 and ppc64be.
-	# https://github.com/golang/go/blob/77aa209b386a184e7f4b44938f2a05a1b5c5a3cf/src/cmd/internal/sys/supported.go#L89-L99
+if [ -z "$VERSION" ]; then
+	VERSION=$(git describe --match 'v[0-9]*' --dirty='.m' --always --tags | sed 's/^v//' 2> /dev/null || echo "unknown-version")
+fi
+if [ -z "$GITCOMMIT" ]; then
+	GITCOMMIT=$(git rev-parse --short HEAD 2> /dev/null || true)
+fi
+if [ -z "$BUILDTIME" ]; then
+	BUILDTIME=$(date -u --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +"%Y-%m-%dT%H:%M:%SZ")
+fi
+
+BIN_NAME=$(basename "$PACKAGE")
+BIN_EXT=
+if [ "$(go env GOOS)" = "windows" ]; then
+	BIN_EXT=.exe
+fi
+
+# -buildmode=pie is not supported on Windows and Linux on mips, riscv64 and ppc64be.
+# https://github.com/golang/go/blob/77aa209b386a184e7f4b44938f2a05a1b5c5a3cf/src/cmd/internal/sys/supported.go#L89-L99
+if [ "$CGO_ENABLED" = "1" ]; then
 	case "$(go env GOOS)/$(go env GOARCH)" in
-		windows/* | linux/mips* | linux/riscv* | linux/ppc64) ;;
-		# TODO remove windows in Go 1.15+: https://github.com/golang/go/commit/95f382139043059a2a0780ba577b53893408f7e4
-		# TODO remove riscv64 in Go 1.16+: https://github.com/golang/go/commit/8eb846fd37eb7bded8a1cf6932be2c59069863e5
-
+		windows/* | linux/mips* | linux/riscv* | linux/ppc64)
+			# TODO remove windows in Go 1.15+: https://github.com/golang/go/commit/95f382139043059a2a0780ba577b53893408f7e4
+			# TODO remove riscv64 in Go 1.16+: https://github.com/golang/go/commit/8eb846fd37eb7bded8a1cf6932be2c59069863e5
+			;;
 		*)
-			BUILDFLAGS+=("-buildmode=pie")
+			DOCKER_BUILDMODE="-buildmode=pie"
 			;;
 	esac
+fi
 
-	echo "Building: $DEST/$BINARY_FULLNAME"
-	echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
-	go build \
-		-o "$DEST/$BINARY_FULLNAME" \
-		"${BUILDFLAGS[@]}" \
-		-ldflags "
-		$LDFLAGS
-		$LDFLAGS_STATIC_DOCKER
-		$DOCKER_LDFLAGS
-	" \
-		${GO_PACKAGE}
+DOCKER_LDFLAGS+="\
+	-X \"github.com/docker/docker/dockerversion.Version=${VERSION}\" \
+	-X \"github.com/docker/docker/dockerversion.GitCommit=${GITCOMMIT}\" \
+	-X \"github.com/docker/docker/dockerversion.BuildTime=${BUILDTIME}\" \
+	-X \"github.com/docker/docker/dockerversion.PlatformName=${PLATFORM}\" \
+	-X \"github.com/docker/docker/dockerversion.ProductName=${PRODUCT}\" \
+	-X \"github.com/docker/docker/dockerversion.DefaultProductLicense=${DEFAULT_PRODUCT_LICENSE}\" \
+"
+
+if [ -z "$DOCKER_DEBUG" ]; then
+	DOCKER_LDFLAGS+=" -w"
+fi
+
+if [ -n "$DOCKER_STRIP" ]; then
+	DOCKER_LDFLAGS+=" -s"
+fi
+
+# compile the Windows resources into the sources
+if [ "$(go env GOOS)" = "windows" ]; then
+	(
+		. hack/make/.mkwinres
+		go generate -v "${PACKAGE}"
+	)
+fi
+
+# only necessary for non-sandboxed invocation where TARGETPLATFORM is empty
+PLATFORM_NAME=$TARGETPLATFORM
+if [ -z "$PLATFORM_NAME" ]; then
+	PLATFORM_NAME="$(go env GOOS)/$(go env GOARCH)"
+	if [ -n "$(go env GOARM)" ]; then
+		PLATFORM_NAME+="/$(go env GOARM)"
+	elif [ -n "$(go env GOAMD64)" ] && [ "$(go env GOAMD64)" != "v1" ]; then
+		PLATFORM_NAME+="/$(go env GOAMD64)"
+	fi
+fi
+
+echo "Building $DOCKER_LINKMODE $BIN_NAME ($PLATFORM_NAME)..."
+(
+	go build -o "${OUTPUT}/${BIN_NAME}${BIN_EXT}" -trimpath ${DOCKER_BUILDMODE} "${DOCKER_BUILDFLAGS[@]}" -ldflags "${DOCKER_LDFLAGS}" "${PACKAGE}"
+	echo "Created binary: ${OUTPUT}/${BIN_NAME}${BIN_EXT}"
 )
-
-echo "Created binary: $DEST/$BINARY_FULLNAME"
