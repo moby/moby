@@ -333,13 +333,18 @@ RUN --mount=type=tmpfs,target=/tmp/crun-build \
     ./configure --bindir=/build && \
     make -j install
 
-FROM --platform=amd64 djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-amd64
-
-FROM --platform=arm64 djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-arm64
-
-FROM scratch AS vpnkit
-COPY --from=vpnkit-amd64 /vpnkit /build/vpnkit.x86_64
-COPY --from=vpnkit-arm64 /vpnkit /build/vpnkit.aarch64
+# vpnkit
+# TODO: build from source instead
+FROM scratch AS vpnkit-windows
+FROM scratch AS vpnkit-linux-386
+FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-amd64
+FROM scratch AS vpnkit-linux-arm
+FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-arm64
+FROM scratch AS vpnkit-linux-ppc64le
+FROM scratch AS vpnkit-linux-riscv64
+FROM scratch AS vpnkit-linux-s390x
+FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
+FROM vpnkit-${TARGETOS} AS vpnkit
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev-systemd-false
@@ -413,7 +418,7 @@ COPY --from=shfmt         /build/ /usr/local/bin/
 COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
-COPY --from=vpnkit        /build/ /usr/local/bin/
+COPY --from=vpnkit        /       /usr/local/bin/
 COPY --from=crun          /build/ /usr/local/bin/
 COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
@@ -460,7 +465,7 @@ COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
-COPY --from=vpnkit        /build/ /usr/local/bin/
+COPY --from=vpnkit        /       /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 
