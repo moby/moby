@@ -1,4 +1,4 @@
-# docker build -t docker:simple -f Dockerfile.simple .
+# docker build bake simple
 # docker run --rm docker:simple hack/make.sh dynbinary
 # docker run --rm --privileged docker:simple hack/dind hack/make.sh test-unit
 # docker run --rm --privileged -v /var/lib/docker docker:simple hack/dind hack/make.sh dynbinary test-integration
@@ -42,14 +42,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install runc, containerd, tini and docker-proxy
-# Please edit hack/dockerfile/install/<name>.installer to update them.
-COPY hack/dockerfile/install hack/dockerfile/install
-RUN for i in runc containerd tini proxy dockercli; \
-		do hack/dockerfile/install/install.sh $i; \
-	done
-ENV PATH=/usr/local/cli:$PATH
+# install dependencies as linked context from main Dockerfile to avoid
+# deduplication. see docker-bake.hcl for more info
+COPY --link --from=tini        /out/ /usr/local/bin/
+COPY --link --from=runc        /out/ /usr/local/bin/
+COPY --link --from=containerd  /out/ /usr/local/bin/
+COPY --link --from=rootlesskit /out/ /usr/local/bin/
+COPY --link --from=dockercli   /out/ /usr/local/cli/
 
-ENV AUTO_GOPATH 1
-WORKDIR /usr/src/docker
-COPY . /usr/src/docker
+ENV PATH=/usr/local/cli:$PATH
+WORKDIR /go/src/github.com/docker/docker
+COPY . .

@@ -1,0 +1,33 @@
+name: simple
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]{2}'
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build simple image
+        uses: docker/bake-action@v2
+        with:
+          targets: simple
+      -
+        name: Build dynbinary
+        run: |
+          docker run --rm docker:simple hack/make.sh dynbinary

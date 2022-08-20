@@ -152,3 +152,42 @@ target "dev" {
   tags = ["docker-dev"]
   output = ["type=docker"]
 }
+
+#
+# simple
+#
+
+target "simple" {
+  inherits = ["_common"]
+  dockerfile = "Dockerfile.simple"
+  tags = ["docker:simple"]
+  output = ["type=docker"]
+  contexts = {
+    tini = "target:_tini"
+    runc = "target:_runc"
+    containerd = "target:_containerd"
+    rootlesskit = "target:_rootlesskit"
+    dockercli = "target:_dockercli"
+  }
+}
+
+target "_tini" {
+  inherits = ["_common"]
+  target = "tini"
+}
+target "_runc" {
+  inherits = ["_common"]
+  target = "runc"
+}
+target "_containerd" {
+  inherits = ["_common"]
+  target = "containerd"
+}
+target "_rootlesskit" {
+  inherits = ["_common"]
+  target = "rootlesskit"
+}
+target "_dockercli" {
+  inherits = ["_common"]
+  target = "dockercli"
+}
