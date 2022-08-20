@@ -122,3 +122,21 @@ target "all" {
 target "all-cross" {
   inherits = ["all", "_platforms"]
 }
+
+#
+# dev
+#
+
+variable "SYSTEMD" {
+  default = "false"
+}
+
+target "dev" {
+  inherits = ["_common"]
+  target = "dev"
+  args = {
+    SYSTEMD = SYSTEMD
+  }
+  tags = ["docker-dev"]
+  output = ["type=docker"]
+}
