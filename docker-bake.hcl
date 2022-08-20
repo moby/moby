@@ -89,6 +89,7 @@ target "_platforms" {
     "linux/arm/v7",
     "linux/arm64",
     "linux/ppc64le",
+    "linux/riscv64",
     "linux/s390x",
     "windows/amd64",
     "windows/arm64"
@@ -117,6 +118,7 @@ target "binary-smoketest" {
     "linux/amd64",
     "linux/arm64",
     "linux/ppc64le",
+    "linux/riscv64",
     "linux/s390x"
   ]
 }
