@@ -1,0 +1,69 @@
+name: test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]{2}'
+    tags:
+      - 'v*'
+  pull_request:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-20.04
+    outputs:
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Create matrix
+        id: platforms
+        run: |
+          echo ::set-output name=matrix::$(docker buildx bake binary-smoketest --print | jq -cr '.target."binary-smoketest".platforms')
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.platforms.outputs.matrix }}
+
+  smoke:
+    runs-on: ubuntu-20.04
+    needs:
+      - prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Test
+        uses: docker/bake-action@v2
+        with:
+          targets: binary-smoketest
+          set: |
+            *.platform=${{ matrix.platform }}
+            *.cache-from=type=gha,scope=binary-smoketest-${{ env.PLATFORM_PAIR }}
+            *.cache-to=type=gha,scope=binary-smoketest-${{ env.PLATFORM_PAIR }}
+        env:
+          DOCKER_LINKMODE: static

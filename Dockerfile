@@ -737,6 +737,26 @@ COPY --link --from=containerutility /out/ /
 COPY --link --from=vpnkit           /     /
 COPY --link --from=build            /out  /
 
+# smoke tests
+# usage:
+# > docker builx bake binary-smoketest
+FROM --platform=$TARGETPLATFORM base AS smoketest
+WORKDIR /usr/local/bin
+COPY --link --from=runc        /out/ .
+COPY --link --from=containerd  /out/ .
+COPY --link --from=rootlesskit /out/ .
+COPY --link --from=build       /out/ .
+RUN <<EOT
+  set -ex
+  runc --version
+  containerd --version
+  containerd-shim-runc-v2 -v
+  rootlesskit --version
+  rootlesskit-docker-proxy --help
+  dockerd --version
+  docker-proxy --help
+EOT
+
 # usage:
 # > make shell
 FROM dev-base AS dev
