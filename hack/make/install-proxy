@@ -6,6 +6,6 @@ rm -rf "$DEST"
 source "${MAKEDIR}/.install"
 
 (
-	DEST="$(dirname $DEST)/binary-proxy"
+	DEST="$(dirname $DEST)/binary"
 	install_binary "${DEST}/docker-proxy"
 )

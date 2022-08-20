@@ -4,7 +4,7 @@ Each script is named after the bundle it creates.
 They should not be called directly - instead, pass it as argument to make.sh, for example:
 
 ```
-./hack/make.sh binary ubuntu
+./hack/make.sh binary
 
 # Or to run all default bundles:
 ./hack/make.sh

@@ -84,7 +84,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR --build-arg CROSS=true -t docker:${GIT_COMMIT} .'
+                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Validate") {
@@ -286,7 +286,7 @@ pipeline {
                                         [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
                                         docker run $rm -t --privileged \
                                           -v "$WORKSPACE/bundles/${TEST_INTEGRATION_DEST}:/go/src/github.com/docker/docker/bundles" \
-                                          -v "$WORKSPACE/bundles/dynbinary-daemon:/go/src/github.com/docker/docker/bundles/dynbinary-daemon" \
+                                          -v "$WORKSPACE/bundles/dynbinary:/go/src/github.com/docker/docker/bundles/dynbinary" \
                                           -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                                           --name "$CONTAINER_NAME" \
                                           -e KEEPBUNDLE=1 \
@@ -756,7 +756,6 @@ pipeline {
                     // ppc64le machines run on Docker 18.06, and buildkit has some
                     // bugs on that version. Build and use buildx instead.
                     environment {
-                        USE_BUILDX      = '1'
                         DOCKER_BUILDKIT = '0'
                     }
 
@@ -875,7 +874,6 @@ pipeline {
                     // ppc64le machines run on Docker 18.06, and buildkit has some
                     // bugs on that version. Build and use buildx instead.
                     environment {
-                        USE_BUILDX      = '1'
                         DOCKER_BUILDKIT = '0'
                     }
 

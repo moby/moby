@@ -4,13 +4,11 @@ set -e
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
 
 (
-	export IAMSTATIC='false'
-	export LDFLAGS_STATIC_DOCKER=''
-	export BUILDFLAGS=("${BUILDFLAGS[@]/netgo /}")        # disable netgo, since we don't need it for a dynamic binary
-	export BUILDFLAGS=("${BUILDFLAGS[@]/osusergo /}")     # ditto for osusergo
-	export BUILDFLAGS=("${BUILDFLAGS[@]/static_build /}") # we're not building a "static" binary here
-
-	GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
-	BINARY_NAME='dockerd'
-	source "${MAKEDIR}/.binary"
+	if [ -n "$DEST" ] && [ -z "$OUTPUT" ]; then
+		OUTPUT="$(dirname "$DEST")/dynbinary"
+		export OUTPUT
+	fi
+	export DOCKER_LINKMODE="dynamic"
+	export PACKAGE=./cmd/dockerd
+	. hack/make/.binary
 )

@@ -3,7 +3,7 @@
 # see test-integration for example usage of this script
 
 base="$ABS_DEST/.."
-export PATH="$base/dynbinary-daemon:$base/binary-daemon:$PATH"
+export PATH="$base/dynbinary:$base/binary:$PATH"
 
 export TEST_CLIENT_BINARY=docker
 

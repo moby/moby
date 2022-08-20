@@ -36,33 +36,7 @@ DEFAULT_BUNDLES=(
 	dynbinary
 	test-integration
 	test-docker-py
-	cross
 )
-
-VERSION=${VERSION:-dev}
-! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
-if [ "$DOCKER_GITCOMMIT" ]; then
-	GITCOMMIT="$DOCKER_GITCOMMIT"
-elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; then
-	GITCOMMIT=$(git rev-parse --short HEAD)
-	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-		GITCOMMIT="$GITCOMMIT-unsupported"
-		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-		echo "# GITCOMMIT = $GITCOMMIT"
-		echo "# The version you are building is listed as unsupported because"
-		echo "# there are some files in the git repository that are in an uncommitted state."
-		echo "# Commit these changes, or add to .gitignore to remove the -unsupported from the version."
-		echo "# Here is the current list:"
-		git status --porcelain --untracked-files=no
-		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-	fi
-else
-	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
-	echo >&2 '  Please either build with the .git directory accessible, or specify the'
-	echo >&2 '  exact (--short) commit hash you are building using DOCKER_GITCOMMIT for'
-	echo >&2 '  future accountability in diagnosing build issues.  Thanks!'
-	exit 1
-fi
 
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
@@ -83,42 +57,20 @@ add_buildtag() {
 	[[ " $DOCKER_BUILDTAGS" == *" $1_"* ]] || DOCKER_BUILDTAGS+=" $1_$2"
 }
 
-if ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
-	DOCKER_BUILDTAGS+=" journald"
+if [ -z "$CGO_ENABLED" ]; then
+	case "$(go env GOOS)/$(go env GOARCH)" in
+		darwin/* | windows/amd64 | linux/amd64 | linux/arm64 | linux/arm | linux/s390x | linux/ppc64le | linux/riscv*)
+			export CGO_ENABLED=1
+			;;
+		*)
+			export CGO_ENABLED=0
+			;;
+	esac
 fi
 
-# test whether "libdevmapper.h" is new enough to support deferred remove
-# functionality. We favour libdm_dlsym_deferred_remove over
-# libdm_no_deferred_remove in dynamic cases because the binary could be shipped
-# with a newer libdevmapper than the one it was built with.
-if
-	command -v gcc &> /dev/null \
-		&& ! (echo -e '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }' | gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null) \
-		;
-then
-	add_buildtag libdm dlsym_deferred_remove
+if [ "$CGO_ENABLED" = "1" ] && [ "$DOCKER_LINKMODE" = "static" ] && [ "$(go env GOOS)" = "linux" ]; then
+	DOCKER_LDFLAGS+=" -extldflags -static"
 fi
-
-# Use these flags when compiling the tests and final binary
-
-IAMSTATIC='true'
-if [ -z "$DOCKER_DEBUG" ]; then
-	LDFLAGS='-w'
-fi
-
-LDFLAGS_STATIC=''
-EXTLDFLAGS_STATIC='-static'
-# ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
-# with options like -race.
-ORIG_BUILDFLAGS=(-tags "netgo osusergo static_build $DOCKER_BUILDTAGS" -installsuffix netgo)
-# see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
-
-BUILDFLAGS=(${BUILDFLAGS} "${ORIG_BUILDFLAGS[@]}")
-
-LDFLAGS_STATIC_DOCKER="
-	$LDFLAGS_STATIC
-	-extldflags \"$EXTLDFLAGS_STATIC\"
-"
 
 if [ "$(uname -s)" = 'FreeBSD' ]; then
 	# Tell cgo the compiler is Clang, not GCC
@@ -127,8 +79,35 @@ if [ "$(uname -s)" = 'FreeBSD' ]; then
 
 	# "-extld clang" is a workaround for
 	# https://code.google.com/p/go/issues/detail?id=6845
-	LDFLAGS="$LDFLAGS -extld clang"
+	DOCKER_LDFLAGS+=" -extld clang"
 fi
+
+if [ "$CGO_ENABLED" = "1" ] && [ "$DOCKER_LINKMODE" = "static" ]; then
+	DOCKER_BUILDTAGS+=" netgo osusergo static_build"
+fi
+
+if [ "$CGO_ENABLED" = "1" ] && [ "$(go env GOOS)" != "windows" ] && [ "$DOCKER_LINKMODE" != "static" ]; then
+	# pkcs11 cannot be compiled statically if CGO is enabled (and glibc is used)
+	DOCKER_BUILDTAGS+=" pkcs11"
+fi
+
+if ${PKG_CONFIG} 'libsystemd' 2> /dev/null; then
+	DOCKER_BUILDTAGS+=" journald"
+fi
+
+if [ "$DOCKER_LINKMODE" != "static" ]; then
+	# test whether "libdevmapper.h" is new enough to support deferred remove
+	# functionality. We favour libdm_dlsym_deferred_remove over
+	# libdm_no_deferred_remove in dynamic cases because the binary could be shipped
+	# with a newer libdevmapper than the one it was built with.
+	if command -v gcc &> /dev/null && ! (echo -e '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }' | gcc -xc - -o /dev/null $(${PKG_CONFIG} --libs devmapper 2> /dev/null) &> /dev/null); then
+		add_buildtag libdm dlsym_deferred_remove
+	fi
+fi
+
+export DOCKER_LDFLAGS
+export DOCKER_BUILDFLAGS=(-tags "${DOCKER_BUILDTAGS}" -installsuffix netgo)
+# see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 
 bundle() {
 	local bundle="$1"

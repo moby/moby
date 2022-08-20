@@ -1,21 +1,79 @@
 variable "APT_MIRROR" {
   default = "deb.debian.org"
 }
+variable "DOCKER_DEBUG" {
+  default = ""
+}
+variable "DOCKER_STRIP" {
+  default = ""
+}
 variable "DOCKER_LINKMODE" {
   default = "static"
 }
-variable "BUNDLES_OUTPUT" {
-  default = "./bundles"
-}
-variable "DOCKER_CROSSPLATFORMS" {
+variable "DOCKER_LDFLAGS" {
   default = ""
+}
+variable "DOCKER_BUILDMODE" {
+  default = ""
+}
+variable "DOCKER_BUILDTAGS" {
+  default = ""
+}
+
+# Docker version such as 17.04.0-dev. Automatically generated through Git ref.
+variable "VERSION" {
+  default = ""
+}
+
+# The platform name, such as "Docker Engine - Community".
+variable "PLATFORM" {
+  default = ""
+}
+
+# The product name, used to set version.ProductName, which is used to set
+# BuildKit's ExportedProduct variable in order to show useful error messages
+# to users when a certain version of the product doesn't support a BuildKit feature.
+variable "PRODUCT" {
+  default = ""
+}
+
+# Sets the version.DefaultProductLicense string, such as "Community Engine".
+# This field can contain a summary of the product license of the daemon if a
+# commercial license has been applied to the daemon.
+variable "DEFAULT_PRODUCT_LICENSE" {
+  default = ""
+}
+
+# The name of the packager (e.g. "Docker, Inc."). This used to set CompanyName
+# in the manifest.
+variable "PACKAGER_NAME" {
+  default = ""
+}
+
+# Defines the output folder
+variable "DESTDIR" {
+  default = ""
+}
+function "bindir" {
+  params = [defaultdir]
+  result = DESTDIR != "" ? DESTDIR : "./bundles/${defaultdir}"
 }
 
 target "_common" {
   args = {
-    BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1
+    BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1 # https://github.com/moby/buildkit/blob/master/frontend/dockerfile/docs/syntax.md#built-in-build-args
     APT_MIRROR = APT_MIRROR
+    DOCKER_DEBUG = DOCKER_DEBUG
+    DOCKER_STRIP = DOCKER_STRIP
     DOCKER_LINKMODE = DOCKER_LINKMODE
+    DOCKER_LDFLAGS = DOCKER_LDFLAGS
+    DOCKER_BUILDMODE = DOCKER_BUILDMODE
+    DOCKER_BUILDTAGS = DOCKER_BUILDTAGS
+    VERSION = VERSION
+    PLATFORM = PLATFORM
+    PRODUCT = PRODUCT
+    DEFAULT_PRODUCT_LICENSE = DEFAULT_PRODUCT_LICENSE
+    PACKAGER_NAME = PACKAGER_NAME
   }
 }
 
@@ -23,22 +81,30 @@ group "default" {
   targets = ["binary"]
 }
 
+target "_platforms" {
+  platforms = [
+    "linux/amd64",
+    "linux/arm/v5",
+    "linux/arm/v6",
+    "linux/arm/v7",
+    "linux/arm64",
+    "linux/ppc64le",
+    "linux/s390x",
+    "windows/amd64",
+    "windows/arm64"
+  ]
+}
+
+#
+# binaries targets build dockerd, docker-proxy and docker-init
+#
+
 target "binary" {
   inherits = ["_common"]
   target = "binary"
-  output = [BUNDLES_OUTPUT]
+  output = [bindir(DOCKER_LINKMODE == "static" ? "binary" : "dynbinary")]
 }
 
-target "dynbinary" {
-  inherits = ["binary"]
-  target = "dynbinary"
-}
-
-target "cross" {
-  inherits = ["binary"]
-  args = {
-    CROSS = "true"
-    DOCKER_CROSSPLATFORMS = DOCKER_CROSSPLATFORMS
-  }
-  target = "cross"
+target "binary-cross" {
+  inherits = ["binary", "_platforms"]
 }

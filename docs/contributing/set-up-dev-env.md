@@ -150,10 +150,10 @@ can take over 15 minutes to complete.
    Removing bundles/
 
    ---> Making bundle: binary (in bundles/binary)
-   Building: bundles/binary-daemon/dockerd-17.06.0-dev
-   Created binary: bundles/binary-daemon/dockerd-17.06.0-dev
-   Copying nested executables into bundles/binary-daemon
-
+   Building static dockerd (linux/amd64)...
+   Created binary: bundles/binary/dockerd
+   Building static docker-proxy (linux/amd64)...
+   Created binary: bundles/binary/docker-proxy
    ```
 
 7. Run `make install`, which copies the binary to the container's

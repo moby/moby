@@ -15,17 +15,22 @@ on:
   pull_request:
 
 env:
-  BUNDLES_OUTPUT: ./bundles
+  PLATFORM: "Moby Engine"
+  PRODUCT: "Moby"
+  DEFAULT_PRODUCT_LICENSE: "Moby"
+  PACKAGER_NAME: "Moby"
 
 jobs:
-  build:
+  binary:
     runs-on: ubuntu-20.04
+    env:
+      DESTDIR: ./build
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - binary
-          - dynbinary
+        linkmode:
+          - static
+          - dynamic
     steps:
       -
         name: Checkout
@@ -39,34 +44,57 @@ jobs:
         name: Build
         uses: docker/bake-action@v1
         with:
-          targets: ${{ matrix.target }}
+          targets: binary
           set: |
-            *.cache-from=type=gha,scope=build-${{ matrix.target }}
-            *.cache-to=type=gha,scope=build-${{ matrix.target }}
+            *.cache-from=type=gha,scope=build-${{ matrix.linkmode }}
+            *.cache-to=type=gha,scope=build-${{ matrix.linkmode }},mode=max
+        env:
+          DOCKER_LINKMODE: ${{ matrix.linkmode }}
+      -
+        name: List artifacts
+        run: |
+          tree -nh ${{ env.DESTDIR }}
+      -
+        name: Check artifacts
+        run: |
+          find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
       -
         name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.target }}
-          path: ${{ env.BUNDLES_OUTPUT }}
+          name: binary-${{ matrix.linkmode }}
+          path: ${{ env.DESTDIR }}
           if-no-files-found: error
           retention-days: 7
 
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Create matrix
+        id: platforms
+        run: |
+          echo ::set-output name=matrix::$(docker buildx bake binary-cross --print | jq -cr '.target."binary-cross".platforms')
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.platforms.outputs.matrix }}
+
   cross:
     runs-on: ubuntu-20.04
+    needs:
+      - prepare
+    env:
+      DESTDIR: ./build
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm/v5
-          - linux/arm/v6
-          - linux/arm/v7
-          - linux/arm64
-          - linux/ppc64le
-          - linux/s390x
-          - windows/amd64
-          - windows/arm64
+        platform: ${{ fromJson(needs.prepare.outputs.matrix) }}
     steps:
       -
         name: Checkout
@@ -79,30 +107,40 @@ jobs:
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
       -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
       -
         name: Build
         uses: docker/bake-action@v1
         with:
-          targets: cross
+          targets: binary
           set: |
+            *.platform=${{ matrix.platform }}
             *.cache-from=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
             *.cache-to=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
-        env:
-          DOCKER_CROSSPLATFORMS: ${{ matrix.platform }}
+      -
+        name: List artifacts
+        run: |
+          tree -nh ${{ env.DESTDIR }}
+      -
+        name: Check artifacts
+        run: |
+          find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
       -
         name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: cross-${{ env.PLATFORM_PAIR }}
-          path: ${{ env.BUNDLES_OUTPUT }}
+          path: ${{ env.DESTDIR }}
           if-no-files-found: error
           retention-days: 7
 
   test-buildkit:
     needs:
-      - build
+      - binary
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -147,7 +185,7 @@ jobs:
         name: Download binary artifacts
         uses: actions/download-artifact@v3
         with:
-          name: binary
+          name: binary-static
           path: ./buildkit/build/moby/
       -
         name: Update daemon.json
@@ -163,7 +201,7 @@ jobs:
         env:
           CONTEXT: "."
           TEST_DOCKERD: "1"
-          TEST_DOCKERD_BINARY: "./build/moby/binary-daemon/dockerd"
+          TEST_DOCKERD_BINARY: "./build/moby/dockerd"
           TESTPKGS: "${{ matrix.pkg }}"
           TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
           SKIP_INTEGRATION_TESTS: "${{ matrix.skip-integration-tests }}"
