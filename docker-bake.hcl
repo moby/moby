@@ -108,3 +108,17 @@ target "binary" {
 target "binary-cross" {
   inherits = ["binary", "_platforms"]
 }
+
+#
+# all targets build binaries and extra tools as well (containerd, runc, ...)
+#
+
+target "all" {
+  inherits = ["_common"]
+  target = "all"
+  output = [bindir("all")]
+}
+
+target "all-cross" {
+  inherits = ["all", "_platforms"]
+}

@@ -116,7 +116,7 @@ jobs:
         name: Build
         uses: docker/bake-action@v1
         with:
-          targets: binary
+          targets: all
           set: |
             *.platform=${{ matrix.platform }}
             *.cache-from=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
