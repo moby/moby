@@ -24,17 +24,10 @@ import (
 func (s *DockerAPISuite) TestBuildAPIDockerFileRemote(c *testing.T) {
 	testRequires(c, NotUserNamespace)
 
-	var testD string
-	if testEnv.OSType == "windows" {
-		testD = `FROM busybox
-RUN find / -name ba*
-RUN find /tmp/`
-	} else {
-		// -xdev is required because sysfs can cause EPERM
-		testD = `FROM busybox
-RUN find / -xdev -name ba*
-RUN find /tmp/`
-	}
+	testD := `FROM busybox
+RUN stat /ba* > /dev/null 2>&1 && echo "root KO: original dockerfile name should not be present" || echo "root OK"
+RUN stat /tmp/ba* > /dev/null 2>&1 && echo "tmp KO: original dockerfile name should not be present"  || echo "tmp OK"
+`
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{"testD": testD}))
 	defer server.Close()
 
@@ -48,8 +41,11 @@ RUN find /tmp/`
 	// Make sure Dockerfile exists.
 	// Make sure 'baz' doesn't exist ANYWHERE despite being mentioned in the URL
 	out := string(buf)
-	assert.Assert(c, is.Contains(out, "RUN find /tmp"))
-	assert.Assert(c, !strings.Contains(out, "baz"))
+	assert.Assert(c, is.Contains(out, "RUN stat /ba"))
+	assert.Assert(c, is.Contains(out, "root OK"))
+	assert.Assert(c, is.Contains(out, "RUN stat /tmp/ba"))
+	assert.Assert(c, is.Contains(out, "tmp OK"))
+	assert.Assert(c, !strings.Contains(out, "baz"), out)
 }
 
 func (s *DockerAPISuite) TestBuildAPIRemoteTarballContext(c *testing.T) {
