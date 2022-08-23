@@ -472,9 +472,9 @@ jobs:
         run: |
           Get-WinEvent -ea SilentlyContinue `
             -FilterHashtable @{ProviderName= "docker"; LogName = "application"} |
-              Select-Object -Property TimeCreated, @{N='Detailed Message'; E={$_.Message}} |
               Sort-Object @{Expression="TimeCreated";Descending=$false} |
-              Select-Object -ExpandProperty 'Detailed Message' | Tee-Object -file ".\bundles\daemon.log"
+              ForEach-Object {"$($_.TimeCreated.ToUniversalTime().ToString("o")) [$($_.LevelDisplayName)] $($_.Message)"} |
+              Tee-Object -file ".\bundles\daemon.log"
       -
         name: Upload reports
         if: always()
