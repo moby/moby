@@ -23,9 +23,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Seconds to wait after sending TERM before trying KILL
-const termProcessTimeout = 10 * time.Second
-
 func (daemon *Daemon) registerExecCommand(container *container.Container, config *exec.Config) {
 	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
 	container.ExecCommands.Add(config.ID, config)
@@ -272,7 +269,10 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		CloseStdin: true,
 	}
 	ec.StreamConfig.AttachStreams(&attachConfig)
-	attachErr := ec.StreamConfig.CopyStreams(ctx, &attachConfig)
+	// using context.Background() so that attachErr does not race ctx.Done().
+	copyCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	attachErr := ec.StreamConfig.CopyStreams(copyCtx, &attachConfig)
 
 	// Synchronize with libcontainerd event loop
 	ec.Lock()
@@ -292,18 +292,15 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 
 	select {
 	case <-ctx.Done():
-		logrus.Debugf("Sending TERM signal to process %v in container %v", name, c.ID)
-		daemon.containerd.SignalProcess(ctx, c.ID, name, signal.SignalMap["TERM"])
-
-		timeout := time.NewTimer(termProcessTimeout)
-		defer timeout.Stop()
-
-		select {
-		case <-timeout.C:
-			logrus.Infof("Container %v, process %v failed to exit within %v of signal TERM - using the force", c.ID, name, termProcessTimeout)
-			daemon.containerd.SignalProcess(ctx, c.ID, name, signal.SignalMap["KILL"])
-		case <-attachErr:
-			// TERM signal worked
+		log := logrus.
+			WithField("container", c.ID).
+			WithField("exec", name)
+		log.Debug("Sending KILL signal to container process")
+		sigCtx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancelFunc()
+		err := daemon.containerd.SignalProcess(sigCtx, c.ID, name, signal.SignalMap["KILL"])
+		if err != nil {
+			log.WithError(err).Error("Could not send KILL signal to container process")
 		}
 		return ctx.Err()
 	case err := <-attachErr:

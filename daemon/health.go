@@ -133,8 +133,8 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	case <-tm.C:
 		cancelProbe()
 		logrus.WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
-		// Wait for probe to exit (it might take a while to respond to the TERM
-		// signal and we don't want dying probes to pile up).
+		// Wait for probe to exit (it might take some time to call containerd to kill
+		// the process and we don't want dying probes to pile up).
 		<-execErr
 		return &types.HealthcheckResult{
 			ExitCode: -1,
