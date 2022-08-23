@@ -2,12 +2,17 @@ package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
+	"strconv"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/sirupsen/logrus"
 )
@@ -100,7 +105,30 @@ func Push(ctx context.Context, ref reference.Named, config *ImagePushConfig) err
 // is finished. This allows the caller to make sure the goroutine finishes
 // before it releases any resources connected with the reader that was
 // passed in.
-func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
+func compress(ctx context.Context, in io.Reader) (io.ReadCloser, chan struct{}) {
+	var usePigz bool
+	noPigzEnv := os.Getenv("MOBY_DISABLE_PIGZ")
+	if noPigzEnv == "" {
+		usePigz = true
+	} else {
+		noPigz, err := strconv.ParseBool(noPigzEnv)
+		if err != nil {
+			logrus.WithError(err).Warn("invalid value in MOBY_DISABLE_PIGZ env var")
+		}
+		usePigz = !noPigz
+	}
+
+	if usePigz {
+		pigzPath, err := exec.LookPath("pigz")
+		if err != nil {
+			logrus.Debugf("pigz binary not found, falling back to go gzip library")
+		} else {
+			return pigzCompress(ctx, in, pigzPath)
+		}
+	} else {
+		logrus.Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
+	}
+
 	compressionDone := make(chan struct{})
 
 	pipeReader, pipeWriter := io.Pipe()
@@ -125,4 +153,37 @@ func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
 	}()
 
 	return pipeReader, compressionDone
+}
+
+func pigzCompress(ctx context.Context, in io.Reader, pigzPath string) (io.ReadCloser, chan struct{}) {
+	cmd := exec.CommandContext(ctx, pigzPath, "-c")
+
+	cmd.Stdin = in
+	pipeR, pipeW := io.Pipe()
+	cmd.Stdout = pipeW
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+
+	done := make(chan struct{})
+
+	if err := cmd.Start(); err != nil {
+		pipeW.CloseWithError(fmt.Errorf("could not get compression stream: %v", err))
+		close(done)
+		return pipeR, done
+	}
+
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
+		} else {
+			pipeW.Close()
+		}
+		close(done)
+	}()
+
+	return ioutils.NewReadCloserWrapper(pipeR, func() error {
+		err := pipeR.Close()
+		<-done
+		return err
+	}), done
 }
