@@ -58,29 +58,12 @@ func (e objectNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
 }
 
-// IsErrUnauthorized returns true if the error is caused
-// when a remote registry authentication fails
-//
-// Deprecated: use errdefs.IsUnauthorized
-func IsErrUnauthorized(err error) bool {
-	return errdefs.IsUnauthorized(err)
-}
-
 type pluginPermissionDenied struct {
 	name string
 }
 
 func (e pluginPermissionDenied) Error() string {
 	return "Permission denied while installing plugin " + e.name
-}
-
-// IsErrNotImplemented returns true if the error is a NotImplemented error.
-// This is returned by the API when a requested feature has not been
-// implemented.
-//
-// Deprecated: use errdefs.IsNotImplemented
-func IsErrNotImplemented(err error) bool {
-	return errdefs.IsNotImplemented(err)
 }
 
 // NewVersionError returns an error if the APIVersion required
