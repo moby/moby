@@ -66,8 +66,8 @@ func TestTailFiles(t *testing.T) {
 			started := make(chan struct{})
 			fwd := newForwarder(config)
 			go func() {
-				close(started)
 				tailFiles(files, watcher, dec, tailReader, config.Tail, fwd)
+				close(started)
 			}()
 			<-started
 		})

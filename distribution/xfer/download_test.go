@@ -379,7 +379,7 @@ func TestMaxDownloadAttempts(t *testing.T) {
 			name:                "max-attempts=5, fail at 6th attempt",
 			simulateRetries:     6,
 			maxDownloadAttempts: 5,
-			expectedErr:         "simulating download attempt 5/6",
+			expectedErr:         "simulating download attempt 6/6",
 		},
 		{
 			name:                "max-attempts=0, fail after 1 attempt",
@@ -389,6 +389,7 @@ func TestMaxDownloadAttempts(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
