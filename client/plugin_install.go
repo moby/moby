@@ -107,7 +107,7 @@ func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values,
 			return nil, err
 		}
 		if !accept {
-			return nil, pluginPermissionDenied{options.RemoteRef}
+			return nil, errors.Errorf("permission denied while installing plugin %s", options.RemoteRef)
 		}
 	}
 	return privileges, nil

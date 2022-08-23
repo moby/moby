@@ -58,14 +58,6 @@ func (e objectNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
 }
 
-type pluginPermissionDenied struct {
-	name string
-}
-
-func (e pluginPermissionDenied) Error() string {
-	return "Permission denied while installing plugin " + e.name
-}
-
 // NewVersionError returns an error if the APIVersion required
 // if less than the current supported version
 func (cli *Client) NewVersionError(APIrequired, feature string) error {
