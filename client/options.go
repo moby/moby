@@ -44,13 +44,6 @@ func FromEnv(c *Client) error {
 	return nil
 }
 
-// WithDialer applies the dialer.DialContext to the client transport. This can be
-// used to set the Timeout and KeepAlive settings of the client.
-// Deprecated: use WithDialContext
-func WithDialer(dialer *net.Dialer) Opt {
-	return WithDialContext(dialer.DialContext)
-}
-
 // WithDialContext applies the dialer to the client transport. This can be
 // used to set the Timeout and KeepAlive settings of the client.
 func WithDialContext(dialContext func(ctx context.Context, network, addr string) (net.Conn, error)) Opt {
