@@ -29,7 +29,6 @@ func showProgress(ctx context.Context, ongoing *jobs, w io.Writer, updateFunc up
 		out    = streamformatter.NewJSONProgressOutput(w, false)
 		ticker = time.NewTicker(100 * time.Millisecond)
 		start  = time.Now()
-		done   bool
 	)
 
 	for _, j := range ongoing.Jobs() {
@@ -54,12 +53,9 @@ func showProgress(ctx context.Context, ongoing *jobs, w io.Writer, updateFunc up
 					logrus.WithError(err).Error("Updating progress failed")
 					return
 				}
-
-				if done {
-					return
-				}
 			case <-ctx.Done():
-				done = true
+				updateFunc(ctx, ongoing, out, start)
+				return
 			}
 		}
 	}()
