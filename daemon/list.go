@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
@@ -317,7 +318,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ancestor, nil)
+			img, err := daemon.imageService.GetImage(ancestor, imagetypes.GetImageOpts{})
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -581,7 +582,7 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, filter *listContext) (
 	c := s.Container
 	tmpImage := s.Image // keep the original ref if still valid (hasn't changed)
 	if tmpImage != s.ImageID {
-		img, err := daemon.imageService.GetImage(tmpImage, nil)
+		img, err := daemon.imageService.GetImage(tmpImage, imagetypes.GetImageOpts{})
 		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}

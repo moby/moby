@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
@@ -148,9 +149,9 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
+func (i *ImageService) GetImage(refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
 	defer func() {
-		if retErr != nil || retImg == nil || platform == nil {
+		if retErr != nil || retImg == nil || options.Platform == nil {
 			return
 		}
 
@@ -159,7 +160,7 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 			Architecture: retImg.Architecture,
 			Variant:      retImg.Variant,
 		}
-		p := *platform
+		p := *options.Platform
 		// Note that `platforms.Only` will fuzzy match this for us
 		// For example: an armv6 image will run just fine an an armv7 CPU, without emulation or anything.
 		if OnlyPlatformWithFallback(p).Match(imgPlat) {

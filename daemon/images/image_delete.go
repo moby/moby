@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -63,7 +64,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	img, err := i.GetImage(imageRef, nil)
+	img, err := i.GetImage(imageRef, imagetypes.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}
