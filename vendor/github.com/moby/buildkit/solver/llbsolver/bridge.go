@@ -3,7 +3,6 @@ package llbsolver
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -290,7 +289,7 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 		if err != nil {
 			select {
 			case <-ctx.Done():
-				if strings.Contains(err.Error(), context.Canceled.Error()) {
+				if errdefs.IsCanceled(ctx, err) {
 					return v, err
 				}
 			default:
