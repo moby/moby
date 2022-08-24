@@ -41,7 +41,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		return nil, err
 	}
 
-	snapshotter := i.client.SnapshotService(containerd.DefaultSnapshotter)
+	snapshotter := i.client.SnapshotService(i.snapshotter)
 	sizeCache := make(map[digest.Digest]int64)
 	snapshotSizeFn := func(d digest.Digest) (int64, error) {
 		if s, ok := sizeCache[d]; ok {

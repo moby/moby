@@ -53,7 +53,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 	for _, img := range imgs {
 		platformImg := containerd.NewImageWithPlatform(i.client, img, platform)
 
-		unpacked, err := platformImg.IsUnpacked(ctx, containerd.DefaultSnapshotter)
+		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
 		if err != nil {
 			// TODO(thaJeztah): remove this log or change to debug once we can; see https://github.com/moby/moby/pull/43822#discussion_r937502405
 			logrus.WithError(err).WithField("image", img.Name).Debug("failed to check if image is unpacked")
@@ -61,7 +61,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 
 		if !unpacked {
-			err := platformImg.Unpack(ctx, containerd.DefaultSnapshotter)
+			err := platformImg.Unpack(ctx, i.snapshotter)
 			if err != nil {
 				// TODO(thaJeztah): remove this log or change to debug once we can; see https://github.com/moby/moby/pull/43822#discussion_r937502405
 				logrus.WithError(err).WithField("image", img.Name).Warn("failed to unpack image")
