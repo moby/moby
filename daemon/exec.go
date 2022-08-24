@@ -288,7 +288,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	close(ec.Started)
 	if err != nil {
 		defer ec.Unlock()
-		return translateContainerdStartErr(ec.SetExitCode, err)
+		return setExitCodeFromError(ec.SetExitCode, err)
 	}
 	ec.Unlock()
 

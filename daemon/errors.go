@@ -132,7 +132,7 @@ func (e startInvalidConfigError) Error() string {
 
 func (e startInvalidConfigError) InvalidParameter() {} // Is this right???
 
-// exitStatus is the exit-code as set by translateContainerdStartErr
+// exitStatus is the exit-code as set by setExitCodeFromError
 type exitStatus = int
 
 const (
@@ -141,11 +141,11 @@ const (
 	exitUnknown     exitStatus = 128 // unknown error
 )
 
-// translateContainerdStartErr converts the error returned by containerd
+// setExitCodeFromError converts the error returned by containerd
 // when starting a container, and applies the corresponding exitStatus to the
 // container. It returns an errdefs error (either errdefs.ErrInvalidParameter
 // or errdefs.ErrUnknown).
-func translateContainerdStartErr(setExitCode func(exitStatus), err error) error {
+func setExitCodeFromError(setExitCode func(exitStatus), err error) error {
 	if err == nil {
 		return nil
 	}
