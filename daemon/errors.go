@@ -146,33 +146,37 @@ const (
 // container. It returns an errdefs error (either errdefs.ErrInvalidParameter
 // or errdefs.ErrUnknown).
 func translateContainerdStartErr(setExitCode func(exitStatus), err error) error {
+	if err == nil {
+		return nil
+	}
 	errDesc := status.Convert(err).Message()
 	contains := func(s1, s2 string) bool {
 		return strings.Contains(strings.ToLower(s1), s2)
 	}
-	var retErr = errdefs.Unknown(errors.New(errDesc))
-	// if we receive an internal error from the initial start of a container then lets
-	// return it instead of entering the restart loop
-	// set to 127 for container cmd not found/does not exist.
-	if isInvalidCommand(errDesc) {
-		setExitCode(exitCmdNotFound)
-		retErr = startInvalidConfigError(errDesc)
-	}
+
 	// set to 126 for container cmd can't be invoked errors
 	if contains(errDesc, syscall.EACCES.Error()) {
 		setExitCode(exitEaccess)
-		retErr = startInvalidConfigError(errDesc)
+		return startInvalidConfigError(errDesc)
 	}
 
 	// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
 	if contains(errDesc, syscall.ENOTDIR.Error()) {
 		errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
 		setExitCode(exitCmdNotFound)
-		retErr = startInvalidConfigError(errDesc)
+		return startInvalidConfigError(errDesc)
+	}
+
+	// if we receive an internal error from the initial start of a container then lets
+	// return it instead of entering the restart loop
+	// set to 127 for container cmd not found/does not exist.
+	if isInvalidCommand(errDesc) {
+		setExitCode(exitCmdNotFound)
+		return startInvalidConfigError(errDesc)
 	}
 
 	// TODO: it would be nice to get some better errors from containerd so we can return better errors here
-	return retErr
+	return errdefs.Unknown(errors.New(errDesc))
 }
 
 // isInvalidCommand tries to detect if the reason the container failed to start
