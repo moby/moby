@@ -184,6 +184,11 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 
 	contJSONBase.GraphDriver.Name = container.Driver
 
+	if daemon.UsesSnapshotter() {
+		// Additional information only applies to graphDrivers, so we're done.
+		return contJSONBase, nil
+	}
+
 	if container.RWLayer == nil {
 		if container.Dead {
 			return contJSONBase, nil
@@ -192,17 +197,16 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	}
 
 	graphDriverData, err := container.RWLayer.Metadata()
-	// If container is marked as Dead, the container's graphdriver metadata
-	// could have been removed, it will cause error if we try to get the metadata,
-	// we can ignore the error if the container is dead.
 	if err != nil {
-		if !container.Dead {
-			return nil, errdefs.System(err)
+		if container.Dead {
+			// container is marked as Dead, and its graphDriver metadata may
+			// have been removed; we can ignore errors.
+			return contJSONBase, nil
 		}
-	} else {
-		contJSONBase.GraphDriver.Data = graphDriverData
+		return nil, errdefs.System(err)
 	}
 
+	contJSONBase.GraphDriver.Data = graphDriverData
 	return contJSONBase, nil
 }
 
