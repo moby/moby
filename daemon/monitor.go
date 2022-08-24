@@ -163,6 +163,13 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
 			defer execConfig.Unlock()
+
+			// Remove the exec command from the container's store only and not the
+			// daemon's store so that the exec command can be inspected. Remove it
+			// before mutating execConfig to maintain the invariant that
+			// c.ExecCommands only contain execs in the Running state.
+			c.ExecCommands.Delete(execConfig.ID)
+
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
 
@@ -173,10 +180,6 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			if err := execConfig.CloseStreams(); err != nil {
 				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
 			}
-
-			// remove the exec command from the container's store only and not the
-			// daemon's store so that the exec command can be inspected.
-			c.ExecCommands.Delete(execConfig.ID)
 
 			exitCode = ec
 

@@ -183,6 +183,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	defer func() {
 		if err != nil {
 			ec.Lock()
+			ec.Container.ExecCommands.Delete(ec.ID)
 			ec.Running = false
 			exitCode := 126
 			ec.ExitCode = &exitCode
@@ -190,7 +191,6 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 				logrus.Errorf("failed to cleanup exec %s streams: %s", ec.Container.ID, err)
 			}
 			ec.Unlock()
-			ec.Container.ExecCommands.Delete(ec.ID)
 		}
 	}()
 
@@ -287,7 +287,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	// close the chan to notify readiness
 	close(ec.Started)
 	if err != nil {
-		ec.Unlock()
+		defer ec.Unlock()
 		return translateContainerdStartErr(ec.Entrypoint, ec.SetExitCode, err)
 	}
 	ec.Unlock()

@@ -149,14 +149,23 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	if err != nil {
 		return nil, err
 	}
-	if info.ExitCode == nil {
-		return nil, fmt.Errorf("healthcheck for container %s has no exit code", cntr.ID)
+	exitCode, err := func() (int, error) {
+		info.Lock()
+		defer info.Unlock()
+		if info.ExitCode == nil {
+			info.Unlock()
+			return 0, fmt.Errorf("healthcheck for container %s has no exit code", cntr.ID)
+		}
+		return *info.ExitCode, nil
+	}()
+	if err != nil {
+		return nil, err
 	}
 	// Note: Go's json package will handle invalid UTF-8 for us
 	out := output.String()
 	return &types.HealthcheckResult{
 		End:      time.Now(),
-		ExitCode: *info.ExitCode,
+		ExitCode: exitCode,
 		Output:   out,
 	}, nil
 }

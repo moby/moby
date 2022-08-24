@@ -218,6 +218,8 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 		return nil, errExecNotFound(id)
 	}
 
+	e.Lock()
+	defer e.Unlock()
 	pc := inspectExecProcessConfig(e)
 	var pid int
 	if e.Process != nil {
