@@ -154,10 +154,7 @@ func translateContainerdStartErr(setExitCode func(exitStatus), err error) error 
 	// if we receive an internal error from the initial start of a container then lets
 	// return it instead of entering the restart loop
 	// set to 127 for container cmd not found/does not exist.
-	if contains(errDesc, "executable file not found") ||
-		contains(errDesc, "no such file or directory") ||
-		contains(errDesc, "system cannot find the file specified") ||
-		contains(errDesc, "failed to run runc create/exec call") {
+	if isInvalidCommand(errDesc) {
 		setExitCode(exitCmdNotFound)
 		retErr = startInvalidConfigError(errDesc)
 	}
@@ -176,4 +173,24 @@ func translateContainerdStartErr(setExitCode func(exitStatus), err error) error 
 
 	// TODO: it would be nice to get some better errors from containerd so we can return better errors here
 	return retErr
+}
+
+// isInvalidCommand tries to detect if the reason the container failed to start
+// was due to an invalid command for the container (command not found, or not
+// a valid executable).
+func isInvalidCommand(errMessage string) bool {
+	errMessage = strings.ToLower(errMessage)
+	errMessages := []string{
+		"executable file not found",
+		"no such file or directory",
+		"system cannot find the file specified",
+		"failed to run runc create/exec call",
+	}
+
+	for _, msg := range errMessages {
+		if strings.Contains(errMessage, msg) {
+			return true
+		}
+	}
+	return false
 }
