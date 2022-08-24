@@ -7997,25 +7997,50 @@ paths:
         - name: "filters"
           in: "query"
           description: |
-            A JSON encoded value of the filters (a `map[string][]string`) to
-            process on the images list.
+            The criteria which images must match to be included in the list,
+            encoded as a JSON object of the form
+            ```json
+            {
+              "predicate1": {
+                "value1": true,
+                "value2": true,
+                ...
+              },
+              "predicate2": {
+                "value3": true,
+                "value4": true,
+                ...
+              },
+              ...
+            }
+            ```
+
+            For example:
+
+            ```json
+            {
+              "before": {"alpine:3.16": true},
+              "dangling": {"true": true},
+              "label": {"foo": true, "bar=baz": true},
+              "reference": {"alpine:3.*": true, "debian": true, "ubuntu@sha256:*7fff": true,
+            }
+            ```
 
             Available filters:
 
-            - `before`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
-            - `dangling=true`
-            - `label=key` or `label="key=value"` of an image label
-            - `reference`=(`<image-name>[:<tag>]`)
-            - `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
+            predicate   | values                                            | description
+            ------------|---------------------------------------------------|----------------------------------------------------------------
+            `before`    | `<repo>[:<tag>]`, `<image id>` or `<repo@digest>` | List only images which were created before the oldest of the referenced images
+            `since`     | `<repo>[:<tag>]`, `<image id>` or `<repo@digest>` | List only images which were created after the newest of the referenced images
+            `dangling`  | `true` or `false`                                 | List only dangling images (images with no children and no tags) or exclude any dangling images, respectively
+            `label`     | `<key>` or `<key>=<value>`                        | List only images which have all of the given labels
+            `reference` | `<repo>[:<tag>]` or `<repo@digest>`               | List images which have any reference that matches any of the given patterns. [Go `path.Match`](https://pkg.go.dev/path#Match) syntax is supported.
+
           type: "string"
+          format: "json"
         - name: "shared-size"
           in: "query"
           description: "Compute and show shared size as a `SharedSize` field on each image."
-          type: "boolean"
-          default: false
-        - name: "digests"
-          in: "query"
-          description: "Show digest information as a `RepoDigests` field on each image."
           type: "boolean"
           default: false
       tags: ["Image"]

@@ -44,10 +44,10 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	images, err := client.ImageList(ctx, options)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal(len(images[0].RepoTags), 3))
-	for _, repoTag := range images[0].RepoTags {
-		if repoTag != repoTags[0] && repoTag != repoTags[1] && repoTag != repoTags[2] {
-			t.Errorf("list images doesn't match any repoTag we expected, repoTag: %s", repoTag)
-		}
+	for _, img := range images {
+		t.Logf("Image ID = %v, RepoTags = %+v", img.ID, img.RepoTags)
+	}
+	for _, tag := range filter.Get("reference") {
+		assert.Check(t, is.Contains(images[0].RepoTags, tag))
 	}
 }
