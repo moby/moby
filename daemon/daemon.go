@@ -979,6 +979,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if d.UsesSnapshotter() {
+		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
+		if driverName == "" {
+			driverName = containerd.DefaultSnapshotter
+		}
+
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
 		if err := configureKernelSecuritySupport(config, driverName); err != nil {
