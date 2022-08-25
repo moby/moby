@@ -52,6 +52,7 @@ type bridgeClient struct {
 	workers       worker.Infos
 	workerRefByID map[string]*worker.WorkerRef
 	buildOpts     client.BuildOpts
+	ctrs          []client.Container
 }
 
 func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
@@ -212,6 +213,10 @@ func (c *bridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, err
 }
 
 func (c *bridgeClient) discard(err error) {
+	for _, ctr := range c.ctrs {
+		ctr.Release(context.TODO())
+	}
+
 	for id, workerRef := range c.workerRefByID {
 		workerRef.ImmutableRef.Release(context.TODO())
 		delete(c.workerRefByID, id)
@@ -300,6 +305,7 @@ func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 	if err != nil {
 		return nil, err
 	}
+	c.ctrs = append(c.ctrs, ctr)
 	return ctr, nil
 }
 
