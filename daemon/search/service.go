@@ -27,12 +27,12 @@ type Service struct {
 
 // NewService initializes a new Service  to search registries for images.
 func NewService(opts registrypkg.SearchServiceOptions) (*Service, error) {
-	registrySearch, err := registrypkg.NewSearchService(opts)
+	rs, err := registrypkg.NewSearchService(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Service{registrySearch: registrySearch}, nil
+	return &Service{registrySearch: rs}, nil
 }
 
 // SearchImages queries the registry for images matching the given term and
