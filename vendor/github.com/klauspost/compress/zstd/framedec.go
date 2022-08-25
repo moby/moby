@@ -106,7 +106,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 		}
 		n := uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 		println("Skipping frame with", n, "bytes.")
-		err = br.skipN(int(n))
+		err = br.skipN(int64(n))
 		if err != nil {
 			if debugDecoder {
 				println("Reading discarded frame", err)
@@ -231,20 +231,27 @@ func (d *frameDec) reset(br byteBuffer) error {
 		d.crc.Reset()
 	}
 
+	if d.WindowSize > d.o.maxWindowSize {
+		if debugDecoder {
+			printf("window size %d > max %d\n", d.WindowSize, d.o.maxWindowSize)
+		}
+		return ErrWindowSizeExceeded
+	}
+
 	if d.WindowSize == 0 && d.SingleSegment {
 		// We may not need window in this case.
 		d.WindowSize = d.FrameContentSize
 		if d.WindowSize < MinWindowSize {
 			d.WindowSize = MinWindowSize
 		}
+		if d.WindowSize > d.o.maxDecodedSize {
+			if debugDecoder {
+				printf("window size %d > max %d\n", d.WindowSize, d.o.maxWindowSize)
+			}
+			return ErrDecoderSizeExceeded
+		}
 	}
 
-	if d.WindowSize > uint64(d.o.maxWindowSize) {
-		if debugDecoder {
-			printf("window size %d > max %d\n", d.WindowSize, d.o.maxWindowSize)
-		}
-		return ErrWindowSizeExceeded
-	}
 	// The minimum Window_Size is 1 KB.
 	if d.WindowSize < MinWindowSize {
 		if debugDecoder {
@@ -253,10 +260,11 @@ func (d *frameDec) reset(br byteBuffer) error {
 		return ErrWindowSizeTooSmall
 	}
 	d.history.windowSize = int(d.WindowSize)
-	if d.o.lowMem && d.history.windowSize < maxBlockSize {
+	if !d.o.lowMem || d.history.windowSize < maxBlockSize {
+		// Alloc 2x window size if not low-mem, or very small window size.
 		d.history.allocFrameBuffer = d.history.windowSize * 2
-		// TODO: Maybe use FrameContent size
 	} else {
+		// Alloc with one additional block
 		d.history.allocFrameBuffer = d.history.windowSize + maxBlockSize
 	}
 
@@ -290,13 +298,6 @@ func (d *frameDec) checkCRC() error {
 	if !d.HasCheckSum {
 		return nil
 	}
-	var tmp [4]byte
-	got := d.crc.Sum64()
-	// Flip to match file order.
-	tmp[0] = byte(got >> 0)
-	tmp[1] = byte(got >> 8)
-	tmp[2] = byte(got >> 16)
-	tmp[3] = byte(got >> 24)
 
 	// We can overwrite upper tmp now
 	want, err := d.rawInput.readSmall(4)
@@ -305,7 +306,19 @@ func (d *frameDec) checkCRC() error {
 		return err
 	}
 
-	if !bytes.Equal(tmp[:], want) && !ignoreCRC {
+	if d.o.ignoreChecksum {
+		return nil
+	}
+
+	var tmp [4]byte
+	got := d.crc.Sum64()
+	// Flip to match file order.
+	tmp[0] = byte(got >> 0)
+	tmp[1] = byte(got >> 8)
+	tmp[2] = byte(got >> 16)
+	tmp[3] = byte(got >> 24)
+
+	if !bytes.Equal(tmp[:], want) {
 		if debugDecoder {
 			println("CRC Check Failed:", tmp[:], "!=", want)
 		}
@@ -314,6 +327,19 @@ func (d *frameDec) checkCRC() error {
 	if debugDecoder {
 		println("CRC ok", tmp[:])
 	}
+	return nil
+}
+
+// consumeCRC reads the checksum data if the frame has one.
+func (d *frameDec) consumeCRC() error {
+	if d.HasCheckSum {
+		_, err := d.rawInput.readSmall(4)
+		if err != nil {
+			println("CRC missing?", err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -326,6 +352,19 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) {
 	d.history.ignoreBuffer = len(dst)
 	// Store input length, so we only check new data.
 	crcStart := len(dst)
+	d.history.decoders.maxSyncLen = 0
+	if d.FrameContentSize != fcsUnknown {
+		d.history.decoders.maxSyncLen = d.FrameContentSize + uint64(len(dst))
+		if d.history.decoders.maxSyncLen > d.o.maxDecodedSize {
+			return dst, ErrDecoderSizeExceeded
+		}
+		if uint64(cap(dst)) < d.history.decoders.maxSyncLen {
+			// Alloc for output
+			dst2 := make([]byte, len(dst), d.history.decoders.maxSyncLen+compressedBlockOverAlloc)
+			copy(dst2, dst)
+			dst = dst2
+		}
+	}
 	var err error
 	for {
 		err = dec.reset(d.rawInput, d.WindowSize)
@@ -360,13 +399,17 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) {
 		if d.FrameContentSize != fcsUnknown && uint64(len(d.history.b)-crcStart) != d.FrameContentSize {
 			err = ErrFrameSizeMismatch
 		} else if d.HasCheckSum {
-			var n int
-			n, err = d.crc.Write(dst[crcStart:])
-			if err == nil {
-				if n != len(dst)-crcStart {
-					err = io.ErrShortWrite
-				} else {
-					err = d.checkCRC()
+			if d.o.ignoreChecksum {
+				err = d.consumeCRC()
+			} else {
+				var n int
+				n, err = d.crc.Write(dst[crcStart:])
+				if err == nil {
+					if n != len(dst)-crcStart {
+						err = io.ErrShortWrite
+					} else {
+						err = d.checkCRC()
+					}
 				}
 			}
 		}

@@ -386,47 +386,31 @@ In practice this means that concurrency is often limited to utilizing about 3 co
   
 ### Benchmarks
 
-These are some examples of performance compared to [datadog cgo library](https://github.com/DataDog/zstd).
-
 The first two are streaming decodes and the last are smaller inputs. 
- 
+
+Running on AMD Ryzen 9 3950X 16-Core Processor. AMD64 assembly used.
+
 ```
-BenchmarkDecoderSilesia-8                          3     385000067 ns/op     550.51 MB/s        5498 B/op          8 allocs/op
-BenchmarkDecoderSilesiaCgo-8                       6     197666567 ns/op    1072.25 MB/s      270672 B/op          8 allocs/op
+BenchmarkDecoderSilesia-32    	                   5	 206878840 ns/op	1024.50 MB/s	   49808 B/op	      43 allocs/op
+BenchmarkDecoderEnwik9-32                          1	1271809000 ns/op	 786.28 MB/s	   72048 B/op	      52 allocs/op
 
-BenchmarkDecoderEnwik9-8                           1    2027001600 ns/op     493.34 MB/s       10496 B/op         18 allocs/op
-BenchmarkDecoderEnwik9Cgo-8                        2     979499200 ns/op    1020.93 MB/s      270672 B/op          8 allocs/op
+Concurrent blocks, performance:
 
-Concurrent performance:
-
-BenchmarkDecoder_DecodeAllParallel/kppkn.gtb.zst-16                28915         42469 ns/op    4340.07 MB/s         114 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/geo.protodata.zst-16           116505          9965 ns/op    11900.16 MB/s         16 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/plrabn12.txt.zst-16              8952        134272 ns/op    3588.70 MB/s         915 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/lcet10.txt.zst-16               11820        102538 ns/op    4161.90 MB/s         594 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/asyoulik.txt.zst-16             34782         34184 ns/op    3661.88 MB/s          60 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/alice29.txt.zst-16              27712         43447 ns/op    3500.58 MB/s          99 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/html_x_4.zst-16                 62826         18750 ns/op    21845.10 MB/s        104 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/paper-100k.pdf.zst-16          631545          1794 ns/op    57078.74 MB/s          2 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/fireworks.jpeg.zst-16         1690140           712 ns/op    172938.13 MB/s         1 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/urls.10K.zst-16                 10432        113593 ns/op    6180.73 MB/s        1143 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/html.zst-16                    113206         10671 ns/op    9596.27 MB/s          15 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallel/comp-data.bin.zst-16          1530615           779 ns/op    5229.49 MB/s           0 B/op          0 allocs/op
-
-BenchmarkDecoder_DecodeAllParallelCgo/kppkn.gtb.zst-16             65217         16192 ns/op    11383.34 MB/s         46 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/geo.protodata.zst-16        292671          4039 ns/op    29363.19 MB/s          6 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/plrabn12.txt.zst-16          26314         46021 ns/op    10470.43 MB/s        293 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/lcet10.txt.zst-16            33897         34900 ns/op    12227.96 MB/s        205 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/asyoulik.txt.zst-16         104348         11433 ns/op    10949.01 MB/s         20 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/alice29.txt.zst-16           75949         15510 ns/op    9805.60 MB/s          32 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/html_x_4.zst-16             173910          6756 ns/op    60624.29 MB/s         37 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/paper-100k.pdf.zst-16       923076          1339 ns/op    76474.87 MB/s          1 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/fireworks.jpeg.zst-16       922920          1351 ns/op    91102.57 MB/s          2 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/urls.10K.zst-16              27649         43618 ns/op    16096.19 MB/s        407 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/html.zst-16                 279073          4160 ns/op    24614.18 MB/s          6 B/op          0 allocs/op
-BenchmarkDecoder_DecodeAllParallelCgo/comp-data.bin.zst-16        749938          1579 ns/op    2581.71 MB/s           0 B/op          0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/kppkn.gtb.zst-32         	   67356	     17857 ns/op	10321.96 MB/s	        22.48 pct	     102 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/geo.protodata.zst-32     	  266656	      4421 ns/op	26823.21 MB/s	        11.89 pct	      19 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/plrabn12.txt.zst-32      	   20992	     56842 ns/op	8477.17 MB/s	        39.90 pct	     754 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/lcet10.txt.zst-32        	   27456	     43932 ns/op	9714.01 MB/s	        33.27 pct	     524 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/asyoulik.txt.zst-32      	   78432	     15047 ns/op	8319.15 MB/s	        40.34 pct	      66 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/alice29.txt.zst-32       	   65800	     18436 ns/op	8249.63 MB/s	        37.75 pct	      88 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/html_x_4.zst-32          	  102993	     11523 ns/op	35546.09 MB/s	         3.637 pct	     143 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/paper-100k.pdf.zst-32    	 1000000	      1070 ns/op	95720.98 MB/s	        80.53 pct	       3 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/fireworks.jpeg.zst-32    	  749802	      1752 ns/op	70272.35 MB/s	       100.0 pct	       5 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/urls.10K.zst-32          	   22640	     52934 ns/op	13263.37 MB/s	        26.25 pct	    1014 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/html.zst-32              	  226412	      5232 ns/op	19572.27 MB/s	        14.49 pct	      20 B/op	       0 allocs/op
+BenchmarkDecoder_DecodeAllParallel/comp-data.bin.zst-32     	  923041	      1276 ns/op	3194.71 MB/s	        31.26 pct	       0 B/op	       0 allocs/op
 ```
 
-This reflects the performance around May 2020, but this may be out of date.
+This reflects the performance around May 2022, but this may be out of date.
 
 ## Zstd inside ZIP files
 
