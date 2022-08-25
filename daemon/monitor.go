@@ -28,6 +28,11 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
 	var exitStatus container.ExitStatus
 	c.Lock()
+
+	// Health checks will be automatically restarted if/when the
+	// container is started again.
+	daemon.stopHealthchecks(c)
+
 	tsk, ok := c.Task()
 	if ok {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -72,9 +77,6 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		restart = false
 	}
 
-	// cancel healthcheck here, they will be automatically
-	// restarted if/when the container is started again
-	daemon.stopHealthchecks(c)
 	attributes := map[string]string{
 		"exitCode": strconv.Itoa(exitStatus.ExitCode),
 	}
