@@ -14,7 +14,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func TestPingRegistryEndpoint(t *testing.T) {
+func TestV1EndpointPing(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	testPing := func(index *registry.IndexInfo, expectedStandalone bool, assertMessage string) {
 		ep, err := newV1Endpoint(index, nil)
@@ -34,7 +34,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 	testPing(makePublicIndex(), false, "Expected standalone to be false for public index")
 }
 
-func TestEndpoint(t *testing.T) {
+func TestV1Endpoint(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	// Simple wrapper to fail test if err != nil
 	expandEndpoint := func(index *registry.IndexInfo) *v1Endpoint {
@@ -158,7 +158,7 @@ func TestV1EndpointParse(t *testing.T) {
 
 // Ensure that a registry endpoint that responds with a 401 only is determined
 // to be a valid v1 registry endpoint
-func TestValidateEndpoint(t *testing.T) {
+func TestV1EndpointValidate(t *testing.T) {
 	requireBasicAuthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("WWW-Authenticate", `Basic realm="localhost"`)
 		w.WriteHeader(http.StatusUnauthorized)
