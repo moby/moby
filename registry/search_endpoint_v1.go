@@ -175,3 +175,48 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 	log.G(context.TODO()).Debugf("v1PingResult.Standalone: %t", info.Standalone)
 	return info, nil
 }
+
+// httpClient returns an HTTP client structure which uses the given transport
+// and contains the necessary headers for redirected requests
+func httpClient(transport http.RoundTripper) *http.Client {
+	return &http.Client{
+		Transport:     transport,
+		CheckRedirect: addRequiredHeadersToRedirectedRequests,
+	}
+}
+
+func trustedLocation(req *http.Request) bool {
+	var (
+		trusteds = []string{"docker.com", "docker.io"}
+		hostname = strings.SplitN(req.Host, ":", 2)[0]
+	)
+	if req.URL.Scheme != "https" {
+		return false
+	}
+
+	for _, trusted := range trusteds {
+		if hostname == trusted || strings.HasSuffix(hostname, "."+trusted) {
+			return true
+		}
+	}
+	return false
+}
+
+// addRequiredHeadersToRedirectedRequests adds the necessary redirection headers
+// for redirected requests
+func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Request) error {
+	if len(via) != 0 && via[0] != nil {
+		if trustedLocation(req) && trustedLocation(via[0]) {
+			req.Header = via[0].Header
+			return nil
+		}
+		for k, v := range via[0].Header {
+			if k != "Authorization" {
+				for _, vv := range v {
+					req.Header.Add(k, vv)
+				}
+			}
+		}
+	}
+	return nil
+}

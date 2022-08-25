@@ -186,3 +186,66 @@ func TestV1EndpointValidate(t *testing.T) {
 		t.Fatalf("expecting to validate endpoint as http, got url %s", testEndpoint.String())
 	}
 }
+
+func TestTrustedLocation(t *testing.T) {
+	for _, u := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
+		req, _ := http.NewRequest(http.MethodGet, u, nil)
+		assert.Check(t, !trustedLocation(req))
+	}
+
+	for _, u := range []string{"https://docker.io", "https://test.docker.com:80"} {
+		req, _ := http.NewRequest(http.MethodGet, u, nil)
+		assert.Check(t, trustedLocation(req))
+	}
+}
+
+func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
+	for _, urls := range [][]string{
+		{"http://docker.io", "https://docker.com"},
+		{"https://foo.docker.io:7777", "http://bar.docker.com"},
+		{"https://foo.docker.io", "https://example.com"},
+	} {
+		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
+		reqFrom.Header.Add("Content-Type", "application/json")
+		reqFrom.Header.Add("Authorization", "super_secret")
+		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
+
+		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+
+		if len(reqTo.Header) != 1 {
+			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
+		}
+
+		if reqTo.Header.Get("Content-Type") != "application/json" {
+			t.Fatal("'Content-Type' should be 'application/json'")
+		}
+
+		if reqTo.Header.Get("Authorization") != "" {
+			t.Fatal("'Authorization' should be empty")
+		}
+	}
+
+	for _, urls := range [][]string{
+		{"https://docker.io", "https://docker.com"},
+		{"https://foo.docker.io:7777", "https://bar.docker.com"},
+	} {
+		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
+		reqFrom.Header.Add("Content-Type", "application/json")
+		reqFrom.Header.Add("Authorization", "super_secret")
+		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
+
+		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+
+		if len(reqTo.Header) != 2 {
+			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
+		}
+
+		if reqTo.Header.Get("Content-Type") != "application/json" {
+			t.Fatal("'Content-Type' should be 'application/json'")
+		}
+
+		if reqTo.Header.Get("Authorization") != "super_secret" {
+			t.Fatal("'Authorization' should be 'super_secret'")
+		}
+	}
+}

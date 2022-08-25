@@ -1,48 +1,15 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
-	"net/http"
-	"net/http/httputil"
 	"os"
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
-
-func spawnTestRegistrySession(t *testing.T) *session {
-	authConfig := &registry.AuthConfig{}
-	endpoint, err := newV1Endpoint(makeIndex("/v1/"), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	userAgent := "docker test client"
-	var tr http.RoundTripper = debugTransport{newTransport(nil), t.Log}
-	tr = transport.NewTransport(newAuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
-	client := httpClient(tr)
-
-	if err := authorizeClient(client, authConfig, endpoint); err != nil {
-		t.Fatal(err)
-	}
-	r := newSession(client, endpoint)
-
-	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
-	// header while authenticating, in order to retrieve a token that can be later used to
-	// perform authenticated actions.
-	//
-	// The mock v1 registry does not support that, (TODO(tiborvass): support it), instead,
-	// it will consider authenticated any request with the header `X-Docker-Token: fake-token`.
-	//
-	// Because we know that the client's transport is an `*authTransport` we simply cast it,
-	// in order to set the internal cached token to the fake token, and thus send that fake token
-	// upon every subsequent requests.
-	r.client.Transport.(*authTransport).token = []string{"fake-token"}
-	return r
-}
 
 func TestParseRepositoryInfo(t *testing.T) {
 	type staticRepositoryInfo struct {
@@ -450,83 +417,6 @@ func TestMirrorEndpointLookup(t *testing.T) {
 	}
 }
 
-func TestSearchRepositories(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	results, err := r.searchRepositories("fakequery", 25)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if results == nil {
-		t.Fatal("Expected non-nil SearchResults object")
-	}
-	assert.Equal(t, results.NumResults, 1, "Expected 1 search results")
-	assert.Equal(t, results.Query, "fakequery", "Expected 'fakequery' as query")
-	assert.Equal(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
-}
-
-func TestTrustedLocation(t *testing.T) {
-	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
-		req, _ := http.NewRequest(http.MethodGet, url, nil)
-		assert.Check(t, !trustedLocation(req))
-	}
-
-	for _, url := range []string{"https://docker.io", "https://test.docker.com:80"} {
-		req, _ := http.NewRequest(http.MethodGet, url, nil)
-		assert.Check(t, trustedLocation(req))
-	}
-}
-
-func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
-	for _, urls := range [][]string{
-		{"http://docker.io", "https://docker.com"},
-		{"https://foo.docker.io:7777", "http://bar.docker.com"},
-		{"https://foo.docker.io", "https://example.com"},
-	} {
-		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
-		reqFrom.Header.Add("Content-Type", "application/json")
-		reqFrom.Header.Add("Authorization", "super_secret")
-		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
-
-		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
-
-		if len(reqTo.Header) != 1 {
-			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
-		}
-
-		if reqTo.Header.Get("Content-Type") != "application/json" {
-			t.Fatal("'Content-Type' should be 'application/json'")
-		}
-
-		if reqTo.Header.Get("Authorization") != "" {
-			t.Fatal("'Authorization' should be empty")
-		}
-	}
-
-	for _, urls := range [][]string{
-		{"https://docker.io", "https://docker.com"},
-		{"https://foo.docker.io:7777", "https://bar.docker.com"},
-	} {
-		reqFrom, _ := http.NewRequest(http.MethodGet, urls[0], nil)
-		reqFrom.Header.Add("Content-Type", "application/json")
-		reqFrom.Header.Add("Authorization", "super_secret")
-		reqTo, _ := http.NewRequest(http.MethodGet, urls[1], nil)
-
-		_ = addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
-
-		if len(reqTo.Header) != 2 {
-			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
-		}
-
-		if reqTo.Header.Get("Content-Type") != "application/json" {
-			t.Fatal("'Content-Type' should be 'application/json'")
-		}
-
-		if reqTo.Header.Get("Authorization") != "super_secret" {
-			t.Fatal("'Authorization' should be 'super_secret'")
-		}
-	}
-}
-
 func TestAllowNondistributableArtifacts(t *testing.T) {
 	tests := []struct {
 		addr       string
@@ -613,27 +503,4 @@ func TestIsSecureIndex(t *testing.T) {
 			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
-}
-
-type debugTransport struct {
-	http.RoundTripper
-	log func(...interface{})
-}
-
-func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	dump, err := httputil.DumpRequestOut(req, false)
-	if err != nil {
-		tr.log("could not dump request")
-	}
-	tr.log(string(dump))
-	resp, err := tr.RoundTripper.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
-	dump, err = httputil.DumpResponse(resp, false)
-	if err != nil {
-		tr.log("could not dump response")
-	}
-	tr.log(string(dump))
-	return resp, err
 }
