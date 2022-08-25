@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 )
 
 // ContainerResize changes the size of the TTY of the process running
@@ -16,11 +14,14 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 		return err
 	}
 
-	if !container.IsRunning() {
-		return errNotRunning(container.ID)
+	container.Lock()
+	tsk, err := container.GetRunningTask()
+	container.Unlock()
+	if err != nil {
+		return err
 	}
 
-	if err = daemon.containerd.ResizeTerminal(context.Background(), container.ID, libcontainerdtypes.InitProcessName, width, height); err == nil {
+	if err = tsk.Resize(context.Background(), uint32(width), uint32(height)); err == nil {
 		attributes := map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),
@@ -46,7 +47,7 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 
 	select {
 	case <-ec.Started:
-		return daemon.containerd.ResizeTerminal(context.Background(), ec.ContainerID, ec.ID, width, height)
+		return ec.Process.Resize(context.Background(), uint32(width), uint32(height))
 	case <-timeout.C:
 		return fmt.Errorf("timeout waiting for exec session ready")
 	}

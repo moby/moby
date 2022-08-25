@@ -32,29 +32,44 @@ import (
 )
 
 type process struct {
-	id         string
-	pid        int
-	hcsProcess hcsshim.Process
+	// mu guards the mutable fields of this struct.
+	//
+	// Always lock mu before ctr's mutex to prevent deadlocks.
+	mu         sync.Mutex
+	id         string                 // Invariants: immutable
+	ctr        *container             // Invariants: immutable, ctr != nil
+	hcsProcess hcsshim.Process        // Is set to nil on process exit
+	exited     *containerd.ExitStatus // Valid iff waitCh is closed
+	waitCh     chan struct{}
+}
+
+type task struct {
+	process
 }
 
 type container struct {
-	sync.Mutex
+	mu sync.Mutex
 
 	// The ociSpec is required, as client.Create() needs a spec, but can
 	// be called from the RestartManager context which does not otherwise
 	// have access to the Spec
+	//
+	// A container value with ociSpec == nil represents a container which
+	// has been loaded with (*client).LoadContainer, and is ineligible to
+	// be Start()ed.
 	ociSpec *specs.Spec
 
-	hcsContainer hcsshim.Container
+	hcsContainer hcsshim.Container // Is set to nil on container delete
+	isPaused     bool
 
+	client           *client
 	id               string
-	status           containerd.ProcessStatus
-	exitedAt         time.Time
-	exitCode         uint32
-	waitCh           chan struct{}
-	init             *process
-	execs            map[string]*process
 	terminateInvoked bool
+
+	// task is a reference to the current task for the container. As a
+	// corollary, when task == nil the container has no current task: the
+	// container was never Start()ed or the task was Delete()d.
+	task *task
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -63,22 +78,18 @@ type container struct {
 const defaultOwner = "docker"
 
 type client struct {
-	sync.Mutex
-
-	stateDir   string
-	backend    libcontainerdtypes.Backend
-	logger     *logrus.Entry
-	eventQ     queue.Queue
-	containers map[string]*container
+	stateDir string
+	backend  libcontainerdtypes.Backend
+	logger   *logrus.Entry
+	eventQ   queue.Queue
 }
 
 // NewClient creates a new local executor for windows
 func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
 	c := &client{
-		stateDir:   stateDir,
-		backend:    b,
-		logger:     logrus.WithField("module", "libcontainerd").WithField("module", "libcontainerd").WithField("namespace", ns),
-		containers: make(map[string]*container),
+		stateDir: stateDir,
+		backend:  b,
+		logger:   logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
 	}
 
 	return c, nil
@@ -88,7 +99,7 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 	return containerd.Version{}, errors.New("not implemented on Windows")
 }
 
-// Create is the entrypoint to create a container from a spec.
+// NewContainer is the entrypoint to create a container from a spec.
 // Table below shows the fields required for HCS JSON calling parameters,
 // where if not populated, is omitted.
 // +-----------------+--------------------------------------------+---------------------------------------------------+
@@ -139,16 +150,12 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //			"ImagePath": "C:\\\\control\\\\windowsfilter\\\\65bf96e5760a09edf1790cb229e2dfb2dbd0fcdc0bf7451bae099106bfbfea0c\\\\UtilityVM"
 //		},
 //	}
-func (c *client) Create(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) error {
-	if ctr := c.getContainer(id); ctr != nil {
-		return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
-	}
-
+func (c *client) NewContainer(_ context.Context, id string, spec *specs.Spec, shim string, runtimeOptions interface{}, opts ...containerd.NewContainerOpts) (libcontainerdtypes.Container, error) {
 	var err error
 	if spec.Linux != nil {
-		return errors.New("linux containers are not supported on this platform")
+		return nil, errors.New("linux containers are not supported on this platform")
 	}
-	err = c.createWindows(id, spec, runtimeOptions)
+	ctr, err := c.createWindows(id, spec, runtimeOptions)
 
 	if err == nil {
 		c.eventQ.Append(id, func() {
@@ -168,10 +175,10 @@ func (c *client) Create(_ context.Context, id string, spec *specs.Spec, shim str
 			}
 		})
 	}
-	return err
+	return ctr, err
 }
 
-func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) error {
+func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) (*container, error) {
 	logger := c.logger.WithField("container", id)
 	configuration := &hcsshim.ContainerConfig{
 		SystemType:              "Container",
@@ -215,7 +222,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	// We must have least two layers in the spec, the bottom one being a
 	// base image, the top one being the RW layer.
 	if spec.Windows.LayerFolders == nil || len(spec.Windows.LayerFolders) < 2 {
-		return fmt.Errorf("OCI spec is invalid - at least two LayerFolders must be supplied to the runtime")
+		return nil, fmt.Errorf("OCI spec is invalid - at least two LayerFolders must be supplied to the runtime")
 	}
 
 	// Strip off the top-most layer as that's passed in separately to HCS
@@ -226,7 +233,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		// We don't currently support setting the utility VM image explicitly.
 		// TODO circa RS5, this may be re-locatable.
 		if spec.Windows.HyperV.UtilityVMPath != "" {
-			return errors.New("runtime does not support an explicit utility VM path for Hyper-V containers")
+			return nil, errors.New("runtime does not support an explicit utility VM path for Hyper-V containers")
 		}
 
 		// Find the upper-most utility VM image.
@@ -239,35 +246,35 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 				break
 			}
 			if !os.IsNotExist(err) {
-				return err
+				return nil, err
 			}
 		}
 		if uvmImagePath == "" {
-			return errors.New("utility VM image could not be found")
+			return nil, errors.New("utility VM image could not be found")
 		}
 		configuration.HvRuntime = &hcsshim.HvRuntime{ImagePath: uvmImagePath}
 
 		if spec.Root.Path != "" {
-			return errors.New("OCI spec is invalid - Root.Path must be omitted for a Hyper-V container")
+			return nil, errors.New("OCI spec is invalid - Root.Path must be omitted for a Hyper-V container")
 		}
 	} else {
 		const volumeGUIDRegex = `^\\\\\?\\(Volume)\{{0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}\}\\$`
 		if _, err := regexp.MatchString(volumeGUIDRegex, spec.Root.Path); err != nil {
-			return fmt.Errorf(`OCI spec is invalid - Root.Path '%s' must be a volume GUID path in the format '\\?\Volume{GUID}\'`, spec.Root.Path)
+			return nil, fmt.Errorf(`OCI spec is invalid - Root.Path '%s' must be a volume GUID path in the format '\\?\Volume{GUID}\'`, spec.Root.Path)
 		}
 		// HCS API requires the trailing backslash to be removed
 		configuration.VolumePath = spec.Root.Path[:len(spec.Root.Path)-1]
 	}
 
 	if spec.Root.Readonly {
-		return errors.New(`OCI spec is invalid - Root.Readonly must not be set on Windows`)
+		return nil, errors.New(`OCI spec is invalid - Root.Readonly must not be set on Windows`)
 	}
 
 	for _, layerPath := range layerFolders {
 		_, filename := filepath.Split(layerPath)
 		g, err := hcsshim.NameToGuid(filename)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		configuration.Layers = append(configuration.Layers, hcsshim.Layer{
 			ID:   g.ToString(),
@@ -281,7 +288,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	for _, mount := range spec.Mounts {
 		const pipePrefix = `\\.\pipe\`
 		if mount.Type != "" {
-			return fmt.Errorf("OCI spec is invalid - Mount.Type '%s' must not be set", mount.Type)
+			return nil, fmt.Errorf("OCI spec is invalid - Mount.Type '%s' must not be set", mount.Type)
 		}
 		if strings.HasPrefix(mount.Destination, pipePrefix) {
 			mp := hcsshim.MappedPipe{
@@ -309,13 +316,13 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	if len(spec.Windows.Devices) > 0 {
 		// Add any device assignments
 		if configuration.HvPartition {
-			return errors.New("device assignment is not supported for HyperV containers")
+			return nil, errors.New("device assignment is not supported for HyperV containers")
 		}
 		for _, d := range spec.Windows.Devices {
 			// Per https://github.com/microsoft/hcsshim/blob/v0.9.2/internal/uvm/virtual_device.go#L17-L18,
 			// these represent an Interface Class GUID.
 			if d.IDType != "class" && d.IDType != "vpci-class-guid" {
-				return errors.Errorf("device assignment of type '%s' is not supported", d.IDType)
+				return nil, errors.Errorf("device assignment of type '%s' is not supported", d.IDType)
 			}
 			configuration.AssignedDevices = append(configuration.AssignedDevices, hcsshim.AssignedDevice{InterfaceClassGUID: d.ID})
 		}
@@ -323,38 +330,32 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 
 	hcsContainer, err := hcsshim.CreateContainer(id, configuration)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Construct a container object for calling start on it.
 	ctr := &container{
+		client:       c,
 		id:           id,
-		execs:        make(map[string]*process),
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
-		status:       containerd.Created,
-		waitCh:       make(chan struct{}),
 	}
 
 	logger.Debug("starting container")
-	if err = hcsContainer.Start(); err != nil {
-		c.logger.WithError(err).Error("failed to start container")
-		ctr.Lock()
-		if err := c.terminateContainer(ctr); err != nil {
-			c.logger.WithError(err).Error("failed to cleanup after a failed Start")
+	if err := ctr.hcsContainer.Start(); err != nil {
+		logger.WithError(err).Error("failed to start container")
+		ctr.mu.Lock()
+		if err := ctr.terminateContainer(); err != nil {
+			logger.WithError(err).Error("failed to cleanup after a failed Start")
 		} else {
-			c.logger.Debug("cleaned up after failed Start by calling Terminate")
+			logger.Debug("cleaned up after failed Start by calling Terminate")
 		}
-		ctr.Unlock()
-		return err
+		ctr.mu.Unlock()
+		return nil, err
 	}
 
-	c.Lock()
-	c.containers[id] = ctr
-	c.Unlock()
-
 	logger.Debug("createWindows() completed successfully")
-	return nil
+	return ctr, nil
 
 }
 
@@ -388,16 +389,18 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
-func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (int, error) {
-	ctr := c.getContainer(id)
+func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+
 	switch {
-	case ctr == nil:
-		return -1, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
-	case ctr.init != nil:
-		return -1, errors.WithStack(errdefs.NotModified(errors.New("container already started")))
+	case ctr.ociSpec == nil:
+		return nil, errors.WithStack(errdefs.NotImplemented(errors.New("a restored container cannot be started")))
+	case ctr.task != nil:
+		return nil, errors.WithStack(errdefs.NotModified(containerderrdefs.ErrAlreadyExists))
 	}
 
-	logger := c.logger.WithField("container", id)
+	logger := ctr.client.logger.WithField("container", ctr.id)
 
 	// Note we always tell HCS to create stdout as it's required
 	// regardless of '-i' or '-t' options, so that docker can always grab
@@ -435,31 +438,12 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
 
-	ctr.Lock()
-
 	// Start the command running in the container.
 	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
 	if err != nil {
 		logger.WithError(err).Error("CreateProcess() failed")
-		// Fix for https://github.com/moby/moby/issues/38719.
-		// If the init process failed to launch, we still need to reap the
-		// container to avoid leaking it.
-		//
-		// Note we use the explicit exit code of 127 which is the
-		// Linux shell equivalent of "command not found". Windows cannot
-		// know ahead of time whether or not the command exists, especially
-		// in the case of Hyper-V containers.
-		ctr.Unlock()
-		exitedAt := time.Now()
-		p := &process{
-			id:  libcontainerdtypes.InitProcessName,
-			pid: 0,
-		}
-		c.reapContainer(ctr, p, 127, exitedAt, nil, logger)
-		return -1, err
+		return nil, err
 	}
-
-	defer ctr.Unlock()
 
 	defer func() {
 		if err != nil {
@@ -476,55 +460,69 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 			}()
 		}
 	}()
-	p := &process{
-		hcsProcess: newProcess,
+	t := &task{process: process{
 		id:         libcontainerdtypes.InitProcessName,
-		pid:        newProcess.Pid(),
-	}
-	logger.WithField("pid", p.pid).Debug("init process started")
+		ctr:        ctr,
+		hcsProcess: newProcess,
+		waitCh:     make(chan struct{}),
+	}}
+	pid := t.Pid()
+	logger.WithField("pid", pid).Debug("init process started")
 
-	ctr.status = containerd.Running
-	ctr.init = p
-
-	// Spin up a go routine waiting for exit to handle cleanup
-	go c.reapProcess(ctr, p)
+	// Spin up a goroutine to notify the backend and clean up resources when
+	// the task exits. Defer until after the start event is sent so that the
+	// exit event is not sent out-of-order.
+	defer func() { go t.reap() }()
 
 	// Don't shadow err here due to our deferred clean-up.
 	var dio *cio.DirectIO
 	dio, err = newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
-		return -1, err
+		return nil, err
 	}
 	_, err = attachStdio(dio)
 	if err != nil {
 		logger.WithError(err).Error("failed to attach stdio")
-		return -1, err
+		return nil, err
 	}
 
+	// All fallible operations have succeeded so it is now safe to set the
+	// container's current task.
+	ctr.task = t
+
 	// Generate the associated event
-	c.eventQ.Append(id, func() {
+	ctr.client.eventQ.Append(ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
-			ContainerID: id,
+			ContainerID: ctr.id,
 			ProcessID:   libcontainerdtypes.InitProcessName,
-			Pid:         uint32(p.pid),
+			Pid:         pid,
 		}
-		c.logger.WithFields(logrus.Fields{
+		ctr.client.logger.WithFields(logrus.Fields{
 			"container":  ctr.id,
 			"event":      libcontainerdtypes.EventStart,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ei.ContainerID, libcontainerdtypes.EventStart, ei)
+		err := ctr.client.backend.ProcessEvent(ei.ContainerID, libcontainerdtypes.EventStart, ei)
 		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container":  id,
+			ctr.client.logger.WithError(err).WithFields(logrus.Fields{
+				"container":  ei.ContainerID,
 				"event":      libcontainerdtypes.EventStart,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
 	})
 	logger.Debug("start() completed")
-	return p.pid, nil
+	return t, nil
+}
+
+func (ctr *container) Task(context.Context) (libcontainerdtypes.Task, error) {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+	if ctr.task == nil {
+		return nil, errdefs.NotFound(containerderrdefs.ErrNotFound)
+	}
+	return ctr.task, nil
 }
 
 // setCommandLineAndArgs configures the HCS ProcessConfig based on an OCI process spec
@@ -554,19 +552,18 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 	return dio, nil
 }
 
-// Exec adds a process in an running container
-func (c *client) Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (int, error) {
-	ctr := c.getContainer(containerID)
-	switch {
-	case ctr == nil:
-		return -1, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
-	case ctr.hcsContainer == nil:
-		return -1, errors.WithStack(errdefs.InvalidParameter(errors.New("container is not running")))
-	case ctr.execs != nil && ctr.execs[processID] != nil:
-		return -1, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
+// Exec launches a process in a running container.
+//
+// The processID argument is entirely informational. As there is no mechanism
+// (exposed through the libcontainerd interfaces) to enumerate or reference an
+// exec'd process by ID, uniqueness is not currently enforced.
+func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Process, error) {
+	hcsContainer, err := t.getHCSContainer()
+	if err != nil {
+		return nil, err
 	}
-	logger := c.logger.WithFields(logrus.Fields{
-		"container": containerID,
+	logger := t.ctr.client.logger.WithFields(logrus.Fields{
+		"container": t.ctr.id,
 		"exec":      processID,
 	})
 
@@ -593,7 +590,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	if spec.Cwd != "" {
 		createProcessParms.WorkingDirectory = spec.Cwd
 	} else {
-		createProcessParms.WorkingDirectory = ctr.ociSpec.Process.Cwd
+		createProcessParms.WorkingDirectory = t.ctr.ociSpec.Process.Cwd
 	}
 
 	// Configure the environment for the process
@@ -606,10 +603,10 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	createProcessParms.User = spec.User.Username
 
 	// Start the command running in the container.
-	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
+	newProcess, err := hcsContainer.CreateProcess(createProcessParms)
 	if err != nil {
 		logger.WithError(err).Errorf("exec's CreateProcess() failed")
-		return -1, err
+		return nil, err
 	}
 	pid := newProcess.Pid()
 	defer func() {
@@ -631,163 +628,180 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	dio, err := newIOFromProcess(newProcess, spec.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
-		return -1, err
+		return nil, err
 	}
 	// Tell the engine to attach streams back to the client
 	_, err = attachStdio(dio)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	p := &process{
 		id:         processID,
-		pid:        pid,
+		ctr:        t.ctr,
 		hcsProcess: newProcess,
+		waitCh:     make(chan struct{}),
 	}
 
-	// Add the process to the container's list of processes
-	ctr.Lock()
-	ctr.execs[processID] = p
-	ctr.Unlock()
+	// Spin up a goroutine to notify the backend and clean up resources when
+	// the process exits. Defer until after the start event is sent so that
+	// the exit event is not sent out-of-order.
+	defer func() { go p.reap() }()
 
-	// Spin up a go routine waiting for exit to handle cleanup
-	go c.reapProcess(ctr, p)
-
-	c.eventQ.Append(ctr.id, func() {
+	t.ctr.client.eventQ.Append(t.ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
-			ContainerID: ctr.id,
+			ContainerID: t.ctr.id,
 			ProcessID:   p.id,
-			Pid:         uint32(p.pid),
+			Pid:         uint32(pid),
 		}
-		c.logger.WithFields(logrus.Fields{
-			"container":  ctr.id,
+		t.ctr.client.logger.WithFields(logrus.Fields{
+			"container":  t.ctr.id,
 			"event":      libcontainerdtypes.EventExecAdded,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExecAdded, ei)
+		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventExecAdded, ei)
 		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container":  ctr.id,
+			t.ctr.client.logger.WithError(err).WithFields(logrus.Fields{
+				"container":  t.ctr.id,
 				"event":      libcontainerdtypes.EventExecAdded,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
-		err = c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExecStarted, ei)
+		err = t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventExecStarted, ei)
 		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container":  ctr.id,
+			t.ctr.client.logger.WithError(err).WithFields(logrus.Fields{
+				"container":  t.ctr.id,
 				"event":      libcontainerdtypes.EventExecStarted,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
 	})
 
-	return pid, nil
+	return p, nil
 }
 
-// SignalProcess handles `docker stop` on Windows. While Linux has support for
+func (p *process) Pid() uint32 {
+	p.mu.Lock()
+	hcsProcess := p.hcsProcess
+	p.mu.Unlock()
+	if hcsProcess == nil {
+		return 0
+	}
+	return uint32(hcsProcess.Pid())
+}
+
+func (p *process) Kill(_ context.Context, signal syscall.Signal) error {
+	p.mu.Lock()
+	hcsProcess := p.hcsProcess
+	p.mu.Unlock()
+	if hcsProcess == nil {
+		return errors.WithStack(errdefs.NotFound(errors.New("process not found")))
+	}
+	return hcsProcess.Kill()
+}
+
+// Kill handles `docker stop` on Windows. While Linux has support for
 // the full range of signals, signals aren't really implemented on Windows.
 // We fake supporting regular stop and -9 to force kill.
-func (c *client) SignalProcess(_ context.Context, containerID, processID string, signal syscall.Signal) error {
-	ctr, p, err := c.getProcess(containerID, processID)
+func (t *task) Kill(_ context.Context, signal syscall.Signal) error {
+	hcsContainer, err := t.getHCSContainer()
 	if err != nil {
 		return err
 	}
 
-	logger := c.logger.WithFields(logrus.Fields{
-		"container": containerID,
-		"process":   processID,
-		"pid":       p.pid,
+	logger := t.ctr.client.logger.WithFields(logrus.Fields{
+		"container": t.ctr.id,
+		"process":   t.id,
+		"pid":       t.Pid(),
 		"signal":    signal,
 	})
 	logger.Debug("Signal()")
 
-	if processID == libcontainerdtypes.InitProcessName {
-		if syscall.Signal(signal) == syscall.SIGKILL {
-			// Terminate the compute system
-			ctr.Lock()
-			ctr.terminateInvoked = true
-			if err := ctr.hcsContainer.Terminate(); err != nil {
-				if !hcsshim.IsPending(err) {
-					logger.WithError(err).Error("failed to terminate hccshim container")
-				}
-			}
-			ctr.Unlock()
-		} else {
-			// Shut down the container
-			if err := ctr.hcsContainer.Shutdown(); err != nil {
-				if !hcsshim.IsPending(err) && !hcsshim.IsAlreadyStopped(err) {
-					// ignore errors
-					logger.WithError(err).Error("failed to shutdown hccshim container")
-				}
-			}
-		}
+	var op string
+	if signal == syscall.SIGKILL {
+		// Terminate the compute system
+		t.ctr.mu.Lock()
+		t.ctr.terminateInvoked = true
+		t.ctr.mu.Unlock()
+		op, err = "terminate", hcsContainer.Terminate()
 	} else {
-		return p.hcsProcess.Kill()
+		// Shut down the container
+		op, err = "shutdown", hcsContainer.Shutdown()
+	}
+	if err != nil {
+		if !hcsshim.IsPending(err) && !hcsshim.IsAlreadyStopped(err) {
+			// ignore errors
+			logger.WithError(err).Errorf("failed to %s hccshim container", op)
+		}
 	}
 
 	return nil
 }
 
-// ResizeTerminal handles a CLI event to resize an interactive docker run or docker
+// Resize handles a CLI event to resize an interactive docker run or docker
 // exec window.
-func (c *client) ResizeTerminal(_ context.Context, containerID, processID string, width, height int) error {
-	_, p, err := c.getProcess(containerID, processID)
-	if err != nil {
-		return err
+func (p *process) Resize(_ context.Context, width, height uint32) error {
+	p.mu.Lock()
+	hcsProcess := p.hcsProcess
+	p.mu.Unlock()
+	if hcsProcess == nil {
+		return errors.WithStack(errdefs.NotFound(errors.New("process not found")))
 	}
 
-	c.logger.WithFields(logrus.Fields{
-		"container": containerID,
-		"process":   processID,
+	p.ctr.client.logger.WithFields(logrus.Fields{
+		"container": p.ctr.id,
+		"process":   p.id,
 		"height":    height,
 		"width":     width,
-		"pid":       p.pid,
+		"pid":       hcsProcess.Pid(),
 	}).Debug("resizing")
-	return p.hcsProcess.ResizeConsole(uint16(width), uint16(height))
+	return hcsProcess.ResizeConsole(uint16(width), uint16(height))
 }
 
-func (c *client) CloseStdin(_ context.Context, containerID, processID string) error {
-	_, p, err := c.getProcess(containerID, processID)
-	if err != nil {
-		return err
+func (p *process) CloseStdin(context.Context) error {
+	p.mu.Lock()
+	hcsProcess := p.hcsProcess
+	p.mu.Unlock()
+	if hcsProcess == nil {
+		return errors.WithStack(errdefs.NotFound(errors.New("process not found")))
 	}
 
-	return p.hcsProcess.CloseStdin()
+	return hcsProcess.CloseStdin()
 }
 
 // Pause handles pause requests for containers
-func (c *client) Pause(_ context.Context, containerID string) error {
-	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
-	if err != nil {
-		return err
-	}
-
-	if ctr.ociSpec.Windows.HyperV == nil {
+func (t *task) Pause(_ context.Context) error {
+	if t.ctr.ociSpec.Windows.HyperV == nil {
 		return containerderrdefs.ErrNotImplemented
 	}
 
-	ctr.Lock()
-	defer ctr.Unlock()
+	t.ctr.mu.Lock()
+	defer t.ctr.mu.Unlock()
 
-	if err = ctr.hcsContainer.Pause(); err != nil {
+	if err := t.assertIsCurrentTask(); err != nil {
+		return err
+	}
+	if t.ctr.hcsContainer == nil {
+		return errdefs.NotFound(errors.WithStack(fmt.Errorf("container %q not found", t.ctr.id)))
+	}
+	if err := t.ctr.hcsContainer.Pause(); err != nil {
 		return err
 	}
 
-	ctr.status = containerd.Paused
+	t.ctr.isPaused = true
 
-	c.eventQ.Append(containerID, func() {
-		err := c.backend.ProcessEvent(containerID, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
-			ContainerID: containerID,
+	t.ctr.client.eventQ.Append(t.ctr.id, func() {
+		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
+			ContainerID: t.ctr.id,
 			ProcessID:   libcontainerdtypes.InitProcessName,
 		})
-		c.logger.WithFields(logrus.Fields{
-			"container": ctr.id,
+		t.ctr.client.logger.WithFields(logrus.Fields{
+			"container": t.ctr.id,
 			"event":     libcontainerdtypes.EventPaused,
 		}).Info("sending event")
 		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container": containerID,
+			t.ctr.client.logger.WithError(err).WithFields(logrus.Fields{
+				"container": t.ctr.id,
 				"event":     libcontainerdtypes.EventPaused,
 			}).Error("failed to process event")
 		}
@@ -797,37 +811,38 @@ func (c *client) Pause(_ context.Context, containerID string) error {
 }
 
 // Resume handles resume requests for containers
-func (c *client) Resume(_ context.Context, containerID string) error {
-	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
-	if err != nil {
-		return err
-	}
-
-	if ctr.ociSpec.Windows.HyperV == nil {
+func (t *task) Resume(ctx context.Context) error {
+	if t.ctr.ociSpec.Windows.HyperV == nil {
 		return errors.New("cannot resume Windows Server Containers")
 	}
 
-	ctr.Lock()
-	defer ctr.Unlock()
+	t.ctr.mu.Lock()
+	defer t.ctr.mu.Unlock()
 
-	if err = ctr.hcsContainer.Resume(); err != nil {
+	if err := t.assertIsCurrentTask(); err != nil {
+		return err
+	}
+	if t.ctr.hcsContainer == nil {
+		return errdefs.NotFound(errors.WithStack(fmt.Errorf("container %q not found", t.ctr.id)))
+	}
+	if err := t.ctr.hcsContainer.Resume(); err != nil {
 		return err
 	}
 
-	ctr.status = containerd.Running
+	t.ctr.isPaused = false
 
-	c.eventQ.Append(containerID, func() {
-		err := c.backend.ProcessEvent(containerID, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
-			ContainerID: containerID,
+	t.ctr.client.eventQ.Append(t.ctr.id, func() {
+		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
+			ContainerID: t.ctr.id,
 			ProcessID:   libcontainerdtypes.InitProcessName,
 		})
-		c.logger.WithFields(logrus.Fields{
-			"container": ctr.id,
+		t.ctr.client.logger.WithFields(logrus.Fields{
+			"container": t.ctr.id,
 			"event":     libcontainerdtypes.EventResumed,
 		}).Info("sending event")
 		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container": containerID,
+			t.ctr.client.logger.WithError(err).WithFields(logrus.Fields{
+				"container": t.ctr.id,
 				"event":     libcontainerdtypes.EventResumed,
 			}).Error("failed to process event")
 		}
@@ -837,14 +852,14 @@ func (c *client) Resume(_ context.Context, containerID string) error {
 }
 
 // Stats handles stats requests for containers
-func (c *client) Stats(_ context.Context, containerID string) (*libcontainerdtypes.Stats, error) {
-	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
+func (t *task) Stats(_ context.Context) (*libcontainerdtypes.Stats, error) {
+	hc, err := t.getHCSContainer()
 	if err != nil {
 		return nil, err
 	}
 
 	readAt := time.Now()
-	s, err := ctr.hcsContainer.Statistics()
+	s, err := hc.Statistics()
 	if err != nil {
 		return nil, err
 	}
@@ -854,9 +869,9 @@ func (c *client) Stats(_ context.Context, containerID string) (*libcontainerdtyp
 	}, nil
 }
 
-// Restore is the handler for restoring a container
-func (c *client) Restore(ctx context.Context, id string, attachStdio libcontainerdtypes.StdioCallback) (bool, int, libcontainerdtypes.Process, error) {
-	c.logger.WithField("container", id).Debug("restore()")
+// LoadContainer is the handler for restoring a container
+func (c *client) LoadContainer(ctx context.Context, id string) (libcontainerdtypes.Container, error) {
+	c.logger.WithField("container", id).Debug("LoadContainer()")
 
 	// TODO Windows: On RS1, a re-attach isn't possible.
 	// However, there is a scenario in which there is an issue.
@@ -865,30 +880,40 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio libcontaine
 	// For consistence, we call in to shoot it regardless if HCS knows about it
 	// We explicitly just log a warning if the terminate fails.
 	// Then we tell the backend the container exited.
-	if hc, err := hcsshim.OpenContainer(id); err == nil {
-		const terminateTimeout = time.Minute * 2
-		err := hc.Terminate()
-
-		if hcsshim.IsPending(err) {
-			err = hc.WaitTimeout(terminateTimeout)
-		} else if hcsshim.IsAlreadyStopped(err) {
-			err = nil
-		}
-
-		if err != nil {
-			c.logger.WithField("container", id).WithError(err).Debug("terminate failed on restore")
-			return false, -1, nil, err
-		}
+	hc, err := hcsshim.OpenContainer(id)
+	if err != nil {
+		return nil, errdefs.NotFound(errors.New("container not found"))
 	}
-	return false, -1, &restoredProcess{
-		c:  c,
-		id: id,
+	const terminateTimeout = time.Minute * 2
+	err = hc.Terminate()
+
+	if hcsshim.IsPending(err) {
+		err = hc.WaitTimeout(terminateTimeout)
+	} else if hcsshim.IsAlreadyStopped(err) {
+		err = nil
+	}
+
+	if err != nil {
+		c.logger.WithField("container", id).WithError(err).Debug("terminate failed on restore")
+		return nil, err
+	}
+	return &container{
+		client:       c,
+		hcsContainer: hc,
+		id:           id,
 	}, nil
 }
 
-// ListPids returns a list of process IDs running in a container. It is not
+// AttachTask is only called by the daemon when restoring containers. As
+// re-attach isn't possible (see LoadContainer), a NotFound error is
+// unconditionally returned to allow restore to make progress.
+func (*container) AttachTask(context.Context, libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
+	return nil, errdefs.NotFound(containerderrdefs.ErrNotImplemented)
+}
+
+// Pids returns a list of process IDs running in a container. It is not
 // implemented on Windows.
-func (c *client) ListPids(_ context.Context, _ string) ([]uint32, error) {
+func (t *task) Pids(context.Context) ([]containerd.ProcessInfo, error) {
 	return nil, errors.New("not implemented on Windows")
 }
 
@@ -898,13 +923,13 @@ func (c *client) ListPids(_ context.Context, _ string) ([]uint32, error) {
 // the containers could be Hyper-V containers, they would not be
 // visible on the container host. However, libcontainerd does have
 // that information.
-func (c *client) Summary(_ context.Context, containerID string) ([]libcontainerdtypes.Summary, error) {
-	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
+func (t *task) Summary(_ context.Context) ([]libcontainerdtypes.Summary, error) {
+	hc, err := t.getHCSContainer()
 	if err != nil {
 		return nil, err
 	}
 
-	p, err := ctr.hcsContainer.ProcessList()
+	p, err := hc.ProcessList()
 	if err != nil {
 		return nil, err
 	}
@@ -926,118 +951,114 @@ func (c *client) Summary(_ context.Context, containerID string) ([]libcontainerd
 	return pl, nil
 }
 
-type restoredProcess struct {
-	id string
-	c  *client
+func (p *process) Delete(ctx context.Context) (*containerd.ExitStatus, error) {
+	select {
+	case <-ctx.Done():
+		return nil, errors.WithStack(ctx.Err())
+	case <-p.waitCh:
+	default:
+		return nil, errdefs.Conflict(errors.New("process is running"))
+	}
+	return p.exited, nil
 }
 
-func (p *restoredProcess) Delete(ctx context.Context) (uint32, time.Time, error) {
-	return p.c.DeleteTask(ctx, p.id)
+func (t *task) Delete(ctx context.Context) (*containerd.ExitStatus, error) {
+	select {
+	case <-ctx.Done():
+		return nil, errors.WithStack(ctx.Err())
+	case <-t.waitCh:
+	default:
+		return nil, errdefs.Conflict(errors.New("container is not stopped"))
+	}
+
+	t.ctr.mu.Lock()
+	defer t.ctr.mu.Unlock()
+	if err := t.assertIsCurrentTask(); err != nil {
+		return nil, err
+	}
+	t.ctr.task = nil
+	return t.exited, nil
 }
 
-func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, time.Time, error) {
-	ec := -1
-	ctr := c.getContainer(containerID)
-	if ctr == nil {
-		return uint32(ec), time.Now(), errors.WithStack(errdefs.NotFound(errors.New("no such container")))
+func (t *task) ForceDelete(ctx context.Context) error {
+	select {
+	case <-t.waitCh: // Task is already stopped.
+		_, err := t.Delete(ctx)
+		return err
+	default:
+	}
+
+	if err := t.Kill(ctx, syscall.SIGKILL); err != nil {
+		return errors.Wrap(err, "could not force-kill task")
 	}
 
 	select {
 	case <-ctx.Done():
-		return uint32(ec), time.Now(), errors.WithStack(ctx.Err())
-	case <-ctr.waitCh:
+		return ctx.Err()
+	case <-t.waitCh:
+		_, err := t.Delete(ctx)
+		return err
+	}
+}
+
+func (t *task) Status(ctx context.Context) (containerd.Status, error) {
+	select {
+	case <-t.waitCh:
+		return containerd.Status{
+			Status:     containerd.Stopped,
+			ExitStatus: t.exited.ExitCode(),
+			ExitTime:   t.exited.ExitTime(),
+		}, nil
 	default:
-		return uint32(ec), time.Now(), errors.New("container is not stopped")
 	}
 
-	ctr.Lock()
-	defer ctr.Unlock()
-	return ctr.exitCode, ctr.exitedAt, nil
+	t.ctr.mu.Lock()
+	defer t.ctr.mu.Unlock()
+	s := containerd.Running
+	if t.ctr.isPaused {
+		s = containerd.Paused
+	}
+	return containerd.Status{Status: s}, nil
 }
 
-func (c *client) Delete(_ context.Context, containerID string) error {
-	c.Lock()
-	defer c.Unlock()
-	ctr := c.containers[containerID]
-	if ctr == nil {
-		return errors.WithStack(errdefs.NotFound(errors.New("no such container")))
-	}
-
-	ctr.Lock()
-	defer ctr.Unlock()
-
-	switch ctr.status {
-	case containerd.Created:
-		if err := c.shutdownContainer(ctr); err != nil {
-			return err
-		}
-		fallthrough
-	case containerd.Stopped:
-		delete(c.containers, containerID)
-		return nil
-	}
-
-	return errors.WithStack(errdefs.InvalidParameter(errors.New("container is not stopped")))
-}
-
-func (c *client) Status(ctx context.Context, containerID string) (containerd.ProcessStatus, error) {
-	c.Lock()
-	defer c.Unlock()
-	ctr := c.containers[containerID]
-	if ctr == nil {
-		return containerd.Unknown, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
-	}
-
-	ctr.Lock()
-	defer ctr.Unlock()
-	return ctr.status, nil
-}
-
-func (c *client) UpdateResources(ctx context.Context, containerID string, resources *libcontainerdtypes.Resources) error {
+func (*task) UpdateResources(ctx context.Context, resources *libcontainerdtypes.Resources) error {
 	// Updating resource isn't supported on Windows
 	// but we should return nil for enabling updating container
 	return nil
 }
 
-func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDir string, exit bool) error {
+func (*task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit bool) error {
 	return errors.New("Windows: Containers do not support checkpoints")
 }
 
-func (c *client) getContainer(id string) *container {
-	c.Lock()
-	ctr := c.containers[id]
-	c.Unlock()
-
-	return ctr
+// assertIsCurrentTask returns a non-nil error if the task has been deleted.
+func (t *task) assertIsCurrentTask() error {
+	if t.ctr.task != t {
+		return errors.WithStack(errdefs.NotFound(fmt.Errorf("task %q not found", t.id)))
+	}
+	return nil
 }
 
-func (c *client) getProcess(containerID, processID string) (*container, *process, error) {
-	ctr := c.getContainer(containerID)
-	switch {
-	case ctr == nil:
-		return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
-	case ctr.init == nil:
-		return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("container is not running")))
-	case processID == libcontainerdtypes.InitProcessName:
-		return ctr, ctr.init, nil
-	default:
-		ctr.Lock()
-		defer ctr.Unlock()
-		if ctr.execs == nil {
-			return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("no execs")))
-		}
+// getHCSContainer returns a reference to the hcsshim Container for the task's
+// container if neither the task nor container have been deleted.
+//
+// t.ctr.mu must not be locked by the calling goroutine when calling this
+// function.
+func (t *task) getHCSContainer() (hcsshim.Container, error) {
+	t.ctr.mu.Lock()
+	defer t.ctr.mu.Unlock()
+	if err := t.assertIsCurrentTask(); err != nil {
+		return nil, err
 	}
-
-	p := ctr.execs[processID]
-	if p == nil {
-		return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("no such exec")))
+	hc := t.ctr.hcsContainer
+	if hc == nil {
+		return nil, errors.WithStack(errdefs.NotFound(fmt.Errorf("container %q not found", t.ctr.id)))
 	}
-
-	return ctr, p, nil
+	return hc, nil
 }
 
 // ctr mutex must be held when calling this function.
-func (c *client) shutdownContainer(ctr *container) error {
+func (ctr *container) shutdownContainer() error {
 	var err error
 	const waitTimeout = time.Minute * 5
 
@@ -1052,11 +1073,11 @@ func (c *client) shutdownContainer(ctr *container) error {
 	}
 
 	if err != nil {
-		c.logger.WithError(err).WithField("container", ctr.id).
+		ctr.client.logger.WithError(err).WithField("container", ctr.id).
 			Debug("failed to shutdown container, terminating it")
-		terminateErr := c.terminateContainer(ctr)
+		terminateErr := ctr.terminateContainer()
 		if terminateErr != nil {
-			c.logger.WithError(terminateErr).WithField("container", ctr.id).
+			ctr.client.logger.WithError(terminateErr).WithField("container", ctr.id).
 				Error("failed to shutdown container, and subsequent terminate also failed")
 			return fmt.Errorf("%s: subsequent terminate failed %s", err, terminateErr)
 		}
@@ -1067,7 +1088,7 @@ func (c *client) shutdownContainer(ctr *container) error {
 }
 
 // ctr mutex must be held when calling this function.
-func (c *client) terminateContainer(ctr *container) error {
+func (ctr *container) terminateContainer() error {
 	const terminateTimeout = time.Minute * 5
 	ctr.terminateInvoked = true
 	err := ctr.hcsContainer.Terminate()
@@ -1079,7 +1100,7 @@ func (c *client) terminateContainer(ctr *container) error {
 	}
 
 	if err != nil {
-		c.logger.WithError(err).WithField("container", ctr.id).
+		ctr.client.logger.WithError(err).WithField("container", ctr.id).
 			Debug("failed to terminate container")
 		return err
 	}
@@ -1087,9 +1108,9 @@ func (c *client) terminateContainer(ctr *container) error {
 	return nil
 }
 
-func (c *client) reapProcess(ctr *container, p *process) int {
-	logger := c.logger.WithFields(logrus.Fields{
-		"container": ctr.id,
+func (p *process) reap() {
+	logger := p.ctr.client.logger.WithFields(logrus.Fields{
+		"container": p.ctr.id,
 		"process":   p.id,
 	})
 
@@ -1100,10 +1121,9 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != windows.ERROR_BROKEN_PIPE {
 			logger.WithError(err).Warnf("Wait() failed (container may have been killed)")
 		}
-		// Fall through here, do not return. This ensures we attempt to
-		// continue the shutdown in HCS and tell the docker engine that the
-		// process/container has exited to avoid a container being dropped on
-		// the floor.
+		// Fall through here, do not return. This ensures we tell the
+		// docker engine that the process/container has exited to avoid
+		// a container being dropped on the floor.
 	}
 	exitedAt := time.Now()
 
@@ -1116,87 +1136,88 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 		// code we return doesn't incorrectly indicate success.
 		exitCode = -1
 
-		// Fall through here, do not return. This ensures we attempt to
-		// continue the shutdown in HCS and tell the docker engine that the
-		// process/container has exited to avoid a container being dropped on
-		// the floor.
+		// Fall through here, do not return. This ensures we tell the
+		// docker engine that the process/container has exited to avoid
+		// a container being dropped on the floor.
 	}
 
-	if err := p.hcsProcess.Close(); err != nil {
+	p.mu.Lock()
+	hcsProcess := p.hcsProcess
+	p.hcsProcess = nil
+	p.mu.Unlock()
+
+	if err := hcsProcess.Close(); err != nil {
 		logger.WithError(err).Warnf("failed to cleanup hcs process resources")
 		exitCode = -1
 		eventErr = fmt.Errorf("hcsProcess.Close() failed %s", err)
 	}
 
-	if p.id == libcontainerdtypes.InitProcessName {
-		exitCode, eventErr = c.reapContainer(ctr, p, exitCode, exitedAt, eventErr, logger)
-	}
+	// Explicit locking is not required as reads from exited are
+	// synchronized using waitCh.
+	p.exited = containerd.NewExitStatus(uint32(exitCode), exitedAt, nil)
+	close(p.waitCh)
 
-	c.eventQ.Append(ctr.id, func() {
+	p.ctr.client.eventQ.Append(p.ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
-			ContainerID: ctr.id,
+			ContainerID: p.ctr.id,
 			ProcessID:   p.id,
-			Pid:         uint32(p.pid),
+			Pid:         uint32(hcsProcess.Pid()),
 			ExitCode:    uint32(exitCode),
 			ExitedAt:    exitedAt,
 			Error:       eventErr,
 		}
-		c.logger.WithFields(logrus.Fields{
-			"container":  ctr.id,
+		p.ctr.client.logger.WithFields(logrus.Fields{
+			"container":  p.ctr.id,
 			"event":      libcontainerdtypes.EventExit,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExit, ei)
+		err := p.ctr.client.backend.ProcessEvent(p.ctr.id, libcontainerdtypes.EventExit, ei)
 		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container":  ctr.id,
+			p.ctr.client.logger.WithError(err).WithFields(logrus.Fields{
+				"container":  p.ctr.id,
 				"event":      libcontainerdtypes.EventExit,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
-		if p.id != libcontainerdtypes.InitProcessName {
-			ctr.Lock()
-			delete(ctr.execs, p.id)
-			ctr.Unlock()
-		}
 	})
-
-	return exitCode
 }
 
-// reapContainer shuts down the container and releases associated resources. It returns
-// the error to be logged in the eventInfo sent back to the monitor.
-func (c *client) reapContainer(ctr *container, p *process, exitCode int, exitedAt time.Time, eventErr error, logger *logrus.Entry) (int, error) {
-	// Update container status
-	ctr.Lock()
-	ctr.status = containerd.Stopped
-	ctr.exitedAt = exitedAt
-	ctr.exitCode = uint32(exitCode)
-	close(ctr.waitCh)
+func (ctr *container) Delete(context.Context) error {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
 
-	if err := c.shutdownContainer(ctr); err != nil {
-		exitCode = -1
-		logger.WithError(err).Warn("failed to shutdown container")
-		thisErr := errors.Wrap(err, "failed to shutdown container")
-		if eventErr != nil {
-			eventErr = errors.Wrap(eventErr, thisErr.Error())
-		} else {
-			eventErr = thisErr
+	if ctr.hcsContainer == nil {
+		return errors.WithStack(errdefs.NotFound(fmt.Errorf("container %q not found", ctr.id)))
+	}
+
+	// Check that there is no task currently running.
+	if ctr.task != nil {
+		select {
+		case <-ctr.task.waitCh:
+		default:
+			return errors.WithStack(errdefs.Conflict(errors.New("container is not stopped")))
 		}
+	}
+
+	var (
+		logger = ctr.client.logger.WithFields(logrus.Fields{
+			"container": ctr.id,
+		})
+		thisErr error
+	)
+
+	if err := ctr.shutdownContainer(); err != nil {
+		logger.WithError(err).Warn("failed to shutdown container")
+		thisErr = errors.Wrap(err, "failed to shutdown container")
 	} else {
 		logger.Debug("completed container shutdown")
 	}
-	ctr.Unlock()
 
 	if err := ctr.hcsContainer.Close(); err != nil {
-		exitCode = -1
 		logger.WithError(err).Error("failed to clean hcs container resources")
-		thisErr := errors.Wrap(err, "failed to terminate container")
-		if eventErr != nil {
-			eventErr = errors.Wrap(eventErr, thisErr.Error())
-		} else {
-			eventErr = thisErr
-		}
+		thisErr = errors.Wrap(err, "failed to terminate container")
 	}
-	return exitCode, eventErr
+
+	ctr.hcsContainer = nil
+	return thisErr
 }
