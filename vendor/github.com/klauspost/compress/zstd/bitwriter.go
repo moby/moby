@@ -5,8 +5,6 @@
 
 package zstd
 
-import "fmt"
-
 // bitWriter will write bits.
 // First bit will be LSB of the first byte of output.
 type bitWriter struct {
@@ -71,80 +69,6 @@ func (b *bitWriter) addBits32Clean(value uint32, bits uint8) {
 func (b *bitWriter) addBits16Clean(value uint16, bits uint8) {
 	b.bitContainer |= uint64(value) << (b.nBits & 63)
 	b.nBits += bits
-}
-
-// flush will flush all pending full bytes.
-// There will be at least 56 bits available for writing when this has been called.
-// Using flush32 is faster, but leaves less space for writing.
-func (b *bitWriter) flush() {
-	v := b.nBits >> 3
-	switch v {
-	case 0:
-	case 1:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-		)
-	case 2:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-		)
-	case 3:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-		)
-	case 4:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-		)
-	case 5:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-		)
-	case 6:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-			byte(b.bitContainer>>40),
-		)
-	case 7:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-			byte(b.bitContainer>>40),
-			byte(b.bitContainer>>48),
-		)
-	case 8:
-		b.out = append(b.out,
-			byte(b.bitContainer),
-			byte(b.bitContainer>>8),
-			byte(b.bitContainer>>16),
-			byte(b.bitContainer>>24),
-			byte(b.bitContainer>>32),
-			byte(b.bitContainer>>40),
-			byte(b.bitContainer>>48),
-			byte(b.bitContainer>>56),
-		)
-	default:
-		panic(fmt.Errorf("bits (%d) > 64", b.nBits))
-	}
-	b.bitContainer >>= v << 3
-	b.nBits &= 7
 }
 
 // flush32 will flush out, so there are at least 32 bits available for writing.

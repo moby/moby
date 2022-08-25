@@ -33,9 +33,3 @@ func hashLen(u uint64, length, mls uint8) uint32 {
 		return (uint32(u) * prime4bytes) >> (32 - length)
 	}
 }
-
-// hash3 returns the hash of the lower 3 bytes of u to fit in a hash table with h bits.
-// Preferably h should be a constant and should always be <32.
-func hash3(u uint32, h uint8) uint32 {
-	return ((u << (32 - 24)) * prime3bytes) >> ((32 - h) & 31)
-}
