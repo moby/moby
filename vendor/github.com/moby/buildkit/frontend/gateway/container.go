@@ -361,6 +361,8 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 }
 
 func (gwCtr *gatewayContainer) Release(ctx context.Context) error {
+	gwCtr.mu.Lock()
+	defer gwCtr.mu.Unlock()
 	gwCtr.cancel()
 	err1 := gwCtr.errGroup.Wait()
 
@@ -371,6 +373,7 @@ func (gwCtr *gatewayContainer) Release(ctx context.Context) error {
 			err2 = err
 		}
 	}
+	gwCtr.cleanup = nil
 
 	if err1 != nil {
 		return stack.Enable(err1)
