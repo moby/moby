@@ -419,20 +419,6 @@ func TestMirrorEndpointLookup(t *testing.T) {
 	}
 }
 
-func TestSearchRepositories(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	results, err := r.searchRepositories("fakequery", 25)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if results == nil {
-		t.Fatal("Expected non-nil SearchResults object")
-	}
-	assert.Equal(t, results.NumResults, 1, "Expected 1 search results")
-	assert.Equal(t, results.Query, "fakequery", "Expected 'fakequery' as query")
-	assert.Equal(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
-}
-
 func TestTrustedLocation(t *testing.T) {
 	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
 		req, _ := http.NewRequest(http.MethodGet, url, nil)

@@ -41,7 +41,11 @@ func newV1Endpoint(index *registry.IndexInfo, userAgent string, metaHeaders http
 		return nil, err
 	}
 
-	endpoint, err := newV1EndpointFromStr(GetAuthConfigKey(index), tlsConfig, userAgent, metaHeaders)
+	indexURL := index.Name
+	if index.Official {
+		indexURL = IndexServer
+	}
+	endpoint, err := newV1EndpointFromStr(indexURL, tlsConfig, userAgent, metaHeaders)
 	if err != nil {
 		return nil, err
 	}
