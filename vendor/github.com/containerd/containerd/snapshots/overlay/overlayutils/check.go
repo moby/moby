@@ -1,3 +1,6 @@
+//go:build linux
+// +build linux
+
 /*
    Copyright The containerd Authors.
 
@@ -14,22 +17,16 @@
    limitations under the License.
 */
 
-// =====
-// NOTE: This file is ported from https://github.com/containerd/containerd/blob/v1.5.2/snapshots/overlay/overlayutils/check.go
-// TODO: import this from containerd package once we drop support to continerd v1.4.x
-// =====
-
 package overlayutils
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
-	userns "github.com/containerd/containerd/sys"
+	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
 )
 
@@ -41,7 +38,7 @@ import (
 //
 // Ported from moby overlay2.
 func SupportsMultipleLowerDir(d string) error {
-	td, err := ioutil.TempDir(d, "multiple-lowerdir-check")
+	td, err := os.MkdirTemp(d, "multiple-lowerdir-check")
 	if err != nil {
 		return err
 	}
@@ -136,7 +133,7 @@ func NeedsUserXAttr(d string) (bool, error) {
 		}
 	}()
 
-	td, err := ioutil.TempDir(tdRoot, "")
+	td, err := os.MkdirTemp(tdRoot, "")
 	if err != nil {
 		return false, err
 	}

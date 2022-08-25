@@ -12,8 +12,5 @@ func UseWindowsLayerMode(ctx context.Context) context.Context {
 
 func hasWindowsLayerMode(ctx context.Context) bool {
 	v := ctx.Value(contextKey)
-	if v == nil {
-		return false
-	}
-	return true
+	return v != nil
 }

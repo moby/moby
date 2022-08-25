@@ -1,7 +1,6 @@
 package sshforward
 
 import (
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -64,7 +63,7 @@ type SocketOpt struct {
 }
 
 func MountSSHSocket(ctx context.Context, c session.Caller, opt SocketOpt) (sockPath string, closer func() error, err error) {
-	dir, err := ioutil.TempDir("", ".buildkit-ssh-sock")
+	dir, err := os.MkdirTemp("", ".buildkit-ssh-sock")
 	if err != nil {
 		return "", nil, errors.WithStack(err)
 	}

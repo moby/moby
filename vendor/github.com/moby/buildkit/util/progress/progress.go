@@ -274,3 +274,20 @@ func (pw *noOpWriter) Write(_ string, _ interface{}) error {
 func (pw *noOpWriter) Close() error {
 	return nil
 }
+
+func OneOff(ctx context.Context, id string) func(err error) error {
+	pw, _, _ := NewFromContext(ctx)
+	now := time.Now()
+	st := Status{
+		Started: &now,
+	}
+	pw.Write(id, st)
+	return func(err error) error {
+		// TODO: set error on status
+		now := time.Now()
+		st.Completed = &now
+		pw.Write(id, st)
+		pw.Close()
+		return err
+	}
+}

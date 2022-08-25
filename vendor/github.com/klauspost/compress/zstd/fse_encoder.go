@@ -76,21 +76,6 @@ func (s *fseEncoder) HistogramFinished(maxSymbol uint8, maxCount int) {
 	s.clearCount = maxCount != 0
 }
 
-// prepare will prepare and allocate scratch tables used for both compression and decompression.
-func (s *fseEncoder) prepare() (*fseEncoder, error) {
-	if s == nil {
-		s = &fseEncoder{}
-	}
-	s.useRLE = false
-	if s.clearCount && s.maxCount == 0 {
-		for i := range s.count {
-			s.count[i] = 0
-		}
-		s.clearCount = false
-	}
-	return s, nil
-}
-
 // allocCtable will allocate tables needed for compression.
 // If existing tables a re big enough, they are simply re-used.
 func (s *fseEncoder) allocCtable() {
@@ -707,14 +692,6 @@ func (c *cState) init(bw *bitWriter, ct *cTable, first symbolTransform) {
 	im := int32((nbBitsOut << 16) - first.deltaNbBits)
 	lu := (im >> nbBitsOut) + int32(first.deltaFindState)
 	c.state = c.stateTable[lu]
-}
-
-// encode the output symbol provided and write it to the bitstream.
-func (c *cState) encode(symbolTT symbolTransform) {
-	nbBitsOut := (uint32(c.state) + symbolTT.deltaNbBits) >> 16
-	dstState := int32(c.state>>(nbBitsOut&15)) + int32(symbolTT.deltaFindState)
-	c.bw.addBits16NC(c.state, uint8(nbBitsOut))
-	c.state = c.stateTable[dstState]
 }
 
 // flush will write the tablelog to the output and flush the remaining full bytes.

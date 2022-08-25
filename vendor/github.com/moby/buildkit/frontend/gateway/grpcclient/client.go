@@ -323,22 +323,12 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 			}
 		}
 	}
-	var (
-		// old API
-		legacyRegistryCacheImports []string
-		// new API (CapImportCaches)
-		cacheImports []*pb.CacheOptionsEntry
-	)
-	supportCapImportCaches := c.caps.Supports(pb.CapImportCaches) == nil
+	var cacheImports []*pb.CacheOptionsEntry
 	for _, im := range creq.CacheImports {
-		if !supportCapImportCaches && im.Type == "registry" {
-			legacyRegistryCacheImports = append(legacyRegistryCacheImports, im.Attrs["ref"])
-		} else {
-			cacheImports = append(cacheImports, &pb.CacheOptionsEntry{
-				Type:  im.Type,
-				Attrs: im.Attrs,
-			})
-		}
+		cacheImports = append(cacheImports, &pb.CacheOptionsEntry{
+			Type:  im.Type,
+			Attrs: im.Attrs,
+		})
 	}
 
 	// these options are added by go client in solve()
@@ -366,10 +356,7 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 		FrontendInputs:      creq.FrontendInputs,
 		AllowResultReturn:   true,
 		AllowResultArrayRef: true,
-		// old API
-		ImportCacheRefsDeprecated: legacyRegistryCacheImports,
-		// new API
-		CacheImports: cacheImports,
+		CacheImports:        cacheImports,
 	}
 
 	// backwards compatibility with inline return
@@ -472,7 +459,7 @@ func (c *grpcClient) ResolveImageConfig(ctx context.Context, ref string, opt llb
 			OSFeatures:   platform.OSFeatures,
 		}
 	}
-	resp, err := c.client.ResolveImageConfig(ctx, &pb.ResolveImageConfigRequest{Ref: ref, Platform: p, ResolveMode: opt.ResolveMode, LogName: opt.LogName})
+	resp, err := c.client.ResolveImageConfig(ctx, &pb.ResolveImageConfigRequest{Ref: ref, Platform: p, ResolveMode: opt.ResolveMode, LogName: opt.LogName, ResolverType: int32(opt.ResolverType), SessionID: opt.SessionID})
 	if err != nil {
 		return "", nil, err
 	}

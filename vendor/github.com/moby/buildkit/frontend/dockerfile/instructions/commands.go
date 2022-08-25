@@ -224,9 +224,10 @@ func (s *SourcesAndDest) ExpandRaw(expander SingleWordExpander) error {
 type AddCommand struct {
 	withNameAndCode
 	SourcesAndDest
-	Chown string
-	Chmod string
-	Link  bool
+	Chown      string
+	Chmod      string
+	Link       bool
+	KeepGitDir bool // whether to keep .git dir, only meaningful for git sources
 }
 
 // Expand variables

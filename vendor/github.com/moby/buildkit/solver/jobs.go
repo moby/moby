@@ -3,7 +3,6 @@ package solver
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/progress"
+	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/util/tracing"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -550,9 +550,7 @@ func (j *Job) Discard() error {
 			delete(st.jobs, j)
 			j.list.deleteIfUnreferenced(k, st)
 		}
-		if _, ok := st.allPw[j.pw]; ok {
-			delete(st.allPw, j.pw)
-		}
+		delete(st.allPw, j.pw)
 		st.mu.Unlock()
 	}
 
@@ -705,7 +703,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 		if err != nil {
 			select {
 			case <-ctx.Done():
-				if strings.Contains(err.Error(), context.Canceled.Error()) {
+				if errdefs.IsCanceled(ctx, err) {
 					complete = false
 					releaseError(err)
 					err = errors.Wrap(ctx.Err(), err.Error())
@@ -771,7 +769,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 		if err != nil {
 			select {
 			case <-ctx.Done():
-				if strings.Contains(err.Error(), context.Canceled.Error()) {
+				if errdefs.IsCanceled(ctx, err) {
 					complete = false
 					releaseError(err)
 					err = errors.Wrap(ctx.Err(), err.Error())
@@ -781,6 +779,15 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 		}
 		if complete {
 			if err == nil {
+				if res.Opts == nil {
+					res.Opts = CacheOpts(make(map[interface{}]interface{}))
+				}
+				res.Opts[progressKey{}] = &controller.Controller{
+					WriterFactory: progress.FromContext(ctx),
+					Digest:        s.st.vtx.Digest(),
+					Name:          s.st.vtx.Name(),
+					ProgressGroup: s.st.vtx.Options().ProgressGroup,
+				}
 				s.cacheRes = append(s.cacheRes, res)
 				s.cacheDone = done
 			}
@@ -838,7 +845,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 		if err != nil {
 			select {
 			case <-ctx.Done():
-				if strings.Contains(err.Error(), context.Canceled.Error()) {
+				if errdefs.IsCanceled(ctx, err) {
 					complete = false
 					releaseError(err)
 					err = errors.Wrap(ctx.Err(), err.Error())

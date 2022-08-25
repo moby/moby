@@ -10,18 +10,18 @@ import (
 )
 
 type UsageInfo struct {
-	ID      string
-	Mutable bool
-	InUse   bool
-	Size    int64
+	ID      string `json:"id"`
+	Mutable bool   `json:"mutable"`
+	InUse   bool   `json:"inUse"`
+	Size    int64  `json:"size"`
 
-	CreatedAt   time.Time
-	LastUsedAt  *time.Time
-	UsageCount  int
-	Parents     []string
-	Description string
-	RecordType  UsageRecordType
-	Shared      bool
+	CreatedAt   time.Time       `json:"createdAt"`
+	LastUsedAt  *time.Time      `json:"lastUsedAt"`
+	UsageCount  int             `json:"usageCount"`
+	Parents     []string        `json:"parents"`
+	Description string          `json:"description"`
+	RecordType  UsageRecordType `json:"recordType"`
+	Shared      bool            `json:"shared"`
 }
 
 func (c *Client) DiskUsage(ctx context.Context, opts ...DiskUsageOption) ([]*UsageInfo, error) {

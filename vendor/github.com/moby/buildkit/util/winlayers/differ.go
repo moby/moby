@@ -262,7 +262,6 @@ func makeWindowsLayer(w io.Writer) (io.Writer, func(error), chan error) {
 		}
 		pw.CloseWithError(err)
 		done <- err
-		return
 	}()
 
 	discard := func(err error) {

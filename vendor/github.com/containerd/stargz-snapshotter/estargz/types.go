@@ -159,7 +159,8 @@ type TOCEntry struct {
 
 	// NumLink is the number of entry names pointing to this entry.
 	// Zero means one name references this entry.
-	NumLink int
+	// This field is calculated during runtime and not recorded in TOC JSON.
+	NumLink int `json:"-"`
 
 	// Xattrs are the extended attribute for the entry.
 	Xattrs map[string][]byte `json:"xattrs,omitempty"`

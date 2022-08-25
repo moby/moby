@@ -551,7 +551,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 	}
 
 	// If we can do everything in one block, prefer that.
-	if len(src) <= maxCompressedBlockSize {
+	if len(src) <= e.o.blockSize {
 		enc.Reset(e.o.dict, true)
 		// Slightly faster with no history and everything in one block.
 		if e.o.crc {

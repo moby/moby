@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -56,7 +55,7 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools
 	}
 
 	tmpPath := p + ".tmp"
-	if err := ioutil.WriteFile(tmpPath, b.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(tmpPath, b.Bytes(), 0644); err != nil {
 		return "", nil, err
 	}
 

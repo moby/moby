@@ -227,6 +227,7 @@ github.com/containerd/containerd/services/content/contentserver
 github.com/containerd/containerd/services/introspection
 github.com/containerd/containerd/services/server/config
 github.com/containerd/containerd/snapshots
+github.com/containerd/containerd/snapshots/overlay/overlayutils
 github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
 github.com/containerd/containerd/sys/reaper
@@ -244,10 +245,7 @@ github.com/containerd/fifo
 # github.com/containerd/go-runc v1.0.0
 ## explicit; go 1.13
 github.com/containerd/go-runc
-# github.com/containerd/stargz-snapshotter v0.11.3
-## explicit; go 1.16
-github.com/containerd/stargz-snapshotter/snapshot/overlayutils
-# github.com/containerd/stargz-snapshotter/estargz v0.11.3
+# github.com/containerd/stargz-snapshotter/estargz v0.12.0
 ## explicit; go 1.16
 github.com/containerd/stargz-snapshotter/estargz
 github.com/containerd/stargz-snapshotter/estargz/errorutil
@@ -451,14 +449,15 @@ github.com/inconshreveable/mousetrap
 # github.com/ishidawataru/sctp v0.0.0-20210707070123-9a39160e9062
 ## explicit; go 1.12
 github.com/ishidawataru/sctp
-# github.com/jmespath/go-jmespath v0.3.0
+# github.com/jmespath/go-jmespath v0.4.0
 ## explicit; go 1.14
 github.com/jmespath/go-jmespath
-# github.com/klauspost/compress v1.15.1
-## explicit; go 1.15
+# github.com/klauspost/compress v1.15.7
+## explicit; go 1.16
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
+github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
@@ -474,7 +473,7 @@ github.com/mistifyio/go-zfs
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
-# github.com/moby/buildkit v0.10.4-0.20220719175648-8e2d9b9006ca
+# github.com/moby/buildkit v0.10.4-0.20220719175648-8e2d9b9006ca => github.com/amrmahdi/buildkit v0.10.1-0.20220819015226-1ef0b534d3f4
 ## explicit; go 1.17
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -517,6 +516,8 @@ github.com/moby/buildkit/frontend/gateway/forwarder
 github.com/moby/buildkit/frontend/gateway/grpcclient
 github.com/moby/buildkit/frontend/gateway/pb
 github.com/moby/buildkit/frontend/subrequests
+github.com/moby/buildkit/frontend/subrequests/outline
+github.com/moby/buildkit/frontend/subrequests/targets
 github.com/moby/buildkit/identity
 github.com/moby/buildkit/session
 github.com/moby/buildkit/session/auth
@@ -680,6 +681,10 @@ github.com/moby/term/windows
 # github.com/morikuni/aec v1.0.0
 ## explicit
 github.com/morikuni/aec
+# github.com/onsi/ginkgo v1.16.4
+## explicit; go 1.15
+# github.com/onsi/gomega v1.17.0
+## explicit; go 1.16
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
@@ -688,7 +693,7 @@ github.com/opencontainers/go-digest
 github.com/opencontainers/image-spec/identity
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/opencontainers/runc v1.1.2
+# github.com/opencontainers/runc v1.1.3
 ## explicit; go 1.16
 github.com/opencontainers/runc/libcontainer/cgroups
 github.com/opencontainers/runc/libcontainer/configs
@@ -715,7 +720,7 @@ github.com/philhofer/fwd
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.12.1
+# github.com/prometheus/client_golang v1.12.2
 ## explicit; go 1.13
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
@@ -755,7 +760,7 @@ github.com/spf13/pflag
 # github.com/tinylib/msgp v1.1.0
 ## explicit
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
+# github.com/tonistiigi/fsutil v0.0.0-20220510150904-0dbf3a8a7d58
 ## explicit; go 1.13
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
@@ -886,7 +891,7 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
+# golang.org/x/crypto v0.0.0-20220511200225-c6db032c6c88
 ## explicit; go 1.17
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
@@ -906,7 +911,7 @@ golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
+# golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
 ## explicit; go 1.17
 golang.org/x/net/bpf
 golang.org/x/net/context
@@ -924,7 +929,7 @@ golang.org/x/net/ipv6
 golang.org/x/net/proxy
 golang.org/x/net/trace
 golang.org/x/net/websocket
-# golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
+# golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 ## explicit; go 1.11
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -957,7 +962,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11
+# golang.org/x/time v0.0.0-20220210224613-90d013bbcef8
 ## explicit
 golang.org/x/time/rate
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
@@ -989,8 +994,8 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
-## explicit; go 1.11
+# google.golang.org/genproto v0.0.0-20220310185008-1973136f34c6
+## explicit; go 1.15
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/distribution
@@ -1000,9 +1005,10 @@ google.golang.org/genproto/googleapis/api/metric
 google.golang.org/genproto/googleapis/api/monitoredres
 google.golang.org/genproto/googleapis/logging/type
 google.golang.org/genproto/googleapis/logging/v2
+google.golang.org/genproto/googleapis/longrunning
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/grpc v1.45.0
+# google.golang.org/grpc v1.47.0
 ## explicit; go 1.14
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -1014,6 +1020,7 @@ google.golang.org/grpc/balancer/grpclb/grpc_lb_v1
 google.golang.org/grpc/balancer/grpclb/state
 google.golang.org/grpc/balancer/roundrobin
 google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/channelz
 google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/credentials
@@ -1034,6 +1041,7 @@ google.golang.org/grpc/health
 google.golang.org/grpc/health/grpc_health_v1
 google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
+google.golang.org/grpc/internal/balancer/gracefulswitch
 google.golang.org/grpc/internal/balancerload
 google.golang.org/grpc/internal/binarylog
 google.golang.org/grpc/internal/buffer
@@ -1046,6 +1054,7 @@ google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
 google.golang.org/grpc/internal/grpcutil
 google.golang.org/grpc/internal/metadata
+google.golang.org/grpc/internal/pretty
 google.golang.org/grpc/internal/resolver
 google.golang.org/grpc/internal/resolver/dns
 google.golang.org/grpc/internal/resolver/passthrough
@@ -1101,6 +1110,8 @@ google.golang.org/protobuf/types/known/fieldmaskpb
 google.golang.org/protobuf/types/known/structpb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
+# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
+## explicit; go 1.11
 # gotest.tools/v3 v3.2.0
 ## explicit; go 1.13
 gotest.tools/v3/assert
@@ -1119,4 +1130,5 @@ gotest.tools/v3/poll
 gotest.tools/v3/skip
 # github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
+# github.com/moby/buildkit => github.com/amrmahdi/buildkit v0.10.1-0.20220819015226-1ef0b534d3f4
 # github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre

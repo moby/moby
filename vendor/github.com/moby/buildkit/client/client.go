@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/containerd/containerd/defaults"
@@ -212,7 +212,7 @@ func WithCredentials(serverName, ca, cert, key string) ClientOpt {
 }
 
 func loadCredentials(opts *withCredentials) (grpc.DialOption, error) {
-	ca, err := ioutil.ReadFile(opts.CACert)
+	ca, err := os.ReadFile(opts.CACert)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not read ca certificate")
 	}
@@ -234,7 +234,6 @@ func loadCredentials(opts *withCredentials) (grpc.DialOption, error) {
 			return nil, errors.Wrap(err, "could not read certificate/key")
 		}
 		cfg.Certificates = []tls.Certificate{cert}
-		cfg.BuildNameToCertificate()
 	}
 
 	return grpc.WithTransportCredentials(credentials.NewTLS(cfg)), nil

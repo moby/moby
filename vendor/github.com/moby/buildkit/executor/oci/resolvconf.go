@@ -2,12 +2,10 @@ package oci
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/pkg/errors"
@@ -74,7 +72,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 
 		if dns != nil {
 			var (
-				dnsNameservers   = resolvconf.GetNameservers(dt, types.IP)
+				dnsNameservers   = resolvconf.GetNameservers(dt, resolvconf.IP)
 				dnsSearchDomains = resolvconf.GetSearchDomains(dt)
 				dnsOptions       = resolvconf.GetOptions(dt)
 			)
@@ -101,7 +99,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 		}
 
 		tmpPath := p + ".tmp"
-		if err := ioutil.WriteFile(tmpPath, f.Content, 0644); err != nil {
+		if err := os.WriteFile(tmpPath, f.Content, 0644); err != nil {
 			return "", err
 		}
 

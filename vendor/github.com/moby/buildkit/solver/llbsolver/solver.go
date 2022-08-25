@@ -40,6 +40,17 @@ type ExporterRequest struct {
 // ResolveWorkerFunc returns default worker for the temporary default non-distributed use cases
 type ResolveWorkerFunc func() (worker.Worker, error)
 
+// Opt defines options for new Solver.
+type Opt struct {
+	CacheManager     solver.CacheManager
+	CacheResolvers   map[string]remotecache.ResolveCacheImporterFunc
+	Entitlements     []string
+	Frontends        map[string]frontend.Frontend
+	GatewayForwarder *controlgateway.GatewayForwarder
+	SessionManager   *session.Manager
+	WorkerController *worker.Controller
+}
+
 type Solver struct {
 	workerController          *worker.Controller
 	solver                    *solver.Solver
@@ -52,21 +63,21 @@ type Solver struct {
 	entitlements              []string
 }
 
-func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI map[string]remotecache.ResolveCacheImporterFunc, gatewayForwarder *controlgateway.GatewayForwarder, sm *session.Manager, ents []string) (*Solver, error) {
+func New(opt Opt) (*Solver, error) {
 	s := &Solver{
-		workerController:          wc,
-		resolveWorker:             defaultResolver(wc),
-		eachWorker:                allWorkers(wc),
-		frontends:                 f,
-		resolveCacheImporterFuncs: resolveCI,
-		gatewayForwarder:          gatewayForwarder,
-		sm:                        sm,
-		entitlements:              ents,
+		workerController:          opt.WorkerController,
+		resolveWorker:             defaultResolver(opt.WorkerController),
+		eachWorker:                allWorkers(opt.WorkerController),
+		frontends:                 opt.Frontends,
+		resolveCacheImporterFuncs: opt.CacheResolvers,
+		gatewayForwarder:          opt.GatewayForwarder,
+		sm:                        opt.SessionManager,
+		entitlements:              opt.Entitlements,
 	}
 
 	s.solver = solver.NewSolver(solver.SolverOpt{
 		ResolveOpFunc: s.resolver(),
-		DefaultCache:  cache,
+		DefaultCache:  opt.CacheManager,
 	})
 	return s, nil
 }
@@ -163,7 +174,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		if err != nil {
 			return nil, err
 		}
-		if dtbi != nil && len(dtbi) > 0 {
+		if len(dtbi) > 0 {
 			if res.Metadata == nil {
 				res.Metadata = make(map[string][]byte)
 			}
@@ -179,7 +190,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 			if err != nil {
 				return nil, err
 			}
-			if dtbi != nil && len(dtbi) > 0 {
+			if len(dtbi) > 0 {
 				if res.Metadata == nil {
 					res.Metadata = make(map[string][]byte)
 				}
@@ -231,7 +242,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 			inp.Refs = m
 		}
 		if _, ok := asInlineCache(exp.CacheExporter); ok {
-			if err := inBuilderContext(ctx, j, "preparing layers for inline cache", "", func(ctx context.Context, _ session.Group) error {
+			if err := inBuilderContext(ctx, j, "preparing layers for inline cache", j.SessionID+"-cache-inline", func(ctx context.Context, _ session.Group) error {
 				if cr != nil {
 					dtic, err := inlineCache(ctx, exp.CacheExporter, cr, e.Config().Compression, session.NewGroup(sessionID))
 					if err != nil {
@@ -256,7 +267,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 				return nil, err
 			}
 		}
-		if err := inBuilderContext(ctx, j, e.Name(), "", func(ctx context.Context, _ session.Group) error {
+		if err := inBuilderContext(ctx, j, e.Name(), j.SessionID+"-export", func(ctx context.Context, _ session.Group) error {
 			exporterResponse, err = e.Export(ctx, inp, j.SessionID)
 			return err
 		}); err != nil {
@@ -267,8 +278,8 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	g := session.NewGroup(j.SessionID)
 	var cacheExporterResponse map[string]string
 	if e := exp.CacheExporter; e != nil {
-		if err := inBuilderContext(ctx, j, "exporting cache", "", func(ctx context.Context, _ session.Group) error {
-			prepareDone := oneOffProgress(ctx, "preparing build cache for export")
+		if err := inBuilderContext(ctx, j, "exporting cache", j.SessionID+"-cache", func(ctx context.Context, _ session.Group) error {
+			prepareDone := progress.OneOff(ctx, "preparing build cache for export")
 			if err := res.EachRef(func(res solver.ResultProxy) error {
 				r, err := res.Result(ctx)
 				if err != nil {
@@ -409,23 +420,6 @@ func allWorkers(wc *worker.Controller) func(func(w worker.Worker) error) error {
 			}
 		}
 		return nil
-	}
-}
-
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
-	st := progress.Status{
-		Started: &now,
-	}
-	pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
-		return err
 	}
 }
 

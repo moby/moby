@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
@@ -126,7 +125,7 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 		return err
 	}
 
-	layersDone := oneOffProgress(ctx, "pushing layers")
+	layersDone := progress.OneOff(ctx, "pushing layers")
 	err = images.Dispatch(ctx, skipNonDistributableBlobs(images.Handlers(handlers...)), nil, ocispecs.Descriptor{
 		Digest:    dgst,
 		Size:      ra.Size(),
@@ -136,7 +135,7 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 		return err
 	}
 
-	mfstDone := oneOffProgress(ctx, fmt.Sprintf("pushing manifest for %s", ref))
+	mfstDone := progress.OneOff(ctx, fmt.Sprintf("pushing manifest for %s", ref))
 	for i := len(manifestStack) - 1; i >= 0; i-- {
 		if _, err := pushHandler(ctx, manifestStack[i]); err != nil {
 			return mfstDone(err)
@@ -209,23 +208,6 @@ func annotateDistributionSourceHandler(manager content.Manager, annotations map[
 			children[i] = child
 		}
 		return children, nil
-	}
-}
-
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
-	st := progress.Status{
-		Started: &now,
-	}
-	pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
-		return err
 	}
 }
 

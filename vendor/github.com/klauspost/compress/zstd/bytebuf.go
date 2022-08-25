@@ -52,10 +52,6 @@ func (b *byteBuf) readBig(n int, dst []byte) ([]byte, error) {
 	return r, nil
 }
 
-func (b *byteBuf) remain() []byte {
-	return *b
-}
-
 func (b *byteBuf) readByte() (byte, error) {
 	bb := *b
 	if len(bb) < 1 {

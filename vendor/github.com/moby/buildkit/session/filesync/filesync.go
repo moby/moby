@@ -36,7 +36,7 @@ type SyncedDir struct {
 	Name     string
 	Dir      string
 	Excludes []string
-	Map      func(string, *fstypes.Stat) bool
+	Map      func(string, *fstypes.Stat) fsutil.MapResult
 }
 
 // NewFSSyncProvider creates a new provider for sending files from client

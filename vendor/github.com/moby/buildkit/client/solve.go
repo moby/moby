@@ -24,6 +24,7 @@ import (
 	"github.com/moby/buildkit/util/entitlements"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -32,6 +33,7 @@ import (
 type SolveOpt struct {
 	Exports               []ExportEntry
 	LocalDirs             map[string]string
+	OCIStores             map[string]content.Store
 	SharedKey             string
 	Frontend              string
 	FrontendAttrs         map[string]string
@@ -157,8 +159,27 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			}
 		}
 
-		if len(cacheOpt.contentStores) > 0 {
-			s.Allow(sessioncontent.NewAttachable(cacheOpt.contentStores))
+		// this is a new map that contains both cacheOpt stores and OCILayout stores
+		contentStores := make(map[string]content.Store, len(cacheOpt.contentStores)+len(opt.OCIStores))
+		// copy over the stores references from cacheOpt
+		for key, store := range cacheOpt.contentStores {
+			contentStores[key] = store
+		}
+		// copy over the stores references from ociLayout opts
+		for key, store := range opt.OCIStores {
+			// conflicts are not allowed
+			if _, ok := contentStores[key]; ok {
+				// we probably should check if the store is identical, but given that
+				// https://pkg.go.dev/github.com/containerd/containerd/content#Store
+				// is just an interface, composing 4 others, that is rather hard to do.
+				// For a future iteration.
+				return nil, errors.Errorf("contentStore key %s exists in both cache and OCI layouts", key)
+			}
+			contentStores[key] = store
+		}
+
+		if len(contentStores) > 0 {
+			s.Allow(sessioncontent.NewAttachable(contentStores))
 		}
 
 		eg.Go(func() error {
@@ -188,8 +209,10 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 				<-time.After(3 * time.Second)
 				cancelStatus()
 			}()
-			bklog.G(ctx).Debugf("stopping session")
-			s.Close()
+			if !opt.SessionPreInitialized {
+				bklog.G(ctx).Debugf("stopping session")
+				s.Close()
+			}
 		}()
 		var pbd *pb.Definition
 		if def != nil {
@@ -342,10 +365,10 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 			return nil, errors.Errorf("%s not a directory", d)
 		}
 	}
-	resetUIDAndGID := func(p string, st *fstypes.Stat) bool {
+	resetUIDAndGID := func(p string, st *fstypes.Stat) fsutil.MapResult {
 		st.Uid = 0
 		st.Gid = 0
-		return true
+		return fsutil.MapResultKeep
 	}
 
 	dirs := make([]filesync.SyncedDir, 0, len(localDirs))

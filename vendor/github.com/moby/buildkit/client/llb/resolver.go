@@ -23,13 +23,28 @@ func ResolveDigest(v bool) ImageOption {
 	})
 }
 
+func WithLayerLimit(l int) ImageOption {
+	return imageOptionFunc(func(ii *ImageInfo) {
+		ii.layerLimit = &l
+	})
+}
+
 // ImageMetaResolver can resolve image config metadata from a reference
 type ImageMetaResolver interface {
 	ResolveImageConfig(ctx context.Context, ref string, opt ResolveImageConfigOpt) (digest.Digest, []byte, error)
 }
 
+type ResolverType int
+
+const (
+	ResolverTypeRegistry ResolverType = iota
+	ResolverTypeOCILayout
+)
+
 type ResolveImageConfigOpt struct {
-	Platform    *ocispecs.Platform
-	ResolveMode string
-	LogName     string
+	Platform     *ocispecs.Platform
+	ResolveMode  string
+	LogName      string
+	ResolverType // default is ResolverTypeRegistry
+	SessionID    string
 }

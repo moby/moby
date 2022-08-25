@@ -2,7 +2,6 @@ package local
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -83,7 +82,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 		var err error
 		var idmap *idtools.IdentityMapping
 		if ref == nil {
-			src, err = ioutil.TempDir("", "buildkit")
+			src, err = os.MkdirTemp("", "buildkit")
 			if err != nil {
 				return nil, err
 			}
@@ -109,17 +108,17 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 		walkOpt := &fsutil.WalkOpt{}
 
 		if idmap != nil {
-			walkOpt.Map = func(p string, st *fstypes.Stat) bool {
+			walkOpt.Map = func(p string, st *fstypes.Stat) fsutil.MapResult {
 				uid, gid, err := idmap.ToContainer(idtools.Identity{
 					UID: int(st.Uid),
 					GID: int(st.Gid),
 				})
 				if err != nil {
-					return false
+					return fsutil.MapResultExclude
 				}
 				st.Uid = uint32(uid)
 				st.Gid = uint32(gid)
-				return true
+				return fsutil.MapResultKeep
 			}
 		}
 
@@ -168,27 +167,10 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	if err != nil {
 		return nil, err
 	}
-	report := oneOffProgress(ctx, "sending tarball")
+	report := progress.OneOff(ctx, "sending tarball")
 	if err := fsutil.WriteTar(ctx, fs, w); err != nil {
 		w.Close()
 		return nil, report(err)
 	}
 	return nil, report(w.Close())
-}
-
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
-	st := progress.Status{
-		Started: &now,
-	}
-	pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
-		return err
-	}
 }

@@ -381,6 +381,15 @@ func (w *Worker) CacheManager() cache.Manager {
 	return w.Opt.CacheManager
 }
 
+// BuildkitVersion returns the version of BuildKit
+func (w *Worker) BuildkitVersion() client.BuildkitVersion {
+	return client.BuildkitVersion{
+		Package:  "docker-ce",
+		Version:  "v0.10.1-0.20220819015226-1ef0b534d3f4",
+		Revision: "1ef0b534d3f4",
+	}
+}
+
 type discardProgress struct{}
 
 func (*discardProgress) WriteProgress(_ pkgprogress.Progress) error {

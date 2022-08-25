@@ -157,7 +157,7 @@ message SecretOpt {
 	bool optional = 5;
 }
 
-// SSHOpt defines options describing secret mounts
+// SSHOpt defines options describing ssh mounts
 message SSHOpt {
 	// ID of exposed ssh rule. Used for quering the value.
 	string ID = 1;
@@ -243,8 +243,8 @@ message Range {
 
 // Position is single location in a source file
 message Position {
-	int32 Line = 1;
-	int32 Character = 2;
+	int32 line = 1;
+	int32 character = 2;
 }
 
 message ExportCache {

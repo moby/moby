@@ -278,7 +278,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	err = w.Executor().Run(ctx, "", mountWithSession(rootFS, session.NewGroup(sid)), mnts, executor.ProcessInfo{Meta: meta, Stdin: lbf.Stdin, Stdout: lbf.Stdout, Stderr: os.Stderr}, nil)
 
 	if err != nil {
-		if errdefs.IsCanceled(err) && lbf.isErrServerClosed {
+		if errdefs.IsCanceled(ctx, err) && lbf.isErrServerClosed {
 			err = errors.Errorf("frontend grpc server closed unexpectedly")
 		}
 		// An existing error (set via Return rpc) takes
@@ -345,26 +345,27 @@ func (b *bindMount) IdentityMapping() *idtools.IdentityMapping {
 func (lbf *llbBridgeForwarder) Discard() {
 	lbf.mu.Lock()
 	defer lbf.mu.Unlock()
+
+	for ctr := range lbf.ctrs {
+		lbf.ReleaseContainer(context.TODO(), &pb.ReleaseContainerRequest{
+			ContainerID: ctr,
+		})
+	}
+
 	for id, workerRef := range lbf.workerRefByID {
 		workerRef.ImmutableRef.Release(context.TODO())
 		delete(lbf.workerRefByID, id)
 	}
-	for id, r := range lbf.refs {
-		if lbf.err == nil && lbf.result != nil {
-			keep := false
-			lbf.result.EachRef(func(r2 solver.ResultProxy) error {
-				if r == r2 {
-					keep = true
-				}
-				return nil
-			})
-			if keep {
-				continue
-			}
-		}
-		r.Release(context.TODO())
-		delete(lbf.refs, id)
+	if lbf.err != nil && lbf.result != nil {
+		lbf.result.EachRef(func(r solver.ResultProxy) error {
+			r.Release(context.TODO())
+			return nil
+		})
 	}
+	for _, r := range lbf.refs {
+		r.Release(context.TODO())
+	}
+	lbf.refs = map[string]solver.ResultProxy{}
 }
 
 func (lbf *llbBridgeForwarder) Done() <-chan struct{} {
@@ -540,9 +541,10 @@ func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.R
 		}
 	}
 	dgst, dt, err := lbf.llbBridge.ResolveImageConfig(ctx, req.Ref, llb.ResolveImageConfigOpt{
-		Platform:    platform,
-		ResolveMode: req.ResolveMode,
-		LogName:     req.LogName,
+		Platform:     platform,
+		ResolveMode:  req.ResolveMode,
+		LogName:      req.LogName,
+		ResolverType: llb.ResolverType(req.ResolverType),
 	})
 	if err != nil {
 		return nil, err
@@ -551,20 +553,6 @@ func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.R
 		Digest: dgst,
 		Config: dt,
 	}, nil
-}
-
-func translateLegacySolveRequest(req *pb.SolveRequest) error {
-	// translates ImportCacheRefs to new CacheImports (v0.4.0)
-	for _, legacyImportRef := range req.ImportCacheRefsDeprecated {
-		im := &pb.CacheOptionsEntry{
-			Type:  "registry",
-			Attrs: map[string]string{"ref": legacyImportRef},
-		}
-		// FIXME(AkihiroSuda): skip append if already exists
-		req.CacheImports = append(req.CacheImports, im)
-	}
-	req.ImportCacheRefsDeprecated = nil
-	return nil
 }
 
 func (lbf *llbBridgeForwarder) wrapSolveError(solveErr error) error {
@@ -621,9 +609,6 @@ func (lbf *llbBridgeForwarder) registerResultIDs(results ...solver.Result) (ids 
 }
 
 func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) (*pb.SolveResponse, error) {
-	if err := translateLegacySolveRequest(req); err != nil {
-		return nil, err
-	}
 	var cacheImports []frontend.CacheOptionsEntry
 	for _, e := range req.CacheImports {
 		cacheImports = append(cacheImports, frontend.CacheOptionsEntry{
@@ -668,7 +653,7 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 				if err != nil {
 					return nil, err
 				}
-				if dtbi != nil && len(dtbi) > 0 {
+				if len(dtbi) > 0 {
 					if pbRes.Metadata == nil {
 						pbRes.Metadata = make(map[string][]byte)
 					}
@@ -701,7 +686,7 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 			if err != nil {
 				return nil, err
 			}
-			if dtbi != nil && len(dtbi) > 0 {
+			if len(dtbi) > 0 {
 				if pbRes.Metadata == nil {
 					pbRes.Metadata = make(map[string][]byte)
 				}
@@ -880,7 +865,7 @@ func (lbf *llbBridgeForwarder) Return(ctx context.Context, in *pb.ReturnRequest)
 
 	switch res := in.Result.Result.(type) {
 	case *pb.Result_RefDeprecated:
-		ref, err := lbf.convertRef(res.RefDeprecated)
+		ref, err := lbf.cloneRef(res.RefDeprecated)
 		if err != nil {
 			return nil, err
 		}
@@ -888,7 +873,7 @@ func (lbf *llbBridgeForwarder) Return(ctx context.Context, in *pb.ReturnRequest)
 	case *pb.Result_RefsDeprecated:
 		m := map[string]solver.ResultProxy{}
 		for k, id := range res.RefsDeprecated.Refs {
-			ref, err := lbf.convertRef(id)
+			ref, err := lbf.cloneRef(id)
 			if err != nil {
 				return nil, err
 			}
@@ -896,7 +881,7 @@ func (lbf *llbBridgeForwarder) Return(ctx context.Context, in *pb.ReturnRequest)
 		}
 		r.Refs = m
 	case *pb.Result_Ref:
-		ref, err := lbf.convertRef(res.Ref.Id)
+		ref, err := lbf.cloneRef(res.Ref.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -904,7 +889,7 @@ func (lbf *llbBridgeForwarder) Return(ctx context.Context, in *pb.ReturnRequest)
 	case *pb.Result_Refs:
 		m := map[string]solver.ResultProxy{}
 		for k, ref := range res.Refs.Refs {
-			ref, err := lbf.convertRef(ref.Id)
+			ref, err := lbf.cloneRef(ref.Id)
 			if err != nil {
 				return nil, err
 			}
@@ -1399,8 +1384,25 @@ func (lbf *llbBridgeForwarder) convertRef(id string) (solver.ResultProxy, error)
 	if !ok {
 		return nil, errors.Errorf("return reference %s not found", id)
 	}
-
 	return r, nil
+}
+
+func (lbf *llbBridgeForwarder) cloneRef(id string) (solver.ResultProxy, error) {
+	if id == "" {
+		return nil, nil
+	}
+
+	lbf.mu.Lock()
+	defer lbf.mu.Unlock()
+
+	r, ok := lbf.refs[id]
+	if !ok {
+		return nil, errors.Errorf("return reference %s not found", id)
+	}
+
+	s1, s2 := solver.SplitResultProxy(r)
+	lbf.refs[id] = s1
+	return s2, nil
 }
 
 func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {

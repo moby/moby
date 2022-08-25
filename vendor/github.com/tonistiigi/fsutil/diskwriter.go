@@ -323,10 +323,6 @@ func (lfw *lazyFileWriter) Close() error {
 	return err
 }
 
-func mkdev(major int64, minor int64) uint32 {
-	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
-}
-
 // Random number state.
 // We generate random temporary file names so that there's a good
 // chance the file doesn't exist yet - keeps the number of tries in

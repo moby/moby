@@ -3,7 +3,7 @@ package imageutil
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"strings"
 	"time"
 
@@ -19,7 +19,7 @@ func readSchema1Config(ctx context.Context, ref string, desc ocispecs.Descriptor
 		return "", nil, err
 	}
 	defer rc.Close()
-	dt, err := ioutil.ReadAll(rc)
+	dt, err := io.ReadAll(rc)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "failed to fetch schema1 manifest")
 	}

@@ -42,6 +42,14 @@ func ToGRPC(err error) error {
 		st = status.FromProto(pb)
 	}
 
+	// If the original error was wrapped with more context than the GRPCStatus error,
+	// copy the original message to the GRPCStatus error
+	if err.Error() != st.Message() {
+		pb := st.Proto()
+		pb.Message = err.Error()
+		st = status.FromProto(pb)
+	}
+
 	var details []proto.Message
 
 	for _, st := range stack.Traces(err) {

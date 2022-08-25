@@ -2,7 +2,6 @@ package ops
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,7 +46,7 @@ type staticEmulatorMount struct {
 }
 
 func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
-	tmpdir, err := ioutil.TempDir("", "buildkit-qemu-emulator")
+	tmpdir, err := os.MkdirTemp("", "buildkit-qemu-emulator")
 	if err != nil {
 		return nil, nil, err
 	}

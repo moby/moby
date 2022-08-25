@@ -199,10 +199,10 @@ func marshal(ctx context.Context, v Vertex, def *Definition, s *sourceMapCollect
 	if opMeta != nil {
 		def.Metadata[dgst] = mergeMetadata(def.Metadata[dgst], *opMeta)
 	}
+	s.Add(dgst, sls)
 	if _, ok := cache[dgst]; ok {
 		return def, nil
 	}
-	s.Add(dgst, sls)
 	def.Def = append(def.Def, dt)
 	cache[dgst] = struct{}{}
 	return def, nil
@@ -455,6 +455,7 @@ type ConstraintsOpt interface {
 	HTTPOption
 	ImageOption
 	GitOption
+	OCILayoutOption
 }
 
 type constraintsOptFunc func(m *Constraints)
@@ -469,6 +470,10 @@ func (fn constraintsOptFunc) SetRunOption(ei *ExecInfo) {
 
 func (fn constraintsOptFunc) SetLocalOption(li *LocalInfo) {
 	li.applyConstraints(fn)
+}
+
+func (fn constraintsOptFunc) SetOCILayoutOption(oi *OCILayoutInfo) {
+	oi.applyConstraints(fn)
 }
 
 func (fn constraintsOptFunc) SetHTTPOption(hi *HTTPInfo) {
@@ -619,9 +624,7 @@ var (
 
 func Require(filters ...string) ConstraintsOpt {
 	return constraintsOptFunc(func(c *Constraints) {
-		for _, f := range filters {
-			c.WorkerConstraints = append(c.WorkerConstraints, f)
-		}
+		c.WorkerConstraints = append(c.WorkerConstraints, filters...)
 	})
 }
 

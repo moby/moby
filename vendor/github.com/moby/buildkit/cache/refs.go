@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1631,7 +1630,7 @@ func (sm *sharableMountable) Mount() (_ []mount.Mount, _ func() error, retErr er
 			// Don't need temporary mount wrapper for non-overlayfs mounts
 			return mounts, release, nil
 		}
-		dir, err := ioutil.TempDir(sm.mountPoolRoot, "buildkit")
+		dir, err := os.MkdirTemp(sm.mountPoolRoot, "buildkit")
 		if err != nil {
 			return nil, nil, err
 		}
