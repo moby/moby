@@ -8,6 +8,7 @@ export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #. "${SCRIPTDIR}"/dco
 . "${SCRIPTDIR}"/default-seccomp
 . "${SCRIPTDIR}"/pkg-imports
+. "${SCRIPTDIR}"/yamllint
 . "${SCRIPTDIR}"/swagger
 . "${SCRIPTDIR}"/swagger-gen
 . "${SCRIPTDIR}"/toml
