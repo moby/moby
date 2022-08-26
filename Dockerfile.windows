@@ -155,7 +155,7 @@
 # The number of build steps below are explicitly minimised to improve performance.
 
 # Extremely important - do not change the following line to reference a "specific" image, 
-# such as `mcr.microsoft.com/windows/servercore:ltsc2019`. If using this Dockerfile in process
+# such as `mcr.microsoft.com/windows/servercore:ltsc2022`. If using this Dockerfile in process
 # isolated containers, the kernel of the host must match the container image, and hence
 # would fail between Windows Server 2016 (aka RS1) and Windows Server 2019 (aka RS5).
 # It is expected that the image `microsoft/windowsservercore:latest` is present, and matches
