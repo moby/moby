@@ -1,4 +1,5 @@
 extends: default
+locale: C.UTF-8
 rules:
   document-start: disable
   line-length: disable
