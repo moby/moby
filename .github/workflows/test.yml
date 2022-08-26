@@ -90,6 +90,13 @@ jobs:
           sudo chown -R $(id -u):$(id -g) /tmp/reports
           tree -nh /tmp/reports
       -
+        name: Send to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./bundles
+          env_vars: RUNNER_OS
+          flags: unit
+      -
         name: Upload reports
         if: always()
         uses: actions/upload-artifact@v3
@@ -222,6 +229,7 @@ jobs:
           make -o build test-integration
         env:
           TEST_SKIP_INTEGRATION_CLI: 1
+          TESTCOVERAGE: 1
       -
         name: Prepare reports
         if: always()
@@ -235,6 +243,13 @@ jobs:
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
+      -
+        name: Send to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./bundles/test-integration
+          env_vars: RUNNER_OS
+          flags: integration,${{ matrix.mode }}
       -
         name: Test daemon logs
         if: always()
@@ -312,6 +327,7 @@ jobs:
           make -o build test-integration
         env:
           TEST_SKIP_INTEGRATION: 1
+          TESTCOVERAGE: 1
           TESTFLAGS: "-test.run (${{ matrix.test }})/"
       -
         name: Prepare reports
@@ -324,6 +340,13 @@ jobs:
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
+      -
+        name: Send to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./bundles/test-integration
+          env_vars: RUNNER_OS
+          flags: integration-cli
       -
         name: Test daemon logs
         if: always()

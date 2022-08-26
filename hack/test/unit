@@ -32,7 +32,7 @@ if [ -n "${base_pkg_list}" ]; then
 	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
-		-coverprofile=bundles/profile.out \
+		-coverprofile=bundles/coverage.out \
 		-covermode=atomic \
 		${TESTFLAGS} \
 		${base_pkg_list}
@@ -44,7 +44,7 @@ if [ -n "${libnetwork_pkg_list}" ]; then
 	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report-libnetwork.json --junitfile=bundles/junit-report-libnetwork.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
-		-coverprofile=bundles/profile-libnetwork.out \
+		-coverprofile=bundles/coverage-libnetwork.out \
 		-covermode=atomic \
 		-p=1 \
 		${TESTFLAGS} \
