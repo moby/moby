@@ -16,6 +16,7 @@ source "${MAKEDIR}/.go-autogen"
 : "${TEST_REPEAT:=1}"
 : "${TESTFLAGS:=}"
 : "${TESTDEBUG:=}"
+: "${TESTCOVERAGE:=}"
 : "${GOCACHE:=$(go env GOCACHE)}"
 
 setup_integration_test_filter() {
@@ -80,7 +81,13 @@ run_test_integration_suites() {
 			# Finally, we use periods as separator (instead of slashes) to be more
 			# in line with Java package names (which is what junit.xml was designed for)
 			pkgname="$(go env GOARCH).${pkgname//\//.}"
-			echo "Running $PWD (${pkgname}) flags=${flags}"
+
+			pkgtestflags=$flags
+			if [ -n "${TESTCOVERAGE}" ]; then
+				pkgtestflags="$pkgtestflags -test.coverprofile=${ABS_DEST}/${pkgname//./-}-coverage.out"
+			fi
+
+			echo "Running $PWD (${pkgname}) flags=${pkgtestflags}"
 			[ -n "$TESTDEBUG" ] && set -x
 			# shellcheck disable=SC2086
 			test_env gotestsum \
@@ -88,7 +95,7 @@ run_test_integration_suites() {
 				--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
 				--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
 				--raw-command \
-				-- go tool test2json -p "${pkgname}" -t ./test.main ${flags}
+				-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
 		); then exit 1; fi
 	done
 }
@@ -112,8 +119,12 @@ build_test_suite_binaries() {
 build_test_suite_binary() {
 	local dir="$1"
 	local out="$2"
+	local testflags
 	echo Building test suite binary "$dir/$out"
-	go test -c -o "$dir/$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" "$dir"
+	if [ -n "${TESTCOVERAGE}" ]; then
+		testflags="-cover -covermode=atomic"
+	fi
+	go test ${testflags} -c -o "$dir/$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" "$dir"
 }
 
 cleanup_test_suite_binaries() {
