@@ -8,7 +8,7 @@ files=($(validate_diff --diff-filter=ACMR --name-only -- 'api/swagger.yaml' || t
 unset IFS
 
 if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ ${#files[@]} -gt 0 ]; then
-	LANG=C.UTF-8 yamllint -c "${SCRIPTDIR}"/yamllint.yaml api/swagger.yaml
+	LANG=C.UTF-8 yamllint -f parsable -c "${SCRIPTDIR}"/yamllint.yaml api/swagger.yaml
 	if out=$(swagger validate api/swagger.yaml); then
 		echo "Congratulations!  ${out}"
 	else
