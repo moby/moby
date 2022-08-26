@@ -99,7 +99,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(ctx context.Context, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (err error) {
+func (daemon *Daemon) containerStart(ctx context.Context, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
@@ -120,8 +120,8 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 	// if we encounter an error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {
-		if err != nil {
-			container.SetError(err)
+		if retErr != nil {
+			container.SetError(retErr)
 			// if no one else has set it, make sure we don't leave it at zero
 			if container.ExitCode() == 0 {
 				container.SetExitCode(128)
