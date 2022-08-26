@@ -2,7 +2,7 @@
 #
 # Run default validation, exclude vendor because it's slow
 
-export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Skip DCO check here, as it's already checked in a separate stage in the Jenkinsfile
 #. "${SCRIPTDIR}"/dco
