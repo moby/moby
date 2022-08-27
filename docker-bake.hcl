@@ -35,3 +35,24 @@ target "cross" {
   }
   target = "cross"
 }
+
+#
+# dev
+#
+
+variable "DEV_IMAGE" {
+  default = "docker-dev"
+}
+variable "SYSTEMD" {
+  default = "false"
+}
+
+target "dev" {
+  inherits = ["_common"]
+  target = "final"
+  args = {
+    SYSTEMD = SYSTEMD
+  }
+  tags = [DEV_IMAGE]
+  output = ["type=docker"]
+}
