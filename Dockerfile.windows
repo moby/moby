@@ -63,10 +63,11 @@
 #
 #
 # 3. Build a docker image with the components required to build the docker binaries from source
-#    by running one of the following:
+#    by running one of the following, specifying the Windows version you're building on. For example,
+#    the following commands build the binaries on Windows Server 1607 ("RS1"):
 #
-#    >>   docker build -t nativebuildimage -f Dockerfile.windows .          
-#    >>   docker build -t nativebuildimage -f Dockerfile.windows -m 2GB .    (if using Hyper-V containers)
+#    >>   docker build -t nativebuildimage --build-arg WINDOWS_BASE_IMAGE_TAG=1607 -f Dockerfile.windows .
+#    >>   docker build -t nativebuildimage --build-arg WINDOWS_BASE_IMAGE_TAG=1607 -f Dockerfile.windows -m 2GB .    (if using Hyper-V containers)
 #
 #
 # 4. Build the docker executable binaries by running one of the following:
@@ -152,15 +153,15 @@
 # -----------------------------------------------------------------------------------------
 
 
+# Extremely important. If using this Dockerfile in process isolated containers,
+# the kernel of the host must match the container image, and hence would fail
+# between Windows Server 2016 (aka RS1) and Windows Server 2019 (aka RS5).
+ARG WINDOWS_BASE_IMAGE=mcr.microsoft.com/windows/servercore
+ARG WINDOWS_BASE_IMAGE_TAG=1809
+
 # The number of build steps below are explicitly minimised to improve performance.
 
-# Extremely important - do not change the following line to reference a "specific" image, 
-# such as `mcr.microsoft.com/windows/servercore:ltsc2019`. If using this Dockerfile in process
-# isolated containers, the kernel of the host must match the container image, and hence
-# would fail between Windows Server 2016 (aka RS1) and Windows Server 2019 (aka RS5).
-# It is expected that the image `microsoft/windowsservercore:latest` is present, and matches
-# the hosts kernel version before doing a build. 
-FROM microsoft/windowsservercore
+FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
@@ -312,6 +313,9 @@ ENTRYPOINT ["powershell.exe"]
 
 # Set the working directory to the location of the sources
 WORKDIR ${GOPATH}\src\github.com\docker\docker
+
+ARG WINDOWS_BASE_IMAGE_TAG
+ENV WINDOWS_BASE_IMAGE_TAG=${WINDOWS_BASE_IMAGE_TAG}
 
 # Copy the sources into the container
 COPY . .
