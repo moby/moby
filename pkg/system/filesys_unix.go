@@ -3,10 +3,7 @@
 
 package system // import "github.com/docker/docker/pkg/system"
 
-import (
-	"os"
-	"path/filepath"
-)
+import "os"
 
 // MkdirAllWithACL is a wrapper for os.MkdirAll on unix systems.
 func MkdirAllWithACL(path string, perm os.FileMode, sddl string) error {
@@ -17,11 +14,6 @@ func MkdirAllWithACL(path string, perm os.FileMode, sddl string) error {
 // with permission specified by attribute perm for all dir created.
 func MkdirAll(path string, perm os.FileMode) error {
 	return os.MkdirAll(path, perm)
-}
-
-// IsAbs is a platform-specific wrapper for filepath.IsAbs.
-func IsAbs(path string) bool {
-	return filepath.IsAbs(path)
 }
 
 // The functions below here are wrappers for the equivalents in the os and ioutils packages.
