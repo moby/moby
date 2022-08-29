@@ -96,7 +96,6 @@ while true; do sleep 1; done
 
 // TestHealthCheckProcessKilled verifies that health-checks exec get killed on time-out.
 func TestHealthCheckProcessKilled(t *testing.T) {
-	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 	defer setupTest(t)()
 	ctx := context.Background()
 	apiClient := testEnv.APIClient()
