@@ -1,0 +1,17 @@
+name: windows-2019
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    uses: ./.github/workflows/.windows.yml
+    with:
+      os: windows-2019
+      send_coverage: false
