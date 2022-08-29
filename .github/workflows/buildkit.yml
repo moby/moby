@@ -1,0 +1,114 @@
+name: buildkit
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]{2}'
+  pull_request:
+
+env:
+  BUNDLES_OUTPUT: ./bundles
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build
+        uses: docker/bake-action@v2
+        with:
+          targets: binary
+          set: |
+            *.cache-from=type=gha,scope=buildkit-build-binary
+            *.cache-to=type=gha,scope=buildkit-build-binary
+      -
+        name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binary
+          path: ${{ env.BUNDLES_OUTPUT }}
+          if-no-files-found: error
+          retention-days: 1
+
+  test:
+    needs:
+      - build
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg:
+          - ./client
+          - ./cmd/buildctl
+          - ./solver
+          - ./frontend
+          - ./frontend/dockerfile
+        typ:
+          - integration
+        include:
+          - pkg: ./...
+            skip-integration-tests: 1
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: moby
+      -
+        name: BuildKit ref
+        run: |
+          ./hack/go-mod-prepare.sh
+          # FIXME(thaJeztah) temporarily overriding version to use for tests; see https://github.com/moby/moby/pull/44028#issuecomment-1225964929
+          # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=8e2d9b9006caadb74c1745608889a37ba139acc1" >> $GITHUB_ENV
+        working-directory: moby
+      -
+        name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
+        uses: actions/checkout@v3
+        with:
+          repository: "moby/buildkit"
+          ref: ${{ env.BUILDKIT_REF }}
+          path: buildkit
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Download binary artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: binary
+          path: ./buildkit/build/moby/
+      -
+        name: Update daemon.json
+        run: |
+          sudo rm /etc/docker/daemon.json
+          sudo service docker restart
+          docker version
+          docker info
+      -
+        name: Test
+        run: |
+          ./hack/test ${{ matrix.typ }}
+        env:
+          CONTEXT: "."
+          TEST_DOCKERD: "1"
+          TEST_DOCKERD_BINARY: "./build/moby/binary-daemon/dockerd"
+          TESTPKGS: "${{ matrix.pkg }}"
+          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
+          SKIP_INTEGRATION_TESTS: "${{ matrix.skip-integration-tests }}"
+        working-directory: buildkit
