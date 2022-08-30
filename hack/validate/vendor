@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
-validate_vendor_diff(){
+validate_vendor_diff() {
 	IFS=$'\n'
-	check_files=( 'vendor.sum' 'vendor.mod' 'vendor/' )
+	check_files=('vendor.sum' 'vendor.mod' 'vendor/')
 	# shellcheck disable=SC2207
-	changed_files=( $(validate_diff --diff-filter=ACMR --name-only -- "${check_files[@]}" || true) )
+	changed_files=($(validate_diff --diff-filter=ACMR --name-only -- "${check_files[@]}" || true))
 	unset IFS
 
 	if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ "${#changed_files[@]}" -gt 0 ]; then
 		# recreate vendor/
 		./hack/vendor.sh
 		# check if any files have changed
-		diffs="$(git status --porcelain -- "${check_files[@]}" 2>/dev/null)"
+		diffs="$(git status --porcelain -- "${check_files[@]}" 2> /dev/null)"
 		mfiles="$(echo "$diffs" | awk '/^ M / {print $2}')"
 		if [ "$diffs" ]; then
 			{
@@ -24,7 +24,7 @@ validate_vendor_diff(){
 				echo
 				echo 'Please vendor your package with hack/vendor.sh.'
 				echo
-				if [ -n "$mfiles" ] ; then
+				if [ -n "$mfiles" ]; then
 					git diff -- "$mfiles"
 				fi
 			} >&2
@@ -41,11 +41,11 @@ validate_vendor_diff(){
 # 2. make sure all the packages contain license information (just warning, because it can cause false-positive)
 validate_vendor_used() {
 	for f in $(mawk '$1 = "#" { print $2 }' 'vendor/modules.txt'); do
-	if [ -d "vendor/$f" ]; then
-		if ! echo "vendor/$f"/* | grep -qiEc '/(LICENSE|COPYING)'; then
-		echo "WARNING: could not find copyright information for $f"
+		if [ -d "vendor/$f" ]; then
+			if ! echo "vendor/$f"/* | grep -qiEc '/(LICENSE|COPYING)'; then
+				echo "WARNING: could not find copyright information for $f"
+			fi
 		fi
-	fi
 	done
 }
 
