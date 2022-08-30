@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/sequential"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -377,10 +378,9 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 			return distribution.Descriptor{}, errors.Wrap(err, "error creating symlink while saving layer")
 		}
 	} else {
-		// Use system.CreateSequential rather than os.Create. This ensures sequential
-		// file access on Windows to avoid eating into MM standby list.
-		// On Linux, this equates to a regular os.Create.
-		tarFile, err := system.CreateSequential(layerPath)
+		// We use sequential file access to avoid depleting the standby list on
+		// Windows. On Linux, this equates to a regular os.Create.
+		tarFile, err := sequential.Create(layerPath)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}
