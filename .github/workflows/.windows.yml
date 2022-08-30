@@ -1,5 +1,5 @@
 # reusable workflow
-name: windows
+name: .windows
 
 on:
   workflow_call:
