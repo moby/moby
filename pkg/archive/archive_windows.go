@@ -21,13 +21,6 @@ func getWalkRoot(srcPath string, include string) string {
 	return filepath.Join(srcPath, include)
 }
 
-// CanonicalTarNameForPath returns platform-specific filepath
-// to canonical posix-style path for tar archival. p is relative
-// path.
-func CanonicalTarNameForPath(p string) string {
-	return filepath.ToSlash(p)
-}
-
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
 func chmodTarEntry(perm os.FileMode) os.FileMode {
