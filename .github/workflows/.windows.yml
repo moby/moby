@@ -1,18 +1,16 @@
+# reusable workflow
 name: windows
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - 'master'
-      - '[0-9]+.[0-9]{2}'
-    tags:
-      - 'v*'
-  pull_request:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      send_coverage:
+        required: false
+        type: boolean
+        default: false
 
 env:
   GO_VERSION: 1.18.5
@@ -24,16 +22,11 @@ env:
   TEST_IMAGE_NAME: moby:test
   TEST_CTN_NAME: moby
   DOCKER_BUILDKIT: 0
+  ITG_CLI_MATRIX_SIZE: 6
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-2019
-          - windows-2022
+    runs-on: ${{ inputs.os }}
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -56,9 +49,9 @@ jobs:
         run: |
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
-          If ("${{ matrix.os }}" -eq "windows-2019") {
+          If ("${{ inputs.os }}" -eq "windows-2019") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ matrix.os }}" -eq "windows-2022") {
+          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
       -
@@ -70,9 +63,9 @@ jobs:
             ~\go\pkg\mod
             ${{ github.workspace }}\go-build
             ${{ env.GOPATH }}\pkg\mod
-          key: ${{ matrix.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
+          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
           restore-keys: |
-            ${{ matrix.os }}-${{ github.job }}-
+            ${{ inputs.os }}-${{ github.job }}-
       -
         name: Docker info
         run: |
@@ -103,19 +96,13 @@ jobs:
         name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: build-${{ matrix.os }}
+          name: build-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}/*
           if-no-files-found: error
           retention-days: 2
 
   unit-test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-2019
-          - windows-2022
+    runs-on: ${{ inputs.os }}
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -138,9 +125,9 @@ jobs:
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
           New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ matrix.os }}" -eq "windows-2019") {
+          If ("${{ inputs.os }}" -eq "windows-2019") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ matrix.os }}" -eq "windows-2022") {
+          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
       -
@@ -152,9 +139,9 @@ jobs:
             ~\go\pkg\mod
             ${{ github.workspace }}\go-build
             ${{ env.GOPATH }}\pkg\mod
-          key: ${{ matrix.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
+          key: ${{ inputs.os }}-${{ github.job }}-${{ hashFiles('**/vendor.sum') }}
           restore-keys: |
-            ${{ matrix.os }}-${{ github.job }}-
+            ${{ inputs.os }}-${{ github.job }}-
       -
         name: Docker info
         run: |
@@ -175,7 +162,7 @@ jobs:
             ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
       -
         name: Send to Codecov
-        if: matrix.os == 'windows-2022'
+        if: inputs.send_coverage
         uses: codecov/codecov-action@v3
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
@@ -187,7 +174,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.os }}-unit-reports
+          name: ${{ inputs.os }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
 
   unit-test-report:
@@ -195,12 +182,6 @@ jobs:
     if: always()
     needs:
       - unit-test
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-2019
-          - windows-2022
     steps:
       -
         name: Set up Go
@@ -211,7 +192,7 @@ jobs:
         name: Download artifacts
         uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.os }}-unit-reports
+          name: ${{ inputs.os }}-unit-reports
           path: /tmp/artifacts
       -
         name: Install teststat
@@ -246,7 +227,7 @@ jobs:
         run: |
           # Distribute integration-cli tests for the matrix in integration-test job.
           # Also prepend ./... to the matrix. This is a special case to run "Test integration" step exclusively.
-          matrix="$(gotestlist -d 4 ./...)"
+          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} ./...)"
           matrix="$(echo "$matrix" | jq -c '. |= ["./..."] + .')"
           echo "::set-output name=matrix::$matrix"
       -
@@ -255,16 +236,13 @@ jobs:
           echo ${{ steps.tests.outputs.matrix }}
 
   integration-test:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ inputs.os }}
     needs:
       - build
       - integration-test-prepare
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-2019
-          - windows-2022
         runtime:
           - builtin
           - containerd
@@ -290,15 +268,15 @@ jobs:
         name: Download artifacts
         uses: actions/download-artifact@v3
         with:
-          name: build-${{ matrix.os }}
+          name: build-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}
       -
         name: Init
         run: |
           New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ matrix.os }}" -eq "windows-2019") {
+          If ("${{ inputs.os }}" -eq "windows-2019") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ matrix.os }}" -eq "windows-2022") {
+          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
           Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
@@ -315,7 +293,7 @@ jobs:
             Stop-Service -Force -Name docker
             Remove-Service -Name docker
             # removes event log entry. we could use "Remove-EventLog -LogName -Source docker"
-            # but this cmd is only available since windows-2022
+            # but this cmd is not available atm
             $ErrorActionPreference = "SilentlyContinue"
             & reg delete "HKLM\SYSTEM\CurrentControlSet\Services\EventLog\Application\docker" /f 2>&1 | Out-Null
             $ErrorActionPreference = "Stop"
@@ -431,7 +409,7 @@ jobs:
           INTEGRATION_TESTRUN: ${{ matrix.test }}
       -
         name: Send to Codecov
-        if: matrix.os == 'windows-2022'
+        if: inputs.send_coverage
         uses: codecov/codecov-action@v3
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
@@ -480,7 +458,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.os }}-integration-reports-${{ matrix.runtime }}
+          name: ${{ inputs.os }}-integration-reports-${{ matrix.runtime }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
 
   integration-test-report:
@@ -491,9 +469,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-2019
-          - windows-2022
         runtime:
           - builtin
           - containerd
@@ -507,7 +482,7 @@ jobs:
         name: Download artifacts
         uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.os }}-integration-reports-${{ matrix.runtime }}
+          name: ${{ inputs.os }}-integration-reports-${{ matrix.runtime }}
           path: /tmp/artifacts
       -
         name: Install teststat

@@ -9,7 +9,7 @@
 # To build: docker build -t busybox .
 # To publish: Needs someone with publishing rights
 ARG WINDOWS_BASE_IMAGE=mcr.microsoft.com/windows/servercore
-ARG WINDOWS_BASE_IMAGE_TAG=ltsc2019
+ARG WINDOWS_BASE_IMAGE_TAG=ltsc2022
 ARG BUSYBOX_VERSION=FRP-3329-gcf0fa4d13
 
 # Checksum taken from https://frippery.org/files/busybox/SHA256SUM
