@@ -10,7 +10,7 @@ import (
 func (daemon *Daemon) getLibcontainerdCreateOptions(daemonCfg *configStore, container *container.Container) (string, interface{}, error) {
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
-		container.HostConfig.Runtime = daemonCfg.DefaultRuntime
+		container.HostConfig.Runtime = daemonCfg.Runtimes.Default
 		container.CheckpointTo(daemon.containersReplica)
 	}
 

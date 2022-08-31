@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/text/encoding"
@@ -15,7 +14,6 @@ import (
 	"golang.org/x/text/transform"
 
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
-	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
@@ -56,20 +54,12 @@ const (
 	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
 	DefaultPluginNamespace = "plugins.moby"
 
-	// LinuxV2RuntimeName is the runtime used to specify the containerd v2 runc shim
-	LinuxV2RuntimeName = "io.containerd.runc.v2"
-
 	// SeccompProfileDefault is the built-in default seccomp profile.
 	SeccompProfileDefault = "builtin"
 	// SeccompProfileUnconfined is a special profile name for seccomp to use an
 	// "unconfined" seccomp profile.
 	SeccompProfileUnconfined = "unconfined"
 )
-
-var builtinRuntimes = map[string]bool{
-	StockRuntimeName:   true,
-	LinuxV2RuntimeName: true,
-}
 
 // flatOptions contains configuration keys
 // that MUST NOT be parsed as deep structures.
@@ -637,24 +627,8 @@ func Validate(config *Config) error {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
-	// validate that "default" runtime is not reset
-	if runtimes := config.GetAllRuntimes(); len(runtimes) > 0 {
-		if _, ok := runtimes[StockRuntimeName]; ok {
-			return errors.Errorf("runtime name '%s' is reserved", StockRuntimeName)
-		}
-	}
-
 	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {
 		return err
-	}
-
-	if config.DefaultRuntime != "" {
-		if !builtinRuntimes[config.DefaultRuntime] {
-			runtimes := config.GetAllRuntimes()
-			if _, ok := runtimes[config.DefaultRuntime]; !ok && !IsPermissibleC8dRuntimeName(config.DefaultRuntime) {
-				return fmt.Errorf("specified default runtime '%s' does not exist", config.DefaultRuntime)
-			}
-		}
 	}
 
 	for _, h := range config.Hosts {
@@ -675,38 +649,4 @@ func MaskCredentials(rawURL string) string {
 	}
 	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
 	return parsedURL.String()
-}
-
-// IsPermissibleC8dRuntimeName tests whether name is safe to pass into
-// containerd as a runtime name, and whether the name is well-formed.
-// It does not check if the runtime is installed.
-//
-// A runtime name containing slash characters is interpreted by containerd as
-// the path to a runtime binary. If we allowed this, anyone with Engine API
-// access could get containerd to execute an arbitrary binary as root. Although
-// Engine API access is already equivalent to root on the host, the runtime name
-// has not historically been a vector to run arbitrary code as root so users are
-// not expecting it to become one.
-//
-// This restriction is not configurable. There are viable workarounds for
-// legitimate use cases: administrators and runtime developers can make runtimes
-// available for use with Docker by installing them onto PATH following the
-// [binary naming convention] for containerd Runtime v2.
-//
-// [binary naming convention]: https://github.com/containerd/containerd/blob/main/runtime/v2/README.md#binary-naming
-func IsPermissibleC8dRuntimeName(name string) bool {
-	// containerd uses a rather permissive test to validate runtime names:
-	//
-	//   - Any name for which filepath.IsAbs(name) is interpreted as the absolute
-	//     path to a shim binary. We want to block this behaviour.
-	//   - Any name which contains at least one '.' character and no '/' characters
-	//     and does not begin with a '.' character is a valid runtime name. The shim
-	//     binary name is derived from the final two components of the name and
-	//     searched for on the PATH. The name "a.." is technically valid per
-	//     containerd's implementation: it would resolve to a binary named
-	//     "containerd-shim---".
-	//
-	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/manager.go#L297-L317
-	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/shim/util.go#L83-L93
-	return !filepath.IsAbs(name) && !strings.ContainsRune(name, '/') && shim.BinaryName(name) != ""
 }

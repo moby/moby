@@ -66,7 +66,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	daemon.fillDebugInfo(v)
 	daemon.fillAPIInfo(v, &cfg.Config)
 	// Retrieve platform specific info
-	daemon.fillPlatformInfo(v, sysInfo, &cfg.Config)
+	daemon.fillPlatformInfo(v, sysInfo, cfg)
 	daemon.fillDriverInfo(v)
 	daemon.fillPluginsInfo(v, &cfg.Config)
 	daemon.fillSecurityOptions(v, sysInfo, &cfg.Config)
@@ -117,7 +117,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 
 	v.Platform.Name = dockerversion.PlatformName
 
-	daemon.fillPlatformVersion(&v, &cfg.Config)
+	daemon.fillPlatformVersion(&v, cfg)
 	return v
 }
 

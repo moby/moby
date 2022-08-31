@@ -960,7 +960,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			shimOpts interface{}
 		)
 		if runtime.GOOS != "windows" {
-			shim, shimOpts, err = runtimes.Get(configStore.DefaultRuntime)
+			shim, shimOpts, err = runtimes.Get("")
 			if err != nil {
 				return nil, err
 			}

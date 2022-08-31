@@ -7,10 +7,10 @@ import (
 )
 
 // fillPlatformInfo fills the platform related info.
-func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
+func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *configStore) {
 }
 
-func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *config.Config) {}
+func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *configStore) {}
 
 func fillDriverWarnings(v *types.Info) {
 }

@@ -34,7 +34,6 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 		d := &Daemon{}
 		cfg, err := config.New()
 		assert.NilError(t, err)
-		configureRuntimes(cfg)
 		runtimes, err := setupRuntimes(cfg)
 		assert.NilError(t, err)
 		daemonCfg := &configStore{Config: *cfg, Runtimes: runtimes}

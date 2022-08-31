@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
@@ -19,8 +20,8 @@ import (
 )
 
 // fillPlatformInfo fills the platform related info.
-func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
-	v.CgroupDriver = cgroupDriver(cfg)
+func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *configStore) {
+	v.CgroupDriver = cgroupDriver(&cfg.Config)
 	v.CgroupVersion = "1"
 	if sysInfo.CgroupUnified {
 		v.CgroupVersion = "2"
@@ -39,18 +40,21 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, 
 		v.PidsLimit = sysInfo.PidsLimit
 	}
 	v.Runtimes = make(map[string]types.Runtime)
-	for n, r := range cfg.Runtimes {
+	for n, p := range stockRuntimes() {
+		v.Runtimes[n] = types.Runtime{Path: p}
+	}
+	for n, r := range cfg.Config.Runtimes {
 		v.Runtimes[n] = types.Runtime{
 			Path: r.Path,
 			Args: append([]string(nil), r.Args...),
 		}
 	}
-	v.DefaultRuntime = cfg.DefaultRuntime
+	v.DefaultRuntime = cfg.Runtimes.Default
 	v.RuncCommit.ID = "N/A"
 	v.ContainerdCommit.ID = "N/A"
 	v.InitCommit.ID = "N/A"
 
-	if _, _, commit, err := parseDefaultRuntimeVersion(cfg); err != nil {
+	if _, _, commit, err := parseDefaultRuntimeVersion(&cfg.Runtimes); err != nil {
 		logrus.Warnf(err.Error())
 	} else {
 		v.RuncCommit.ID = commit
@@ -166,7 +170,7 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, 
 	}
 }
 
-func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *config.Config) {
+func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *configStore) {
 	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
 		v.Components = append(v.Components, types.ComponentVersion{
 			Name:    "containerd",
@@ -177,11 +181,11 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *config.Config) 
 		})
 	}
 
-	if _, ver, commit, err := parseDefaultRuntimeVersion(cfg); err != nil {
+	if _, ver, commit, err := parseDefaultRuntimeVersion(&cfg.Runtimes); err != nil {
 		logrus.Warnf(err.Error())
 	} else {
 		v.Components = append(v.Components, types.ComponentVersion{
-			Name:    cfg.DefaultRuntime,
+			Name:    cfg.Runtimes.Default,
 			Version: ver,
 			Details: map[string]string{
 				"GitCommit": commit,
@@ -331,19 +335,28 @@ func parseRuntimeVersion(v string) (runtime, version, commit string, err error) 
 	return runtime, version, commit, err
 }
 
-func parseDefaultRuntimeVersion(cfg *config.Config) (runtime, version, commit string, err error) {
-	if rt, ok := cfg.Runtimes[cfg.DefaultRuntime]; ok {
-		rv, err := exec.Command(rt.Path, "--version").Output()
-		if err != nil {
-			return "", "", "", fmt.Errorf("failed to retrieve %s version: %w", rt.Path, err)
-		}
-		runtime, version, commit, err := parseRuntimeVersion(string(rv))
-		if err != nil {
-			return "", "", "", fmt.Errorf("failed to parse %s version: %w", rt.Path, err)
-		}
-		return runtime, version, commit, err
+func parseDefaultRuntimeVersion(rts *runtimes) (runtime, version, commit string, err error) {
+	shim, opts, err := rts.Get(rts.Default)
+	if err != nil {
+		return "", "", "", err
 	}
-	return "", "", "", nil
+	shimopts, ok := opts.(*v2runcoptions.Options)
+	if !ok {
+		return "", "", "", fmt.Errorf("%s: retrieving version not supported", shim)
+	}
+	rt := shimopts.BinaryName
+	if rt == "" {
+		rt = defaultRuntimeName
+	}
+	rv, err := exec.Command(rt, "--version").Output()
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to retrieve %s version: %w", rt, err)
+	}
+	runtime, version, commit, err = parseRuntimeVersion(string(rv))
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to parse %s version: %w", rt, err)
+	}
+	return runtime, version, commit, err
 }
 
 func cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo, cfg *config.Config) bool {

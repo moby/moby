@@ -244,7 +244,7 @@ func supportsRecursivelyReadOnly(cfg *configStore, runtime string) error {
 		return fmt.Errorf("rro is not supported: %w (kernel is older than 5.12?)", err)
 	}
 	if runtime == "" {
-		runtime = cfg.DefaultRuntime
+		runtime = cfg.Runtimes.Default
 	}
 	features := cfg.Runtimes.Features(runtime)
 	if features == nil {

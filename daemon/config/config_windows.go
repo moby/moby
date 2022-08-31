@@ -3,8 +3,6 @@ package config // import "github.com/docker/docker/daemon/config"
 import (
 	"os"
 	"path/filepath"
-
-	"github.com/docker/docker/api/types"
 )
 
 const (
@@ -28,11 +26,6 @@ type Config struct {
 
 	// Fields below here are platform specific. (There are none presently
 	// for the Windows daemon.)
-}
-
-// GetAllRuntimes returns a copy of the runtimes map
-func (conf *Config) GetAllRuntimes() map[string]types.Runtime {
-	return map[string]types.Runtime{}
 }
 
 // GetExecRoot returns the user configured Exec-root

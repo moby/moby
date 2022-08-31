@@ -81,11 +81,6 @@ type Config struct {
 	Rootless   bool   `json:"rootless,omitempty"`
 }
 
-// GetAllRuntimes returns a copy of the runtimes map
-func (conf *Config) GetAllRuntimes() map[string]types.Runtime {
-	return conf.Runtimes
-}
-
 // GetExecRoot returns the user configured Exec-root
 func (conf *Config) GetExecRoot() string {
 	return conf.ExecRoot

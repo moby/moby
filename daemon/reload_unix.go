@@ -18,7 +18,6 @@ func (daemon *Daemon) reloadPlatform(txn *reloadTxn, newCfg *configStore, conf *
 	if conf.IsValueSet("runtimes") {
 		newCfg.Config.Runtimes = conf.Runtimes
 	}
-	configureRuntimes(&newCfg.Config)
 	var err error
 	newCfg.Runtimes, err = setupRuntimes(&newCfg.Config)
 	if err != nil {

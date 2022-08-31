@@ -698,7 +698,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hos
 		}
 	}
 	if hostConfig.Runtime == "" {
-		hostConfig.Runtime = daemonCfg.DefaultRuntime
+		hostConfig.Runtime = daemonCfg.Runtimes.Default
 	}
 
 	if _, _, err := daemonCfg.Runtimes.Get(hostConfig.Runtime); err != nil {
@@ -753,15 +753,6 @@ func verifyDaemonSettings(conf *config.Config) error {
 
 	if conf.Rootless && UsingSystemd(conf) && cgroups.Mode() != cgroups.Unified {
 		return fmt.Errorf("exec-opt native.cgroupdriver=systemd requires cgroup v2 for rootless mode")
-	}
-
-	configureRuntimes(conf)
-	if rtName := conf.DefaultRuntime; rtName != "" {
-		if _, ok := conf.Runtimes[rtName]; !ok {
-			if !config.IsPermissibleC8dRuntimeName(rtName) {
-				return fmt.Errorf("specified default runtime '%s' does not exist", rtName)
-			}
-		}
 	}
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/imdario/mergo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
@@ -18,81 +19,169 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
-func TestInitRuntimes_InvalidConfigs(t *testing.T) {
+func TestSetupRuntimes(t *testing.T) {
 	cases := []struct {
 		name      string
-		runtime   types.Runtime
+		config    *config.Config
 		expectErr string
 	}{
 		{
-			name:      "Empty",
+			name: "Empty",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {},
+				},
+			},
 			expectErr: "either a runtimeType or a path must be configured",
 		},
 		{
-			name:      "ArgsOnly",
-			runtime:   types.Runtime{Args: []string{"foo", "bar"}},
+			name: "ArgsOnly",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {Args: []string{"foo", "bar"}},
+				},
+			},
 			expectErr: "either a runtimeType or a path must be configured",
 		},
 		{
-			name:      "OptionsOnly",
-			runtime:   types.Runtime{Options: map[string]interface{}{"hello": "world"}},
+			name: "OptionsOnly",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {Options: map[string]interface{}{"hello": "world"}},
+				},
+			},
 			expectErr: "either a runtimeType or a path must be configured",
 		},
 		{
-			name:      "PathAndType",
-			runtime:   types.Runtime{Path: "/bin/true", Type: "io.containerd.runsc.v1"},
+			name: "PathAndType",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {Path: "/bin/true", Type: "io.containerd.runsc.v1"},
+				},
+			},
 			expectErr: "cannot configure both",
 		},
 		{
-			name:      "PathAndOptions",
-			runtime:   types.Runtime{Path: "/bin/true", Options: map[string]interface{}{"a": "b"}},
+			name: "PathAndOptions",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {Path: "/bin/true", Options: map[string]interface{}{"a": "b"}},
+				},
+			},
 			expectErr: "options cannot be used with a path runtime",
 		},
 		{
-			name:      "TypeAndArgs",
-			runtime:   types.Runtime{Type: "io.containerd.runsc.v1", Args: []string{"--version"}},
+			name: "TypeAndArgs",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {Type: "io.containerd.runsc.v1", Args: []string{"--version"}},
+				},
+			},
 			expectErr: "args cannot be used with a runtimeType runtime",
 		},
 		{
 			name: "PathArgsOptions",
-			runtime: types.Runtime{
-				Path:    "/bin/true",
-				Args:    []string{"--version"},
-				Options: map[string]interface{}{"hmm": 3},
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {
+						Path:    "/bin/true",
+						Args:    []string{"--version"},
+						Options: map[string]interface{}{"hmm": 3},
+					},
+				},
 			},
 			expectErr: "options cannot be used with a path runtime",
 		},
 		{
 			name: "TypeOptionsArgs",
-			runtime: types.Runtime{
-				Type:    "io.containerd.kata.v2",
-				Options: map[string]interface{}{"a": "b"},
-				Args:    []string{"--help"},
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {
+						Type:    "io.containerd.kata.v2",
+						Options: map[string]interface{}{"a": "b"},
+						Args:    []string{"--help"},
+					},
+				},
 			},
 			expectErr: "args cannot be used with a runtimeType runtime",
 		},
 		{
 			name: "PathArgsTypeOptions",
-			runtime: types.Runtime{
-				Path:    "/bin/true",
-				Args:    []string{"foo"},
-				Type:    "io.containerd.runsc.v1",
-				Options: map[string]interface{}{"a": "b"},
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"myruntime": {
+						Path:    "/bin/true",
+						Args:    []string{"foo"},
+						Type:    "io.containerd.runsc.v1",
+						Options: map[string]interface{}{"a": "b"},
+					},
+				},
 			},
 			expectErr: "cannot configure both",
 		},
+		{
+			name: "CannotOverrideStockRuntime",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					config.StockRuntimeName: {},
+				},
+			},
+			expectErr: `runtime name 'runc' is reserved`,
+		},
+		{
+			name: "SetStockRuntimeAsDefault",
+			config: &config.Config{
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: config.StockRuntimeName,
+				},
+			},
+		},
+		{
+			name: "SetLinuxRuntimeAsDefault",
+			config: &config.Config{
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: linuxV2RuntimeName,
+				},
+			},
+		},
+		{
+			name: "CannotSetBogusRuntimeAsDefault",
+			config: &config.Config{
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: "notdefined",
+				},
+			},
+			expectErr: "specified default runtime 'notdefined' does not exist",
+		},
+		{
+			name: "SetDefinedRuntimeAsDefault",
+			config: &config.Config{
+				Runtimes: map[string]types.Runtime{
+					"some-runtime": {
+						Path: "/usr/local/bin/file-not-found",
+					},
+				},
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: "some-runtime",
+				},
+			},
+		},
 	}
-
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
 			cfg, err := config.New()
 			assert.NilError(t, err)
 			cfg.Root = t.TempDir()
-			cfg.Runtimes["myruntime"] = tt.runtime
+			assert.NilError(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
 			assert.Assert(t, initRuntimesDir(cfg))
 
 			_, err = setupRuntimes(cfg)
-			assert.Check(t, is.ErrorContains(err, tt.expectErr))
+			if tc.expectErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.expectErr)
+			}
 		})
 	}
 }
@@ -133,7 +222,6 @@ func TestGetRuntime(t *testing.T) {
 		shimAliasName:            shimAlias,
 		configuredShimByPathName: configuredShimByPath,
 	}
-	configureRuntimes(cfg)
 	assert.NilError(t, initRuntimesDir(cfg))
 	runtimes, err := setupRuntimes(cfg)
 	assert.NilError(t, err)
@@ -179,6 +267,7 @@ func TestGetRuntime(t *testing.T) {
 		{
 			name:    "EmptyString",
 			runtime: "",
+			want:    stockRuntime,
 		},
 		{
 			name:    "PathToShim",
