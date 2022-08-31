@@ -21,6 +21,9 @@ func (daemon *Daemon) ContainerChanges(name string) ([]archive.Change, error) {
 
 	container.Lock()
 	defer container.Unlock()
+	if daemon.UsesSnapshotter() {
+		return nil, errors.New("not implemented")
+	}
 	if container.RWLayer == nil {
 		return nil, errors.New("RWLayer of container " + name + " is unexpectedly nil")
 	}

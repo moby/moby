@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/plugin"
@@ -93,18 +94,18 @@ func (i *ImageService) StorageDriver() string {
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	panic("not implemented")
+	return errors.New("not implemented")
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	panic("not implemented")
+	return 0, errors.New("not implemented")
 }
 
 // ImageDiskUsage returns information about image data disk usage.
 func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
-	panic("not implemented")
+	return nil, errors.New("not implemented")
 }
 
 // UpdateConfig values
@@ -116,7 +117,7 @@ func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
 
 // GetLayerFolders returns the layer folders from an image RootFS.
 func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
-	panic("not implemented")
+	return nil, errors.New("not implemented")
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
