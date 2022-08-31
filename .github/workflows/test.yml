@@ -80,6 +80,22 @@ jobs:
         name: Test
         run: |
           make -o build test-unit
+      -
+        name: Prepare reports
+        if: always()
+        run: |
+          mkdir -p bundles /tmp/reports
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C /tmp/reports
+          sudo chown -R $(id -u):$(id -g) /tmp/reports
+          tree -nh /tmp/reports
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-reports
+          path: /tmp/reports/*
 
   docker-py:
     runs-on: ubuntu-20.04
@@ -107,10 +123,26 @@ jobs:
         run: |
           make -o build test-docker-py
       -
+        name: Prepare reports
+        if: always()
+        run: |
+          mkdir -p bundles /tmp/reports
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C /tmp/reports
+          sudo chown -R $(id -u):$(id -g) /tmp/reports
+          tree -nh /tmp/reports
+      -
         name: Test daemon logs
         if: always()
         run: |
           cat bundles/test-docker-py/docker.log
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-py-reports
+          path: /tmp/reports/*
 
   integration-flaky:
     runs-on: ubuntu-20.04
@@ -191,10 +223,30 @@ jobs:
         env:
           TEST_SKIP_INTEGRATION_CLI: 1
       -
+        name: Prepare reports
+        if: always()
+        run: |
+          reportsPath="/tmp/reports/${{ matrix.os }}"
+          if [ -n "${{ matrix.mode }}" ]; then
+            reportsPath="$reportsPath-${{ matrix.mode }}"
+          fi
+          mkdir -p bundles $reportsPath
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          sudo chown -R $(id -u):$(id -g) $reportsPath
+          tree -nh $reportsPath
+      -
         name: Test daemon logs
         if: always()
         run: |
           cat bundles/test-integration/docker.log
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-reports
+          path: /tmp/reports/*
 
   integration-cli-prepare:
     runs-on: ubuntu-20.04
@@ -262,7 +314,25 @@ jobs:
           TEST_SKIP_INTEGRATION: 1
           TESTFLAGS: "-test.run (${{ matrix.test }})/"
       -
+        name: Prepare reports
+        if: always()
+        run: |
+          reportsPath=/tmp/reports/$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          mkdir -p bundles $reportsPath
+          echo "${{ matrix.test }}" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          sudo chown -R $(id -u):$(id -g) $reportsPath
+          tree -nh $reportsPath
+      -
         name: Test daemon logs
         if: always()
         run: |
           cat bundles/test-integration/docker.log
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-cli-reports
+          path: /tmp/reports/*
