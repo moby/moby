@@ -57,7 +57,7 @@ func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context
 	})
 }
 
-func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *config.Config, opts createOpts) (containertypes.CreateResponse, error) {
+func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStore, opts createOpts) (containertypes.CreateResponse, error) {
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
@@ -95,12 +95,12 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *config.Con
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
-	err = daemon.adaptContainerSettings(daemonCfg, opts.params.HostConfig, opts.params.AdjustCPUShares)
+	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig, opts.params.AdjustCPUShares)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	ctr, err := daemon.create(ctx, daemonCfg, opts)
+	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}

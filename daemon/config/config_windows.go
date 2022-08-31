@@ -30,12 +30,6 @@ type Config struct {
 	// for the Windows daemon.)
 }
 
-// GetRuntime returns the runtime path and arguments for a given
-// runtime name
-func (conf *Config) GetRuntime(name string) *types.Runtime {
-	return nil
-}
-
 // GetAllRuntimes returns a copy of the runtimes map
 func (conf *Config) GetAllRuntimes() map[string]types.Runtime {
 	return map[string]types.Runtime{}

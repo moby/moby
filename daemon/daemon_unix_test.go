@@ -245,7 +245,7 @@ func TestParseSecurityOpt(t *testing.T) {
 }
 
 func TestParseNNPSecurityOptions(t *testing.T) {
-	daemonCfg := &config.Config{NoNewPrivileges: true}
+	daemonCfg := &configStore{Config: config.Config{NoNewPrivileges: true}}
 	daemon := &Daemon{}
 	daemon.configStore.Store(daemonCfg)
 	opts := &container.SecurityOptions{}
@@ -254,7 +254,7 @@ func TestParseNNPSecurityOptions(t *testing.T) {
 	// test NNP when "daemon:true" and "no-new-privileges=false""
 	cfg.SecurityOpt = []string{"no-new-privileges=false"}
 
-	if err := daemon.parseSecurityOpt(daemonCfg, opts, cfg); err != nil {
+	if err := daemon.parseSecurityOpt(&daemonCfg.Config, opts, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
 	if opts.NoNewPrivileges {
@@ -265,7 +265,7 @@ func TestParseNNPSecurityOptions(t *testing.T) {
 	daemonCfg.NoNewPrivileges = false
 	cfg.SecurityOpt = []string{"no-new-privileges=true"}
 
-	if err := daemon.parseSecurityOpt(daemonCfg, opts, cfg); err != nil {
+	if err := daemon.parseSecurityOpt(&daemonCfg.Config, opts, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
 	if !opts.NoNewPrivileges {

@@ -56,7 +56,7 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		return nil, err
 	}
 
-	cfg := daemon.config()
+	cfg := &daemon.config().Config
 	allContainers := daemon.List()
 	for _, c := range allContainers {
 		select {

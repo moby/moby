@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -178,7 +177,7 @@ func TestNotCleanupMounts(t *testing.T) {
 func TestValidateContainerIsolationLinux(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings(&config.Config{}, &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
+	_, err := d.verifyContainerSettings(&configStore{}, &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'hyperv' on linux"))
 }
 
@@ -250,7 +249,7 @@ func TestRootMountCleanup(t *testing.T) {
 	testRoot, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testRoot)
-	cfg := &config.Config{}
+	cfg := &configStore{}
 
 	err = mount.MakePrivate(testRoot)
 	assert.NilError(t, err)
@@ -266,16 +265,16 @@ func TestRootMountCleanup(t *testing.T) {
 
 	d := &Daemon{root: cfg.Root}
 	d.configStore.Store(cfg)
-	unmountFile := getUnmountOnShutdownPath(cfg)
+	unmountFile := getUnmountOnShutdownPath(&cfg.Config)
 
 	t.Run("regular dir no mountpoint", func(t *testing.T) {
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 		_, err = os.Stat(unmountFile)
 		assert.NilError(t, err)
 		checkMounted(t, cfg.Root, true)
 
-		assert.Assert(t, d.cleanupMounts(cfg))
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 		checkMounted(t, cfg.Root, false)
 
 		_, err = os.Stat(unmountFile)
@@ -287,13 +286,13 @@ func TestRootMountCleanup(t *testing.T) {
 		assert.NilError(t, err)
 		defer mount.Unmount(cfg.Root)
 
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 		assert.Check(t, ensureShared(cfg.Root))
 
 		_, err = os.Stat(unmountFile)
 		assert.Assert(t, os.IsNotExist(err))
-		assert.Assert(t, d.cleanupMounts(cfg))
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 		checkMounted(t, cfg.Root, true)
 	})
 
@@ -303,14 +302,14 @@ func TestRootMountCleanup(t *testing.T) {
 		assert.NilError(t, err)
 		defer mount.Unmount(cfg.Root)
 
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 
 		if _, err := os.Stat(unmountFile); err == nil {
 			t.Fatal("unmount file should not exist")
 		}
 
-		assert.Assert(t, d.cleanupMounts(cfg))
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 		checkMounted(t, cfg.Root, true)
 		assert.Assert(t, mount.Unmount(cfg.Root))
 	})
@@ -323,13 +322,13 @@ func TestRootMountCleanup(t *testing.T) {
 		err = os.WriteFile(unmountFile, nil, 0644)
 		assert.NilError(t, err)
 
-		err = setupDaemonRootPropagation(cfg)
+		err = setupDaemonRootPropagation(&cfg.Config)
 		assert.NilError(t, err)
 
 		_, err = os.Stat(unmountFile)
 		assert.Check(t, os.IsNotExist(err), err)
 		checkMounted(t, cfg.Root, false)
-		assert.Assert(t, d.cleanupMounts(cfg))
+		assert.Assert(t, d.cleanupMounts(&cfg.Config))
 	})
 }
 

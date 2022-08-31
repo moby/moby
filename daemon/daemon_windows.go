@@ -171,7 +171,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, isHyp
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *config.Config, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}
@@ -553,10 +553,6 @@ func setMayDetachMounts() error {
 }
 
 func (daemon *Daemon) setupSeccompProfile(*config.Config) error {
-	return nil
-}
-
-func (daemon *Daemon) loadRuntimes() error {
 	return nil
 }
 

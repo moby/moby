@@ -38,22 +38,22 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, 
 		v.CPUSet = sysInfo.Cpuset
 		v.PidsLimit = sysInfo.PidsLimit
 	}
-	v.Runtimes = cfg.GetAllRuntimes()
+	v.Runtimes = make(map[string]types.Runtime)
+	for n, r := range cfg.Runtimes {
+		v.Runtimes[n] = types.Runtime{
+			Path: r.Path,
+			Args: append([]string(nil), r.Args...),
+		}
+	}
 	v.DefaultRuntime = cfg.DefaultRuntime
 	v.RuncCommit.ID = "N/A"
 	v.ContainerdCommit.ID = "N/A"
 	v.InitCommit.ID = "N/A"
 
-	if rt := cfg.GetRuntime(v.DefaultRuntime); rt != nil {
-		if rv, err := exec.Command(rt.Path, "--version").Output(); err == nil {
-			if _, _, commit, err := parseRuntimeVersion(string(rv)); err != nil {
-				logrus.Warnf("failed to parse %s version: %v", rt.Path, err)
-			} else {
-				v.RuncCommit.ID = commit
-			}
-		} else {
-			logrus.Warnf("failed to retrieve %s version: %v", rt.Path, err)
-		}
+	if _, _, commit, err := parseDefaultRuntimeVersion(cfg); err != nil {
+		logrus.Warnf(err.Error())
+	} else {
+		v.RuncCommit.ID = commit
 	}
 
 	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
@@ -177,23 +177,16 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version, cfg *config.Config) 
 		})
 	}
 
-	defaultRuntime := cfg.DefaultRuntime
-	if rt := cfg.GetRuntime(defaultRuntime); rt != nil {
-		if rv, err := exec.Command(rt.Path, "--version").Output(); err == nil {
-			if _, ver, commit, err := parseRuntimeVersion(string(rv)); err != nil {
-				logrus.Warnf("failed to parse %s version: %v", rt.Path, err)
-			} else {
-				v.Components = append(v.Components, types.ComponentVersion{
-					Name:    defaultRuntime,
-					Version: ver,
-					Details: map[string]string{
-						"GitCommit": commit,
-					},
-				})
-			}
-		} else {
-			logrus.Warnf("failed to retrieve %s version: %v", rt.Path, err)
-		}
+	if _, ver, commit, err := parseDefaultRuntimeVersion(cfg); err != nil {
+		logrus.Warnf(err.Error())
+	} else {
+		v.Components = append(v.Components, types.ComponentVersion{
+			Name:    cfg.DefaultRuntime,
+			Version: ver,
+			Details: map[string]string{
+				"GitCommit": commit,
+			},
+		})
 	}
 
 	if initBinary, err := cfg.LookupInitPath(); err != nil {
@@ -318,7 +311,7 @@ func parseInitVersion(v string) (version string, commit string, err error) {
 //	runc version 1.0.0-rc5+dev
 //	commit: 69663f0bd4b60df09991c08812a60108003fa340
 //	spec: 1.0.0
-func parseRuntimeVersion(v string) (runtime string, version string, commit string, err error) {
+func parseRuntimeVersion(v string) (runtime, version, commit string, err error) {
 	lines := strings.Split(strings.TrimSpace(v), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "version") {
@@ -336,6 +329,21 @@ func parseRuntimeVersion(v string) (runtime string, version string, commit strin
 		err = errors.Errorf("unknown output format: %s", v)
 	}
 	return runtime, version, commit, err
+}
+
+func parseDefaultRuntimeVersion(cfg *config.Config) (runtime, version, commit string, err error) {
+	if rt, ok := cfg.Runtimes[cfg.DefaultRuntime]; ok {
+		rv, err := exec.Command(rt.Path, "--version").Output()
+		if err != nil {
+			return "", "", "", fmt.Errorf("failed to retrieve %s version: %w", rt.Path, err)
+		}
+		runtime, version, commit, err := parseRuntimeVersion(string(rv))
+		if err != nil {
+			return "", "", "", fmt.Errorf("failed to parse %s version: %w", rt.Path, err)
+		}
+		return runtime, version, commit, err
+	}
+	return "", "", "", nil
 }
 
 func cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo, cfg *config.Config) bool {

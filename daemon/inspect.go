@@ -41,7 +41,7 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 
 	ctr.Lock()
 
-	base, err := daemon.getInspectData(daemon.config(), ctr)
+	base, err := daemon.getInspectData(&daemon.config().Config, ctr)
 	if err != nil {
 		ctr.Unlock()
 		return nil, err
@@ -106,7 +106,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	ctr.Lock()
 	defer ctr.Unlock()
 
-	base, err := daemon.getInspectData(daemon.config(), ctr)
+	base, err := daemon.getInspectData(&daemon.config().Config, ctr)
 	if err != nil {
 		return nil, err
 	}

@@ -489,7 +489,7 @@ func inSlice(slice []string, s string) bool {
 }
 
 // withMounts sets the container's mounts
-func withMounts(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Container) coci.SpecOpts {
+func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) (err error) {
 		if err := daemon.setupContainerMountsRoot(c); err != nil {
 			return err
@@ -1019,23 +1019,23 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *dconfig.Config, c *container.Container) (retSpec *specs.Spec, err error) {
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container) (retSpec *specs.Spec, err error) {
 	var (
 		opts []coci.SpecOpts
 		s    = oci.DefaultSpec()
 	)
 	opts = append(opts,
-		withCommonOptions(daemon, daemonCfg, c),
-		withCgroups(daemon, daemonCfg, c),
+		withCommonOptions(daemon, &daemonCfg.Config, c),
+		withCgroups(daemon, &daemonCfg.Config, c),
 		WithResources(c),
 		WithSysctls(c),
 		WithDevices(daemon, c),
-		withRlimits(daemon, daemonCfg, c),
+		withRlimits(daemon, &daemonCfg.Config, c),
 		WithNamespaces(daemon, c),
 		WithCapabilities(c),
 		WithSeccomp(daemon, c),
 		withMounts(daemon, daemonCfg, c),
-		withLibnetwork(daemon, daemonCfg, c),
+		withLibnetwork(daemon, &daemonCfg.Config, c),
 		WithApparmor(c),
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
@@ -1069,7 +1069,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *dconfig.Config,
 		opts = append(opts, coci.WithReadonlyPaths(c.HostConfig.ReadonlyPaths))
 	}
 	if daemonCfg.Rootless {
-		opts = append(opts, withRootless(daemon, daemonCfg))
+		opts = append(opts, withRootless(daemon, &daemonCfg.Config))
 	}
 
 	var snapshotter, snapshotKey string

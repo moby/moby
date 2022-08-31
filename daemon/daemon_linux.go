@@ -239,18 +239,18 @@ func kernelSupportsRecursivelyReadOnly() error {
 	return kernelSupportsRROErr
 }
 
-func supportsRecursivelyReadOnly(cfg *config.Config, runtime string) error {
+func supportsRecursivelyReadOnly(cfg *configStore, runtime string) error {
 	if err := kernelSupportsRecursivelyReadOnly(); err != nil {
 		return fmt.Errorf("rro is not supported: %w (kernel is older than 5.12?)", err)
 	}
 	if runtime == "" {
 		runtime = cfg.DefaultRuntime
 	}
-	rt := cfg.GetRuntime(runtime)
-	if rt.Features == nil {
+	features := cfg.Runtimes.Features(runtime)
+	if features == nil {
 		return fmt.Errorf("rro is not supported by runtime %q: OCI features struct is not available", runtime)
 	}
-	for _, s := range rt.Features.MountOptions {
+	for _, s := range features.MountOptions {
 		if s == "rro" {
 			return nil
 		}

@@ -72,11 +72,13 @@ func (tx *reloadTxn) Rollback() error {
 func (daemon *Daemon) Reload(conf *config.Config) error {
 	daemon.configReload.Lock()
 	defer daemon.configReload.Unlock()
-	copied, err := copystructure.Copy(daemon.config())
+	copied, err := copystructure.Copy(daemon.config().Config)
 	if err != nil {
 		return err
 	}
-	newCfg := copied.(*config.Config)
+	newCfg := &configStore{
+		Config: copied.(config.Config),
+	}
 
 	attributes := map[string]string{}
 
@@ -91,7 +93,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 	// executing any registered rollback functions.
 
 	var txn reloadTxn
-	for _, reload := range []func(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error{
+	for _, reload := range []func(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error{
 		daemon.reloadPlatform,
 		daemon.reloadDebug,
 		daemon.reloadMaxConcurrentDownloadsAndUploads,
@@ -115,7 +117,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 		*config.Config
 		config.Proxies `json:"proxies"`
 	}{
-		Config: newCfg,
+		Config: &newCfg.Config,
 		Proxies: config.Proxies{
 			HTTPProxy:  config.MaskCredentials(newCfg.HTTPProxy),
 			HTTPSProxy: config.MaskCredentials(newCfg.HTTPSProxy),
@@ -141,7 +143,7 @@ func marshalAttributeSlice(v []string) string {
 
 // reloadDebug updates configuration with Debug option
 // and updates the passed attributes
-func (daemon *Daemon) reloadDebug(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadDebug(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("debug") {
 		newCfg.Debug = conf.Debug
@@ -153,7 +155,7 @@ func (daemon *Daemon) reloadDebug(txn *reloadTxn, newCfg, conf *config.Config, a
 
 // reloadMaxConcurrentDownloadsAndUploads updates configuration with max concurrent
 // download and upload options and updates the passed attributes
-func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// We always "reset" as the cost is lightweight and easy to maintain.
 	newCfg.MaxConcurrentDownloads = config.DefaultMaxConcurrentDownloads
 	newCfg.MaxConcurrentUploads = config.DefaultMaxConcurrentUploads
@@ -184,7 +186,7 @@ func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(txn *reloadTxn, new
 
 // reloadMaxDownloadAttempts updates configuration with max concurrent
 // download attempts when a connection is lost and updates the passed attributes
-func (daemon *Daemon) reloadMaxDownloadAttempts(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadMaxDownloadAttempts(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// We always "reset" as the cost is lightweight and easy to maintain.
 	newCfg.MaxDownloadAttempts = config.DefaultDownloadAttempts
 	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != 0 {
@@ -199,7 +201,7 @@ func (daemon *Daemon) reloadMaxDownloadAttempts(txn *reloadTxn, newCfg, conf *co
 
 // reloadShutdownTimeout updates configuration with daemon shutdown timeout option
 // and updates the passed attributes
-func (daemon *Daemon) reloadShutdownTimeout(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadShutdownTimeout(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("shutdown-timeout") {
 		newCfg.ShutdownTimeout = conf.ShutdownTimeout
@@ -213,7 +215,7 @@ func (daemon *Daemon) reloadShutdownTimeout(txn *reloadTxn, newCfg, conf *config
 
 // reloadLabels updates configuration with engine labels
 // and updates the passed attributes
-func (daemon *Daemon) reloadLabels(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadLabels(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("labels") {
 		newCfg.Labels = conf.Labels
@@ -226,7 +228,7 @@ func (daemon *Daemon) reloadLabels(txn *reloadTxn, newCfg, conf *config.Config, 
 
 // reloadRegistryConfig updates the configuration with registry options
 // and updates the passed attributes.
-func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// Update corresponding configuration.
 	if conf.IsValueSet("allow-nondistributable-artifacts") {
 		newCfg.ServiceOptions.AllowNondistributableArtifacts = conf.AllowNondistributableArtifacts
@@ -253,7 +255,7 @@ func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg, conf *config.
 
 // reloadLiveRestore updates configuration with live restore option
 // and updates the passed attributes
-func (daemon *Daemon) reloadLiveRestore(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadLiveRestore(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("live-restore") {
 		newCfg.LiveRestoreEnabled = conf.LiveRestoreEnabled
@@ -265,7 +267,7 @@ func (daemon *Daemon) reloadLiveRestore(txn *reloadTxn, newCfg, conf *config.Con
 }
 
 // reloadNetworkDiagnosticPort updates the network controller starting the diagnostic if the config is valid
-func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	txn.OnCommit(func() error {
 		if conf == nil || daemon.netController == nil || !conf.IsValueSet("network-diagnostic-port") ||
 			conf.NetworkDiagnosticPort < 1 || conf.NetworkDiagnosticPort > 65535 {
@@ -284,7 +286,7 @@ func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg, conf *
 }
 
 // reloadFeatures updates configuration with enabled/disabled features
-func (daemon *Daemon) reloadFeatures(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadFeatures(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	// note that we allow features option to be entirely unset
 	newCfg.Features = conf.Features

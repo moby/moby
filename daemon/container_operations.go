@@ -1075,7 +1075,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 			}
 		}
 	} else {
-		if err := daemon.connectToNetwork(daemon.config(), container, idOrName, endpointConfig, true); err != nil {
+		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, true); err != nil {
 			return err
 		}
 	}

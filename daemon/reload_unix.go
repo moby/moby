@@ -11,15 +11,19 @@ import (
 
 // reloadPlatform updates configuration with platform specific options
 // and updates the passed attributes
-func (daemon *Daemon) reloadPlatform(txn *reloadTxn, newCfg, conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadPlatform(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	if conf.DefaultRuntime != "" {
 		newCfg.DefaultRuntime = conf.DefaultRuntime
 	}
 	if conf.IsValueSet("runtimes") {
-		newCfg.Runtimes = conf.Runtimes
-		txn.OnCommit(func() error { return daemon.initRuntimes(newCfg) })
+		newCfg.Config.Runtimes = conf.Runtimes
 	}
-	configureRuntimes(newCfg)
+	configureRuntimes(&newCfg.Config)
+	var err error
+	newCfg.Runtimes, err = setupRuntimes(&newCfg.Config)
+	if err != nil {
+		return err
+	}
 
 	if conf.IsValueSet("default-shm-size") {
 		newCfg.ShmSize = conf.ShmSize
@@ -35,7 +39,7 @@ func (daemon *Daemon) reloadPlatform(txn *reloadTxn, newCfg, conf *config.Config
 
 	// Update attributes
 	var runtimeList bytes.Buffer
-	for name, rt := range newCfg.Runtimes {
+	for name, rt := range newCfg.Config.Runtimes {
 		if runtimeList.Len() > 0 {
 			runtimeList.WriteRune(' ')
 		}

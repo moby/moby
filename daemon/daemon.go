@@ -77,6 +77,12 @@ import (
 	"resenje.org/singleflight"
 )
 
+type configStore struct {
+	config.Config
+
+	Runtimes runtimes
+}
+
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	id                    string
@@ -85,7 +91,7 @@ type Daemon struct {
 	containersReplica     *container.ViewDB
 	execCommands          *container.ExecStore
 	imageService          ImageService
-	configStore           atomic.Pointer[config.Config]
+	configStore           atomic.Pointer[configStore]
 	configReload          sync.Mutex
 	statsCollector        *stats.Collector
 	defaultLogConfig      containertypes.LogConfig
@@ -159,10 +165,10 @@ func (daemon *Daemon) StoreHosts(hosts []string) {
 // lifetime of an operation, the configuration pointer should be passed down the
 // call stack, like one would a [context.Context] value. Only the entrypoints
 // for operations, the outermost functions, should call this function.
-func (daemon *Daemon) config() *config.Config {
+func (daemon *Daemon) config() *configStore {
 	cfg := daemon.configStore.Load()
 	if cfg == nil {
-		return &config.Config{}
+		return &configStore{}
 	}
 	return cfg
 }
@@ -247,7 +253,7 @@ type layerAccessor interface {
 	GetLayerByID(cid string) (layer.RWLayer, error)
 }
 
-func (daemon *Daemon) restore(cfg *config.Config) error {
+func (daemon *Daemon) restore(cfg *configStore) error {
 	var mapLock sync.Mutex
 	containers := make(map[string]*container.Container)
 
@@ -467,7 +473,7 @@ func (daemon *Daemon) restore(cfg *config.Config) error {
 
 				c.ResetRestartManager(false)
 				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
-					options, err := daemon.buildSandboxOptions(cfg, c)
+					options, err := daemon.buildSandboxOptions(&cfg.Config, c)
 					if err != nil {
 						logger(c).WithError(err).Warn("failed to build sandbox option to restore container")
 					}
@@ -523,7 +529,7 @@ func (daemon *Daemon) restore(cfg *config.Config) error {
 	//
 	// Note that we cannot initialize the network controller earlier, as it
 	// needs to know if there's active sandboxes (running containers).
-	if err = daemon.initNetworkController(cfg, activeSandboxes); err != nil {
+	if err = daemon.initNetworkController(&cfg.Config, activeSandboxes); err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
@@ -586,7 +592,7 @@ func (daemon *Daemon) restore(cfg *config.Config) error {
 		go func(cid string) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			if err := daemon.containerRm(cfg, cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+			if err := daemon.containerRm(&cfg.Config, cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				logrus.WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
@@ -634,9 +640,11 @@ func (daemon *Daemon) restore(cfg *config.Config) error {
 
 // RestartSwarmContainers restarts any autostart container which has a
 // swarm endpoint.
-func (daemon *Daemon) RestartSwarmContainers(cfg *config.Config) {
-	ctx := context.Background()
+func (daemon *Daemon) RestartSwarmContainers() {
+	daemon.restartSwarmContainers(context.Background(), daemon.config())
+}
 
+func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configStore) {
 	// parallelLimit is the maximum number of parallel startup jobs that we
 	// allow (this is the limited used for all startup semaphores). The multipler
 	// (128) was chosen after some fairly significant benchmarking -- don't change
@@ -806,11 +814,23 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		os.Setenv("TMPDIR", realTmp)
 	}
 
+	if err := initRuntimesDir(config); err != nil {
+		return nil, err
+	}
+	runtimes, err := setupRuntimes(config)
+	if err != nil {
+		return nil, err
+	}
+
 	d := &Daemon{
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
 	}
-	d.configStore.Store(config)
+	configStore := &configStore{
+		Config:   *config,
+		Runtimes: runtimes,
+	}
+	d.configStore.Store(configStore)
 
 	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
 	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
@@ -830,27 +850,27 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}()
 
-	if err := d.setGenericResources(config); err != nil {
+	if err := d.setGenericResources(&configStore.Config); err != nil {
 		return nil, err
 	}
 	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
 	// on Windows to dump Go routine stacks
-	stackDumpDir := config.Root
-	if execRoot := config.GetExecRoot(); execRoot != "" {
+	stackDumpDir := configStore.Root
+	if execRoot := configStore.GetExecRoot(); execRoot != "" {
 		stackDumpDir = execRoot
 	}
 	d.setupDumpStackTrap(stackDumpDir)
 
-	if err := d.setupSeccompProfile(config); err != nil {
+	if err := d.setupSeccompProfile(&configStore.Config); err != nil {
 		return nil, err
 	}
 
 	// Set the default isolation mode (only applicable on Windows)
-	if err := d.setDefaultIsolation(config); err != nil {
+	if err := d.setDefaultIsolation(&configStore.Config); err != nil {
 		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
-	if err := configureMaxThreads(config); err != nil {
+	if err := configureMaxThreads(&configStore.Config); err != nil {
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
@@ -859,7 +879,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		logrus.Errorf(err.Error())
 	}
 
-	daemonRepo := filepath.Join(config.Root, "containers")
+	daemonRepo := filepath.Join(configStore.Root, "containers")
 	if err := idtools.MkdirAllAndChown(daemonRepo, 0o710, idtools.Identity{
 		UID: idtools.CurrentIdentity().UID,
 		GID: rootIDs.GID,
@@ -867,20 +887,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// Create the directory where we'll store the runtime scripts (i.e. in
-	// order to support runtimeArgs)
-	if err = os.Mkdir(filepath.Join(config.Root, "runtimes"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return nil, err
-	}
-	if err := d.loadRuntimes(); err != nil {
-		return nil, err
-	}
-
 	if isWindows {
 		// Note that permissions (0o700) are ignored on Windows; passing them to
 		// show intent only. We could consider using idtools.MkdirAndChown here
 		// to apply an ACL.
-		if err = os.Mkdir(filepath.Join(config.Root, "credentialspecs"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		if err = os.Mkdir(filepath.Join(configStore.Root, "credentialspecs"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
 	}
@@ -888,7 +899,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.registryService = registryService
 	dlogger.RegisterPluginGetter(d.PluginStore)
 
-	metricsSockPath, err := d.listenMetricsSock(config)
+	metricsSockPath, err := d.listenMetricsSock(&configStore.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -927,20 +938,20 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 	}
 
-	if config.ContainerdAddr != "" {
-		d.containerdCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(config.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+	if configStore.ContainerdAddr != "" {
+		d.containerdCli, err = containerd.New(configStore.ContainerdAddr, containerd.WithDefaultNamespace(configStore.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to dial %q", config.ContainerdAddr)
+			return nil, errors.Wrapf(err, "failed to dial %q", configStore.ContainerdAddr)
 		}
 	}
 
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
 		var pluginCli *containerd.Client
 
-		if config.ContainerdAddr != "" {
-			pluginCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(config.ContainerdPluginNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+		if configStore.ContainerdAddr != "" {
+			pluginCli, err = containerd.New(configStore.ContainerdAddr, containerd.WithDefaultNamespace(configStore.ContainerdPluginNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to dial %q", config.ContainerdAddr)
+				return nil, errors.Wrapf(err, "failed to dial %q", configStore.ContainerdAddr)
 			}
 		}
 
@@ -949,22 +960,22 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			shimOpts interface{}
 		)
 		if runtime.GOOS != "windows" {
-			shim, shimOpts, err = d.getRuntime(config, config.DefaultRuntime)
+			shim, shimOpts, err = runtimes.Get(configStore.DefaultRuntime)
 			if err != nil {
 				return nil, err
 			}
 		}
-		return pluginexec.New(ctx, getPluginExecRoot(config), pluginCli, config.ContainerdPluginNamespace, m, shim, shimOpts)
+		return pluginexec.New(ctx, getPluginExecRoot(&configStore.Config), pluginCli, configStore.ContainerdPluginNamespace, m, shim, shimOpts)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
-		Root:               filepath.Join(config.Root, "plugins"),
-		ExecRoot:           getPluginExecRoot(config),
+		Root:               filepath.Join(configStore.Root, "plugins"),
+		ExecRoot:           getPluginExecRoot(&configStore.Config),
 		Store:              d.PluginStore,
 		CreateExecutor:     createPluginExec,
 		RegistryService:    registryService,
-		LiveRestoreEnabled: config.LiveRestoreEnabled,
+		LiveRestoreEnabled: configStore.LiveRestoreEnabled,
 		LogPluginEvent:     d.LogPluginEvent, // todo: make private
 		AuthzMiddleware:    authzMiddleware,
 	})
@@ -972,13 +983,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.Wrap(err, "couldn't create plugin manager")
 	}
 
-	d.defaultLogConfig, err = defaultLogConfig(config)
+	d.defaultLogConfig, err = defaultLogConfig(&configStore.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set log opts")
 	}
 	logrus.Debugf("Using default logging driver %s", d.defaultLogConfig.Type)
 
-	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
+	d.volumes, err = volumesservice.NewVolumeService(configStore.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
 		return nil, err
 	}
@@ -991,11 +1002,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// at this point.
 	//
 	// TODO(thaJeztah) add a utility to only collect the CgroupDevicesEnabled information
-	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(config).CgroupDevicesEnabled {
+	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(&configStore.Config).CgroupDevicesEnabled {
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.id, err = loadOrCreateID(filepath.Join(config.Root, "engine-id"))
+	d.id, err = loadOrCreateID(filepath.Join(configStore.Root, "engine-id"))
 	if err != nil {
 		return nil, err
 	}
@@ -1008,7 +1019,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()
-	d.root = config.Root
+	d.root = configStore.Root
 	d.idMapping = idMapping
 
 	d.linkIndex = newLinkIndex()
@@ -1023,7 +1034,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	} else if driverName != "" {
 		logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 	} else {
-		driverName = config.GraphDriver
+		driverName = configStore.GraphDriver
 	}
 
 	if d.UsesSnapshotter() {
@@ -1039,7 +1050,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-		if err := configureKernelSecuritySupport(config, driverName); err != nil {
+		if err := configureKernelSecuritySupport(&configStore.Config, driverName); err != nil {
 			return nil, err
 		}
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
@@ -1052,13 +1063,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
-			Root:                      config.Root,
-			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
+			Root:                      configStore.Root,
+			MetadataStorePathTemplate: filepath.Join(configStore.Root, "image", "%s", "layerdb"),
 			GraphDriver:               driverName,
-			GraphDriverOptions:        config.GraphOptions,
+			GraphDriverOptions:        configStore.GraphOptions,
 			IDMapping:                 idMapping,
 			PluginGetter:              d.PluginStore,
-			ExperimentalEnabled:       config.Experimental,
+			ExperimentalEnabled:       configStore.Experimental,
 		})
 		if err != nil {
 			return nil, err
@@ -1066,11 +1077,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-		if err := configureKernelSecuritySupport(config, layerStore.DriverName()); err != nil {
+		if err := configureKernelSecuritySupport(&configStore.Config, layerStore.DriverName()); err != nil {
 			return nil, err
 		}
 
-		imageRoot := filepath.Join(config.Root, "image", layerStore.DriverName())
+		imageRoot := filepath.Join(configStore.Root, "image", layerStore.DriverName())
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
 			return nil, err
@@ -1144,11 +1155,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	go d.execCommandGC()
 
-	if err := d.initLibcontainerd(ctx, config); err != nil {
+	if err := d.initLibcontainerd(ctx, &configStore.Config); err != nil {
 		return nil, err
 	}
 
-	if err := d.restore(config); err != nil {
+	if err := d.restore(configStore); err != nil {
 		return nil, err
 	}
 	close(d.startupDone)
@@ -1210,7 +1221,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 // A negative (-1) timeout means "indefinitely", which means that containers
 // are not forcibly killed, and the daemon shuts down after all containers exit.
 func (daemon *Daemon) ShutdownTimeout() int {
-	return daemon.shutdownTimeout(daemon.config())
+	return daemon.shutdownTimeout(&daemon.config().Config)
 }
 
 func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
@@ -1241,7 +1252,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
 
-	cfg := daemon.config()
+	cfg := &daemon.config().Config
 	if cfg.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
 		if ls, err := daemon.Containers(ctx, &types.ContainerListOptions{}); len(ls) != 0 || err != nil {
@@ -1523,7 +1534,7 @@ func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 		// We check if sysInfo is not set here, to allow some test to
 		// override the actual sysInfo.
 		if daemon.sysInfo == nil {
-			daemon.sysInfo = getSysInfo(daemon.config())
+			daemon.sysInfo = getSysInfo(&daemon.config().Config)
 		}
 	})
 

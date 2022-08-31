@@ -639,7 +639,7 @@ func isRunningSystemd() bool {
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *config.Config, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}
@@ -691,7 +691,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *config.Config, h
 			return warnings, fmt.Errorf("cannot share the host PID namespace when user namespaces are enabled")
 		}
 	}
-	if hostConfig.CgroupParent != "" && UsingSystemd(daemonCfg) {
+	if hostConfig.CgroupParent != "" && UsingSystemd(&daemonCfg.Config) {
 		// CgroupParent for systemd cgroup should be named as "xxx.slice"
 		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
 			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
@@ -701,7 +701,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *config.Config, h
 		hostConfig.Runtime = daemonCfg.DefaultRuntime
 	}
 
-	if _, _, err := daemon.getRuntime(daemonCfg, hostConfig.Runtime); err != nil {
+	if _, _, err := daemonCfg.Runtimes.Get(hostConfig.Runtime); err != nil {
 		return warnings, err
 	}
 
@@ -757,7 +757,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 
 	configureRuntimes(conf)
 	if rtName := conf.DefaultRuntime; rtName != "" {
-		if conf.GetRuntime(rtName) == nil {
+		if _, ok := conf.Runtimes[rtName]; !ok {
 			if !config.IsPermissibleC8dRuntimeName(rtName) {
 				return fmt.Errorf("specified default runtime '%s' does not exist", rtName)
 			}

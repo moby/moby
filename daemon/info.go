@@ -64,14 +64,14 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 
 	daemon.fillContainerStates(v)
 	daemon.fillDebugInfo(v)
-	daemon.fillAPIInfo(v, cfg)
+	daemon.fillAPIInfo(v, &cfg.Config)
 	// Retrieve platform specific info
-	daemon.fillPlatformInfo(v, sysInfo, cfg)
+	daemon.fillPlatformInfo(v, sysInfo, &cfg.Config)
 	daemon.fillDriverInfo(v)
-	daemon.fillPluginsInfo(v, cfg)
-	daemon.fillSecurityOptions(v, sysInfo, cfg)
+	daemon.fillPluginsInfo(v, &cfg.Config)
+	daemon.fillSecurityOptions(v, sysInfo, &cfg.Config)
 	daemon.fillLicense(v)
-	daemon.fillDefaultAddressPools(v, cfg)
+	daemon.fillDefaultAddressPools(v, &cfg.Config)
 
 	return v
 }
@@ -117,7 +117,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 
 	v.Platform.Name = dockerversion.PlatformName
 
-	daemon.fillPlatformVersion(&v, cfg)
+	daemon.fillPlatformVersion(&v, &cfg.Config)
 	return v
 }
 

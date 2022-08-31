@@ -27,7 +27,7 @@ func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
 	var err error
 	daemon.registryService, err = registry.NewService(registry.ServiceOptions{})
 	assert.Assert(t, err)
-	daemon.configStore.Store(cfg)
+	daemon.configStore.Store(&configStore{Config: *cfg})
 	return daemon
 }
 

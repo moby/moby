@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
@@ -57,7 +56,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 		if hostConfig != nil {
 			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and has been removed in Docker 1.12")
 			oldNetworkMode := ctr.HostConfig.NetworkMode
-			if err := daemon.setSecurityOptions(daemonCfg, ctr, hostConfig); err != nil {
+			if err := daemon.setSecurityOptions(&daemonCfg.Config, ctr, hostConfig); err != nil {
 				return errdefs.InvalidParameter(err)
 			}
 			if err := daemon.mergeAndVerifyLogConfig(&hostConfig.LogConfig); err != nil {
@@ -91,7 +90,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 	// Adapt for old containers in case we have updates in this function and
 	// old containers never have chance to call the new function in create stage.
 	if hostConfig != nil {
-		if err := daemon.adaptContainerSettings(daemonCfg, ctr.HostConfig, false); err != nil {
+		if err := daemon.adaptContainerSettings(&daemonCfg.Config, ctr.HostConfig, false); err != nil {
 			return errdefs.InvalidParameter(err)
 		}
 	}
@@ -102,7 +101,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *config.Config, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
@@ -138,7 +137,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *config.Conf
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
-				if err := daemon.containerRm(daemonCfg, container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				if err := daemon.containerRm(&daemonCfg.Config, container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", container.ID, err)
 				}
 				container.Lock()
@@ -150,7 +149,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *config.Conf
 		return err
 	}
 
-	if err := daemon.initializeNetworking(daemonCfg, container); err != nil {
+	if err := daemon.initializeNetworking(&daemonCfg.Config, container); err != nil {
 		return err
 	}
 

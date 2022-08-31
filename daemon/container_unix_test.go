@@ -31,11 +31,14 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			NetworkMode:  "host",
 			PortBindings: tc.ports,
 		}
-		cs := &config.Config{}
-		configureRuntimes(cs)
 		d := &Daemon{}
-		d.configStore.Store(cs)
-		wrns, err := d.verifyContainerSettings(cs, hostConfig, &containertypes.Config{}, false)
+		cfg, err := config.New()
+		assert.NilError(t, err)
+		configureRuntimes(cfg)
+		runtimes, err := setupRuntimes(cfg)
+		assert.NilError(t, err)
+		daemonCfg := &configStore{Config: *cfg, Runtimes: runtimes}
+		wrns, err := d.verifyContainerSettings(daemonCfg, hostConfig, &containertypes.Config{}, false)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, tc.warnings, wrns)
 	}

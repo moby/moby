@@ -81,15 +81,6 @@ type Config struct {
 	Rootless   bool   `json:"rootless,omitempty"`
 }
 
-// GetRuntime returns the runtime path and arguments for a given
-// runtime name
-func (conf *Config) GetRuntime(name string) *types.Runtime {
-	if rt, ok := conf.Runtimes[name]; ok {
-		return &rt
-	}
-	return nil
-}
-
 // GetAllRuntimes returns a copy of the runtimes map
 func (conf *Config) GetAllRuntimes() map[string]types.Runtime {
 	return conf.Runtimes

@@ -161,7 +161,7 @@ func (daemon *Daemon) startIngressWorker() {
 			select {
 			case r := <-ingressJobsChannel:
 				if r.create != nil {
-					daemon.setupIngress(daemon.config(), r.create, r.ip, ingressID)
+					daemon.setupIngress(&daemon.config().Config, r.create, r.ip, ingressID)
 					ingressID = r.create.ID
 				} else {
 					daemon.releaseIngress(ingressID)
@@ -278,13 +278,13 @@ func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networ
 
 // CreateManagedNetwork creates an agent network.
 func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(daemon.config(), create.NetworkCreateRequest, create.ID, true)
+	_, err := daemon.createNetwork(&daemon.config().Config, create.NetworkCreateRequest, create.ID, true)
 	return err
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
-	return daemon.createNetwork(daemon.config(), create, "", false)
+	return daemon.createNetwork(&daemon.config().Config, create, "", false)
 }
 
 func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {

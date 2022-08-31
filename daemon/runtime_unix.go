@@ -4,18 +4,24 @@ package daemon
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/shimopts"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -23,9 +29,20 @@ import (
 
 const (
 	defaultRuntimeName = "runc"
-
-	linuxShimV2 = "io.containerd.runc.v2"
 )
+
+type shimConfig struct {
+	Shim     string
+	Opts     interface{}
+	Features *features.Features
+
+	// Check if the ShimConfig is valid given the current state of the system.
+	PreflightCheck func() error
+}
+
+type runtimes struct {
+	configured map[string]*shimConfig
+}
 
 func configureRuntimes(conf *config.Config) {
 	if conf.DefaultRuntime == "" {
@@ -34,13 +51,13 @@ func configureRuntimes(conf *config.Config) {
 	if conf.Runtimes == nil {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
-	conf.Runtimes[config.LinuxV2RuntimeName] = types.Runtime{Path: defaultRuntimeName, ShimConfig: defaultV2ShimConfig(conf, defaultRuntimeName)}
+	conf.Runtimes[config.LinuxV2RuntimeName] = types.Runtime{Path: defaultRuntimeName}
 	conf.Runtimes[config.StockRuntimeName] = conf.Runtimes[config.LinuxV2RuntimeName]
 }
 
-func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
-	return &types.ShimConfig{
-		Binary: linuxShimV2,
+func defaultV2ShimConfig(conf *config.Config, runtimePath string) *shimConfig {
+	shim := &shimConfig{
+		Shim: plugin.RuntimeRuncV2,
 		Opts: &v2runcoptions.Options{
 			BinaryName:    runtimePath,
 			Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
@@ -48,138 +65,142 @@ func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimCon
 			NoPivotRoot:   os.Getenv("DOCKER_RAMDISK") != "",
 		},
 	}
-}
 
-func (daemon *Daemon) loadRuntimes() error {
-	return daemon.initRuntimes(daemon.config())
-}
-
-func (daemon *Daemon) initRuntimes(cfg *config.Config) (err error) {
-	runtimeDir := filepath.Join(cfg.Root, "runtimes")
-	runtimeOldDir := runtimeDir + "-old"
-	// Remove old temp directory if any
-	os.RemoveAll(runtimeOldDir)
-	tmpDir, err := os.MkdirTemp(cfg.Root, "gen-runtimes")
-	if err != nil {
-		return errors.Wrap(err, "failed to get temp dir to generate runtime scripts")
+	var featuresStderr bytes.Buffer
+	featuresCmd := exec.Command(runtimePath, "features")
+	featuresCmd.Stderr = &featuresStderr
+	if featuresB, err := featuresCmd.Output(); err != nil {
+		logrus.WithError(err).Warnf("Failed to run %v: %q", featuresCmd.Args, featuresStderr.String())
+	} else {
+		var features features.Features
+		if jsonErr := json.Unmarshal(featuresB, &features); jsonErr != nil {
+			logrus.WithError(err).Warnf("Failed to unmarshal the output of %v as a JSON", featuresCmd.Args)
+		} else {
+			shim.Features = &features
+		}
 	}
-	defer func() {
-		if err != nil {
-			if err1 := os.RemoveAll(tmpDir); err1 != nil {
-				logrus.WithError(err1).WithField("dir", tmpDir).
-					Warn("failed to remove tmp dir")
-			}
-			return
-		}
 
-		if err = os.Rename(runtimeDir, runtimeOldDir); err != nil {
-			logrus.WithError(err).WithField("dir", runtimeDir).
-				Warn("failed to rename runtimes dir to old. Will try to removing it")
-			if err = os.RemoveAll(runtimeDir); err != nil {
-				logrus.WithError(err).WithField("dir", runtimeDir).
-					Warn("failed to remove old runtimes dir")
-				return
-			}
-		}
-		if err = os.Rename(tmpDir, runtimeDir); err != nil {
-			err = errors.Wrap(err, "failed to setup runtimes dir, new containers may not start")
-			return
-		}
-		if err = os.RemoveAll(runtimeOldDir); err != nil {
-			logrus.WithError(err).WithField("dir", runtimeOldDir).
-				Warn("failed to remove old runtimes dir")
-		}
-	}()
+	return shim
+}
 
-	for name := range cfg.Runtimes {
-		rt := cfg.Runtimes[name]
+func runtimeScriptsDir(cfg *config.Config) string {
+	return filepath.Join(cfg.Root, "runtimes")
+}
+
+// initRuntimesDir creates a fresh directory where we'll store the runtime
+// scripts (i.e. in order to support runtimeArgs).
+func initRuntimesDir(cfg *config.Config) error {
+	runtimeDir := runtimeScriptsDir(cfg)
+	if err := os.RemoveAll(runtimeDir); err != nil {
+		return err
+	}
+	return system.MkdirAll(runtimeDir, 0700)
+}
+
+func setupRuntimes(cfg *config.Config) (runtimes, error) {
+	newrt := runtimes{
+		configured: make(map[string]*shimConfig),
+	}
+
+	dir := runtimeScriptsDir(cfg)
+	for name, rt := range cfg.Runtimes {
+		var c *shimConfig
 		if rt.Path == "" && rt.Type == "" {
-			return errors.Errorf("runtime %s: either a runtimeType or a path must be configured", name)
+			return runtimes{}, errors.Errorf("runtime %s: either a runtimeType or a path must be configured", name)
 		}
 		if rt.Path != "" {
 			if rt.Type != "" {
-				return errors.Errorf("runtime %s: cannot configure both path and runtimeType for the same runtime", name)
+				return runtimes{}, errors.Errorf("runtime %s: cannot configure both path and runtimeType for the same runtime", name)
 			}
 			if len(rt.Options) > 0 {
-				return errors.Errorf("runtime %s: options cannot be used with a path runtime", name)
+				return runtimes{}, errors.Errorf("runtime %s: options cannot be used with a path runtime", name)
 			}
 
-			if len(rt.Args) > 0 {
-				script := filepath.Join(tmpDir, name)
-				content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", rt.Path, strings.Join(rt.Args, " "))
-				if err := os.WriteFile(script, []byte(content), 0700); err != nil {
-					return err
+			binaryName := rt.Path
+			needsWrapper := len(rt.Args) > 0
+			if needsWrapper {
+				var err error
+				binaryName, err = wrapRuntime(dir, name, rt.Path, rt.Args)
+				if err != nil {
+					return runtimes{}, err
 				}
 			}
-			rt.ShimConfig = defaultV2ShimConfig(cfg, daemon.rewriteRuntimePath(cfg, name, rt.Path, rt.Args))
-			var featuresStderr bytes.Buffer
-			featuresCmd := exec.Command(rt.Path, append(rt.Args, "features")...)
-			featuresCmd.Stderr = &featuresStderr
-			if featuresB, err := featuresCmd.Output(); err != nil {
-				logrus.WithError(err).Warnf("Failed to run %v: %q", featuresCmd.Args, featuresStderr.String())
-			} else {
-				var features features.Features
-				if jsonErr := json.Unmarshal(featuresB, &features); jsonErr != nil {
-					logrus.WithError(err).Warnf("Failed to unmarshal the output of %v as a JSON", featuresCmd.Args)
-				} else {
-					rt.Features = &features
+			c = defaultV2ShimConfig(cfg, binaryName)
+			if needsWrapper {
+				path := rt.Path
+				c.PreflightCheck = func() error {
+					// Check that the runtime path actually exists so that we can return a well known error.
+					_, err := exec.LookPath(path)
+					return errors.Wrap(err, "error while looking up the specified runtime path")
 				}
 			}
 		} else {
 			if len(rt.Args) > 0 {
-				return errors.Errorf("runtime %s: args cannot be used with a runtimeType runtime", name)
+				return runtimes{}, errors.Errorf("runtime %s: args cannot be used with a runtimeType runtime", name)
 			}
 			// Unlike implicit runtimes, there is no restriction on configuring a shim by path.
-			rt.ShimConfig = &types.ShimConfig{Binary: rt.Type}
+			c = &shimConfig{Shim: rt.Type}
 			if len(rt.Options) > 0 {
 				// It has to be a pointer type or there'll be a panic in containerd/typeurl when we try to start the container.
-				rt.ShimConfig.Opts, err = shimopts.Generate(rt.Type, rt.Options)
+				var err error
+				c.Opts, err = shimopts.Generate(rt.Type, rt.Options)
 				if err != nil {
-					return errors.Wrapf(err, "runtime %v", name)
+					return runtimes{}, errors.Wrapf(err, "runtime %v", name)
 				}
 			}
 		}
-		cfg.Runtimes[name] = rt
+		newrt.configured[name] = c
+	}
+
+	return newrt, nil
+}
+
+// A non-standard Base32 encoding which lacks vowels to avoid accidentally
+// spelling naughty words. Don't use this to encode any data which requires
+// compatibility with anything outside of the currently-running process.
+var base32Disemvoweled = base32.NewEncoding("0123456789BCDFGHJKLMNPQRSTVWXYZ-")
+
+// wrapRuntime writes a shell script to dir which will execute binary with args
+// concatenated to the script's argv. This is needed because the
+// io.containerd.runc.v2 shim has no options for passing extra arguments to the
+// runtime binary.
+func wrapRuntime(dir, name, binary string, args []string) (string, error) {
+	var wrapper bytes.Buffer
+	sum := sha256.New()
+	_, _ = fmt.Fprintf(io.MultiWriter(&wrapper, sum), "#!/bin/sh\n%s %s $@\n", binary, strings.Join(args, " "))
+	// Generate a consistent name for the wrapper script derived from the
+	// contents so that multiple wrapper scripts can coexist with the same
+	// base name. The existing scripts might still be referenced by running
+	// containers.
+	suffix := base32Disemvoweled.EncodeToString(sum.Sum(nil))
+	scriptPath := filepath.Join(dir, name+"."+suffix)
+	if err := ioutils.AtomicWriteFile(scriptPath, wrapper.Bytes(), 0700); err != nil {
+		return "", err
+	}
+	return scriptPath, nil
+}
+
+func (r *runtimes) Get(name string) (string, interface{}, error) {
+	rt := r.configured[name]
+	if rt != nil {
+		if rt.PreflightCheck != nil {
+			if err := rt.PreflightCheck(); err != nil {
+				return "", nil, err
+			}
+		}
+		return rt.Shim, rt.Opts, nil
+	}
+
+	if !config.IsPermissibleC8dRuntimeName(name) {
+		return "", nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
+	}
+	return name, nil, nil
+}
+
+func (r *runtimes) Features(name string) *features.Features {
+	rt := r.configured[name]
+	if rt != nil {
+		return rt.Features
 	}
 	return nil
-}
-
-// rewriteRuntimePath is used for runtimes which have custom arguments supplied.
-// This is needed because the containerd API only calls the OCI runtime binary, there is no options for extra arguments.
-// To support this case, the daemon wraps the specified runtime in a script that passes through those arguments.
-func (daemon *Daemon) rewriteRuntimePath(cfg *config.Config, name, p string, args []string) string {
-	if len(args) == 0 {
-		return p
-	}
-
-	return filepath.Join(cfg.Root, "runtimes", name)
-}
-
-func (daemon *Daemon) getRuntime(cfg *config.Config, name string) (shim string, opts interface{}, err error) {
-	rt := cfg.GetRuntime(name)
-	if rt == nil {
-		if !config.IsPermissibleC8dRuntimeName(name) {
-			return "", nil, errdefs.InvalidParameter(errors.Errorf("unknown or invalid runtime name: %s", name))
-		}
-		return name, nil, nil
-	}
-
-	if len(rt.Args) > 0 {
-		// Check that the path of the runtime which the script wraps actually exists so
-		// that we can return a well known error which references the configured path
-		// instead of the wrapper script's.
-		if _, err := exec.LookPath(rt.Path); err != nil {
-			return "", nil, errors.Wrap(err, "error while looking up the specified runtime path")
-		}
-	}
-
-	if rt.ShimConfig == nil {
-		// Should never happen as daemon.initRuntimes always sets
-		// ShimConfig and config reloading is synchronized.
-		err := errdefs.System(errors.Errorf("BUG: runtime %s: rt.ShimConfig == nil", name))
-		logrus.Error(err)
-		return "", nil, err
-	}
-
-	return rt.ShimConfig.Binary, rt.ShimConfig.Opts, nil
 }

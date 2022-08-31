@@ -28,7 +28,7 @@ const (
 	credentialSpecFileLocation     = "CredentialSpecs"
 )
 
-func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *config.Config, c *container.Container) (*specs.Spec, error) {
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container) (*specs.Spec, error) {
 	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *config.Config, 
 		return nil, errors.Wrapf(err, "container %s", c.ID)
 	}
 
-	dnsSearch := daemon.getDNSSearchSettings(daemonCfg, c)
+	dnsSearch := daemon.getDNSSearchSettings(&daemonCfg.Config, c)
 
 	// Get endpoints for the libnetwork allocated networks to the container
 	var epList []string

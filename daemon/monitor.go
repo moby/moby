@@ -102,7 +102,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	} else {
 		c.SetStopped(&exitStatus)
 		if !c.HasBeenManuallyRestarted {
-			defer daemon.autoRemove(cfg, c)
+			defer daemon.autoRemove(&cfg.Config, c)
 		}
 	}
 	defer c.Unlock() // needs to be called before autoRemove
@@ -131,7 +131,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				daemon.setStateCounter(c)
 				c.CheckpointTo(daemon.containersReplica)
 				c.Unlock()
-				defer daemon.autoRemove(cfg, c)
+				defer daemon.autoRemove(&cfg.Config, c)
 				if err != restartmanager.ErrRestartCanceled {
 					logrus.Errorf("restartmanger wait error: %+v", err)
 				}

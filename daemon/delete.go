@@ -25,7 +25,7 @@ import (
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
 func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
-	return daemon.containerRm(daemon.config(), name, config)
+	return daemon.containerRm(&daemon.config().Config, name, config)
 }
 
 func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *types.ContainerRmConfig) error {
