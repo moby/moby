@@ -156,8 +156,8 @@ encodeLoop:
 				panic("offset0 was 0")
 			}
 
-			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 			nextHashL := hashLen(cv, betterLongTableBits, betterLongLen)
+			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -518,8 +518,8 @@ encodeLoop:
 			}
 
 			// Store this, since we have it.
-			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 			nextHashL := hashLen(cv, betterLongTableBits, betterLongLen)
+			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 
 			// We have at least 4 byte match.
 			// No need to check backwards. We come straight from a match
@@ -674,8 +674,8 @@ encodeLoop:
 				panic("offset0 was 0")
 			}
 
-			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 			nextHashL := hashLen(cv, betterLongTableBits, betterLongLen)
+			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -1047,8 +1047,8 @@ encodeLoop:
 			}
 
 			// Store this, since we have it.
-			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 			nextHashL := hashLen(cv, betterLongTableBits, betterLongLen)
+			nextHashS := hashLen(cv, betterShortTableBits, betterShortLen)
 
 			// We have at least 4 byte match.
 			// No need to check backwards. We come straight from a match
