@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
@@ -112,6 +113,18 @@ type Image struct {
 	// computedID is the ID computed from the hash of the image config.
 	// Not to be confused with the legacy V1 ID in V1Image.
 	computedID ID
+
+	// Details holds additional details about image
+	Details *Details `json:"-"`
+}
+
+// Details provides additional image data
+type Details struct {
+	References  []reference.Named
+	Size        int64
+	Metadata    map[string]string
+	Driver      string
+	LastUpdated time.Time
 }
 
 // RawJSON returns the immutable JSON associated with the image.

@@ -15,6 +15,7 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -149,9 +150,49 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (*image.Image, error) {
+	img, err := i.getImage(refOrID, options.Platform)
+	if err != nil {
+		return nil, err
+	}
+	if options.Details {
+		var size int64
+		var layerMetadata map[string]string
+		layerID := img.RootFS.ChainID()
+		if layerID != "" {
+			l, err := i.layerStore.Get(layerID)
+			if err != nil {
+				return nil, err
+			}
+			defer layer.ReleaseAndLog(i.layerStore, l)
+			size = l.Size()
+			layerMetadata, err = l.Metadata()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		lastUpdated, err := i.imageStore.GetLastUpdated(img.ID())
+
+		references := i.referenceStore.References(img.ID().Digest())
+
+		if err != nil {
+			return nil, err
+		}
+		img.Details = &image.Details{
+			References:  references,
+			Size:        size,
+			Metadata:    layerMetadata,
+			Driver:      i.layerStore.DriverName(),
+			LastUpdated: lastUpdated,
+		}
+	}
+	return img, nil
+}
+
+func (i *ImageService) getImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
 	defer func() {
-		if retErr != nil || retImg == nil || options.Platform == nil {
+		if retErr != nil || retImg == nil || platform == nil {
 			return
 		}
 
@@ -160,7 +201,7 @@ func (i *ImageService) GetImage(refOrID string, options imagetypes.GetImageOpts)
 			Architecture: retImg.Architecture,
 			Variant:      retImg.Variant,
 		}
-		p := *options.Platform
+		p := *platform
 		// Note that `platforms.Only` will fuzzy match this for us
 		// For example: an armv6 image will run just fine an an armv7 CPU, without emulation or anything.
 		if OnlyPlatformWithFallback(p).Match(imgPlat) {
