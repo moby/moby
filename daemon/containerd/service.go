@@ -12,14 +12,16 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 )
 
 // ImageService implements daemon.ImageService
 type ImageService struct {
-	client        *containerd.Client
-	snapshotter   string
-	registryHosts RegistryHostsProvider
+	client          *containerd.Client
+	snapshotter     string
+	registryHosts   RegistryHostsProvider
+	registryService registry.Service
 }
 
 type RegistryHostsProvider interface {
@@ -27,11 +29,12 @@ type RegistryHostsProvider interface {
 }
 
 // NewService creates a new ImageService.
-func NewService(c *containerd.Client, snapshotter string, hostsProvider RegistryHostsProvider) *ImageService {
+func NewService(c *containerd.Client, snapshotter string, hostsProvider RegistryHostsProvider, registry registry.Service) *ImageService {
 	return &ImageService{
-		client:        c,
-		snapshotter:   snapshotter,
-		registryHosts: hostsProvider,
+		client:          c,
+		snapshotter:     snapshotter,
+		registryHosts:   hostsProvider,
+		registryService: registry,
 	}
 }
 

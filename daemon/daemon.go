@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -177,6 +178,13 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 
 	for _, v := range daemon.configStore.InsecureRegistries {
 		u, err := url.Parse(v)
+		if err != nil && !strings.HasPrefix(v, "http://") && !strings.HasPrefix(v, "https://") {
+			originalErr := err
+			u, err = url.Parse("http://" + v)
+			if err != nil {
+				err = originalErr
+			}
+		}
 		c := resolverconfig.RegistryConfig{}
 		if err == nil {
 			v = u.Host
@@ -994,7 +1002,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err := configureKernelSecuritySupport(config, driverName); err != nil {
 			return nil, err
 		}
-		d.imageService = ctrd.NewService(d.containerdCli, driverName, d)
+		d.imageService = ctrd.NewService(d.containerdCli, driverName, d, d.registryService)
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:                      config.Root,
