@@ -271,13 +271,19 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 	return nil
 }
 
-type stream interface {
+// Stream is an io.Writer for output with utilities to get the output's file
+// descriptor and to detect wether it's a terminal.
+//
+// it is subset of the streams.Out type in
+// https://pkg.go.dev/github.com/docker/cli@v20.10.17+incompatible/cli/streams#Out
+type Stream interface {
 	io.Writer
 	FD() uintptr
 	IsTerminal() bool
 }
 
-// DisplayJSONMessagesToStream prints json messages to the output stream
-func DisplayJSONMessagesToStream(in io.Reader, stream stream, auxCallback func(JSONMessage)) error {
+// DisplayJSONMessagesToStream prints json messages to the output Stream. It is
+// used by the Docker CLI to print JSONMessage streams.
+func DisplayJSONMessagesToStream(in io.Reader, stream Stream, auxCallback func(JSONMessage)) error {
 	return DisplayJSONMessagesStream(in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
 }
