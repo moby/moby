@@ -116,7 +116,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	var getContainers, getImages, getVolumes, getBuildCache bool
 	typeStrs, ok := r.Form["type"]
 	if versions.LessThan(version, "1.42") || !ok {
-		getContainers, getImages, getVolumes, getBuildCache = true, true, true, true
+		getContainers, getImages, getVolumes, getBuildCache = true, true, true, s.builder != nil
 	} else {
 		for _, typ := range typeStrs {
 			switch types.DiskUsageObject(typ) {
