@@ -134,9 +134,16 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		// Wait for probe to exit (it might take some time to call containerd to kill
 		// the process and we don't want dying probes to pile up).
 		<-execErr
+
+		var msg string
+		if out := output.String(); len(out) > 0 {
+			msg = fmt.Sprintf("Health check exceeded timeout (%v): %s", probeTimeout, out)
+		} else {
+			msg = fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout)
+		}
 		return &types.HealthcheckResult{
 			ExitCode: -1,
-			Output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),
+			Output:   msg,
 			End:      time.Now(),
 		}, nil
 	case err := <-execErr:
