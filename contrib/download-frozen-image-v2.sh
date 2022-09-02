@@ -205,60 +205,68 @@ get_target_arch() {
 		return 0
 	fi
 
-	if type go > /dev/null; then
-		go env GOARCH
-		return 0
-	fi
-
-	if type dpkg > /dev/null; then
-		debArch="$(dpkg --print-architecture)"
-		case "${debArch}" in
-			armel | armhf)
-				echo "arm"
-				return 0
-				;;
-			*64el)
-				echo "${debArch%el}le"
-				return 0
-				;;
-			*)
-				echo "${debArch}"
-				return 0
-				;;
-		esac
-	fi
-
 	if type uname > /dev/null; then
-		uArch="$(uname -m)"
-		case "${uArch}" in
-			x86_64)
+		case "$(uname -m)" in
+			"x86_64")
 				echo amd64
 				return 0
 				;;
-			arm | armv[0-9]*)
-				echo arm
+			"i386")
+				echo 386
 				return 0
 				;;
-			aarch64)
+			"aarch64")
 				echo arm64
 				return 0
 				;;
-			mips*)
-				echo >&2 "I see you are running on mips but I don't know how to determine endianness yet, so I cannot select a correct arch to fetch."
-				echo >&2 "Consider installing \"go\" on the system which I can use to determine the correct arch or specify it explicitly by setting TARGETARCH"
-				exit 1
+			"arm64")
+				echo arm64
+				return 0
 				;;
-			*)
-				echo "${uArch}"
+			"armv*")
+				echo arm
+				;;
+			"mips")
+				echo mips
+				return 0
+				;;
+			"mipsle")
+				echo mipsle
+				return 0
+				;;
+			"mips64")
+				echo mips64
+				return 0
+				;;
+			"mips64le")
+				echo mips64le
+				return 0
+				;;
+			"ppc64le")
+				echo ppc64le
+				return 0
+				;;
+			"riscv64")
+				echo riscv64
+				return 0
+				;;
+			"s390x")
+				echo s390x
 				return 0
 				;;
 		esac
-
 	fi
 
 	# default value
 	echo >&2 "Unable to determine CPU arch, falling back to amd64. You can specify a target arch by setting TARGETARCH"
 	echo amd64
+}
+
+get_target_variant() {
+	if [ -n "${TARGETVARIANT:-}" ]; then
+		echo "${TARGETVARIANT}"
+		return 0
+	fi
 }
 
 while [ $# -gt 0 ]; do
@@ -310,12 +318,16 @@ while [ $# -gt 0 ]; do
 					unset IFS
 
 					found=""
-					targetArch="$(get_target_arch)"
+					targetArch=$(get_target_arch)
+					targetVariant=$(get_target_variant)
+					targetArchVariant=$targetArch
+					[ -n "$targetVariant" ] && targetArchVariant="$targetArch/$targetVariant"
 					# parse first level multi-arch manifest
 					for i in "${!layers[@]}"; do
 						layerMeta="${layers[$i]}"
 						maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
-						if [ "$maniArch" = "${targetArch}" ]; then
+						maniVariant="$(echo "$layerMeta" | jq --raw-output '.platform.variant')"
+						if [[ "$maniArch" = "${targetArch}" ]] && [[ -z "${targetVariant}" || "$maniVariant" = "${targetVariant}" ]]; then
 							digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
 							# get second level single manifest
 							submanifestJson="$(
@@ -332,7 +344,7 @@ while [ $# -gt 0 ]; do
 						fi
 					done
 					if [ -z "$found" ]; then
-						echo >&2 "error: manifest for $maniArch is not found"
+						echo >&2 "error: manifest for $targetArchVariant is not found"
 						exit 1
 					fi
 					;;
