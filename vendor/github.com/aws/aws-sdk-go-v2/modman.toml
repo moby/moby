@@ -1,0 +1,78 @@
+
+[dependencies]
+  "github.com/aws/aws-sdk-go" = "v1.44.28"
+  "github.com/aws/smithy-go" = "v1.13.1"
+  "github.com/google/go-cmp" = "v0.5.8"
+  "github.com/jmespath/go-jmespath" = "v0.4.0"
+  "golang.org/x/net" = "v0.0.0-20220127200216-cd36cc0744dd"
+
+[modules]
+
+  [modules."."]
+    metadata_package = "aws"
+
+  [modules.codegen]
+    no_tag = true
+
+  [modules."example/service/dynamodb/createTable"]
+    no_tag = true
+
+  [modules."example/service/dynamodb/scanItems"]
+    no_tag = true
+
+  [modules."example/service/s3/listObjects"]
+    no_tag = true
+
+  [modules."example/service/s3/usingPrivateLink"]
+    no_tag = true
+
+  [modules."feature/ec2/imds/internal/configtesting"]
+    no_tag = true
+
+  [modules."internal/codegen"]
+    no_tag = true
+
+  [modules."internal/configsources/configtesting"]
+    no_tag = true
+
+  [modules."internal/protocoltest/awsrestjson"]
+    no_tag = true
+
+  [modules."internal/protocoltest/ec2query"]
+    no_tag = true
+
+  [modules."internal/protocoltest/jsonrpc"]
+    no_tag = true
+
+  [modules."internal/protocoltest/jsonrpc10"]
+    no_tag = true
+
+  [modules."internal/protocoltest/query"]
+    no_tag = true
+
+  [modules."internal/protocoltest/restxml"]
+    no_tag = true
+
+  [modules."internal/protocoltest/restxmlwithnamespace"]
+    no_tag = true
+
+  [modules."internal/repotools"]
+    no_tag = true
+
+  [modules."internal/repotools/changes"]
+    no_tag = true
+
+  [modules."service/internal/benchmark"]
+    no_tag = true
+
+  [modules."service/internal/integrationtest"]
+    no_tag = true
+
+  [modules."service/kinesis/internal/testing"]
+    no_tag = true
+
+  [modules."service/s3/internal/configtesting"]
+    no_tag = true
+
+  [modules."service/transcribestreaming/internal/testing"]
+    no_tag = true
