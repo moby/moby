@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: "${GOLANGCI_LINT_VERSION=v1.46.2}"
+: "${GOLANGCI_LINT_VERSION=v1.49.0}"
 
 install_golangci_lint() {
 	set -e

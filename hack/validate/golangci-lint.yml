@@ -1,6 +1,5 @@
 linters:
   enable:
-    - deadcode
     - goimports
     - gosec
     - gosimple
@@ -9,11 +8,9 @@ linters:
     - misspell
     - revive
     - staticcheck
-    - structcheck
     - typecheck
     - unconvert
     - unused
-    - varcheck
 
   disable:
     - errcheck
@@ -28,7 +25,11 @@ linters:
 linters-settings:
   govet:
     check-shadowing: false
-
+  revive:
+    rules:
+      # FIXME make sure all packages have a description. Currently, there's many packages without.
+      - name: package-comments
+        disabled: true
 issues:
   # The default exclusion rules are a bit too permissive, so copying the relevant ones below
   exclude-use-default: false
