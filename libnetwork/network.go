@@ -222,7 +222,7 @@ type network struct {
 	dbExists         bool
 	persist          bool
 	drvOnce          *sync.Once
-	resolverOnce     sync.Once
+	resolverOnce     sync.Once //nolint:nolintlint,unused // only used on windows
 	resolver         []Resolver
 	internal         bool
 	attachable       bool

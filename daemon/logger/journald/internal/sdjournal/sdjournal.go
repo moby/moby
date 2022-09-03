@@ -39,7 +39,7 @@ const (
 // Journal is a handle to an open journald journal.
 type Journal struct {
 	j      *C.sd_journal
-	noCopy noCopy //nolint:structcheck,unused // Exists only to mark values uncopyable for `go vet`.
+	noCopy noCopy //nolint:unused // Exists only to mark values uncopyable for `go vet`.
 }
 
 // Open opens the log journal for reading.
