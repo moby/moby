@@ -22,7 +22,7 @@ const extName = "VolumeDriver"
 // This interface is only defined to generate the proxy objects.
 // It's not intended to be public or reused.
 //
-//nolint:deadcode,unused,varcheck
+//nolint:unused
 type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts map[string]string) (err error)
