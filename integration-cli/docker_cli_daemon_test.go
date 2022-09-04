@@ -541,7 +541,7 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *testing.T) {
 
 	cmdArgs := make([]string, 0, len(listeningPorts)*2)
 	for _, l := range listeningPorts {
-		cmdArgs = append(cmdArgs, "--tls=false", "--host", fmt.Sprintf("tcp://%s:%s", l.daemon, l.port))
+		cmdArgs = append(cmdArgs, "--tls=false", "--host", "tcp://"+net.JoinHostPort(l.daemon, l.port))
 	}
 
 	s.d.StartWithBusybox(c, cmdArgs...)
