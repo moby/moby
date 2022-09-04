@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -15,8 +16,9 @@ func main() {
 	handle(mux)
 
 	server := http.Server{
-		Addr:    l.Addr().String(),
-		Handler: mux,
+		Addr:              l.Addr().String(),
+		Handler:           mux,
+		ReadHeaderTimeout: 2 * time.Second, // This server is not for production code; picked an arbitrary timeout to statisfy gosec (G112: Potential Slowloris Attack)
 	}
 	server.Serve(l)
 }
