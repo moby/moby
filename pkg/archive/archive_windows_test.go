@@ -71,7 +71,7 @@ func TestChmodTarEntry(t *testing.T) {
 		in, expected os.FileMode
 	}{
 		{0000, 0111},
-		{0777, 0777},
+		{0777, 0755},
 		{0644, 0755},
 		{0755, 0755},
 		{0444, 0555},

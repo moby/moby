@@ -31,8 +31,11 @@ func CanonicalTarNameForPath(p string) string {
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
 func chmodTarEntry(perm os.FileMode) os.FileMode {
+	// Remove group- and world-writable bits.
+	perm &= 0o755
+
 	// Add the x bit: make everything +x on Windows
-	return perm | 0111
+	return perm | 0o111
 }
 
 func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (err error) {
