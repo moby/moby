@@ -99,16 +99,6 @@ const (
 	OverlayWhiteoutFormat
 )
 
-const (
-	modeISDIR  = 040000  // Directory
-	modeISFIFO = 010000  // FIFO
-	modeISREG  = 0100000 // Regular file
-	modeISLNK  = 0120000 // Symbolic link
-	modeISBLK  = 060000  // Block special file
-	modeISCHR  = 020000  // Character special file
-	modeISSOCK = 0140000 // Socket
-)
-
 // IsArchivePath checks if the (possibly compressed) file at the given path
 // starts with a tar file header.
 func IsArchivePath(path string) bool {
@@ -458,9 +448,7 @@ func FileInfoHeaderNoLookups(fi os.FileInfo, link string) (*tar.Header, error) {
 // but is safe to call from a chrooted process. The AccessTime and ChangeTime
 // fields are not set in the returned header, ModTime is truncated to one-second
 // precision, and the Uname and Gname fields are only set when fi is a FileInfo
-// value returned from tar.Header.FileInfo(). Also, regardless of Go version,
-// this function fills file type bits (e.g. hdr.Mode |= modeISDIR), which have
-// been deleted since Go 1.9 archive/tar.
+// value returned from tar.Header.FileInfo().
 func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, error) {
 	hdr, err := FileInfoHeaderNoLookups(fi, link)
 	if err != nil {
@@ -470,34 +458,9 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	hdr.ModTime = hdr.ModTime.Truncate(time.Second)
 	hdr.AccessTime = time.Time{}
 	hdr.ChangeTime = time.Time{}
-	hdr.Mode = fillGo18FileTypeBits(int64(chmodTarEntry(os.FileMode(hdr.Mode))), fi)
+	hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 	hdr.Name = canonicalTarName(name, fi.IsDir())
 	return hdr, nil
-}
-
-// fillGo18FileTypeBits fills type bits which have been removed on Go 1.9 archive/tar
-// https://github.com/golang/go/commit/66b5a2f
-func fillGo18FileTypeBits(mode int64, fi os.FileInfo) int64 {
-	fm := fi.Mode()
-	switch {
-	case fm.IsRegular():
-		mode |= modeISREG
-	case fi.IsDir():
-		mode |= modeISDIR
-	case fm&os.ModeSymlink != 0:
-		mode |= modeISLNK
-	case fm&os.ModeDevice != 0:
-		if fm&os.ModeCharDevice != 0 {
-			mode |= modeISCHR
-		} else {
-			mode |= modeISBLK
-		}
-	case fm&os.ModeNamedPipe != 0:
-		mode |= modeISFIFO
-	case fm&os.ModeSocket != 0:
-		mode |= modeISSOCK
-	}
-	return mode
 }
 
 // ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
