@@ -721,7 +721,7 @@ func sysctlExists(s string) bool {
 func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if c.BaseFS == nil && !daemon.UsesSnapshotter() {
-			return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly nil")
+			return errors.Errorf("populateCommonSpec: BaseFS of container %s is unexpectedly nil", c.ID)
 		}
 		linkedEnv, err := daemon.setupLinkedContainers(c)
 		if err != nil {

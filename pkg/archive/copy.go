@@ -2,13 +2,13 @@ package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"archive/tar"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -186,7 +186,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 	for n := 0; err == nil && stat.Mode()&os.ModeSymlink != 0; n++ {
 		if n > maxSymlinkIter {
 			// Don't follow symlinks more than this arbitrary number of times.
-			return CopyInfo{}, errors.New("too many symlinks in " + originalPath)
+			return CopyInfo{}, errors.Errorf("too many symlinks in %s", originalPath)
 		}
 
 		// The path is a symbolic link. We need to evaluate it so that the

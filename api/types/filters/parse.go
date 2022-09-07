@@ -262,7 +262,7 @@ func (invalidFilter) InvalidParameter() {}
 func (args Args) Validate(accepted map[string]bool) error {
 	for name := range args.fields {
 		if !accepted[name] {
-			return invalidFilter{errors.New("invalid filter '" + name + "'")}
+			return invalidFilter{errors.Errorf("invalid filter '%s'", name)}
 		}
 	}
 	return nil
