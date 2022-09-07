@@ -76,7 +76,10 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.imageBackend.GetImage(spec.Image, imagetypes.GetImageOpts{})
+			_, err := c.imageBackend.GetImage(ctx, spec.Image, imagetypes.GetImageOpts{})
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
 			if err == nil {
 				return nil
 			}

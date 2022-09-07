@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -26,8 +27,8 @@ const (
 )
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
-
-	img, err := daemon.imageService.GetImage(string(c.ImageID), imagetypes.GetImageOpts{})
+	ctx := context.TODO()
+	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}

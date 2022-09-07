@@ -168,7 +168,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		return nil, err
 	}
 
-	img, err := i.GetImage(name, imagetypes.GetImageOpts{Platform: platform})
+	img, err := i.GetImage(ctx, name, imagetypes.GetImageOpts{Platform: platform})
 	if errdefs.IsNotFound(err) && img != nil && platform != nil {
 		imgPlat := specs.Platform{
 			OS:           img.OS,
@@ -212,11 +212,13 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		img, err := i.GetImage(refOrID, imagetypes.GetImageOpts{Platform: opts.Platform})
+		img, err := i.GetImage(ctx, refOrID, imagetypes.GetImageOpts{Platform: opts.Platform})
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
-		// TODO: shouldn't we error out if error is different from "not found" ?
+		if err != nil && !errdefs.IsNotFound(err) {
+			return nil, nil, err
+		}
 		if img != nil {
 			if !system.IsOSSupported(img.OperatingSystem()) {
 				return nil, nil, system.ErrNotSupportedOperatingSystem

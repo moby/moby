@@ -64,7 +64,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 		// we allow the image to have a non-matching architecture. The code
 		// below checks for this situation, and returns a warning to the client,
 		// as well as logging it to the daemon logs.
-		img, err := i.GetImage(image, imagetypes.GetImageOpts{Platform: platform})
+		img, err := i.GetImage(ctx, image, imagetypes.GetImageOpts{Platform: platform})
 
 		// Note that this is a special case where GetImage returns both an image
 		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183
@@ -72,6 +72,8 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 			po := streamformatter.NewJSONProgressOutput(outStream, false)
 			progress.Messagef(po, "", `WARNING: %s`, err.Error())
 			logrus.WithError(err).WithField("image", image).Warn("ignoring platform mismatch on single-arch image")
+		} else if err != nil {
+			return err
 		}
 	}
 

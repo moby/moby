@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"runtime"
@@ -58,6 +59,7 @@ func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(params types.Contai
 }
 
 func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateResponse, error) {
+	ctx := context.TODO()
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
@@ -69,7 +71,11 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		if img, _ := daemon.imageService.GetImage(opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform}); img != nil {
+		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
+		if err != nil {
+			return containertypes.CreateResponse{}, err
+		}
+		if img != nil {
 			p := maximumSpec()
 			imgPlat := v1.Platform{
 				OS:           img.OS,
@@ -111,6 +117,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 
 // Create creates a new container from the given configuration with a given name.
 func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
+	ctx := context.TODO()
 	var (
 		ctr   *container.Container
 		img   *image.Image
@@ -120,7 +127,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	)
 
 	if opts.params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
+		img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
 		if err != nil {
 			return nil, err
 		}
