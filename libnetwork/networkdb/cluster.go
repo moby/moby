@@ -718,7 +718,7 @@ func randomOffset(n int) int {
 		return 0
 	}
 
-	val, err := rand.Int(rand.Reader, big.NewInt(int64(n)))
+	val, err := rand.Int(rand.Reader, big.NewInt(int64(n))) // #nosec G404 -- False positive; see https://github.com/securego/gosec/issues/862
 	if err != nil {
 		logrus.Errorf("Failed to get a random offset: %v", err)
 		return 0
