@@ -74,6 +74,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         && git checkout -q "$GO_SWAGGER_COMMIT" \
         && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
 
+# frozen-images
+# See also frozenImages in "testutil/environment/protect.go" (which needs to
+# be updated when adding images to this list)
 FROM debian:${BASE_DEBIAN_DISTRO} AS frozen-images
 ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/lib/apt \
@@ -85,13 +88,13 @@ RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/l
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
 ARG TARGETARCH
+ARG TARGETVARIANT
 RUN /download-frozen-image-v2.sh /build \
         busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
         busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
         debian:bullseye-slim@sha256:dacf278785a4daa9de07596ec739dbc07131e189942772210709c5c0777e8437 \
         hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
         arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1
-# See also frozenImages in "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
 
 FROM base AS cross-false
 
