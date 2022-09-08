@@ -8,8 +8,6 @@ pipeline {
         timestamps()
     }
     parameters {
-        booleanParam(name: 'validate', defaultValue: true, description: 'amd64 (x86_64) validate and vendor check')
-        booleanParam(name: 'validate_force', defaultValue: false, description: 'force validation steps to be run, even if no changes were detected')
         booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
         booleanParam(name: 's390x', defaultValue: false, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'ppc64le', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
@@ -54,69 +52,6 @@ pipeline {
         }
         stage('Build') {
             parallel {
-                stage('unit-validate') {
-                    when {
-                        beforeAgent true
-                        expression { params.validate }
-                    }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    environment {
-                        // On master ("non-pull-request"), force running some validation checks (vendor, swagger),
-                        // even if no files were changed. This allows catching problems caused by pull-requests
-                        // that were merged out-of-sequence.
-                        TEST_FORCE_VALIDATE = sh returnStdout: true, script: 'if [ "${BRANCH_NAME%%-*}" != "PR" ] || [ "${CHANGE_TARGET:-master}" != "master" ] || [ "${validate_force}" = "true" ]; then echo "1"; fi'
-                    }
-
-                    stages {
-                        stage("Print info") {
-                            steps {
-                                sh 'docker version'
-                                sh 'docker info'
-                                sh '''
-                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
-                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
-                                && bash ${WORKSPACE}/check-config.sh || true
-                                '''
-                            }
-                        }
-                        stage("Build dev image") {
-                            steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR --build-arg CROSS=true -t docker:${GIT_COMMIT} .'
-                            }
-                        }
-                        stage("Cross") {
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  docker:${GIT_COMMIT} \
-                                  hack/make.sh cross
-                                '''
-                            }
-                        }
-                    }
-
-                    post {
-                        always {
-                            sh '''
-                            echo 'Ensuring container killed.'
-                            docker rm -vf docker-pr$BUILD_NUMBER || true
-                            '''
-
-                            sh '''
-                            echo 'Chowning /workspace to jenkins user'
-                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-                            '''
-                        }
-                        cleanup {
-                            sh 'make clean'
-                            deleteDir()
-                        }
-                    }
-                }
                 stage('s390x') {
                     when {
                         beforeAgent true
