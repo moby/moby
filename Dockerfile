@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.2
+# syntax=docker/dockerfile:1
 
 ARG CROSS="false"
 ARG SYSTEMD="false"
@@ -8,7 +8,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.5.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp"
 
-ARG BASE_DEBIAN_DISTRO="buster"
+ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 FROM ${GOLANG_IMAGE} AS base
@@ -31,7 +31,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
             libprotobuf-dev \
             protobuf-c-compiler \
             protobuf-compiler \
-            python-protobuf
+            python3-protobuf
 
 # Install CRIU for checkpoint/restore support
 ARG CRIU_VERSION=3.14
@@ -93,10 +93,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/l
 COPY contrib/download-frozen-image-v2.sh /
 ARG TARGETARCH
 RUN /download-frozen-image-v2.sh /build \
-        buildpack-deps:buster@sha256:d0abb4b1e5c664828b93e8b6ac84d10bce45ee469999bef88304be04a2709491 \
         busybox:latest@sha256:95cf004f559831017cdf4628aaf1bb30133677be8702a8c5f2994629f637a209 \
         busybox:glibc@sha256:1f81263701cddf6402afe9f33fca0266d9fff379e59b1748f33d3072da71ee85 \
-        debian:bullseye@sha256:7190e972ab16aefea4d758ebe42a293f4e5c5be63595f4d03a5b9bf6839a4344 \
+        debian:bullseye-slim@sha256:dacf278785a4daa9de07596ec739dbc07131e189942772210709c5c0777e8437 \
         hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
         arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1
 # See also frozenImages in "testutil/environment/protect.go" (which needs to be updated when adding images to this list)
@@ -108,18 +107,21 @@ ARG DEBIAN_FRONTEND
 RUN dpkg --add-architecture arm64
 RUN dpkg --add-architecture armel
 RUN dpkg --add-architecture armhf
+RUN dpkg --add-architecture ppc64el
+RUN dpkg --add-architecture s390x
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             crossbuild-essential-arm64 \
             crossbuild-essential-armel \
-            crossbuild-essential-armhf
+            crossbuild-essential-armhf \
+            crossbuild-essential-ppc64el \
+            crossbuild-essential-s390x
 
 FROM cross-${CROSS} as dev-base
 
 FROM dev-base AS runtime-dev-cross-false
 ARG DEBIAN_FRONTEND
-RUN echo 'deb http://deb.debian.org/debian buster-backports main' > /etc/apt/sources.list.d/backports.list
 RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-false-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -128,26 +130,27 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib
             libapparmor-dev \
             libbtrfs-dev \
             libdevmapper-dev \
-            libseccomp-dev/buster-backports \
+            libseccomp-dev \
             libsystemd-dev \
             libudev-dev
 
 FROM --platform=linux/amd64 runtime-dev-cross-false AS runtime-dev-cross-true
 ARG DEBIAN_FRONTEND
 # These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
-# on non-amd64 systems.
-# Additionally, the crossbuild-amd64 is currently only on debian:buster, so
-# other architectures cannnot crossbuild amd64.
-RUN echo 'deb http://deb.debian.org/debian buster-backports main' > /etc/apt/sources.list.d/backports.list
+# on non-amd64 systems, so other architectures cannot crossbuild amd64.
 RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             libapparmor-dev:arm64 \
             libapparmor-dev:armel \
             libapparmor-dev:armhf \
-            libseccomp-dev:arm64/buster-backports \
-            libseccomp-dev:armel/buster-backports \
-            libseccomp-dev:armhf/buster-backports
+            libapparmor-dev:ppc64el \
+            libapparmor-dev:s390x \
+            libseccomp-dev:arm64 \
+            libseccomp-dev:armel \
+            libseccomp-dev:armhf \
+            libseccomp-dev:ppc64el \
+            libseccomp-dev:s390x
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
@@ -270,9 +273,10 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             apparmor \
-            aufs-tools \
             bash-completion \
             bzip2 \
+            inetutils-ping \
+            iproute2 \
             iptables \
             jq \
             libcap2-bin \
