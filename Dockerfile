@@ -715,6 +715,17 @@ COPY --link --from=tini  /out/ /
 COPY --link --from=build /out  /
 
 # usage:
+# > docker buildx bake all
+FROM scratch AS all
+COPY --link --from=tini             /out/ /
+COPY --link --from=runc             /out/ /
+COPY --link --from=containerd       /out/ /
+COPY --link --from=rootlesskit      /out/ /
+COPY --link --from=containerutility /out/ /
+COPY --link --from=vpnkit           /     /
+COPY --link --from=build            /out  /
+
+# usage:
 # > make shell
 FROM dev-base AS dev
 COPY . .
