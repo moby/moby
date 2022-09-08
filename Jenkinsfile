@@ -84,24 +84,6 @@ pipeline {
                                 sh 'docker build --force-rm --build-arg APT_MIRROR --build-arg CROSS=true -t docker:${GIT_COMMIT} .'
                             }
                         }
-                        stage("Validate") {
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_FORCE_VALIDATE \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/validate/default
-                                '''
-                            }
-                        }
                         stage("Cross") {
                             steps {
                                 sh '''
@@ -112,23 +94,6 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT} \
                                   hack/make.sh cross
-                                '''
-                            }
-                        }
-                        stage("Validate vendor") {
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_FORCE_VALIDATE \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/validate/vendor
                                 '''
                             }
                         }
