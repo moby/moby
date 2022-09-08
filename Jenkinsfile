@@ -234,7 +234,7 @@ pipeline {
                                 sh '''
                                 bundleName=unit
                                 echo "Creating ${bundleName}-bundles.tar.gz"
-                                tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report*.xml bundles/go-test-report*.json bundles/profile*.out
+                                tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report*.xml bundles/go-test-report*.json bundles/coverage*.out
                                 '''
 
                                 archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true

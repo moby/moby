@@ -68,6 +68,10 @@ func UnixCli() bool {
 	return isUnixCli
 }
 
+func GitHubActions() bool {
+	return os.Getenv("GITHUB_ACTIONS") != ""
+}
+
 func Network() bool {
 	// Set a timeout on the GET at 15s
 	const timeout = 15 * time.Second
