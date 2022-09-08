@@ -1,4 +1,4 @@
-.PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
+.PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate validate-% win
 
 BUILDX_VERSION ?= v0.9.1
 
@@ -246,6 +246,9 @@ test-unit: build ## run the unit tests
 
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
 	$(DOCKER_RUN_DOCKER) hack/validate/all
+
+validate-%: build ## validate specific check
+	$(DOCKER_RUN_DOCKER) hack/validate/$*
 
 win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) DOCKER_CROSSPLATFORMS=windows/amd64 hack/make.sh cross
