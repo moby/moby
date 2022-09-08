@@ -1127,7 +1127,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		imgSvcConfig.Leases = d.containerdCli.LeasesService()
 		imgSvcConfig.ContentStore = d.containerdCli.ContentStore()
 	} else {
-		cs, lm, err := d.configureLocalContentStore()
+		cs, lm, err := d.configureLocalContentStore(config.ContainerdNamespace)
 		if err != nil {
 			return nil, err
 		}
