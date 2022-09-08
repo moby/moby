@@ -110,16 +110,6 @@ pipeline {
                             echo 'Chowning /workspace to jenkins user'
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
-
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
-                                sh '''
-                                bundleName=unit
-                                echo "Creating ${bundleName}-bundles.tar.gz"
-                                tar -czvf ${bundleName}-bundles.tar.gz bundles/junit-report*.xml bundles/go-test-report*.json bundles/coverage*.out
-                                '''
-
-                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
-                            }
                         }
                         cleanup {
                             sh 'make clean'
