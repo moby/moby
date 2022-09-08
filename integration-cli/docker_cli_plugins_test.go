@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
 )
 
 var (
@@ -220,6 +221,7 @@ func (ps *DockerPluginSuite) TestPluginInstallArgs(c *testing.T) {
 
 func (ps *DockerPluginSuite) TestPluginInstallImage(c *testing.T) {
 	testRequires(c, IsAmd64)
+	skip.If(c, GitHubActions, "FIXME: https://github.com/moby/moby/issues/43996")
 
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry

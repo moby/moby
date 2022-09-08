@@ -69,10 +69,12 @@ DOCKER_ENVS := \
 	-e DOCKER_USERLANDPROXY \
 	-e DOCKERD_ARGS \
 	-e DELVE_PORT \
+	-e GITHUB_ACTIONS \
 	-e TEST_FORCE_VALIDATE \
 	-e TEST_INTEGRATION_DIR \
 	-e TEST_SKIP_INTEGRATION \
 	-e TEST_SKIP_INTEGRATION_CLI \
+	-e TESTCOVERAGE \
 	-e TESTDEBUG \
 	-e TESTDIRS \
 	-e TESTFLAGS \
@@ -118,7 +120,7 @@ DOCKER_IMAGE := docker-dev
 DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 DELVE_PORT_FORWARD := $(if $(DELVE_PORT),-p "$(DELVE_PORT)",)
 
-DOCKER_FLAGS := $(DOCKER) run --rm -i --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD) $(DELVE_PORT_FORWARD)
+DOCKER_FLAGS := $(DOCKER) run --rm --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD) $(DELVE_PORT_FORWARD)
 BUILD_APT_MIRROR := $(if $(DOCKER_BUILD_APT_MIRROR),--build-arg APT_MIRROR=$(DOCKER_BUILD_APT_MIRROR))
 export BUILD_APT_MIRROR
 
@@ -135,6 +137,14 @@ endef
 INTERACTIVE := $(shell [ -t 0 ] && echo 1 || echo 0)
 ifeq ($(INTERACTIVE), 1)
 	DOCKER_FLAGS += -t
+endif
+
+# on GitHub Runners input device is not a TTY but we allocate a pseudo-one,
+# otherwise keep STDIN open even if not attached if not a GitHub Runner.
+ifeq ($(GITHUB_ACTIONS),true)
+	DOCKER_FLAGS += -t
+else
+	DOCKER_FLAGS += -i
 endif
 
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
