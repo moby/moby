@@ -786,7 +786,7 @@ func (s *DockerCLIRunSuite) TestRunUserByIDZero(c *testing.T) {
 	if err != nil {
 		c.Fatal(err, out)
 	}
-	if !strings.Contains(out, "uid=0(root) gid=0(root) groups=10(wheel)") {
+	if !strings.Contains(out, "uid=0(root) gid=0(root) groups=0(root),10(wheel)") {
 		c.Fatalf("expected daemon user got %s", out)
 	}
 }
@@ -1086,7 +1086,7 @@ func (s *DockerCLIRunSuite) TestRunGroupAdd(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--group-add=audio", "--group-add=staff", "--group-add=777", "busybox", "sh", "-c", "id")
 
-	groupsList := "uid=0(root) gid=0(root) groups=10(wheel),29(audio),50(staff),777"
+	groupsList := "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777"
 	if actual := strings.Trim(out, "\r\n"); actual != groupsList {
 		c.Fatalf("expected output %s received %s", groupsList, actual)
 	}
