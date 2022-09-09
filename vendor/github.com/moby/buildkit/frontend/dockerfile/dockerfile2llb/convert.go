@@ -19,6 +19,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
+	"github.com/moby/buildkit/exporter/containerimage/image"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
@@ -1310,7 +1311,7 @@ func dispatchEntrypoint(d *dispatchState, c *instructions.EntrypointCommand) err
 }
 
 func dispatchHealthcheck(d *dispatchState, c *instructions.HealthCheckCommand) error {
-	d.image.Config.Healthcheck = &HealthConfig{
+	d.image.Config.Healthcheck = &image.HealthConfig{
 		Test:        c.Health.Test,
 		Interval:    c.Health.Interval,
 		Timeout:     c.Health.Timeout,

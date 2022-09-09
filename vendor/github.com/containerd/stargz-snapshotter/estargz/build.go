@@ -26,10 +26,10 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -48,6 +48,7 @@ type options struct {
 	prioritizedFiles       []string
 	missedPrioritizedFiles *[]string
 	compression            Compression
+	ctx                    context.Context
 }
 
 type Option func(o *options) error
@@ -104,6 +105,14 @@ func WithCompression(compression Compression) Option {
 	}
 }
 
+// WithContext specifies a context that can be used for clean canceleration.
+func WithContext(ctx context.Context) Option {
+	return func(o *options) error {
+		o.ctx = ctx
+		return nil
+	}
+}
+
 // Blob is an eStargz blob.
 type Blob struct {
 	io.ReadCloser
@@ -139,11 +148,28 @@ func Build(tarBlob *io.SectionReader, opt ...Option) (_ *Blob, rErr error) {
 		opts.compression = newGzipCompressionWithLevel(opts.compressionLevel)
 	}
 	layerFiles := newTempFiles()
+	ctx := opts.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-done:
+			// nop
+		case <-ctx.Done():
+			layerFiles.CleanupAll()
+		}
+	}()
 	defer func() {
 		if rErr != nil {
 			if err := layerFiles.CleanupAll(); err != nil {
 				rErr = fmt.Errorf("failed to cleanup tmp files: %v: %w", err, rErr)
 			}
+		}
+		if cErr := ctx.Err(); cErr != nil {
+			rErr = fmt.Errorf("error from context %q: %w", cErr, rErr)
 		}
 	}()
 	tarBlob, err := decompressBlob(tarBlob, layerFiles)
@@ -506,12 +532,13 @@ func newTempFiles() *tempFiles {
 }
 
 type tempFiles struct {
-	files   []*os.File
-	filesMu sync.Mutex
+	files       []*os.File
+	filesMu     sync.Mutex
+	cleanupOnce sync.Once
 }
 
 func (tf *tempFiles) TempFile(dir, pattern string) (*os.File, error) {
-	f, err := ioutil.TempFile(dir, pattern)
+	f, err := os.CreateTemp(dir, pattern)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +548,14 @@ func (tf *tempFiles) TempFile(dir, pattern string) (*os.File, error) {
 	return f, nil
 }
 
-func (tf *tempFiles) CleanupAll() error {
+func (tf *tempFiles) CleanupAll() (err error) {
+	tf.cleanupOnce.Do(func() {
+		err = tf.cleanupAll()
+	})
+	return
+}
+
+func (tf *tempFiles) cleanupAll() error {
 	tf.filesMu.Lock()
 	defer tf.filesMu.Unlock()
 	var allErr []error

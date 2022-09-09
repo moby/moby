@@ -369,13 +369,12 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 		if err := os.Symlink(link, target); err != nil {
 			return errors.Wrapf(err, "failed to create symlink: %s", target)
 		}
-	case (fi.Mode() & os.ModeDevice) == os.ModeDevice:
+	case (fi.Mode() & os.ModeDevice) == os.ModeDevice,
+		(fi.Mode() & os.ModeNamedPipe) == os.ModeNamedPipe,
+		(fi.Mode() & os.ModeSocket) == os.ModeSocket:
 		if err := copyDevice(target, fi); err != nil {
 			return errors.Wrapf(err, "failed to create device")
 		}
-	default:
-		// TODO: Support pipes and sockets
-		return errors.Wrapf(err, "unsupported mode %s", fi.Mode())
 	}
 
 	if copyFileInfo {

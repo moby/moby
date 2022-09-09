@@ -31,8 +31,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -287,11 +287,11 @@ func isSameTarGz(t *testing.T, controller TestingController, a, b []byte) bool {
 			return false
 
 		}
-		aFile, err := ioutil.ReadAll(aTar)
+		aFile, err := io.ReadAll(aTar)
 		if err != nil {
 			t.Fatal("failed to read tar payload of A")
 		}
-		bFile, err := ioutil.ReadAll(bTar)
+		bFile, err := io.ReadAll(bTar)
 		if err != nil {
 			t.Fatal("failed to read tar payload of B")
 		}
@@ -1314,6 +1314,18 @@ func testWriteAndOpen(t *testing.T, controllers ...TestingController) {
 			),
 			wantFailOnLossLess: true,
 		},
+		{
+			name: "hardlink should be replaced to the destination entry",
+			in: tarOf(
+				dir("foo/"),
+				file("foo/foo1", "test"),
+				link("foolink", "foo/foo1"),
+			),
+			wantNumGz: 4, // dir, foo1 + link, TOC, footer
+			want: checks(
+				mustSameEntry("foo/foo1", "foolink"),
+			),
+		},
 	}
 
 	for _, tt := range tests {
@@ -1727,6 +1739,60 @@ func hasEntryOwner(entry string, owner owner) stargzCheck {
 		if ent.UID != owner.uid || ent.GID != owner.gid {
 			t.Errorf("entry %q has invalid owner (uid:%d, gid:%d) instead of (uid:%d, gid:%d)", entry, ent.UID, ent.GID, owner.uid, owner.gid)
 			return
+		}
+	})
+}
+
+func mustSameEntry(files ...string) stargzCheck {
+	return stargzCheckFn(func(t *testing.T, r *Reader) {
+		var first *TOCEntry
+		for _, f := range files {
+			if first == nil {
+				var ok bool
+				first, ok = r.Lookup(f)
+				if !ok {
+					t.Errorf("unknown first file on Lookup: %q", f)
+					return
+				}
+			}
+
+			// Test Lookup
+			e, ok := r.Lookup(f)
+			if !ok {
+				t.Errorf("unknown file on Lookup: %q", f)
+				return
+			}
+			if e != first {
+				t.Errorf("Lookup: %+v(%p) != %+v(%p)", e, e, first, first)
+				return
+			}
+
+			// Test LookupChild
+			pe, ok := r.Lookup(filepath.Dir(filepath.Clean(f)))
+			if !ok {
+				t.Errorf("failed to get parent of %q", f)
+				return
+			}
+			e, ok = pe.LookupChild(filepath.Base(filepath.Clean(f)))
+			if !ok {
+				t.Errorf("failed to get %q as the child of %+v", f, pe)
+				return
+			}
+			if e != first {
+				t.Errorf("LookupChild: %+v(%p) != %+v(%p)", e, e, first, first)
+				return
+			}
+
+			// Test ForeachChild
+			pe.ForeachChild(func(baseName string, e *TOCEntry) bool {
+				if baseName == filepath.Base(filepath.Clean(f)) {
+					if e != first {
+						t.Errorf("ForeachChild: %+v(%p) != %+v(%p)", e, e, first, first)
+						return false
+					}
+				}
+				return true
+			})
 		}
 	})
 }

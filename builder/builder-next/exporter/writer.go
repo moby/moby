@@ -22,10 +22,9 @@ import (
 
 func emptyImageConfig() ([]byte, error) {
 	pl := platforms.Normalize(platforms.DefaultSpec())
-	img := ocispec.Image{}
-	img.Architecture = pl.Architecture
-	img.OS = pl.OS
-	img.Variant = pl.Variant
+	img := ocispec.Image{
+		Platform: pl,
+	}
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"
 	img.Config.Env = []string{"PATH=" + system.DefaultPathEnv(pl.OS)}
