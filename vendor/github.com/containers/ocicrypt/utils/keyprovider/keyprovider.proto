@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package keyprovider;
+option go_package = "keyprovider";
+
+message keyProviderKeyWrapProtocolInput {
+    bytes KeyProviderKeyWrapProtocolInput = 1;
+}
+
+message keyProviderKeyWrapProtocolOutput {
+    bytes KeyProviderKeyWrapProtocolOutput = 1;
+}
+
+service KeyProviderService {
+    rpc WrapKey(keyProviderKeyWrapProtocolInput) returns (keyProviderKeyWrapProtocolOutput) {};
+    rpc UnWrapKey(keyProviderKeyWrapProtocolInput) returns (keyProviderKeyWrapProtocolOutput) {};
+}

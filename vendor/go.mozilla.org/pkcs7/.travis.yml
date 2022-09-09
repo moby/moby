@@ -1,0 +1,10 @@
+language: go
+go:
+    - "1.11"
+    - "1.12"
+    - "1.13"
+    - tip
+before_install:
+    - make gettools
+script:
+    - make
