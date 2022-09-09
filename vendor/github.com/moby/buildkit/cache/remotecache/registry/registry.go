@@ -12,7 +12,6 @@ import (
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/resolver"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -93,11 +92,11 @@ func (dsl *withDistributionSourceLabel) SetDistributionSourceLabel(ctx context.C
 	if err != nil {
 		return err
 	}
-	_, err = hf(ctx, ocispec.Descriptor{Digest: dgst})
+	_, err = hf(ctx, specs.Descriptor{Digest: dgst})
 	return err
 }
 
-func (dsl *withDistributionSourceLabel) SetDistributionSourceAnnotation(desc ocispec.Descriptor) ocispec.Descriptor {
+func (dsl *withDistributionSourceLabel) SetDistributionSourceAnnotation(desc specs.Descriptor) specs.Descriptor {
 	if desc.Annotations == nil {
 		desc.Annotations = map[string]string{}
 	}

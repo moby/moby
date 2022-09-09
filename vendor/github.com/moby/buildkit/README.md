@@ -189,7 +189,7 @@ buildctl build \
 buildctl build \
     --frontend gateway.v0 \
     --opt source=docker/dockerfile \
-    --opt context=git://github.com/moby/moby \
+    --opt context=https://github.com/moby/moby.git \
     --opt build-arg:APT_MIRROR=cdn-fastly.deb.debian.org
 ```
 

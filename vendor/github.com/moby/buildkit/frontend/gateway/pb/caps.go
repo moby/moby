@@ -1,4 +1,4 @@
-package moby_buildkit_v1_frontend //nolint:golint
+package moby_buildkit_v1_frontend //nolint:revive
 
 import "github.com/moby/buildkit/util/apicaps"
 

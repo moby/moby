@@ -756,6 +756,22 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 		return nil
 	}
 
+	// calculate sizes here so that lock does not need to be held for slow process
+	for _, cr := range toDelete {
+		size := getSize(cr.md)
+
+		if size == sizeUnknown && cr.equalImmutable != nil {
+			size = getSize(cr.equalImmutable.md) // benefit from DiskUsage calc
+		}
+		if size == sizeUnknown {
+			// calling size will warm cache for next call
+			if _, err := cr.Size(ctx); err != nil {
+				return err
+			}
+		}
+	}
+
+	cm.mu.Lock()
 	var err error
 	for _, cr := range toDelete {
 		cr.mu.Lock()
@@ -779,15 +795,6 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 		if c.Size == sizeUnknown && cr.equalImmutable != nil {
 			c.Size = getSize(cr.equalImmutable.md) // benefit from DiskUsage calc
 		}
-		if c.Size == sizeUnknown {
-			cr.mu.Unlock() // all the non-prune modifications already protected by cr.dead
-			s, err := cr.Size(ctx)
-			if err != nil {
-				return err
-			}
-			c.Size = s
-			cr.mu.Lock()
-		}
 
 		opt.totalSize -= c.Size
 
@@ -805,6 +812,7 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 		}
 		cr.mu.Unlock()
 	}
+	cm.mu.Unlock()
 	if err != nil {
 		return err
 	}
