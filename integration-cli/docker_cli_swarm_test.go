@@ -308,7 +308,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *testing.T) {
 
 	out, err = d.Cmd("exec", container, "id")
 	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), "uid=0(root) gid=0(root) groups=10(wheel),29(audio),50(staff),777")
+	assert.Equal(c, strings.TrimSpace(out), "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777")
 }
 
 func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *testing.T) {
