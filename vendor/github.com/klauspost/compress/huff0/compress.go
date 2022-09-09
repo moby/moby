@@ -404,6 +404,7 @@ func (s *Scratch) canUseTable(c cTable) bool {
 	return true
 }
 
+//lint:ignore U1000 used for debugging
 func (s *Scratch) validateTable(c cTable) bool {
 	if len(c) < int(s.symbolLen) {
 		return false

@@ -23,7 +23,7 @@ type byteBuffer interface {
 	readByte() (byte, error)
 
 	// Skip n bytes.
-	skipN(n int) error
+	skipN(n int64) error
 }
 
 // in-memory buffer
@@ -52,10 +52,6 @@ func (b *byteBuf) readBig(n int, dst []byte) ([]byte, error) {
 	return r, nil
 }
 
-func (b *byteBuf) remain() []byte {
-	return *b
-}
-
 func (b *byteBuf) readByte() (byte, error) {
 	bb := *b
 	if len(bb) < 1 {
@@ -66,9 +62,12 @@ func (b *byteBuf) readByte() (byte, error) {
 	return r, nil
 }
 
-func (b *byteBuf) skipN(n int) error {
+func (b *byteBuf) skipN(n int64) error {
 	bb := *b
-	if len(bb) < n {
+	if n < 0 {
+		return fmt.Errorf("negative skip (%d) requested", n)
+	}
+	if int64(len(bb)) < n {
 		return io.ErrUnexpectedEOF
 	}
 	*b = bb[n:]
@@ -124,9 +123,9 @@ func (r *readerWrapper) readByte() (byte, error) {
 	return r.tmp[0], nil
 }
 
-func (r *readerWrapper) skipN(n int) error {
-	n2, err := io.CopyN(ioutil.Discard, r.r, int64(n))
-	if n2 != int64(n) {
+func (r *readerWrapper) skipN(n int64) error {
+	n2, err := io.CopyN(ioutil.Discard, r.r, n)
+	if n2 != n {
 		err = io.ErrUnexpectedEOF
 	}
 	return err
