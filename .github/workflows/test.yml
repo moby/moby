@@ -55,26 +55,36 @@ jobs:
             *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
             *.output=type=cacheonly
 
+  validate-prepare:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+    outputs:
+      matrix: ${{ steps.scripts.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Create matrix
+        id: scripts
+        run: |
+          scripts=$(jq -ncR '[inputs]' <<< "$(ls -I .validate -I all -I default -I dco -I golangci-lint.yml -I yamllint.yaml -A ./hack/validate/)")
+          echo "::set-output name=matrix::$scripts"
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.scripts.outputs.matrix }}
+
   validate:
     runs-on: ubuntu-20.04
     needs:
+      - validate-prepare
       - build-dev
     strategy:
       fail-fast: true
       matrix:
-        script:
-          - dco
-          - default-seccomp
-          - pkg-imports
-          - yamllint
-          - swagger
-          - swagger-gen
-          - toml
-          - changelog-well-formed
-          - changelog-date-descending
-          - golangci-lint
-          - shfmt
-          - vendor
+        script: ${{ fromJson(needs.validate-prepare.outputs.matrix) }}
     steps:
       -
         name: Checkout
