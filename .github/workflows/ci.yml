@@ -18,8 +18,13 @@ env:
   BUNDLES_OUTPUT: ./bundles
 
 jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
   build:
     runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
     strategy:
       fail-fast: false
       matrix:
@@ -54,6 +59,8 @@ jobs:
 
   cross:
     runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
     strategy:
       fail-fast: false
       matrix:

@@ -1,6 +1,8 @@
 # reusable workflow
 name: .windows
 
+# TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
+
 on:
   workflow_call:
     inputs:

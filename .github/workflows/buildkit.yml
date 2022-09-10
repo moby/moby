@@ -16,8 +16,13 @@ env:
   BUNDLES_OUTPUT: ./bundles
 
 jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
   build:
     runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
     steps:
       -
         name: Checkout
