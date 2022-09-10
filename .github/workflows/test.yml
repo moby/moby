@@ -24,8 +24,13 @@ env:
   DOCKER_GRAPHDRIVER: overlay2
 
 jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
   build-dev:
     runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
     strategy:
       fail-fast: false
       matrix:
@@ -92,23 +97,6 @@ jobs:
         with:
           fetch-depth: 0
       -
-        name: Dump context
-        uses: actions/github-script@v6
-        with:
-          script: |
-            console.log(JSON.stringify(context, null, 2));
-      -
-        name: Get base ref
-        id: base-ref
-        uses: actions/github-script@v6
-        with:
-          result-encoding: string
-          script: |
-            if (/^refs\/pull\//.test(context.ref) && context.payload?.pull_request?.base?.ref != undefined) {
-              return context.payload.pull_request.base.ref;
-            }
-            return context.ref.replace(/^refs\/heads\//g, '');
-      -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
@@ -125,15 +113,11 @@ jobs:
         name: Validate
         run: |
           make -o build validate-${{ matrix.script }}
-        env:
-          VALIDATE_REPO: ${{ github.server_url }}/${{ github.repository }}.git
-          VALIDATE_BRANCH: ${{ steps.base-ref.outputs.result }}
 
   unit:
     runs-on: ubuntu-20.04
     needs:
       - build-dev
-      - validate
     steps:
       -
         name: Checkout
@@ -183,7 +167,6 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - build-dev
-      - validate
     steps:
       -
         name: Checkout
@@ -231,7 +214,6 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - build-dev
-      - validate
     steps:
       -
         name: Checkout
@@ -260,7 +242,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs:
       - build-dev
-      - validate
     strategy:
       fail-fast: false
       matrix:
@@ -343,6 +324,8 @@ jobs:
 
   integration-cli-prepare:
     runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
     outputs:
       matrix: ${{ steps.tests.outputs.matrix }}
     steps:
@@ -377,7 +360,6 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - build-dev
-      - validate
       - integration-cli-prepare
     strategy:
       fail-fast: false
