@@ -96,23 +96,25 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, platform *o
 	for k, v := range ociimage.Config.ExposedPorts {
 		exposedPorts[nat.Port(k)] = v
 	}
-	return containerdImage, &image.Image{
-		V1Image: image.V1Image{
-			ID:           string(ctrdimg.Target.Digest),
-			OS:           ociimage.OS,
-			Architecture: ociimage.Architecture,
-			Config: &containertypes.Config{
-				Entrypoint:   ociimage.Config.Entrypoint,
-				Env:          ociimage.Config.Env,
-				Cmd:          ociimage.Config.Cmd,
-				User:         ociimage.Config.User,
-				WorkingDir:   ociimage.Config.WorkingDir,
-				ExposedPorts: exposedPorts,
-				Volumes:      ociimage.Config.Volumes,
-			},
+
+	img := image.NewImage(image.IDFromDigest(ctrdimg.Target.Digest))
+	img.V1Image = image.V1Image{
+		ID:           string(ctrdimg.Target.Digest),
+		OS:           ociimage.OS,
+		Architecture: ociimage.Architecture,
+		Config: &containertypes.Config{
+			Entrypoint:   ociimage.Config.Entrypoint,
+			Env:          ociimage.Config.Env,
+			Cmd:          ociimage.Config.Cmd,
+			User:         ociimage.Config.User,
+			WorkingDir:   ociimage.Config.WorkingDir,
+			ExposedPorts: exposedPorts,
+			Volumes:      ociimage.Config.Volumes,
 		},
-		RootFS: rootfs,
-	}, nil
+	}
+	img.RootFS = rootfs
+
+	return containerdImage, img, nil
 }
 
 // resolveImage searches for an image based on the given

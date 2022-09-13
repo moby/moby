@@ -201,6 +201,13 @@ type ChildConfig struct {
 	Config          *container.Config
 }
 
+// NewImage creates a new image with the given ID
+func NewImage(id ID) *Image {
+	return &Image{
+		computedID: id,
+	}
+}
+
 // NewChildImage creates a new Image as a child of this image.
 func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 	isEmptyLayer := layer.IsEmpty(child.DiffID)
