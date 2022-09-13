@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
@@ -31,6 +32,8 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
 	}
+
+	rootIDs := options.IDMap.RootPair()
 
 	aufsTempdir := ""
 	aufsHardlinks := make(map[string]*tar.Header)
@@ -81,7 +84,7 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			parentPath := filepath.Join(dest, parent)
 
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = system.MkdirAll(parentPath, 0600)
+				err = idtools.MkdirAllAndChownNew(parentPath, 0755, rootIDs)
 				if err != nil {
 					return 0, err
 				}
