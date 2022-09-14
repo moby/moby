@@ -78,10 +78,9 @@ func retransmitLimit(retransmitMult, n int) int {
 // shuffleNodes randomly shuffles the input nodes using the Fisher-Yates shuffle
 func shuffleNodes(nodes []*nodeState) {
 	n := len(nodes)
-	for i := n - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
+	rand.Shuffle(n, func(i, j int) {
 		nodes[i], nodes[j] = nodes[j], nodes[i]
-	}
+	})
 }
 
 // pushPushScale is used to scale the time interval at which push/pull
@@ -97,13 +96,13 @@ func pushPullScale(interval time.Duration, n int) time.Duration {
 	return time.Duration(multiplier) * interval
 }
 
-// moveDeadNodes moves nodes that are dead and beyond the gossip to the dead interval
+// moveDeadNodes moves dead and left nodes that that have not changed during the gossipToTheDeadTime interval
 // to the end of the slice and returns the index of the first moved node.
 func moveDeadNodes(nodes []*nodeState, gossipToTheDeadTime time.Duration) int {
 	numDead := 0
 	n := len(nodes)
 	for i := 0; i < n-numDead; i++ {
-		if nodes[i].State != stateDead {
+		if !nodes[i].DeadOrLeft() {
 			continue
 		}
 
@@ -120,37 +119,54 @@ func moveDeadNodes(nodes []*nodeState, gossipToTheDeadTime time.Duration) int {
 	return n - numDead
 }
 
-// kRandomNodes is used to select up to k random nodes, excluding any nodes where
-// the filter function returns true. It is possible that less than k nodes are
+// kRandomNodes is used to select up to k random Nodes, excluding any nodes where
+// the exclude function returns true. It is possible that less than k nodes are
 // returned.
-func kRandomNodes(k int, nodes []*nodeState, filterFn func(*nodeState) bool) []*nodeState {
+func kRandomNodes(k int, nodes []*nodeState, exclude func(*nodeState) bool) []Node {
 	n := len(nodes)
-	kNodes := make([]*nodeState, 0, k)
+	kNodes := make([]Node, 0, k)
 OUTER:
 	// Probe up to 3*n times, with large n this is not necessary
 	// since k << n, but with small n we want search to be
 	// exhaustive
 	for i := 0; i < 3*n && len(kNodes) < k; i++ {
-		// Get random node
+		// Get random nodeState
 		idx := randomOffset(n)
-		node := nodes[idx]
+		state := nodes[idx]
 
 		// Give the filter a shot at it.
-		if filterFn != nil && filterFn(node) {
+		if exclude != nil && exclude(state) {
 			continue OUTER
 		}
 
 		// Check if we have this node already
 		for j := 0; j < len(kNodes); j++ {
-			if node == kNodes[j] {
+			if state.Node.Name == kNodes[j].Name {
 				continue OUTER
 			}
 		}
 
 		// Append the node
-		kNodes = append(kNodes, node)
+		kNodes = append(kNodes, state.Node)
 	}
 	return kNodes
+}
+
+// makeCompoundMessages takes a list of messages and packs
+// them into one or multiple messages based on the limitations
+// of compound messages (255 messages each).
+func makeCompoundMessages(msgs [][]byte) []*bytes.Buffer {
+	const maxMsgs = 255
+	bufs := make([]*bytes.Buffer, 0, (len(msgs)+(maxMsgs-1))/maxMsgs)
+
+	for ; len(msgs) > maxMsgs; msgs = msgs[maxMsgs:] {
+		bufs = append(bufs, makeCompoundMessage(msgs[:maxMsgs]))
+	}
+	if len(msgs) > 0 {
+		bufs = append(bufs, makeCompoundMessage(msgs))
+	}
+
+	return bufs
 }
 
 // makeCompoundMessage takes a list of messages and generates
@@ -186,18 +202,18 @@ func decodeCompoundMessage(buf []byte) (trunc int, parts [][]byte, err error) {
 		err = fmt.Errorf("missing compound length byte")
 		return
 	}
-	numParts := uint8(buf[0])
+	numParts := int(buf[0])
 	buf = buf[1:]
 
 	// Check we have enough bytes
-	if len(buf) < int(numParts*2) {
+	if len(buf) < numParts*2 {
 		err = fmt.Errorf("truncated len slice")
 		return
 	}
 
 	// Decode the lengths
 	lengths := make([]uint16, numParts)
-	for i := 0; i < int(numParts); i++ {
+	for i := 0; i < numParts; i++ {
 		lengths[i] = binary.BigEndian.Uint16(buf[i*2 : i*2+2])
 	}
 	buf = buf[numParts*2:]
@@ -205,7 +221,7 @@ func decodeCompoundMessage(buf []byte) (trunc int, parts [][]byte, err error) {
 	// Split each message
 	for idx, msgLen := range lengths {
 		if len(buf) < int(msgLen) {
-			trunc = int(numParts) - idx
+			trunc = numParts - idx
 			return
 		}
 
