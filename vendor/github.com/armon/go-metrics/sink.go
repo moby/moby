@@ -24,6 +24,15 @@ type MetricSink interface {
 	AddSampleWithLabels(key []string, val float32, labels []Label)
 }
 
+type ShutdownSink interface {
+	MetricSink
+
+	// Shutdown the metric sink, flush metrics to storage, and cleanup resources.
+	// Called immediately prior to application exit. Implementations must block
+	// until metrics are flushed to storage.
+	Shutdown()
+}
+
 // BlackholeSink is used to just blackhole messages
 type BlackholeSink struct{}
 
@@ -71,6 +80,14 @@ func (fh FanoutSink) AddSample(key []string, val float32) {
 func (fh FanoutSink) AddSampleWithLabels(key []string, val float32, labels []Label) {
 	for _, s := range fh {
 		s.AddSampleWithLabels(key, val, labels)
+	}
+}
+
+func (fh FanoutSink) Shutdown() {
+	for _, s := range fh {
+		if ss, ok := s.(ShutdownSink); ok {
+			ss.Shutdown()
+		}
 	}
 }
 
