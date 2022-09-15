@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var spaceReplacer = strings.NewReplacer(" ", "_")
+
 // InmemSink provides a MetricSink that does in-memory aggregation
 // without sending metrics over a network. It can be embedded within
 // an application to provide profiling information.
@@ -53,6 +55,10 @@ type IntervalMetrics struct {
 	// Samples maps the key to an AggregateSample,
 	// which has the rolled up view of a sample
 	Samples map[string]SampledValue
+
+	// done is closed when this interval has ended, and a new IntervalMetrics
+	// has been created to receive any future metrics.
+	done chan struct{}
 }
 
 // NewIntervalMetrics creates a new IntervalMetrics for a given interval
@@ -63,6 +69,7 @@ func NewIntervalMetrics(intv time.Time) *IntervalMetrics {
 		Points:   make(map[string][]float32),
 		Counters: make(map[string]SampledValue),
 		Samples:  make(map[string]SampledValue),
+		done:     make(chan struct{}),
 	}
 }
 
@@ -243,6 +250,8 @@ func (i *InmemSink) Data() []*IntervalMetrics {
 	copyCurrent := intervals[n-1]
 	current.RLock()
 	*copyCurrent = *current
+	// RWMutex is not safe to copy, so create a new instance on the copy
+	copyCurrent.RWMutex = sync.RWMutex{}
 
 	copyCurrent.Gauges = make(map[string]GaugeValue, len(current.Gauges))
 	for k, v := range current.Gauges {
@@ -255,44 +264,50 @@ func (i *InmemSink) Data() []*IntervalMetrics {
 	}
 	copyCurrent.Counters = make(map[string]SampledValue, len(current.Counters))
 	for k, v := range current.Counters {
-		copyCurrent.Counters[k] = v
+		copyCurrent.Counters[k] = v.deepCopy()
 	}
 	copyCurrent.Samples = make(map[string]SampledValue, len(current.Samples))
 	for k, v := range current.Samples {
-		copyCurrent.Samples[k] = v
+		copyCurrent.Samples[k] = v.deepCopy()
 	}
 	current.RUnlock()
 
 	return intervals
 }
 
-func (i *InmemSink) getExistingInterval(intv time.Time) *IntervalMetrics {
-	i.intervalLock.RLock()
-	defer i.intervalLock.RUnlock()
+// getInterval returns the current interval. A new interval is created if no
+// previous interval exists, or if the current time is beyond the window for the
+// current interval.
+func (i *InmemSink) getInterval() *IntervalMetrics {
+	intv := time.Now().Truncate(i.interval)
 
+	// Attempt to return the existing interval first, because it only requires
+	// a read lock.
+	i.intervalLock.RLock()
 	n := len(i.intervals)
 	if n > 0 && i.intervals[n-1].Interval == intv {
+		defer i.intervalLock.RUnlock()
 		return i.intervals[n-1]
 	}
-	return nil
-}
+	i.intervalLock.RUnlock()
 
-func (i *InmemSink) createInterval(intv time.Time) *IntervalMetrics {
 	i.intervalLock.Lock()
 	defer i.intervalLock.Unlock()
 
-	// Check for an existing interval
-	n := len(i.intervals)
+	// Re-check for an existing interval now that the lock is re-acquired.
+	n = len(i.intervals)
 	if n > 0 && i.intervals[n-1].Interval == intv {
 		return i.intervals[n-1]
 	}
 
-	// Add the current interval
 	current := NewIntervalMetrics(intv)
 	i.intervals = append(i.intervals, current)
-	n++
+	if n > 0 {
+		close(i.intervals[n-1].done)
+	}
 
-	// Truncate the intervals if they are too long
+	n++
+	// Prune old intervals if the count exceeds the max.
 	if n >= i.maxIntervals {
 		copy(i.intervals[0:], i.intervals[n-i.maxIntervals:])
 		i.intervals = i.intervals[:i.maxIntervals]
@@ -300,48 +315,24 @@ func (i *InmemSink) createInterval(intv time.Time) *IntervalMetrics {
 	return current
 }
 
-// getInterval returns the current interval to write to
-func (i *InmemSink) getInterval() *IntervalMetrics {
-	intv := time.Now().Truncate(i.interval)
-	if m := i.getExistingInterval(intv); m != nil {
-		return m
-	}
-	return i.createInterval(intv)
-}
-
 // Flattens the key for formatting, removes spaces
 func (i *InmemSink) flattenKey(parts []string) string {
 	buf := &bytes.Buffer{}
-	replacer := strings.NewReplacer(" ", "_")
 
-	if len(parts) > 0 {
-		replacer.WriteString(buf, parts[0])
-	}
-	for _, part := range parts[1:] {
-		replacer.WriteString(buf, ".")
-		replacer.WriteString(buf, part)
-	}
+	joined := strings.Join(parts, ".")
+
+	spaceReplacer.WriteString(buf, joined)
 
 	return buf.String()
 }
 
 // Flattens the key for formatting along with its labels, removes spaces
 func (i *InmemSink) flattenKeyLabels(parts []string, labels []Label) (string, string) {
-	buf := &bytes.Buffer{}
-	replacer := strings.NewReplacer(" ", "_")
-
-	if len(parts) > 0 {
-		replacer.WriteString(buf, parts[0])
-	}
-	for _, part := range parts[1:] {
-		replacer.WriteString(buf, ".")
-		replacer.WriteString(buf, part)
-	}
-
-	key := buf.String()
+	key := i.flattenKey(parts)
+	buf := bytes.NewBufferString(key)
 
 	for _, label := range labels {
-		replacer.WriteString(buf, fmt.Sprintf(";%s=%s", label.Name, label.Value))
+		spaceReplacer.WriteString(buf, fmt.Sprintf(";%s=%s", label.Name, label.Value))
 	}
 
 	return buf.String(), key
