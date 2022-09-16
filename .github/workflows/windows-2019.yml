@@ -10,7 +10,12 @@ on:
   workflow_dispatch:
 
 jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
   run:
+    needs:
+      - validate-dco
     uses: ./.github/workflows/.windows.yml
     with:
       os: windows-2019
