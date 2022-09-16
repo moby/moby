@@ -920,7 +920,8 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n li
 	}
 
 	if ep == nil {
-		return fmt.Errorf("container %s is not connected to network %s", container.ID, n.Name())
+		containerName := strings.TrimPrefix(container.Name, "/")
+		return fmt.Errorf("container %s is not connected to network %s", containerName, n.Name())
 	}
 
 	if err := ep.Leave(sbox); err != nil {
