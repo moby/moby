@@ -45,9 +45,6 @@ jobs:
         uses: docker/bake-action@v1
         with:
           targets: ${{ matrix.target }}
-          set: |
-            *.cache-from=type=gha,scope=build-${{ matrix.target }}
-            *.cache-to=type=gha,scope=build-${{ matrix.target }}
       -
         name: Upload artifacts
         uses: actions/upload-artifact@v3
@@ -93,9 +90,6 @@ jobs:
         uses: docker/bake-action@v1
         with:
           targets: cross
-          set: |
-            *.cache-from=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
-            *.cache-to=type=gha,scope=cross-${{ env.PLATFORM_PAIR }}
         env:
           DOCKER_CROSSPLATFORMS: ${{ matrix.platform }}
       -
