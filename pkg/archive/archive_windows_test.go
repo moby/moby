@@ -33,21 +33,6 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 	}
 }
 
-func TestCanonicalTarNameForPath(t *testing.T) {
-	cases := []struct {
-		in, expected string
-	}{
-		{"foo", "foo"},
-		{"foo/bar", "foo/bar"},
-		{`foo\bar`, "foo/bar"},
-	}
-	for _, v := range cases {
-		if CanonicalTarNameForPath(v.in) != v.expected {
-			t.Fatalf("wrong canonical tar name. expected:%s got:%s", v.expected, CanonicalTarNameForPath(v.in))
-		}
-	}
-}
-
 func TestCanonicalTarName(t *testing.T) {
 	cases := []struct {
 		in       string

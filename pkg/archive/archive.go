@@ -519,10 +519,17 @@ func newTarAppender(idMapping idtools.IdentityMapping, writer io.Writer, chownOp
 	}
 }
 
-// canonicalTarName provides a platform-independent and consistent posix-style
+// CanonicalTarNameForPath canonicalizes relativePath to a POSIX-style path using
+// forward slashes. It is an alias for filepath.ToSlash, which is a no-op on
+// Linux and Unix.
+func CanonicalTarNameForPath(relativePath string) string {
+	return filepath.ToSlash(relativePath)
+}
+
+// canonicalTarName provides a platform-independent and consistent POSIX-style
 // path for files and directories to be archived regardless of the platform.
 func canonicalTarName(name string, isDir bool) string {
-	name = CanonicalTarNameForPath(name)
+	name = filepath.ToSlash(name)
 
 	// suffix with '/' for directories
 	if isDir && !strings.HasSuffix(name, "/") {
