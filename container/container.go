@@ -193,7 +193,7 @@ func (container *Container) toDisk() (*Container, error) {
 
 // CheckpointTo makes the Container's current state visible to queries, and persists state.
 // Callers must hold a Container lock.
-func (container *Container) CheckpointTo(store ViewDB) error {
+func (container *Container) CheckpointTo(store *ViewDB) error {
 	deepCopy, err := container.toDisk()
 	if err != nil {
 		return err

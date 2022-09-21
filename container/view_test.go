@@ -373,7 +373,7 @@ func TestTruncIndex(t *testing.T) {
 	}
 }
 
-func assertIndexGet(t *testing.T, snapshot ViewDB, input, expectedResult string, expectError bool) {
+func assertIndexGet(t *testing.T, snapshot *ViewDB, input, expectedResult string, expectError bool) {
 	if result, err := snapshot.GetByPrefix(input); err != nil && !expectError {
 		t.Fatalf("Unexpected error getting '%s': %s", input, err)
 	} else if err == nil && expectError {
