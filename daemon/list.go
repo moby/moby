@@ -110,7 +110,7 @@ func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.C
 	return daemon.reduceContainers(config, daemon.refreshImage)
 }
 
-func (daemon *Daemon) filterByNameIDMatches(view container.View, filter *listContext) ([]container.Snapshot, error) {
+func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listContext) ([]container.Snapshot, error) {
 	idSearch := false
 	names := filter.filters.Get("name")
 	ids := filter.filters.Get("id")
@@ -243,7 +243,7 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, filter *l
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerListOptions) (*listContext, error) {
+func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerListOptions) (*listContext, error) {
 	ctx := context.TODO()
 	psFilters := config.Filters
 
@@ -363,7 +363,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	}, nil
 }
 
-func idOrNameFilter(view container.View, value string) (*container.Snapshot, error) {
+func idOrNameFilter(view *container.View, value string) (*container.Snapshot, error) {
 	filter, err := view.Get(value)
 	switch err.(type) {
 	case container.NoSuchContainerError:

@@ -73,7 +73,7 @@ type Daemon struct {
 	id                    string
 	repository            string
 	containers            container.Store
-	containersReplica     container.ViewDB
+	containersReplica     *container.ViewDB
 	execCommands          *container.ExecStore
 	imageService          ImageService
 	configStore           *config.Config

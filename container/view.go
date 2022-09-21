@@ -77,27 +77,6 @@ type nameAssociation struct {
 	containerID string
 }
 
-// ViewDB provides an in-memory transactional (ACID) container Store
-type ViewDB interface {
-	Snapshot() View
-	Save(*Container) error
-	Delete(*Container) error
-
-	GetByPrefix(string) (string, error)
-
-	ReserveName(name, containerID string) error
-	ReleaseName(name string) error
-}
-
-// View can be used by readers to avoid locking
-type View interface {
-	All() ([]Snapshot, error)
-	Get(id string) (*Snapshot, error)
-
-	GetID(name string) (string, error)
-	GetAllNames() map[string][]string
-}
-
 var schema = &memdb.DBSchema{
 	Tables: map[string]*memdb.TableSchema{
 		memdbContainersTable: {
@@ -128,7 +107,8 @@ var schema = &memdb.DBSchema{
 	},
 }
 
-type memDB struct {
+// ViewDB provides an in-memory transactional (ACID) container store.
+type ViewDB struct {
 	store *memdb.MemDB
 }
 
@@ -144,15 +124,17 @@ func (e NoSuchContainerError) Error() string {
 }
 
 // NewViewDB provides the default implementation, with the default schema
-func NewViewDB() (ViewDB, error) {
+func NewViewDB() (*ViewDB, error) {
 	store, err := memdb.NewMemDB(schema)
 	if err != nil {
 		return nil, err
 	}
-	return &memDB{store: store}, nil
+	return &ViewDB{store: store}, nil
 }
 
-func (db *memDB) GetByPrefix(s string) (string, error) {
+// GetByPrefix returns a container with the given ID prefix. It returns an
+// error if an empty prefix was given or if multiple containers match the prefix.
+func (db *ViewDB) GetByPrefix(s string) (string, error) {
 	if s == "" {
 		return "", ErrEmptyPrefix
 	}
@@ -184,14 +166,14 @@ func (db *memDB) GetByPrefix(s string) (string, error) {
 	return "", ErrNotExist
 }
 
-// Snapshot provides a consistent read-only View of the database
-func (db *memDB) Snapshot() View {
-	return &memdbView{
+// Snapshot provides a consistent read-only view of the database.
+func (db *ViewDB) Snapshot() *View {
+	return &View{
 		txn: db.store.Txn(false),
 	}
 }
 
-func (db *memDB) withTxn(cb func(*memdb.Txn) error) error {
+func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 	txn := db.store.Txn(true)
 	err := cb(txn)
 	if err != nil {
@@ -204,16 +186,16 @@ func (db *memDB) withTxn(cb func(*memdb.Txn) error) error {
 
 // Save atomically updates the in-memory store state for a Container.
 // Only read only (deep) copies of containers may be passed in.
-func (db *memDB) Save(c *Container) error {
+func (db *ViewDB) Save(c *Container) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		return txn.Insert(memdbContainersTable, c)
 	})
 }
 
 // Delete removes an item by ID
-func (db *memDB) Delete(c *Container) error {
+func (db *ViewDB) Delete(c *Container) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
-		view := &memdbView{txn: txn}
+		view := &View{txn: txn}
 		names := view.getNames(c.ID)
 
 		for _, name := range names {
@@ -231,7 +213,7 @@ func (db *memDB) Delete(c *Container) error {
 // ReserveName is idempotent
 // Attempting to reserve a container ID to a name that already exists results in an `ErrNameReserved`
 // A name reservation is globally unique
-func (db *memDB) ReserveName(name, containerID string) error {
+func (db *ViewDB) ReserveName(name, containerID string) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
 		if err != nil {
@@ -249,18 +231,19 @@ func (db *memDB) ReserveName(name, containerID string) error {
 
 // ReleaseName releases the reserved name
 // Once released, a name can be reserved again
-func (db *memDB) ReleaseName(name string) error {
+func (db *ViewDB) ReleaseName(name string) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		return txn.Delete(memdbNamesTable, nameAssociation{name: name})
 	})
 }
 
-type memdbView struct {
+// View provides a consistent read-only view of the database.
+type View struct {
 	txn *memdb.Txn
 }
 
 // All returns a all items in this snapshot. Returned objects must never be modified.
-func (v *memdbView) All() ([]Snapshot, error) {
+func (v *View) All() ([]Snapshot, error) {
 	var all []Snapshot
 	iter, err := v.txn.Get(memdbContainersTable, memdbIDIndex)
 	if err != nil {
@@ -278,7 +261,7 @@ func (v *memdbView) All() ([]Snapshot, error) {
 }
 
 // Get returns an item by id. Returned objects must never be modified.
-func (v *memdbView) Get(id string) (*Snapshot, error) {
+func (v *View) Get(id string) (*Snapshot, error) {
 	s, err := v.txn.First(memdbContainersTable, memdbIDIndex, id)
 	if err != nil {
 		return nil, err
@@ -290,7 +273,7 @@ func (v *memdbView) Get(id string) (*Snapshot, error) {
 }
 
 // getNames lists all the reserved names for the given container ID.
-func (v *memdbView) getNames(containerID string) []string {
+func (v *View) getNames(containerID string) []string {
 	iter, err := v.txn.Get(memdbNamesTable, memdbContainerIDIndex, containerID)
 	if err != nil {
 		return nil
@@ -309,7 +292,7 @@ func (v *memdbView) getNames(containerID string) []string {
 }
 
 // GetID returns the container ID that the passed in name is reserved to.
-func (v *memdbView) GetID(name string) (string, error) {
+func (v *View) GetID(name string) (string, error) {
 	s, err := v.txn.First(memdbNamesTable, memdbIDIndex, name)
 	if err != nil {
 		return "", err
@@ -321,7 +304,7 @@ func (v *memdbView) GetID(name string) (string, error) {
 }
 
 // GetAllNames returns all registered names.
-func (v *memdbView) GetAllNames() map[string][]string {
+func (v *View) GetAllNames() map[string][]string {
 	iter, err := v.txn.Get(memdbNamesTable, memdbContainerIDIndex)
 	if err != nil {
 		return nil
@@ -342,7 +325,7 @@ func (v *memdbView) GetAllNames() map[string][]string {
 
 // transform maps a (deep) copied Container object to what queries need.
 // A lock on the Container is not held because these are immutable deep copies.
-func (v *memdbView) transform(container *Container) *Snapshot {
+func (v *View) transform(container *Container) *Snapshot {
 	health := types.NoHealthcheck
 	if container.Health != nil {
 		health = container.Health.Status()
