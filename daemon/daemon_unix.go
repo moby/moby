@@ -1364,12 +1364,31 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
-	return daemon.Mount(container)
+	if err := daemon.Mount(container); err != nil {
+		return err
+	}
+	// Change the container rootfs mount propagation mode to prevent any
+	// temporary mounts we create outside the container (using
+	// (*Daemon).mountVolumes) from propagating into the container's mount
+	// namespace. Unconditionally bind-mount over the rootfs so we can
+	// unconditionally unmount it on cleanup without a chance of unmounting
+	// any mounts managed by the graph driver.
+	if rootfs := container.BaseFS.Path(); rootfs != "" {
+		return mount.Mount(rootfs, rootfs, "", "bind,private")
+	}
+	return nil
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
+	if container.BaseFS != nil {
+		if rootfs := container.BaseFS.Path(); rootfs != "" {
+			if err := mount.Unmount(container.BaseFS.Path()); err != nil {
+				return err
+			}
+		}
+	}
 	return daemon.Unmount(container)
 }
 
