@@ -1120,7 +1120,7 @@ google.golang.org/protobuf/types/known/fieldmaskpb
 google.golang.org/protobuf/types/known/structpb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
-# gotest.tools/v3 v3.2.0
+# gotest.tools/v3 v3.3.0
 ## explicit; go 1.13
 gotest.tools/v3/assert
 gotest.tools/v3/assert/cmp
