@@ -35,7 +35,7 @@ func DeepEqual(x, y interface{}, opts ...cmp.Option) Comparison {
 		if diff == "" {
 			return ResultSuccess
 		}
-		return multiLineDiffResult(diff)
+		return multiLineDiffResult(diff, x, y)
 	}
 }
 
@@ -102,7 +102,7 @@ func Equal(x, y interface{}) Comparison {
 			return ResultSuccess
 		case isMultiLineStringCompare(x, y):
 			diff := format.UnifiedDiff(format.DiffConfig{A: x.(string), B: y.(string)})
-			return multiLineDiffResult(diff)
+			return multiLineDiffResult(diff, x, y)
 		}
 		return ResultFailureTemplate(`
 			{{- printf "%v" .Data.x}} (
@@ -128,12 +128,12 @@ func isMultiLineStringCompare(x, y interface{}) bool {
 	return strings.Contains(strX, "\n") || strings.Contains(strY, "\n")
 }
 
-func multiLineDiffResult(diff string) Result {
+func multiLineDiffResult(diff string, x, y interface{}) Result {
 	return ResultFailureTemplate(`
 --- {{ with callArg 0 }}{{ formatNode . }}{{else}}←{{end}}
 +++ {{ with callArg 1 }}{{ formatNode . }}{{else}}→{{end}}
 {{ .Data.diff }}`,
-		map[string]interface{}{"diff": diff})
+		map[string]interface{}{"diff": diff, "x": x, "y": y})
 }
 
 // Len succeeds if the sequence has the expected length.
