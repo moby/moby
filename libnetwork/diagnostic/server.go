@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/docker/docker/libnetwork/internal/caller"
 	"github.com/docker/docker/pkg/stack"
@@ -94,8 +95,9 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 
 	logrus.Infof("Starting the diagnostic server listening on %d for commands", port)
 	srv := &http.Server{
-		Addr:    net.JoinHostPort(ip, strconv.Itoa(port)),
-		Handler: s,
+		Addr:              net.JoinHostPort(ip, strconv.Itoa(port)),
+		Handler:           s,
+		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 	}
 	s.srv = srv
 	s.enable = 1
