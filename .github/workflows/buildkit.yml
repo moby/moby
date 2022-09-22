@@ -35,9 +35,6 @@ jobs:
         uses: docker/bake-action@v2
         with:
           targets: binary
-          set: |
-            *.cache-from=type=gha,scope=buildkit-build-binary
-            *.cache-to=type=gha,scope=buildkit-build-binary
       -
         name: Upload artifacts
         uses: actions/upload-artifact@v3
