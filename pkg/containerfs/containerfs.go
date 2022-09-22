@@ -2,7 +2,6 @@ package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
 import (
 	"path/filepath"
-	"runtime"
 
 	"github.com/containerd/continuity/driver"
 	"github.com/containerd/continuity/pathdriver"
@@ -28,13 +27,6 @@ type ContainerFS interface {
 // Driver combines both continuity's Driver and PathDriver interfaces with a Platform
 // field to determine the OS.
 type Driver interface {
-	// OS returns the OS where the rootfs is located. Essentially, runtime.GOOS.
-	OS() string
-
-	// Architecture returns the hardware architecture where the
-	// container is located.
-	Architecture() string
-
 	// Driver & PathDriver provide methods to manipulate files & paths
 	driver.Driver
 	pathdriver.PathDriver
@@ -75,12 +67,4 @@ func (l *local) ResolveScopedPath(path string, rawPath bool) (string, error) {
 		cleanedPath = cleanScopedPath(path)
 	}
 	return symlink.FollowSymlinkInScope(filepath.Join(l.path, cleanedPath), l.path)
-}
-
-func (l *local) OS() string {
-	return runtime.GOOS
-}
-
-func (l *local) Architecture() string {
-	return runtime.GOARCH
 }

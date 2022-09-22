@@ -3,6 +3,7 @@ package remotecontext // import "github.com/docker/docker/builder/remotecontext"
 import (
 	"encoding/hex"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/builder"
@@ -88,7 +89,7 @@ func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error)
 // handle UUID paths in windows.
 func Rel(basepath containerfs.ContainerFS, targpath string) (string, error) {
 	// filepath.Rel can't handle UUID paths in windows
-	if basepath.OS() == "windows" {
+	if runtime.GOOS == "windows" {
 		pfx := basepath.Path() + `\`
 		if strings.HasPrefix(targpath, pfx) {
 			p := strings.TrimPrefix(targpath, pfx)

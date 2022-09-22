@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/docker/docker/pkg/archive"
@@ -109,7 +110,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (retErr error) {
 
 	// The original call was system.MkdirAll, which is just
 	// os.MkdirAll on not-Windows and changed for Windows.
-	if dstDriver.OS() == "windows" {
+	if runtime.GOOS == "windows" {
 		// Now we are WCOW
 		if err := system.MkdirAll(filepath.Dir(dst), 0700); err != nil {
 			return err
@@ -144,7 +145,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (retErr error) {
 			hdr.AccessTime = time.Time{}
 			hdr.ChangeTime = time.Time{}
 			hdr.Name = dstDriver.Base(dst)
-			if dstDriver.OS() == "windows" {
+			if runtime.GOOS == "windows" {
 				hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 			} else {
 				hdr.Mode = int64(os.FileMode(hdr.Mode))
