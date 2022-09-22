@@ -128,13 +128,8 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (img co
 
 	is := i.client.ImageService()
 
-	namedRef, ok := parsed.(reference.Named)
-	if !ok {
-		digested, ok := parsed.(reference.Digested)
-		if !ok {
-			return containerdimages.Image{}, errdefs.InvalidParameter(errors.New("bad reference"))
-		}
-
+	digested, ok := parsed.(reference.Digested)
+	if ok {
 		imgs, err := is.List(ctx, fmt.Sprintf("target.digest==%s", digested.Digest()))
 		if err != nil {
 			return containerdimages.Image{}, errors.Wrap(err, "failed to lookup digest")
@@ -146,6 +141,7 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (img co
 		return imgs[0], nil
 	}
 
+	namedRef := parsed.(reference.Named)
 	namedRef = reference.TagNameOnly(namedRef)
 
 	// If the identifier could be a short ID, attempt to match
