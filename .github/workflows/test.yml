@@ -15,6 +15,7 @@ on:
   pull_request:
 
 env:
+  GHA_CACHE_TIMEOUT: 10m
   GO_VERSION: 1.19.1
   GOTESTLIST_VERSION: v0.2.0
   TESTSTAT_VERSION: v0.1.3
@@ -53,14 +54,16 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: --debug
+          driver-opts: |
+            image=crazymax/buildkit:gha-cache-timeout
       -
         name: Build dev image
         uses: docker/bake-action@v2
         with:
           targets: dev
           set: |
-            *.cache-from=type=gha,scope=dev${{ matrix.mode }}
-            *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
+            *.cache-from=type=gha,scope=dev${{ matrix.mode }},timeout=${{ env.GHA_CACHE_TIMEOUT }}
+            *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max,timeout=${{ env.GHA_CACHE_TIMEOUT }}
             *.output=type=cacheonly
 
   validate-prepare:
@@ -107,13 +110,15 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: --debug
+          driver-opts: |
+            image=crazymax/buildkit:gha-cache-timeout
       -
         name: Build dev image
         uses: docker/bake-action@v2
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=dev,timeout=${{ env.GHA_CACHE_TIMEOUT }}
       -
         name: Validate
         run: |
@@ -135,13 +140,15 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: --debug
+          driver-opts: |
+            image=crazymax/buildkit:gha-cache-timeout
       -
         name: Build dev image
         uses: docker/bake-action@v2
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=dev,timeout=${{ env.GHA_CACHE_TIMEOUT }}
       -
         name: Test
         run: |
@@ -212,13 +219,15 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: --debug
+          driver-opts: |
+            image=crazymax/buildkit:gha-cache-timeout
       -
         name: Build dev image
         uses: docker/bake-action@v2
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=dev,timeout=${{ env.GHA_CACHE_TIMEOUT }}
       -
         name: Test
         run: |
@@ -261,13 +270,15 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: --debug
+          driver-opts: |
+            image=crazymax/buildkit:gha-cache-timeout
       -
         name: Build dev image
         uses: docker/bake-action@v2
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=dev,timeout=${{ env.GHA_CACHE_TIMEOUT }}
       -
         name: Test
         run: |
@@ -314,13 +325,15 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: --debug
+          driver-opts: |
+            image=crazymax/buildkit:gha-cache-timeout
       -
         name: Build dev image
         uses: docker/bake-action@v2
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=${{ env.CACHE_DEV_SCOPE }}
+            dev.cache-from=type=gha,scope=${{ env.CACHE_DEV_SCOPE }},timeout=${{ env.GHA_CACHE_TIMEOUT }}
       -
         name: Test
         run: |
@@ -442,13 +455,15 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: --debug
+          driver-opts: |
+            image=crazymax/buildkit:gha-cache-timeout
       -
         name: Build dev image
         uses: docker/bake-action@v2
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=dev,timeout=${{ env.GHA_CACHE_TIMEOUT }}
       -
         name: Test
         run: |
