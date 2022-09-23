@@ -3,7 +3,6 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 import (
 	"errors"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -33,20 +32,6 @@ func TestValidateMount(t *testing.T) {
 		{mount.Mount{Type: mount.TypeBind, Source: testSourcePath, Target: testDestinationPath}, errBindSourceDoesNotExist(testSourcePath)},
 	}
 
-	lcowCases := []struct {
-		input    mount.Mount
-		expected error
-	}{
-		{mount.Mount{Type: mount.TypeVolume}, errMissingField("Target")},
-		{mount.Mount{Type: mount.TypeVolume, Target: "/foo", Source: "hello"}, nil},
-		{mount.Mount{Type: mount.TypeVolume, Target: "/foo"}, nil},
-		{mount.Mount{Type: mount.TypeBind}, errMissingField("Target")},
-		{mount.Mount{Type: mount.TypeBind, Target: "/foo"}, errMissingField("Source")},
-		{mount.Mount{Type: mount.TypeBind, Target: "/foo", Source: "c:\\foo", VolumeOptions: &mount.VolumeOptions{}}, errExtraField("VolumeOptions")},
-		{mount.Mount{Type: mount.TypeBind, Source: "c:\\foo", Target: "/foo"}, errBindSourceDoesNotExist("c:\\foo")},
-		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: "/foo"}, nil},
-		{mount.Mount{Type: "invalid", Target: "/foo"}, errors.New("mount type unknown")},
-	}
 	parser := NewParser()
 	for i, x := range cases {
 		err := parser.ValidateMountConfig(&x.input)
@@ -55,18 +40,6 @@ func TestValidateMount(t *testing.T) {
 		}
 		if (err == nil && x.expected != nil) || (x.expected == nil && err != nil) || !strings.Contains(err.Error(), x.expected.Error()) {
 			t.Errorf("expected %q, got %q, case: %d", x.expected, err, i)
-		}
-	}
-	if runtime.GOOS == "windows" {
-		parser = NewLCOWParser()
-		for i, x := range lcowCases {
-			err := parser.ValidateMountConfig(&x.input)
-			if err == nil && x.expected == nil {
-				continue
-			}
-			if (err == nil && x.expected != nil) || (x.expected == nil && err != nil) || !strings.Contains(err.Error(), x.expected.Error()) {
-				t.Errorf("expected %q, got %q, case: %d", x.expected, err, i)
-			}
 		}
 	}
 }
