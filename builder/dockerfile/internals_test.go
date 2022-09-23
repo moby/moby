@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -183,8 +182,8 @@ func TestDeepCopyRunConfig(t *testing.T) {
 
 type MockRWLayer struct{}
 
-func (l *MockRWLayer) Release() error                { return nil }
-func (l *MockRWLayer) Root() containerfs.ContainerFS { return "" }
+func (l *MockRWLayer) Release() error { return nil }
+func (l *MockRWLayer) Root() string   { return "" }
 func (l *MockRWLayer) Commit() (builder.ROLayer, error) {
 	return &MockROLayer{
 		diffID: layer.DiffID(digest.Digest("sha256:1234")),

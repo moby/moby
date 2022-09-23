@@ -38,7 +38,7 @@ type pathCache interface {
 // copyInfo is a data object which stores the metadata about each source file in
 // a copyInstruction
 type copyInfo struct {
-	root         containerfs.ContainerFS
+	root         string
 	path         string
 	hash         string
 	noDecompress bool

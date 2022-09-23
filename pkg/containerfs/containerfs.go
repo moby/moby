@@ -6,9 +6,6 @@ import (
 	"github.com/moby/sys/symlink"
 )
 
-// ContainerFS is that represents a root file system
-type ContainerFS = string
-
 // ResolveScopedPath evaluates the given path scoped to the root.
 // For example, if root=/a, and path=/b/c, then this function would return /a/b/c.
 func ResolveScopedPath(root, path string) (string, error) {

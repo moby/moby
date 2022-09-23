@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/containerfs"
 )
 
 const (
@@ -105,14 +104,14 @@ func TestProcessShouldLeaveAllFiles(t *testing.T) {
 
 // TODO: remove after moving to a separate pkg
 type stubRemote struct {
-	root containerfs.ContainerFS
+	root string
 }
 
 func (r *stubRemote) Hash(path string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func (r *stubRemote) Root() containerfs.ContainerFS {
+func (r *stubRemote) Root() string {
 	return r.root
 }
 func (r *stubRemote) Close() error {

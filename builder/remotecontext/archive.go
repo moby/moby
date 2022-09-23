@@ -15,7 +15,7 @@ import (
 )
 
 type archiveContext struct {
-	root containerfs.ContainerFS
+	root string
 	sums tarsum.FileInfoSums
 }
 
@@ -82,7 +82,7 @@ func FromArchive(tarStream io.Reader) (builder.Source, error) {
 	return tsc, nil
 }
 
-func (c *archiveContext) Root() containerfs.ContainerFS {
+func (c *archiveContext) Root() string {
 	return c.root
 }
 
@@ -115,7 +115,7 @@ func (c *archiveContext) Hash(path string) (string, error) {
 	return path, nil // backwards compat TODO: see if really needed
 }
 
-func normalize(path string, root containerfs.ContainerFS) (cleanPath, fullPath string, err error) {
+func normalize(path string, root string) (cleanPath, fullPath string, err error) {
 	cleanPath = filepath.Clean(string(filepath.Separator) + path)[1:]
 	fullPath, err = containerfs.ResolveScopedPath(root, path)
 	if err != nil {

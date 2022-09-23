@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/pkg/errors"
 )
@@ -16,7 +15,7 @@ import (
 // NewLazySource creates a new LazyContext. LazyContext defines a hashed build
 // context based on a root directory. Individual files are hashed first time
 // they are asked. It is not safe to call methods of LazyContext concurrently.
-func NewLazySource(root containerfs.ContainerFS) (builder.Source, error) {
+func NewLazySource(root string) (builder.Source, error) {
 	return &lazySource{
 		root: root,
 		sums: make(map[string]string),
@@ -24,11 +23,11 @@ func NewLazySource(root containerfs.ContainerFS) (builder.Source, error) {
 }
 
 type lazySource struct {
-	root containerfs.ContainerFS
+	root string
 	sums map[string]string
 }
 
-func (c *lazySource) Root() containerfs.ContainerFS {
+func (c *lazySource) Root() string {
 	return c.root
 }
 
@@ -88,7 +87,7 @@ func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error)
 
 // Rel makes a path relative to base path. Same as `filepath.Rel` but can also
 // handle UUID paths in windows.
-func Rel(basepath containerfs.ContainerFS, targpath string) (string, error) {
+func Rel(basepath string, targpath string) (string, error) {
 	// filepath.Rel can't handle UUID paths in windows
 	if runtime.GOOS == "windows" {
 		pfx := basepath + `\`

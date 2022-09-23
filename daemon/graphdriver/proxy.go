@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -128,7 +127,7 @@ func (d *graphDriverProxy) Remove(id string) error {
 	return nil
 }
 
-func (d *graphDriverProxy) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
+func (d *graphDriverProxy) Get(id, mountLabel string) (string, error) {
 	args := &graphDriverRequest{
 		ID:         id,
 		MountLabel: mountLabel,
