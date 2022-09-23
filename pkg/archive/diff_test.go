@@ -308,7 +308,6 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 			t.Fatalf("invalid files for layer %d: expected %q, got %q", i, tc.expected, paths)
 		}
 	}
-
 }
 
 func makeTestLayer(paths []string) (rc io.ReadCloser, err error) {

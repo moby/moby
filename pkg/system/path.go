@@ -13,7 +13,6 @@ func DefaultPathEnv(os string) string {
 		return ""
 	}
 	return defaultUnixPathEnv
-
 }
 
 // CheckSystemDriveAndRemoveDriveLetter verifies that a path, if it includes a drive letter,

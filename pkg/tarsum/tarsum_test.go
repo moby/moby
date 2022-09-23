@@ -196,7 +196,6 @@ func TestNewTarSumForLabelInvalid(t *testing.T) {
 }
 
 func TestNewTarSumForLabel(t *testing.T) {
-
 	layer := testLayers[0]
 
 	reader, err := os.Open(layer.filename)
@@ -292,7 +291,6 @@ func TestTarSumsReadSize(t *testing.T) {
 	layer := testLayers[0]
 
 	for i := 0; i < 5; i++ {
-
 		reader, err := os.Open(layer.filename)
 		if err != nil {
 			t.Fatal(err)
@@ -515,7 +513,6 @@ func TestIteration(t *testing.T) {
 			t.Errorf("expected sum: %q, got: %q", htest.expectedSum, s)
 		}
 	}
-
 }
 
 func renderSumForHeader(v Version, h *tar.Header, data []byte) (string, error) {

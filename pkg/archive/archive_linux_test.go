@@ -61,7 +61,6 @@ func checkOpaqueness(t *testing.T, path string, opaque string) {
 	if string(xattrOpaque) != opaque {
 		t.Fatalf("Unexpected opaque value: %q, expected %q", string(xattrOpaque), opaque)
 	}
-
 }
 
 func checkOverlayWhiteout(t *testing.T, path string) {

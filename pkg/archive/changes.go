@@ -246,7 +246,6 @@ func (info *FileInfo) path() string {
 }
 
 func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
-
 	sizeAtEntry := len(*changes)
 
 	if oldInfo == nil {
@@ -319,7 +318,6 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 		copy((*changes)[sizeAtEntry+1:], (*changes)[sizeAtEntry:])
 		(*changes)[sizeAtEntry] = change
 	}
-
 }
 
 // Changes add changes to file information.

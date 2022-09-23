@@ -119,7 +119,6 @@ func TestBytesPipeWriteRandomChunks(t *testing.T) {
 		if expected != actual {
 			t.Fatalf("BytesPipe returned invalid data. Expected checksum %v, got %v", expected, actual)
 		}
-
 	}
 }
 
