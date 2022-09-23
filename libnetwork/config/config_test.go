@@ -17,10 +17,10 @@ func TestOptionsLabels(t *testing.T) {
 	}
 	f := OptionLabels(l)
 	f(c)
-	if len(c.Daemon.Labels) != 3 {
-		t.Fatalf("Expecting 3 labels, seen %d", len(c.Daemon.Labels))
+	if len(c.Labels) != 3 {
+		t.Fatalf("Expecting 3 labels, seen %d", len(c.Labels))
 	}
-	for _, l := range c.Daemon.Labels {
+	for _, l := range c.Labels {
 		if !strings.HasPrefix(l, netlabel.Prefix) {
 			t.Fatalf("config must accept only libnetwork labels. Not : %s", l)
 		}

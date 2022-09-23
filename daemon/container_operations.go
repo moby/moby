@@ -465,7 +465,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 
 	networkName := mode.NetworkName()
 	if mode.IsDefault() {
-		networkName = daemon.netController.Config().Daemon.DefaultNetwork
+		networkName = daemon.netController.Config().DefaultNetwork
 	}
 
 	if mode.IsUserDefined() {
