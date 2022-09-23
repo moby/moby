@@ -51,7 +51,6 @@ type btrfsOptions struct {
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
 func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
-
 	// Perform feature detection on /var/lib/docker/btrfs if it's an existing directory.
 	// This covers situations where /var/lib/docker/btrfs is a mount, and on a different
 	// filesystem than /var/lib/docker.

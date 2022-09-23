@@ -237,7 +237,6 @@ func (a *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 // Create three folders for each id
 // mnt, layers, and diff
 func (a *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
-
 	if opts != nil && len(opts.StorageOpt) != 0 {
 		return fmt.Errorf("--storage-opt is not supported for aufs")
 	}

@@ -279,7 +279,6 @@ func addManyLayers(drv graphdriver.Driver, baseLayer string, count int) (string,
 		}
 
 		lastLayer = nextLayer
-
 	}
 	return lastLayer, nil
 }
