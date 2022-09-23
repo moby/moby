@@ -15,8 +15,8 @@ import (
 // the absolute path to the resource relative to the container's rootfs, and
 // an error if the path points to outside the container's rootfs.
 func (container *Container) ResolvePath(path string) (resolvedPath, absPath string, err error) {
-	if container.BaseFS == nil {
-		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	if container.BaseFS == "" {
+		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
 	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
 	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
@@ -47,10 +47,9 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 // resolved to a path on the host corresponding to the given absolute path
 // inside the container.
 func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.ContainerPathStat, err error) {
-	if container.BaseFS == nil {
-		return nil, errors.New("StatPath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	if container.BaseFS == "" {
+		return nil, errors.New("StatPath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
-	driver := container.BaseFS
 
 	lstat, err := os.Lstat(resolvedPath)
 	if err != nil {
@@ -65,7 +64,7 @@ func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.
 			return nil, err
 		}
 
-		linkTarget, err = filepath.Rel(driver.Path(), hostPath)
+		linkTarget, err = filepath.Rel(string(container.BaseFS), hostPath)
 		if err != nil {
 			return nil, err
 		}

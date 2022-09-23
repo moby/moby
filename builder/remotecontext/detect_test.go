@@ -119,5 +119,5 @@ func (r *stubRemote) Close() error {
 	return errors.New("not implemented")
 }
 func (r *stubRemote) Remove(p string) error {
-	return os.Remove(filepath.Join(r.root.Path(), p))
+	return os.Remove(filepath.Join(string(r.root), p))
 }

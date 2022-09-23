@@ -61,10 +61,10 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 		return nil, err
 	}
 
-	archv, err := archivePath(basefs, basefs.Path(), &archive.TarOptions{
+	archv, err := archivePath(basefs, string(basefs), &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		IDMap:       daemon.idMapping,
-	}, basefs.Path())
+	}, string(basefs))
 	if err != nil {
 		rwlayer.Unmount()
 		return nil, err

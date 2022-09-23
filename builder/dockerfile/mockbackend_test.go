@@ -144,5 +144,5 @@ func (l *mockRWLayer) Commit() (builder.ROLayer, error) {
 }
 
 func (l *mockRWLayer) Root() containerfs.ContainerFS {
-	return nil
+	return ""
 }

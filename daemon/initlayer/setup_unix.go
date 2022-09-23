@@ -20,7 +20,7 @@ import (
 // the container from unwanted side-effects on the rw layer.
 func Setup(initLayerFs containerfs.ContainerFS, rootIdentity idtools.Identity) error {
 	// Since all paths are local to the container, we can just extract initLayerFs.Path()
-	initLayer := initLayerFs.Path()
+	initLayer := string(initLayerFs)
 
 	for pth, typ := range map[string]string{
 		"/dev/pts":         "dir",

@@ -48,7 +48,7 @@ func driverGet(d *Driver, id string, mntLabel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return mnt.Path(), nil
+	return string(mnt), nil
 }
 
 func newDriver(t testing.TB) *Driver {
@@ -180,7 +180,7 @@ func TestGetWithoutParent(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := path.Join(tmp, "diff", "1")
-	if diffPath.Path() != expected {
+	if string(diffPath) != expected {
 		t.Fatalf("Expected path %s got %s", expected, diffPath)
 	}
 }
@@ -257,13 +257,13 @@ func TestMountWithParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mntPath == nil {
-		t.Fatal("mntPath should not be nil")
+	if mntPath == "" {
+		t.Fatal("mntPath should not be empty")
 	}
 
 	expected := path.Join(tmp, "mnt", "2")
-	if mntPath.Path() != expected {
-		t.Fatalf("Expected %s got %s", expected, mntPath.Path())
+	if string(mntPath) != expected {
+		t.Fatalf("Expected %s got %s", expected, string(mntPath))
 	}
 }
 
@@ -288,8 +288,8 @@ func TestRemoveMountedDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mntPath == nil {
-		t.Fatal("mntPath should not be nil")
+	if mntPath == "" {
+		t.Fatal("mntPath should not be empty")
 	}
 
 	mounted, err := d.mounted(d.pathCache["2"])

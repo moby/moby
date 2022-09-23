@@ -344,7 +344,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
-		return nil, err
+		return "", err
 	}
 	// If id has a root, just return it
 	rootDir := path.Join(dir, "root")
@@ -371,11 +371,11 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 	}()
 	lowerID, err := os.ReadFile(path.Join(dir, "lower-id"))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	root := d.idMap.RootPair()
 	if err := idtools.MkdirAndChown(mergedDir, 0700, root); err != nil {
-		return nil, err
+		return "", err
 	}
 	var (
 		lowerDir = path.Join(d.dir(string(lowerID)), "root")
@@ -384,12 +384,12 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 		opts     = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 	)
 	if err := unix.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-		return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
+		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 	// user namespace requires this to move a directory from lower to upper.
 	if err := root.Chown(path.Join(workDir, "work")); err != nil {
-		return nil, err
+		return "", err
 	}
 	return containerfs.NewLocalContainerFS(mergedDir), nil
 }

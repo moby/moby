@@ -250,7 +250,7 @@ func DriverBenchDeepLayerRead(b *testing.B, layerCount int, drivername string, d
 	for i := 0; i < b.N; i++ {
 
 		// Read content
-		c, err := os.ReadFile(filepath.Join(root.Path(), "testfile.txt"))
+		c, err := os.ReadFile(filepath.Join(string(root), "testfile.txt"))
 		if err != nil {
 			b.Fatal(err)
 		}

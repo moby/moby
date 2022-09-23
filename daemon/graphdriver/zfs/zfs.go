@@ -391,17 +391,17 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	root := d.idMap.RootPair()
 	// Create the target directories if they don't exist
 	if err := idtools.MkdirAllAndChown(mountpoint, 0755, root); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if err := mount.Mount(filesystem, mountpoint, "zfs", options); err != nil {
-		return nil, errors.Wrap(err, "error creating zfs mount")
+		return "", errors.Wrap(err, "error creating zfs mount")
 	}
 
 	// this could be our first mount after creation of the filesystem, and the root dir may still have root
 	// permissions instead of the remapped root uid:gid (if user namespaces are enabled):
 	if err := root.Chown(mountpoint); err != nil {
-		return nil, fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
+		return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
 	}
 
 	return containerfs.NewLocalContainerFS(mountpoint), nil

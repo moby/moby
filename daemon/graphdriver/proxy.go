@@ -135,7 +135,7 @@ func (d *graphDriverProxy) Get(id, mountLabel string) (containerfs.ContainerFS, 
 	}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Get", args, &ret); err != nil {
-		return nil, err
+		return "", err
 	}
 	var err error
 	if ret.Err != "" {

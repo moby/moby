@@ -66,7 +66,7 @@ func (c *lazySource) Hash(path string) (string, error) {
 }
 
 func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error) {
-	p := filepath.Join(c.root.Path(), relPath)
+	p := filepath.Join(string(c.root), relPath)
 	h, err := NewFileHash(p, relPath, fi)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to create hash for %s", relPath)
@@ -91,7 +91,7 @@ func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error)
 func Rel(basepath containerfs.ContainerFS, targpath string) (string, error) {
 	// filepath.Rel can't handle UUID paths in windows
 	if runtime.GOOS == "windows" {
-		pfx := basepath.Path() + `\`
+		pfx := string(basepath) + `\`
 		if strings.HasPrefix(targpath, pfx) {
 			p := strings.TrimPrefix(targpath, pfx)
 			if p == "" {
@@ -100,5 +100,5 @@ func Rel(basepath containerfs.ContainerFS, targpath string) (string, error) {
 			return p, nil
 		}
 	}
-	return filepath.Rel(basepath.Path(), targpath)
+	return filepath.Rel(string(basepath), targpath)
 }

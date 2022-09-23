@@ -356,7 +356,7 @@ func (a *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	defer a.locker.Unlock(id)
 	parents, err := a.getParentLayerPaths(id)
 	if err != nil && !os.IsNotExist(err) {
-		return nil, err
+		return "", err
 	}
 
 	a.pathCacheLock.Lock()
@@ -377,7 +377,7 @@ func (a *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	// just return the diff path to the data
 	if len(parents) > 0 {
 		if err := a.mount(id, m, mountLabel, parents); err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 

@@ -139,7 +139,7 @@ func newTestFile(name string, content []byte, perm os.FileMode) FileApplier {
 }
 
 func (tf *testFile) ApplyFile(root containerfs.ContainerFS) error {
-	fullPath := filepath.Join(root.Path(), tf.name)
+	fullPath := filepath.Join(string(root), tf.name)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := os.ReadFile(filepath.Join(path2.Path(), "testfile.txt"))
+	b, err := os.ReadFile(filepath.Join(string(path2), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(string(pathFS), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -409,20 +409,20 @@ func TestStoreRestore(t *testing.T) {
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if pathFS.Path() != mountPath.Path() {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
+	} else if string(pathFS) != string(mountPath) {
+		t.Fatalf("Unexpected path %s, expected %s", string(mountPath), string(pathFS))
 	}
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if pathFS.Path() != mountPath.Path() {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
+	} else if string(pathFS) != string(mountPath) {
+		t.Fatalf("Unexpected path %s, expected %s", string(mountPath), string(pathFS))
 	}
 	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := os.ReadFile(filepath.Join(pathFS.Path(), "testfile.txt"))
+	b, err := os.ReadFile(filepath.Join(string(pathFS), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}

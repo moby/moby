@@ -176,7 +176,7 @@ func StatAt(remote builder.Source, path string) (os.FileInfo, error) {
 
 // FullPath is a helper for getting a full path for a path from a source
 func FullPath(remote builder.Source, path string) (string, error) {
-	fullPath, err := containerfs.ResolveScopedPath(remote.Root().Path(), path)
+	fullPath, err := containerfs.ResolveScopedPath(string(remote.Root()), path)
 	if err != nil {
 		if runtime.GOOS == "windows" {
 			return "", fmt.Errorf("failed to resolve scoped path %s (%s): %s. Possible cause is a forbidden path outside the build context", path, fullPath, err)

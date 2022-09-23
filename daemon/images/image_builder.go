@@ -115,11 +115,11 @@ func (l *rwLayer) Release() error {
 		return nil
 	}
 
-	if l.fs != nil {
+	if l.fs != "" {
 		if err := l.rwLayer.Unmount(); err != nil {
 			return errors.Wrap(err, "failed to unmount RWLayer")
 		}
-		l.fs = nil
+		l.fs = ""
 	}
 
 	metadata, err := l.layerStore.ReleaseRWLayer(l.rwLayer)

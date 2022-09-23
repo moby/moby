@@ -184,7 +184,7 @@ func TestDeepCopyRunConfig(t *testing.T) {
 type MockRWLayer struct{}
 
 func (l *MockRWLayer) Release() error                { return nil }
-func (l *MockRWLayer) Root() containerfs.ContainerFS { return nil }
+func (l *MockRWLayer) Root() containerfs.ContainerFS { return "" }
 func (l *MockRWLayer) Commit() (builder.ROLayer, error) {
 	return &MockROLayer{
 		diffID: layer.DiffID(digest.Digest("sha256:1234")),

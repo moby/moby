@@ -172,7 +172,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return CopyDir(parentDir.Path(), dir)
+	return CopyDir(string(parentDir), dir)
 }
 
 func (d *Driver) dir(id string) string {
@@ -188,9 +188,9 @@ func (d *Driver) Remove(id string) error {
 func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	dir := d.dir(id)
 	if st, err := os.Stat(dir); err != nil {
-		return nil, err
+		return "", err
 	} else if !st.IsDir() {
-		return nil, fmt.Errorf("%s: not a directory", dir)
+		return "", fmt.Errorf("%s: not a directory", dir)
 	}
 	return containerfs.NewLocalContainerFS(dir), nil
 }

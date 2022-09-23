@@ -189,23 +189,23 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	// Create the target directories if they don't exist
 	if err := idtools.MkdirAllAndChown(path.Join(d.home, "mnt"), 0755, root); err != nil {
 		d.ctr.Decrement(mp)
-		return nil, err
+		return "", err
 	}
 	if err := idtools.MkdirAndChown(mp, 0755, root); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
-		return nil, err
+		return "", err
 	}
 
 	// Mount the device
 	if err := d.DeviceSet.MountDevice(id, mp, mountLabel); err != nil {
 		d.ctr.Decrement(mp)
-		return nil, err
+		return "", err
 	}
 
 	if err := idtools.MkdirAllAndChown(rootFs, 0755, root); err != nil {
 		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
-		return nil, err
+		return "", err
 	}
 
 	idFile := path.Join(mp, "id")
@@ -215,7 +215,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		if err := os.WriteFile(idFile, []byte(id), 0600); err != nil {
 			d.ctr.Decrement(mp)
 			d.DeviceSet.UnmountDevice(id, mp)
-			return nil, err
+			return "", err
 		}
 	}
 
