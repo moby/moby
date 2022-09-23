@@ -19,7 +19,6 @@ func TestCopyFileWithInvalidSrc(t *testing.T) {
 	if bytes != 0 {
 		t.Fatal("Should have written 0 bytes")
 	}
-
 }
 
 // CopyFile with invalid dest
@@ -37,7 +36,6 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 	if bytes != 0 {
 		t.Fatal("Should have written 0 bytes")
 	}
-
 }
 
 // CopyFile with same src and dest
@@ -492,7 +490,6 @@ func TestMatches(t *testing.T) {
 			check(pm, test.text, test.pass, desc)
 		}
 	})
-
 }
 
 func TestCleanPatterns(t *testing.T) {

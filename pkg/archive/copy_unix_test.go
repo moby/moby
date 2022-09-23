@@ -372,7 +372,6 @@ func TestCopyCaseB(t *testing.T) {
 	if err != ErrDirNotExists {
 		t.Fatalf("expected ErrDirNotExists error, but got %T: %s", err, err)
 	}
-
 }
 
 // C. SRC specifies a file and DST exists as a file.

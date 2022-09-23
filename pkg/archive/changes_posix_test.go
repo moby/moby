@@ -102,7 +102,6 @@ func TestHardLinkOrder(t *testing.T) {
 			t.Errorf("headers - %q expected linkname %q; but got %q", hdrs[i].Name, hdrs[i].Linkname, hdrsRev[i].Linkname)
 		}
 	}
-
 }
 
 type tarHeaders []tar.Header

@@ -237,12 +237,8 @@ func (t *Task) getDriverVersion() (string, error) {
 	return res, nil
 }
 
-func (t *Task) getNextTarget(next unsafe.Pointer) (nextPtr unsafe.Pointer, start uint64,
-	length uint64, targetType string, params string) {
-
-	return DmGetNextTarget(t.unmanaged, next, &start, &length,
-			&targetType, &params),
-		start, length, targetType, params
+func (t *Task) getNextTarget(next unsafe.Pointer) (nextPtr unsafe.Pointer, start uint64, length uint64, targetType string, params string) {
+	return DmGetNextTarget(t.unmanaged, next, &start, &length, &targetType, &params), start, length, targetType, params
 }
 
 // UdevWait waits for any processes that are waiting for udev to complete the specified cookie.
@@ -396,7 +392,6 @@ func CancelDeferredRemove(deviceName string) error {
 			return ErrEnxio
 		}
 		return fmt.Errorf("devicemapper: Error running CancelDeferredRemove %s", err)
-
 	}
 	return nil
 }
@@ -680,7 +675,6 @@ func CreateDevice(poolName string, deviceID int) error {
 		}
 
 		return fmt.Errorf("devicemapper: Error running CreateDevice %s", err)
-
 	}
 	return nil
 }

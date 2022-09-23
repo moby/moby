@@ -303,7 +303,6 @@ func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir
 		}
 		return dstDir, RebaseArchiveEntries(srcContent, srcBase, dstBase), nil
 	}
-
 }
 
 // RebaseArchiveEntries rewrites the given srcContent archive replacing
