@@ -34,16 +34,6 @@ type Config struct {
 	PluginGetter           plugingetter.PluginGetter
 }
 
-// LoadDefaultScopes loads default scope configs for scopes which
-// doesn't have explicit user specified configs.
-func (c *Config) LoadDefaultScopes(dataDir string) {
-	for k, v := range datastore.DefaultScopes(dataDir) {
-		if _, ok := c.Scopes[k]; !ok {
-			c.Scopes[k] = v
-		}
-	}
-}
-
 // ParseConfigOptions parses the configuration options and returns
 // a reference to the corresponding Config structure
 func ParseConfigOptions(opts ...Option) *Config {
@@ -51,14 +41,19 @@ func ParseConfigOptions(opts ...Option) *Config {
 		DriverCfg: make(map[string]interface{}),
 		Scopes:    make(map[string]*datastore.ScopeCfg),
 	}
+
 	for _, opt := range opts {
 		if opt != nil {
 			opt(cfg)
 		}
 	}
 
-	cfg.LoadDefaultScopes(cfg.DataDir)
-
+	// load default scope configs which don't have explicit user specified configs.
+	for k, v := range datastore.DefaultScopes(cfg.DataDir) {
+		if _, ok := cfg.Scopes[k]; !ok {
+			cfg.Scopes[k] = v
+		}
+	}
 	return cfg
 }
 
