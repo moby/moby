@@ -154,7 +154,6 @@ func pullTagAndRemove(ctx context.Context, client client.APIClient, ref string, 
 	}
 	_, err = client.ImageRemove(ctx, ref, types.ImageRemoveOptions{})
 	return errors.Wrapf(err, "failed to remove %s", ref)
-
 }
 
 func readFrozenImageList(dockerfilePath string, images []string) (map[string]string, error) {

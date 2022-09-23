@@ -96,7 +96,6 @@ func (f *Fake) addFile(file string, content []byte) error {
 		}
 	}
 	return os.WriteFile(fp, content, 0644)
-
 }
 
 // Delete a file at a path
