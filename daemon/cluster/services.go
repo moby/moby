@@ -248,14 +248,11 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 					logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
 					// warning in the client response should be concise
 					resp.Warnings = append(resp.Warnings, digestWarning(ctnr.Image))
-
 				} else if ctnr.Image != digestImage {
 					logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
 					ctnr.Image = digestImage
-
 				} else {
 					logrus.Debugf("creating service using supplied digest reference %s", ctnr.Image)
-
 				}
 
 				// Replace the context with a fresh one.
@@ -287,7 +284,6 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 	var resp *types.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
-
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
 			return err
