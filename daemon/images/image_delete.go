@@ -132,7 +132,6 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 						records = append(records, untaggedRecord)
 					} else {
 						remainingRefs = append(remainingRefs, repoRef)
-
 					}
 				}
 				repoRefs = remainingRefs
