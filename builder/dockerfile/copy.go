@@ -1,7 +1,6 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
-	"archive/tar"
 	"fmt"
 	"io"
 	"mime"
@@ -453,11 +452,6 @@ type copyFileOptions struct {
 	archiver   Archiver
 }
 
-type copyEndpoint struct {
-	driver containerfs.Driver
-	path   string
-}
-
 func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
 	srcPath, err := source.fullPath()
 	if err != nil {
@@ -471,96 +465,77 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 
 	archiver := options.archiver
 
-	srcEndpoint := &copyEndpoint{driver: source.root, path: srcPath}
-	destEndpoint := &copyEndpoint{driver: dest.root, path: destPath}
-
-	src, err := source.root.Stat(srcPath)
+	src, err := os.Stat(srcPath)
 	if err != nil {
 		return errors.Wrapf(err, "source path not found")
 	}
 	if src.IsDir() {
-		return copyDirectory(archiver, srcEndpoint, destEndpoint, options.identity)
+		return copyDirectory(archiver, srcPath, destPath, options.identity)
 	}
-	if options.decompress && isArchivePath(source.root, srcPath) && !source.noDecompress {
+	if options.decompress && archive.IsArchivePath(srcPath) && !source.noDecompress {
 		return archiver.UntarPath(srcPath, destPath)
 	}
 
-	destExistsAsDir, err := isExistingDirectory(destEndpoint)
+	destExistsAsDir, err := isExistingDirectory(destPath)
 	if err != nil {
 		return err
 	}
 	// dest.path must be used because destPath has already been cleaned of any
 	// trailing slash
-	if endsInSlash(dest.root, dest.path) || destExistsAsDir {
+	if endsInSlash(dest.path) || destExistsAsDir {
 		// source.path must be used to get the correct filename when the source
 		// is a symlink
 		destPath = dest.root.Join(destPath, source.root.Base(source.path))
-		destEndpoint = &copyEndpoint{driver: dest.root, path: destPath}
 	}
-	return copyFile(archiver, srcEndpoint, destEndpoint, options.identity)
+	return copyFile(archiver, srcPath, destPath, options.identity)
 }
 
-func isArchivePath(driver containerfs.ContainerFS, path string) bool {
-	file, err := driver.Open(path)
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-	rdr, err := archive.DecompressStream(file)
-	if err != nil {
-		return false
-	}
-	r := tar.NewReader(rdr)
-	_, err = r.Next()
-	return err == nil
-}
-
-func copyDirectory(archiver Archiver, source, dest *copyEndpoint, identity *idtools.Identity) error {
+func copyDirectory(archiver Archiver, source, dest string, identity *idtools.Identity) error {
 	destExists, err := isExistingDirectory(dest)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query destination path")
 	}
 
-	if err := archiver.CopyWithTar(source.path, dest.path); err != nil {
+	if err := archiver.CopyWithTar(source, dest); err != nil {
 		return errors.Wrapf(err, "failed to copy directory")
 	}
 	if identity != nil {
-		return fixPermissions(source.path, dest.path, *identity, !destExists)
+		return fixPermissions(source, dest, *identity, !destExists)
 	}
 	return nil
 }
 
-func copyFile(archiver Archiver, source, dest *copyEndpoint, identity *idtools.Identity) error {
+func copyFile(archiver Archiver, source, dest string, identity *idtools.Identity) error {
 	if identity == nil {
 		// Use system.MkdirAll here, which is a custom version of os.MkdirAll
 		// modified for use on Windows to handle volume GUID paths. These paths
 		// are of the form \\?\Volume{<GUID>}\<path>. An example would be:
 		// \\?\Volume{dae8d3ac-b9a1-11e9-88eb-e8554b2ba1db}\bin\busybox.exe
-		if err := system.MkdirAll(filepath.Dir(dest.path), 0755); err != nil {
+		if err := system.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 			return err
 		}
 	} else {
-		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest.path), 0755, *identity); err != nil {
+		if err := idtools.MkdirAllAndChownNew(filepath.Dir(dest), 0755, *identity); err != nil {
 			return errors.Wrapf(err, "failed to create new directory")
 		}
 	}
 
-	if err := archiver.CopyFileWithTar(source.path, dest.path); err != nil {
+	if err := archiver.CopyFileWithTar(source, dest); err != nil {
 		return errors.Wrapf(err, "failed to copy file")
 	}
 	if identity != nil {
-		return fixPermissions(source.path, dest.path, *identity, false)
+		return fixPermissions(source, dest, *identity, false)
 	}
 	return nil
 }
 
-func endsInSlash(driver containerfs.Driver, path string) bool {
-	return strings.HasSuffix(path, string(driver.Separator()))
+func endsInSlash(path string) bool {
+	return strings.HasSuffix(path, string(filepath.Separator))
 }
 
 // isExistingDirectory returns true if the path exists and is a directory
-func isExistingDirectory(point *copyEndpoint) (bool, error) {
-	destStat, err := point.driver.Stat(point.path)
+func isExistingDirectory(path string) (bool, error) {
+	destStat, err := os.Stat(path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		return false, nil

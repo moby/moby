@@ -42,15 +42,6 @@ func NewLocalContainerFS(path string) ContainerFS {
 	}
 }
 
-// NewLocalDriver provides file and path drivers for a local file system. They are
-// essentially a wrapper around the `os` and `filepath` functions.
-func NewLocalDriver() Driver {
-	return &local{
-		Driver:     driver.LocalDriver,
-		PathDriver: pathdriver.LocalPathDriver,
-	}
-}
-
 type local struct {
 	path string
 	driver.Driver
