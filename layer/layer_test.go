@@ -139,8 +139,8 @@ func newTestFile(name string, content []byte, perm os.FileMode) FileApplier {
 }
 
 func (tf *testFile) ApplyFile(root containerfs.ContainerFS) error {
-	fullPath := root.Join(root.Path(), tf.name)
-	if err := root.MkdirAll(root.Dir(fullPath), 0755); err != nil {
+	fullPath := filepath.Join(root.Path(), tf.name)
+	if err := root.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return err
 	}
 	// Check if already exists
@@ -267,7 +267,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := driver.ReadFile(path2, path2.Join(path2.Path(), "testfile.txt"))
+	b, err := driver.ReadFile(path2, filepath.Join(path2.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
+	if err := driver.WriteFile(pathFS, filepath.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -422,7 +422,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := driver.ReadFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"))
+	b, err := driver.ReadFile(pathFS, filepath.Join(pathFS.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}

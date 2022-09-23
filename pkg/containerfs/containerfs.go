@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/continuity/driver"
-	"github.com/containerd/continuity/pathdriver"
 	"github.com/moby/sys/symlink"
 )
 
@@ -14,25 +13,22 @@ type ContainerFS interface {
 	// on the local system, so the continuity operations must be used
 	Path() string
 
-	// Driver & PathDriver provide methods to manipulate files & paths
+	// Driver provides methods to manipulate files
 	driver.Driver
-	pathdriver.PathDriver
 }
 
 // NewLocalContainerFS is a helper function to implement daemon's Mount interface
 // when the graphdriver mount point is a local path on the machine.
 func NewLocalContainerFS(path string) ContainerFS {
 	return &local{
-		path:       path,
-		Driver:     driver.LocalDriver,
-		PathDriver: pathdriver.LocalPathDriver,
+		path:   path,
+		Driver: driver.LocalDriver,
 	}
 }
 
 type local struct {
 	path string
 	driver.Driver
-	pathdriver.PathDriver
 }
 
 func (l *local) Path() string {

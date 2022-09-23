@@ -100,7 +100,7 @@ func (c *archiveContext) Hash(path string) (string, error) {
 		return "", err
 	}
 
-	rel, err := c.root.Rel(c.root.Path(), fullpath)
+	rel, err := filepath.Rel(c.root.Path(), fullpath)
 	if err != nil {
 		return "", convertPathError(err, cleanpath)
 	}
@@ -116,7 +116,7 @@ func (c *archiveContext) Hash(path string) (string, error) {
 }
 
 func normalize(path string, root containerfs.ContainerFS) (cleanPath, fullPath string, err error) {
-	cleanPath = root.Clean(string(root.Separator()) + path)[1:]
+	cleanPath = filepath.Clean(string(filepath.Separator) + path)[1:]
 	fullPath, err = containerfs.ResolveScopedPath(root.Path(), path)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "forbidden path outside the build context: %s (%s)", path, cleanPath)

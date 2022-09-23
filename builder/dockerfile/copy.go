@@ -259,7 +259,7 @@ func (o *copier) storeInPathCache(im *imageMount, path string, hash string) {
 func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
 	root := o.source.Root()
 	var copyInfos []copyInfo
-	if err := root.Walk(root.Path(), func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(root.Path(), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -271,7 +271,7 @@ func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
 		if rel == "." {
 			return nil
 		}
-		if match, _ := root.Match(origPath, rel); !match {
+		if match, _ := filepath.Match(origPath, rel); !match {
 			return nil
 		}
 
@@ -317,7 +317,7 @@ func walkSource(source builder.Source, origPath string) ([]string, error) {
 	}
 	// Must be a dir
 	var subfiles []string
-	err = source.Root().Walk(fp, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(fp, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -485,7 +485,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 	if endsInSlash(dest.path) || destExistsAsDir {
 		// source.path must be used to get the correct filename when the source
 		// is a symlink
-		destPath = dest.root.Join(destPath, source.root.Base(source.path))
+		destPath = filepath.Join(destPath, filepath.Base(source.path))
 	}
 	return copyFile(archiver, srcPath, destPath, options.identity)
 }

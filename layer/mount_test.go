@@ -2,6 +2,7 @@ package layer // import "github.com/docker/docker/layer"
 
 import (
 	"io"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"testing"
@@ -45,12 +46,12 @@ func TestMountInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fi, err := pathFS.Stat(pathFS.Join(pathFS.Path(), "testfile.txt"))
+	fi, err := pathFS.Stat(filepath.Join(pathFS.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	f, err := pathFS.Open(pathFS.Join(pathFS.Path(), "testfile.txt"))
+	f, err := pathFS.Open(filepath.Join(pathFS.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestMountSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "file2"), content2, 0755); err != nil {
+	if err := driver.WriteFile(pathFS, filepath.Join(pathFS.Path(), "file2"), content2, 0755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -157,23 +158,23 @@ func TestMountChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := pathFS.Lchmod(pathFS.Join(pathFS.Path(), "testfile1.txt"), 0755); err != nil {
+	if err := pathFS.Lchmod(filepath.Join(pathFS.Path(), "testfile1.txt"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile1.txt"), []byte("mount data!"), 0755); err != nil {
+	if err := driver.WriteFile(pathFS, filepath.Join(pathFS.Path(), "testfile1.txt"), []byte("mount data!"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := pathFS.Remove(pathFS.Join(pathFS.Path(), "testfile2.txt")); err != nil {
+	if err := pathFS.Remove(filepath.Join(pathFS.Path(), "testfile2.txt")); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := pathFS.Lchmod(pathFS.Join(pathFS.Path(), "testfile3.txt"), 0755); err != nil {
+	if err := pathFS.Lchmod(filepath.Join(pathFS.Path(), "testfile3.txt"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile4.txt"), []byte("mount data!"), 0644); err != nil {
+	if err := driver.WriteFile(pathFS, filepath.Join(pathFS.Path(), "testfile4.txt"), []byte("mount data!"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -248,7 +249,7 @@ func TestMountApply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := pathFS.Open(pathFS.Join(pathFS.Path(), "newfile.txt"))
+	f, err := pathFS.Open(filepath.Join(pathFS.Path(), "newfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}

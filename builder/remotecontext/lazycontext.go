@@ -3,6 +3,7 @@ package remotecontext // import "github.com/docker/docker/builder/remotecontext"
 import (
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -65,7 +66,7 @@ func (c *lazySource) Hash(path string) (string, error) {
 }
 
 func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error) {
-	p := c.root.Join(c.root.Path(), relPath)
+	p := filepath.Join(c.root.Path(), relPath)
 	h, err := NewFileHash(p, relPath, fi)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to create hash for %s", relPath)
@@ -99,5 +100,5 @@ func Rel(basepath containerfs.ContainerFS, targpath string) (string, error) {
 			return p, nil
 		}
 	}
-	return basepath.Rel(basepath.Path(), targpath)
+	return filepath.Rel(basepath.Path(), targpath)
 }

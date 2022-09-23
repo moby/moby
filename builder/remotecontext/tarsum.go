@@ -2,6 +2,7 @@ package remotecontext // import "github.com/docker/docker/builder/remotecontext"
 
 import (
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/docker/docker/pkg/containerfs"
@@ -66,7 +67,7 @@ func (cs *CachableSource) Scan() error {
 		return err
 	}
 	txn := iradix.New().Txn()
-	err = cs.root.Walk(cs.root.Path(), func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(cs.root.Path(), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to walk %s", path)
 		}

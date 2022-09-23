@@ -5,6 +5,7 @@ package graphtest // import "github.com/docker/docker/daemon/graphdriver/graphte
 
 import (
 	"io"
+	"path/filepath"
 	"testing"
 
 	contdriver "github.com/containerd/continuity/driver"
@@ -249,7 +250,7 @@ func DriverBenchDeepLayerRead(b *testing.B, layerCount int, drivername string, d
 	for i := 0; i < b.N; i++ {
 
 		// Read content
-		c, err := contdriver.ReadFile(root, root.Join(root.Path(), "testfile.txt"))
+		c, err := contdriver.ReadFile(root, filepath.Join(root.Path(), "testfile.txt"))
 		if err != nil {
 			b.Fatal(err)
 		}

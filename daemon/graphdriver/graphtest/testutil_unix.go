@@ -5,6 +5,7 @@ package graphtest // import "github.com/docker/docker/daemon/graphdriver/graphte
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 
@@ -44,11 +45,11 @@ func createBase(t testing.TB, driver graphdriver.Driver, name string) {
 	assert.NilError(t, err)
 	defer driver.Put(name)
 
-	subdir := dirFS.Join(dirFS.Path(), "a subdir")
+	subdir := filepath.Join(dirFS.Path(), "a subdir")
 	assert.NilError(t, dirFS.Mkdir(subdir, 0705|os.ModeSticky))
 	assert.NilError(t, dirFS.Lchown(subdir, 1, 2))
 
-	file := dirFS.Join(dirFS.Path(), "a file")
+	file := filepath.Join(dirFS.Path(), "a file")
 	err = contdriver.WriteFile(dirFS, file, []byte("Some data"), 0222|os.ModeSetuid)
 	assert.NilError(t, err)
 }
@@ -58,10 +59,10 @@ func verifyBase(t testing.TB, driver graphdriver.Driver, name string) {
 	assert.NilError(t, err)
 	defer driver.Put(name)
 
-	subdir := dirFS.Join(dirFS.Path(), "a subdir")
+	subdir := filepath.Join(dirFS.Path(), "a subdir")
 	verifyFile(t, subdir, 0705|os.ModeDir|os.ModeSticky, 1, 2)
 
-	file := dirFS.Join(dirFS.Path(), "a file")
+	file := filepath.Join(dirFS.Path(), "a file")
 	verifyFile(t, file, 0222|os.ModeSetuid, 0, 0)
 
 	files, err := readDir(dirFS, dirFS.Path())

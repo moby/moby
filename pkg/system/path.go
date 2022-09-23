@@ -16,12 +16,6 @@ func DefaultPathEnv(os string) string {
 
 }
 
-// PathVerifier defines the subset of a PathDriver that CheckSystemDriveAndRemoveDriveLetter
-// actually uses in order to avoid system depending on containerd/continuity.
-type PathVerifier interface {
-	IsAbs(string) bool
-}
-
 // CheckSystemDriveAndRemoveDriveLetter verifies that a path, if it includes a drive letter,
 // is the system drive.
 // On Linux: this is a no-op.
@@ -37,6 +31,6 @@ type PathVerifier interface {
 // a			--> a
 // /a			--> \a
 // d:\			--> Fail
-func CheckSystemDriveAndRemoveDriveLetter(path string, driver PathVerifier) (string, error) {
-	return checkSystemDriveAndRemoveDriveLetter(path, driver)
+func CheckSystemDriveAndRemoveDriveLetter(path string) (string, error) {
+	return checkSystemDriveAndRemoveDriveLetter(path)
 }
