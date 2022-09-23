@@ -72,7 +72,6 @@ func TestProcessShouldRemoveDockerfileDockerignore(t *testing.T) {
 	executeProcess(t, contextDir)
 
 	checkDirectory(t, contextDir, []string{shouldStayFilename})
-
 }
 
 func TestProcessNoDockerignore(t *testing.T) {
@@ -85,7 +84,6 @@ func TestProcessNoDockerignore(t *testing.T) {
 	executeProcess(t, contextDir)
 
 	checkDirectory(t, contextDir, []string{shouldStayFilename, builder.DefaultDockerfileName})
-
 }
 
 func TestProcessShouldLeaveAllFiles(t *testing.T) {
@@ -99,7 +97,6 @@ func TestProcessShouldLeaveAllFiles(t *testing.T) {
 	executeProcess(t, contextDir)
 
 	checkDirectory(t, contextDir, []string{shouldStayFilename, builder.DefaultDockerfileName, dockerignoreFilename})
-
 }
 
 // TODO: remove after moving to a separate pkg
