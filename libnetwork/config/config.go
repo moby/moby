@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"strings"
 
 	"github.com/docker/docker/libnetwork/cluster"
@@ -11,7 +10,6 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libkv/store"
-	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,23 +47,6 @@ func (c *Config) LoadDefaultScopes(dataDir string) {
 			c.Scopes[k] = v
 		}
 	}
-}
-
-// ParseConfig parses the libnetwork configuration file
-func ParseConfig(tomlCfgFile string) (*Config, error) {
-	cfg := &Config{
-		Scopes: map[string]*datastore.ScopeCfg{},
-	}
-	data, err := os.ReadFile(tomlCfgFile)
-	if err != nil {
-		return nil, err
-	}
-	if err := toml.Unmarshal(data, cfg); err != nil {
-		return nil, err
-	}
-
-	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
-	return cfg, nil
 }
 
 // ParseConfigOptions parses the configuration options and returns
