@@ -284,7 +284,6 @@ func TestHealthcheckNone(t *testing.T) {
 }
 
 func TestHealthcheckCmd(t *testing.T) {
-
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	expectedTest := []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"}

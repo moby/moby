@@ -24,7 +24,6 @@ import (
 
 // ResolveCacheImporterFunc returns a resolver function for local inline cache
 func ResolveCacheImporterFunc(sm *session.Manager, resolverFunc docker.RegistryHosts, cs content.Store, rs reference.Store, is imagestore.Store) remotecache.ResolveCacheImporterFunc {
-
 	upstream := registryremotecache.ResolveCacheImporterFunc(sm, cs, resolverFunc)
 
 	return func(ctx context.Context, group session.Group, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {

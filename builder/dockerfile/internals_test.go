@@ -140,7 +140,6 @@ func TestCopyRunConfig(t *testing.T) {
 		// Assert the original was not modified
 		assert.Check(t, runConfig != runConfigCopy, testcase.doc)
 	}
-
 }
 
 func fullMutableRunConfig() *container.Config {
