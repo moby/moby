@@ -70,15 +70,19 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 
 // ParseConfigOptions parses the configuration options and returns
 // a reference to the corresponding Config structure
-func ParseConfigOptions(cfgOptions ...Option) *Config {
+func ParseConfigOptions(opts ...Option) *Config {
 	cfg := &Config{
 		Daemon: DaemonCfg{
 			DriverCfg: make(map[string]interface{}),
 		},
 		Scopes: make(map[string]*datastore.ScopeCfg),
 	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(cfg)
+		}
+	}
 
-	cfg.ProcessOptions(cfgOptions...)
 	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
 
 	return cfg
@@ -163,15 +167,6 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 			}
 		}
 		c.Daemon.NetworkControlPlaneMTU = exp
-	}
-}
-
-// ProcessOptions processes options and stores it in config
-func (c *Config) ProcessOptions(options ...Option) {
-	for _, opt := range options {
-		if opt != nil {
-			opt(c)
-		}
 	}
 }
 
