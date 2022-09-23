@@ -427,7 +427,6 @@ func (s *DockerAPISuite) TestBuildChownOnCopy(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestBuildCopyCacheOnFileChange(c *testing.T) {
-
 	dockerfile := `FROM busybox
 COPY file /file`
 
@@ -468,7 +467,6 @@ COPY file /file`
 }
 
 func (s *DockerAPISuite) TestBuildAddCacheOnFileChange(c *testing.T) {
-
 	dockerfile := `FROM busybox
 ADD file /file`
 

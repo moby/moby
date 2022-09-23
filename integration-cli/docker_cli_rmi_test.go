@@ -63,13 +63,11 @@ func (s *DockerCLIRmiSuite) TestRmiTag(c *testing.T) {
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
 		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n")+1, fmt.Sprintf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
-
 	}
 	dockerCmd(c, "rmi", "utest:tag1")
 	{
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
 		assert.Equal(c, strings.Count(imagesAfter, "\n"), strings.Count(imagesBefore, "\n"), fmt.Sprintf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
-
 	}
 }
 

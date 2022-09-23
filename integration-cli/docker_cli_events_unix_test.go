@@ -391,7 +391,6 @@ func (s *DockerCLIEventSuite) TestEventsFilterNetworkID(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
-
 	// daemon config file
 	configFilePath := "test.json"
 	defer os.Remove(configFilePath)
@@ -439,7 +438,6 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
-
 	// daemon config file
 	configFilePath := "test.json"
 	defer os.Remove(configFilePath)

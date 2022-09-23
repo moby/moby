@@ -117,7 +117,6 @@ func (s *DockerCLIEventSuite) TestEventsContainerEventsAttrSort(c *testing.T) {
 		if matches["eventType"] == "container" && matches["action"] == "create" {
 			matchedEvents++
 			assert.Check(c, strings.Contains(out, "(image=busybox, name=container-events-test)"), "Event attributes not sorted")
-
 		} else if matches["eventType"] == "container" && matches["action"] == "start" {
 			matchedEvents++
 			assert.Check(c, strings.Contains(out, "(image=busybox, name=container-events-test)"), "Event attributes not sorted")

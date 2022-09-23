@@ -152,7 +152,6 @@ func (s *DockerCLIHealthSuite) TestHealth(c *testing.T) {
 	out, _ = dockerCmd(c, "inspect",
 		"--format={{.Config.Healthcheck.Test}}", imageName)
 	assert.Equal(c, out, "[CMD cat /my status]\n")
-
 }
 
 // GitHub #33021
@@ -175,5 +174,4 @@ ENTRYPOINT /bin/sh -c "sleep 600"`))
 	// Start
 	dockerCmd(c, "start", name)
 	waitForHealthStatus(c, name, "starting", "healthy")
-
 }
