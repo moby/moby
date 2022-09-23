@@ -20,14 +20,6 @@ const (
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
-	Daemon          DaemonCfg
-	Scopes          map[string]*datastore.ScopeCfg
-	ActiveSandboxes map[string]interface{}
-	PluginGetter    plugingetter.PluginGetter
-}
-
-// DaemonCfg represents libnetwork core configuration
-type DaemonCfg struct {
 	DataDir                string
 	ExecRoot               string
 	DefaultNetwork         string
@@ -37,6 +29,9 @@ type DaemonCfg struct {
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
+	Scopes                 map[string]*datastore.ScopeCfg
+	ActiveSandboxes        map[string]interface{}
+	PluginGetter           plugingetter.PluginGetter
 }
 
 // LoadDefaultScopes loads default scope configs for scopes which
@@ -53,10 +48,8 @@ func (c *Config) LoadDefaultScopes(dataDir string) {
 // a reference to the corresponding Config structure
 func ParseConfigOptions(opts ...Option) *Config {
 	cfg := &Config{
-		Daemon: DaemonCfg{
-			DriverCfg: make(map[string]interface{}),
-		},
-		Scopes: make(map[string]*datastore.ScopeCfg),
+		DriverCfg: make(map[string]interface{}),
+		Scopes:    make(map[string]*datastore.ScopeCfg),
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -64,7 +57,7 @@ func ParseConfigOptions(opts ...Option) *Config {
 		}
 	}
 
-	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
+	cfg.LoadDefaultScopes(cfg.DataDir)
 
 	return cfg
 }
@@ -77,7 +70,7 @@ type Option func(c *Config)
 func OptionDefaultNetwork(dn string) Option {
 	return func(c *Config) {
 		logrus.Debugf("Option DefaultNetwork: %s", dn)
-		c.Daemon.DefaultNetwork = strings.TrimSpace(dn)
+		c.DefaultNetwork = strings.TrimSpace(dn)
 	}
 }
 
@@ -85,21 +78,21 @@ func OptionDefaultNetwork(dn string) Option {
 func OptionDefaultDriver(dd string) Option {
 	return func(c *Config) {
 		logrus.Debugf("Option DefaultDriver: %s", dd)
-		c.Daemon.DefaultDriver = strings.TrimSpace(dd)
+		c.DefaultDriver = strings.TrimSpace(dd)
 	}
 }
 
 // OptionDefaultAddressPoolConfig function returns an option setter for default address pool
 func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Option {
 	return func(c *Config) {
-		c.Daemon.DefaultAddressPool = addressPool
+		c.DefaultAddressPool = addressPool
 	}
 }
 
 // OptionDriverConfig returns an option setter for driver configuration.
 func OptionDriverConfig(networkType string, config map[string]interface{}) Option {
 	return func(c *Config) {
-		c.Daemon.DriverCfg[networkType] = config
+		c.DriverCfg[networkType] = config
 	}
 }
 
@@ -108,7 +101,7 @@ func OptionLabels(labels []string) Option {
 	return func(c *Config) {
 		for _, label := range labels {
 			if strings.HasPrefix(label, netlabel.Prefix) {
-				c.Daemon.Labels = append(c.Daemon.Labels, label)
+				c.Labels = append(c.Labels, label)
 			}
 		}
 	}
@@ -117,14 +110,14 @@ func OptionLabels(labels []string) Option {
 // OptionDataDir function returns an option setter for data folder
 func OptionDataDir(dataDir string) Option {
 	return func(c *Config) {
-		c.Daemon.DataDir = dataDir
+		c.DataDir = dataDir
 	}
 }
 
 // OptionExecRoot function returns an option setter for exec root folder
 func OptionExecRoot(execRoot string) Option {
 	return func(c *Config) {
-		c.Daemon.ExecRoot = execRoot
+		c.ExecRoot = execRoot
 		osl.SetBasePath(execRoot)
 	}
 }
@@ -147,7 +140,7 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 				exp = minimumNetworkControlPlaneMTU
 			}
 		}
-		c.Daemon.NetworkControlPlaneMTU = exp
+		c.NetworkControlPlaneMTU = exp
 	}
 }
 
