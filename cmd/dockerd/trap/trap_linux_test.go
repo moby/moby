@@ -62,5 +62,4 @@ func TestTrap(t *testing.T) {
 			}
 		})
 	}
-
 }
