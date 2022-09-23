@@ -171,7 +171,6 @@ func TestManifestStore(t *testing.T) {
 
 		err = w.Commit(ctx, desc.Size, desc.Digest, opts...)
 		assert.NilError(t, err)
-
 	}
 
 	// All tests should end up with no active ingest
@@ -348,7 +347,6 @@ func TestDetectManifestBlobMediaType(t *testing.T) {
 			assert.Equal(t, mt, tc.expected)
 		})
 	}
-
 }
 
 func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
@@ -418,5 +416,4 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 			assert.Equal(t, mt, "")
 		})
 	}
-
 }

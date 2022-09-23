@@ -78,7 +78,6 @@ func TestFSInvalidRoot(t *testing.T) {
 
 		os.RemoveAll(root)
 	}
-
 }
 
 func TestFSMetadataGetSet(t *testing.T) {

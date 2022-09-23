@@ -313,7 +313,6 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 						d.err = errors.New("download cancelled during retry delay")
 						return
 					}
-
 				}
 			}
 

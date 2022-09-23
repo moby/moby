@@ -138,7 +138,6 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if err := addAssoc(image.IDFromDigest(id), namedRef); err != nil {
 			return nil, err
 		}
-
 	}
 	return imgDescr, nil
 }
