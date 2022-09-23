@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/remote"
 )
 
-func getInitializers(experimental bool) []initializer {
+func getInitializers() []initializer {
 	in := []initializer{
 		{bridge.Init, "bridge"},
 		{host.Init, "host"},
