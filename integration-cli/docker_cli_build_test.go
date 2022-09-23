@@ -108,7 +108,6 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementVolume(c *testing.T
 	if _, ok := volumes[volumePath]; !ok {
 		c.Fatal("Volume " + volumePath + " from environment not in Config.Volumes on image")
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementExpose(c *testing.T) {
@@ -133,7 +132,6 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementExpose(c *testing.T
 			c.Fatalf("Exposed port %d from environment not in Config.ExposedPorts on image", p)
 		}
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementWorkdir(c *testing.T) {
@@ -240,7 +238,6 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementEnv(c *testing.T) {
 	if envCount != 4 {
 		c.Fatalf("Didn't find all env vars - only saw %d\n%s", envCount, envResult)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildHandleEscapesInVolume(c *testing.T) {
@@ -308,7 +305,6 @@ func (s *DockerCLIBuildSuite) TestBuildOnBuildLowercase(c *testing.T) {
 	if strings.Contains(result.Combined(), "ONBUILD ONBUILD") {
 		c.Fatalf("Got an ONBUILD ONBUILD error with no error: got %s", result.Combined())
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildEnvEscapes(c *testing.T) {
@@ -325,7 +321,6 @@ func (s *DockerCLIBuildSuite) TestBuildEnvEscapes(c *testing.T) {
 	if strings.TrimSpace(out) != "$" {
 		c.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildEnvOverwrite(c *testing.T) {
@@ -342,7 +337,6 @@ func (s *DockerCLIBuildSuite) TestBuildEnvOverwrite(c *testing.T) {
 	if strings.TrimSpace(out) != "bar" {
 		c.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
 	}
-
 }
 
 // FIXME(vdemeester) why we disabled cache here ?
@@ -377,7 +371,6 @@ ONBUILD ENTRYPOINT ["echo"]`))
 	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
 		c.Fatal("got malformed output from onbuild", out)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildCacheAdd(c *testing.T) {
@@ -447,7 +440,6 @@ ADD %s/file /`
 	if out == out2 {
 		c.Fatalf("MTime didn't change:\nOrigin:%s\nNew:%s", out, out2)
 	}
-
 }
 
 // Regression for https://github.com/docker/docker/pull/27805
@@ -682,7 +674,6 @@ func (s *DockerCLIBuildSuite) TestBuildCopyWildcard(c *testing.T) {
 	if id1 != id2 {
 		c.Fatal("didn't use the cache")
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildCopyWildcardInName(c *testing.T) {
@@ -728,7 +719,6 @@ func (s *DockerCLIBuildSuite) TestBuildCopyWildcardCache(c *testing.T) {
 	if id1 != id2 {
 		c.Fatal("didn't use the cache")
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildAddSingleFileToNonExistingDir(c *testing.T) {
@@ -1012,7 +1002,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinks(c *testing.T) {
 	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildAddBadLinksVolume(c *testing.T) {
@@ -1053,7 +1042,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 	if _, err := os.Stat(nonExistingFile); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't have been written and it shouldn't exist", nonExistingFile)
 	}
-
 }
 
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
@@ -1131,7 +1119,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 		if !strings.Contains(result.Combined(), "error checking context") {
 			c.Fatalf("output should've contained the string: error checking context\ngot:%s", result.Combined())
 		}
-
 	}
 	{
 		name := "testlinksok"
@@ -1195,7 +1182,6 @@ func (s *DockerCLIBuildSuite) TestBuildForceRm(c *testing.T) {
 	if containerCountBefore != containerCountAfter {
 		c.Fatalf("--force-rm shouldn't have left containers behind")
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildRm(c *testing.T) {
@@ -1273,7 +1259,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithVolumes(c *testing.T) {
 	if !equal {
 		c.Fatalf("Volumes %s, expected %s", result, expected)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildMaintainer(c *testing.T) {
@@ -1540,7 +1525,6 @@ func (s *DockerCLIBuildSuite) TestBuildContextCleanup(c *testing.T) {
 	if err = compareDirectoryEntries(entries, entriesFinal); err != nil {
 		c.Fatalf("context should have been deleted, but wasn't")
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildContextCleanupFailedBuild(c *testing.T) {
@@ -1564,7 +1548,6 @@ func (s *DockerCLIBuildSuite) TestBuildContextCleanupFailedBuild(c *testing.T) {
 	if err = compareDirectoryEntries(entries, entriesFinal); err != nil {
 		c.Fatalf("context should have been deleted, but wasn't")
 	}
-
 }
 
 // compareDirectoryEntries compares two sets of DirEntry (usually taken from a directory)
@@ -1724,7 +1707,6 @@ func (s *DockerCLIBuildSuite) TestBuildEmptyEntrypoint(c *testing.T) {
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildEntrypoint(c *testing.T) {
@@ -1738,7 +1720,6 @@ func (s *DockerCLIBuildSuite) TestBuildEntrypoint(c *testing.T) {
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
-
 }
 
 // #6445 ensure ONBUILD triggers aren't committed to grandchildren
@@ -2174,7 +2155,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithVolumeOwnership(c *testing.T) {
 	if expected := "daemon   daemon"; !strings.Contains(out, expected) {
 		c.Fatalf("expected %s received %s", expected, out)
 	}
-
 }
 
 // testing #1405 - config.Cmd does not get cleaned up if
@@ -2282,7 +2262,6 @@ docker.com>"
 	if res != "\"Docker IO <io@docker.com>\"" {
 		c.Fatalf("Parsed string did not match the escaped string. Got: %q", res)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildVerifyIntString(c *testing.T) {
@@ -2297,7 +2276,6 @@ func (s *DockerCLIBuildSuite) TestBuildVerifyIntString(c *testing.T) {
 	if !strings.Contains(out, "\"123\"") {
 		c.Fatalf("Output does not contain the int as a string:\n%s", out)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildDockerignore(c *testing.T) {
@@ -3215,7 +3193,6 @@ func (s *DockerCLIBuildSuite) TestBuildCmdShDashC(c *testing.T) {
 	if res != expected {
 		c.Fatalf("Expected value %s not in Config.Cmd: %s", expected, res)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildCmdSpaces(c *testing.T) {
@@ -3426,7 +3403,6 @@ func (s *DockerCLIBuildSuite) TestBuildLabelsCache(c *testing.T) {
 	if id1 == id2 {
 		c.Fatalf("Build 6 should have worked & NOT used the cache(%s,%s)", id1, id2)
 	}
-
 }
 
 // FIXME(vdemeester) port to docker/cli e2e tests (api tests should test suppressOutput option though)
@@ -3477,7 +3453,6 @@ func (s *DockerCLIBuildSuite) TestBuildNotVerboseSuccess(c *testing.T) {
 			c.Fatalf("Test %s expected stderr to be empty, but it is [%#v]", te.Name, result.Stderr())
 		}
 	}
-
 }
 
 // FIXME(vdemeester) migrate to docker/cli tests
@@ -3702,7 +3677,6 @@ CMD cat /foo/file`),
 	if out != expected {
 		c.Fatalf("expected file contents for /foo/file to be %q but received %q", expected, out)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildFromMixedcaseDockerfile(c *testing.T) {
@@ -3752,7 +3726,6 @@ RUN find /tmp/`}))
 		!strings.Contains(result.Combined(), "/tmp/Dockerfile") {
 		c.Fatalf("Missing proper output: %s", result.Combined())
 	}
-
 }
 
 // FIXME(vdemeester) should migrate to docker/cli tests
@@ -3778,7 +3751,6 @@ RUN sh -c "find /tmp/" # sh -c is needed on Windows to use the correct find`)
 		!strings.Contains(result.Combined(), "/tmp/Dockerfile") {
 		c.Fatalf("Missing proper output: %s", result.Combined())
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildFromOfficialNames(c *testing.T) {
@@ -3859,7 +3831,6 @@ func (s *DockerCLIBuildSuite) TestBuildSpaces(c *testing.T) {
 	if strings.ReplaceAll(e1, " ", "") != strings.ReplaceAll(e2, " ", "") {
 		c.Fatalf("Build 4's error wasn't the same as build 1's\n1:%s\n4:%s", result1.Error, result2.Error)
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildSpacesWithQuotes(c *testing.T) {
@@ -3937,7 +3908,6 @@ func (s *DockerCLIBuildSuite) TestBuildMissingArgs(c *testing.T) {
 			Err:      cmd + " requires",
 		})
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildEmptyScratch(c *testing.T) {
@@ -4109,7 +4079,6 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArg(c *testing.T) {
 			ARG %s
 			RUN echo $%s
 			CMD echo $%s`, envKey, envKey, envKey)
-
 	}
 	buildImage(imgName,
 		cli.WithFlags("--build-arg", fmt.Sprintf("%s=%s", envKey, envVal)),
@@ -4846,7 +4815,6 @@ func (s *DockerCLIBuildSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	assert.Assert(c, !strings.Contains(result.Combined(), "Using cache"))
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "abc", "def").Combined()
 	assert.Assert(c, cmp.Regexp("^barbax$", out))
-
 }
 
 // TestBuildSymlinkBasename tests that target file gets basename from symlink,
@@ -4869,7 +4837,6 @@ func (s *DockerCLIBuildSuite) TestBuildSymlinkBasename(c *testing.T) {
 
 	out := cli.DockerCmd(c, "run", "--rm", name, "cat", "asymlink").Combined()
 	assert.Assert(c, cmp.Regexp("^bar$", out))
-
 }
 
 // #17827
@@ -5374,7 +5341,6 @@ func (s *DockerCLIBuildSuite) TestBuildCmdShellArgsEscaped(c *testing.T) {
 	if res != `["ipconfig"]` {
 		c.Fatalf("CMD incorrect in Config.Cmd: got %v", res)
 	}
-
 }
 
 // Test case for #24912.
@@ -5614,7 +5580,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithExtraHostInvalidFormat(c *testing.T) 
 			ExitCode: 125,
 		})
 	}
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {

@@ -89,7 +89,6 @@ func (s *DockerCLIRunSuite) TestRunLookupGoogleDNS(c *testing.T) {
 	} else {
 		dockerCmd(c, "run", "busybox", "nslookup", "google.com")
 	}
-
 }
 
 // the exit code should be 0
@@ -355,7 +354,6 @@ func (s *DockerCLIRunSuite) TestRunWithDaemonFlags(c *testing.T) {
 
 // Regression test for #4979
 func (s *DockerCLIRunSuite) TestRunWithVolumesFromExited(c *testing.T) {
-
 	var (
 		out      string
 		exitCode int

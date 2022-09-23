@@ -224,7 +224,6 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 // , contenttype, …), if receive a successful "101 Switching Protocols" response return
 // a `io.WriteCloser` and `bufio.Reader`
 func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (io.WriteCloser, *bufio.Reader, error) {
-
 	hostURL, err := client.ParseHostURL(daemon)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "parse daemon host error")
