@@ -16,7 +16,6 @@ import (
 )
 
 func TestHealthStates(t *testing.T) {
-
 	// set up environment: events, task, container ....
 	e := events.New()
 	_, l, _ := e.Subscribe()

@@ -96,7 +96,6 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 	for _, n := range spec.Networks {
 		netConfig := types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverOpts: n.DriverAttachmentOpts}
 		serviceNetworks = append(serviceNetworks, netConfig)
-
 	}
 
 	taskTemplate, err := taskSpecFromGRPC(spec.Task)
@@ -169,7 +168,6 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	for _, n := range s.TaskTemplate.Networks {
 		netConfig := &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverAttachmentOpts: n.DriverOpts}
 		taskNetworks = append(taskNetworks, netConfig)
-
 	}
 
 	spec := swarmapi.ServiceSpec{
@@ -473,7 +471,6 @@ func resourcesToGRPC(res *types.ResourceRequirements) *swarmapi.ResourceRequirem
 				MemoryBytes: res.Reservations.MemoryBytes,
 				Generic:     GenericResourcesToGRPC(res.Reservations.GenericResources),
 			}
-
 		}
 	}
 	return reqs
@@ -536,7 +533,6 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 		}
 		if p.MaxAttempts != nil {
 			rp.MaxAttempts = *p.MaxAttempts
-
 		}
 	}
 	return rp, nil
