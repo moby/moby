@@ -661,7 +661,6 @@ func TestCollectBatchTicker(t *testing.T) {
 	assert.Equal(t, logline+" 3", aws.StringValue(argument.LogEvents[0].Message))
 
 	stream.Close()
-
 }
 
 func TestCollectBatchMultilinePattern(t *testing.T) {
