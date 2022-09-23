@@ -370,7 +370,6 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 
 	pusher, err := resolver.Pusher(ctx, ref.String())
 	if err != nil {
-
 		return errors.Wrap(err, "error creating plugin pusher")
 	}
 
