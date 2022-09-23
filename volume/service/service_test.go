@@ -45,7 +45,6 @@ func TestServiceCreate(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = service.Create(ctx, "v1", "d2")
 	assert.NilError(t, err)
-
 }
 
 func TestServiceList(t *testing.T) {
