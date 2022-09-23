@@ -170,7 +170,6 @@ func testLogs(t *testing.T, logDriver string) {
 					}
 					return
 				}
-
 			}
 
 			assert.DeepEqual(t, stdoutStr, tC.expectedOut)

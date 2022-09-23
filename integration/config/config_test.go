@@ -109,7 +109,6 @@ func TestConfigList(t *testing.T) {
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(configNamesFromList(entries), tc.expected))
-
 	}
 }
 

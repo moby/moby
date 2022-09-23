@@ -122,7 +122,6 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 							break
 						}
 						time.Sleep(2 * time.Second)
-
 					}
 					assert.Equal(t, expected, running, "got unexpected running state, expected %v, got: %v", expected, running)
 
@@ -209,5 +208,4 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 			poll.WaitOn(t, testContainer.IsRemoved(ctx, cli, cID))
 		})
 	}
-
 }

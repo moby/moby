@@ -109,7 +109,6 @@ func TestSecretList(t *testing.T) {
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(secretNamesFromList(entries), tc.expected))
-
 	}
 }
 
