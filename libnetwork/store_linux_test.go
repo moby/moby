@@ -14,7 +14,6 @@ func TestBoltdbBackend(t *testing.T) {
 	defer os.Remove("/tmp/boltdb.db")
 	config := &store.Config{Bucket: "testBackend"}
 	testLocalBackend(t, "boltdb", "/tmp/boltdb.db", config)
-
 }
 
 func TestNoPersist(t *testing.T) {

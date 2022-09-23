@@ -347,7 +347,6 @@ func (r *resolver) handleSRVQuery(query *dns.Msg) (*dns.Msg, error) {
 		resp.Extra = append(resp.Extra, rr1)
 	}
 	return resp, nil
-
 }
 
 func truncateResp(resp *dns.Msg, maxSize int, isTCP bool) {

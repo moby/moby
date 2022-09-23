@@ -319,7 +319,6 @@ func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 
 			for _, lEp := range delEpMap {
 				ep.getNetwork().updateSvcRecord(lEp, c.getLocalEps(nw), false)
-
 			}
 			for _, lEp := range addEp {
 				ep.getNetwork().updateSvcRecord(lEp, c.getLocalEps(nw), true)

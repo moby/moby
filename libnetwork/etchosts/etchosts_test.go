@@ -209,7 +209,6 @@ func TestUpdateIgnoresPrefixedHostname(t *testing.T) {
 	if expected := "5.5.5.5\tprefix\n3.3.3.3\tprefixAndMore\n4.4.4.4\tunaffectedHost\n"; !bytes.Contains(content, []byte(expected)) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
-
 }
 
 // This regression test covers the host prefix issue for the

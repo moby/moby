@@ -895,7 +895,6 @@ func (c *controller) handleNodeTableEvent(ev events.Event) {
 		return
 	}
 	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
-
 }
 
 func (c *controller) handleEpTableEvent(ev events.Event) {
