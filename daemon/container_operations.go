@@ -562,7 +562,6 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 		if err := daemon.connectToNetwork(container, defaultNetName, nConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}
-
 	}
 
 	// the intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
@@ -601,7 +600,6 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 				}
 			}()
 		}
-
 	}
 
 	if _, err := container.WriteHostConfig(); err != nil {

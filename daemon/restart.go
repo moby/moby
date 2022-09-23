@@ -24,7 +24,6 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 		return fmt.Errorf("Cannot restart container %s: %v", name, err)
 	}
 	return nil
-
 }
 
 // containerRestart attempts to gracefully stop and then start the

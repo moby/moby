@@ -706,7 +706,6 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		return nil
-
 	}
 }
 
