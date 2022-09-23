@@ -14,13 +14,6 @@ type ContainerFS interface {
 	// on the local system, so the continuity operations must be used
 	Path() string
 
-	// ResolveScopedPath evaluates the given path scoped to the root.
-	// For example, if root=/a, and path=/b/c, then this function would return /a/b/c.
-	// If rawPath is true, then the function will not preform any modifications
-	// before path resolution. Otherwise, the function will clean the given path
-	// by making it an absolute path.
-	ResolveScopedPath(path string, rawPath bool) (string, error)
-
 	Driver
 }
 
@@ -52,10 +45,8 @@ func (l *local) Path() string {
 	return l.path
 }
 
-func (l *local) ResolveScopedPath(path string, rawPath bool) (string, error) {
-	cleanedPath := path
-	if !rawPath {
-		cleanedPath = cleanScopedPath(path)
-	}
-	return symlink.FollowSymlinkInScope(filepath.Join(l.path, cleanedPath), l.path)
+// ResolveScopedPath evaluates the given path scoped to the root.
+// For example, if root=/a, and path=/b/c, then this function would return /a/b/c.
+func ResolveScopedPath(root, path string) (string, error) {
+	return symlink.FollowSymlinkInScope(filepath.Join(root, path), root)
 }

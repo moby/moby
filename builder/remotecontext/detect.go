@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext/urlutil"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -175,7 +176,7 @@ func StatAt(remote builder.Source, path string) (os.FileInfo, error) {
 
 // FullPath is a helper for getting a full path for a path from a source
 func FullPath(remote builder.Source, path string) (string, error) {
-	fullPath, err := remote.Root().ResolveScopedPath(path, true)
+	fullPath, err := containerfs.ResolveScopedPath(remote.Root().Path(), path)
 	if err != nil {
 		if runtime.GOOS == "windows" {
 			return "", fmt.Errorf("failed to resolve scoped path %s (%s): %s. Possible cause is a forbidden path outside the build context", path, fullPath, err)

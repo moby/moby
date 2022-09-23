@@ -304,7 +304,7 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 	}
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
-	r, e := container.BaseFS.ResolveScopedPath(path, false)
+	r, e := containerfs.ResolveScopedPath(container.BaseFS.Path(), containerfs.CleanScopedPath(path))
 
 	// Log this here on the daemon side as there's otherwise no indication apart
 	// from the error being propagated all the way back to the client. This makes

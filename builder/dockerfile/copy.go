@@ -45,7 +45,7 @@ type copyInfo struct {
 }
 
 func (c copyInfo) fullPath() (string, error) {
-	return c.root.ResolveScopedPath(c.path, true)
+	return containerfs.ResolveScopedPath(c.root.Path(), c.path)
 }
 
 func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
