@@ -14,12 +14,6 @@ type ContainerFS interface {
 	// on the local system, so the continuity operations must be used
 	Path() string
 
-	Driver
-}
-
-// Driver combines both continuity's Driver and PathDriver interfaces with a Platform
-// field to determine the OS.
-type Driver interface {
 	// Driver & PathDriver provide methods to manipulate files & paths
 	driver.Driver
 	pathdriver.PathDriver

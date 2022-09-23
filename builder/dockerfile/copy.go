@@ -449,7 +449,7 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 type copyFileOptions struct {
 	decompress bool
 	identity   *idtools.Identity
-	archiver   Archiver
+	archiver   *archive.Archiver
 }
 
 func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
@@ -490,7 +490,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 	return copyFile(archiver, srcPath, destPath, options.identity)
 }
 
-func copyDirectory(archiver Archiver, source, dest string, identity *idtools.Identity) error {
+func copyDirectory(archiver *archive.Archiver, source, dest string, identity *idtools.Identity) error {
 	destExists, err := isExistingDirectory(dest)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query destination path")
@@ -505,7 +505,7 @@ func copyDirectory(archiver Archiver, source, dest string, identity *idtools.Ide
 	return nil
 }
 
-func copyFile(archiver Archiver, source, dest string, identity *idtools.Identity) error {
+func copyFile(archiver *archive.Archiver, source, dest string, identity *idtools.Identity) error {
 	if identity == nil {
 		// Use system.MkdirAll here, which is a custom version of os.MkdirAll
 		// modified for use on Windows to handle volume GUID paths. These paths

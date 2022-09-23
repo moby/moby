@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -17,8 +16,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -26,50 +23,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Archiver defines an interface for copying files from one destination to
-// another using Tar/Untar.
-type Archiver interface {
-	TarUntar(src, dst string) error
-	UntarPath(src, dst string) error
-	CopyWithTar(src, dst string) error
-	CopyFileWithTar(src, dst string) error
-	IdentityMapping() idtools.IdentityMapping
-}
-
-// The builder will use the following interfaces if the container fs implements
-// these for optimized copies to and from the container.
-type extractor interface {
-	ExtractArchive(src io.Reader, dst string, opts *archive.TarOptions) error
-}
-
-type archiver interface {
-	ArchivePath(src string, opts *archive.TarOptions) (io.ReadCloser, error)
-}
-
-// helper functions to get tar/untar func
-func untarFunc(i interface{}) containerfs.UntarFunc {
-	if ea, ok := i.(extractor); ok {
-		return ea.ExtractArchive
-	}
-	return chrootarchive.Untar
-}
-
-func tarFunc(i interface{}) containerfs.TarFunc {
-	if ap, ok := i.(archiver); ok {
-		return ap.ArchivePath
-	}
-	return archive.TarWithOptions
-}
-
-func (b *Builder) getArchiver(src, dst containerfs.Driver) Archiver {
-	t, u := tarFunc(src), untarFunc(dst)
-	return &containerfs.Archiver{
-		SrcDriver: src,
-		DstDriver: dst,
-		Tar:       t,
-		Untar:     u,
-		IDMapping: b.idMapping,
-	}
+func (b *Builder) getArchiver() *archive.Archiver {
+	return chrootarchive.NewArchiver(b.idMapping)
 }
 
 func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
@@ -205,7 +160,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	for _, info := range inst.infos {
 		opts := copyFileOptions{
 			decompress: inst.allowLocalDecompression,
-			archiver:   b.getArchiver(info.root, destInfo.root),
+			archiver:   b.getArchiver(),
 		}
 		if !inst.preserveOwnership {
 			opts.identity = &identity
