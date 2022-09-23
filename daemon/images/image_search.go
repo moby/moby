@@ -23,7 +23,6 @@ var acceptedSearchFilterTags = map[string]bool{
 func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilters filters.Args, term string, limit int,
 	authConfig *registry.AuthConfig,
 	headers map[string][]string) (*registry.SearchResults, error) {
-
 	if err := searchFilters.Validate(acceptedSearchFilterTags); err != nil {
 		return nil, err
 	}

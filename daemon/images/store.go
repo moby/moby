@@ -129,7 +129,6 @@ func (c *contentStoreForPull) Writer(ctx context.Context, opts ...content.Writer
 				if err := o(&cfg); err != nil {
 					return nil, err
 				}
-
 			}
 			c.addDigested(cfg.Desc.Digest)
 		}

@@ -134,7 +134,6 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 						records = append(records, untaggedRecord)
 					} else {
 						remainingRefs = append(remainingRefs, repoRef)
-
 					}
 				}
 				repoRefs = remainingRefs
