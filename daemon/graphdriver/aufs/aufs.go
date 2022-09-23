@@ -370,7 +370,7 @@ func (a *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		}
 	}
 	if count := a.ctr.Increment(m); count > 1 {
-		return containerfs.NewLocalContainerFS(m), nil
+		return m, nil
 	}
 
 	// If a dir does not have a parent ( no layers )do not try to mount
@@ -384,7 +384,7 @@ func (a *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	a.pathCacheLock.Lock()
 	a.pathCache[id] = m
 	a.pathCacheLock.Unlock()
-	return containerfs.NewLocalContainerFS(m), nil
+	return m, nil
 }
 
 // Put unmounts and updates list of active mounts.

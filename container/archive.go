@@ -64,7 +64,7 @@ func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.
 			return nil, err
 		}
 
-		linkTarget, err = filepath.Rel(string(container.BaseFS), hostPath)
+		linkTarget, err = filepath.Rel(container.BaseFS, hostPath)
 		if err != nil {
 			return nil, err
 		}

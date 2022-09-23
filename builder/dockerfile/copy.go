@@ -45,7 +45,7 @@ type copyInfo struct {
 }
 
 func (c copyInfo) fullPath() (string, error) {
-	return containerfs.ResolveScopedPath(string(c.root), c.path)
+	return containerfs.ResolveScopedPath(c.root, c.path)
 }
 
 func newCopyInfoFromSource(source builder.Source, path string, hash string) copyInfo {
@@ -159,7 +159,7 @@ func (o *copier) getCopyInfoForSourcePath(orig, dest string) ([]copyInfo, error)
 		}
 		path = unnamedFilename
 	}
-	o.tmpPaths = append(o.tmpPaths, string(remote.Root()))
+	o.tmpPaths = append(o.tmpPaths, remote.Root())
 
 	hash, err := remote.Hash(path)
 	ci := newCopyInfoFromSource(remote, path, hash)
@@ -202,7 +202,7 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 
 		o.source, err = remotecontext.NewLazySource(rwLayer.Root())
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create context for copy from %s", string(rwLayer.Root()))
+			return nil, errors.Wrapf(err, "failed to create context for copy from %s", rwLayer.Root())
 		}
 	}
 
@@ -259,7 +259,7 @@ func (o *copier) storeInPathCache(im *imageMount, path string, hash string) {
 func (o *copier) copyWithWildcards(origPath string) ([]copyInfo, error) {
 	root := o.source.Root()
 	var copyInfos []copyInfo
-	if err := filepath.Walk(string(root), func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -442,7 +442,7 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 		return
 	}
 
-	lc, err := remotecontext.NewLazySource(containerfs.NewLocalContainerFS(tmpDir))
+	lc, err := remotecontext.NewLazySource(tmpDir)
 	return lc, filename, err
 }
 

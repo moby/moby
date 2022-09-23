@@ -141,7 +141,7 @@ func (d *graphDriverProxy) Get(id, mountLabel string) (containerfs.ContainerFS, 
 	if ret.Err != "" {
 		err = errors.New(ret.Err)
 	}
-	return containerfs.NewLocalContainerFS(d.p.ScopedPath(ret.Dir)), err
+	return d.p.ScopedPath(ret.Dir), err
 }
 
 func (d *graphDriverProxy) Put(id string) error {

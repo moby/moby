@@ -368,7 +368,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	defer d.locker.Unlock(id)
 	mountpoint := d.mountPath(id)
 	if count := d.ctr.Increment(mountpoint); count > 1 {
-		return containerfs.NewLocalContainerFS(mountpoint), nil
+		return mountpoint, nil
 	}
 	defer func() {
 		if retErr != nil {
@@ -404,7 +404,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
 	}
 
-	return containerfs.NewLocalContainerFS(mountpoint), nil
+	return mountpoint, nil
 }
 
 // Put removes the existing mountpoint for the given id if it exists.

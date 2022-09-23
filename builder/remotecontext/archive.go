@@ -20,7 +20,7 @@ type archiveContext struct {
 }
 
 func (c *archiveContext) Close() error {
-	return os.RemoveAll(string(c.root))
+	return os.RemoveAll(c.root)
 }
 
 func convertPathError(err error, cleanpath string) error {
@@ -53,7 +53,7 @@ func FromArchive(tarStream io.Reader) (builder.Source, error) {
 	}
 
 	// Assume local file system. Since it's coming from a tar file.
-	tsc := &archiveContext{root: containerfs.NewLocalContainerFS(root)}
+	tsc := &archiveContext{root: root}
 
 	// Make sure we clean-up upon error.  In the happy case the caller
 	// is expected to manage the clean-up
@@ -100,7 +100,7 @@ func (c *archiveContext) Hash(path string) (string, error) {
 		return "", err
 	}
 
-	rel, err := filepath.Rel(string(c.root), fullpath)
+	rel, err := filepath.Rel(c.root, fullpath)
 	if err != nil {
 		return "", convertPathError(err, cleanpath)
 	}
@@ -117,7 +117,7 @@ func (c *archiveContext) Hash(path string) (string, error) {
 
 func normalize(path string, root containerfs.ContainerFS) (cleanPath, fullPath string, err error) {
 	cleanPath = filepath.Clean(string(filepath.Separator) + path)[1:]
-	fullPath, err = containerfs.ResolveScopedPath(string(root), path)
+	fullPath, err = containerfs.ResolveScopedPath(root, path)
 	if err != nil {
 		return "", "", errors.Wrapf(err, "forbidden path outside the build context: %s (%s)", path, cleanPath)
 	}

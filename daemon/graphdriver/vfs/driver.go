@@ -172,7 +172,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return CopyDir(string(parentDir), dir)
+	return CopyDir(parentDir, dir)
 }
 
 func (d *Driver) dir(id string) string {
@@ -192,7 +192,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	} else if !st.IsDir() {
 		return "", fmt.Errorf("%s: not a directory", dir)
 	}
-	return containerfs.NewLocalContainerFS(dir), nil
+	return dir, nil
 }
 
 // Put is a noop for vfs that return nil for the error, since this driver has no runtime resources to clean up.

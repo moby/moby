@@ -47,12 +47,12 @@ func TestMountInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fi, err := os.Stat(filepath.Join(string(pathFS), "testfile.txt"))
+	fi, err := os.Stat(filepath.Join(pathFS, "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	f, err := os.Open(filepath.Join(string(pathFS), "testfile.txt"))
+	f, err := os.Open(filepath.Join(pathFS, "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestMountSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(string(pathFS), "file2"), content2, 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(pathFS, "file2"), content2, 0755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -159,23 +159,23 @@ func TestMountChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := driver.LocalDriver.Lchmod(filepath.Join(string(pathFS), "testfile1.txt"), 0755); err != nil {
+	if err := driver.LocalDriver.Lchmod(filepath.Join(pathFS, "testfile1.txt"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(string(pathFS), "testfile1.txt"), []byte("mount data!"), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(pathFS, "testfile1.txt"), []byte("mount data!"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Remove(filepath.Join(string(pathFS), "testfile2.txt")); err != nil {
+	if err := os.Remove(filepath.Join(pathFS, "testfile2.txt")); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := driver.LocalDriver.Lchmod(filepath.Join(string(pathFS), "testfile3.txt"), 0755); err != nil {
+	if err := driver.LocalDriver.Lchmod(filepath.Join(pathFS, "testfile3.txt"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(string(pathFS), "testfile4.txt"), []byte("mount data!"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pathFS, "testfile4.txt"), []byte("mount data!"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -250,7 +250,7 @@ func TestMountApply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f, err := os.Open(filepath.Join(string(pathFS), "newfile.txt"))
+	f, err := os.Open(filepath.Join(pathFS, "newfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}

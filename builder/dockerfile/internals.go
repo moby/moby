@@ -147,7 +147,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	// translated (if necessary because of user namespaces), and replace
 	// the root pair with the chown pair for copy operations
 	if inst.chownStr != "" {
-		identity, err = parseChownFlag(b, state, inst.chownStr, string(destInfo.root), b.idMapping)
+		identity, err = parseChownFlag(b, state, inst.chownStr, destInfo.root, b.idMapping)
 		if err != nil {
 			if b.options.Platform != "windows" {
 				return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")

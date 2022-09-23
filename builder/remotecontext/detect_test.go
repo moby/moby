@@ -53,7 +53,7 @@ func checkDirectory(t *testing.T, dir string, expectedFiles []string) {
 }
 
 func executeProcess(t *testing.T, contextDir string) {
-	modifiableCtx := &stubRemote{root: containerfs.NewLocalContainerFS(contextDir)}
+	modifiableCtx := &stubRemote{root: contextDir}
 
 	err := removeDockerfile(modifiableCtx, builder.DefaultDockerfileName)
 
@@ -119,5 +119,5 @@ func (r *stubRemote) Close() error {
 	return errors.New("not implemented")
 }
 func (r *stubRemote) Remove(p string) error {
-	return os.Remove(filepath.Join(string(r.root), p))
+	return os.Remove(filepath.Join(r.root, p))
 }

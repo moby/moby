@@ -7,13 +7,7 @@ import (
 )
 
 // ContainerFS is that represents a root file system
-type ContainerFS string
-
-// NewLocalContainerFS is a helper function to implement daemon's Mount interface
-// when the graphdriver mount point is a local path on the machine.
-func NewLocalContainerFS(path string) ContainerFS {
-	return ContainerFS(path)
-}
+type ContainerFS = string
 
 // ResolveScopedPath evaluates the given path scoped to the root.
 // For example, if root=/a, and path=/b/c, then this function would return /a/b/c.

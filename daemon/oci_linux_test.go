@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/containerfs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -36,7 +35,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	}
 
 	c.Root = root
-	c.BaseFS = containerfs.NewLocalContainerFS(rootfs)
+	c.BaseFS = rootfs
 
 	if c.Config == nil {
 		c.Config = new(containertypes.Config)

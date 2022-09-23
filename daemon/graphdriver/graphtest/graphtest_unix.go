@@ -96,10 +96,10 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	dir, err := driver.Get("empty", "")
 	assert.NilError(t, err)
 
-	verifyFile(t, string(dir), 0755|os.ModeDir, 0, 0)
+	verifyFile(t, dir, 0755|os.ModeDir, 0, 0)
 
 	// Verify that the directory is empty
-	fis, err := readDir(string(dir))
+	fis, err := readDir(dir)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(fis, 0))
 
@@ -324,19 +324,19 @@ func DriverTestSetQuota(t *testing.T, drivername string, required bool) {
 	quota := uint64(50 * units.MiB)
 
 	// Try to write a file smaller than quota, and ensure it works
-	err = writeRandomFile(path.Join(string(mountPath), "smallfile"), quota/2)
+	err = writeRandomFile(path.Join(mountPath, "smallfile"), quota/2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(path.Join(string(mountPath), "smallfile"))
+	defer os.Remove(path.Join(mountPath, "smallfile"))
 
 	// Try to write a file bigger than quota. We've already filled up half the quota, so hitting the limit should be easy
-	err = writeRandomFile(path.Join(string(mountPath), "bigfile"), quota)
+	err = writeRandomFile(path.Join(mountPath, "bigfile"), quota)
 	if err == nil {
 		t.Fatalf("expected write to fail(), instead had success")
 	}
 	if pathError, ok := err.(*os.PathError); ok && pathError.Err != unix.EDQUOT && pathError.Err != unix.ENOSPC {
-		os.Remove(path.Join(string(mountPath), "bigfile"))
+		os.Remove(path.Join(mountPath, "bigfile"))
 		t.Fatalf("expect write() to fail with %v or %v, got %v", unix.EDQUOT, unix.ENOSPC, pathError.Err)
 	}
 }

@@ -28,7 +28,7 @@ type CachableSource struct {
 func NewCachableSource(root string) *CachableSource {
 	ts := &CachableSource{
 		tree: iradix.New(),
-		root: containerfs.NewLocalContainerFS(root),
+		root: root,
 	}
 	return ts
 }
@@ -67,7 +67,7 @@ func (cs *CachableSource) Scan() error {
 		return err
 	}
 	txn := iradix.New().Txn()
-	err = filepath.Walk(string(cs.root), func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(cs.root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to walk %s", path)
 		}

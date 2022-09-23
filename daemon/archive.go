@@ -246,7 +246,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	}
 	opts := archive.TarResourceRebaseOpts(sourceBase, filepath.Base(absPath))
 
-	data, err := archivePath(driver, sourceDir, opts, string(container.BaseFS))
+	data, err := archivePath(driver, sourceDir, opts, container.BaseFS)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -333,14 +333,14 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	// a volume file path.
 	var baseRel string
 	if strings.HasPrefix(resolvedPath, `\\?\Volume{`) {
-		if strings.HasPrefix(resolvedPath, string(driver)) {
-			baseRel = resolvedPath[len(string(driver)):]
+		if strings.HasPrefix(resolvedPath, driver) {
+			baseRel = resolvedPath[len(driver):]
 			if baseRel[:1] == `\` {
 				baseRel = baseRel[1:]
 			}
 		}
 	} else {
-		baseRel, err = filepath.Rel(string(driver), resolvedPath)
+		baseRel, err = filepath.Rel(driver, resolvedPath)
 	}
 	if err != nil {
 		return err
@@ -372,7 +372,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	}
 
-	if err := extractArchive(driver, content, resolvedPath, options, string(container.BaseFS)); err != nil {
+	if err := extractArchive(driver, content, resolvedPath, options, container.BaseFS); err != nil {
 		return err
 	}
 
@@ -434,7 +434,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	archv, err := archivePath(driver, basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
-	}, string(container.BaseFS))
+	}, container.BaseFS)
 	if err != nil {
 		return nil, err
 	}

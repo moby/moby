@@ -181,7 +181,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	mp := path.Join(d.home, "mnt", id)
 	rootFs := path.Join(mp, "rootfs")
 	if count := d.ctr.Increment(mp); count > 1 {
-		return containerfs.NewLocalContainerFS(rootFs), nil
+		return rootFs, nil
 	}
 
 	root := d.idMap.RootPair()
@@ -219,7 +219,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		}
 	}
 
-	return containerfs.NewLocalContainerFS(rootFs), nil
+	return rootFs, nil
 }
 
 // Put unmounts a device and removes it.

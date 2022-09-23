@@ -349,12 +349,12 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 	// If id has a root, just return it
 	rootDir := path.Join(dir, "root")
 	if _, err := os.Stat(rootDir); err == nil {
-		return containerfs.NewLocalContainerFS(rootDir), nil
+		return rootDir, nil
 	}
 
 	mergedDir := path.Join(dir, "merged")
 	if count := d.ctr.Increment(mergedDir); count > 1 {
-		return containerfs.NewLocalContainerFS(mergedDir), nil
+		return mergedDir, nil
 	}
 	defer func() {
 		if err != nil {
@@ -391,7 +391,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 	if err := root.Chown(path.Join(workDir, "work")); err != nil {
 		return "", err
 	}
-	return containerfs.NewLocalContainerFS(mergedDir), nil
+	return mergedDir, nil
 }
 
 // Put unmounts the mount path created for the give id.

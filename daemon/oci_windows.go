@@ -240,7 +240,7 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
 
-		s.Root.Path = string(c.BaseFS) // This is not set for Hyper-V containers
+		s.Root.Path = c.BaseFS // This is not set for Hyper-V containers
 		if !strings.HasSuffix(s.Root.Path, `\`) {
 			s.Root.Path = s.Root.Path + `\` // Ensure a correctly formatted volume GUID path \\?\Volume{GUID}\
 		}

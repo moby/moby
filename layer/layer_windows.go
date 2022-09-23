@@ -37,7 +37,7 @@ func GetLayerPath(s Store, layer ChainID) (string, error) {
 		return "", err
 	}
 
-	return string(path), nil
+	return path, nil
 }
 
 func (ls *layerStore) mountID(name string) string {

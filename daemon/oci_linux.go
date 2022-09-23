@@ -730,7 +730,7 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		if !daemon.UsesSnapshotter() {
 			s.Root = &specs.Root{
-				Path:     string(c.BaseFS),
+				Path:     c.BaseFS,
 				Readonly: c.HostConfig.ReadonlyRootfs,
 			}
 		}

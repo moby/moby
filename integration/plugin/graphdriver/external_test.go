@@ -219,7 +219,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 			respond(w, err)
 			return
 		}
-		respond(w, &graphDriverResponse{Dir: string(dir)})
+		respond(w, &graphDriverResponse{Dir: dir})
 	})
 
 	mux.HandleFunc("/GraphDriver.Put", func(w http.ResponseWriter, r *http.Request) {
