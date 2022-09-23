@@ -104,5 +104,4 @@ func TestServiceListWithStatuses(t *testing.T) {
 		assert.Check(t, is.Equal(service.ServiceStatus.DesiredTasks, replicas))
 		assert.Check(t, is.Equal(service.ServiceStatus.RunningTasks, replicas))
 	}
-
 }
