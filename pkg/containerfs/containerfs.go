@@ -3,7 +3,6 @@ package containerfs // import "github.com/docker/docker/pkg/containerfs"
 import (
 	"path/filepath"
 
-	"github.com/containerd/continuity/driver"
 	"github.com/moby/sys/symlink"
 )
 
@@ -12,23 +11,18 @@ type ContainerFS interface {
 	// Path returns the path to the root. Note that this may not exist
 	// on the local system, so the continuity operations must be used
 	Path() string
-
-	// Driver provides methods to manipulate files
-	driver.Driver
 }
 
 // NewLocalContainerFS is a helper function to implement daemon's Mount interface
 // when the graphdriver mount point is a local path on the machine.
 func NewLocalContainerFS(path string) ContainerFS {
 	return &local{
-		path:   path,
-		Driver: driver.LocalDriver,
+		path: path,
 	}
 }
 
 type local struct {
 	path string
-	driver.Driver
 }
 
 func (l *local) Path() string {

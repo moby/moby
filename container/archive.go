@@ -52,7 +52,7 @@ func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.
 	}
 	driver := container.BaseFS
 
-	lstat, err := driver.Lstat(resolvedPath)
+	lstat, err := os.Lstat(resolvedPath)
 	if err != nil {
 		return nil, err
 	}

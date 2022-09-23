@@ -118,7 +118,7 @@ func TestRemoveDirectory(t *testing.T) {
 
 	src := makeTestArchiveContext(t, contextDir)
 
-	_, err = src.Root().Stat(filepath.Join(src.Root().Path(), relativePath))
+	_, err = os.Stat(filepath.Join(src.Root().Path(), relativePath))
 	if err != nil {
 		t.Fatalf("Statting %s shouldn't fail: %+v", relativePath, err)
 	}
@@ -129,7 +129,7 @@ func TestRemoveDirectory(t *testing.T) {
 		t.Fatalf("Error when executing Remove: %s", err)
 	}
 
-	_, err = src.Root().Stat(filepath.Join(src.Root().Path(), relativePath))
+	_, err = os.Stat(filepath.Join(src.Root().Path(), relativePath))
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Directory should not exist at this point: %+v ", err)
 	}

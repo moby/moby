@@ -99,7 +99,7 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	verifyFile(t, dir.Path(), 0755|os.ModeDir, 0, 0)
 
 	// Verify that the directory is empty
-	fis, err := readDir(dir, dir.Path())
+	fis, err := readDir(dir.Path())
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(fis, 0))
 

@@ -47,7 +47,7 @@ func (c *lazySource) Hash(path string) (string, error) {
 		return "", errors.WithStack(convertPathError(err, cleanPath))
 	}
 
-	fi, err := c.root.Lstat(fullPath)
+	fi, err := os.Lstat(fullPath)
 	if err != nil {
 		// Backwards compatibility: a missing file returns a path as hash.
 		// This is reached in the case of a broken symlink.
@@ -72,7 +72,7 @@ func (c *lazySource) prepareHash(relPath string, fi os.FileInfo) (string, error)
 		return "", errors.Wrapf(err, "failed to create hash for %s", relPath)
 	}
 	if fi.Mode().IsRegular() && fi.Size() > 0 {
-		f, err := c.root.Open(p)
+		f, err := os.Open(p)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to open %s", relPath)
 		}

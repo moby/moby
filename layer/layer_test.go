@@ -140,16 +140,16 @@ func newTestFile(name string, content []byte, perm os.FileMode) FileApplier {
 
 func (tf *testFile) ApplyFile(root containerfs.ContainerFS) error {
 	fullPath := filepath.Join(root.Path(), tf.name)
-	if err := root.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return err
 	}
 	// Check if already exists
-	if stat, err := root.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
-		if err := root.Lchmod(fullPath, tf.permission); err != nil {
+	if stat, err := os.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
+		if err := driver.LocalDriver.Lchmod(fullPath, tf.permission); err != nil {
 			return err
 		}
 	}
-	return driver.WriteFile(root, fullPath, tf.content, tf.permission)
+	return os.WriteFile(fullPath, tf.content, tf.permission)
 }
 
 func initWithFiles(files ...FileApplier) layerInit {
@@ -267,7 +267,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := driver.ReadFile(path2, filepath.Join(path2.Path(), "testfile.txt"))
+	b, err := os.ReadFile(filepath.Join(path2.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := driver.WriteFile(pathFS, filepath.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -422,7 +422,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := driver.ReadFile(pathFS, filepath.Join(pathFS.Path(), "testfile.txt"))
+	b, err := os.ReadFile(filepath.Join(pathFS.Path(), "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}

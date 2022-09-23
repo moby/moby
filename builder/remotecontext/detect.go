@@ -162,7 +162,7 @@ func openAt(remote builder.Source, path string) (driver.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Root().Open(fullPath)
+	return os.Open(fullPath)
 }
 
 // StatAt is a helper for calling Stat on a path from a source
@@ -171,7 +171,7 @@ func StatAt(remote builder.Source, path string) (os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Root().Stat(fullPath)
+	return os.Stat(fullPath)
 }
 
 // FullPath is a helper for getting a full path for a path from a source

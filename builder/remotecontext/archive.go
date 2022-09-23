@@ -20,7 +20,7 @@ type archiveContext struct {
 }
 
 func (c *archiveContext) Close() error {
-	return c.root.RemoveAll(c.root.Path())
+	return os.RemoveAll(c.root.Path())
 }
 
 func convertPathError(err error, cleanpath string) error {
@@ -91,7 +91,7 @@ func (c *archiveContext) Remove(path string) error {
 	if err != nil {
 		return err
 	}
-	return c.root.RemoveAll(fullpath)
+	return os.RemoveAll(fullpath)
 }
 
 func (c *archiveContext) Hash(path string) (string, error) {

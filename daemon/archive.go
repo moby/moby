@@ -310,7 +310,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	stat, err := driver.Lstat(resolvedPath)
+	stat, err := os.Lstat(resolvedPath)
 	if err != nil {
 		return err
 	}
@@ -421,7 +421,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	if err != nil {
 		return nil, err
 	}
-	stat, err := driver.Stat(basePath)
+	stat, err := os.Stat(basePath)
 	if err != nil {
 		return nil, err
 	}
