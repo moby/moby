@@ -334,7 +334,6 @@ func TestAuxAddresses(t *testing.T) {
 	}
 
 	for _, i := range input {
-
 		n.ipamV4Config = []*IpamConf{{PreferredPool: i.masterPool, SubPool: i.subPool, AuxAddresses: i.auxAddresses}}
 
 		err = n.ipamAllocate()

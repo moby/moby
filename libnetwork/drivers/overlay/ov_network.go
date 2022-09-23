@@ -561,7 +561,6 @@ func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) erro
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
-
 	if hostMode {
 		// Try to delete stale bridge interface if it exists
 		if err := deleteInterface(brName); err != nil {
@@ -1076,7 +1075,7 @@ func (n *network) releaseVxlanID() ([]uint32, error) {
 }
 
 func (n *network) obtainVxlanID(s *subnet) error {
-	//return if the subnet already has a vxlan id assigned
+	// return if the subnet already has a vxlan id assigned
 	if n.vxlanID(s) != 0 {
 		return nil
 	}

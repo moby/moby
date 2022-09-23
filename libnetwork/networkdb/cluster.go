@@ -200,7 +200,6 @@ func (nDB *NetworkDB) retryJoin(ctx context.Context, members []string) {
 			return
 		}
 	}
-
 }
 
 func (nDB *NetworkDB) clusterJoin(members []string) error {

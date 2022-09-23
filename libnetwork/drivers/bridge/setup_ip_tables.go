@@ -390,7 +390,6 @@ func removeIPChains(version iptables.IPVersion) {
 		{Name: IsolationChain2, Table: iptables.Filter, IPTable: ipt},
 		{Name: oldIsolationChain, Table: iptables.Filter, IPTable: ipt},
 	} {
-
 		if err := chainInfo.Remove(); err != nil {
 			logrus.Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
 		}

@@ -181,7 +181,6 @@ func Fini(drv driverapi.Driver) {
 }
 
 func (d *driver) configure() error {
-
 	// Apply OS specific kernel configs if needed
 	d.initOS.Do(applyOStweaks)
 

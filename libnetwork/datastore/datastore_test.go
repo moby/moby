@@ -108,7 +108,6 @@ func TestAtomicKVObjectFlatKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 // dummy data used to test the datastore

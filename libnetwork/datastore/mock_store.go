@@ -37,7 +37,6 @@ func (s *MockStore) Get(key string) (*store.KVPair, error) {
 		return nil, nil
 	}
 	return &store.KVPair{Value: mData.Data, LastIndex: mData.Index}, nil
-
 }
 
 // Put a value at "key"

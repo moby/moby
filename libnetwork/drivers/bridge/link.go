@@ -30,7 +30,6 @@ func newLink(parentIP, childIP string, ports []types.TransportPort, bridge strin
 		ports:    ports,
 		bridge:   bridge,
 	}
-
 }
 
 func (l *link) Enable() error {

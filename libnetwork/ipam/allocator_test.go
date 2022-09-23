@@ -1056,7 +1056,6 @@ func TestOverlappingRequests(t *testing.T) {
 }
 
 func TestUnusualSubnets(t *testing.T) {
-
 	subnet := "192.168.0.2/31"
 
 	outsideTheRangeAddresses := []struct {
@@ -1075,7 +1074,6 @@ func TestUnusualSubnets(t *testing.T) {
 	}
 
 	for _, store := range []bool{false, true} {
-
 		allocator, err := getAllocator(store)
 		if err != nil {
 			t.Fatal(err)
@@ -1117,7 +1115,6 @@ func TestUnusualSubnets(t *testing.T) {
 		if err != ipamapi.ErrNoAvailableIPs {
 			t.Fatal("Did not get expected error when pool is exhausted.")
 		}
-
 	}
 }
 
@@ -1264,7 +1261,6 @@ func benchmarkRequest(b *testing.B, a *Allocator, subnet string) {
 }
 
 func BenchmarkRequest(b *testing.B) {
-
 	subnets := []string{
 		"10.0.0.0/24",
 		"10.0.0.0/16",

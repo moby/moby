@@ -675,7 +675,6 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	if network.scope == datastore.LocalScope && cap.DataScope == datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("cannot downgrade network scope for %s networks", networkType)
-
 	}
 	if network.ingress && cap.DataScope != datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")

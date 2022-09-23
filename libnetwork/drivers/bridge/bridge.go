@@ -802,7 +802,6 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 }
 
 func (d *driver) DeleteNetwork(nid string) error {
-
 	d.configNetwork.Lock()
 	defer d.configNetwork.Unlock()
 
