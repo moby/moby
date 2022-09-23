@@ -55,10 +55,8 @@ func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (dev
 	// if the device is not a device node
 	// try to see if it's a directory holding many devices
 	if err == devices.ErrNotADevice {
-
 		// check if it is a directory
 		if src, e := os.Stat(resolvedPathOnHost); e == nil && src.IsDir() {
-
 			// mount the internal devices recursively
 			// TODO check if additional errors should be handled or logged
 			_ = filepath.Walk(resolvedPathOnHost, func(dpath string, f os.FileInfo, _ error) error {

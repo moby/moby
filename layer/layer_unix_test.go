@@ -63,5 +63,4 @@ func TestLayerSize(t *testing.T) {
 	if expected := len(content1) + len(content2); int(layer2Size) != expected {
 		t.Fatalf("Unexpected size %d, expected %d", layer2Size, expected)
 	}
-
 }
