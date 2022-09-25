@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
@@ -538,13 +539,9 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	defer func() {
 		if retErr != nil {
 			if c := d.ctr.Decrement(mergedDir); c <= 0 {
-				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
-					logger.Errorf("error unmounting %v: %v", mergedDir, mntErr)
-				}
-				// Cleanup the created merged directory; see the comment in Put's rmdir
-				if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
-					logger.Debugf("Failed to remove %s: %v: %v", id, rmErr, err)
-				}
+				ch := make(chan struct{})
+				go d.cleanMountPoint(mergedDir, id, ch)
+				<-ch
 			}
 		}
 	}()
@@ -601,8 +598,15 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		mountTarget = path.Join(id, mergedDirName)
 	}
 
-	if err := mount("overlay", mountTarget, "overlay", 0, mountData); err != nil {
-		return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
+	for i := 0; i < 3; i++ {
+		var merr error
+		if merr = mount("overlay", mountTarget, "overlay", 0, mountData); merr == nil {
+			break
+		}
+		if i == 2 {
+			return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, merr)
+		}
+		time.Sleep(1 * time.Second)
 	}
 
 	if !readonly {
@@ -636,9 +640,27 @@ func (d *Driver) Put(id string) error {
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
+	ch := make(chan struct{})
+	go d.cleanMountPoint(mountpoint, id, ch)
+	<-ch
+
+	return nil
+}
+
+func (d *Driver) cleanMountPoint(mountpoint string, id string, ch chan<- struct{}) {
+	ch <- struct{}{}
+	logger.Infof("Start to umount mountpoint %s for %s", mountpoint, id)
 	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
 		logger.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
 	}
+	logger.Infof("Successful to umount mountpoint %s for %s", mountpoint, id)
+
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
+	if count := d.ctr.Get(mountpoint); count > 0 {
+		return
+	}
+	logger.Infof("Start to remove %s overlay dir %s", id, mountpoint)
 	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
 	// will cause all other instances of this mount in other mount namespaces
 	// to be unmounted. This is necessary to avoid cases where an overlay mount
@@ -649,7 +671,8 @@ func (d *Driver) Put(id string) error {
 	if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
 		logger.Debugf("Failed to remove %s overlay: %v", id, err)
 	}
-	return nil
+	// The count delete here safely can avoid wrong mountpoint check
+	d.ctr.Delete(mountpoint)
 }
 
 // Exists checks to see if the id is already mounted.
