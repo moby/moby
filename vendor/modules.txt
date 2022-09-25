@@ -668,7 +668,7 @@ github.com/moby/sys/mount
 # github.com/moby/sys/mountinfo v0.6.2
 ## explicit; go 1.16
 github.com/moby/sys/mountinfo
-# github.com/moby/sys/sequential v0.0.0-20220829095930-b22ba8a69b30
+# github.com/moby/sys/sequential v0.5.0
 ## explicit; go 1.17
 github.com/moby/sys/sequential
 # github.com/moby/sys/signal v0.7.0
