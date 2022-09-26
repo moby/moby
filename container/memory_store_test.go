@@ -7,7 +7,7 @@ import (
 
 func TestNewMemoryStore(t *testing.T) {
 	s := NewMemoryStore()
-	m, ok := s.(*memoryStore)
+	m, ok := s.(*MemoryStore)
 	if !ok {
 		t.Fatalf("store is not a memory store %v", s)
 	}
