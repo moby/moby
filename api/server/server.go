@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
@@ -58,7 +59,8 @@ func (s *Server) Accept(addr string, listeners ...net.Listener) {
 	for _, listener := range listeners {
 		httpServer := &HTTPServer{
 			srv: &http.Server{
-				Addr: addr,
+				Addr:              addr,
+				ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 			},
 			l: listener,
 		}
