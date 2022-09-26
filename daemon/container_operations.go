@@ -26,10 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ErrRootFSReadOnly is returned when a container
-// rootfs is marked readonly.
-var ErrRootFSReadOnly = errors.New("container rootfs is marked read-only")
-
 func (daemon *Daemon) getDNSSearchSettings(container *container.Container) []string {
 	if len(container.HostConfig.DNSSearch) > 0 {
 		return container.HostConfig.DNSSearch

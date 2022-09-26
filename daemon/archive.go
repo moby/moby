@@ -326,7 +326,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	}
 
 	if !toVolume && container.HostConfig.ReadonlyRootfs {
-		return ErrRootFSReadOnly
+		return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
 	}
 
 	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
