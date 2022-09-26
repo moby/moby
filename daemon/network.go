@@ -886,7 +886,7 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 	}
 
 	// Port-mapping rules belong to the container & applicable only to non-internal networks
-	portmaps := getSandboxPortMapInfo(sb)
+	portmaps := getPortMapInfo(sb)
 	if n.Info().Internal() || len(portmaps) > 0 {
 		return createOptions, nil
 	}
@@ -960,8 +960,8 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 	return createOptions, nil
 }
 
-// getSandboxPortMapInfo retrieves the current port-mapping programmed for the given sandbox
-func getSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
+// getPortMapInfo retrieves the current port-mapping programmed for the given sandbox
+func getPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
 	pm := nat.PortMap{}
 	if sb == nil {
 		return pm
