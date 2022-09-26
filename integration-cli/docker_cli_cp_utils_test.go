@@ -232,10 +232,6 @@ func isCpCannotCopyDir(err error) bool {
 	return strings.Contains(err.Error(), archive.ErrCannotCopyDir.Error())
 }
 
-func isCpCannotCopyReadOnly(err error) bool {
-	return strings.Contains(err.Error(), "marked read-only")
-}
-
 func fileContentEquals(c *testing.T, filename, contents string) error {
 	c.Helper()
 
