@@ -4,10 +4,12 @@ import (
 	"io"
 	"time"
 
+	ctdmount "github.com/containerd/containerd/mount"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -170,4 +172,18 @@ func (gdw *NaiveDiffDriver) DiffSize(id, parent string) (size int64, err error) 
 	defer driver.Put(id)
 
 	return archive.ChangesSize(layerFs.Path(), changes), nil
+}
+
+func (gdw *NaiveDiffDriver) GetDirectMounts(id, mountLabel string) ([]ctdmount.Mount, error) {
+	if gdw, ok := gdw.ProtoDriver.(DirectMountDriver); ok {
+		return gdw.GetDirectMounts(id, mountLabel)
+	}
+	return nil, errors.New("driver does not support GetDirectMounts")
+}
+
+func (gdw *NaiveDiffDriver) PutDirectMounts(id string) error {
+	if gdw, ok := gdw.ProtoDriver.(DirectMountDriver); ok {
+		return gdw.PutDirectMounts(id)
+	}
+	return errors.New("driver does not support PutDirectMounts")
 }

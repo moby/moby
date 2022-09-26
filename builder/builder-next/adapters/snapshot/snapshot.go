@@ -96,6 +96,14 @@ func NewSnapshotter(opt Opt, prevLM leases.Manager) (snapshot.Snapshotter, lease
 }
 
 func (s *snapshotter) Name() string {
+	// TODO: also support vfs, if we agree on this approach
+	if s.opt.GraphDriver.String() == "overlay2" {
+		// this is the name that buildkit checks to enable
+		// overlay optimizations, better approach would be
+		// to update buildkit to check for something like
+		// "moby-overlay2"
+		return "overlayfs"
+	}
 	return "default"
 }
 
@@ -286,6 +294,18 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 				if err != nil {
 					return nil, nil, err
 				}
+				if directRWLayer, ok := rwlayer.(layer.DirectMountRWLayer); ok {
+					mnts, err := directRWLayer.GetDirectMounts("")
+					if err == nil { // TODO: check typed error
+						return mnts, func() error {
+							if err := directRWLayer.PutDirectMounts(); err != nil {
+								return err
+							}
+							_, err := s.opt.LayerStore.ReleaseRWLayer(rwlayer)
+							return err
+						}, nil
+					}
+				}
 				rootfs, err := rwlayer.Mount("")
 				if err != nil {
 					return nil, nil, err
@@ -307,6 +327,14 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 	return &mountable{
 		idmap: s.opt.IdentityMapping,
 		acquire: func() ([]mount.Mount, func() error, error) {
+			if driver, ok := s.opt.GraphDriver.(graphdriver.DirectMountDriver); ok {
+				mnts, err := driver.GetDirectMounts(id, "")
+				if err == nil { // TODO: check typed error
+					return mnts, func() error {
+						return driver.PutDirectMounts(id)
+					}, nil
+				}
+			}
 			rootfs, err := s.opt.GraphDriver.Get(id, "")
 			if err != nil {
 				return nil, nil, err

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"io"
 
+	ctdmount "github.com/containerd/containerd/mount"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
@@ -135,6 +136,22 @@ type RWLayer interface {
 
 	// ApplyDiff applies the diff to the RW layer
 	ApplyDiff(diff io.Reader) (int64, error)
+}
+
+// DirectMountRWLayer defines a layer that can return the underlying
+// mounts to be performed (as opposed to the default Mount method that
+// does the mount and then return a ContainerFS).
+// It's currently only intended to be used with the BuildKit adapter to
+// enable optimizations that require knowing the actual underlying mount.
+type DirectMountRWLayer interface {
+	// Get the direct mounts for the filesystem underlying this layer.
+	// This will cause calls to Mount calls on this layer to return an
+	// error (until all direct mounts have been released with the
+	// PutDirectMounts method).
+	GetDirectMounts(mountLabel string) ([]ctdmount.Mount, error)
+	// Release a mount returned by GetDirectMounts. When all direct mounts
+	// have been released, the underlying filesystem directories are cleaned up.
+	PutDirectMounts() error
 }
 
 // Metadata holds information about a
