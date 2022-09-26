@@ -186,7 +186,7 @@ type initializer struct {
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	c := &controller{
 		id:               stringid.GenerateRandomID(),
-		cfg:              config.ParseConfigOptions(cfgOptions...),
+		cfg:              config.New(cfgOptions...),
 		sandboxes:        sandboxTable{},
 		svcRecords:       make(map[string]svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
@@ -447,7 +447,7 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	// For now we accept the configuration reload only as a mean to provide a global store config after boot.
 	// Refuse the configuration if it alters an existing datastore client configuration.
 	update := false
-	cfg := config.ParseConfigOptions(cfgOptions...)
+	cfg := config.New(cfgOptions...)
 
 	for s := range c.cfg.Scopes {
 		if _, ok := cfg.Scopes[s]; !ok {

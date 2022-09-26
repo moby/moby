@@ -34,9 +34,8 @@ type Config struct {
 	PluginGetter           plugingetter.PluginGetter
 }
 
-// ParseConfigOptions parses the configuration options and returns
-// a reference to the corresponding Config structure
-func ParseConfigOptions(opts ...Option) *Config {
+// New creates a new Config and initializes it with the given Options.
+func New(opts ...Option) *Config {
 	cfg := &Config{
 		DriverCfg: make(map[string]interface{}),
 		Scopes:    make(map[string]*datastore.ScopeCfg),
