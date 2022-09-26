@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1216,7 +1217,7 @@ func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 	}
 }
 
-// TestXGlobalNoParent is a regression test to check parent directories are not crated for PAX headers
+// TestXGlobalNoParent is a regression test to check parent directories are not created for PAX headers
 func TestXGlobalNoParent(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tar.NewWriter(buf)
@@ -1234,6 +1235,53 @@ func TestXGlobalNoParent(t *testing.T) {
 	_, err = os.Lstat(filepath.Join(tmpDir, "foo"))
 	assert.Check(t, err != nil)
 	assert.Check(t, errors.Is(err, os.ErrNotExist))
+}
+
+// TestImpliedDirectoryPermissions ensures that directories implied by paths in the tar file, but without their own
+// header entries are created recursively with the default mode (permissions) stored in ImpliedDirectoryMode. This test
+// also verifies that the permissions of explicit directories are respected.
+func TestImpliedDirectoryPermissions(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "skipping test that requires Unix permissions")
+
+	buf := &bytes.Buffer{}
+	headers := []tar.Header{{
+		Name: "deeply/nested/and/implied",
+	}, {
+		Name: "explicit/",
+		Mode: 0644,
+	}, {
+		Name: "explicit/permissions/",
+		Mode: 0600,
+	}, {
+		Name: "explicit/permissions/specified",
+		Mode: 0400,
+	}}
+
+	w := tar.NewWriter(buf)
+	for _, header := range headers {
+		err := w.WriteHeader(&header)
+		assert.NilError(t, err)
+	}
+
+	tmpDir := t.TempDir()
+
+	err := Untar(buf, tmpDir, nil)
+	assert.NilError(t, err)
+
+	assertMode := func(path string, expected uint32) {
+		t.Helper()
+		stat, err := os.Lstat(filepath.Join(tmpDir, path))
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(stat.Mode().Perm(), fs.FileMode(expected)))
+	}
+
+	assertMode("deeply", ImpliedDirectoryMode)
+	assertMode("deeply/nested", ImpliedDirectoryMode)
+	assertMode("deeply/nested/and", ImpliedDirectoryMode)
+
+	assertMode("explicit", 0644)
+	assertMode("explicit/permissions", 0600)
+	assertMode("explicit/permissions/specified", 0400)
 }
 
 func TestReplaceFileTarWrapper(t *testing.T) {
