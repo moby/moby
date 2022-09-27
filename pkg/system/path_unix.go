@@ -12,6 +12,6 @@ func GetLongPathName(path string) (string, error) {
 
 // checkSystemDriveAndRemoveDriveLetter is the non-Windows implementation
 // of CheckSystemDriveAndRemoveDriveLetter
-func checkSystemDriveAndRemoveDriveLetter(path string, driver PathVerifier) (string, error) {
+func checkSystemDriveAndRemoveDriveLetter(path string) (string, error) {
 	return path, nil
 }

@@ -13,7 +13,6 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/containerfs"
 )
 
 // MockBackend implements the builder.Backend interface for unit testing
@@ -143,6 +142,6 @@ func (l *mockRWLayer) Commit() (builder.ROLayer, error) {
 	return nil, nil
 }
 
-func (l *mockRWLayer) Root() containerfs.ContainerFS {
-	return nil
+func (l *mockRWLayer) Root() string {
+	return ""
 }

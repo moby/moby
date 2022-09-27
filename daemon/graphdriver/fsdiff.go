@@ -50,7 +50,7 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err err
 	if err != nil {
 		return nil, err
 	}
-	layerFs := layerRootFs.Path()
+	layerFs := layerRootFs
 
 	defer func() {
 		if err != nil {
@@ -70,13 +70,11 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err err
 		}), nil
 	}
 
-	parentRootFs, err := driver.Get(parent, "")
+	parentFs, err := driver.Get(parent, "")
 	if err != nil {
 		return nil, err
 	}
 	defer driver.Put(parent)
-
-	parentFs := parentRootFs.Path()
 
 	changes, err := archive.ChangesDirs(layerFs, parentFs)
 	if err != nil {
@@ -106,22 +104,20 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, err err
 func (gdw *NaiveDiffDriver) Changes(id, parent string) ([]archive.Change, error) {
 	driver := gdw.ProtoDriver
 
-	layerRootFs, err := driver.Get(id, "")
+	layerFs, err := driver.Get(id, "")
 	if err != nil {
 		return nil, err
 	}
 	defer driver.Put(id)
 
-	layerFs := layerRootFs.Path()
 	parentFs := ""
 
 	if parent != "" {
-		parentRootFs, err := driver.Get(parent, "")
+		parentFs, err = driver.Get(parent, "")
 		if err != nil {
 			return nil, err
 		}
 		defer driver.Put(parent)
-		parentFs = parentRootFs.Path()
 	}
 
 	return archive.ChangesDirs(layerFs, parentFs)
@@ -140,7 +136,7 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, diff io.Reader) (size i
 	}
 	defer driver.Put(id)
 
-	layerFs := layerRootFs.Path()
+	layerFs := layerRootFs
 	options := &archive.TarOptions{IDMap: gdw.idMap}
 	start := time.Now().UTC()
 	logrus.WithField("id", id).Debug("Start untar layer")
@@ -169,5 +165,5 @@ func (gdw *NaiveDiffDriver) DiffSize(id, parent string) (size int64, err error) 
 	}
 	defer driver.Put(id)
 
-	return archive.ChangesSize(layerFs.Path(), changes), nil
+	return archive.ChangesSize(layerFs, changes), nil
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -83,10 +82,10 @@ type rwLayer struct {
 	released   bool
 	layerStore layer.Store
 	rwLayer    layer.RWLayer
-	fs         containerfs.ContainerFS
+	fs         string
 }
 
-func (l *rwLayer) Root() containerfs.ContainerFS {
+func (l *rwLayer) Root() string {
 	return l.fs
 }
 
@@ -115,11 +114,11 @@ func (l *rwLayer) Release() error {
 		return nil
 	}
 
-	if l.fs != nil {
+	if l.fs != "" {
 		if err := l.rwLayer.Unmount(); err != nil {
 			return errors.Wrap(err, "failed to unmount RWLayer")
 		}
-		l.fs = nil
+		l.fs = ""
 	}
 
 	metadata, err := l.layerStore.ReleaseRWLayer(l.rwLayer)

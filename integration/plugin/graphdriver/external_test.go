@@ -213,13 +213,12 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 			return
 		}
 
-		// TODO @gupta-ak: Figure out what to do here.
 		dir, err := driver.Get(req.ID, req.MountLabel)
 		if err != nil {
 			respond(w, err)
 			return
 		}
-		respond(w, &graphDriverResponse{Dir: dir.Path()})
+		respond(w, &graphDriverResponse{Dir: dir})
 	})
 
 	mux.HandleFunc("/GraphDriver.Put", func(w http.ResponseWriter, r *http.Request) {

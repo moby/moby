@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 )
 
@@ -61,10 +62,10 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 		return nil, err
 	}
 
-	archv, err := archivePath(basefs, basefs.Path(), &archive.TarOptions{
+	archv, err := chrootarchive.Tar(basefs, &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		IDMap:       daemon.idMapping,
-	}, basefs.Path())
+	}, basefs)
 	if err != nil {
 		rwlayer.Unmount()
 		return nil, err

@@ -1270,7 +1270,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 	}
 	logrus.WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
 
-	if container.BaseFS != nil && container.BaseFS.Path() != dir.Path() {
+	if container.BaseFS != "" && container.BaseFS != dir {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.

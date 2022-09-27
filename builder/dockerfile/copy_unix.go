@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 )
 
@@ -19,8 +18,7 @@ func fixPermissions(source, destination string, identity idtools.Identity, overr
 		err           error
 	)
 	if !overrideSkip {
-		destEndpoint := &copyEndpoint{driver: containerfs.NewLocalDriver(), path: destination}
-		skipChownRoot, err = isExistingDirectory(destEndpoint)
+		skipChownRoot, err = isExistingDirectory(destination)
 		if err != nil {
 			return err
 		}

@@ -236,11 +236,11 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	}
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 	if !isHyperV {
-		if c.BaseFS == nil {
-			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly nil")
+		if c.BaseFS == "" {
+			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
 
-		s.Root.Path = c.BaseFS.Path() // This is not set for Hyper-V containers
+		s.Root.Path = c.BaseFS // This is not set for Hyper-V containers
 		if !strings.HasSuffix(s.Root.Path, `\`) {
 			s.Root.Path = s.Root.Path + `\` // Ensure a correctly formatted volume GUID path \\?\Volume{GUID}\
 		}

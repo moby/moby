@@ -34,11 +34,11 @@ func GetLongPathName(path string) (string, error) {
 
 // checkSystemDriveAndRemoveDriveLetter is the Windows implementation
 // of CheckSystemDriveAndRemoveDriveLetter
-func checkSystemDriveAndRemoveDriveLetter(path string, driver PathVerifier) (string, error) {
+func checkSystemDriveAndRemoveDriveLetter(path string) (string, error) {
 	if len(path) == 2 && string(path[1]) == ":" {
 		return "", fmt.Errorf("No relative path specified in %q", path)
 	}
-	if !driver.IsAbs(path) || len(path) < 2 {
+	if !filepath.IsAbs(path) || len(path) < 2 {
 		return filepath.FromSlash(path), nil
 	}
 	if string(path[1]) == ":" && !strings.EqualFold(string(path[0]), "c") {

@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/idtools"
 	units "github.com/docker/go-units"
@@ -175,13 +174,13 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get mounts a device with given id into the root filesystem
-func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
+func (d *Driver) Get(id, mountLabel string) (string, error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	mp := path.Join(d.home, "mnt", id)
 	rootFs := path.Join(mp, "rootfs")
 	if count := d.ctr.Increment(mp); count > 1 {
-		return containerfs.NewLocalContainerFS(rootFs), nil
+		return rootFs, nil
 	}
 
 	root := d.idMap.RootPair()
@@ -189,23 +188,23 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	// Create the target directories if they don't exist
 	if err := idtools.MkdirAllAndChown(path.Join(d.home, "mnt"), 0755, root); err != nil {
 		d.ctr.Decrement(mp)
-		return nil, err
+		return "", err
 	}
 	if err := idtools.MkdirAndChown(mp, 0755, root); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(mp)
-		return nil, err
+		return "", err
 	}
 
 	// Mount the device
 	if err := d.DeviceSet.MountDevice(id, mp, mountLabel); err != nil {
 		d.ctr.Decrement(mp)
-		return nil, err
+		return "", err
 	}
 
 	if err := idtools.MkdirAllAndChown(rootFs, 0755, root); err != nil {
 		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
-		return nil, err
+		return "", err
 	}
 
 	idFile := path.Join(mp, "id")
@@ -215,11 +214,11 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		if err := os.WriteFile(idFile, []byte(id), 0600); err != nil {
 			d.ctr.Decrement(mp)
 			d.DeviceSet.UnmountDevice(id, mp)
-			return nil, err
+			return "", err
 		}
 	}
 
-	return containerfs.NewLocalContainerFS(rootFs), nil
+	return rootFs, nil
 }
 
 // Put unmounts a device and removes it.

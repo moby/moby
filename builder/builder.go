@@ -14,7 +14,6 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/containerfs"
 )
 
 const (
@@ -26,7 +25,7 @@ const (
 // instructions in the builder.
 type Source interface {
 	// Root returns root path for accessing source
-	Root() containerfs.ContainerFS
+	Root() string
 	// Close allows to signal that the filesystem tree won't be used anymore.
 	// For Context implementations using a temporary directory, it is recommended to
 	// delete the temporary directory in Close().
@@ -110,6 +109,6 @@ type ROLayer interface {
 // RWLayer is active layer that can be read/modified
 type RWLayer interface {
 	Release() error
-	Root() containerfs.ContainerFS
+	Root() string
 	Commit() (ROLayer, error)
 }

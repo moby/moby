@@ -61,10 +61,10 @@ type ExitStatus struct {
 type Container struct {
 	StreamConfig *stream.Config
 	// embed for Container to support states directly.
-	*State          `json:"State"`          // Needed for Engine API version <= 1.11
-	Root            string                  `json:"-"` // Path to the "home" of the container, including metadata.
-	BaseFS          containerfs.ContainerFS `json:"-"` // interface containing graphdriver mount
-	RWLayer         layer.RWLayer           `json:"-"`
+	*State          `json:"State"` // Needed for Engine API version <= 1.11
+	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
+	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
+	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
 	Managed         bool
@@ -299,18 +299,18 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 // symlinking to a different path) between using this method and using the
 // path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetResourcePath(path string) (string, error) {
-	if container.BaseFS == nil {
-		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	if container.BaseFS == "" {
+		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
-	r, e := container.BaseFS.ResolveScopedPath(path, false)
+	r, e := containerfs.ResolveScopedPath(container.BaseFS, containerfs.CleanScopedPath(path))
 
 	// Log this here on the daemon side as there's otherwise no indication apart
 	// from the error being propagated all the way back to the client. This makes
 	// debugging significantly easier and clearly indicates the error comes from the daemon.
 	if e != nil {
-		logrus.Errorf("Failed to ResolveScopedPath BaseFS %s path %s %s\n", container.BaseFS.Path(), path, e)
+		logrus.Errorf("Failed to ResolveScopedPath BaseFS %s path %s %s\n", container.BaseFS, path, e)
 	}
 	return r, e
 }

@@ -2,9 +2,9 @@ package remotecontext // import "github.com/docker/docker/builder/remotecontext"
 
 import (
 	"os"
+	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/pkg/containerfs"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -18,7 +18,7 @@ type hashed interface {
 // CachableSource is a source that contains cache records for its contents
 type CachableSource struct {
 	mu   sync.Mutex
-	root containerfs.ContainerFS
+	root string
 	tree *iradix.Tree
 	txn  *iradix.Txn
 }
@@ -27,7 +27,7 @@ type CachableSource struct {
 func NewCachableSource(root string) *CachableSource {
 	ts := &CachableSource{
 		tree: iradix.New(),
-		root: containerfs.NewLocalContainerFS(root),
+		root: root,
 	}
 	return ts
 }
@@ -66,7 +66,7 @@ func (cs *CachableSource) Scan() error {
 		return err
 	}
 	txn := iradix.New().Txn()
-	err = cs.root.Walk(cs.root.Path(), func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(cs.root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to walk %s", path)
 		}
@@ -144,7 +144,7 @@ func (cs *CachableSource) Hash(path string) (string, error) {
 }
 
 // Root returns a root directory for the source
-func (cs *CachableSource) Root() containerfs.ContainerFS {
+func (cs *CachableSource) Root() string {
 	return cs.root
 }
 

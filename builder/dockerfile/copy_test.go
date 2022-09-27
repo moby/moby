@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/pkg/containerfs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/fs"
@@ -39,7 +38,7 @@ func TestIsExistingDirectory(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		result, err := isExistingDirectory(&copyEndpoint{driver: containerfs.NewLocalDriver(), path: testcase.path})
+		result, err := isExistingDirectory(testcase.path)
 		if !assert.Check(t, err) {
 			continue
 		}
