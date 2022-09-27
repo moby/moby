@@ -30,6 +30,10 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 	// chown the full directory path if it exists
 
 	var paths []string
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
 
 	stat, err := system.Stat(path)
 	if err == nil {
