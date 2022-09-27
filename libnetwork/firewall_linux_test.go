@@ -52,7 +52,7 @@ func TestUserChain(t *testing.T) {
 		tc := tc
 		t.Run(fmt.Sprintf("iptables=%v,insert=%v", tc.iptables, tc.insert), func(t *testing.T) {
 			c := nc.(*controller)
-			c.cfg.Daemon.DriverCfg["bridge"] = map[string]interface{}{
+			c.cfg.DriverCfg["bridge"] = map[string]interface{}{
 				netlabel.GenericData: options.Generic{
 					"EnableIPTables": tc.iptables,
 				},

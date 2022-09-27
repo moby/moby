@@ -400,7 +400,6 @@ func TestNetworkConfig(t *testing.T) {
 	if err := configNetwork.Delete(); err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 func TestUnknownNetwork(t *testing.T) {
@@ -1054,7 +1053,6 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	if _, ok := err.(types.ForbiddenError); !ok {
 		t.Fatalf("Failed with unexpected error type: %T. Desc: %s", err, err.Error())
 	}
-
 }
 
 func TestLeaveAll(t *testing.T) {

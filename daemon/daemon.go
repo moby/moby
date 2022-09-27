@@ -1374,7 +1374,6 @@ func (daemon *Daemon) networkOptions(pg plugingetter.PluginGetter, activeSandbox
 	dd := runconfig.DefaultDaemonNetworkMode()
 
 	options = []nwconfig.Option{
-		nwconfig.OptionExperimental(conf.Experimental),
 		nwconfig.OptionDataDir(conf.Root),
 		nwconfig.OptionExecRoot(conf.GetExecRoot()),
 		nwconfig.OptionDefaultDriver(string(dd)),

@@ -177,7 +177,6 @@ func GenerateKey(containerID string) string {
 					index = tmpindex
 					tmpkey = id
 				}
-
 			}
 		}
 		containerID = tmpkey
