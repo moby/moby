@@ -127,6 +127,98 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	assert.NilError(t, compareTrees(testTree, verifyTree))
 }
 
+func TestMkdirAllAndChownNewRelative(t *testing.T) {
+	RequiresRoot(t)
+
+	tests := []struct {
+		in  string
+		out []string
+	}{
+		{
+			in:  "dir1",
+			out: []string{"dir1"},
+		},
+		{
+			in:  "dir2/subdir2",
+			out: []string{"dir2", "dir2/subdir2"},
+		},
+		{
+			in:  "dir3/subdir3/",
+			out: []string{"dir3", "dir3/subdir3"},
+		},
+		{
+			in:  "dir4/subdir4/.",
+			out: []string{"dir4", "dir4/subdir4"},
+		},
+		{
+			in:  "dir5/././subdir5/",
+			out: []string{"dir5", "dir5/subdir5"},
+		},
+		{
+			in:  "./dir6",
+			out: []string{"dir6"},
+		},
+		{
+			in:  "./dir7/subdir7",
+			out: []string{"dir7", "dir7/subdir7"},
+		},
+		{
+			in:  "./dir8/subdir8/",
+			out: []string{"dir8", "dir8/subdir8"},
+		},
+		{
+			in:  "./dir9/subdir9/.",
+			out: []string{"dir9", "dir9/subdir9"},
+		},
+		{
+			in:  "./dir10/././subdir10/",
+			out: []string{"dir10", "dir10/subdir10"},
+		},
+	}
+
+	// Set the current working directory to the temp-dir, as we're
+	// testing relative paths.
+	tmpDir := t.TempDir()
+	setWorkingDirectory(t, tmpDir)
+
+	const expectedUIDGID = 101
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.in, func(t *testing.T) {
+			for _, p := range tc.out {
+				_, err := os.Stat(p)
+				assert.ErrorIs(t, err, os.ErrNotExist)
+			}
+
+			err := MkdirAllAndChownNew(tc.in, 0755, Identity{UID: expectedUIDGID, GID: expectedUIDGID})
+			assert.Check(t, err)
+
+			for _, p := range tc.out {
+				s := &unix.Stat_t{}
+				err = unix.Stat(p, s)
+				if assert.Check(t, err) {
+					assert.Check(t, is.Equal(uint64(s.Uid), uint64(expectedUIDGID)))
+					assert.Check(t, is.Equal(uint64(s.Gid), uint64(expectedUIDGID)))
+				}
+			}
+		})
+	}
+}
+
+// Change the current working directory for the duration of the test. This may
+// break if tests are run in parallel.
+func setWorkingDirectory(t *testing.T, dir string) {
+	t.Helper()
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		assert.NilError(t, os.Chdir(cwd))
+	})
+	err = os.Chdir(dir)
+	assert.NilError(t, err)
+}
+
 func TestMkdirAndChown(t *testing.T) {
 	RequiresRoot(t)
 	dirName, err := os.MkdirTemp("", "mkdir")
