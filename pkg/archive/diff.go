@@ -72,20 +72,10 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			}
 		}
 
-		// Note as these operations are platform specific, so must the slash be.
-		if !strings.HasSuffix(hdr.Name, string(os.PathSeparator)) {
-			// Not the root directory, ensure that the parent directory exists.
-			// This happened in some tests where an image had a tarfile without any
-			// parent directories.
-			parent := filepath.Dir(hdr.Name)
-			parentPath := filepath.Join(dest, parent)
-
-			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = system.MkdirAll(parentPath, 0600)
-				if err != nil {
-					return 0, err
-				}
-			}
+		// Ensure that the parent directory exists.
+		err = createImpliedDirectories(dest, hdr, options)
+		if err != nil {
+			return 0, err
 		}
 
 		// Skip AUFS metadata dirs
