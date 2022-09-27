@@ -4,70 +4,13 @@
 package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
-	"bytes"
-	"encoding/json"
-	"flag"
-	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
 	"golang.org/x/sys/unix"
 )
-
-type applyLayerResponse struct {
-	LayerSize int64 `json:"layerSize"`
-}
-
-// applyLayer is the entry-point for docker-applylayer on re-exec. This is not
-// used on Windows as it does not support chroot, hence no point sandboxing
-// through chroot and rexec.
-func applyLayer() {
-
-	var (
-		err     error
-		options *archive.TarOptions
-	)
-	runtime.LockOSThread()
-	flag.Parse()
-
-	inUserns := userns.RunningInUserNS()
-	if err := chroot(flag.Arg(0)); err != nil {
-		fatal(err)
-	}
-
-	// We need to be able to set any perms
-	oldmask := unix.Umask(0)
-	defer unix.Umask(oldmask)
-
-	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
-		fatal(err)
-	}
-
-	if inUserns {
-		options.InUserNS = true
-	}
-
-	size, err := archive.UnpackLayer("/", os.Stdin, options)
-	if err != nil {
-		fatal(err)
-	}
-
-	encoder := json.NewEncoder(os.Stdout)
-	if err := encoder.Encode(applyLayerResponse{size}); err != nil {
-		fatal(fmt.Errorf("unable to encode layerSize JSON: %s", err))
-	}
-
-	if _, err := flush(os.Stdin); err != nil {
-		fatal(err)
-	}
-
-	os.Exit(0)
-}
 
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
@@ -85,42 +28,30 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		if userns.RunningInUserNS() {
-			options.InUserNS = true
-		}
+	}
+	if userns.RunningInUserNS() {
+		options.InUserNS = true
 	}
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
 	}
 
-	data, err := json.Marshal(options)
+	type result struct {
+		layerSize int64
+		err       error
+	}
+
+	done := make(chan result)
+	err = Go(dest, func() {
+		// We need to be able to set any perms
+		_ = unix.Umask(0)
+
+		size, err := archive.UnpackLayer("/", layer, options)
+		done <- result{layerSize: size, err: err}
+	})
 	if err != nil {
-		return 0, fmt.Errorf("ApplyLayer json encode: %v", err)
+		return 0, err
 	}
-
-	cmd := reexec.Command("docker-applyLayer", dest)
-	cmd.Stdin = layer
-	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
-
-	outBuf, errBuf := new(bytes.Buffer), new(bytes.Buffer)
-	cmd.Stdout, cmd.Stderr = outBuf, errBuf
-
-	// reexec.Command() sets cmd.SysProcAttr.Pdeathsig on Linux, which
-	// causes the started process to be signaled when the creating OS thread
-	// dies. Ensure that the reexec is not prematurely signaled. See
-	// https://go.dev/issue/27505 for more information.
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	if err = cmd.Run(); err != nil {
-		return 0, fmt.Errorf("ApplyLayer %s stdout: %s stderr: %s", err, outBuf, errBuf)
-	}
-
-	// Stdout should be a valid JSON struct representing an applyLayerResponse.
-	response := applyLayerResponse{}
-	decoder := json.NewDecoder(outBuf)
-	if err = decoder.Decode(&response); err != nil {
-		return 0, fmt.Errorf("unable to decode ApplyLayer JSON response: %s", err)
-	}
-
-	return response.LayerSize, nil
+	res := <-done
+	return res.layerSize, res.err
 }
