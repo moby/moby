@@ -3,7 +3,6 @@ package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
@@ -29,13 +28,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 		layer = decompressed
 	}
 
-	tmpDir, err := os.MkdirTemp(os.Getenv("temp"), "temp-docker-extract")
-	if err != nil {
-		return 0, fmt.Errorf("ApplyLayer failed to create temp-docker-extract under %s. %s", dest, err)
-	}
-
 	s, err := archive.UnpackLayer(dest, layer, nil)
-	os.RemoveAll(tmpDir)
 	if err != nil {
 		return 0, fmt.Errorf("ApplyLayer %s failed UnpackLayer to %s: %s", layer, dest, err)
 	}

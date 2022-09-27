@@ -29,7 +29,6 @@ type applyLayerResponse struct {
 func applyLayer() {
 
 	var (
-		tmpDir  string
 		err     error
 		options *archive.TarOptions
 	)
@@ -53,13 +52,7 @@ func applyLayer() {
 		options.InUserNS = true
 	}
 
-	if tmpDir, err = os.MkdirTemp("/", "temp-docker-extract"); err != nil {
-		fatal(err)
-	}
-
-	os.Setenv("TMPDIR", tmpDir)
 	size, err := archive.UnpackLayer("/", os.Stdin, options)
-	os.RemoveAll(tmpDir)
 	if err != nil {
 		fatal(err)
 	}
