@@ -5,7 +5,9 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	volumemounts "github.com/docker/docker/volume/mounts"
+	"github.com/pkg/errors"
 )
 
 // checkIfPathIsInAVolume checks if the path is in a volume. If it is, it
@@ -19,7 +21,7 @@ func checkIfPathIsInAVolume(container *container.Container, absPath string) (boo
 			if mnt.RW {
 				break
 			}
-			return false, ErrVolumeReadonly
+			return false, errdefs.InvalidParameter(errors.New("mounted volume is marked read-only"))
 		}
 	}
 	return toVolume, nil

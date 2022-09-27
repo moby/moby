@@ -21,12 +21,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	// ErrVolumeReadonly is used to signal an error when trying to copy data into
-	// a volume mount that is not writable.
-	ErrVolumeReadonly = errors.New("mounted volume is marked read-only")
-)
-
 type mounts []container.Mount
 
 // Len returns the number of mounts. Used in sorting.
