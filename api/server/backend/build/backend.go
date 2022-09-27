@@ -54,7 +54,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 	options := config.Options
 	useBuildKit := options.Version == types.BuilderBuildKit
 
-	tagger, err := NewTagger(b.imageComponent, config.ProgressWriter.StdoutFormatter, options.Tags)
+	tags, err := sanitizeRepoAndTags(options.Tags)
 	if err != nil {
 		return "", err
 	}
@@ -93,7 +93,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
 	}
 	if imageID != "" {
-		err = tagger.TagImages(image.ID(imageID))
+		err = tagImages(b.imageComponent, config.ProgressWriter.StdoutFormatter, image.ID(imageID), tags)
 	}
 	return imageID, err
 }

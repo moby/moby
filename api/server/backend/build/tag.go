@@ -9,34 +9,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Tagger is responsible for tagging an image created by a builder
-type Tagger struct {
-	imageComponent ImageComponent
-	stdout         io.Writer
-	repoAndTags    []reference.Named
-}
-
-// NewTagger returns a new Tagger for tagging the images of a build.
-// If any of the names are invalid tags an error is returned.
-func NewTagger(backend ImageComponent, stdout io.Writer, names []string) (*Tagger, error) {
-	reposAndTags, err := sanitizeRepoAndTags(names)
-	if err != nil {
-		return nil, err
-	}
-	return &Tagger{
-		imageComponent: backend,
-		stdout:         stdout,
-		repoAndTags:    reposAndTags,
-	}, nil
-}
-
-// TagImages creates image tags for the imageID
-func (bt *Tagger) TagImages(imageID image.ID) error {
-	for _, rt := range bt.repoAndTags {
-		if err := bt.imageComponent.TagImageWithReference(imageID, rt); err != nil {
+// tagImages creates image tags for the imageID.
+func tagImages(ic ImageComponent, stdout io.Writer, imageID image.ID, repoAndTags []reference.Named) error {
+	for _, rt := range repoAndTags {
+		if err := ic.TagImageWithReference(imageID, rt); err != nil {
 			return err
 		}
-		fmt.Fprintf(bt.stdout, "Successfully tagged %s\n", reference.FamiliarString(rt))
+		_, _ = fmt.Fprintln(stdout, "Successfully tagged", reference.FamiliarString(rt))
 	}
 	return nil
 }
