@@ -7,17 +7,23 @@ install_dockercli() {
 	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
 
 	arch=$(uname -m)
-	# No official release of these platforms
-	if [ "$arch" != "x86_64" ] && [ "$arch" != "s390x" ] && [ "$arch" != "armhf" ]; then
-		build_dockercli
-		return
-	fi
+	case $arch in
+		# These platforms have official binaries builds
+		"x86_64" | "armhf" | "armel" | "aarch64" | "s390x" | "ppc64le")
+			base_url=https://download.docker.com/linux/static
 
-	url=https://download.docker.com/linux/static
-	curl -Ls "${url}/${DOCKERCLI_CHANNEL}/${arch}/docker-${DOCKERCLI_VERSION}.tgz" | tar -xz docker/docker
-	mkdir -p "${PREFIX}"
-	mv docker/docker "${PREFIX}/"
-	rmdir docker
+			url="${base_url}/${DOCKERCLI_CHANNEL}/${arch}/docker-${DOCKERCLI_VERSION}.tgz"
+			if curl -Ls "$url" | tar -xz docker/docker; then
+				mkdir -p "${PREFIX}"
+				mv docker/docker "${PREFIX}/"
+				rmdir docker
+				return
+			fi
+			;;
+	esac
+
+	# Fallback to build
+	build_dockercli
 }
 
 build_dockercli() {
