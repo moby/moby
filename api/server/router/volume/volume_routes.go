@@ -187,6 +187,12 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
+	// API version 1.42 changes behavior where prune should only prune anonymous volumes.
+	// To keep older API behavior working, we need to add this filter option to consider all (local) volumes for pruning, not just anonymous ones.
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.42") {
+		pruneFilters.Add("all", "true")
+	}
+
 	pruneReport, err := v.backend.Prune(ctx, pruneFilters)
 	if err != nil {
 		return err
