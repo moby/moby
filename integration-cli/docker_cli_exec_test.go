@@ -76,7 +76,6 @@ func (s *DockerCLIExecSuite) TestExecInteractive(c *testing.T) {
 	case <-time.After(1 * time.Second):
 		c.Fatal("docker exec failed to exit on stdin close")
 	}
-
 }
 
 func (s *DockerCLIExecSuite) TestExecAfterContainerRestart(c *testing.T) {

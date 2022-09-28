@@ -325,7 +325,6 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 
 func (cli *DaemonCli) reloadConfig() {
 	reload := func(c *config.Config) {
-
 		// Revalidate and reload the authorization plugins
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 			logrus.Fatalf("Error validating authorization plugin: %v", err)

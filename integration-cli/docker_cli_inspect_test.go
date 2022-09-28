@@ -91,7 +91,6 @@ func (s *DockerCLIInspectSuite) TestInspectStatus(c *testing.T) {
 	dockerCmd(c, "stop", out)
 	inspectOut = inspectField(c, out, "State.Status")
 	assert.Equal(c, inspectOut, "exited")
-
 }
 
 func (s *DockerCLIInspectSuite) TestInspectTypeFlagContainer(c *testing.T) {
@@ -148,7 +147,7 @@ func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	size, err := strconv.Atoi(out)
 	assert.Assert(c, err == nil, "failed to inspect size of the image: %s, %v", out, err)
 
-	//now see if the size turns out to be the same
+	// now see if the size turns out to be the same
 	formatStr := fmt.Sprintf("--format={{eq .Size %d}}", size)
 	out, _ = dockerCmd(c, "inspect", formatStr, imageTest)
 	result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
@@ -170,7 +169,7 @@ func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
 	exitCode, err := strconv.Atoi(out)
 	assert.Assert(c, err == nil, "failed to inspect exitcode of the container: %s, %v", out, err)
 
-	//now get the exit code to verify
+	// now get the exit code to verify
 	formatStr := fmt.Sprintf("--format={{eq .State.ExitCode %d}}", exitCode)
 	out, _ = dockerCmd(c, "inspect", formatStr, id)
 	inspectResult, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))

@@ -55,7 +55,6 @@ func parseMemInfo(reader io.Reader) (*MemInfo, error) {
 		case "SwapFree:":
 			meminfo.SwapFree = bytes
 		}
-
 	}
 	if memAvailable != -1 {
 		meminfo.MemFree = memAvailable

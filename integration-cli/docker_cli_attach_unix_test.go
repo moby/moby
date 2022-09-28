@@ -56,7 +56,6 @@ func (s *DockerCLIAttachSuite) TestAttachClosedOnContainerStop(c *testing.T) {
 	case <-time.After(attachWait):
 		c.Fatal("timed out without attach returning")
 	}
-
 }
 
 func (s *DockerCLIAttachSuite) TestAttachAfterDetach(c *testing.T) {

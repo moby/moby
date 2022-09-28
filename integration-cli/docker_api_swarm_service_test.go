@@ -120,7 +120,6 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesMultipleAgents(c *testing.T) {
 	instances = 5
 	d1.UpdateService(c, d1.GetService(c, id), setInstances(instances))
 	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
-
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesCreateGlobal(c *testing.T) {
@@ -193,7 +192,6 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *testing.T) {
 
 	// 2nd batch
 	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
-
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
@@ -294,7 +292,6 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 
 	// 2nd batch
 	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
-
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
@@ -333,7 +330,6 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
 	assert.NilError(c, err, out)
 
 	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages, checker.DeepEquals(map[string]int{image1: instances})), poll.WithTimeout(defaultReconciliationTimeout))
-
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {

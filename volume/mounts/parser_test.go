@@ -87,5 +87,4 @@ func TestParseMountSpec(t *testing.T) {
 			t.Errorf("Expected mount copy data to match. Expected: '%v', Actual: '%v'", c.expected.CopyData, mp.CopyData)
 		}
 	}
-
 }

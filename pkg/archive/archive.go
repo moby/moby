@@ -385,7 +385,6 @@ func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModi
 		}
 
 		pipeWriter.Close()
-
 	}()
 	return pipeReader
 }
@@ -772,7 +771,6 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 			}
 			return err
 		}
-
 	}
 
 	if len(errors) > 0 {

@@ -404,5 +404,4 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if !daemon.netController.IsDiagnosticEnabled() {
 		t.Fatalf("diagnostic should be enable")
 	}
-
 }

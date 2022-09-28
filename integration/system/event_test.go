@@ -71,7 +71,6 @@ func TestEventsExecDie(t *testing.T) {
 	case <-time.After(time.Second * 3):
 		t.Fatal("timeout hit")
 	}
-
 }
 
 // Test case for #18888: Events messages have been switched from generic

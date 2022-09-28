@@ -120,7 +120,6 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *testing.T) {
 			assert.Assert(c, !strings.Contains(record.out, "unauthorized"), `message should not contain "unauthorized"`)
 		}
 	}
-
 }
 
 // TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies

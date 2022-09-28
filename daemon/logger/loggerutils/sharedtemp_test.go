@@ -207,7 +207,6 @@ func TestSharedTempFileConverter(t *testing.T) {
 		assert.Check(t, src.Close())
 		assert.NilError(t, os.Remove(name))
 		checkDirEmpty(t, dir)
-
 	})
 }
 

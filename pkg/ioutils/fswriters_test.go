@@ -95,7 +95,6 @@ func TestAtomicWriteSetCommit(t *testing.T) {
 	if expected := testMode; st.Mode() != expected {
 		t.Fatalf("Mode mismatched, expected %o, got %o", expected, st.Mode())
 	}
-
 }
 
 func TestAtomicWriteSetCancel(t *testing.T) {

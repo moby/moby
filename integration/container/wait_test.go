@@ -241,5 +241,4 @@ func TestWaitRestartedContainer(t *testing.T) {
 			}
 		})
 	}
-
 }

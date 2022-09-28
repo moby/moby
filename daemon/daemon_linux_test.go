@@ -342,5 +342,4 @@ func TestRootMountCleanup(t *testing.T) {
 		checkMounted(t, cfg.Root, false)
 		assert.Assert(t, d.cleanupMounts())
 	})
-
 }

@@ -460,7 +460,6 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 			// It returns an error if the driver name is different - that is a valid error
 			return err
 		}
-
 	}
 
 	return nil

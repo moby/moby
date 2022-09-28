@@ -115,5 +115,4 @@ func TestAdjustForAPIVersion(t *testing.T) {
 	if len(spec.TaskTemplate.ContainerSpec.Ulimits) != 0 {
 		t.Error("Ulimits were not stripped from spec")
 	}
-
 }

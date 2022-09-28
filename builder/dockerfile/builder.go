@@ -295,7 +295,6 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 			}
 			dispatchRequest.state.updateRunConfig()
 			fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
-
 		}
 		if err := emitImageID(b.Aux, dispatchRequest.state); err != nil {
 			return nil, err

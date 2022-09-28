@@ -15,7 +15,6 @@ import (
 )
 
 func TestWithSeccomp(t *testing.T) {
-
 	type expected struct {
 		daemon  *Daemon
 		c       *container.Container

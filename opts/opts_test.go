@@ -29,7 +29,6 @@ func TestValidateIPAddress(t *testing.T) {
 	if ret, err := ValidateIPAddress(`random invalid string`); err == nil || ret != "" {
 		t.Fatalf("ValidateIPAddress(`random invalid string`) got %s %s", ret, err)
 	}
-
 }
 
 func TestMapOpts(t *testing.T) {
@@ -89,7 +88,6 @@ func TestListOptsWithoutValidator(t *testing.T) {
 	if len(mapListOpts) != 1 {
 		t.Errorf("Expected [map[bar:{}]], got [%v]", mapListOpts)
 	}
-
 }
 
 func TestListOptsWithValidator(t *testing.T) {
@@ -264,7 +262,6 @@ func TestValidateLabel(t *testing.T) {
 				assert.Check(t, is.Equal(result, testCase.expectedResult))
 			}
 		})
-
 	}
 }
 

@@ -237,7 +237,6 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	defer func() { _ = output.Close() }()
 
 	errf := func(err error) error {
-
 		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
 			_, _ = output.Write(notVerboseBuffer.Bytes())
 		}
