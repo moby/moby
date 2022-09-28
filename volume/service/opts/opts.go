@@ -11,6 +11,16 @@ type CreateConfig struct {
 	Reference string
 }
 
+// WithCreateLabel creates a CreateOption which adds a label with the given key/value pair
+func WithCreateLabel(key, value string) CreateOption {
+	return func(cfg *CreateConfig) {
+		if cfg.Labels == nil {
+			cfg.Labels = map[string]string{}
+		}
+		cfg.Labels[key] = value
+	}
+}
+
 // WithCreateLabels creates a CreateOption which sets the labels to the
 // passed in value
 func WithCreateLabels(labels map[string]string) CreateOption {

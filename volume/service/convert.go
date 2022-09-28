@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/volume"
 	"github.com/sirupsen/logrus"
@@ -129,4 +132,23 @@ func filtersToBy(filter filters.Args, acceptedFilters map[string]bool) (By, erro
 		by = And(bys...)
 	}
 	return by, nil
+}
+
+func withPrune(filter filters.Args) error {
+	all := filter.Get("all")
+	switch {
+	case len(all) > 1:
+		return invalidFilter{"all", all}
+	case len(all) == 1:
+		ok, err := strconv.ParseBool(all[0])
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'all': %w", err))
+		}
+		if ok {
+			return nil
+		}
+	}
+
+	filter.Add("label", AnonymousLabel)
+	return nil
 }
