@@ -21,10 +21,10 @@ install_dockercli() {
 }
 
 build_dockercli() {
-	git clone https://github.com/docker/docker-ce "$GOPATH/tmp/docker-ce"
-	cd "$GOPATH/tmp/docker-ce"
-	git checkout -q "v$DOCKERCLI_VERSION"
 	mkdir -p "$GOPATH/src/github.com/docker"
-	mv components/cli "$GOPATH/src/github.com/docker/cli"
+	cd "$GOPATH/src/github.com/docker"
+	git clone https://github.com/docker/cli
+	cd cli
+	git checkout -q "v$DOCKERCLI_VERSION"
 	go build ${GO_BUILDMODE} -o "${PREFIX}/docker" "github.com/docker/cli/cmd/docker"
 }
