@@ -50,6 +50,13 @@ func mountFrom(dir, device, target, mType string, flags uintptr, label string) e
 	output := bytes.NewBuffer(nil)
 	cmd.Stdout = output
 	cmd.Stderr = output
+
+	// reexec.Command() sets cmd.SysProcAttr.Pdeathsig on Linux, which
+	// causes the started process to be signaled when the creating OS thread
+	// dies. Ensure that the reexec is not prematurely signaled. See
+	// https://go.dev/issue/27505 for more information.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err := cmd.Start(); err != nil {
 		w.Close()
 		return fmt.Errorf("mountfrom error on re-exec cmd: %v", err)
