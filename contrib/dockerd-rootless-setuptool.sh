@@ -353,19 +353,24 @@ install_nonsystemd() {
 
 cli_ctx_exists() {
 	name="$1"
-	"${BIN}/docker" context inspect -f "{{.Name}}" "${name}" > /dev/null 2>&1
+	"${BIN}/docker" --context=default context inspect -f "{{.Name}}" "${name}" > /dev/null 2>&1
 }
 
 cli_ctx_create() {
 	name="$1"
 	host="$2"
 	description="$3"
-	"${BIN}/docker" context create "${name}" --docker "host=${host}" --description "${description}" > /dev/null
+	"${BIN}/docker" --context=default context create "${name}" --docker "host=${host}" --description "${description}" > /dev/null
+}
+
+cli_ctx_use() {
+	name="$1"
+	"${BIN}/docker" --context=default context use "${name}" > /dev/null
 }
 
 cli_ctx_rm() {
 	name="$1"
-	"${BIN}/docker" context rm -f "${name}" > /dev/null
+	"${BIN}/docker" --context=default context rm -f "${name}" > /dev/null
 }
 
 # CLI subcommand: "install"
@@ -384,6 +389,9 @@ cmd_entrypoint_install() {
 		cli_ctx_create "${CLI_CONTEXT}" "unix://${XDG_RUNTIME_DIR}/docker.sock" "Rootless mode"
 	fi
 
+	INFO "Use CLI context \"${CLI_CONTEXT}\""
+	cli_ctx_use "${CLI_CONTEXT}"
+
 	echo
 	INFO "Make sure the following environment variables are set (or add them to ~/.bashrc):"
 	echo
@@ -392,6 +400,7 @@ cmd_entrypoint_install() {
 		echo "export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}"
 	fi
 	echo "export PATH=${BIN}:\$PATH"
+	echo "Some applications may require the following environment variable too:"
 	echo "export DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock"
 	echo
 
@@ -420,7 +429,12 @@ cmd_entrypoint_uninstall() {
 		cli_ctx_rm "${CLI_CONTEXT}"
 		INFO "Deleted CLI context \"${CLI_CONTEXT}\""
 	fi
-
+	unset DOCKER_HOST
+	unset DOCKER_CONTEXT
+	cli_ctx_use "default"
+	INFO 'Configured CLI use the "default" context.'
+	INFO
+	INFO 'Make sure to unset or update the environment PATH, DOCKER_HOST, and DOCKER_CONTEXT environment variables if you have added them to `~/.bashrc`.'
 	INFO "This uninstallation tool does NOT remove Docker binaries and data."
 	INFO "To remove data, run: \`$BIN/rootlesskit rm -rf $HOME/.local/share/docker\`"
 }
