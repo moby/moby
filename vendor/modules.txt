@@ -594,6 +594,9 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
+# github.com/moby/pubsub v1.0.0
+## explicit; go 1.19
+github.com/moby/pubsub
 # github.com/moby/swarmkit/v2 v2.0.0-20220721174824-48dd89375d0a
 ## explicit; go 1.17
 github.com/moby/swarmkit/v2/agent
