@@ -519,6 +519,9 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
+			if err := daemon.prepareMountPoints(c); err != nil {
+				log.WithError(err).Error("failed to prepare mount points for container")
+			}
 			if err := daemon.containerStart(c, "", "", true); err != nil {
 				log.WithError(err).Error("failed to start container")
 			}
