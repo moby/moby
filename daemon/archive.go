@@ -16,11 +16,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ErrExtractPointNotDirectory is used to convey that the operation to extract
-// a tar archive to a directory in a container has failed because the specified
-// path does not refer to a directory.
-var ErrExtractPointNotDirectory = errors.New("extraction point is not a directory")
-
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the container identified by the given name.
 func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
@@ -97,7 +92,7 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 // ContainerExtractToDir extracts the given archive to the specified location
 // in the filesystem of the container identified by the given name. The given
 // path must be of a directory in the container. If it is not, the error will
-// be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
+// be an errdefs.InvalidParameter. If noOverwriteDirNonDir is true then it will
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
@@ -239,7 +234,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 
 // containerExtractToDir extracts the given tar archive to the specified location in the
 // filesystem of this container. The given path must be of a directory in the
-// container. If it is not, the error will be ErrExtractPointNotDirectory. If
+// container. If it is not, the error will be an errdefs.InvalidParameter. If
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
@@ -288,7 +283,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	}
 
 	if !stat.IsDir() {
-		return ErrExtractPointNotDirectory
+		return errdefs.InvalidParameter(errors.New("extraction point is not a directory"))
 	}
 
 	// Need to check if the path is in a volume. If it is, it cannot be in a
@@ -326,7 +321,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	}
 
 	if !toVolume && container.HostConfig.ReadonlyRootfs {
-		return ErrRootFSReadOnly
+		return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
 	}
 
 	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
