@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/builder/remotecontext/urlutil"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/patternmatcher"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -131,7 +131,7 @@ func removeDockerfile(c modifiableContext, filesToRemove ...string) error {
 	f.Close()
 	filesToRemove = append([]string{".dockerignore"}, filesToRemove...)
 	for _, fileToRemove := range filesToRemove {
-		if rm, _ := fileutils.MatchesOrParentMatches(fileToRemove, excludes); rm {
+		if rm, _ := patternmatcher.MatchesOrParentMatches(fileToRemove, excludes); rm {
 			if err := c.Remove(fileToRemove); err != nil {
 				logrus.Errorf("failed to remove %s: %v", fileToRemove, err)
 			}
