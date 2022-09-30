@@ -8,19 +8,11 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // CopyFile with invalid src
 func TestCopyFileWithInvalidSrc(t *testing.T) {
-	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test") // #nosec G303
-	defer os.RemoveAll(tempFolder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bytes, err := CopyFile("/invalid/file/path", path.Join(tempFolder, "dest"))
+	bytes, err := CopyFile("/invalid/file/path", path.Join(t.TempDir(), "dest"))
 	if err == nil {
 		t.Fatal("Should have fail to copy an invalid src file")
 	}
@@ -32,13 +24,9 @@ func TestCopyFileWithInvalidSrc(t *testing.T) {
 
 // CopyFile with invalid dest
 func TestCopyFileWithInvalidDest(t *testing.T) {
-	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
-	defer os.RemoveAll(tempFolder)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tempFolder := t.TempDir()
 	src := path.Join(tempFolder, "file")
-	err = os.WriteFile(src, []byte("content"), 0740)
+	err := os.WriteFile(src, []byte("content"), 0o740)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,13 +42,8 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 
 // CopyFile with same src and dest
 func TestCopyFileWithSameSrcAndDest(t *testing.T) {
-	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
-	defer os.RemoveAll(tempFolder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	file := path.Join(tempFolder, "file")
-	err = os.WriteFile(file, []byte("content"), 0740)
+	file := path.Join(t.TempDir(), "file")
+	err := os.WriteFile(file, []byte("content"), 0o740)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,19 +58,14 @@ func TestCopyFileWithSameSrcAndDest(t *testing.T) {
 
 // CopyFile with same src and dest but path is different and not clean
 func TestCopyFileWithSameSrcAndDestWithPathNameDifferent(t *testing.T) {
-	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
-	defer os.RemoveAll(tempFolder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testFolder := path.Join(tempFolder, "test")
-	err = os.MkdirAll(testFolder, 0740)
+	testFolder := path.Join(t.TempDir(), "test")
+	err := os.Mkdir(testFolder, 0o740)
 	if err != nil {
 		t.Fatal(err)
 	}
 	file := path.Join(testFolder, "file")
 	sameFile := testFolder + "/../test/file"
-	err = os.WriteFile(file, []byte("content"), 0740)
+	err = os.WriteFile(file, []byte("content"), 0o740)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,15 +79,17 @@ func TestCopyFileWithSameSrcAndDestWithPathNameDifferent(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
-	defer os.RemoveAll(tempFolder)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tempFolder := t.TempDir()
 	src := path.Join(tempFolder, "src")
 	dest := path.Join(tempFolder, "dest")
-	os.WriteFile(src, []byte("content"), 0777)
-	os.WriteFile(dest, []byte("destContent"), 0777)
+	err := os.WriteFile(src, []byte("content"), 0o777)
+	if err != nil {
+		t.Error(err)
+	}
+	err = os.WriteFile(dest, []byte("destContent"), 0o777)
+	if err != nil {
+		t.Error(err)
+	}
 	bytes, err := CopyFile(src, dest)
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +113,7 @@ func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
 		t.Skip("Needs porting to Windows")
 	}
 	var err error
-	if err = os.Mkdir("/tmp/testReadSymlinkToExistingDirectory", 0777); err != nil {
+	if err = os.Mkdir("/tmp/testReadSymlinkToExistingDirectory", 0o777); err != nil {
 		t.Errorf("failed to create directory: %s", err)
 	}
 
@@ -141,13 +121,13 @@ func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
 		t.Errorf("failed to create symlink: %s", err)
 	}
 
-	var path string
-	if path, err = ReadSymlinkedDirectory("/tmp/dirLinkTest"); err != nil {
+	var symlinkedPath string
+	if symlinkedPath, err = ReadSymlinkedDirectory("/tmp/dirLinkTest"); err != nil {
 		t.Fatalf("failed to read symlink to directory: %s", err)
 	}
 
-	if path != "/tmp/testReadSymlinkToExistingDirectory" {
-		t.Fatalf("symlink returned unexpected directory: %s", path)
+	if symlinkedPath != "/tmp/testReadSymlinkToExistingDirectory" {
+		t.Fatalf("symlink returned unexpected directory: %s", symlinkedPath)
 	}
 
 	if err = os.Remove("/tmp/testReadSymlinkToExistingDirectory"); err != nil {
@@ -161,14 +141,13 @@ func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
 
 // Reading a non-existing symlink must fail
 func TestReadSymlinkedDirectoryNonExistingSymlink(t *testing.T) {
-	var path string
-	var err error
-	if path, err = ReadSymlinkedDirectory("/tmp/test/foo/Non/ExistingPath"); err == nil {
+	symLinkedPath, err := ReadSymlinkedDirectory("/tmp/test/foo/Non/ExistingPath")
+	if err == nil {
 		t.Fatalf("error expected for non-existing symlink")
 	}
 
-	if path != "" {
-		t.Fatalf("expected empty path, but '%s' was returned", path)
+	if symLinkedPath != "" {
+		t.Fatalf("expected empty path, but '%s' was returned", symLinkedPath)
 	}
 }
 
@@ -192,13 +171,13 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 		t.Errorf("failed to create symlink: %s", err)
 	}
 
-	var path string
-	if path, err = ReadSymlinkedDirectory("/tmp/fileLinkTest"); err == nil {
+	symlinkedPath, err := ReadSymlinkedDirectory("/tmp/fileLinkTest")
+	if err == nil {
 		t.Fatalf("ReadSymlinkedDirectory on a symlink to a file should've failed")
 	}
 
-	if path != "" {
-		t.Fatalf("path should've been empty: %s", path)
+	if symlinkedPath != "" {
+		t.Fatalf("path should've been empty: %s", symlinkedPath)
 	}
 
 	if err = os.Remove("/tmp/testReadSymlinkToFile"); err != nil {
@@ -400,27 +379,34 @@ func TestMatches(t *testing.T) {
 
 	t.Run("MatchesOrParentMatches", func(t *testing.T) {
 		for _, test := range tests {
-			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%v (pattern=%q, text=%q)", err, test.pattern, test.text)
+			}
 			res, _ := pm.MatchesOrParentMatches(test.text)
-			assert.Check(t, is.Equal(test.pass, res), desc)
+			if test.pass != res {
+				t.Fatalf("%v (pattern=%q, text=%q)", err, test.pattern, test.text)
+			}
 		}
 
 		for _, test := range multiPatternTests {
-			desc := fmt.Sprintf("patterns=%q text=%q", test.patterns, test.text)
 			pm, err := NewPatternMatcher(test.patterns)
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%v (patterns=%q, text=%q)", err, test.patterns, test.text)
+			}
 			res, _ := pm.MatchesOrParentMatches(test.text)
-			assert.Check(t, is.Equal(test.pass, res), desc)
+			if test.pass != res {
+				t.Errorf("expected: %v, got: %v (patterns=%q, text=%q)", test.pass, res, test.patterns, test.text)
+			}
 		}
 	})
 
 	t.Run("MatchesUsingParentResult", func(t *testing.T) {
 		for _, test := range tests {
-			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatalf("%v (pattern=%q, text=%q)", err, test.pattern, test.text)
+			}
 
 			parentPath := filepath.Dir(filepath.FromSlash(test.text))
 			parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
@@ -433,7 +419,9 @@ func TestMatches(t *testing.T) {
 			}
 
 			res, _ := pm.MatchesUsingParentResult(test.text, parentMatched)
-			assert.Check(t, is.Equal(test.pass, res), desc)
+			if test.pass != res {
+				t.Errorf("expected: %v, got: %v (pattern=%q, text=%q)", test.pass, res, test.pattern, test.text)
+			}
 		}
 	})
 
@@ -450,13 +438,17 @@ func TestMatches(t *testing.T) {
 			}
 
 			res, _, _ := pm.MatchesUsingParentResults(text, parentMatchInfo)
-			assert.Check(t, is.Equal(pass, res), desc)
+			if pass != res {
+				t.Errorf("expected: %v, got: %v %s", pass, res, desc)
+			}
 		}
 
 		for _, test := range tests {
-			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
+			desc := fmt.Sprintf("(pattern=%q text=%q)", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatal(err, desc)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
@@ -464,7 +456,9 @@ func TestMatches(t *testing.T) {
 		for _, test := range multiPatternTests {
 			desc := fmt.Sprintf("pattern=%q text=%q", test.patterns, test.text)
 			pm, err := NewPatternMatcher(test.patterns)
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatal(err, desc)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
@@ -473,21 +467,27 @@ func TestMatches(t *testing.T) {
 	t.Run("MatchesUsingParentResultsNoContext", func(t *testing.T) {
 		check := func(pm *PatternMatcher, text string, pass bool, desc string) {
 			res, _, _ := pm.MatchesUsingParentResults(text, MatchInfo{})
-			assert.Check(t, is.Equal(pass, res), desc)
+			if pass != res {
+				t.Errorf("expected: %v, got: %v %s", pass, res, desc)
+			}
 		}
 
 		for _, test := range tests {
-			desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
+			desc := fmt.Sprintf("(pattern=%q text=%q)", test.pattern, test.text)
 			pm, err := NewPatternMatcher([]string{test.pattern})
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatal(err, desc)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
 
 		for _, test := range multiPatternTests {
-			desc := fmt.Sprintf("pattern=%q text=%q", test.patterns, test.text)
+			desc := fmt.Sprintf("(pattern=%q text=%q)", test.patterns, test.text)
 			pm, err := NewPatternMatcher(test.patterns)
-			assert.NilError(t, err, desc)
+			if err != nil {
+				t.Fatal(err, desc)
+			}
 
 			check(pm, test.text, test.pass, desc)
 		}
@@ -561,13 +561,7 @@ func TestCleanPatternsErrorSingleException(t *testing.T) {
 }
 
 func TestCreateIfNotExistsDir(t *testing.T) {
-	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempFolder)
-
-	folderToCreate := filepath.Join(tempFolder, "tocreate")
+	folderToCreate := filepath.Join(t.TempDir(), "tocreate")
 
 	if err := CreateIfNotExists(folderToCreate, true); err != nil {
 		t.Fatal(err)
@@ -583,13 +577,7 @@ func TestCreateIfNotExistsDir(t *testing.T) {
 }
 
 func TestCreateIfNotExistsFile(t *testing.T) {
-	tempFolder, err := os.MkdirTemp("", "docker-fileutils-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tempFolder)
-
-	fileToCreate := filepath.Join(tempFolder, "file/to/create")
+	fileToCreate := filepath.Join(t.TempDir(), "file/to/create")
 
 	if err := CreateIfNotExists(fileToCreate, false); err != nil {
 		t.Fatal(err)
