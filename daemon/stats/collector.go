@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/pubsub"
+	"github.com/moby/pubsub"
 	"github.com/sirupsen/logrus"
 )
 
