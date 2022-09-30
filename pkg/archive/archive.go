@@ -19,12 +19,12 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/pkg/userns"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/klauspost/compress/zstd"
+	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/sequential"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -854,7 +854,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	// on platforms other than Windows.
 	srcPath = fixVolumePathPrefix(srcPath)
 
-	pm, err := fileutils.NewPatternMatcher(options.ExcludePatterns)
+	pm, err := patternmatcher.New(options.ExcludePatterns)
 	if err != nil {
 		return nil, err
 	}
@@ -929,7 +929,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			rebaseName := options.RebaseNames[include]
 
 			var (
-				parentMatchInfo []fileutils.MatchInfo
+				parentMatchInfo []patternmatcher.MatchInfo
 				parentDirs      []string
 			)
 
@@ -968,11 +968,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 						parentMatchInfo = parentMatchInfo[:len(parentMatchInfo)-1]
 					}
 
-					var matchInfo fileutils.MatchInfo
+					var matchInfo patternmatcher.MatchInfo
 					if len(parentMatchInfo) != 0 {
 						skip, matchInfo, err = pm.MatchesUsingParentResults(relFilePath, parentMatchInfo[len(parentMatchInfo)-1])
 					} else {
-						skip, matchInfo, err = pm.MatchesUsingParentResults(relFilePath, fileutils.MatchInfo{})
+						skip, matchInfo, err = pm.MatchesUsingParentResults(relFilePath, patternmatcher.MatchInfo{})
 					}
 					if err != nil {
 						logrus.Errorf("Error matching %s: %v", relFilePath, err)
