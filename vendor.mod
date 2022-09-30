@@ -76,7 +76,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/tonistiigi/fsutil v0.0.0-20220315205639-9ed612626da3
+	github.com/tonistiigi/fsutil v0.0.0-20220930225714-4638ad635be5
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.11.2
 	github.com/vishvananda/netlink v1.2.1-beta.2
@@ -91,6 +91,9 @@ require (
 	gotest.tools/v3 v3.4.0
 	resenje.org/singleflight v0.3.0
 )
+
+// FIXME(thaJeztah) temporarily replacing with PR branch for https://github.com/moby/buildkit/pull/3144
+replace github.com/moby/buildkit => github.com/thaJeztah/buildkit v0.0.0-20221114091624-77c20e898af0
 
 require (
 	cloud.google.com/go v0.102.1 // indirect

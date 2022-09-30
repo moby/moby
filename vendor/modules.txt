@@ -486,7 +486,7 @@ github.com/mistifyio/go-zfs
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
-# github.com/moby/buildkit v0.10.6
+# github.com/moby/buildkit v0.10.6 => github.com/thaJeztah/buildkit v0.0.0-20221114091624-77c20e898af0
 ## explicit; go 1.17
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -512,6 +512,7 @@ github.com/moby/buildkit/executor
 github.com/moby/buildkit/executor/oci
 github.com/moby/buildkit/executor/runcexecutor
 github.com/moby/buildkit/exporter
+github.com/moby/buildkit/exporter/containerimage
 github.com/moby/buildkit/exporter/containerimage/exptypes
 github.com/moby/buildkit/exporter/local
 github.com/moby/buildkit/exporter/tar
@@ -773,8 +774,8 @@ github.com/spf13/pflag
 # github.com/tinylib/msgp v1.1.6
 ## explicit; go 1.14
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20220315205639-9ed612626da3
-## explicit; go 1.13
+# github.com/tonistiigi/fsutil v0.0.0-20220930225714-4638ad635be5
+## explicit; go 1.18
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
@@ -1149,3 +1150,4 @@ k8s.io/klog/v2/internal/severity
 # resenje.org/singleflight v0.3.0
 ## explicit; go 1.18
 resenje.org/singleflight
+# github.com/moby/buildkit => github.com/thaJeztah/buildkit v0.0.0-20221114091624-77c20e898af0
