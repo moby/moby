@@ -558,7 +558,6 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	if len(resources.BlkioDeviceWriteBps) > 0 && !sysInfo.BlkioWriteBpsDevice {
 		warnings = append(warnings, "Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
-
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 && !sysInfo.BlkioReadIOpsDevice {
 		warnings = append(warnings, "Your kernel does not support IOPS Block read limit or the cgroup is not mounted. Block I/O IOPS read limit discarded.")
@@ -1090,7 +1089,6 @@ func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.Containe
 //
 // If names are used, they are verified to exist in passwd/group
 func parseRemappedRoot(usergrp string) (string, string, error) {
-
 	var (
 		userID, groupID     int
 		username, groupname string

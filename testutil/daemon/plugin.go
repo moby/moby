@@ -64,7 +64,6 @@ func withPluginInspect(name string, f func(*types.Plugin, poll.LogT) poll.Result
 		}
 		return f(plugin, t)
 	}
-
 }
 
 func withClient(t testing.TB, d *Daemon, f func(client.APIClient, poll.LogT) poll.Result) func(poll.LogT) poll.Result {

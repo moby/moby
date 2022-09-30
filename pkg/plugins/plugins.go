@@ -151,7 +151,6 @@ func (p *Plugin) runHandlers() {
 		p.handlersRun = true
 	}
 	handlers.RUnlock()
-
 }
 
 // activated returns if the plugin has already been activated.

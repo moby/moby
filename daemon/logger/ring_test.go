@@ -142,7 +142,6 @@ func TestRingDrain(t *testing.T) {
 	if len(ls) != 0 {
 		t.Fatalf("expected 0 messages on 2nd drain: %v", ls)
 	}
-
 }
 
 type nopLogger struct{}

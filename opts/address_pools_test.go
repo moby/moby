@@ -16,5 +16,4 @@ func TestAddressPoolOpt(t *testing.T) {
 	if err := poolopt.Set(invalidAddresspoolString); err == nil {
 		t.Fatal(err)
 	}
-
 }

@@ -169,7 +169,6 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	assert.Check(t, is.Contains(res.Stdout(), "6.7.8.9"))
 	c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
 	d.Stop(t)
-
 }
 
 // TestRestartDaemonWithRestartingContainer simulates a case where a container is in "restarting" state when

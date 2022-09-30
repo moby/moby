@@ -177,7 +177,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 	p := &puller{
 		src: imageIdentifier,
 		is:  is,
-		//resolver: is.getResolver(is.RegistryHosts, imageIdentifier.Reference.String(), sm, g),
+		// resolver: is.getResolver(is.RegistryHosts, imageIdentifier.Reference.String(), sm, g),
 		platform: platform,
 		sm:       sm,
 	}
@@ -439,7 +439,6 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 		// TODO: Optimize to do dispatch and integrate pulling with download manager,
 		// leverage existing blob mapping and layer storage
 	} else {
-
 		// TODO: need a wrapper snapshot interface that combines content
 		// and snapshots as 1) buildkit shouldn't have a dependency on contentstore
 		// or 2) cachemanager should manage the contentstore

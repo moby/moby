@@ -48,7 +48,6 @@ func makeTestMessages() []*logger.Message {
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("a really long message " + strings.Repeat("a", 4096))},
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("just one more message")},
 	}
-
 }
 
 func (tr Reader) testTail(t *testing.T, live bool) {

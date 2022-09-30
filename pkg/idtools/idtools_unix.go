@@ -213,7 +213,6 @@ func callGetent(database, key string) (io.Reader, error) {
 		default:
 			return nil, err
 		}
-
 	}
 	return bytes.NewReader(out), nil
 }

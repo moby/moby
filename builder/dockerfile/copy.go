@@ -105,7 +105,6 @@ func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, i
 		imageSource: imageSource,
 		platform:    platform,
 	}
-
 }
 
 func (o *copier) createCopyInstruction(sourcesAndDest instructions.SourcesAndDest, cmdName string) (copyInstruction, error) {

@@ -21,7 +21,6 @@ type f struct {
 }
 
 func TestDecodeContainerConfig(t *testing.T) {
-
 	var (
 		fixtures []f
 		image    string
@@ -73,7 +72,6 @@ func TestDecodeContainerConfig(t *testing.T) {
 // to the daemon in the hostConfig structure. Note this is platform specific
 // as to what level of container isolation is supported.
 func TestDecodeContainerConfigIsolation(t *testing.T) {
-
 	// An Invalid isolation level
 	if _, _, _, err := callDecodeContainerConfigIsolation("invalid"); err != nil {
 		if !strings.Contains(err.Error(), `Invalid isolation: "invalid"`) {

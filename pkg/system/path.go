@@ -13,7 +13,6 @@ func DefaultPathEnv(os string) string {
 		return ""
 	}
 	return defaultUnixPathEnv
-
 }
 
 // PathVerifier defines the subset of a PathDriver that CheckSystemDriveAndRemoveDriveLetter

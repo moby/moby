@@ -352,9 +352,7 @@ func TestValidateIndexName(t *testing.T) {
 		if assert.Check(t, err) {
 			assert.Check(t, is.Equal(testCase.expect, result))
 		}
-
 	}
-
 }
 
 func TestValidateIndexNameWithError(t *testing.T) {

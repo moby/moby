@@ -647,7 +647,6 @@ func (devices *DeviceSet) migrateOldMetaData() error {
 		if err := os.Rename(devices.oldMetadataFile(), devices.oldMetadataFile()+".migrated"); err != nil {
 			return err
 		}
-
 	}
 
 	return nil
@@ -1148,7 +1147,6 @@ func (devices *DeviceSet) setupVerifyBaseImageUUIDFS(baseInfo *devInfo) error {
 }
 
 func (devices *DeviceSet) checkGrowBaseDeviceFS(info *devInfo) error {
-
 	if !userBaseSize {
 		return nil
 	}
@@ -1622,7 +1620,6 @@ func (devices *DeviceSet) loadThinPoolLoopBackInfo() error {
 			devices.dataDevice = dataLoopDevice
 			devices.dataLoopFile = datafilename
 		}
-
 	}
 
 	// metadata device has not been passed in. So there should be a
@@ -1643,7 +1640,6 @@ func (devices *DeviceSet) loadThinPoolLoopBackInfo() error {
 }
 
 func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
-
 	// If user asked for deferred removal then check both libdm library
 	// and kernel driver support deferred removal otherwise error out.
 	if enableDeferredRemoval {
@@ -1946,7 +1942,6 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string
 }
 
 func (devices *DeviceSet) parseStorageOpt(storageOpt map[string]string) (uint64, error) {
-
 	// Read size to change the block device size per container.
 	for key, val := range storageOpt {
 		key := strings.ToLower(key)

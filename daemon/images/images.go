@@ -160,7 +160,6 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
 			if opts.All || len(i.imageStore.Children(id)) == 0 {
-
 				if opts.Filters.Contains("dangling") && !danglingOnly {
 					// dangling=false case, so dangling image is not needed
 					continue

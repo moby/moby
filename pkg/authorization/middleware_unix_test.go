@@ -50,7 +50,6 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 		if err := mdHandler(ctx, resp, req, map[string]string{}); err == nil {
 			assert.Assert(t, is.ErrorContains(err, ""))
 		}
-
 	})
 
 	t.Run("Positive Test Case :", func(t *testing.T) {
@@ -61,7 +60,5 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 		if err := mdHandler(ctx, resp, req, map[string]string{}); err != nil {
 			assert.NilError(t, err)
 		}
-
 	})
-
 }

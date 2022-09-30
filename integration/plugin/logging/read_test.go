@@ -88,5 +88,4 @@ func TestReadPluginNoRead(t *testing.T) {
 			assert.Assert(t, strings.TrimSpace(buf.String()) == "hello world", buf.Bytes())
 		})
 	}
-
 }

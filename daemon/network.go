@@ -815,7 +815,6 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 					return nil, errors.Errorf("Invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
 				ipList = append(ipList, linkip)
-
 			}
 
 			if ip = net.ParseIP(ipam.IPv4Address); ip == nil && ipam.IPv4Address != "" {
@@ -828,7 +827,6 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 
 			createOptions = append(createOptions,
 				libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
-
 		}
 
 		for _, alias := range epConfig.Aliases {
@@ -882,7 +880,6 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 
 			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 		}
-
 	}
 
 	// Port-mapping rules belong to the container & applicable only to non-internal networks

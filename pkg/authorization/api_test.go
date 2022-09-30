@@ -68,9 +68,6 @@ func TestPeerCertificateMarshalJSON(t *testing.T) {
 			assert.Assert(t, is.Nil(err))
 			assert.Equal(t, "Earth", pcObj.Subject.Country[0])
 			assert.Equal(t, true, pcObj.IsCA)
-
 		})
-
 	}
-
 }

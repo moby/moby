@@ -7,7 +7,6 @@ import (
 
 // MoveToSubdir moves all contents of a directory to a subdirectory underneath the original path
 func MoveToSubdir(oldpath, subdir string) error {
-
 	infos, err := os.ReadDir(oldpath)
 	if err != nil {
 		return err

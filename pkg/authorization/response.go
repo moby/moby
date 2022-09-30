@@ -67,9 +67,8 @@ func (rm *responseModifier) Hijacked() bool {
 	return rm.hijacked
 }
 
-// WriterHeader stores the http status code
+// WriteHeader stores the http status code
 func (rm *responseModifier) WriteHeader(s int) {
-
 	// Use original request if hijacked
 	if rm.hijacked {
 		rm.rw.WriteHeader(s)
@@ -81,7 +80,6 @@ func (rm *responseModifier) WriteHeader(s int) {
 
 // Header returns the internal http header
 func (rm *responseModifier) Header() http.Header {
-
 	// Use original header if hijacked
 	if rm.hijacked {
 		return rm.rw.Header()
@@ -143,7 +141,6 @@ func (rm *responseModifier) RawHeaders() ([]byte, error) {
 
 // Hijack returns the internal connection of the wrapped http.ResponseWriter
 func (rm *responseModifier) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-
 	rm.hijacked = true
 	rm.FlushAll()
 

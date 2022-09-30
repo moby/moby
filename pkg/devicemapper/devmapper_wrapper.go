@@ -132,9 +132,7 @@ func dmTaskSetAddNodeFct(task *cdmTask, addNode AddNodeType) int {
 	return int(C.dm_task_set_add_node((*C.struct_dm_task)(task), C.dm_add_node_t(addNode)))
 }
 
-func dmTaskAddTargetFct(task *cdmTask,
-	start, size uint64, ttype, params string) int {
-
+func dmTaskAddTargetFct(task *cdmTask, start, size uint64, ttype, params string) int {
 	Cttype := C.CString(ttype)
 	defer free(Cttype)
 

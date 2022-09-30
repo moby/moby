@@ -147,7 +147,6 @@ func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 		assert.Equal(c, res.StatusCode, te.statusExp)
 		assert.Equal(c, res.Header.Get("Content-Type"), "application/json")
 	}
-
 }
 
 // #14846
