@@ -365,10 +365,6 @@ func (sb *sandbox) rebuildDNS() error {
 		return err
 	}
 
-	if len(sb.extDNS) == 0 {
-		sb.setExternalResolvers(currRC, resolvconf.IPv4, false)
-	}
-
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker
 	// domain can be dropped.
@@ -402,6 +398,9 @@ dnsOpt:
 		// if the user did not set the ndots, set it to 0 to prioritize the service name resolution
 		// Ref: https://linux.die.net/man/5/resolv.conf
 		dnsOptionsList = append(dnsOptionsList, resOptions...)
+	}
+	if len(sb.extDNS) == 0 {
+		sb.setExternalResolvers(currRC, resolvconf.IPv4, false)
 	}
 
 	var (
