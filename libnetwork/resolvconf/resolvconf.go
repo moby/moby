@@ -102,11 +102,7 @@ func GetSpecific(path string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
-	hash, err := hashData(bytes.NewReader(resolv))
-	if err != nil {
-		return nil, err
-	}
-	return &File{Content: resolv, Hash: hash}, nil
+	return &File{Content: resolv, Hash: hashData(resolv)}, nil
 }
 
 // FilterResolvDNS cleans up the config in resolvConf.  It has two main jobs:
@@ -132,11 +128,7 @@ func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 		}
 		cleanedResolvConf = append(cleanedResolvConf, []byte("\n"+strings.Join(dns, "\n"))...)
 	}
-	hash, err := hashData(bytes.NewReader(cleanedResolvConf))
-	if err != nil {
-		return nil, err
-	}
-	return &File{Content: cleanedResolvConf, Hash: hash}, nil
+	return &File{Content: cleanedResolvConf, Hash: hashData(cleanedResolvConf)}, nil
 }
 
 // getLines parses input into lines and strips away comments.
@@ -246,10 +238,9 @@ func Build(path string, dns, dnsSearch, dnsOptions []string) (*File, error) {
 		}
 	}
 
-	hash, err := hashData(bytes.NewReader(content.Bytes()))
-	if err != nil {
+	if err := os.WriteFile(path, content.Bytes(), 0o644); err != nil {
 		return nil, err
 	}
 
-	return &File{Content: content.Bytes(), Hash: hash}, os.WriteFile(path, content.Bytes(), 0644)
+	return &File{Content: content.Bytes(), Hash: hashData(content.Bytes())}, nil
 }
