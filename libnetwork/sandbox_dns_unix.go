@@ -368,19 +368,12 @@ func (sb *sandbox) rebuildDNS() error {
 	if len(sb.extDNS) == 0 {
 		sb.setExternalResolvers(currRC, resolvconf.IPv4, false)
 	}
-	var (
-		dnsList        = []string{sb.resolver.NameServer()}
-		dnsOptionsList = resolvconf.GetOptions(currRC)
-		dnsSearchList  = resolvconf.GetSearchDomains(currRC)
-	)
-
-	// external v6 DNS servers has to be listed in resolv.conf
-	dnsList = append(dnsList, resolvconf.GetNameservers(currRC, resolvconf.IPv6)...)
 
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker
 	// domain can be dropped.
 	resOptions := sb.resolver.ResolverOptions()
+	dnsOptionsList := resolvconf.GetOptions(currRC)
 
 dnsOpt:
 	for _, resOpt := range resOptions {
@@ -410,6 +403,12 @@ dnsOpt:
 		// Ref: https://linux.die.net/man/5/resolv.conf
 		dnsOptionsList = append(dnsOptionsList, resOptions...)
 	}
+
+	var (
+		// external v6 DNS servers have to be listed in resolv.conf
+		dnsList       = append([]string{sb.resolver.NameServer()}, resolvconf.GetNameservers(currRC, resolvconf.IPv6)...)
+		dnsSearchList = resolvconf.GetSearchDomains(currRC)
+	)
 
 	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	return err
