@@ -18,8 +18,7 @@ func TestGet(t *testing.T) {
 	if string(resolvConfUtils.Content) != string(resolvConfSystem) {
 		t.Fatalf("/etc/resolv.conf and GetResolvConf have different content.")
 	}
-	hashSystem := hashData(resolvConfSystem)
-	if resolvConfUtils.Hash != hashSystem {
+	if !bytes.Equal(resolvConfUtils.Hash, hashData(resolvConfSystem)) {
 		t.Fatalf("/etc/resolv.conf and GetResolvConf have different hashes.")
 	}
 }

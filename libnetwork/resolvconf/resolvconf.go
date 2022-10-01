@@ -88,7 +88,7 @@ var (
 // File contains the resolv.conf content and its hash
 type File struct {
 	Content []byte
-	Hash    string
+	Hash    []byte
 }
 
 // Get returns the contents of /etc/resolv.conf and its hash
