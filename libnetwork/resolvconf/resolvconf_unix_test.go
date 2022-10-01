@@ -27,102 +27,224 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetNameservers(t *testing.T) {
-	for resolv, result := range map[string][]string{`
+	for _, tc := range []struct {
+		input  string
+		result []string
+	}{
+		{
+			input: ``,
+		},
+		{
+			input: `search example.com`,
+		},
+		{
+			input:  `  nameserver 1.2.3.4   `,
+			result: []string{"1.2.3.4"},
+		},
+		{
+			input: `
 nameserver 1.2.3.4
 nameserver 40.3.200.10
-search example.com`: {"1.2.3.4", "40.3.200.10"},
-		`search example.com`: {},
-		`nameserver 1.2.3.4
+search example.com`,
+			result: []string{"1.2.3.4", "40.3.200.10"},
+		},
+		{
+			input: `nameserver 1.2.3.4
 search example.com
-nameserver 4.30.20.100`: {"1.2.3.4", "4.30.20.100"},
-		``:                        {},
-		`  nameserver 1.2.3.4   `: {"1.2.3.4"},
-		`search example.com
+nameserver 4.30.20.100`,
+			result: []string{"1.2.3.4", "4.30.20.100"},
+		},
+		{
+			input: `search example.com
 nameserver 1.2.3.4
-#nameserver 4.3.2.1`: {"1.2.3.4"},
-		`search example.com
-nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4"},
+#nameserver 4.3.2.1`,
+			result: []string{"1.2.3.4"},
+		},
+		{
+			input: `search example.com
+nameserver 1.2.3.4 # not 4.3.2.1`,
+			result: []string{"1.2.3.4"},
+		},
 	} {
-		test := GetNameservers([]byte(resolv), IP)
-		if !strSlicesEqual(test, result) {
-			t.Errorf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
+		test := GetNameservers([]byte(tc.input), IP)
+		if !strSlicesEqual(test, tc.result) {
+			t.Errorf("Wrong nameserver string {%s} should be %v. Input: %s", test, tc.result, tc.input)
 		}
 	}
 }
 
 func TestGetNameserversAsCIDR(t *testing.T) {
-	for resolv, result := range map[string][]string{`
+	for _, tc := range []struct {
+		input  string
+		result []string
+	}{
+		{
+			input: ``,
+		},
+		{
+			input: `search example.com`,
+		},
+		{
+			input:  `  nameserver 1.2.3.4   `,
+			result: []string{"1.2.3.4/32"},
+		},
+		{
+			input: `
 nameserver 1.2.3.4
 nameserver 40.3.200.10
-search example.com`: {"1.2.3.4/32", "40.3.200.10/32"},
-		`search example.com`: {},
-		`nameserver 1.2.3.4
+search example.com`,
+			result: []string{"1.2.3.4/32", "40.3.200.10/32"},
+		},
+		{
+			input: `nameserver 1.2.3.4
 search example.com
-nameserver 4.30.20.100`: {"1.2.3.4/32", "4.30.20.100/32"},
-		``:                        {},
-		`  nameserver 1.2.3.4   `: {"1.2.3.4/32"},
-		`search example.com
+nameserver 4.30.20.100`,
+			result: []string{"1.2.3.4/32", "4.30.20.100/32"},
+		},
+		{
+			input: `search example.com
 nameserver 1.2.3.4
-#nameserver 4.3.2.1`: {"1.2.3.4/32"},
-		`search example.com
-nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4/32"},
+#nameserver 4.3.2.1`,
+			result: []string{"1.2.3.4/32"},
+		},
+		{
+			input: `search example.com
+nameserver 1.2.3.4 # not 4.3.2.1`,
+			result: []string{"1.2.3.4/32"},
+		},
 	} {
-		test := GetNameserversAsCIDR([]byte(resolv))
-		if !strSlicesEqual(test, result) {
-			t.Errorf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
+		test := GetNameserversAsCIDR([]byte(tc.input))
+		if !strSlicesEqual(test, tc.result) {
+			t.Errorf("Wrong nameserver string {%s} should be %v. Input: %s", test, tc.result, tc.input)
 		}
 	}
 }
 
 func TestGetSearchDomains(t *testing.T) {
-	for resolv, result := range map[string][]string{
-		`search example.com`:                                   {"example.com"},
-		`search example.com # ignored`:                         {"example.com"},
-		`	  search	 example.com	  `:                            {"example.com"},
-		`	  search	 example.com	  # ignored`:                   {"example.com"},
-		`search foo.example.com example.com`:                   {"foo.example.com", "example.com"},
-		`	   search	   foo.example.com	 example.com	`:          {"foo.example.com", "example.com"},
-		`	   search	   foo.example.com	 example.com	# ignored`: {"foo.example.com", "example.com"},
-		``:          {},
-		`# ignored`: {},
-		`nameserver 1.2.3.4
-search foo.example.com example.com`: {"foo.example.com", "example.com"},
-		`nameserver 1.2.3.4
+	for _, tc := range []struct {
+		input  string
+		result []string
+	}{
+		{
+			input: ``,
+		},
+		{
+			input: `# ignored`,
+		},
+		{
+			input:  `search example.com`,
+			result: []string{"example.com"},
+		},
+		{
+			input:  `search example.com # ignored`,
+			result: []string{"example.com"},
+		},
+		{
+			input:  `	  search	 example.com	  `,
+			result: []string{"example.com"},
+		},
+		{
+			input:  `	  search	 example.com	  # ignored`,
+			result: []string{"example.com"},
+		},
+		{
+			input:  `search foo.example.com example.com`,
+			result: []string{"foo.example.com", "example.com"},
+		},
+		{
+			input:  `	   search	   foo.example.com	 example.com	`,
+			result: []string{"foo.example.com", "example.com"},
+		},
+		{
+			input:  `	   search	   foo.example.com	 example.com	# ignored`,
+			result: []string{"foo.example.com", "example.com"},
+		},
+		{
+			input: `nameserver 1.2.3.4
+search foo.example.com example.com`,
+			result: []string{"foo.example.com", "example.com"},
+		},
+		{
+			input: `nameserver 1.2.3.4
 search dup1.example.com dup2.example.com
-search foo.example.com example.com`: {"foo.example.com", "example.com"},
-		`nameserver 1.2.3.4
+search foo.example.com example.com`,
+			result: []string{"foo.example.com", "example.com"},
+		},
+		{
+			input: `nameserver 1.2.3.4
 search foo.example.com example.com
-nameserver 4.30.20.100`: {"foo.example.com", "example.com"},
+nameserver 4.30.20.100`,
+			result: []string{"foo.example.com", "example.com"},
+		},
 	} {
-		test := GetSearchDomains([]byte(resolv))
-		if !strSlicesEqual(test, result) {
-			t.Errorf("Wrong search domain string {%s} should be %v. Input: %s", test, result, resolv)
+		test := GetSearchDomains([]byte(tc.input))
+		if !strSlicesEqual(test, tc.result) {
+			t.Errorf("Wrong search domain string {%s} should be %v. Input: %s", test, tc.result, tc.input)
 		}
 	}
 }
 
 func TestGetOptions(t *testing.T) {
-	for resolv, result := range map[string][]string{
-		`options opt1`:                            {"opt1"},
-		`options opt1 # ignored`:                  {"opt1"},
-		`	  options	 opt1	  `:                     {"opt1"},
-		`	  options	 opt1	  # ignored`:            {"opt1"},
-		`options opt1 opt2 opt3`:                  {"opt1", "opt2", "opt3"},
-		`options opt1 opt2 opt3 # ignored`:        {"opt1", "opt2", "opt3"},
-		`	   options	 opt1	 opt2	 opt3	`:          {"opt1", "opt2", "opt3"},
-		`	   options	 opt1	 opt2	 opt3	# ignored`: {"opt1", "opt2", "opt3"},
-		``:                   {},
-		`# ignored`:          {},
-		`nameserver 1.2.3.4`: {},
-		`nameserver 1.2.3.4
-options opt1 opt2 opt3`: {"opt1", "opt2", "opt3"},
-		`nameserver 1.2.3.4
+	for _, tc := range []struct {
+		input  string
+		result []string
+	}{
+		{
+			input: ``,
+		},
+		{
+			input: `# ignored`,
+		},
+		{
+			input: `nameserver 1.2.3.4`,
+		},
+		{
+			input:  `options opt1`,
+			result: []string{"opt1"},
+		},
+		{
+			input:  `options opt1 # ignored`,
+			result: []string{"opt1"},
+		},
+		{
+			input:  `	  options	 opt1	  `,
+			result: []string{"opt1"},
+		},
+		{
+			input:  `	  options	 opt1	  # ignored`,
+			result: []string{"opt1"},
+		},
+		{
+			input:  `options opt1 opt2 opt3`,
+			result: []string{"opt1", "opt2", "opt3"},
+		},
+		{
+			input:  `options opt1 opt2 opt3 # ignored`,
+			result: []string{"opt1", "opt2", "opt3"},
+		},
+		{
+			input:  `	   options	 opt1	 opt2	 opt3	`,
+			result: []string{"opt1", "opt2", "opt3"},
+		},
+		{
+			input:  `	   options	 opt1	 opt2	 opt3	# ignored`,
+			result: []string{"opt1", "opt2", "opt3"},
+		},
+		{
+			input: `nameserver 1.2.3.4
+options opt1 opt2 opt3`,
+			result: []string{"opt1", "opt2", "opt3"},
+		},
+		{
+			input: `nameserver 1.2.3.4
 options opt1 opt2
-options opt3 opt4`: {"opt3", "opt4"},
+options opt3 opt4`,
+			result: []string{"opt3", "opt4"},
+		},
 	} {
-		test := GetOptions([]byte(resolv))
-		if !strSlicesEqual(test, result) {
-			t.Errorf("Wrong options string {%s} should be %v. Input: %s", test, result, resolv)
+		test := GetOptions([]byte(tc.input))
+		if !strSlicesEqual(test, tc.result) {
+			t.Errorf("Wrong options string {%s} should be %v. Input: %s", test, tc.result, tc.input)
 		}
 	}
 }
