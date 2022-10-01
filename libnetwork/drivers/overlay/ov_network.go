@@ -531,8 +531,8 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 func checkOverlap(nw *net.IPNet) error {
 	var nameservers []string
 
-	if rc, err := resolvconf.Get(); err == nil {
-		nameservers = resolvconf.GetNameserversAsCIDR(rc.Content)
+	if rc, err := os.ReadFile(resolvconf.Path()); err == nil {
+		nameservers = resolvconf.GetNameserversAsCIDR(rc)
 	}
 
 	if err := netutils.CheckNameserverOverlaps(nameservers, nw); err != nil {
