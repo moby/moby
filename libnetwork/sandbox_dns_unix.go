@@ -194,8 +194,6 @@ func isIPv4Loopback(ipAddress string) bool {
 }
 
 func (sb *sandbox) setupDNS() error {
-	var newRC *resolvconf.File
-
 	if sb.config.resolvConfPath == "" {
 		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
 	}
@@ -238,20 +236,21 @@ func (sb *sandbox) setupDNS() error {
 		logrus.WithField("path", originResolvConfPath).Infof("no resolv.conf found, falling back to defaults")
 	}
 
+	var newRC *resolvconf.File
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
-			dnsList        = resolvconf.GetNameservers(currRC, resolvconf.IP)
-			dnsSearchList  = resolvconf.GetSearchDomains(currRC)
-			dnsOptionsList = resolvconf.GetOptions(currRC)
-		)
-		if len(sb.config.dnsList) > 0 {
-			dnsList = sb.config.dnsList
-		}
-		if len(sb.config.dnsSearchList) > 0 {
-			dnsSearchList = sb.config.dnsSearchList
-		}
-		if len(sb.config.dnsOptionsList) > 0 {
+			dnsList        = sb.config.dnsList
+			dnsSearchList  = sb.config.dnsSearchList
 			dnsOptionsList = sb.config.dnsOptionsList
+		)
+		if len(sb.config.dnsList) == 0 {
+			dnsList = resolvconf.GetNameservers(currRC, resolvconf.IP)
+		}
+		if len(sb.config.dnsSearchList) == 0 {
+			dnsSearchList = resolvconf.GetSearchDomains(currRC)
+		}
+		if len(sb.config.dnsOptionsList) == 0 {
+			dnsOptionsList = resolvconf.GetOptions(currRC)
 		}
 		newRC, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 		if err != nil {
