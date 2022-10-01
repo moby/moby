@@ -20,8 +20,8 @@ import (
 
 const (
 	defaultPrefix = "/var/lib/docker/network/files"
-	dirPerm       = 0755
-	filePerm      = 0644
+	dirPerm       = 0o755
+	filePerm      = 0o644
 )
 
 func (sb *sandbox) startResolver(restore bool) {
@@ -332,7 +332,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm)
 	if err != nil {
 		return err
 	}
