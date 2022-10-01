@@ -360,22 +360,22 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 // - Add only the embedded server's IP to container's resolv.conf
 // - If the embedded server needs any resolv.conf options add it to the current list
 func (sb *sandbox) rebuildDNS() error {
-	currRC, err := resolvconf.GetSpecific(sb.config.resolvConfPath)
+	currRC, err := os.ReadFile(sb.config.resolvConfPath)
 	if err != nil {
 		return err
 	}
 
 	if len(sb.extDNS) == 0 {
-		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, false)
+		sb.setExternalResolvers(currRC, resolvconf.IPv4, false)
 	}
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}
-		dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-		dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
+		dnsOptionsList = resolvconf.GetOptions(currRC)
+		dnsSearchList  = resolvconf.GetSearchDomains(currRC)
 	)
 
 	// external v6 DNS servers has to be listed in resolv.conf
-	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, resolvconf.IPv6)...)
+	dnsList = append(dnsList, resolvconf.GetNameservers(currRC, resolvconf.IPv6)...)
 
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker
