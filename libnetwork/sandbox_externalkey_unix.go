@@ -31,7 +31,8 @@ const (
 // The docker exec-root can be specified as "-exec-root" flag. The default value is "/run/docker".
 func processSetKeyReexec() {
 	if err := setKey(); err != nil {
-		logrus.Fatal(err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 
