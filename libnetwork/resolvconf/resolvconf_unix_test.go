@@ -270,17 +270,20 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"}, []string{"opt1"})
+	f, err := Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"}, []string{"opt1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	const expected = "search search1\nnameserver ns1\nnameserver ns2\nnameserver ns3\noptions opt1\n"
+	if !bytes.Equal(f.Content, []byte(expected)) {
+		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
+	}
 	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if expected := "search search1\nnameserver ns1\nnameserver ns2\nnameserver ns3\noptions opt1\n"; !bytes.Contains(content, []byte(expected)) {
+	if !bytes.Equal(content, []byte(expected)) {
 		t.Errorf("Expected to find '%s' got '%s'", expected, content)
 	}
 }
@@ -292,21 +295,21 @@ func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"."}, []string{"opt1"})
+	f, err := Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"."}, []string{"opt1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	const expected = "nameserver ns1\nnameserver ns2\nnameserver ns3\noptions opt1\n"
+	if !bytes.Equal(f.Content, []byte(expected)) {
+		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
+	}
 	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if expected := "nameserver ns1\nnameserver ns2\nnameserver ns3\noptions opt1\n"; !bytes.Contains(content, []byte(expected)) {
+	if !bytes.Equal(content, []byte(expected)) {
 		t.Errorf("Expected to find '%s' got '%s'", expected, content)
-	}
-	if notExpected := "search ."; bytes.Contains(content, []byte(notExpected)) {
-		t.Errorf("Expected to not find '%s' got '%s'", notExpected, content)
 	}
 }
 
@@ -317,21 +320,21 @@ func TestBuildWithNoOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"}, []string{})
+	f, err := Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"}, []string{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	const expected = "search search1\nnameserver ns1\nnameserver ns2\nnameserver ns3\n"
+	if !bytes.Equal(f.Content, []byte(expected)) {
+		t.Errorf("Expected to find '%s' got '%s'", expected, f.Content)
+	}
 	content, err := os.ReadFile(file.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if expected := "search search1\nnameserver ns1\nnameserver ns2\nnameserver ns3\n"; !bytes.Contains(content, []byte(expected)) {
+	if !bytes.Equal(content, []byte(expected)) {
 		t.Errorf("Expected to find '%s' got '%s'", expected, content)
-	}
-	if notExpected := "search ."; bytes.Contains(content, []byte(notExpected)) {
-		t.Errorf("Expected to not find '%s' got '%s'", notExpected, content)
 	}
 }
 
