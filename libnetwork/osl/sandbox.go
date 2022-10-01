@@ -20,26 +20,26 @@ const (
 // Sandbox represents a network sandbox, identified by a specific key.  It
 // holds a list of Interfaces, routes etc, and more can be added dynamically.
 type Sandbox interface {
-	// The path where the network namespace is mounted.
+	// Key returns the path where the network namespace is mounted.
 	Key() string
 
-	// Add an existing Interface to this sandbox. The operation will rename
+	// AddInterface adds an existing Interface to this sandbox. The operation will rename
 	// from the Interface SrcName to DstName as it moves, and reconfigure the
 	// interface according to the specified settings. The caller is expected
 	// to only provide a prefix for DstName. The AddInterface api will auto-generate
 	// an appropriate suffix for the DstName to disambiguate.
 	AddInterface(SrcName string, DstPrefix string, options ...IfaceOption) error
 
-	// Set default IPv4 gateway for the sandbox
+	// SetGateway sets the default IPv4 gateway for the sandbox.
 	SetGateway(gw net.IP) error
 
-	// Set default IPv6 gateway for the sandbox
+	// SetGatewayIPv6 sets the default IPv6 gateway for the sandbox.
 	SetGatewayIPv6(gw net.IP) error
 
-	// Unset the previously set default IPv4 gateway in the sandbox
+	// UnsetGateway the previously set default IPv4 gateway in the sandbox.
 	UnsetGateway() error
 
-	// Unset the previously set default IPv6 gateway in the sandbox
+	// UnsetGatewayIPv6 unsets the previously set default IPv6 gateway in the sandbox.
 	UnsetGatewayIPv6() error
 
 	// GetLoopbackIfaceName returns the name of the loopback interface
@@ -52,13 +52,13 @@ type Sandbox interface {
 	RemoveAliasIP(ifName string, ip *net.IPNet) error
 
 	// DisableARPForVIP disables ARP replies and requests for VIP addresses
-	// on a particular interface
+	// on a particular interface.
 	DisableARPForVIP(ifName string) error
 
-	// Add a static route to the sandbox.
+	// AddStaticRoute adds a static route to the sandbox.
 	AddStaticRoute(*types.StaticRoute) error
 
-	// Remove a static route from the sandbox.
+	// RemoveStaticRoute removes a static route from the sandbox.
 	RemoveStaticRoute(*types.StaticRoute) error
 
 	// AddNeighbor adds a neighbor entry into the sandbox.
@@ -67,25 +67,25 @@ type Sandbox interface {
 	// DeleteNeighbor deletes neighbor entry from the sandbox.
 	DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, osDelete bool) error
 
-	// Returns an interface with methods to set neighbor options.
+	// NeighborOptions returns an interface with methods to set neighbor options.
 	NeighborOptions() NeighborOptionSetter
 
-	// Returns an interface with methods to set interface options.
+	// InterfaceOptions an interface with methods to set interface options.
 	InterfaceOptions() IfaceOptionSetter
 
-	//Invoke
+	// InvokeFunc invoke a function in the network namespace.
 	InvokeFunc(func()) error
 
-	// Returns an interface with methods to get sandbox state.
+	// Info returns an interface with methods to get sandbox state.
 	Info() Info
 
-	// Destroy the sandbox
+	// Destroy destroys the sandbox.
 	Destroy() error
 
-	// restore sandbox
+	// Restore restores the sandbox.
 	Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
 
-	// ApplyOSTweaks applies operating system specific knobs on the sandbox
+	// ApplyOSTweaks applies operating system specific knobs on the sandbox.
 	ApplyOSTweaks([]SandboxType)
 }
 
@@ -111,7 +111,7 @@ type IfaceOptionSetter interface {
 	// Address returns an option setter to set IPv4 address.
 	Address(*net.IPNet) IfaceOption
 
-	// Address returns an option setter to set IPv6 address.
+	// AddressIPv6 returns an option setter to set IPv6 address.
 	AddressIPv6(*net.IPNet) IfaceOption
 
 	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
@@ -122,7 +122,7 @@ type IfaceOptionSetter interface {
 	// previously added interface of type bridge.
 	Master(string) IfaceOption
 
-	// Address returns an option setter to set interface routes.
+	// Routes returns an option setter to set interface routes.
 	Routes([]*net.IPNet) IfaceOption
 }
 
@@ -130,20 +130,21 @@ type IfaceOptionSetter interface {
 // the driver wants to place in the sandbox which includes
 // interfaces, routes and gateway
 type Info interface {
-	// The collection of Interface previously added with the AddInterface
+	// Interfaces returns the collection of Interface previously added with the AddInterface
 	// method. Note that this doesn't include network interfaces added in any
 	// other way (such as the default loopback interface which is automatically
 	// created on creation of a sandbox).
 	Interfaces() []Interface
 
-	// IPv4 gateway for the sandbox.
+	// Gateway returns the IPv4 gateway for the sandbox.
 	Gateway() net.IP
 
-	// IPv6 gateway for the sandbox.
+	// GatewayIPv6 returns the IPv6 gateway for the sandbox.
 	GatewayIPv6() net.IP
 
-	// Additional static routes for the sandbox.  (Note that directly
-	// connected routes are stored on the particular interface they refer to.)
+	// StaticRoutes returns additional static routes for the sandbox. Note that
+	// directly connected routes are stored on the particular interface they
+	// refer to.
 	StaticRoutes() []*types.StaticRoute
 
 	// TODO: Add ip tables etc.
@@ -155,28 +156,29 @@ type Info interface {
 // namespace to DstName in a different net namespace with the appropriate
 // network settings.
 type Interface interface {
-	// The name of the interface in the origin network namespace.
+	// SrcName returns the name of the interface in the origin network namespace.
 	SrcName() string
 
-	// The name that will be assigned to the interface once moves inside a
-	// network namespace. When the caller passes in a DstName, it is only
-	// expected to pass a prefix. The name will modified with an appropriately
+	// DstName returns the name that will be assigned to the interface once
+	// moved inside a network namespace. When the caller passes in a DstName,
+	// it is only expected to pass a prefix. The name will be modified with an
 	// auto-generated suffix.
 	DstName() string
 
-	// IPv4 address for the interface.
+	// Address returns the IPv4 address for the interface.
 	Address() *net.IPNet
 
-	// IPv6 address for the interface.
+	// AddressIPv6 returns the IPv6 address for the interface.
 	AddressIPv6() *net.IPNet
 
-	// LinkLocalAddresses returns the link-local IP addresses assigned to the interface.
+	// LinkLocalAddresses returns the link-local IP addresses assigned to the
+	// interface.
 	LinkLocalAddresses() []*net.IPNet
 
-	// IP routes for the interface.
+	// Routes returns IP routes for the interface.
 	Routes() []*net.IPNet
 
-	// Bridge returns true if the interface is a bridge
+	// Bridge returns true if the interface is a bridge.
 	Bridge() bool
 
 	// Master returns the srcname of the master interface for this interface.
