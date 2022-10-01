@@ -229,23 +229,20 @@ func (sb *sandbox) setupDNS() error {
 		// fallback if not specified
 		originResolvConfPath = resolvconf.Path()
 	}
-	currRC, err := resolvconf.GetSpecific(originResolvConfPath)
+	currRC, err := os.ReadFile(originResolvConfPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		// it's ok to continue if /etc/resolv.conf doesn't exist, default resolvers (Google's Public DNS)
-		// will be used
-		currRC = &resolvconf.File{}
-		logrus.Infof("/etc/resolv.conf does not exist")
+		// No /etc/resolv.conf found: we'll use the default resolvers (Google's Public DNS).
+		logrus.WithField("path", originResolvConfPath).Infof("no resolv.conf found, falling back to defaults")
 	}
 
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
-			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content, resolvconf.IP)
-			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
-			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+			dnsList        = resolvconf.GetNameservers(currRC, resolvconf.IP)
+			dnsSearchList  = resolvconf.GetSearchDomains(currRC)
+			dnsOptionsList = resolvconf.GetOptions(currRC)
 		)
 		if len(sb.config.dnsList) > 0 {
 			dnsList = sb.config.dnsList
@@ -269,14 +266,16 @@ func (sb *sandbox) setupDNS() error {
 		// use the host resolver for queries. This is supported by the
 		// docker embedded DNS server. Hence save the external resolvers
 		// before filtering it out.
-		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, true)
+		sb.setExternalResolvers(currRC, resolvconf.IPv4, true)
 
 		// Replace any localhost/127.* (at this point we have no info about ipv6, pass it as true)
-		if newRC, err = resolvconf.FilterResolvDNS(currRC.Content, true); err != nil {
+		newRC, err = resolvconf.FilterResolvDNS(currRC, true)
+		if err != nil {
 			return err
 		}
 		// No contention on container resolv.conf file at sandbox creation
-		if err := os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
+		err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm)
+		if err != nil {
 			return types.InternalErrorf("failed to write unhaltered resolv.conf file content when setting up dns for sandbox %s: %v", sb.ID(), err)
 		}
 	}
