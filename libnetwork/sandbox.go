@@ -795,7 +795,6 @@ func (sb *sandbox) restoreOslSandbox() error {
 	// restore osl sandbox
 	Ifaces := make(map[string][]osl.IfaceOption)
 	for _, ep := range sb.endpoints {
-		var ifaceOptions []osl.IfaceOption
 		ep.Lock()
 		joinInfo := ep.joinInfo
 		i := ep.iface
@@ -806,7 +805,10 @@ func (sb *sandbox) restoreOslSandbox() error {
 			continue
 		}
 
-		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
+		ifaceOptions := []osl.IfaceOption{
+			sb.osSbox.InterfaceOptions().Address(i.addr),
+			sb.osSbox.InterfaceOptions().Routes(i.routes),
+		}
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))
 		}
@@ -816,7 +818,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
 		}
-		Ifaces[fmt.Sprintf("%s+%s", i.srcName, i.dstPrefix)] = ifaceOptions
+		Ifaces[i.srcName+i.dstPrefix] = ifaceOptions
 		if joinInfo != nil {
 			routes = append(routes, joinInfo.StaticRoutes...)
 		}
@@ -831,8 +833,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 	}
 
 	// restore osl sandbox
-	err := sb.osSbox.Restore(Ifaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
-	return err
+	return sb.osSbox.Restore(Ifaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
 }
 
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
