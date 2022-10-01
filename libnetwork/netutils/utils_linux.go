@@ -6,8 +6,8 @@
 package netutils
 
 import (
-	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -18,9 +18,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-var (
-	networkGetRoutesFct func(netlink.Link, int) ([]netlink.Route, error)
-)
+var networkGetRoutesFct func(netlink.Link, int) ([]netlink.Route, error)
 
 // CheckRouteOverlaps checks whether the passed network overlaps with any existing routes
 func CheckRouteOverlaps(toCheck *net.IPNet) error {
@@ -110,8 +108,8 @@ func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
 	// can't read /etc/resolv.conf. So instead we skip the append if resolvConf
 	// is nil. It either doesn't exist, or we can't read it for some reason.
 	var nameservers []string
-	if rc, err := resolvconf.Get(); err == nil {
-		nameservers = resolvconf.GetNameserversAsCIDR(rc.Content)
+	if rc, err := os.ReadFile(resolvconf.Path()); err == nil {
+		nameservers = resolvconf.GetNameserversAsCIDR(rc)
 	}
 	for _, nw := range list {
 		if err := CheckNameserverOverlaps(nameservers, nw); err == nil {
@@ -120,5 +118,5 @@ func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("no available network")
+	return nil, errors.New("no available network")
 }
