@@ -7,19 +7,19 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	resolvConfUtils, err := Get()
+	actual, err := Get()
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
+	expected, err := os.ReadFile(Path())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(resolvConfUtils.Content) != string(resolvConfSystem) {
-		t.Fatalf("/etc/resolv.conf and GetResolvConf have different content.")
+	if !bytes.Equal(actual.Content, expected) {
+		t.Errorf("%s and GetResolvConf have different content.", Path())
 	}
-	if !bytes.Equal(resolvConfUtils.Hash, hashData(resolvConfSystem)) {
-		t.Fatalf("/etc/resolv.conf and GetResolvConf have different hashes.")
+	if !bytes.Equal(actual.Hash, hashData(expected)) {
+		t.Errorf("%s and GetResolvConf have different hashes.", Path())
 	}
 }
 
