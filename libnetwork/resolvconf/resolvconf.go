@@ -85,12 +85,6 @@ var (
 	optionsRegexp     = regexp.MustCompile(`^\s*options\s*(([^\s]+\s*)*)$`)
 )
 
-var lastModified struct {
-	sync.Mutex
-	sha256   string
-	contents []byte
-}
-
 // File contains the resolv.conf content and its hash
 type File struct {
 	Content []byte
@@ -113,39 +107,6 @@ func GetSpecific(path string) (*File, error) {
 		return nil, err
 	}
 	return &File{Content: resolv, Hash: hash}, nil
-}
-
-// GetIfChanged retrieves the host /etc/resolv.conf file, checks against the last hash
-// and, if modified since last check, returns the bytes and new hash.
-// This feature is used by the resolv.conf updater for containers
-func GetIfChanged() (*File, error) {
-	lastModified.Lock()
-	defer lastModified.Unlock()
-
-	resolv, err := os.ReadFile(Path())
-	if err != nil {
-		return nil, err
-	}
-	newHash, err := hashData(bytes.NewReader(resolv))
-	if err != nil {
-		return nil, err
-	}
-	if lastModified.sha256 != newHash {
-		lastModified.sha256 = newHash
-		lastModified.contents = resolv
-		return &File{Content: resolv, Hash: newHash}, nil
-	}
-	// nothing changed, so return no data
-	return nil, nil
-}
-
-// GetLastModified retrieves the last used contents and hash of the host resolv.conf.
-// Used by containers updating on restart
-func GetLastModified() *File {
-	lastModified.Lock()
-	defer lastModified.Unlock()
-
-	return &File{Content: lastModified.contents, Hash: lastModified.sha256}
 }
 
 // FilterResolvDNS cleans up the config in resolvConf.  It has two main jobs:
