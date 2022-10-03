@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -19,9 +19,12 @@ import (
 // This is similar to how libcontainer sets up a container's rootfs
 func chroot(path string) (err error) {
 	// if the engine is running in a user namespace we need to use actual chroot
-	if userns.RunningInUserNS() {
-		return realChroot(path)
-	}
+	// if userns.RunningInUserNS() {
+	//	return realChroot(path)
+	// }
+	status, err := os.ReadFile("/proc/thread-self/status")
+	logrus.WithError(err).WithField("path", path).Infof("chrootarchive: /proc/thread-self/status: -=-=-=-\n%s\n=-=-=-=", status)
+
 	if err := unix.Unshare(unix.CLONE_NEWNS); err != nil {
 		return fmt.Errorf("Error creating mount namespace before pivot: %v", err)
 	}
