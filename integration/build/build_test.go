@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -683,6 +684,87 @@ func TestBuildPlatformInvalid(t *testing.T) {
 	assert.Assert(t, err != nil)
 	assert.ErrorContains(t, err, "unknown operating system or architecture")
 	assert.Assert(t, errdefs.IsInvalidParameter(err))
+}
+
+func TestBuildSecurityOpt(t *testing.T) {
+	ctx := context.Background()
+	defer setupTest(t)()
+
+	apiclient := testEnv.APIClient()
+
+	tests := []struct {
+		doc         string
+		skip        bool
+		securityOpt []string
+		expectedErr string
+	}{
+		{
+			doc: "no options",
+		},
+		{
+			doc:         "empty options",
+			securityOpt: []string{},
+		},
+		{
+			doc:         "linux: unsupported security-opt",
+			skip:        runtime.GOOS == "windows",
+			securityOpt: []string{"some-opt=some-value"},
+			expectedErr: "security options are not supported on " + runtime.GOOS,
+		},
+		{
+			doc:         "linux: credentialspec",
+			skip:        runtime.GOOS == "windows",
+			securityOpt: []string{"credentialspec=file://<anything>"},
+			expectedErr: "security options are not supported on " + runtime.GOOS,
+		},
+		{
+			doc:         "windows: invalid option",
+			skip:        runtime.GOOS != "windows",
+			securityOpt: []string{"option-without-value"},
+			expectedErr: "invalid security option: no equals sign in supplied value option-without-value",
+		},
+		{
+			doc:         "windows: credentialspec",
+			skip:        runtime.GOOS != "windows",
+			securityOpt: []string{"credentialspec=file://<anything>"},
+		},
+		{
+			doc:         "windows: credentialspec case-insensitive",
+			skip:        runtime.GOOS != "windows",
+			securityOpt: []string{"cReDeNtIaLsPeC=file://<anything>"},
+		},
+		{
+			doc:         "windows: unsupported security-opt",
+			skip:        runtime.GOOS != "windows",
+			securityOpt: []string{"credentialspec=file://<anything>", "seccomp=unconfined"},
+			expectedErr: "security option not supported: seccomp",
+		},
+	}
+	for _, tc := range tests {
+		if tc.skip {
+			continue
+		}
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			buf := bytes.NewBuffer(nil)
+			w := tar.NewWriter(buf)
+			writeTarRecord(t, w, "Dockerfile", `FROM busybox`)
+			err := w.Close()
+			assert.NilError(t, err)
+			_, err = apiclient.ImageBuild(ctx, buf, types.ImageBuildOptions{
+				Remove:      true,
+				ForceRemove: true,
+				SecurityOpt: tc.securityOpt,
+			})
+			if tc.expectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
+				assert.ErrorContains(t, err, tc.expectedErr)
+			}
+		})
+	}
 }
 
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
