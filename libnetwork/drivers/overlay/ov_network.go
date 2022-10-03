@@ -539,25 +539,23 @@ func checkOverlap(nw *net.IPNet) error {
 }
 
 func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) error {
-	sbox := n.sbox
-
 	// restore overlay osl sandbox
-	Ifaces := make(map[string][]osl.IfaceOption)
-	brIfaceOption := make([]osl.IfaceOption, 2)
-	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Address(s.gwIP))
-	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Bridge(true))
-	Ifaces[brName+"+br"] = brIfaceOption
-
-	err := sbox.Restore(Ifaces, nil, nil, nil)
-	if err != nil {
+	ifaces := map[string][]osl.IfaceOption{
+		brName + "+br": {
+			n.sbox.InterfaceOptions().Address(s.gwIP),
+			n.sbox.InterfaceOptions().Bridge(true),
+		},
+	}
+	if err := n.sbox.Restore(ifaces, nil, nil, nil); err != nil {
 		return err
 	}
 
-	Ifaces = make(map[string][]osl.IfaceOption)
-	vxlanIfaceOption := make([]osl.IfaceOption, 1)
-	vxlanIfaceOption = append(vxlanIfaceOption, sbox.InterfaceOptions().Master(brName))
-	Ifaces[vxlanName+"+vxlan"] = vxlanIfaceOption
-	return sbox.Restore(Ifaces, nil, nil, nil)
+	ifaces = map[string][]osl.IfaceOption{
+		vxlanName + "+vxlan": {
+			n.sbox.InterfaceOptions().Master(brName),
+		},
+	}
+	return n.sbox.Restore(ifaces, nil, nil, nil)
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
