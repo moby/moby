@@ -532,7 +532,9 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			// Make sure networks are available before starting
+			if err := daemon.prepareMountPoints(c); err != nil {
+				log.WithError(err).Error("failed to prepare mount points for container")
+			}
 			daemon.waitForNetworks(c)
 			if err := daemon.containerStart(c, "", "", true); err != nil {
 				log.WithError(err).Error("failed to start container")
