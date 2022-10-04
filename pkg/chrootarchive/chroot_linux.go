@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"golang.org/x/sys/unix"
@@ -18,10 +17,6 @@ import (
 // Old root is removed after the call to pivot_root so it is no longer available under the new root.
 // This is similar to how libcontainer sets up a container's rootfs
 func chroot(path string) (err error) {
-	// if the engine is running in a user namespace we need to use actual chroot
-	if userns.RunningInUserNS() {
-		return realChroot(path)
-	}
 	if err := unix.Unshare(unix.CLONE_NEWNS); err != nil {
 		return fmt.Errorf("Error creating mount namespace before pivot: %v", err)
 	}
