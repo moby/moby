@@ -92,7 +92,6 @@ type sandbox struct {
 
 // These are the container configs used to customize container /etc/hosts file.
 type hostsPathConfig struct {
-	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
 	hostName        string
 	domainName      string
 	hostsPath       string
@@ -114,7 +113,6 @@ type extraHost struct {
 
 // These are the container configs used to customize container /etc/resolv.conf file.
 type resolvConfPathConfig struct {
-	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
 	resolvConfPath       string
 	originResolvConfPath string
 	resolvConfHashFile   string
