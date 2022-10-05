@@ -22,10 +22,3 @@ const (
 func mkdirAs(path string, _ os.FileMode, _ Identity, _, _ bool) error {
 	return system.MkdirAll(path, 0)
 }
-
-// CanAccess takes a valid (existing) directory and a uid, gid pair and determines
-// if that uid, gid pair has access (execute bit) to the directory
-// Windows does not require/support this function, so always return true
-func CanAccess(path string, identity Identity) bool {
-	return true
-}
