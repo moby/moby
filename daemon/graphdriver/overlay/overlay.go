@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/copy"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/moby/locker"
@@ -142,7 +142,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		backingFs = fsName
 	}
 
-	supportsDType, err := fsutils.SupportsDType(testdir)
+	supportsDType, err := fs.SupportsDType(testdir)
 	if err != nil {
 		return nil, err
 	}
