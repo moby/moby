@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -199,7 +200,7 @@ func callGetent(database, key string) (io.Reader, error) {
 	}
 	out, err := execCmd(getentCmd, database, key)
 	if err != nil {
-		exitCode, errC := system.GetExitCode(err)
+		exitCode, errC := getExitCode(err)
 		if errC != nil {
 			return nil, err
 		}
@@ -215,6 +216,18 @@ func callGetent(database, key string) (io.Reader, error) {
 		}
 	}
 	return bytes.NewReader(out), nil
+}
+
+// getExitCode returns the ExitStatus of the specified error if its type is
+// exec.ExitError, returns 0 and an error otherwise.
+func getExitCode(err error) (int, error) {
+	exitCode := 0
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			return procExit.ExitStatus(), nil
+		}
+	}
+	return exitCode, fmt.Errorf("failed to get exit code")
 }
 
 // setPermissions performs a chown/chmod only if the uid/gid don't match what's requested
