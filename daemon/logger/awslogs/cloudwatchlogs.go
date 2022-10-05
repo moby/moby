@@ -557,8 +557,10 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // pattern match is found, at which point the messages in the event buffer are
 // pushed to CloudWatch logs as a single log event.  Multiline messages are processed
 // according to the maximumBytesPerPut constraint, and the implementation only
-// allows for messages to be buffered for a maximum of 2*batchPublishFrequency
-// seconds.  When events are ready to be processed for submission to CloudWatch
+// allows for messages to be buffered for a maximum of 2*l.forceFlushInterval
+// seconds.  If no forceFlushInterval is specified for the log stream, then the default
+// of 5 seconds will be used resulting in a maximum of 10 seconds buffer time for multiline
+// messages. When events are ready to be processed for submission to CloudWatch
 // Logs, the processEvents method is called.  If a multiline pattern is not
 // configured, log events are submitted to the processEvents method immediately.
 func (l *logStream) collectBatch(created chan bool) {
@@ -623,8 +625,8 @@ func (l *logStream) collectBatch(created chan bool) {
 }
 
 // processEvent processes log events that are ready for submission to CloudWatch
-// logs.  Batching is performed on time- and size-bases.  Time-based batching
-// occurs at a 5 second interval (defined in the batchPublishFrequency const).
+// logs.  Batching is performed on time- and size-bases.  Time-based batching occurs
+// at the interval defined by awslogs-force-flush-interval-seconds (defaults to 5 seconds).
 // Size-based batching is performed on the maximum number of events per batch
 // (defined in maximumLogEventsPerPut) and the maximum number of total bytes in a
 // batch (defined in maximumBytesPerPut).  Log messages are split by the maximum
