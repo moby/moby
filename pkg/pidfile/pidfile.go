@@ -36,10 +36,10 @@ func New(path string) (*PIDFile, error) {
 		return nil, err
 	}
 	// Note MkdirAll returns nil if a directory already exists
-	if err := system.MkdirAll(filepath.Dir(path), os.FileMode(0755)); err != nil {
+	if err := system.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
 		return nil, err
 	}
 
