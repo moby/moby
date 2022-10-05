@@ -270,10 +270,10 @@ func buildTree(base string, tree map[string]node) error {
 	for path, node := range tree {
 		fullPath := filepath.Join(base, path)
 		if err := os.MkdirAll(fullPath, 0o755); err != nil {
-			return fmt.Errorf("Couldn't create path: %s; error: %v", fullPath, err)
+			return fmt.Errorf("couldn't create path: %s; error: %v", fullPath, err)
 		}
 		if err := os.Chown(fullPath, node.uid, node.gid); err != nil {
-			return fmt.Errorf("Couldn't chown path: %s; error: %v", fullPath, err)
+			return fmt.Errorf("couldn't chown path: %s; error: %v", fullPath, err)
 		}
 	}
 	return nil
@@ -284,13 +284,13 @@ func readTree(base, root string) (map[string]node, error) {
 
 	dirInfos, err := os.ReadDir(base)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't read directory entries for %q: %v", base, err)
+		return nil, fmt.Errorf("couldn't read directory entries for %q: %v", base, err)
 	}
 
 	for _, info := range dirInfos {
 		s := &unix.Stat_t{}
 		if err := unix.Stat(filepath.Join(base, info.Name()), s); err != nil {
-			return nil, fmt.Errorf("Can't stat file %q: %v", filepath.Join(base, info.Name()), err)
+			return nil, fmt.Errorf("can't stat file %q: %v", filepath.Join(base, info.Name()), err)
 		}
 		tree[filepath.Join(root, info.Name())] = node{int(s.Uid), int(s.Gid)}
 		if info.IsDir() {
@@ -309,7 +309,7 @@ func readTree(base, root string) (map[string]node, error) {
 
 func compareTrees(left, right map[string]node) error {
 	if len(left) != len(right) {
-		return fmt.Errorf("Trees aren't the same size")
+		return fmt.Errorf("trees aren't the same size")
 	}
 	for path, nodeLeft := range left {
 		if nodeRight, ok := right[path]; ok {
@@ -425,7 +425,7 @@ func TestNewIDMappings(t *testing.T) {
 
 	err = MkdirAllAndChown(dirName, 0o700, Identity{UID: rootUID, GID: rootGID})
 	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
-	assert.Check(t, CanAccess(dirName, idMapping.RootPair()), fmt.Sprintf("Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID))
+	assert.Check(t, CanAccess(dirName, idMapping.RootPair()), "Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID)
 }
 
 func TestLookupUserAndGroup(t *testing.T) {

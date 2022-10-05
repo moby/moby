@@ -16,7 +16,6 @@ import (
 
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -255,7 +254,7 @@ func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT
 func LoadIdentityMapping(name string) (IdentityMapping, error) {
 	usr, err := LookupUser(name)
 	if err != nil {
-		return IdentityMapping{}, fmt.Errorf("Could not get user for username %s: %v", name, err)
+		return IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
 	}
 
 	subuidRanges, err := lookupSubUIDRanges(usr)
@@ -285,7 +284,7 @@ func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
 		}
 	}
 	if len(rangeList) == 0 {
-		return nil, errors.Errorf("no subuid ranges found for user %q", usr.Name)
+		return nil, fmt.Errorf("no subuid ranges found for user %q", usr.Name)
 	}
 	return createIDMap(rangeList), nil
 }
@@ -302,7 +301,7 @@ func lookupSubGIDRanges(usr user.User) ([]IDMap, error) {
 		}
 	}
 	if len(rangeList) == 0 {
-		return nil, errors.Errorf("no subgid ranges found for user %q", usr.Name)
+		return nil, fmt.Errorf("no subgid ranges found for user %q", usr.Name)
 	}
 	return createIDMap(rangeList), nil
 }
