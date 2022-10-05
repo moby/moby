@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -56,7 +55,7 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 	runtimeDir := filepath.Join(daemon.configStore.Root, "runtimes")
 	// Remove old temp directory if any
 	os.RemoveAll(runtimeDir + "-old")
-	tmpDir, err := ioutils.TempDir(daemon.configStore.Root, "gen-runtimes")
+	tmpDir, err := os.MkdirTemp(daemon.configStore.Root, "gen-runtimes")
 	if err != nil {
 		return errors.Wrap(err, "failed to get temp dir to generate runtime scripts")
 	}

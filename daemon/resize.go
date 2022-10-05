@@ -2,7 +2,8 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"strconv"
 	"time"
 )
 
@@ -23,8 +24,8 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 
 	if err = tsk.Resize(context.Background(), uint32(width), uint32(height)); err == nil {
 		attributes := map[string]string{
-			"height": fmt.Sprintf("%d", height),
-			"width":  fmt.Sprintf("%d", width),
+			"height": strconv.Itoa(height),
+			"width":  strconv.Itoa(width),
 		}
 		daemon.LogContainerEventWithAttributes(container, "resize", attributes)
 	}
@@ -49,6 +50,6 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 	case <-ec.Started:
 		return ec.Process.Resize(context.Background(), uint32(width), uint32(height))
 	case <-timeout.C:
-		return fmt.Errorf("timeout waiting for exec session ready")
+		return errors.New("timeout waiting for exec session ready")
 	}
 }
