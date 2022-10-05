@@ -25,12 +25,12 @@ func TestLayerSize(t *testing.T) {
 	content1 := []byte("Base contents")
 	content2 := []byte("Added contents")
 
-	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("file1", content1, 0644)))
+	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("file1", content1, 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2, err := createLayer(ls, layer1.ChainID(), initWithFiles(newTestFile("file2", content2, 0644)))
+	layer2, err := createLayer(ls, layer1.ChainID(), initWithFiles(newTestFile("file2", content2, 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
