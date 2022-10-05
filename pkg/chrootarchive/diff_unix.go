@@ -16,7 +16,7 @@ import (
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/unix"
 )
 
 type applyLayerResponse struct {
@@ -42,11 +42,8 @@ func applyLayer() {
 	}
 
 	// We need to be able to set any perms
-	oldmask, err := system.Umask(0)
-	defer system.Umask(oldmask)
-	if err != nil {
-		fatal(err)
-	}
+	oldmask := unix.Umask(0)
+	defer unix.Umask(oldmask)
 
 	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
 		fatal(err)
