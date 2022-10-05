@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -1072,21 +1073,6 @@ func copyLevel(src, dest string) (string, error) {
 	return tcon.Get(), nil
 }
 
-// Prevent users from relabeling system files
-func badPrefix(fpath string) error {
-	if fpath == "" {
-		return ErrEmptyPath
-	}
-
-	badPrefixes := []string{"/usr"}
-	for _, prefix := range badPrefixes {
-		if strings.HasPrefix(fpath, prefix) {
-			return fmt.Errorf("relabeling content in %s is not allowed", prefix)
-		}
-	}
-	return nil
-}
-
 // chcon changes the fpath file object to the SELinux label label.
 // If fpath is a directory and recurse is true, then chcon walks the
 // directory tree setting the label.
@@ -1097,12 +1083,70 @@ func chcon(fpath string, label string, recurse bool) error {
 	if label == "" {
 		return nil
 	}
-	if err := badPrefix(fpath); err != nil {
-		return err
+
+	exclude_paths := map[string]bool{
+		"/":           true,
+		"/bin":        true,
+		"/boot":       true,
+		"/dev":        true,
+		"/etc":        true,
+		"/etc/passwd": true,
+		"/etc/pki":    true,
+		"/etc/shadow": true,
+		"/home":       true,
+		"/lib":        true,
+		"/lib64":      true,
+		"/media":      true,
+		"/opt":        true,
+		"/proc":       true,
+		"/root":       true,
+		"/run":        true,
+		"/sbin":       true,
+		"/srv":        true,
+		"/sys":        true,
+		"/tmp":        true,
+		"/usr":        true,
+		"/var":        true,
+		"/var/lib":    true,
+		"/var/log":    true,
+	}
+
+	if home := os.Getenv("HOME"); home != "" {
+		exclude_paths[home] = true
+	}
+
+	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+		if usr, err := user.Lookup(sudoUser); err == nil {
+			exclude_paths[usr.HomeDir] = true
+		}
+	}
+
+	if fpath != "/" {
+		fpath = strings.TrimSuffix(fpath, "/")
+	}
+	if exclude_paths[fpath] {
+		return fmt.Errorf("SELinux relabeling of %s is not allowed", fpath)
 	}
 
 	if !recurse {
-		return setFileLabel(fpath, label)
+		err := lSetFileLabel(fpath, label)
+		if err != nil {
+			// Check if file doesn't exist, must have been removed
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			// Check if current label is correct on disk
+			flabel, nerr := lFileLabel(fpath)
+			if nerr == nil && flabel == label {
+				return nil
+			}
+			// Check if file doesn't exist, must have been removed
+			if errors.Is(nerr, os.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		return nil
 	}
 
 	return rchcon(fpath, label)
