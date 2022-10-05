@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -126,10 +127,9 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 		}
 	}
 
-	attributes := map[string]string{
-		"signal": fmt.Sprintf("%d", stopSignal),
-	}
-	daemon.LogContainerEventWithAttributes(container, "kill", attributes)
+	daemon.LogContainerEventWithAttributes(container, "kill", map[string]string{
+		"signal": strconv.Itoa(int(stopSignal)),
+	})
 	return nil
 }
 
