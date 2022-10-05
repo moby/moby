@@ -86,9 +86,8 @@ func checkFileMode(t *testing.T, path string, perm os.FileMode) {
 }
 
 func TestOverlayTarUntar(t *testing.T) {
-	oldmask, err := system.Umask(0)
-	assert.NilError(t, err)
-	defer system.Umask(oldmask)
+	restore := overrideUmask(0)
+	defer restore()
 
 	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)
@@ -125,9 +124,8 @@ func TestOverlayTarUntar(t *testing.T) {
 }
 
 func TestOverlayTarAUFSUntar(t *testing.T) {
-	oldmask, err := system.Umask(0)
-	assert.NilError(t, err)
-	defer system.Umask(oldmask)
+	restore := overrideUmask(0)
+	defer restore()
 
 	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)
