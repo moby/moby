@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/ishidawataru/sctp"
@@ -202,7 +203,7 @@ func (p Protocol) String() string {
 	case SCTP:
 		return "sctp"
 	default:
-		return fmt.Sprintf("%d", p)
+		return strconv.Itoa(int(p))
 	}
 }
 

@@ -117,9 +117,9 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 		n.subnets = append(n.subnets, s)
 	}
 
-	val := fmt.Sprintf("%d", n.subnets[0].vni)
+	val := strconv.FormatUint(uint64(n.subnets[0].vni), 10)
 	for _, s := range n.subnets[1:] {
-		val = val + fmt.Sprintf(",%d", s.vni)
+		val = val + "," + strconv.FormatUint(uint64(s.vni), 10)
 	}
 	opts[netlabel.OverlayVxlanIDList] = val
 

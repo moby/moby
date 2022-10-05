@@ -61,7 +61,7 @@ func dbJoin(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(nil), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -95,7 +95,7 @@ func dbPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(rsp), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbClusterPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -118,7 +118,7 @@ func dbClusterPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(rsp), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbCreateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -167,7 +167,7 @@ func dbCreateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(nil), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbUpdateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -215,7 +215,7 @@ func dbUpdateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(nil), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbDeleteEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -252,7 +252,7 @@ func dbDeleteEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(nil), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbGetEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -298,7 +298,7 @@ func dbGetEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(rsp), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbJoinNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -330,7 +330,7 @@ func dbJoinNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(nil), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbLeaveNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -362,7 +362,7 @@ func dbLeaveNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(nil), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -410,7 +410,7 @@ func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(rsp), json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
 
 func dbNetworkStats(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -448,5 +448,5 @@ func dbNetworkStats(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		diagnostic.HTTPReply(w, rsp, json)
 		return
 	}
-	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
+	diagnostic.HTTPReply(w, diagnostic.FailCommand(fmt.Errorf(dbNotAvailable)), json)
 }
