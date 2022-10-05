@@ -3,7 +3,6 @@ package layer // import "github.com/docker/docker/layer"
 import (
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -82,8 +81,7 @@ func (fms *fileMetadataStore) StartTransaction() (*fileMetadataTransaction, erro
 }
 
 func (fm *fileMetadataTransaction) SetSize(size int64) error {
-	content := fmt.Sprintf("%d", size)
-	return fm.ws.WriteFile("size", []byte(content), 0644)
+	return fm.ws.WriteFile("size", []byte(strconv.FormatInt(size, 10)), 0o644)
 }
 
 func (fm *fileMetadataTransaction) SetParent(parent ChainID) error {
