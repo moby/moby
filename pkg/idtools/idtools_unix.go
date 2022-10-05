@@ -65,7 +65,7 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 				paths = append(paths, dirPath)
 			}
 		}
-		if err := system.MkdirAll(path, mode); err != nil {
+		if err := os.MkdirAll(path, mode); err != nil {
 			return err
 		}
 	} else {
