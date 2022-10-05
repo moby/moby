@@ -156,7 +156,7 @@ func (d *Driver) Status() [][2]string {
 		status = append(status, [2]string{"Build Version", bv})
 	}
 	if lv := btrfsLibVersion(); lv != -1 {
-		status = append(status, [2]string{"Library Version", fmt.Sprintf("%d", lv)})
+		status = append(status, [2]string{"Library Version", strconv.Itoa(lv)})
 	}
 	return status
 }
