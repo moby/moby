@@ -125,6 +125,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   is set with a non-matching mount Type.
 * `POST /containers/{id}/exec` now accepts an optional `ConsoleSize` parameter.
   It allows to set the console size of the executed process immediately when it's created.
+* `POST /volumes/prune` will now only prune "anonymous" volumes (volumes which were not given a name) by default. A new filter parameter `all` can be set to a truth-y value (`true`, `1`) to get the old behavior.
 
 ## v1.41 API changes
 
