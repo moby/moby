@@ -20,10 +20,9 @@ import (
 // )
 
 func emptyImageConfig() ([]byte, error) {
-	img := ocispec.Image{
-		Architecture: runtime.GOARCH,
-		OS:           runtime.GOOS,
-	}
+	img := ocispec.Image{}
+	img.Architecture = runtime.GOARCH
+	img.OS = runtime.GOOS
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"
 	img.Config.Env = []string{"PATH=" + system.DefaultPathEnvUnix}
