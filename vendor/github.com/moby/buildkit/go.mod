@@ -9,8 +9,7 @@ require (
 	github.com/Microsoft/hcsshim v0.8.10
 	github.com/codahale/hdrhistogram v0.0.0-20160425231609-f8ad88b59a58 // indirect
 	github.com/containerd/console v1.0.1
-	// containerd: the actual version is replaced in replace()
-	github.com/containerd/containerd v1.4.1-0.20201117152358-0edc412565dc
+	github.com/containerd/containerd v1.4.1-0.20201117152358-0edc412565dc // the actual version is replaced in replace()
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe
 	github.com/containerd/go-cni v1.0.1
 	github.com/containerd/go-runc v0.0.0-20201020171139-16b287bc67d0
@@ -64,7 +63,7 @@ require (
 	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20201013081832-0aaa2718063a
+	golang.org/x/sys v0.0.0-20210507161434-a76c4d0a0096
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
 	// genproto: the actual version is replaced in replace()
 	google.golang.org/genproto v0.0.0-20200527145253-8367513e4ece
@@ -72,11 +71,16 @@ require (
 )
 
 replace (
-	// containerd: Forked from 0edc412565dcc6e3d6125ff9e4b009ad4b89c638 (20201117) with:
+	// containerd: vendoring from the docker/20.10 branch in https://github.com/moby/containerd
+	//
+	// Forked from 0edc412565dcc6e3d6125ff9e4b009ad4b89c638 (20201117) with:
+	// - `images: validate document type before unmarshal`   (eb9ba7ed8d46d48fb22362f9d91fff6fb837e37e)
+	// - `schema1: reject ambiguous documents`               (70c88f507579277ab7af23b06666e3b57d4b4f2d)
+	// - `Fix the Inheritable capability defaults`           (6906b57c721f9114377ceb069662b196876915c0)
 	// - `Adjust overlay tests to expect "index=off"`        (#4719, for ease of cherry-picking #5076)
 	// - `overlay: support "userxattr" option (kernel 5.11)` (#5076)
 	// - `docker: avoid concurrent map access panic`         (#4855)
-	github.com/containerd/containerd => github.com/AkihiroSuda/containerd v1.1.1-0.20210312044057-48f85a131bb8
+	github.com/containerd/containerd => github.com/moby/containerd v0.0.0-20220901192706-96c5ae04b678
 	// protobuf: corresponds to containerd
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
 	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe

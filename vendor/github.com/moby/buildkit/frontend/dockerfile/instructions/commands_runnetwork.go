@@ -1,3 +1,4 @@
+//go:build dfrunnetwork
 // +build dfrunnetwork
 
 package instructions

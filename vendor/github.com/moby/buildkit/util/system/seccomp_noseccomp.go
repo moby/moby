@@ -1,3 +1,4 @@
+//go:build !seccomp
 // +build !seccomp
 
 package system
