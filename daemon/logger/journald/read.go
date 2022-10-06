@@ -404,6 +404,7 @@ func waitUntilFlushedImpl(s *journald) error {
 	go func() {
 		defer close(flushed)
 		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
 
 		var (
 			j   *sdjournal.Journal

@@ -115,6 +115,12 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	outBuf, errBuf := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = outBuf, errBuf
 
+	// reexec.Command() sets cmd.SysProcAttr.Pdeathsig on Linux, which
+	// causes the started process to be signaled when the creating OS thread
+	// dies. Ensure that the reexec is not prematurely signaled. See
+	// https://go.dev/issue/27505 for more information.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err = cmd.Run(); err != nil {
 		return 0, fmt.Errorf("ApplyLayer %s stdout: %s stderr: %s", err, outBuf, errBuf)
 	}
