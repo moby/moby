@@ -256,12 +256,6 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
     $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'pkg\*.go`'"
     $badFiles=@(); $files | ForEach-Object{
         $file=$_
-        if ($file -eq "pkg\urlutil\deprecated.go") {
-            # pkg/urlutil is deprecated, but has a temporary alias to help migration,
-            # see https://github.com/moby/moby/pull/43477
-            # TODO(thaJeztah) remove this exception once pkg/urlutil aliases are removed
-            return
-        }
         # For the current changed file, get its list of dependencies, sorted and uniqued.
         $imports = Invoke-Expression "go list -e -f `'{{ .Deps }}`' $file"
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
