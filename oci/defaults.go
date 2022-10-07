@@ -1,16 +1,13 @@
 package oci // import "github.com/docker/docker/oci"
 
 import (
-	"os"
 	"runtime"
 
 	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func iPtr(i int64) *int64        { return &i }
-func u32Ptr(i int64) *uint32     { u := uint32(i); return &u }
-func fmPtr(i int64) *os.FileMode { fm := os.FileMode(i); return &fm }
+func iPtr(i int64) *int64 { return &i }
 
 // DefaultSpec returns the default spec used by docker for the current Platform
 func DefaultSpec() specs.Spec {
