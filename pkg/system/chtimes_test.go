@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
-// TestChtimes tests Chtimes on a tempfile. Test only mTime, because aTime is OS dependent
-func TestChtimes(t *testing.T) {
+// TestChtimesModTime tests Chtimes on a tempfile. Test only mTime, because
+// aTime is OS dependent.
+func TestChtimesModTime(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "exist")
 	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
 		t.Fatal(err)

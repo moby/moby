@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// TestChtimesWindows tests Chtimes access time on a tempfile on Windows
-func TestChtimesWindows(t *testing.T) {
+// TestChtimesATimeWindows tests Chtimes access time on a tempfile on Windows.
+func TestChtimesATimeWindows(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "exist")
 	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
 		t.Fatal(err)

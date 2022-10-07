@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// TestChtimesLinux tests Chtimes access time on a tempfile on Linux
-func TestChtimesLinux(t *testing.T) {
+// TestChtimesATime tests Chtimes access time on a tempfile.
+func TestChtimesATime(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "exist")
 	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
 		t.Fatal(err)
