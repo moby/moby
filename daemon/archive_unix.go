@@ -332,9 +332,3 @@ func checkIfPathIsInAVolume(container *container.Container, absPath string) (boo
 	}
 	return toVolume, nil
 }
-
-// isOnlineFSOperationPermitted returns an error if an online filesystem operation
-// is not permitted.
-func (daemon *Daemon) isOnlineFSOperationPermitted(container *container.Container) error {
-	return nil
-}

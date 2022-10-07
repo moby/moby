@@ -16,11 +16,6 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 		return nil, err
 	}
 
-	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
-		return nil, errdefs.System(err)
-	}
-
 	data, err := daemon.containerCopy(ctr, res)
 	if err == nil {
 		return data, nil
@@ -38,11 +33,6 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.C
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
-	}
-
-	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
-		return nil, errdefs.System(err)
 	}
 
 	stat, err = daemon.containerStatPath(ctr, path)
@@ -63,11 +53,6 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
-		return nil, nil, errdefs.System(err)
 	}
 
 	content, stat, err = daemon.containerArchivePath(ctr, path)
@@ -91,11 +76,6 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOve
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
-	}
-
-	// Make sure an online file-system operation is permitted.
-	if err := daemon.isOnlineFSOperationPermitted(ctr); err != nil {
-		return errdefs.System(err)
 	}
 
 	err = daemon.containerExtractToDir(ctr, path, copyUIDGID, noOverwriteDirNonDir, content)

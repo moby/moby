@@ -23,6 +23,11 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	container.Lock()
 	defer container.Unlock()
 
+	// Make sure an online file-system operation is permitted.
+	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+		return nil, err
+	}
+
 	if err = daemon.Mount(container); err != nil {
 		return nil, err
 	}
@@ -59,6 +64,11 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 			container.Unlock()
 		}
 	}()
+
+	// Make sure an online file-system operation is permitted.
+	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+		return nil, nil, err
+	}
 
 	if err = daemon.Mount(container); err != nil {
 		return nil, nil, err
@@ -141,6 +151,11 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
 	container.Lock()
 	defer container.Unlock()
+
+	// Make sure an online file-system operation is permitted.
+	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+		return err
+	}
 
 	if err = daemon.Mount(container); err != nil {
 		return err
@@ -260,6 +275,11 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		}
 	}()
 
+	// Make sure an online file-system operation is permitted.
+	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
+		return nil, err
+	}
+
 	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
@@ -327,9 +347,9 @@ func checkIfPathIsInAVolume(container *container.Container, absPath string) (boo
 // is not permitted (such as stat or for copying). Running Hyper-V containers
 // cannot have their file-system interrogated from the host as the filter is
 // loaded inside the utility VM, not the host.
-// IMPORTANT: The container lock must NOT be held when calling this function.
+// IMPORTANT: The container lock MUST be held when calling this function.
 func (daemon *Daemon) isOnlineFSOperationPermitted(container *container.Container) error {
-	if !container.IsRunning() {
+	if !container.Running {
 		return nil
 	}
 
