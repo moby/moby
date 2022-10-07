@@ -5,13 +5,17 @@ package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
 // TestLstat tests Lstat for existing and non existing files
 func TestLstat(t *testing.T) {
-	file, invalid, _, dir := prepareFiles(t)
-	defer os.RemoveAll(dir)
+	tmpDir := t.TempDir()
+	file := filepath.Join(tmpDir, "exist")
+	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	statFile, err := Lstat(file)
 	if err != nil {
@@ -21,7 +25,7 @@ func TestLstat(t *testing.T) {
 		t.Fatal("returned empty stat for existing file")
 	}
 
-	statInvalid, err := Lstat(invalid)
+	statInvalid, err := Lstat(filepath.Join(tmpDir, "nosuchfile"))
 	if err == nil {
 		t.Fatal("did not return error for non-existing file")
 	}

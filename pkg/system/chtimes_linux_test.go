@@ -2,6 +2,7 @@ package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -9,8 +10,10 @@ import (
 
 // TestChtimesLinux tests Chtimes access time on a tempfile on Linux
 func TestChtimesLinux(t *testing.T) {
-	file, dir := prepareTempFile(t)
-	defer os.RemoveAll(dir)
+	file := filepath.Join(t.TempDir(), "exist")
+	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	beforeUnixEpochTime := unixEpochTime.Add(-100 * time.Second)
 	afterUnixEpochTime := unixEpochTime.Add(100 * time.Second)
