@@ -42,7 +42,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 
 	done := make(chan result)
-	err = Go(dest, func() {
+	err = goInChroot(dest, func() {
 		// We need to be able to set any perms
 		_ = unix.Umask(0)
 

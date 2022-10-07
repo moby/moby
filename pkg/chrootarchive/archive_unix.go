@@ -19,7 +19,7 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 	}
 
 	done := make(chan error)
-	err = Go(root, func() { done <- archive.Unpack(decompressedArchive, relDest, options) })
+	err = goInChroot(root, func() { done <- archive.Unpack(decompressedArchive, relDest, options) })
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func invokePack(srcPath string, options *archive.TarOptions, root string) (io.Re
 	if err != nil {
 		return nil, errors.Wrap(err, "error processing tar file")
 	}
-	err = Go(root, tb.Do)
+	err = goInChroot(root, tb.Do)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not chroot")
 	}
