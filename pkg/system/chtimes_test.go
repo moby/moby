@@ -26,10 +26,8 @@ func TestChtimes(t *testing.T) {
 	file, dir := prepareTempFile(t)
 	defer os.RemoveAll(dir)
 
-	beforeUnixEpochTime := time.Unix(0, 0).Add(-100 * time.Second)
-	unixEpochTime := time.Unix(0, 0)
-	afterUnixEpochTime := time.Unix(100, 0)
-	unixMaxTime := maxTime
+	beforeUnixEpochTime := unixEpochTime.Add(-100 * time.Second)
+	afterUnixEpochTime := unixEpochTime.Add(100 * time.Second)
 
 	// Test both aTime and mTime set to Unix Epoch
 	Chtimes(file, unixEpochTime, unixEpochTime)
