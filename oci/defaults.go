@@ -9,6 +9,24 @@ import (
 
 func iPtr(i int64) *int64 { return &i }
 
+const defaultUnixPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+// DefaultPathEnv is unix style list of directories to search for
+// executables. Each directory is separated from the next by a colon
+// ':' character .
+// For Windows containers, an empty string is returned as the default
+// path will be set by the container, and Docker has no context of what the
+// default path should be.
+//
+// TODO(thaJeztah) align Windows default with BuildKit; see https://github.com/moby/buildkit/pull/1747
+// TODO(thaJeztah) use defaults from containerd (but align it with BuildKit; see https://github.com/moby/buildkit/pull/1747)
+func DefaultPathEnv(os string) string {
+	if os == "windows" {
+		return ""
+	}
+	return defaultUnixPathEnv
+}
+
 // DefaultSpec returns the default spec used by docker for the current Platform
 func DefaultSpec() specs.Spec {
 	if runtime.GOOS == "windows" {
