@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fakegit"
@@ -3583,7 +3582,7 @@ func (s *DockerCLIBuildSuite) TestBuildSymlinkBreakout(c *testing.T) {
 	assert.NilError(c, err)
 
 	// See https://github.com/moby/moby/pull/37770 for reason for next line.
-	tmpdir, err = system.GetLongPathName(tmpdir)
+	tmpdir, err = getLongPathName(tmpdir)
 	assert.NilError(c, err)
 
 	defer os.RemoveAll(tmpdir)
