@@ -20,12 +20,12 @@ func (s StatT) Size() int64 {
 
 // Mode returns file's permission mode.
 func (s StatT) Mode() os.FileMode {
-	return os.FileMode(s.mode)
+	return s.mode
 }
 
 // Mtim returns file's last modification time.
 func (s StatT) Mtim() time.Time {
-	return time.Time(s.mtim)
+	return s.mtim
 }
 
 // Stat takes a path to a file and returns
