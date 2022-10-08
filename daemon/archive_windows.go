@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
 )
 
 // containerStatPath stats the filesystem resource at the specified path in this
@@ -172,7 +171,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	path = filepath.FromSlash(path)
 
 	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
-	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
+	path, err = archive.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return err
 	}

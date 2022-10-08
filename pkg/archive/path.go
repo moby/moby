@@ -1,4 +1,4 @@
-package system // import "github.com/docker/docker/pkg/system"
+package archive
 
 // CheckSystemDriveAndRemoveDriveLetter verifies that a path, if it includes a drive letter,
 // is the system drive.

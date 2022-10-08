@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -18,8 +17,8 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 	if container.BaseFS == "" {
 		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
-	// Check if a drive letter supplied, it must be the system drive.
-	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
+	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
+	path, err = archive.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return "", "", err
 	}
