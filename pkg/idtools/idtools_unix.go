@@ -79,30 +79,6 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 	return nil
 }
 
-// CanAccess takes a valid (existing) directory and a uid, gid pair and determines
-// if that uid, gid pair has access (execute bit) to the directory
-func CanAccess(path string, pair Identity) bool {
-	statInfo, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	perms := statInfo.Mode().Perm()
-	if perms&0o001 == 0o001 {
-		// world access
-		return true
-	}
-	ssi := statInfo.Sys().(*syscall.Stat_t)
-	if ssi.Uid == uint32(pair.UID) && (perms&0o100 == 0o100) {
-		// owner access.
-		return true
-	}
-	if ssi.Gid == uint32(pair.GID) && (perms&0o010 == 0o010) {
-		// group access.
-		return true
-	}
-	return false
-}
-
 // LookupUser uses traditional local system files lookup (from libcontainer/user) on a username,
 // followed by a call to `getent` for supporting host configured non-files passwd and group dbs
 func LookupUser(name string) (user.User, error) {
