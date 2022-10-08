@@ -13,11 +13,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 )
 
-// PIDFile is a file used to store the process ID of a running process.
-type PIDFile struct {
-	path string
-}
-
 func checkPIDFileAlreadyExists(path string) error {
 	pidByte, err := os.ReadFile(path)
 	if err != nil {
@@ -33,23 +28,15 @@ func checkPIDFileAlreadyExists(path string) error {
 	return nil
 }
 
-// New creates a PIDfile using the specified path.
-func New(path string) (*PIDFile, error) {
+// Write writes a "PID file" at the specified path. It returns an error if the
+// file exists and contains a valid PID of a running process, or when failing
+// to write the file.
+func Write(path string) error {
 	if err := checkPIDFileAlreadyExists(path); err != nil {
-		return nil, err
+		return err
 	}
-	// Note MkdirAll returns nil if a directory already exists
 	if err := system.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return nil, err
+		return err
 	}
-	if err := os.WriteFile(path, []byte(strconv.Itoa(os.Getpid())), 0o644); err != nil {
-		return nil, err
-	}
-
-	return &PIDFile{path: path}, nil
-}
-
-// Remove removes the PIDFile.
-func (file PIDFile) Remove() error {
-	return os.Remove(file.path)
+	return os.WriteFile(path, []byte(strconv.Itoa(os.Getpid())), 0o644)
 }

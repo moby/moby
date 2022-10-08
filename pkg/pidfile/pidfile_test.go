@@ -1,37 +1,19 @@
 package pidfile // import "github.com/docker/docker/pkg/pidfile"
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestNewAndRemove(t *testing.T) {
-	dir, err := os.MkdirTemp(os.TempDir(), "test-pidfile")
-	if err != nil {
-		t.Fatal("Could not create test directory")
-	}
-
-	path := filepath.Join(dir, "testfile")
-	file, err := New(path)
+func TestWrite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "testfile")
+	err := Write(path)
 	if err != nil {
 		t.Fatal("Could not create test file", err)
 	}
 
-	_, err = New(path)
+	err = Write(path)
 	if err == nil {
 		t.Fatal("Test file creation not blocked")
-	}
-
-	if err := file.Remove(); err != nil {
-		t.Fatal("Could not delete created test file")
-	}
-}
-
-func TestRemoveInvalidPath(t *testing.T) {
-	file := PIDFile{path: filepath.Join("foo", "bar")}
-
-	if err := file.Remove(); err == nil {
-		t.Fatal("Non-existing file doesn't give an error on delete")
 	}
 }
