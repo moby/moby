@@ -4,11 +4,11 @@
 package pidfile // import "github.com/docker/docker/pkg/pidfile"
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/docker/docker/pkg/system"
 )
@@ -26,11 +26,9 @@ func checkPIDFileAlreadyExists(path string) error {
 		}
 		return err
 	}
-	pidString := strings.TrimSpace(string(pidByte))
-	if pid, err := strconv.Atoi(pidString); err == nil {
-		if processExists(pid) {
-			return fmt.Errorf("pid file found, ensure docker is not running or delete %s", path)
-		}
+	pid, err := strconv.Atoi(string(bytes.TrimSpace(pidByte)))
+	if err == nil && processExists(pid) {
+		return fmt.Errorf("pid file found, ensure docker is not running or delete %s", path)
 	}
 	return nil
 }
