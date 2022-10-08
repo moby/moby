@@ -14,7 +14,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 )
 
@@ -29,7 +28,7 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 		return err
 	}
 
-	stat, err := system.Stat(path)
+	stat, err := os.Stat(path)
 	if err == nil {
 		if !stat.IsDir() {
 			return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
@@ -85,20 +84,21 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 // CanAccess takes a valid (existing) directory and a uid, gid pair and determines
 // if that uid, gid pair has access (execute bit) to the directory
 func CanAccess(path string, pair Identity) bool {
-	statInfo, err := system.Stat(path)
+	statInfo, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
-	perms := os.FileMode(statInfo.Mode()).Perm()
+	perms := statInfo.Mode().Perm()
 	if perms&0o001 == 0o001 {
 		// world access
 		return true
 	}
-	if statInfo.UID() == uint32(pair.UID) && (perms&0o100 == 0o100) {
+	ssi := statInfo.Sys().(*syscall.Stat_t)
+	if ssi.Uid == uint32(pair.UID) && (perms&0o100 == 0o100) {
 		// owner access.
 		return true
 	}
-	if statInfo.GID() == uint32(pair.GID) && (perms&0o010 == 0o010) {
+	if ssi.Gid == uint32(pair.GID) && (perms&0o010 == 0o010) {
 		// group access.
 		return true
 	}
@@ -229,20 +229,21 @@ func getExitCode(err error) (int, error) {
 // Normally a Chown is a no-op if uid/gid match, but in some cases this can still cause an error, e.g. if the
 // dir is on an NFS share, so don't call chown unless we absolutely must.
 // Likewise for setting permissions.
-func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT) error {
+func setPermissions(p string, mode os.FileMode, uid, gid int, stat os.FileInfo) error {
 	if stat == nil {
 		var err error
-		stat, err = system.Stat(p)
+		stat, err = os.Stat(p)
 		if err != nil {
 			return err
 		}
 	}
-	if os.FileMode(stat.Mode()).Perm() != mode.Perm() {
+	if stat.Mode().Perm() != mode.Perm() {
 		if err := os.Chmod(p, mode.Perm()); err != nil {
 			return err
 		}
 	}
-	if stat.UID() == uint32(uid) && stat.GID() == uint32(gid) {
+	ssi := stat.Sys().(*syscall.Stat_t)
+	if ssi.Uid == uint32(uid) && ssi.Gid == uint32(gid) {
 		return nil
 	}
 	return os.Chown(p, uid, gid)
