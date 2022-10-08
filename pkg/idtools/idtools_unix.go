@@ -25,12 +25,6 @@ var (
 )
 
 func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting bool) error {
-	// make an array containing the original path asked for, plus (for mkAll == true)
-	// all path components leading up to the complete path that don't exist before we MkdirAll
-	// so that we can chown all of them properly at the end.  If chownExisting is false, we won't
-	// chown the full directory path if it exists
-
-	var paths []string
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -49,6 +43,11 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 		return setPermissions(path, mode, owner.UID, owner.GID, stat)
 	}
 
+	// make an array containing the original path asked for, plus (for mkAll == true)
+	// all path components leading up to the complete path that don't exist before we MkdirAll
+	// so that we can chown all of them properly at the end.  If chownExisting is false, we won't
+	// chown the full directory path if it exists
+	var paths []string
 	if os.IsNotExist(err) {
 		paths = []string{path}
 	}
