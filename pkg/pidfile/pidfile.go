@@ -19,12 +19,17 @@ type PIDFile struct {
 }
 
 func checkPIDFileAlreadyExists(path string) error {
-	if pidByte, err := os.ReadFile(path); err == nil {
-		pidString := strings.TrimSpace(string(pidByte))
-		if pid, err := strconv.Atoi(pidString); err == nil {
-			if processExists(pid) {
-				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", path)
-			}
+	pidByte, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	pidString := strings.TrimSpace(string(pidByte))
+	if pid, err := strconv.Atoi(pidString); err == nil {
+		if processExists(pid) {
+			return fmt.Errorf("pid file found, ensure docker is not running or delete %s", path)
 		}
 	}
 	return nil
