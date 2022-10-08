@@ -12,7 +12,7 @@ import (
 )
 
 func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
-	loopInfo, err := ioctlLoopGetStatus64(file.Fd())
+	loopInfo, err := unix.IoctlLoopGetStatus64(int(file.Fd()))
 	if err != nil {
 		logrus.Errorf("Error get loopback backing file: %s", err)
 		return 0, 0, ErrGetLoopbackBackingFile
@@ -22,7 +22,7 @@ func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
 
 // SetCapacity reloads the size for the loopback device.
 func SetCapacity(file *os.File) error {
-	if err := ioctlLoopSetCapacity(file.Fd(), 0); err != nil {
+	if err := unix.IoctlSetInt(int(file.Fd()), unix.LOOP_SET_CAPACITY, 0); err != nil {
 		logrus.Errorf("Error loopbackSetCapacity: %s", err)
 		return ErrSetCapacity
 	}
@@ -38,8 +38,7 @@ func FindLoopDeviceFor(file *os.File) *os.File {
 		return nil
 	}
 	targetInode := stat.Ino
-	// the type is 32bit on mips
-	targetDevice := uint64(stat.Dev) //nolint: unconvert
+	targetDevice := uint64(stat.Dev) //nolint: unconvert // the type is 32bit on mips
 
 	for i := 0; true; i++ {
 		path := fmt.Sprintf("/dev/loop%d", i)

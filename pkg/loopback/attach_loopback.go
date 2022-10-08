@@ -15,12 +15,12 @@ import (
 // Loopback related errors
 var (
 	ErrAttachLoopbackDevice   = errors.New("loopback attach failed")
-	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
-	ErrSetCapacity            = errors.New("Unable set loopback capacity")
+	ErrGetLoopbackBackingFile = errors.New("unable to get loopback backing file")
+	ErrSetCapacity            = errors.New("unable set loopback capacity")
 )
 
-func stringToLoopName(src string) [LoNameSize]uint8 {
-	var dst [LoNameSize]uint8
+func stringToLoopName(src string) [unix.LO_NAME_SIZE]uint8 {
+	var dst [unix.LO_NAME_SIZE]uint8
 	copy(dst[:], src[:])
 	return dst
 }
@@ -31,12 +31,7 @@ func getNextFreeLoopbackIndex() (int, error) {
 		return 0, err
 	}
 	defer f.Close()
-
-	index, err := ioctlLoopCtlGetFree(f.Fd())
-	if index < 0 {
-		index = 0
-	}
-	return index, err
+	return unix.IoctlRetInt(int(f.Fd()), unix.LOOP_CTL_GET_FREE)
 }
 
 func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.File, err error) {
@@ -66,7 +61,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 		}
 
 		// Try to attach to the loop file
-		if err := ioctlLoopSetFd(loopFile.Fd(), sparseFile.Fd()); err != nil {
+		if err = unix.IoctlSetInt(int(loopFile.Fd()), unix.LOOP_SET_FD, int(sparseFile.Fd())); err != nil {
 			loopFile.Close()
 
 			// If the error is EBUSY, then try the next loopback
@@ -119,14 +114,14 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	loopInfo := &unix.LoopInfo64{
 		File_name: stringToLoopName(loopFile.Name()),
 		Offset:    0,
-		Flags:     LoFlagsAutoClear,
+		Flags:     unix.LO_FLAGS_AUTOCLEAR,
 	}
 
-	if err := ioctlLoopSetStatus64(loopFile.Fd(), loopInfo); err != nil {
+	if err = unix.IoctlLoopSetStatus64(int(loopFile.Fd()), loopInfo); err != nil {
 		logrus.Errorf("Cannot set up loopback device info: %s", err)
 
 		// If the call failed, then free the loopback device
-		if err := ioctlLoopClrFd(loopFile.Fd()); err != nil {
+		if err = unix.IoctlSetInt(int(loopFile.Fd()), unix.LOOP_CLR_FD, 0); err != nil {
 			logrus.Error("Error while cleaning up the loopback device")
 		}
 		loopFile.Close()
