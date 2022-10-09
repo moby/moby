@@ -101,7 +101,8 @@ func dirContentsEqual(t *testing.T, newDir, oldDir string) (err error) {
 }
 
 func logDirContents(t *testing.T, dirPath string) {
-	logWalkedPaths := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
+	t.Logf("logging directory contents: %q", dirPath)
+	err := filepath.WalkDir(dirPath, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			t.Errorf("stat error for path %q: %s", path, err)
 			return nil
@@ -115,10 +116,6 @@ func logDirContents(t *testing.T, dirPath string) {
 
 		return nil
 	})
-
-	t.Logf("logging directory contents: %q", dirPath)
-
-	err := filepath.Walk(dirPath, logWalkedPaths)
 	assert.NilError(t, err)
 }
 
