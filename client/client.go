@@ -125,7 +125,12 @@ func CheckRedirect(req *http.Request, via []*http.Request) error {
 //		client.WithAPIVersionNegotiation(),
 //	)
 func NewClientWithOpts(ops ...Opt) (*Client, error) {
-	client, err := defaultHTTPClient(DefaultDockerHost)
+	hostURL, err := ParseHostURL(DefaultDockerHost)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := defaultHTTPClient(hostURL)
 	if err != nil {
 		return nil, err
 	}
@@ -133,8 +138,8 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 		host:    DefaultDockerHost,
 		version: api.DefaultVersion,
 		client:  client,
-		proto:   defaultProto,
-		addr:    defaultAddr,
+		proto:   hostURL.Scheme,
+		addr:    hostURL.Host,
 	}
 
 	for _, op := range ops {
@@ -160,11 +165,7 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	return c, nil
 }
 
-func defaultHTTPClient(host string) (*http.Client, error) {
-	hostURL, err := ParseHostURL(host)
-	if err != nil {
-		return nil, err
-	}
+func defaultHTTPClient(hostURL *url.URL) (*http.Client, error) {
 	transport := &http.Transport{}
 	_ = sockets.ConfigureTransport(transport, hostURL.Scheme, hostURL.Host)
 	return &http.Client{
