@@ -26,7 +26,7 @@ func fixPermissions(source, destination string, identity idtools.Identity, overr
 
 	// We Walk on the source rather than on the destination because we don't
 	// want to change permissions on things we haven't created or modified.
-	return filepath.Walk(source, func(fullpath string, _ os.FileInfo, _ error) error {
+	return filepath.WalkDir(source, func(fullpath string, _ os.DirEntry, _ error) error {
 		// Do not alter the walk root iff. it existed before, as it doesn't fall under
 		// the domain of "things we should chown".
 		if skipChownRoot && source == fullpath {

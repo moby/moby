@@ -66,7 +66,7 @@ func (cs *CachableSource) Scan() error {
 		return err
 	}
 	txn := iradix.New().Txn()
-	err = filepath.Walk(cs.root, func(path string, info os.FileInfo, err error) error {
+	err = filepath.WalkDir(cs.root, func(path string, _ os.DirEntry, err error) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to walk %s", path)
 		}
