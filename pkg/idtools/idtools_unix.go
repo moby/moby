@@ -59,17 +59,15 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 			if dirPath == "/" {
 				break
 			}
-			if _, err := os.Stat(dirPath); err != nil && os.IsNotExist(err) {
+			if _, err = os.Stat(dirPath); err != nil && os.IsNotExist(err) {
 				paths = append(paths, dirPath)
 			}
 		}
-		if err := os.MkdirAll(path, mode); err != nil {
+		if err = os.MkdirAll(path, mode); err != nil {
 			return err
 		}
-	} else {
-		if err := os.Mkdir(path, mode); err != nil && !os.IsExist(err) {
-			return err
-		}
+	} else if err = os.Mkdir(path, mode); err != nil {
+		return err
 	}
 	// even if it existed, we will chown the requested path + any subpaths that
 	// didn't exist when we called MkdirAll
