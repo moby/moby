@@ -328,8 +328,8 @@ func compareTrees(left, right map[string]node) error {
 }
 
 func delUser(t *testing.T, name string) {
-	_, err := execCmd("userdel", name)
-	assert.Check(t, err)
+	out, err := exec.Command("userdel", name).CombinedOutput()
+	assert.Check(t, err, out)
 }
 
 func TestParseSubidFileWithNewlinesAndComments(t *testing.T) {

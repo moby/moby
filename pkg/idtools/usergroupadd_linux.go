@@ -2,6 +2,7 @@ package idtools // import "github.com/docker/docker/pkg/idtools"
 
 import (
 	"fmt"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
@@ -36,7 +37,7 @@ func AddNamespaceRangesUser(name string) (int, int, error) {
 	}
 
 	// Query the system for the created uid and gid pair
-	out, err := execCmd("id", name)
+	out, err := exec.Command("id", name).CombinedOutput()
 	if err != nil {
 		return -1, -1, fmt.Errorf("error trying to find uid/gid for new user %q: %v", name, err)
 	}
@@ -81,7 +82,7 @@ func addUser(name string) error {
 		return fmt.Errorf("cannot add user; no useradd/adduser binary found")
 	}
 
-	if out, err := execCmd(userCommand, args...); err != nil {
+	if out, err := exec.Command(userCommand, args...).CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to add user with error: %v; output: %q", err, string(out))
 	}
 	return nil
@@ -100,7 +101,8 @@ func createSubordinateRanges(name string) error {
 		if err != nil {
 			return fmt.Errorf("can't find available subuid range: %v", err)
 		}
-		out, err := execCmd("usermod", "-v", fmt.Sprintf("%d-%d", startID, startID+defaultRangeLen-1), name)
+		idRange := fmt.Sprintf("%d-%d", startID, startID+defaultRangeLen-1)
+		out, err := exec.Command("usermod", "-v", idRange, name).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("unable to add subuid range to user: %q; output: %s, err: %v", name, out, err)
 		}
@@ -116,7 +118,8 @@ func createSubordinateRanges(name string) error {
 		if err != nil {
 			return fmt.Errorf("can't find available subgid range: %v", err)
 		}
-		out, err := execCmd("usermod", "-w", fmt.Sprintf("%d-%d", startID, startID+defaultRangeLen-1), name)
+		idRange := fmt.Sprintf("%d-%d", startID, startID+defaultRangeLen-1)
+		out, err := exec.Command("usermod", "-w", idRange, name).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("unable to add subgid range to user: %q; output: %s, err: %v", name, out, err)
 		}
