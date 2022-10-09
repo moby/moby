@@ -37,8 +37,8 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 			return nil
 		}
 
-		// short-circuit--we were called with an existing directory and chown was requested
-		return setPermissions(path, mode, owner.UID, owner.GID, stat)
+		// short-circuit -- we were called with an existing directory and chown was requested
+		return setPermissions(path, mode, owner, stat)
 	}
 
 	// make an array containing the original path asked for, plus (for mkAll == true)
@@ -72,7 +72,7 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 	// even if it existed, we will chown the requested path + any subpaths that
 	// didn't exist when we called MkdirAll
 	for _, pathComponent := range paths {
-		if err := setPermissions(pathComponent, mode, owner.UID, owner.GID, nil); err != nil {
+		if err = setPermissions(pathComponent, mode, owner, nil); err != nil {
 			return err
 		}
 	}
@@ -227,7 +227,7 @@ func getExitCode(err error) (int, error) {
 // Normally a Chown is a no-op if uid/gid match, but in some cases this can still cause an error, e.g. if the
 // dir is on an NFS share, so don't call chown unless we absolutely must.
 // Likewise for setting permissions.
-func setPermissions(p string, mode os.FileMode, uid, gid int, stat os.FileInfo) error {
+func setPermissions(p string, mode os.FileMode, owner Identity, stat os.FileInfo) error {
 	if stat == nil {
 		var err error
 		stat, err = os.Stat(p)
@@ -241,10 +241,10 @@ func setPermissions(p string, mode os.FileMode, uid, gid int, stat os.FileInfo) 
 		}
 	}
 	ssi := stat.Sys().(*syscall.Stat_t)
-	if ssi.Uid == uint32(uid) && ssi.Gid == uint32(gid) {
+	if ssi.Uid == uint32(owner.UID) && ssi.Gid == uint32(owner.GID) {
 		return nil
 	}
-	return os.Chown(p, uid, gid)
+	return os.Chown(p, owner.UID, owner.GID)
 }
 
 // LoadIdentityMapping takes a requested username and
