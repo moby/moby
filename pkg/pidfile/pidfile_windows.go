@@ -11,7 +11,7 @@ func processExists(pid int) bool {
 	}
 	var c uint32
 	err = windows.GetExitCodeProcess(h, &c)
-	windows.Close(h)
+	_ = windows.CloseHandle(h)
 	if err != nil {
 		// From the GetExitCodeProcess function (processthreadsapi.h) API docs:
 		// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getexitcodeprocess
