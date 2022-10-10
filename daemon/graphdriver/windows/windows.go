@@ -223,14 +223,14 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 			return err
 		}
 
-		storageOptions, err := parseStorageOpt(storageOpt)
+		storageOpts, err := parseStorageOpt(storageOpt)
 		if err != nil {
 			return fmt.Errorf("Failed to parse storage options - %s", err)
 		}
 
 		sandboxSize := d.defaultStorageOpts.size
-		if storageOptions.size != 0 {
-			sandboxSize = storageOptions.size
+		if storageOpts.size != 0 {
+			sandboxSize = storageOpts.size
 		}
 
 		if sandboxSize != 0 {
@@ -663,7 +663,7 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
 
 // exportLayer generates an archive from a layer based on the given ID.
 func (d *Driver) exportLayer(id string, parentLayerPaths []string) (io.ReadCloser, error) {
-	archive, w := io.Pipe()
+	archiveRdr, w := io.Pipe()
 	go func() {
 		err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
 			r, err := hcsshim.NewLayerReader(d.info, id, parentLayerPaths)
@@ -681,7 +681,7 @@ func (d *Driver) exportLayer(id string, parentLayerPaths []string) (io.ReadClose
 		w.CloseWithError(err)
 	}()
 
-	return archive, nil
+	return archiveRdr, nil
 }
 
 // writeBackupStreamFromTarAndSaveMutatedFiles reads data from a tar stream and
@@ -906,17 +906,17 @@ func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser
 	// to the security descriptor. Also use sequential file access to avoid depleting the
 	// standby list - Microsoft VSO Bug Tracker #9900466
 	err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
-		path := longpath.AddPrefix(filepath.Join(fg.path, filename))
-		p, err := windows.UTF16FromString(path)
+		longPath := longpath.AddPrefix(filepath.Join(fg.path, filename))
+		p, err := windows.UTF16FromString(longPath)
 		if err != nil {
 			return err
 		}
 		const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
 		h, err := windows.CreateFile(&p[0], windows.GENERIC_READ, windows.FILE_SHARE_READ, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS|fileFlagSequentialScan, 0)
 		if err != nil {
-			return &os.PathError{Op: "open", Path: path, Err: err}
+			return &os.PathError{Op: "open", Path: longPath, Err: err}
 		}
-		f = os.NewFile(uintptr(h), path)
+		f = os.NewFile(uintptr(h), longPath)
 		return nil
 	})
 	return f, err
