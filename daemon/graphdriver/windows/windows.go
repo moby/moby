@@ -103,7 +103,7 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 	if err != nil {
 		return nil, err
 	}
-	if strings.ToLower(fsType) == "refs" {
+	if strings.EqualFold(fsType, "refs") {
 		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
 	}
 
@@ -937,13 +937,12 @@ func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 }
 
 func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
-	options := storageOptions{}
+	options := &storageOptions{}
 
 	// Read size to change the block device size per container.
 	for key, val := range storageOpt {
-		key := strings.ToLower(key)
-		switch key {
-		case "size":
+		// FIXME(thaJeztah): options should not be case-insensitive
+		if strings.EqualFold(key, "size") {
 			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
@@ -951,5 +950,5 @@ func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
 			options.size = uint64(size)
 		}
 	}
-	return &options, nil
+	return options, nil
 }
