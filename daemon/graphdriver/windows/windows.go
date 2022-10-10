@@ -110,7 +110,7 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 	// Setting file-mode is a no-op on Windows, so passing "0" to make it more
 	// transparent that the filemode passed has no effect.
 	if err = system.MkdirAll(home, 0); err != nil {
-		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
+		return nil, errors.Wrapf(err, "windowsfilter failed to create '%s'", home)
 	}
 
 	storageOpt := map[string]string{
@@ -124,7 +124,7 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 
 	opts, err := parseStorageOpt(storageOpt)
 	if err != nil {
-		return nil, fmt.Errorf("windowsfilter failed to parse default storage options - %s", err)
+		return nil, errors.Wrap(err, "windowsfilter failed to parse default storage options")
 	}
 
 	d := &Driver{
@@ -225,7 +225,7 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 
 		storageOpts, err := parseStorageOpt(storageOpt)
 		if err != nil {
-			return fmt.Errorf("Failed to parse storage options - %s", err)
+			return errors.Wrap(err, "failed to parse storage options")
 		}
 
 		sandboxSize := d.defaultStorageOpts.size
@@ -244,7 +244,7 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
 			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err2)
 		}
-		return fmt.Errorf("Cannot create layer with missing parent %s: %s", parent, err)
+		return errors.Wrapf(err, "cannot create layer with missing parent %s", parent)
 	}
 
 	if err := d.setLayerChain(id, layerChain); err != nil {
@@ -855,13 +855,13 @@ func (d *Driver) getLayerChain(id string) ([]string, error) {
 	if os.IsNotExist(err) {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("Unable to read layerchain file - %s", err)
+		return nil, errors.Wrapf(err, "read layerchain file")
 	}
 
 	var layerChain []string
 	err = json.Unmarshal(content, &layerChain)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshall layerchain json - %s", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal layerchain JSON")
 	}
 
 	return layerChain, nil
@@ -871,13 +871,13 @@ func (d *Driver) getLayerChain(id string) ([]string, error) {
 func (d *Driver) setLayerChain(id string, chain []string) error {
 	content, err := json.Marshal(&chain)
 	if err != nil {
-		return fmt.Errorf("Failed to marshall layerchain json - %s", err)
+		return errors.Wrap(err, "failed to marshal layerchain JSON")
 	}
 
 	jPath := filepath.Join(d.dir(id), "layerchain.json")
-	err = os.WriteFile(jPath, content, 0600)
+	err = os.WriteFile(jPath, content, 0o600)
 	if err != nil {
-		return fmt.Errorf("Unable to write layerchain file - %s", err)
+		return errors.Wrap(err, "write layerchain file")
 	}
 
 	return nil
