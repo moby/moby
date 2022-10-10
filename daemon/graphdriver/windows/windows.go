@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -106,7 +107,9 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
 	}
 
-	if err := idtools.MkdirAllAndChown(home, 0700, idtools.Identity{UID: 0, GID: 0}); err != nil {
+	// Setting file-mode is a no-op on Windows, so passing "0" to make it more
+	// transparent that the filemode passed has no effect.
+	if err = system.MkdirAll(home, 0); err != nil {
 		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
 	}
 
