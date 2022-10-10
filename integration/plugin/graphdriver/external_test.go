@@ -432,7 +432,7 @@ func TestGraphdriverPluginV2(t *testing.T) {
 
 	// restart the daemon with the plugin set as the storage driver
 	d.Stop(t)
-	d.StartWithBusybox(t, "-s", plugin, "--storage-opt", "overlay2.override_kernel_check=1")
+	d.StartWithBusybox(t, "-s", plugin)
 
 	testGraphDriver(ctx, t, client, plugin, nil)
 }
