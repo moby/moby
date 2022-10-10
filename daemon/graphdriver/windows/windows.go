@@ -480,7 +480,7 @@ func (d *Driver) Cleanup() error {
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 // The layer should be mounted when calling this function
-func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
+func (d *Driver) Diff(id, _ string) (_ io.ReadCloser, err error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return
@@ -516,7 +516,7 @@ func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 // The layer should not be mounted when calling this function.
-func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
+func (d *Driver) Changes(id, _ string) ([]archive.Change, error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return nil, err
@@ -627,9 +627,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 
 // GetMetadata returns custom driver information.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
-	m := make(map[string]string)
-	m["dir"] = d.dir(id)
-	return m, nil
+	return map[string]string{"dir": d.dir(id)}, nil
 }
 
 func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
@@ -644,10 +642,9 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
 		}
 		if fileInfo == nil {
 			// Write a whiteout file.
-			hdr := &tar.Header{
+			err = t.WriteHeader(&tar.Header{
 				Name: filepath.ToSlash(filepath.Join(filepath.Dir(name), archive.WhiteoutPrefix+filepath.Base(name))),
-			}
-			err := t.WriteHeader(hdr)
+			})
 			if err != nil {
 				return err
 			}
@@ -817,12 +814,7 @@ func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ..
 		}()
 	}
 
-	info := hcsshim.DriverInfo{
-		Flavour: filterDriver,
-		HomeDir: home,
-	}
-
-	w, err := hcsshim.NewLayerWriter(info, id, parentLayerPaths)
+	w, err := hcsshim.NewLayerWriter(hcsshim.DriverInfo{Flavour: filterDriver, HomeDir: home}, id, parentLayerPaths)
 	if err != nil {
 		return 0, err
 	}
