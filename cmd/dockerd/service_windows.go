@@ -27,9 +27,8 @@ var (
 	flUnregisterService *bool
 	flRunService        *bool
 
-	setStdHandle = windows.NewLazySystemDLL("kernel32.dll").NewProc("SetStdHandle")
-	oldStderr    windows.Handle
-	panicFile    *os.File
+	oldStderr windows.Handle
+	panicFile *os.File
 
 	service *handler
 )
@@ -387,21 +386,19 @@ func initPanicFile(path string) error {
 	// Update STD_ERROR_HANDLE to point to the panic file so that Go writes to
 	// it when it panics. Remember the old stderr to restore it before removing
 	// the panic file.
-	sh := uint32(windows.STD_ERROR_HANDLE)
-	h, err := windows.GetStdHandle(sh)
+	h, err := windows.GetStdHandle(windows.STD_ERROR_HANDLE)
+	if err != nil {
+		return err
+	}
+	oldStderr = h
+
+	err = windows.SetStdHandle(windows.STD_ERROR_HANDLE, windows.Handle(panicFile.Fd()))
 	if err != nil {
 		return err
 	}
 
-	oldStderr = h
-
-	r, _, err := setStdHandle.Call(uintptr(sh), uintptr(panicFile.Fd()))
-	if r == 0 && err != nil {
-		return err
-	}
-
 	// Reset os.Stderr to the panic file (so fmt.Fprintf(os.Stderr,...) actually gets redirected)
-	os.Stderr = os.NewFile(uintptr(panicFile.Fd()), "/dev/stderr")
+	os.Stderr = os.NewFile(panicFile.Fd(), "/dev/stderr")
 
 	// Force threads that panic to write to stderr (the panicFile handle now), otherwise it will go into the ether
 	log.SetOutput(os.Stderr)
@@ -412,8 +409,7 @@ func initPanicFile(path string) error {
 func removePanicFile() {
 	if st, err := panicFile.Stat(); err == nil {
 		if st.Size() == 0 {
-			sh := uint32(windows.STD_ERROR_HANDLE)
-			setStdHandle.Call(uintptr(sh), uintptr(oldStderr))
+			windows.SetStdHandle(windows.STD_ERROR_HANDLE, oldStderr)
 			panicFile.Close()
 			os.Remove(panicFile.Name())
 		}
