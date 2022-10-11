@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
@@ -15,7 +14,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/pkg/errors"
 )
@@ -36,9 +34,6 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	if err != nil {
 		return nil, err
 	}
-
-	// Normalize path before sending to rootfs
-	path = filepath.FromSlash(path)
 
 	resolvedPath, absPath, err := container.ResolvePath(path)
 	if err != nil {
@@ -79,9 +74,6 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	if err = daemon.mountVolumes(container); err != nil {
 		return nil, nil, err
 	}
-
-	// Normalize path before sending to rootfs
-	path = filepath.FromSlash(path)
 
 	resolvedPath, absPath, err := container.ResolvePath(path)
 	if err != nil {
@@ -156,15 +148,6 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	// Normalize path before sending to rootfs'
-	path = filepath.FromSlash(path)
-
-	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
-	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
-	if err != nil {
-		return err
-	}
-
 	// The destination path needs to be resolved to a host path, with all
 	// symbolic links followed in the scope of the container's rootfs. Note
 	// that we do not use `container.ResolvePath(path)` here because we need
@@ -196,22 +179,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	// Use the resolved path relative to the container rootfs as the new
 	// absPath. This way we fully follow any symlinks in a volume that may
 	// lead back outside the volume.
-	//
-	// The Windows implementation of filepath.Rel in golang 1.4 does not
-	// support volume style file path semantics. On Windows when using the
-	// filter driver, we are guaranteed that the path will always be
-	// a volume file path.
-	var baseRel string
-	if strings.HasPrefix(resolvedPath, `\\?\Volume{`) {
-		if strings.HasPrefix(resolvedPath, container.BaseFS) {
-			baseRel = resolvedPath[len(container.BaseFS):]
-			if baseRel[:1] == `\` {
-				baseRel = baseRel[1:]
-			}
-		}
-	} else {
-		baseRel, err = filepath.Rel(container.BaseFS, resolvedPath)
-	}
+	baseRel, err := filepath.Rel(container.BaseFS, resolvedPath)
 	if err != nil {
 		return err
 	}
@@ -279,9 +247,6 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	if err := daemon.mountVolumes(container); err != nil {
 		return nil, err
 	}
-
-	// Normalize path before sending to rootfs
-	resource = filepath.FromSlash(resource)
 
 	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
