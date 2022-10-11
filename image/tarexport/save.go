@@ -395,14 +395,18 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 			return distribution.Descriptor{}, err
 		}
 
-		for _, fname := range []string{"", legacyVersionFileName, legacyConfigFileName, legacyLayerFileName} {
-			// todo: maybe save layer created timestamp?
-			if err := system.Chtimes(filepath.Join(outDir, fname), createdTime, createdTime); err != nil {
+		s.diffIDPaths[l.DiffID()] = layerPath
+	}
+	// Adjust file times, prefer to not following symbol links,
+	// resort to default behavior if `no follow` not supported.
+	for _, fname := range []string{"", legacyVersionFileName, legacyConfigFileName, legacyLayerFileName} {
+		// todo: maybe save layer created timestamp?
+		if err := system.ChtimesNoFollow(filepath.Join(outDir, fname), createdTime, createdTime); err != nil {
+			err = system.Chtimes(filepath.Join(outDir, fname), createdTime, createdTime)
+			if err != nil {
 				return distribution.Descriptor{}, err
 			}
 		}
-
-		s.diffIDPaths[l.DiffID()] = layerPath
 	}
 	s.savedLayers[legacyImg.ID] = struct{}{}
 

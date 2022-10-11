@@ -24,3 +24,17 @@ func setCTime(path string, ctime time.Time) error {
 	c := windows.NsecToFiletime(windows.TimespecToNsec(ctimespec))
 	return windows.SetFileTime(h, &c, nil, nil)
 }
+
+// setAMTimeNoFollow means to set access/modification time on a file,
+// without following symbol link.
+// The implementation returns ErrNotSupportedPlatform on windows, ATM.
+func setAMTimeNoFollow(path string, atime time.Time, mtime time.Time) error {
+	return ErrNotSupportedPlatform
+}
+
+// setCTimeNoFollow means to set creation time on a file,
+// without following symbol link.
+// The implementation returns ErrNotSupportedPlatform on windows, ATM.
+func setCTimeNoFollow(path string, ctime time.Time) error {
+	return ErrNotSupportedPlatform
+}
