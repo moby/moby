@@ -451,7 +451,7 @@ jobs:
         if: always()
         run: |
           Get-WinEvent -ea SilentlyContinue `
-            -FilterHashtable @{ProviderName= "docker"; LogName = "LogrusEntry"} |
+            -FilterHashtable @{ProviderName= "docker"; LogName = "application"} |
               Sort-Object @{Expression="TimeCreated";Descending=$false} |
               ForEach-Object {"$($_.TimeCreated.ToUniversalTime().ToString("o")) [$($_.LevelDisplayName)] $($_.Message)"} |
               Tee-Object -file ".\bundles\daemon.log"
