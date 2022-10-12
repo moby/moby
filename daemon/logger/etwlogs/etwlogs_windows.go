@@ -13,11 +13,12 @@
 package etwlogs // import "github.com/docker/docker/daemon/logger/etwlogs"
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"unsafe"
 
+	"github.com/Microsoft/go-winio/pkg/etw"
+	"github.com/Microsoft/go-winio/pkg/guid"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -32,18 +33,21 @@ type etwLogs struct {
 
 const (
 	name             = "etwlogs"
+	providerGUID     = `a3693192-9ed6-46d2-a981-f8226c8363bd`
 	win32CallSuccess = 0
 )
 
 var (
 	modAdvapi32          = windows.NewLazySystemDLL("Advapi32.dll")
-	procEventRegister    = modAdvapi32.NewProc("EventRegister")
 	procEventWriteString = modAdvapi32.NewProc("EventWriteString")
-	procEventUnregister  = modAdvapi32.NewProc("EventUnregister")
 )
-var providerHandle windows.Handle
-var refCount int
-var mu sync.Mutex
+
+var (
+	providerHandle windows.Handle
+	mu             sync.Mutex
+	refCount       int
+	provider       *etw.Provider
+)
 
 func init() {
 	providerHandle = windows.InvalidHandle
@@ -69,12 +73,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 // Log logs the message to the ETW stream.
 func (etwLogger *etwLogs) Log(msg *logger.Message) error {
-	if providerHandle == windows.InvalidHandle {
-		// This should never be hit, if it is, it indicates a programming error.
-		errorMessage := "ETWLogs cannot log the message, because the event provider has not been registered."
-		logrus.Error(errorMessage)
-		return errors.New(errorMessage)
-	}
+	// TODO(thaJeztah): log structured events instead and use provider.WriteEvent().
 	m := createLogMessage(etwLogger, msg)
 	logger.PutMessage(msg)
 	return callEventWriteString(m)
@@ -105,7 +104,8 @@ func registerETWProvider() error {
 	defer mu.Unlock()
 	if refCount == 0 {
 		var err error
-		if err = callEventRegister(); err != nil {
+		provider, err = callEventRegister()
+		if err != nil {
 			return err
 		}
 	}
@@ -118,51 +118,43 @@ func unregisterETWProvider() {
 	mu.Lock()
 	defer mu.Unlock()
 	if refCount == 1 {
-		if callEventUnregister() {
-			refCount--
-			providerHandle = windows.InvalidHandle
+		if err := callEventUnregister(); err != nil {
+			// Not returning an error if EventUnregister fails, because etwLogs will continue to work
+			return
 		}
-		// Not returning an error if EventUnregister fails, because etwLogs will continue to work
+		refCount--
+		provider = nil
+		providerHandle = windows.InvalidHandle
 	} else {
 		refCount--
 	}
 }
 
-func callEventRegister() error {
-	// The provider's GUID is {a3693192-9ed6-46d2-a981-f8226c8363bd}
-	guid := windows.GUID{
-		Data1: 0xa3693192,
-		Data2: 0x9ed6,
-		Data3: 0x46d2,
-		Data4: [8]byte{0xa9, 0x81, 0xf8, 0x22, 0x6c, 0x83, 0x63, 0xbd},
+func callEventRegister() (*etw.Provider, error) {
+	providerID, _ := guid.FromString(providerGUID)
+	p, err := etw.NewProviderWithOptions("", etw.WithID(providerID))
+	if err != nil {
+		logrus.WithError(err).Error("Failed to register ETW provider")
+		return nil, fmt.Errorf("failed to register ETW provider: %v", err)
 	}
-
-	ret, _, _ := procEventRegister.Call(uintptr(unsafe.Pointer(&guid)), 0, 0, uintptr(unsafe.Pointer(&providerHandle)))
-	if ret != win32CallSuccess {
-		errorMessage := fmt.Sprintf("Failed to register ETW provider. Error: %d", ret)
-		logrus.Error(errorMessage)
-		return errors.New(errorMessage)
-	}
-	return nil
+	return p, nil
 }
 
+// TODO(thaJeztah): port this function to github.com/Microsoft/go-winio/pkg/etw.
 func callEventWriteString(message string) error {
 	utf16message, err := windows.UTF16FromString(message)
-
 	if err != nil {
 		return err
 	}
 
 	ret, _, _ := procEventWriteString.Call(uintptr(providerHandle), 0, 0, uintptr(unsafe.Pointer(&utf16message[0])))
 	if ret != win32CallSuccess {
-		errorMessage := fmt.Sprintf("ETWLogs provider failed to log message. Error: %d", ret)
-		logrus.Error(errorMessage)
-		return errors.New(errorMessage)
+		logrus.WithError(err).Error("ETWLogs provider failed to log message")
+		return fmt.Errorf("ETWLogs provider failed to log message: %v", err)
 	}
 	return nil
 }
 
-func callEventUnregister() bool {
-	ret, _, _ := procEventUnregister.Call(uintptr(providerHandle))
-	return ret == win32CallSuccess
+func callEventUnregister() error {
+	return provider.Close()
 }
