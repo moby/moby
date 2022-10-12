@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -16,7 +14,6 @@ import (
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
-	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
@@ -32,18 +29,6 @@ var (
 	service *handler
 )
 
-const (
-	// These should match the values in event_messages.mc.
-	eventInfo  = 1
-	eventWarn  = 1
-	eventError = 1
-	eventDebug = 2
-	eventPanic = 3
-	eventFatal = 4
-
-	eventExtraOffset = 10 // Add this to any event to get a string that supports extended data
-)
-
 func installServiceFlags(flags *pflag.FlagSet) {
 	flServiceName = flags.String("service-name", "docker", "Set the Windows service name")
 	flRegisterService = flags.Bool("register-service", false, "Register the service and exit")
@@ -56,93 +41,6 @@ type handler struct {
 	tosvc     chan bool
 	fromsvc   chan error
 	daemonCli *DaemonCli
-}
-
-type etwHook struct {
-	log *eventlog.Log
-}
-
-func (h *etwHook) Levels() []logrus.Level {
-	return []logrus.Level{
-		logrus.PanicLevel,
-		logrus.FatalLevel,
-		logrus.ErrorLevel,
-		logrus.WarnLevel,
-		logrus.InfoLevel,
-		logrus.DebugLevel,
-	}
-}
-
-func (h *etwHook) Fire(e *logrus.Entry) error {
-	var (
-		etype uint16
-		eid   uint32
-	)
-
-	switch e.Level {
-	case logrus.PanicLevel:
-		etype = windows.EVENTLOG_ERROR_TYPE
-		eid = eventPanic
-	case logrus.FatalLevel:
-		etype = windows.EVENTLOG_ERROR_TYPE
-		eid = eventFatal
-	case logrus.ErrorLevel:
-		etype = windows.EVENTLOG_ERROR_TYPE
-		eid = eventError
-	case logrus.WarnLevel:
-		etype = windows.EVENTLOG_WARNING_TYPE
-		eid = eventWarn
-	case logrus.InfoLevel:
-		etype = windows.EVENTLOG_INFORMATION_TYPE
-		eid = eventInfo
-	case logrus.DebugLevel:
-		etype = windows.EVENTLOG_INFORMATION_TYPE
-		eid = eventDebug
-	default:
-		return errors.New("unknown level")
-	}
-
-	// If there is additional data, include it as a second string.
-	exts := ""
-	if len(e.Data) > 0 {
-		fs := bytes.Buffer{}
-		for k, v := range e.Data {
-			fs.WriteString(k)
-			fs.WriteByte('=')
-			fmt.Fprint(&fs, v)
-			fs.WriteByte(' ')
-		}
-
-		exts = fs.String()[:fs.Len()-1]
-		eid += eventExtraOffset
-	}
-
-	if h.log == nil {
-		fmt.Fprintf(os.Stderr, "%s [%s]\n", e.Message, exts)
-		return nil
-	}
-
-	var (
-		ss  [2]*uint16
-		err error
-	)
-
-	ss[0], err = windows.UTF16PtrFromString(e.Message)
-	if err != nil {
-		return err
-	}
-
-	count := uint16(1)
-	if exts != "" {
-		ss[1], err = windows.UTF16PtrFromString(exts)
-		if err != nil {
-			return err
-		}
-
-		count++
-	}
-
-	return windows.ReportEvent(h.log.Handle, etype, 0, eid, 0, count, 0, &ss[0], nil)
 }
 
 func getServicePath() (string, error) {
@@ -186,7 +84,7 @@ func registerService() error {
 	}
 	defer s.Close()
 
-	err = s.SetRecoveryActions(
+	return s.SetRecoveryActions(
 		[]mgr.RecoveryAction{
 			{Type: mgr.ServiceRestart, Delay: 15 * time.Second},
 			{Type: mgr.ServiceRestart, Delay: 15 * time.Second},
@@ -194,11 +92,6 @@ func registerService() error {
 		},
 		uint32(24*time.Hour/time.Second),
 	)
-	if err != nil {
-		return err
-	}
-
-	return eventlog.Install(*flServiceName, p, false, eventlog.Info|eventlog.Warning|eventlog.Error)
 }
 
 func unregisterService() error {
@@ -214,12 +107,7 @@ func unregisterService() error {
 	}
 	defer s.Close()
 
-	eventlog.Remove(*flServiceName)
-	err = s.Delete()
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.Delete()
 }
 
 // initService is the entry point for running the daemon as a Windows
@@ -253,16 +141,7 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 		daemonCli: daemonCli,
 	}
 
-	var log *eventlog.Log
-	if isService {
-		log, err = eventlog.Open(*flServiceName)
-		if err != nil {
-			return false, false, err
-		}
-	}
-
-	logrus.AddHook(&etwHook{log})
-	logrus.SetOutput(io.Discard)
+	logrus.SetOutput(io.Discard) // TODO(thaJeztah): should this be moved to initLogging() ?
 
 	service = h
 	go func() {
