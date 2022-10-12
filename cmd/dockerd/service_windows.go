@@ -189,8 +189,8 @@ func registerService() error {
 
 	err = s.SetRecoveryActions(
 		[]mgr.RecoveryAction{
-			{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
-			{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
+			{Type: mgr.ServiceRestart, Delay: 15 * time.Second},
+			{Type: mgr.ServiceRestart, Delay: 15 * time.Second},
 			{Type: mgr.NoAction},
 		},
 		uint32(24*time.Hour/time.Second),
