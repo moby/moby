@@ -17,7 +17,12 @@ for f in "${files[@]}"; do
 		continue
 	fi
 	IFS=$'\n'
-	badImports=($(go list -e -f '{{ join .Deps "\n" }}' "$f" | sort -u | grep -vE '^github.com/docker/docker/pkg/' | grep -vE '^github.com/docker/docker/vendor' | grep -E '^github.com/docker/docker' || true))
+	badImports=($(go list -e -f '{{ join .Deps "\n" }}' "$f" | sort -u \
+		| grep -vE '^github.com/docker/docker/pkg/' \
+		| grep -vE '^github.com/docker/docker/vendor' \
+		| grep -vE '^github.com/docker/docker/internal' \
+		| grep -E '^github.com/docker/docker' \
+		|| true))
 	unset IFS
 
 	for import in "${badImports[@]}"; do
