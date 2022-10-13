@@ -162,7 +162,7 @@ func TestCloneArgsGit(t *testing.T) {
 }
 
 func gitGetConfig(name string) string {
-	b, err := gitWithinDir("", "config", "--get", name)
+	b, err := gitRepo{}.gitWithinDir("", "config", "--get", name)
 	if err != nil {
 		// since we are interested in empty or non empty string,
 		// we can safely ignore the err here.
@@ -236,9 +236,9 @@ func TestCheckoutGit(t *testing.T) {
 	}
 
 	gitDir := filepath.Join(root, "repo")
-	must(gitWithinDir(root, "-c", "init.defaultBranch=master", "init", gitDir))
-	must(gitWithinDir(gitDir, "config", "user.email", "test@docker.com"))
-	must(gitWithinDir(gitDir, "config", "user.name", "Docker test"))
+	must(gitRepo{}.gitWithinDir(root, "-c", "init.defaultBranch=master", "init", gitDir))
+	must(gitRepo{}.gitWithinDir(gitDir, "config", "user.email", "test@docker.com"))
+	must(gitRepo{}.gitWithinDir(gitDir, "config", "user.name", "Docker test"))
 	assert.NilError(t, os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644))
 
 	subDir := filepath.Join(gitDir, "subdir")
@@ -250,31 +250,31 @@ func TestCheckoutGit(t *testing.T) {
 		assert.NilError(t, os.Symlink("/subdir", filepath.Join(gitDir, "absolutelink")))
 	}
 
-	must(gitWithinDir(gitDir, "add", "-A"))
-	must(gitWithinDir(gitDir, "commit", "-am", "First commit"))
-	must(gitWithinDir(gitDir, "checkout", "-b", "test"))
+	must(gitRepo{}.gitWithinDir(gitDir, "add", "-A"))
+	must(gitRepo{}.gitWithinDir(gitDir, "commit", "-am", "First commit"))
+	must(gitRepo{}.gitWithinDir(gitDir, "checkout", "-b", "test"))
 
 	assert.NilError(t, os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0644))
 	assert.NilError(t, os.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0644))
 
-	must(gitWithinDir(gitDir, "add", "-A"))
-	must(gitWithinDir(gitDir, "commit", "-am", "Branch commit"))
-	must(gitWithinDir(gitDir, "checkout", "master"))
+	must(gitRepo{}.gitWithinDir(gitDir, "add", "-A"))
+	must(gitRepo{}.gitWithinDir(gitDir, "commit", "-am", "Branch commit"))
+	must(gitRepo{}.gitWithinDir(gitDir, "checkout", "master"))
 
 	// set up submodule
 	subrepoDir := filepath.Join(root, "subrepo")
-	must(gitWithinDir(root, "-c", "init.defaultBranch=master", "init", subrepoDir))
-	must(gitWithinDir(subrepoDir, "config", "user.email", "test@docker.com"))
-	must(gitWithinDir(subrepoDir, "config", "user.name", "Docker test"))
+	must(gitRepo{}.gitWithinDir(root, "-c", "init.defaultBranch=master", "init", subrepoDir))
+	must(gitRepo{}.gitWithinDir(subrepoDir, "config", "user.email", "test@docker.com"))
+	must(gitRepo{}.gitWithinDir(subrepoDir, "config", "user.name", "Docker test"))
 
 	assert.NilError(t, os.WriteFile(filepath.Join(subrepoDir, "subfile"), []byte("subcontents"), 0644))
 
-	must(gitWithinDir(subrepoDir, "add", "-A"))
-	must(gitWithinDir(subrepoDir, "commit", "-am", "Subrepo initial"))
+	must(gitRepo{}.gitWithinDir(subrepoDir, "add", "-A"))
+	must(gitRepo{}.gitWithinDir(subrepoDir, "commit", "-am", "Subrepo initial"))
 
-	must(gitWithinDir(gitDir, "submodule", "add", server.URL+"/subrepo", "sub"))
-	must(gitWithinDir(gitDir, "add", "-A"))
-	must(gitWithinDir(gitDir, "commit", "-am", "With submodule"))
+	must(gitRepo{}.gitWithinDir(gitDir, "submodule", "add", server.URL+"/subrepo", "sub"))
+	must(gitRepo{}.gitWithinDir(gitDir, "add", "-A"))
+	must(gitRepo{}.gitWithinDir(gitDir, "commit", "-am", "With submodule"))
 
 	type singleCase struct {
 		frag      string
@@ -311,7 +311,7 @@ func TestCheckoutGit(t *testing.T) {
 		t.Run(c.frag, func(t *testing.T) {
 			currentSubtest = t
 			ref, subdir := getRefAndSubdir(c.frag)
-			r, err := cloneGitRepo(gitRepo{remote: server.URL + "/repo", ref: ref, subdir: subdir})
+			r, err := gitRepo{remote: server.URL + "/repo", ref: ref, subdir: subdir}.clone()
 
 			if c.fail {
 				assert.Check(t, is.ErrorContains(err, ""))
