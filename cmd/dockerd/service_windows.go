@@ -264,7 +264,8 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 		return false, false, nil
 	}
 
-	interactive, err := svc.IsAnInteractiveSession()
+	// Check if we're running as a Windows service or interactively.
+	isService, err := svc.IsWindowsService()
 	if err != nil {
 		return false, false, err
 	}
@@ -276,7 +277,7 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 	}
 
 	var log *eventlog.Log
-	if !interactive {
+	if isService {
 		log, err = eventlog.Open(*flServiceName)
 		if err != nil {
 			return false, false, err
@@ -288,10 +289,10 @@ func initService(daemonCli *DaemonCli) (bool, bool, error) {
 
 	service = h
 	go func() {
-		if interactive {
-			err = debug.Run(*flServiceName, h)
-		} else {
+		if isService {
 			err = svc.Run(*flServiceName, h)
+		} else {
+			err = debug.Run(*flServiceName, h)
 		}
 
 		h.fromsvc <- err
