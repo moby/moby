@@ -13,8 +13,9 @@ import (
 const SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
 
 // volumePath is a regular expression to check if a path is a Windows
-// volume path (e.g., "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}".
-var volumePath = regexp.MustCompile(`^\\\\\?\\Volume{[a-z0-9-]+}$`)
+// volume path (e.g., "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}"
+// or "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}\").
+var volumePath = regexp.MustCompile(`^\\\\\?\\Volume{[a-z0-9-]+}\\?$`)
 
 // MkdirAllWithACL is a custom version of os.MkdirAll modified for use on Windows
 // so that it is both volume path aware, and can create a directory with
