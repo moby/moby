@@ -46,11 +46,16 @@ func initLogging(stdout, _ io.Writer) {
 	// Maybe there is a historic reason why on non-Windows, stderr is used
 	// for output. However, on Windows it makes no sense and there is no need.
 	logrus.SetOutput(stdout)
+	name := "docker" // FIXME(thaJeztah): what should the default be? "docker" or "Moby"?
+	if flServiceName != nil && *flServiceName != "" {
+		name = *flServiceName
+	}
 
+	// FIXME(thaJeztah): update this ID (it's calculated from the name, which was hard-coded to "Moby" (looks like it's case-insensitive for the GUID)
 	// Provider ID: {6996f090-c5de-5082-a81e-5841acc3a635}
 	// Hook isn't closed explicitly, as it will exist until process exit.
 	// GUID is generated based on name - see Microsoft/go-winio/tools/etw-provider-gen.
-	if hook, err := etwlogrus.NewHook("Moby"); err == nil {
+	if hook, err := etwlogrus.NewHook(name); err == nil {
 		logrus.AddHook(hook)
 	}
 	return
