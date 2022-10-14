@@ -469,7 +469,7 @@ func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
 func setupDaemonRoot(config *config.Config, rootDir string, rootIdentity idtools.Identity) error {
 	config.Root = rootDir
 	// Create the root directory if it doesn't exists
-	if err := system.MkdirAllWithACL(config.Root, 0, system.SddlAdministratorsLocalSystem); err != nil {
+	if err := system.MkdirAllWithACL(config.Root, system.SddlAdministratorsLocalSystem); err != nil {
 		return err
 	}
 	return nil
