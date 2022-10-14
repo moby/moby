@@ -313,7 +313,6 @@ func (d *Driver) Remove(id string) error {
 			if err != nil {
 				return err
 			}
-			defer container.Close()
 			err = container.Terminate()
 			if hcsshim.IsPending(err) {
 				err = container.Wait()
@@ -321,6 +320,7 @@ func (d *Driver) Remove(id string) error {
 				err = nil
 			}
 
+			_ = container.Close()
 			if err != nil {
 				return err
 			}
