@@ -21,19 +21,23 @@ var volumePath = regexp.MustCompile(`^\\\\\?\\Volume{[a-z0-9-]+}\\?$`)
 // so that it is both volume path aware, and can create a directory with
 // an appropriate SDDL defined ACL.
 func MkdirAllWithACL(path string, _ os.FileMode, sddl string) error {
-	return mkdirall(path, true, sddl)
+	sa, err := makeSecurityAttributes(sddl)
+	if err != nil {
+		return &os.PathError{Op: "mkdirall", Path: path, Err: err}
+	}
+	return mkdirall(path, sa)
 }
 
 // MkdirAll is a custom version of os.MkdirAll that is volume path aware for
 // Windows. It can be used as a drop-in replacement for os.MkdirAll.
 func MkdirAll(path string, _ os.FileMode) error {
-	return mkdirall(path, false, "")
+	return mkdirall(path, nil)
 }
 
 // mkdirall is a custom version of os.MkdirAll modified for use on Windows
 // so that it is both volume path aware, and can create a directory with
 // a DACL.
-func mkdirall(path string, applyACL bool, sddl string) error {
+func mkdirall(path string, perm *windows.SecurityAttributes) error {
 	if volumePath.MatchString(path) {
 		return nil
 	}
@@ -67,19 +71,14 @@ func mkdirall(path string, applyACL bool, sddl string) error {
 
 	if j > 1 {
 		// Create parent
-		err = mkdirall(path[0:j-1], false, sddl)
+		err = mkdirall(path[0:j-1], perm)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Parent now exists; invoke os.Mkdir or mkdirWithACL and use its result.
-	if applyACL {
-		err = mkdirWithACL(path, sddl)
-	} else {
-		err = os.Mkdir(path, 0)
-	}
-
+	err = mkdirWithACL(path, perm)
 	if err != nil {
 		// Handle arguments like "foo/." by
 		// double-checking that directory doesn't exist.
@@ -99,24 +98,31 @@ func mkdirall(path string, applyACL bool, sddl string) error {
 // in golang to cater for creating a directory am ACL permitting full
 // access, with inheritance, to any subfolder/file for Built-in Administrators
 // and Local System.
-func mkdirWithACL(name string, sddl string) error {
-	sa := windows.SecurityAttributes{Length: 0}
-	sd, err := windows.SecurityDescriptorFromString(sddl)
-	if err != nil {
-		return &os.PathError{Op: "mkdir", Path: name, Err: err}
+func mkdirWithACL(name string, sa *windows.SecurityAttributes) error {
+	if sa == nil {
+		return os.Mkdir(name, 0)
 	}
-	sa.Length = uint32(unsafe.Sizeof(sa))
-	sa.InheritHandle = 1
-	sa.SecurityDescriptor = sd
 
 	namep, err := windows.UTF16PtrFromString(name)
 	if err != nil {
 		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 
-	e := windows.CreateDirectory(namep, &sa)
-	if e != nil {
-		return &os.PathError{Op: "mkdir", Path: name, Err: e}
+	err = windows.CreateDirectory(namep, sa)
+	if err != nil {
+		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	return nil
+}
+
+func makeSecurityAttributes(sddl string) (*windows.SecurityAttributes, error) {
+	var sa windows.SecurityAttributes
+	sa.Length = uint32(unsafe.Sizeof(sa))
+	sa.InheritHandle = 1
+	var err error
+	sa.SecurityDescriptor, err = windows.SecurityDescriptorFromString(sddl)
+	if err != nil {
+		return nil, err
+	}
+	return &sa, nil
 }
