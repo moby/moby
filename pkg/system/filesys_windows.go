@@ -51,11 +51,7 @@ func mkdirall(path string, perm *windows.SecurityAttributes) error {
 		if dir.IsDir() {
 			return nil
 		}
-		return &os.PathError{
-			Op:   "mkdir",
-			Path: path,
-			Err:  syscall.ENOTDIR,
-		}
+		return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 	}
 
 	// Slow path: make sure parent exists and then call Mkdir for path.
@@ -70,14 +66,14 @@ func mkdirall(path string, perm *windows.SecurityAttributes) error {
 	}
 
 	if j > 1 {
-		// Create parent
-		err = mkdirall(path[0:j-1], perm)
+		// Create parent.
+		err = mkdirall(fixRootDirectory(path[:j-1]), perm)
 		if err != nil {
 			return err
 		}
 	}
 
-	// Parent now exists; invoke os.Mkdir or mkdirWithACL and use its result.
+	// Parent now exists; invoke Mkdir and use its result.
 	err = mkdirWithACL(path, perm)
 	if err != nil {
 		// Handle arguments like "foo/." by
@@ -113,6 +109,17 @@ func mkdirWithACL(name string, sa *windows.SecurityAttributes) error {
 		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	return nil
+}
+
+// fixRootDirectory fixes a reference to a drive's root directory to
+// have the required trailing slash.
+func fixRootDirectory(p string) string {
+	if len(p) == len(`\\?\c:`) {
+		if os.IsPathSeparator(p[0]) && os.IsPathSeparator(p[1]) && p[2] == '?' && os.IsPathSeparator(p[3]) && p[5] == ':' {
+			return p + `\`
+		}
+	}
+	return p
 }
 
 func makeSecurityAttributes(sddl string) (*windows.SecurityAttributes, error) {
