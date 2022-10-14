@@ -263,6 +263,7 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
         # Filter out what we are looking for
         $imports = @() + $imports -NotMatch "^github.com/docker/docker/pkg/" `
                                   -NotMatch "^github.com/docker/docker/vendor" `
+                                  -NotMatch "^github.com/docker/docker/internal" `
                                   -Match "^github.com/docker/docker" `
                                   -Replace "`n", ""
         $imports | ForEach-Object{ $badFiles+="$file imports $_`n" }
