@@ -7,11 +7,9 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/docker/docker/pkg/process"
-	"github.com/docker/docker/pkg/system"
 )
 
 func checkPIDFileAlreadyExists(path string) error {
@@ -39,9 +37,6 @@ func Write(path string, pid int) error {
 		return fmt.Errorf("invalid PID (%d): only positive PIDs are allowed", pid)
 	}
 	if err := checkPIDFileAlreadyExists(path); err != nil {
-		return err
-	}
-	if err := system.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	return os.WriteFile(path, []byte(strconv.Itoa(pid)), 0o644)
