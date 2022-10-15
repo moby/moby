@@ -32,12 +32,17 @@ func checkPIDFileAlreadyExists(path string) error {
 // Write writes a "PID file" at the specified path. It returns an error if the
 // file exists and contains a valid PID of a running process, or when failing
 // to write the file.
-func Write(path string) error {
+func Write(path string, pid int) error {
+	if pid < 1 {
+		// We might be running as PID 1 when running docker-in-docker,
+		// but 0 or negative PIDs are not acceptable.
+		return fmt.Errorf("invalid PID (%d): only positive PIDs are allowed", pid)
+	}
 	if err := checkPIDFileAlreadyExists(path); err != nil {
 		return err
 	}
 	if err := system.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(strconv.Itoa(os.Getpid())), 0o644)
+	return os.WriteFile(path, []byte(strconv.Itoa(pid)), 0o644)
 }
