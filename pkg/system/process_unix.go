@@ -29,10 +29,11 @@ func KillProcess(pid int) {
 // IsProcessZombie return true if process has a state with "Z"
 // http://man7.org/linux/man-pages/man5/proc.5.html
 func IsProcessZombie(pid int) (bool, error) {
-	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	dataBytes, err := os.ReadFile(statPath)
+	dataBytes, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
 	if err != nil {
-		// TODO(thaJeztah) should we ignore os.IsNotExist() here? ("/proc/<pid>/stat" will be gone if the process exited)
+		if os.IsNotExist(err) {
+			return false, nil
+		}
 		return false, err
 	}
 	data := string(dataBytes)

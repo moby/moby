@@ -355,7 +355,6 @@ func killProcessDirectly(container *container.Container) error {
 	if system.IsProcessAlive(pid) {
 		// Since we can not kill a zombie pid, add zombie check here
 		isZombie, err := system.IsProcessZombie(pid)
-		// TODO(thaJeztah) should we ignore os.IsNotExist() here? ("/proc/<pid>/stat" will be gone if the process exited)
 		if err != nil {
 			logrus.WithError(err).WithField("container", container.ID).Warn("Container state is invalid")
 			return err
