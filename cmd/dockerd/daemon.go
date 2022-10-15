@@ -139,13 +139,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	potentiallyUnderRuntimeDir := []string{cli.Config.ExecRoot}
 
 	if cli.Pidfile != "" {
-		pf, err := pidfile.New(cli.Pidfile)
-		if err != nil {
+		if err := pidfile.Write(cli.Pidfile); err != nil {
 			return errors.Wrap(err, "failed to start daemon")
 		}
 		potentiallyUnderRuntimeDir = append(potentiallyUnderRuntimeDir, cli.Pidfile)
 		defer func() {
-			if err := pf.Remove(); err != nil {
+			if err := os.Remove(cli.Pidfile); err != nil {
 				logrus.Error(err)
 			}
 		}()
