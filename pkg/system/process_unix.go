@@ -4,9 +4,9 @@
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
+	"bytes"
 	"fmt"
 	"os"
-	"strings"
 
 	"golang.org/x/sys/unix"
 )
@@ -29,18 +29,15 @@ func KillProcess(pid int) {
 // IsProcessZombie return true if process has a state with "Z"
 // http://man7.org/linux/man-pages/man5/proc.5.html
 func IsProcessZombie(pid int) (bool, error) {
-	dataBytes, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	data := string(dataBytes)
-	sdata := strings.SplitN(data, " ", 4)
-	if len(sdata) >= 3 && sdata[2] == "Z" {
+	if cols := bytes.SplitN(data, []byte(" "), 4); len(cols) >= 3 && string(cols[2]) == "Z" {
 		return true, nil
 	}
-
 	return false, nil
 }
