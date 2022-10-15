@@ -9,6 +9,9 @@ import (
 
 func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	tlsConfig := tlsconfig.ServerDefault()
+
+	ana := allowNondistributableArtifacts(s.config, hostname)
+
 	if hostname == DefaultNamespace || hostname == IndexHostname {
 		for _, mirror := range s.config.Mirrors {
 			if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
@@ -36,12 +39,12 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			Official:     true,
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
+
+			AllowNondistributableArtifacts: ana,
 		})
 
 		return endpoints, nil
 	}
-
-	ana := allowNondistributableArtifacts(s.config, hostname)
 
 	tlsConfig, err = s.tlsConfig(hostname)
 	if err != nil {
