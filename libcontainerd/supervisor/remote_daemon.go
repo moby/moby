@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/containerd/sys"
+	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
@@ -145,7 +146,7 @@ func (r *remote) getContainerdPid() (int, error) {
 		if err != nil {
 			return -1, err
 		}
-		if system.IsProcessAlive(int(pid)) {
+		if process.Alive(int(pid)) {
 			return int(pid), nil
 		}
 	}
@@ -238,7 +239,7 @@ func (r *remote) startContainerd() error {
 
 	err = os.WriteFile(r.pidFile, []byte(strconv.Itoa(r.daemonPid)), 0660)
 	if err != nil {
-		system.KillProcess(r.daemonPid)
+		process.Kill(r.daemonPid)
 		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
 	}
 
@@ -357,7 +358,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
 
 			transientFailureCount++
-			if transientFailureCount < maxConnectionRetryCount || system.IsProcessAlive(r.daemonPid) {
+			if transientFailureCount < maxConnectionRetryCount || process.Alive(r.daemonPid) {
 				delay = time.Duration(transientFailureCount) * 200 * time.Millisecond
 				continue
 			}
@@ -365,7 +366,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			client = nil
 		}
 
-		if system.IsProcessAlive(r.daemonPid) {
+		if process.Alive(r.daemonPid) {
 			r.logger.WithField("pid", r.daemonPid).Info("killing and restarting containerd")
 			r.killDaemon()
 		}
