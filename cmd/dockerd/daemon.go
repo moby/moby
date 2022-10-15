@@ -143,7 +143,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 			return errors.Wrap(err, "failed to create pidfile directory")
 		}
 		if err = pidfile.Write(cli.Pidfile, os.Getpid()); err != nil {
-			return errors.Wrap(err, "failed to start daemon")
+			return errors.Wrapf(err, "failed to start daemon, ensure docker is not running or delete %s", cli.Pidfile)
 		}
 		potentiallyUnderRuntimeDir = append(potentiallyUnderRuntimeDir, cli.Pidfile)
 		defer func() {
