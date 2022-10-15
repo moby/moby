@@ -46,7 +46,7 @@ func TestMkdirAllAndChown(t *testing.T) {
 	}
 
 	// test adding a directory to a pre-existing dir; only the new dir is owned by the uid/gid
-	if err := MkdirAllAndChown(filepath.Join(dirName, "usr", "share"), 0755, Identity{UID: 99, GID: 99}); err != nil {
+	if err := MkdirAllAndChown(filepath.Join(dirName, "usr", "share"), 0o755, Identity{UID: 99, GID: 99}); err != nil {
 		t.Fatal(err)
 	}
 	testTree["usr/share"] = node{99, 99}
@@ -59,7 +59,7 @@ func TestMkdirAllAndChown(t *testing.T) {
 	}
 
 	// test 2-deep new directories--both should be owned by the uid/gid pair
-	if err := MkdirAllAndChown(filepath.Join(dirName, "lib", "some", "other"), 0755, Identity{UID: 101, GID: 101}); err != nil {
+	if err := MkdirAllAndChown(filepath.Join(dirName, "lib", "some", "other"), 0o755, Identity{UID: 101, GID: 101}); err != nil {
 		t.Fatal(err)
 	}
 	testTree["lib/some"] = node{101, 101}
@@ -73,7 +73,7 @@ func TestMkdirAllAndChown(t *testing.T) {
 	}
 
 	// test a directory that already exists; should be chowned, but nothing else
-	if err := MkdirAllAndChown(filepath.Join(dirName, "usr"), 0755, Identity{UID: 102, GID: 102}); err != nil {
+	if err := MkdirAllAndChown(filepath.Join(dirName, "usr"), 0o755, Identity{UID: 102, GID: 102}); err != nil {
 		t.Fatal(err)
 	}
 	testTree["usr"] = node{102, 102}
@@ -102,7 +102,7 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	assert.NilError(t, buildTree(dirName, testTree))
 
 	// test adding a directory to a pre-existing dir; only the new dir is owned by the uid/gid
-	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr", "share"), 0755, Identity{UID: 99, GID: 99})
+	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr", "share"), 0o755, Identity{UID: 99, GID: 99})
 	assert.NilError(t, err)
 
 	testTree["usr/share"] = node{99, 99}
@@ -111,7 +111,7 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	assert.NilError(t, compareTrees(testTree, verifyTree))
 
 	// test 2-deep new directories--both should be owned by the uid/gid pair
-	err = MkdirAllAndChownNew(filepath.Join(dirName, "lib", "some", "other"), 0755, Identity{UID: 101, GID: 101})
+	err = MkdirAllAndChownNew(filepath.Join(dirName, "lib", "some", "other"), 0o755, Identity{UID: 101, GID: 101})
 	assert.NilError(t, err)
 	testTree["lib/some"] = node{101, 101}
 	testTree["lib/some/other"] = node{101, 101}
@@ -120,7 +120,7 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 	assert.NilError(t, compareTrees(testTree, verifyTree))
 
 	// test a directory that already exists; should NOT be chowned
-	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr"), 0755, Identity{UID: 102, GID: 102})
+	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr"), 0o755, Identity{UID: 102, GID: 102})
 	assert.NilError(t, err)
 	verifyTree, err = readTree(dirName, "")
 	assert.NilError(t, err)
@@ -191,7 +191,7 @@ func TestMkdirAllAndChownNewRelative(t *testing.T) {
 				assert.ErrorIs(t, err, os.ErrNotExist)
 			}
 
-			err := MkdirAllAndChownNew(tc.in, 0755, Identity{UID: expectedUIDGID, GID: expectedUIDGID})
+			err := MkdirAllAndChownNew(tc.in, 0o755, Identity{UID: expectedUIDGID, GID: expectedUIDGID})
 			assert.Check(t, err)
 
 			for _, p := range tc.out {
@@ -235,7 +235,7 @@ func TestMkdirAndChown(t *testing.T) {
 	}
 
 	// test a directory that already exists; should just chown to the requested uid/gid
-	if err := MkdirAndChown(filepath.Join(dirName, "usr"), 0755, Identity{UID: 99, GID: 99}); err != nil {
+	if err := MkdirAndChown(filepath.Join(dirName, "usr"), 0o755, Identity{UID: 99, GID: 99}); err != nil {
 		t.Fatal(err)
 	}
 	testTree["usr"] = node{99, 99}
@@ -248,12 +248,12 @@ func TestMkdirAndChown(t *testing.T) {
 	}
 
 	// create a subdir under a dir which doesn't exist--should fail
-	if err := MkdirAndChown(filepath.Join(dirName, "usr", "bin", "subdir"), 0755, Identity{UID: 102, GID: 102}); err == nil {
+	if err := MkdirAndChown(filepath.Join(dirName, "usr", "bin", "subdir"), 0o755, Identity{UID: 102, GID: 102}); err == nil {
 		t.Fatalf("Trying to create a directory with Mkdir where the parent doesn't exist should have failed")
 	}
 
 	// create a subdir under an existing dir; should only change the ownership of the new subdir
-	if err := MkdirAndChown(filepath.Join(dirName, "usr", "bin"), 0755, Identity{UID: 102, GID: 102}); err != nil {
+	if err := MkdirAndChown(filepath.Join(dirName, "usr", "bin"), 0o755, Identity{UID: 102, GID: 102}); err != nil {
 		t.Fatal(err)
 	}
 	testTree["usr/bin"] = node{102, 102}
@@ -269,11 +269,11 @@ func TestMkdirAndChown(t *testing.T) {
 func buildTree(base string, tree map[string]node) error {
 	for path, node := range tree {
 		fullPath := filepath.Join(base, path)
-		if err := os.MkdirAll(fullPath, 0755); err != nil {
-			return fmt.Errorf("Couldn't create path: %s; error: %v", fullPath, err)
+		if err := os.MkdirAll(fullPath, 0o755); err != nil {
+			return fmt.Errorf("couldn't create path: %s; error: %v", fullPath, err)
 		}
 		if err := os.Chown(fullPath, node.uid, node.gid); err != nil {
-			return fmt.Errorf("Couldn't chown path: %s; error: %v", fullPath, err)
+			return fmt.Errorf("couldn't chown path: %s; error: %v", fullPath, err)
 		}
 	}
 	return nil
@@ -284,13 +284,13 @@ func readTree(base, root string) (map[string]node, error) {
 
 	dirInfos, err := os.ReadDir(base)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't read directory entries for %q: %v", base, err)
+		return nil, fmt.Errorf("couldn't read directory entries for %q: %v", base, err)
 	}
 
 	for _, info := range dirInfos {
 		s := &unix.Stat_t{}
 		if err := unix.Stat(filepath.Join(base, info.Name()), s); err != nil {
-			return nil, fmt.Errorf("Can't stat file %q: %v", filepath.Join(base, info.Name()), err)
+			return nil, fmt.Errorf("can't stat file %q: %v", filepath.Join(base, info.Name()), err)
 		}
 		tree[filepath.Join(root, info.Name())] = node{int(s.Uid), int(s.Gid)}
 		if info.IsDir() {
@@ -309,7 +309,7 @@ func readTree(base, root string) (map[string]node, error) {
 
 func compareTrees(left, right map[string]node) error {
 	if len(left) != len(right) {
-		return fmt.Errorf("Trees aren't the same size")
+		return fmt.Errorf("trees aren't the same size")
 	}
 	for path, nodeLeft := range left {
 		if nodeRight, ok := right[path]; ok {
@@ -340,7 +340,7 @@ func TestParseSubidFileWithNewlinesAndComments(t *testing.T) {
 # empty default subuid/subgid file
 
 dockremap:231072:65536`
-	if err := os.WriteFile(fnamePath, []byte(fcontent), 0644); err != nil {
+	if err := os.WriteFile(fnamePath, []byte(fcontent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	ranges, err := parseSubidFile(fnamePath, "dockremap")
@@ -423,9 +423,9 @@ func TestNewIDMappings(t *testing.T) {
 	assert.Check(t, err, "Couldn't create temp directory")
 	defer os.RemoveAll(dirName)
 
-	err = MkdirAllAndChown(dirName, 0700, Identity{UID: rootUID, GID: rootGID})
+	err = MkdirAllAndChown(dirName, 0o700, Identity{UID: rootUID, GID: rootGID})
 	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
-	assert.Check(t, CanAccess(dirName, idMapping.RootPair()), fmt.Sprintf("Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID))
+	assert.Check(t, CanAccess(dirName, idMapping.RootPair()), "Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID)
 }
 
 func TestLookupUserAndGroup(t *testing.T) {
@@ -475,7 +475,7 @@ func TestMkdirIsNotDir(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = mkdirAs(file.Name(), 0755, Identity{UID: 0, GID: 0}, false, false)
+	err = mkdirAs(file.Name(), 0o755, Identity{UID: 0, GID: 0}, false, false)
 	assert.Check(t, is.Error(err, "mkdir "+file.Name()+": not a directory"))
 }
 

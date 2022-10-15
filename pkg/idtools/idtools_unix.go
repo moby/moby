@@ -16,7 +16,6 @@ import (
 
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -25,12 +24,6 @@ var (
 )
 
 func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting bool) error {
-	// make an array containing the original path asked for, plus (for mkAll == true)
-	// all path components leading up to the complete path that don't exist before we MkdirAll
-	// so that we can chown all of them properly at the end.  If chownExisting is false, we won't
-	// chown the full directory path if it exists
-
-	var paths []string
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -49,6 +42,11 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 		return setPermissions(path, mode, owner.UID, owner.GID, stat)
 	}
 
+	// make an array containing the original path asked for, plus (for mkAll == true)
+	// all path components leading up to the complete path that don't exist before we MkdirAll
+	// so that we can chown all of them properly at the end.  If chownExisting is false, we won't
+	// chown the full directory path if it exists
+	var paths []string
 	if os.IsNotExist(err) {
 		paths = []string{path}
 	}
@@ -66,7 +64,7 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 				paths = append(paths, dirPath)
 			}
 		}
-		if err := system.MkdirAll(path, mode); err != nil {
+		if err := os.MkdirAll(path, mode); err != nil {
 			return err
 		}
 	} else {
@@ -91,20 +89,17 @@ func CanAccess(path string, pair Identity) bool {
 	if err != nil {
 		return false
 	}
-	fileMode := os.FileMode(statInfo.Mode())
-	permBits := fileMode.Perm()
-	return accessible(statInfo.UID() == uint32(pair.UID),
-		statInfo.GID() == uint32(pair.GID), permBits)
-}
-
-func accessible(isOwner, isGroup bool, perms os.FileMode) bool {
-	if isOwner && (perms&0100 == 0100) {
+	perms := os.FileMode(statInfo.Mode()).Perm()
+	if perms&0o001 == 0o001 {
+		// world access
 		return true
 	}
-	if isGroup && (perms&0010 == 0010) {
+	if statInfo.UID() == uint32(pair.UID) && (perms&0o100 == 0o100) {
+		// owner access.
 		return true
 	}
-	if perms&0001 == 0001 {
+	if statInfo.GID() == uint32(pair.GID) && (perms&0o010 == 0o010) {
+		// group access.
 		return true
 	}
 	return false
@@ -259,7 +254,7 @@ func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT
 func LoadIdentityMapping(name string) (IdentityMapping, error) {
 	usr, err := LookupUser(name)
 	if err != nil {
-		return IdentityMapping{}, fmt.Errorf("Could not get user for username %s: %v", name, err)
+		return IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
 	}
 
 	subuidRanges, err := lookupSubUIDRanges(usr)
@@ -289,7 +284,7 @@ func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
 		}
 	}
 	if len(rangeList) == 0 {
-		return nil, errors.Errorf("no subuid ranges found for user %q", usr.Name)
+		return nil, fmt.Errorf("no subuid ranges found for user %q", usr.Name)
 	}
 	return createIDMap(rangeList), nil
 }
@@ -306,7 +301,7 @@ func lookupSubGIDRanges(usr user.User) ([]IDMap, error) {
 		}
 	}
 	if len(rangeList) == 0 {
-		return nil, errors.Errorf("no subgid ranges found for user %q", usr.Name)
+		return nil, fmt.Errorf("no subgid ranges found for user %q", usr.Name)
 	}
 	return createIDMap(rangeList), nil
 }
