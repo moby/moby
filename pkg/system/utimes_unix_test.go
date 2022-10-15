@@ -11,30 +11,26 @@ import (
 )
 
 // prepareFiles creates files for testing in the temp directory
-func prepareFiles(t *testing.T) (string, string, string, string) {
-	dir, err := os.MkdirTemp("", "docker-system-test")
-	if err != nil {
+func prepareFiles(t *testing.T) (file, invalid, symlink string) {
+	t.Helper()
+	dir := t.TempDir()
+
+	file = filepath.Join(dir, "exist")
+	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	file := filepath.Join(dir, "exist")
-	if err := os.WriteFile(file, []byte("hello"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	invalid := filepath.Join(dir, "doesnt-exist")
-
-	symlink := filepath.Join(dir, "symlink")
+	invalid = filepath.Join(dir, "doesnt-exist")
+	symlink = filepath.Join(dir, "symlink")
 	if err := os.Symlink(file, symlink); err != nil {
 		t.Fatal(err)
 	}
 
-	return file, invalid, symlink, dir
+	return file, invalid, symlink
 }
 
 func TestLUtimesNano(t *testing.T) {
-	file, invalid, symlink, dir := prepareFiles(t)
-	defer os.RemoveAll(dir)
+	file, invalid, symlink := prepareFiles(t)
 
 	before, err := os.Stat(file)
 	if err != nil {
