@@ -14,8 +14,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Alive returns true if process with a given pid is running.
+// Alive returns true if process with a given pid is running. It only considers
+// positive PIDs; 0 (all processes in the current process group), -1 (all processes
+// with a PID larger than 1), and negative (-n, all processes in process group
+// "n") values for pid are never considered to be alive.
 func Alive(pid int) bool {
+	if pid < 1 {
+		return false
+	}
 	switch runtime.GOOS {
 	case "darwin":
 		// OS X does not have a proc filesystem. Use kill -0 pid to judge if the
@@ -35,8 +41,16 @@ func Alive(pid int) bool {
 	}
 }
 
-// Kill force-stops a process.
+// Kill force-stops a process. It only considers positive PIDs; 0 (all processes
+// in the current process group), -1 (all processes with a PID larger than 1),
+// and negative (-n, all processes in process group "n") values for pid are
+// ignored. Refer to [KILL(2)] for details.
+//
+// [KILL(2)]: https://man7.org/linux/man-pages/man2/kill.2.html
 func Kill(pid int) error {
+	if pid < 1 {
+		return fmt.Errorf("invalid PID (%d): only positive PIDs are allowed", pid)
+	}
 	err := unix.Kill(pid, unix.SIGKILL)
 	if err != nil && err != unix.ESRCH {
 		return err
@@ -44,9 +58,16 @@ func Kill(pid int) error {
 	return nil
 }
 
-// Zombie return true if process has a state with "Z"
-// http://man7.org/linux/man-pages/man5/proc.5.html
+// Zombie return true if process has a state with "Z". It only considers positive
+// PIDs; 0 (all processes in the current process group), -1 (all processes with
+// a PID larger than 1), and negative (-n, all processes in process group "n")
+// values for pid are ignored. Refer to [PROC(5)] for details.
+//
+// [PROC(5)]: https://man7.org/linux/man-pages/man5/proc.5.html
 func Zombie(pid int) (bool, error) {
+	if pid < 1 {
+		return false, nil
+	}
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
 	if err != nil {
 		if os.IsNotExist(err) {
