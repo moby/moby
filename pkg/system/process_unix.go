@@ -7,14 +7,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 )
 
 // IsProcessAlive returns true if process with a given pid is running.
 func IsProcessAlive(pid int) bool {
-	err := unix.Kill(pid, syscall.Signal(0))
+	err := unix.Kill(pid, 0)
 	if err == nil || err == unix.EPERM {
 		return true
 	}
