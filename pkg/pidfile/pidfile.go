@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -22,7 +23,7 @@ func checkPIDFileAlreadyExists(path string) error {
 		return err
 	}
 	pid, err := strconv.Atoi(string(bytes.TrimSpace(pidByte)))
-	if err == nil && processExists(pid) {
+	if err == nil && process.Alive(pid) {
 		return fmt.Errorf("pid file found, ensure docker is not running or delete %s", path)
 	}
 	return nil
