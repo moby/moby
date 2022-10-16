@@ -25,13 +25,11 @@ import (
 // container path that will actually overwrite data on the host
 func TestUntarWithMaliciousSymlinks(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	root := filepath.Join(dir, "root")
 
-	err = os.MkdirAll(root, 0755)
+	err := os.MkdirAll(root, 0o755)
 	assert.NilError(t, err)
 
 	// Add a file into a directory above root
