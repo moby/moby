@@ -58,7 +58,7 @@ func TestChrootTarUntar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dest := filepath.Join(tmpdir, "src")
+	dest := filepath.Join(tmpdir, "dest")
 	if err := system.MkdirAll(dest, 0700); err != nil {
 		t.Fatal(err)
 	}
