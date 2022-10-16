@@ -1,21 +1,27 @@
 package fileutils // import "github.com/docker/docker/pkg/fileutils"
 
 import (
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
 // CopyFile with invalid src
 func TestCopyFileWithInvalidSrc(t *testing.T) {
-	bytes, err := CopyFile("/invalid/file/path", path.Join(t.TempDir(), "dest"))
+	tempDir := t.TempDir()
+	bytes, err := CopyFile(filepath.Join(tempDir, "/invalid/file/path"), path.Join(t.TempDir(), "dest"))
 	if err == nil {
-		t.Fatal("Should have fail to copy an invalid src file")
+		t.Error("Should have fail to copy an invalid src file")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Expected an os.ErrNotExist, got: %v", err)
 	}
 	if bytes != 0 {
-		t.Fatal("Should have written 0 bytes")
+		t.Errorf("Should have written 0 bytes, got: %d", bytes)
 	}
 }
 
@@ -29,10 +35,13 @@ func TestCopyFileWithInvalidDest(t *testing.T) {
 	}
 	bytes, err := CopyFile(src, path.Join(tempFolder, "/invalid/dest/path"))
 	if err == nil {
-		t.Fatal("Should have fail to copy an invalid src file")
+		t.Error("Should have fail to copy an invalid src file")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Expected an os.ErrNotExist, got: %v", err)
 	}
 	if bytes != 0 {
-		t.Fatal("Should have written 0 bytes")
+		t.Errorf("Should have written 0 bytes, got: %d", bytes)
 	}
 }
 
@@ -108,40 +117,49 @@ func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Needs porting to Windows")
 	}
-	var err error
-	if err = os.Mkdir("/tmp/testReadSymlinkToExistingDirectory", 0o777); err != nil {
+
+	// On macOS, tmp itself is symlinked, so resolve this one upfront;
+	// see https://github.com/golang/go/issues/56259
+	tmpDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srcPath := filepath.Join(tmpDir, "/testReadSymlinkToExistingDirectory")
+	dstPath := filepath.Join(tmpDir, "/dirLinkTest")
+	if err = os.Mkdir(srcPath, 0o777); err != nil {
 		t.Errorf("failed to create directory: %s", err)
 	}
 
-	if err = os.Symlink("/tmp/testReadSymlinkToExistingDirectory", "/tmp/dirLinkTest"); err != nil {
+	if err = os.Symlink(srcPath, dstPath); err != nil {
 		t.Errorf("failed to create symlink: %s", err)
 	}
 
 	var symlinkedPath string
-	if symlinkedPath, err = ReadSymlinkedDirectory("/tmp/dirLinkTest"); err != nil {
+	if symlinkedPath, err = ReadSymlinkedDirectory(dstPath); err != nil {
 		t.Fatalf("failed to read symlink to directory: %s", err)
 	}
 
-	if symlinkedPath != "/tmp/testReadSymlinkToExistingDirectory" {
+	if symlinkedPath != srcPath {
 		t.Fatalf("symlink returned unexpected directory: %s", symlinkedPath)
 	}
 
-	if err = os.Remove("/tmp/testReadSymlinkToExistingDirectory"); err != nil {
+	if err = os.Remove(srcPath); err != nil {
 		t.Errorf("failed to remove temporary directory: %s", err)
 	}
 
-	if err = os.Remove("/tmp/dirLinkTest"); err != nil {
+	if err = os.Remove(dstPath); err != nil {
 		t.Errorf("failed to remove symlink: %s", err)
 	}
 }
 
 // Reading a non-existing symlink must fail
 func TestReadSymlinkedDirectoryNonExistingSymlink(t *testing.T) {
-	symLinkedPath, err := ReadSymlinkedDirectory("/tmp/test/foo/Non/ExistingPath")
+	tmpDir := t.TempDir()
+	symLinkedPath, err := ReadSymlinkedDirectory(path.Join(tmpDir, "/Non/ExistingPath"))
 	if err == nil {
-		t.Fatalf("error expected for non-existing symlink")
+		t.Errorf("error expected for non-existing symlink")
 	}
-
 	if symLinkedPath != "" {
 		t.Fatalf("expected empty path, but '%s' was returned", symLinkedPath)
 	}
@@ -161,7 +179,7 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 		t.Fatalf("failed to create file: %s", err)
 	}
 
-	file.Close()
+	_ = file.Close()
 
 	if err = os.Symlink("/tmp/testReadSymlinkToFile", "/tmp/fileLinkTest"); err != nil {
 		t.Errorf("failed to create symlink: %s", err)
@@ -169,11 +187,14 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 
 	symlinkedPath, err := ReadSymlinkedDirectory("/tmp/fileLinkTest")
 	if err == nil {
-		t.Fatalf("ReadSymlinkedDirectory on a symlink to a file should've failed")
+		t.Errorf("ReadSymlinkedDirectory on a symlink to a file should've failed")
+	}
+	if !strings.HasPrefix(err.Error(), "canonical path points to a file") {
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	if symlinkedPath != "" {
-		t.Fatalf("path should've been empty: %s", symlinkedPath)
+		t.Errorf("path should've been empty: %s", symlinkedPath)
 	}
 
 	if err = os.Remove("/tmp/testReadSymlinkToFile"); err != nil {
@@ -197,7 +218,7 @@ func TestCreateIfNotExistsDir(t *testing.T) {
 	}
 
 	if !fileinfo.IsDir() {
-		t.Fatalf("Should have been a dir, seems it's not")
+		t.Errorf("Should have been a dir, seems it's not")
 	}
 }
 
@@ -205,7 +226,7 @@ func TestCreateIfNotExistsFile(t *testing.T) {
 	fileToCreate := filepath.Join(t.TempDir(), "file/to/create")
 
 	if err := CreateIfNotExists(fileToCreate, false); err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	fileinfo, err := os.Stat(fileToCreate)
 	if err != nil {
@@ -213,6 +234,6 @@ func TestCreateIfNotExistsFile(t *testing.T) {
 	}
 
 	if fileinfo.IsDir() {
-		t.Fatalf("Should have been a file, seems it's not")
+		t.Errorf("Should have been a file, seems it's not")
 	}
 }
