@@ -29,7 +29,7 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 
 	root := filepath.Join(dir, "root")
 
-	err := os.MkdirAll(root, 0o755)
+	err := os.Mkdir(root, 0o755)
 	assert.NilError(t, err)
 
 	// Add a file into a directory above root
@@ -42,7 +42,7 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 	// Before this change, the copy would overwrite the "host" content.
 	// With this change it should not.
 	data := filepath.Join(dir, "data")
-	err = os.MkdirAll(data, 0755)
+	err = os.Mkdir(data, 0o755)
 	assert.NilError(t, err)
 	err = os.WriteFile(filepath.Join(data, "local-file"), []byte("pwn3d"), 0644)
 	assert.NilError(t, err)
@@ -92,7 +92,7 @@ func TestTarWithMaliciousSymlinks(t *testing.T) {
 
 	root := filepath.Join(dir, "root")
 
-	err = os.MkdirAll(root, 0755)
+	err = os.Mkdir(root, 0o755)
 	assert.NilError(t, err)
 
 	hostFileData := []byte("I am a host file")
@@ -107,7 +107,7 @@ func TestTarWithMaliciousSymlinks(t *testing.T) {
 	assert.NilError(t, err)
 
 	data := filepath.Join(dir, "data")
-	err = os.MkdirAll(data, 0755)
+	err = os.Mkdir(data, 0o755)
 	assert.NilError(t, err)
 
 	type testCase struct {

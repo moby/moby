@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/system"
 	"gotest.tools/v3/skip"
 )
 
@@ -45,7 +44,7 @@ func TestChrootTarUntar(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "src")
-	if err := system.MkdirAll(src, 0700); err != nil {
+	if err := os.Mkdir(src, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
@@ -59,7 +58,7 @@ func TestChrootTarUntar(t *testing.T) {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")
-	if err := system.MkdirAll(dest, 0700); err != nil {
+	if err := os.Mkdir(dest, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := Untar(stream, dest, &archive.TarOptions{ExcludePatterns: []string{"lolo"}}); err != nil {
@@ -73,7 +72,7 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "src")
-	if err := system.MkdirAll(src, 0700); err != nil {
+	if err := os.Mkdir(src, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(src, "toto"), []byte("hello toto"), 0644); err != nil {
@@ -84,7 +83,7 @@ func TestChrootUntarWithHugeExcludesList(t *testing.T) {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")
-	if err := system.MkdirAll(dest, 0700); err != nil {
+	if err := os.Mkdir(dest, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	options := &archive.TarOptions{}
@@ -165,7 +164,7 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "src")
-	if err := system.MkdirAll(src, 0700); err != nil {
+	if err := os.Mkdir(src, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := prepareSourceDirectory(10, src, false); err != nil {
@@ -185,7 +184,7 @@ func TestChrootCopyWithTar(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "src")
-	if err := system.MkdirAll(src, 0700); err != nil {
+	if err := os.Mkdir(src, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := prepareSourceDirectory(10, src, true); err != nil {
@@ -228,7 +227,7 @@ func TestChrootCopyFileWithTar(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "src")
-	if err := system.MkdirAll(src, 0700); err != nil {
+	if err := os.Mkdir(src, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := prepareSourceDirectory(10, src, true); err != nil {
@@ -269,7 +268,7 @@ func TestChrootUntarPath(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "src")
-	if err := system.MkdirAll(src, 0700); err != nil {
+	if err := os.Mkdir(src, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := prepareSourceDirectory(10, src, false); err != nil {
@@ -327,7 +326,7 @@ func TestChrootUntarEmptyArchiveFromSlowReader(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	dest := filepath.Join(tmpdir, "dest")
-	if err := system.MkdirAll(dest, 0700); err != nil {
+	if err := os.Mkdir(dest, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	stream := &slowEmptyTarReader{size: 10240, chunkSize: 1024}
@@ -340,7 +339,7 @@ func TestChrootApplyEmptyArchiveFromSlowReader(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	dest := filepath.Join(tmpdir, "dest")
-	if err := system.MkdirAll(dest, 0700); err != nil {
+	if err := os.Mkdir(dest, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	stream := &slowEmptyTarReader{size: 10240, chunkSize: 1024}
@@ -353,7 +352,7 @@ func TestChrootApplyDotDotFile(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpdir := t.TempDir()
 	src := filepath.Join(tmpdir, "src")
-	if err := system.MkdirAll(src, 0700); err != nil {
+	if err := os.Mkdir(src, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(src, "..gitme"), []byte(""), 0644); err != nil {
@@ -364,7 +363,7 @@ func TestChrootApplyDotDotFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	dest := filepath.Join(tmpdir, "dest")
-	if err := system.MkdirAll(dest, 0700); err != nil {
+	if err := os.Mkdir(dest, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ApplyLayer(dest, stream); err != nil {
