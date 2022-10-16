@@ -160,6 +160,9 @@ func TestReadSymlinkedDirectoryNonExistingSymlink(t *testing.T) {
 	if err == nil {
 		t.Errorf("error expected for non-existing symlink")
 	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Expected an os.ErrNotExist, got: %v", err)
+	}
 	if symLinkedPath != "" {
 		t.Fatalf("expected empty path, but '%s' was returned", symLinkedPath)
 	}
