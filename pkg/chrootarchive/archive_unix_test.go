@@ -34,7 +34,7 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 
 	// Add a file into a directory above root
 	// Ensure that we can't access this file while tarring.
-	err = os.WriteFile(filepath.Join(dir, "host-file"), []byte("I am a host file"), 0644)
+	err = os.WriteFile(filepath.Join(dir, "host-file"), []byte("I am a host file"), 0o644)
 	assert.NilError(t, err)
 
 	// Create some data which which will be copied into the "container" root into
@@ -44,7 +44,7 @@ func TestUntarWithMaliciousSymlinks(t *testing.T) {
 	data := filepath.Join(dir, "data")
 	err = os.Mkdir(data, 0o755)
 	assert.NilError(t, err)
-	err = os.WriteFile(filepath.Join(data, "local-file"), []byte("pwn3d"), 0644)
+	err = os.WriteFile(filepath.Join(data, "local-file"), []byte("pwn3d"), 0o644)
 	assert.NilError(t, err)
 
 	safe := filepath.Join(root, "safe")
@@ -99,7 +99,7 @@ func TestTarWithMaliciousSymlinks(t *testing.T) {
 
 	// Add a file into a directory above root
 	// Ensure that we can't access this file while tarring.
-	err = os.WriteFile(filepath.Join(dir, "host-file"), hostFileData, 0644)
+	err = os.WriteFile(filepath.Join(dir, "host-file"), hostFileData, 0o644)
 	assert.NilError(t, err)
 
 	safe := filepath.Join(root, "safe")
