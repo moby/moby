@@ -60,7 +60,6 @@ const (
 	// See https://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
 	linuxMinCPUShares = 2
 	linuxMaxCPUShares = 262144
-	platformSupported = true
 	// It's not kernel limit, we want this 6M limit to account for overhead during startup, and to supply a reasonable functional container
 	linuxMinMemory = 6291456
 	// constants for remapped root settings

@@ -38,7 +38,6 @@ import (
 
 const (
 	isWindows            = true
-	platformSupported    = true
 	windowsMinCPUShares  = 1
 	windowsMaxCPUShares  = 10000
 	windowsMinCPUPercent = 1

@@ -706,9 +706,10 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store) (daemon *Daemon, err error) {
-	// Verify the platform is supported as a daemon
-	if !platformSupported {
-		return nil, errors.New("the Docker daemon is not supported on this platform")
+	// Verify platform-specific requirements.
+	// TODO(thaJeztah): this should be called before we try to create the daemon; perhaps together with the config validation.
+	if err := checkSystem(); err != nil {
+		return nil, err
 	}
 
 	registryService, err := registry.NewService(config.ServiceOptions)
@@ -731,11 +732,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Setup the resolv.conf
 	setupResolvConf(config)
-
-	// Validate platform-specific requirements
-	if err := checkSystem(); err != nil {
-		return nil, err
-	}
 
 	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
