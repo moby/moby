@@ -982,6 +982,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if d.UsesSnapshotter() {
+		logrus.Info("Starting daemon with containerd snapshotter integration enabled")
+
 		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
 		if driverName == "" {
 			driverName = containerd.DefaultSnapshotter
