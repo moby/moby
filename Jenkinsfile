@@ -117,6 +117,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TESTDEBUG \
+                                  -e TEST_INTEGRATION_USE_SNAPSHOTTER \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   -e VALIDATE_REPO=${GIT_URL} \
@@ -203,6 +204,7 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_INTEGRATION_USE_SNAPSHOTTER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
                                   -e VALIDATE_REPO=${GIT_URL} \
@@ -322,6 +324,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TESTDEBUG \
+                                  -e TEST_INTEGRATION_USE_SNAPSHOTTER \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   -e VALIDATE_REPO=${GIT_URL} \
@@ -415,6 +418,7 @@ pipeline {
                                   --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
+                                  -e TEST_INTEGRATION_USE_SNAPSHOTTER \
                                   -e TEST_SKIP_INTEGRATION \
                                   -e TIMEOUT \
                                   -e VALIDATE_REPO=${GIT_URL} \
@@ -524,6 +528,7 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TESTDEBUG \
+                                  -e TEST_INTEGRATION_USE_SNAPSHOTTER \
                                   -e TEST_SKIP_INTEGRATION_CLI \
                                   -e TIMEOUT \
                                   -e VALIDATE_REPO=${GIT_URL} \
