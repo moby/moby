@@ -903,13 +903,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 			rt = *rtPtr
 		}
-		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m, rt)
+		return pluginexec.New(ctx, getPluginExecRoot(config), pluginCli, config.ContainerdPluginNamespace, m, rt)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
 		Root:               filepath.Join(config.Root, "plugins"),
-		ExecRoot:           getPluginExecRoot(config.Root),
+		ExecRoot:           getPluginExecRoot(config),
 		Store:              d.PluginStore,
 		CreateExecutor:     createPluginExec,
 		RegistryService:    registryService,

@@ -55,8 +55,8 @@ func adjustParallelLimit(n int, limit int) int {
 }
 
 // Windows has no concept of an execution state directory. So use config.Root here.
-func getPluginExecRoot(root string) string {
-	return filepath.Join(root, "plugins")
+func getPluginExecRoot(cfg *config.Config) string {
+	return filepath.Join(cfg.Root, "plugins")
 }
 
 func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
