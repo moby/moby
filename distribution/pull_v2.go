@@ -376,7 +376,8 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		Digest:    dgst,
 		Size:      size,
 	}
-	manifest, err := p.manifestStore.Get(ctx, desc)
+
+	manifest, err := p.manifestStore.Get(ctx, desc, ref)
 	if err != nil {
 		if isTagged && isNotFound(errors.Cause(err)) {
 			logrus.WithField("ref", ref).WithError(err).Debug("Falling back to pull manifest by tag")
@@ -860,7 +861,7 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 		Size:      match.Size,
 		MediaType: match.MediaType,
 	}
-	manifest, err := p.manifestStore.Get(ctx, desc)
+	manifest, err := p.manifestStore.Get(ctx, desc, ref)
 	if err != nil {
 		return "", "", err
 	}
