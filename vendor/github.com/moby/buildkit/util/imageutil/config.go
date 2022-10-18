@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/resolver/limited"
 	"github.com/moby/buildkit/util/resolver/retryhandler"
@@ -24,6 +25,7 @@ import (
 type ContentCache interface {
 	content.Ingester
 	content.Provider
+	content.Manager
 }
 
 var leasesMu sync.Mutex
@@ -75,10 +77,15 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	if desc.Digest != "" {
 		ra, err := cache.ReaderAt(ctx, desc)
 		if err == nil {
-			desc.Size = ra.Size()
-			mt, err := DetectManifestMediaType(ra)
+			info, err := cache.Info(ctx, desc.Digest)
 			if err == nil {
-				desc.MediaType = mt
+				if ok, err := contentutil.HasSource(info, ref); err == nil && ok {
+					desc.Size = ra.Size()
+					mt, err := DetectManifestMediaType(ra)
+					if err == nil {
+						desc.MediaType = mt
+					}
+				}
 			}
 		}
 	}
@@ -101,8 +108,14 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 
 	children := childrenConfigHandler(cache, platform)
 
+	dslHandler, err := docker.AppendDistributionSourceLabel(cache, ref.String())
+	if err != nil {
+		return "", nil, err
+	}
+
 	handlers := []images.Handler{
 		retryhandler.New(limited.FetchHandler(cache, fetcher, str), func(_ []byte) {}),
+		dslHandler,
 		children,
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
