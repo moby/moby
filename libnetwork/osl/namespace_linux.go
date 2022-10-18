@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/internal/unshare"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
@@ -68,10 +69,6 @@ type networkNamespace struct {
 // SetBasePath sets the base url prefix for the ns path
 func SetBasePath(path string) {
 	prefix = path
-}
-
-func init() {
-	reexec.Register("netns-create", reexecCreateNamespace)
 }
 
 func basePath() string {
@@ -301,35 +298,18 @@ func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
 	return n, nil
 }
 
-func reexecCreateNamespace() {
-	if len(os.Args) < 2 {
-		logrus.Fatal("no namespace path provided")
-	}
-	if err := mountNetworkNamespace("/proc/self/ns/net", os.Args[1]); err != nil {
-		logrus.Fatal(err)
-	}
-}
-
 func createNetworkNamespace(path string, osCreate bool) error {
 	if err := createNamespaceFile(path); err != nil {
 		return err
 	}
 
-	cmd := &exec.Cmd{
-		Path:   reexec.Self(),
-		Args:   append([]string{"netns-create"}, path),
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+	do := func() error {
+		return mountNetworkNamespace(fmt.Sprintf("/proc/self/task/%d/ns/net", unix.Gettid()), path)
 	}
 	if osCreate {
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
-		cmd.SysProcAttr.Cloneflags = syscall.CLONE_NEWNET
+		return unshare.Go(unix.CLONE_NEWNET, do, nil)
 	}
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("namespace creation reexec command failed: %v", err)
-	}
-
-	return nil
+	return do()
 }
 
 func unmountNamespaceFile(path string) {
