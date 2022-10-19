@@ -1062,11 +1062,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// manifest v2 schema 1 images to test-registries used for testing *pulling*
 		// these images.
 		if os.Getenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE") != "" {
-			imgSvcConfig.TrustKey, err = loadOrCreateTrustKey(config.TrustKeyPath)
+			// Previously, this was stored in the daemon's config-directory, but
+			// as pushing V1 is deprecated, and we only need this file during
+			// our integration tests, just store it within the "trust" directory.
+			imgSvcConfig.TrustKey, err = loadOrCreateTrustKey(filepath.Join(config.Root, "trust", "key.json"))
 			if err != nil {
-				return nil, err
-			}
-			if err = os.Mkdir(filepath.Join(config.Root, "trust"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 				return nil, err
 			}
 		}

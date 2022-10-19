@@ -414,14 +414,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.CommonTLSOptions = config.CommonTLSOptions{}
 	}
 
-	if conf.TrustKeyPath == "" {
-		daemonConfDir, err := getDaemonConfDir(conf.Root)
-		if err != nil {
-			return nil, err
-		}
-		conf.TrustKeyPath = filepath.Join(daemonConfDir, defaultTrustKeyFile)
-	}
-
 	if opts.configFile != "" {
 		c, err := config.MergeDaemonConfigurations(conf, flags, opts.configFile)
 		if err != nil {

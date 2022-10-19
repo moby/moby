@@ -7,9 +7,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// defaultTrustKeyFile is the default filename for the trust key
-const defaultTrustKeyFile = "key.json"
-
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	var (
