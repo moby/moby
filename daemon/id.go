@@ -4,10 +4,8 @@ import (
 	"os"
 
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/libtrust"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // loadOrCreateID loads the engine's ID from idPath, or generates a new ID
@@ -31,31 +29,4 @@ func loadOrCreateID(idPath string) (string, error) {
 		id = string(idb)
 	}
 	return id, nil
-}
-
-// migrateTrustKeyID migrates the daemon ID of existing installations. It returns
-// an error when a trust-key was found, but we failed to read it, or failed to
-// complete the migration.
-//
-// We migrate the ID so that engines don't get a new ID generated on upgrades,
-// which may be unexpected (and users may be using the ID for various purposes).
-func migrateTrustKeyID(deprecatedTrustKeyPath, idPath string) error {
-	if _, err := os.Stat(idPath); err == nil {
-		// engine ID file already exists; no migration needed
-		return nil
-	}
-	trustKey, err := libtrust.LoadKeyFile(deprecatedTrustKeyPath)
-	if err != nil {
-		if err == libtrust.ErrKeyFileDoesNotExist {
-			// no existing trust-key found; no migration needed
-			return nil
-		}
-		return err
-	}
-	id := trustKey.PublicKey().KeyID()
-	if err := ioutils.AtomicWriteFile(idPath, []byte(id), os.FileMode(0600)); err != nil {
-		return errors.Wrap(err, "error saving ID file")
-	}
-	logrus.Info("successfully migrated engine ID")
-	return nil
 }
