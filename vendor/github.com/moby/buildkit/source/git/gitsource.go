@@ -126,7 +126,11 @@ func (gs *gitSource) mountRemote(ctx context.Context, remote string, auth []stri
 	}()
 
 	if initializeRepo {
-		if _, err := gitWithinDir(ctx, dir, "", "", "", auth, "init", "--bare"); err != nil {
+		// Explicitly set the Git config 'init.defaultBranch' to the
+		// implied default to suppress "hint:" output about not having a
+		// default initial branch name set which otherwise spams unit
+		// test logs.
+		if _, err := gitWithinDir(ctx, dir, "", "", "", auth, "-c", "init.defaultBranch=master", "init", "--bare"); err != nil {
 			return "", nil, errors.Wrapf(err, "failed to init repo at %s", dir)
 		}
 
@@ -493,11 +497,14 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		if err := os.MkdirAll(checkoutDir, 0711); err != nil {
 			return nil, err
 		}
-		_, err = gitWithinDir(ctx, checkoutDirGit, "", sock, knownHosts, nil, "init")
+		_, err = gitWithinDir(ctx, checkoutDirGit, "", sock, knownHosts, nil, "-c", "init.defaultBranch=master", "init")
 		if err != nil {
 			return nil, err
 		}
-		_, err = gitWithinDir(ctx, checkoutDirGit, "", sock, knownHosts, nil, "remote", "add", "origin", gitDir)
+		// Defense-in-depth: clone using the file protocol to disable local-clone
+		// optimizations which can be abused on some versions of Git to copy unintended
+		// host files into the build context.
+		_, err = gitWithinDir(ctx, checkoutDirGit, "", sock, knownHosts, nil, "remote", "add", "origin", "file://"+gitDir)
 		if err != nil {
 			return nil, err
 		}
@@ -650,6 +657,7 @@ func git(ctx context.Context, dir, sshAuthSock, knownHosts string, args ...strin
 				flush()
 			}
 		}()
+		args = append([]string{"-c", "protocol.file.allow=user"}, args...) // Block sneaky repositories from using repos from the filesystem as submodules.
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir // some commands like submodule require this
 		buf := bytes.NewBuffer(nil)
@@ -662,6 +670,8 @@ func git(ctx context.Context, dir, sshAuthSock, knownHosts string, args ...strin
 			"GIT_TERMINAL_PROMPT=0",
 			"GIT_SSH_COMMAND=" + getGitSSHCommand(knownHosts),
 			//	"GIT_TRACE=1",
+			"GIT_CONFIG_NOSYSTEM=1", // Disable reading from system gitconfig.
+			"HOME=/dev/null",        // Disable reading from user gitconfig.
 		}
 		if sshAuthSock != "" {
 			cmd.Env = append(cmd.Env, "SSH_AUTH_SOCK="+sshAuthSock)
