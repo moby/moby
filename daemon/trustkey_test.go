@@ -7,29 +7,20 @@ import (
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 )
 
 // LoadOrCreateTrustKey
 func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
-	tmpKeyFolderPath, err := os.MkdirTemp("", "api-trustkey-test")
+	tmpKeyFile, err := os.CreateTemp(t.TempDir(), "keyfile")
 	assert.NilError(t, err)
-	defer os.RemoveAll(tmpKeyFolderPath)
-
-	tmpKeyFile, err := os.CreateTemp(tmpKeyFolderPath, "keyfile")
-	assert.NilError(t, err)
-	defer tmpKeyFile.Close()
+	_ = tmpKeyFile.Close()
 
 	_, err = loadOrCreateTrustKey(tmpKeyFile.Name())
-	assert.Check(t, is.ErrorContains(err, "Error loading key file"))
+	assert.Check(t, is.ErrorContains(err, "error loading key file"))
 }
 
 func TestLoadOrCreateTrustKeyCreateKeyWhenFileDoesNotExist(t *testing.T) {
-	tmpKeyFolderPath := fs.NewDir(t, "api-trustkey-test")
-	defer tmpKeyFolderPath.Remove()
-
-	// Without the need to create the folder hierarchy
-	tmpKeyFile := tmpKeyFolderPath.Join("keyfile")
+	tmpKeyFile := filepath.Join(t.TempDir(), "keyfile")
 
 	key, err := loadOrCreateTrustKey(tmpKeyFile)
 	assert.NilError(t, err)
@@ -40,10 +31,7 @@ func TestLoadOrCreateTrustKeyCreateKeyWhenFileDoesNotExist(t *testing.T) {
 }
 
 func TestLoadOrCreateTrustKeyCreateKeyWhenDirectoryDoesNotExist(t *testing.T) {
-	tmpKeyFolderPath := fs.NewDir(t, "api-trustkey-test")
-	defer tmpKeyFolderPath.Remove()
-	tmpKeyFile := tmpKeyFolderPath.Join("folder/hierarchy/keyfile")
-
+	tmpKeyFile := filepath.Join(t.TempDir(), "folder/hierarchy/keyfile")
 	key, err := loadOrCreateTrustKey(tmpKeyFile)
 	assert.NilError(t, err)
 	assert.Check(t, key != nil)
