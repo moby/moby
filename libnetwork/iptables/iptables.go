@@ -492,8 +492,17 @@ func (iptable IPTable) existsRaw(table Table, chain string, rule ...string) bool
 	if iptable.Version == IPv6 {
 		path = ip6tablesPath
 	}
+
+	args := []string{"-t", string(table), "-S", chain}
+	if supportsXlock {
+		args = append([]string{"--wait"}, args...)
+	} else {
+		bestEffortLock.Lock()
+		defer bestEffortLock.Unlock()
+	}
+
 	ruleString := fmt.Sprintf("%s %s\n", chain, strings.Join(rule, " "))
-	existingRules, _ := exec.Command(path, "-t", string(table), "-S", chain).Output()
+	existingRules, _ := exec.Command(path, args...).Output()
 
 	return strings.Contains(string(existingRules), ruleString)
 }
