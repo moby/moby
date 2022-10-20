@@ -6,8 +6,10 @@ package idtools // import "github.com/docker/docker/pkg/idtools"
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -425,7 +427,12 @@ func TestNewIDMappings(t *testing.T) {
 
 	err = MkdirAllAndChown(dirName, 0o700, Identity{UID: rootUID, GID: rootGID})
 	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
-	assert.Check(t, CanAccess(dirName, idMapping.RootPair()), "Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID)
+	cmd := exec.Command("ls", "-la", dirName)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{Uid: uint32(rootUID), Gid: uint32(rootGID)},
+	}
+	out, err := cmd.CombinedOutput()
+	assert.Check(t, err, "Unable to access %s directory with user UID:%d and GID:%d:\n%s", dirName, rootUID, rootGID, string(out))
 }
 
 func TestLookupUserAndGroup(t *testing.T) {
