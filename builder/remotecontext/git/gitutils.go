@@ -21,6 +21,7 @@ type gitRepo struct {
 	isolateConfig bool
 }
 
+// CloneOption changes the behaviour of Clone().
 type CloneOption func(*gitRepo)
 
 // WithIsolatedConfig disables reading the user or system gitconfig files when
