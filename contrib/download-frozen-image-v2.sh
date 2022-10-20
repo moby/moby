@@ -8,7 +8,7 @@ set -eo pipefail
 # debian                           latest              f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd   10 weeks ago        85.1 MB
 
 # check if essential commands are in our PATH
-for cmd in curl jq; do
+for cmd in curl jq wget; do
 	if ! command -v $cmd &> /dev/null; then
 		echo >&2 "error: \"$cmd\" not found!"
 		exit 1
@@ -79,9 +79,9 @@ fetch_blob() {
 			return 1
 		fi
 
-		curl -fSL "${curlArgs[@]}" \
-			"$blobRedirect" \
-			-o "$targetFile"
+		echo   "$blobRedirect"  output  "$targetFile"
+		#use wget to download file with continuously transmission
+		wget -c -O "$targetFile"  "$blobRedirect"
 	fi
 }
 
