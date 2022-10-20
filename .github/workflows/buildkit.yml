@@ -59,9 +59,6 @@ jobs:
           - ./frontend/dockerfile
         typ:
           - integration
-        include:
-          - pkg: ./...
-            skip-integration-tests: 1
     steps:
       -
         name: Checkout
@@ -112,5 +109,4 @@ jobs:
           TEST_DOCKERD_BINARY: "./build/moby/binary-daemon/dockerd"
           TESTPKGS: "${{ matrix.pkg }}"
           TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
-          SKIP_INTEGRATION_TESTS: "${{ matrix.skip-integration-tests }}"
         working-directory: buildkit
