@@ -489,6 +489,11 @@ func (iptable IPTable) exists(native bool, table Table, chain string, rule ...st
 func (iptable IPTable) existsRaw(table Table, chain string, rule ...string) bool {
 	path := iptablesPath
 	if iptable.Version == IPv6 {
+		// The existsRaw() signature does not allow us to return an error, but at least
+		// we can skip the invalid exec invocation.
+		if ip6tablesPath == "" {
+			return false
+		}
 		path = ip6tablesPath
 	}
 
@@ -557,6 +562,9 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	path := iptablesPath
 	commandName := "iptables"
 	if iptable.Version == IPv6 {
+		if ip6tablesPath == "" {
+			return nil, fmt.Errorf("ip6tables not found")
+		}
 		path = ip6tablesPath
 		commandName = "ip6tables"
 	}
