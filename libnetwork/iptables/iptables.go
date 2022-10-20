@@ -124,10 +124,9 @@ func detectIptables() {
 	}
 	iptablesPath = path
 	path, err = exec.LookPath("ip6tables")
-	if err != nil {
-		return
+	if err == nil {
+		ip6tablesPath = path
 	}
-	ip6tablesPath = path
 	supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
 	mj, mn, mc, err := GetVersion()
 	if err != nil {
