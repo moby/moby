@@ -142,6 +142,10 @@ func (daemon *Daemon) Features() *map[string]bool {
 
 // UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
 func (daemon *Daemon) UsesSnapshotter() bool {
+	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
+	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
+		return true
+	}
 	if daemon.configStore.Features != nil {
 		if b, ok := daemon.configStore.Features["containerd-snapshotter"]; ok {
 			return b
@@ -982,6 +986,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if d.UsesSnapshotter() {
+		if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
+			logrus.Warn("Enabling containerd snapshotter through the $TEST_INTEGRATION_USE_SNAPSHOTTER environment variable. This should only be used for testing.")
+		}
+		logrus.Info("Starting daemon with containerd snapshotter integration enabled")
+
 		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
 		if driverName == "" {
 			driverName = containerd.DefaultSnapshotter
