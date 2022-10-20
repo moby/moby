@@ -81,7 +81,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-frozen-images-aptlib,target=/var/l
        apt-get update && apt-get install -y --no-install-recommends \
            ca-certificates \
            curl \
-           jq
+           jq \
+           wget
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
 ARG TARGETARCH
