@@ -41,7 +41,7 @@ func collectFileInfoForChanges(oldDir, newDir string) (*FileInfo, *FileInfo, err
 func collectFileInfo(sourceDir string) (*FileInfo, error) {
 	root := newRootFileInfo()
 
-	err := filepath.Walk(sourceDir, func(path string, f os.FileInfo, err error) error {
+	err := filepath.WalkDir(sourceDir, func(path string, _ os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

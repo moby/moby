@@ -414,24 +414,24 @@ func (n *network) destroySandbox() {
 }
 
 func populateVNITbl() {
-	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
+	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
 		// NOTE(cpuguy83): The linter picked up on the fact that this walk function was not using this error argument
 		// That seems wrong... however I'm not familiar with this code or if that error matters
-		func(path string, info os.FileInfo, _ error) error {
+		func(path string, _ os.DirEntry, _ error) error {
 			_, fname := filepath.Split(path)
 
 			if len(strings.Split(fname, "-")) <= 1 {
 				return nil
 			}
 
-			ns, err := netns.GetFromPath(path)
+			n, err := netns.GetFromPath(path)
 			if err != nil {
 				logrus.Errorf("Could not open namespace path %s during vni population: %v", path, err)
 				return nil
 			}
-			defer ns.Close()
+			defer n.Close()
 
-			nlh, err := netlink.NewHandleAt(ns, unix.NETLINK_ROUTE)
+			nlh, err := netlink.NewHandleAt(n, unix.NETLINK_ROUTE)
 			if err != nil {
 				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
 				return nil
@@ -681,8 +681,8 @@ func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
 }
 
 func (n *network) cleanupStaleSandboxes() {
-	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
-		func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
+		func(path string, _ os.DirEntry, _ error) error {
 			_, fname := filepath.Split(path)
 
 			pList := strings.Split(fname, "-")

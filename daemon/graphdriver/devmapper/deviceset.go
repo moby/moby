@@ -407,33 +407,33 @@ func (devices *DeviceSet) constructDeviceIDMap() {
 	}
 }
 
-func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo) error {
+func (devices *DeviceSet) deviceFileWalkFunction(path string, name string) error {
 	logger := logrus.WithField("storage-driver", "devicemapper")
 
 	// Skip some of the meta files which are not device files.
-	if strings.HasSuffix(finfo.Name(), ".migrated") {
+	if strings.HasSuffix(name, ".migrated") {
 		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
-	if strings.HasPrefix(finfo.Name(), ".") {
+	if strings.HasPrefix(name, ".") {
 		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
-	if finfo.Name() == deviceSetMetaFile {
+	if name == deviceSetMetaFile {
 		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
-	if finfo.Name() == transactionMetaFile {
+	if name == transactionMetaFile {
 		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
 	logger.Debugf("Loading data for file %s", path)
 
-	hash := finfo.Name()
+	hash := name
 	if hash == "base" {
 		hash = ""
 	}
@@ -451,7 +451,7 @@ func (devices *DeviceSet) loadDeviceFilesOnStart() error {
 	logrus.WithField("storage-driver", "devicemapper").Debug("loadDeviceFilesOnStart()")
 	defer logrus.WithField("storage-driver", "devicemapper").Debug("loadDeviceFilesOnStart() END")
 
-	var scan = func(path string, info os.FileInfo, err error) error {
+	var scan = func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			logrus.WithField("storage-driver", "devicemapper").Debugf("Can't walk the file %s", path)
 			return nil
@@ -462,10 +462,10 @@ func (devices *DeviceSet) loadDeviceFilesOnStart() error {
 			return nil
 		}
 
-		return devices.deviceFileWalkFunction(path, info)
+		return devices.deviceFileWalkFunction(path, info.Name())
 	}
 
-	return filepath.Walk(devices.metadataDir(), scan)
+	return filepath.WalkDir(devices.metadataDir(), scan)
 }
 
 // Should be called with devices.Lock() held.
