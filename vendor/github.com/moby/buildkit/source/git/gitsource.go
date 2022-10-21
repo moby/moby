@@ -593,11 +593,16 @@ func getGitSSHCommand(knownHosts string) string {
 	return gitSSHCommand
 }
 
-func git(ctx context.Context, dir, sshAuthSock, knownHosts string, args ...string) (*bytes.Buffer, error) {
+func git(ctx context.Context, dir, sshAuthSock, knownHosts string, args ...string) (_ *bytes.Buffer, err error) {
 	for {
-		stdout, stderr := logs.NewLogStreams(ctx, false)
+		stdout, stderr, flush := logs.NewLogStreams(ctx, false)
 		defer stdout.Close()
 		defer stderr.Close()
+		defer func() {
+			if err != nil {
+				flush()
+			}
+		}()
 		args = append([]string{"-c", "protocol.file.allow=user"}, args...) // Block sneaky repositories from using repos from the filesystem as submodules.
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir // some commands like submodule require this

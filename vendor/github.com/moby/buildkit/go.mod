@@ -7,6 +7,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/Microsoft/go-winio v0.4.15
 	github.com/Microsoft/hcsshim v0.8.10
+	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 	github.com/codahale/hdrhistogram v0.0.0-20160425231609-f8ad88b59a58 // indirect
 	github.com/containerd/console v1.0.1
 	github.com/containerd/containerd v1.4.1-0.20201117152358-0edc412565dc // the actual version is replaced in replace()
