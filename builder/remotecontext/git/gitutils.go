@@ -213,7 +213,7 @@ func (repo gitRepo) gitWithinDir(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	// Disable unsafe remote protocols.
-	cmd.Env = append(cmd.Environ(), "GIT_PROTOCOL_FROM_USER=0")
+	cmd.Env = append(os.Environ(), "GIT_PROTOCOL_FROM_USER=0")
 
 	if repo.isolateConfig {
 		cmd.Env = append(cmd.Env,
