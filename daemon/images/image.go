@@ -161,12 +161,12 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		}
 		p := *options.Platform
 		// Note that `platforms.Only` will fuzzy match this for us
-		// For example: an armv6 image will run just fine an an armv7 CPU, without emulation or anything.
+		// For example: an armv6 image will run just fine on an armv7 CPU, without emulation or anything.
 		if OnlyPlatformWithFallback(p).Match(imgPlat) {
 			return
 		}
 		// In some cases the image config can actually be wrong (e.g. classic `docker build` may not handle `--platform` correctly)
-		// So we'll look up the manifest list that coresponds to this imaage to check if at least the manifest list says it is the correct image.
+		// So we'll look up the manifest list that corresponds to this image to check if at least the manifest list says it is the correct image.
 		var matches bool
 		matches, retErr = i.manifestMatchesPlatform(ctx, retImg, p)
 		if matches || retErr != nil {
@@ -179,7 +179,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		//   The image store does not store the manifest list and image tags are assigned to architecture specific images.
 		//   So we can have a `foo` image that is amd64 but the user requested armv7. If the user looks at the list of images.
 		//   This may be confusing.
-		//   The alternative to this is to return a errdefs.Conflict error with a helpful message, but clients will not be
+		//   The alternative to this is to return an errdefs.Conflict error with a helpful message, but clients will not be
 		//   able to automatically tell what causes the conflict.
 		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
 	}()
