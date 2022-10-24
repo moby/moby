@@ -45,7 +45,6 @@ field     := quoted | [A-Za-z] [A-Za-z0-9_]+
 operator  := "==" | "!=" | "~="
 value     := quoted | [^\s,]+
 quoted    := <go string syntax>
-
 */
 func Parse(s string) (Filter, error) {
 	// special case empty to match all

@@ -381,6 +381,9 @@ func init() {
 //
 // If any of them is NOT *ServiceConfig, return false.
 func equalServiceConfig(a, b serviceconfig.Config) bool {
+	if a == nil && b == nil {
+		return true
+	}
 	aa, ok := a.(*ServiceConfig)
 	if !ok {
 		return false

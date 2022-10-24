@@ -28,19 +28,22 @@ import (
 
 // WithAllCurrentCapabilities propagates the effective capabilities of the caller process to the container process.
 // The capability set may differ from WithAllKnownCapabilities when running in a container.
-//nolint: deadcode, unused
+//
+//nolint:deadcode,unused
 var WithAllCurrentCapabilities = func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 	return WithCapabilities(nil)(ctx, client, c, s)
 }
 
 // WithAllKnownCapabilities sets all the the known linux capabilities for the container process
-//nolint: deadcode, unused
+//
+//nolint:deadcode,unused
 var WithAllKnownCapabilities = func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 	return WithCapabilities(nil)(ctx, client, c, s)
 }
 
 // WithCPUShares sets the container's cpu shares
-//nolint: deadcode, unused
+//
+//nolint:deadcode,unused
 func WithCPUShares(shares uint64) SpecOpts {
 	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
 		return nil

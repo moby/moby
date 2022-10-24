@@ -18,10 +18,11 @@ package apparmor
 
 // HostSupports returns true if apparmor is enabled for the host, // On non-Linux returns false
 // On Linux returns true if apparmor_parser is enabled, and if we
-//  are not running docker-in-docker.
 //
-//  It is a modified version of libcontainer/apparmor.IsEnabled(), which does not
-//  check for apparmor_parser to be present, or if we're running docker-in-docker.
+//	are not running docker-in-docker.
+//
+//	It is a modified version of libcontainer/apparmor.IsEnabled(), which does not
+//	check for apparmor_parser to be present, or if we're running docker-in-docker.
 func HostSupports() bool {
 	return hostSupports()
 }

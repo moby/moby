@@ -63,7 +63,7 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, fi os.FileInfo) err
 	}
 
 	// Rdev is int32 on darwin/bsd, int64 on linux/solaris
-	rdev := uint64(s.Rdev) // nolint: unconvert
+	rdev := uint64(s.Rdev) //nolint:unconvert
 
 	// Currently go does not fill in the major/minors
 	if s.Mode&syscall.S_IFBLK != 0 ||
