@@ -223,6 +223,16 @@ cri-integration: binaries bin/cri-integration.test ## run cri integration tests
 	@bash -x ./script/test/cri-integration.sh
 	@rm -rf bin/cri-integration.test
 
+# build runc shimv2 with failpoint control, only used by integration test
+bin/containerd-shim-runc-fp-v1: integration/failpoint/cmd/containerd-shim-runc-fp-v1 FORCE
+	@echo "$(WHALE) $@"
+	@CGO_ENABLED=${SHIM_CGO_ENABLED} $(GO) build ${GO_BUILD_FLAGS} -o $@ ${SHIM_GO_LDFLAGS} ${GO_TAGS} ./integration/failpoint/cmd/containerd-shim-runc-fp-v1
+
+# build CNI bridge plugin wrapper with failpoint support, only used by integration test
+bin/cni-bridge-fp: integration/failpoint/cmd/cni-bridge-fp FORCE
+	@echo "$(WHALE) $@"
+	@$(GO) build ${GO_BUILD_FLAGS} -o $@ ./integration/failpoint/cmd/cni-bridge-fp
+
 benchmark: ## run benchmarks tests
 	@echo "$(WHALE) $@"
 	@$(GO) test ${TESTFLAGS} -bench . -run Benchmark -test.root
@@ -369,6 +379,8 @@ clean-test: ## clean up debris from previously failed tests
 	@rm -rf /run/containerd/fifo/*
 	@rm -rf /run/containerd-test/*
 	@rm -rf bin/cri-integration.test
+	@rm -rf bin/cni-bridge-fp
+	@rm -rf bin/containerd-shim-runc-fp-v1
 
 install: ## install binaries
 	@echo "$(WHALE) $@ $(BINARIES)"

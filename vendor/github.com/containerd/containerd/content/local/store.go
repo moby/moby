@@ -643,7 +643,6 @@ func (s *store) ingestRoot(ref string) string {
 // - root: entire ingest directory
 // - ref: name of the starting ref, must be unique
 // - data: file where data is written
-//
 func (s *store) ingestPaths(ref string) (string, string, string) {
 	var (
 		fp = s.ingestRoot(ref)
