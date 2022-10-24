@@ -154,7 +154,7 @@ github.com/containerd/cgroups/v2/stats
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd v1.6.8
+# github.com/containerd/containerd v1.6.9
 ## explicit; go 1.17
 github.com/containerd/containerd
 github.com/containerd/containerd/api/events
@@ -999,8 +999,8 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
-## explicit; go 1.11
+# google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21
+## explicit; go 1.15
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/distribution
@@ -1010,9 +1010,10 @@ google.golang.org/genproto/googleapis/api/metric
 google.golang.org/genproto/googleapis/api/monitoredres
 google.golang.org/genproto/googleapis/logging/type
 google.golang.org/genproto/googleapis/logging/v2
+google.golang.org/genproto/googleapis/longrunning
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/grpc v1.45.0
+# google.golang.org/grpc v1.47.0
 ## explicit; go 1.14
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -1024,6 +1025,7 @@ google.golang.org/grpc/balancer/grpclb/grpc_lb_v1
 google.golang.org/grpc/balancer/grpclb/state
 google.golang.org/grpc/balancer/roundrobin
 google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/channelz
 google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/credentials
@@ -1044,6 +1046,7 @@ google.golang.org/grpc/health
 google.golang.org/grpc/health/grpc_health_v1
 google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
+google.golang.org/grpc/internal/balancer/gracefulswitch
 google.golang.org/grpc/internal/balancerload
 google.golang.org/grpc/internal/binarylog
 google.golang.org/grpc/internal/buffer
@@ -1056,6 +1059,7 @@ google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
 google.golang.org/grpc/internal/grpcutil
 google.golang.org/grpc/internal/metadata
+google.golang.org/grpc/internal/pretty
 google.golang.org/grpc/internal/resolver
 google.golang.org/grpc/internal/resolver/dns
 google.golang.org/grpc/internal/resolver/passthrough
@@ -1073,8 +1077,8 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.27.1
-## explicit; go 1.9
+# google.golang.org/protobuf v1.28.0
+## explicit; go 1.11
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire

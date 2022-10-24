@@ -26,7 +26,7 @@
 //
 // Generically, we try to do the following:
 //
-// 	<version>/<namespace>/<object>/<key> -> <field>
+//	<version>/<namespace>/<object>/<key> -> <field>
 //
 // version: Currently, this is "v1". Additions can be made to v1 in a backwards
 // compatible way. If the layout changes, a new version must be made, along
@@ -46,72 +46,73 @@
 // the structure is changed in addition to adding a migration and incrementing
 // the database version. Note that `╘══*...*` refers to maps with arbitrary
 // keys.
-//  ├──version : <varint>                        - Latest version, see migrations
-//  └──v1                                        - Schema version bucket
-//     ╘══*namespace*
-//        ├──labels
-//        │  ╘══*key* : <string>                 - Label value
-//        ├──image
-//        │  ╘══*image name*
-//        │     ├──createdat : <binary time>     - Created at
-//        │     ├──updatedat : <binary time>     - Updated at
-//        │     ├──target
-//        │     │  ├──digest : <digest>          - Descriptor digest
-//        │     │  ├──mediatype : <string>       - Descriptor media type
-//        │     │  └──size : <varint>            - Descriptor size
-//        │     └──labels
-//        │        ╘══*key* : <string>           - Label value
-//        ├──containers
-//        │  ╘══*container id*
-//        │     ├──createdat : <binary time>     - Created at
-//        │     ├──updatedat : <binary time>     - Updated at
-//        │     ├──spec : <binary>               - Proto marshaled spec
-//        │     ├──image : <string>              - Image name
-//        │     ├──snapshotter : <string>        - Snapshotter name
-//        │     ├──snapshotKey : <string>        - Snapshot key
-//        │     ├──runtime
-//        │     │  ├──name : <string>            - Runtime name
-//        │     │  ├──extensions
-//        │     │  │  ╘══*name* : <binary>       - Proto marshaled extension
-//        │     │  └──options : <binary>         - Proto marshaled options
-//        │     └──labels
-//        │        ╘══*key* : <string>           - Label value
-//        ├──snapshots
-//        │  ╘══*snapshotter*
-//        │     ╘══*snapshot key*
-//        │        ├──name : <string>            - Snapshot name in backend
-//        │        ├──createdat : <binary time>  - Created at
-//        │        ├──updatedat : <binary time>  - Updated at
-//        │        ├──parent : <string>          - Parent snapshot name
-//        │        ├──children
-//        │        │  ╘══*snapshot key* : <nil>  - Child snapshot reference
-//        │        └──labels
-//        │           ╘══*key* : <string>        - Label value
-//        ├──content
-//        │  ├──blob
-//        │  │  ╘══*blob digest*
-//        │  │     ├──createdat : <binary time>  - Created at
-//        │  │     ├──updatedat : <binary time>  - Updated at
-//        │  │     ├──size : <varint>            - Blob size
-//        │  │     └──labels
-//        │  │        ╘══*key* : <string>        - Label value
-//        │  └──ingests
-//        │     ╘══*ingest reference*
-//        │        ├──ref : <string>             - Ingest reference in backend
-//        │        ├──expireat : <binary time>   - Time to expire ingest
-//        │        └──expected : <digest>        - Expected commit digest
-//        └──leases
-//           ╘══*lease id*
-//              ├──createdat : <binary time>     - Created at
-//              ├──labels
-//              │  ╘══*key* : <string>           - Label value
-//              ├──snapshots
-//              │  ╘══*snapshotter*
-//              │     ╘══*snapshot key* : <nil>  - Snapshot reference
-//              ├──content
-//              │  ╘══*blob digest* : <nil>      - Content blob reference
-//              └──ingests
-//                 ╘══*ingest reference* : <nil> - Content ingest reference
+//
+//	├──version : <varint>                        - Latest version, see migrations
+//	└──v1                                        - Schema version bucket
+//	   ╘══*namespace*
+//	      ├──labels
+//	      │  ╘══*key* : <string>                 - Label value
+//	      ├──image
+//	      │  ╘══*image name*
+//	      │     ├──createdat : <binary time>     - Created at
+//	      │     ├──updatedat : <binary time>     - Updated at
+//	      │     ├──target
+//	      │     │  ├──digest : <digest>          - Descriptor digest
+//	      │     │  ├──mediatype : <string>       - Descriptor media type
+//	      │     │  └──size : <varint>            - Descriptor size
+//	      │     └──labels
+//	      │        ╘══*key* : <string>           - Label value
+//	      ├──containers
+//	      │  ╘══*container id*
+//	      │     ├──createdat : <binary time>     - Created at
+//	      │     ├──updatedat : <binary time>     - Updated at
+//	      │     ├──spec : <binary>               - Proto marshaled spec
+//	      │     ├──image : <string>              - Image name
+//	      │     ├──snapshotter : <string>        - Snapshotter name
+//	      │     ├──snapshotKey : <string>        - Snapshot key
+//	      │     ├──runtime
+//	      │     │  ├──name : <string>            - Runtime name
+//	      │     │  ├──extensions
+//	      │     │  │  ╘══*name* : <binary>       - Proto marshaled extension
+//	      │     │  └──options : <binary>         - Proto marshaled options
+//	      │     └──labels
+//	      │        ╘══*key* : <string>           - Label value
+//	      ├──snapshots
+//	      │  ╘══*snapshotter*
+//	      │     ╘══*snapshot key*
+//	      │        ├──name : <string>            - Snapshot name in backend
+//	      │        ├──createdat : <binary time>  - Created at
+//	      │        ├──updatedat : <binary time>  - Updated at
+//	      │        ├──parent : <string>          - Parent snapshot name
+//	      │        ├──children
+//	      │        │  ╘══*snapshot key* : <nil>  - Child snapshot reference
+//	      │        └──labels
+//	      │           ╘══*key* : <string>        - Label value
+//	      ├──content
+//	      │  ├──blob
+//	      │  │  ╘══*blob digest*
+//	      │  │     ├──createdat : <binary time>  - Created at
+//	      │  │     ├──updatedat : <binary time>  - Updated at
+//	      │  │     ├──size : <varint>            - Blob size
+//	      │  │     └──labels
+//	      │  │        ╘══*key* : <string>        - Label value
+//	      │  └──ingests
+//	      │     ╘══*ingest reference*
+//	      │        ├──ref : <string>             - Ingest reference in backend
+//	      │        ├──expireat : <binary time>   - Time to expire ingest
+//	      │        └──expected : <digest>        - Expected commit digest
+//	      └──leases
+//	         ╘══*lease id*
+//	            ├──createdat : <binary time>     - Created at
+//	            ├──labels
+//	            │  ╘══*key* : <string>           - Label value
+//	            ├──snapshots
+//	            │  ╘══*snapshotter*
+//	            │     ╘══*snapshot key* : <nil>  - Snapshot reference
+//	            ├──content
+//	            │  ╘══*blob digest* : <nil>      - Content blob reference
+//	            └──ingests
+//	               ╘══*ingest reference* : <nil> - Content ingest reference
 package metadata
 
 import (
