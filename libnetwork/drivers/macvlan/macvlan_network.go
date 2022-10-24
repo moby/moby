@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/sirupsen/logrus"
@@ -18,8 +17,6 @@ import (
 
 // CreateNetwork the network for the specified driver type
 func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	defer osl.InitOSContext()()
-
 	// reject a null v4 network
 	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
 		return fmt.Errorf("ipv4 pool is empty")
@@ -109,7 +106,6 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 
 // DeleteNetwork deletes the network for the specified driver type
 func (d *driver) DeleteNetwork(nid string) error {
-	defer osl.InitOSContext()()
 	n := d.network(nid)
 	if n == nil {
 		return fmt.Errorf("network id %s not found", nid)

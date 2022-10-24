@@ -27,11 +27,6 @@ func GetSandboxForExternalKey(path string, key string) (Sandbox, error) {
 func GC() {
 }
 
-// InitOSContext initializes OS context while configuring network resources
-func InitOSContext() func() {
-	return func() {}
-}
-
 // SetBasePath sets the base url prefix for the ns path
 func SetBasePath(path string) {
 }

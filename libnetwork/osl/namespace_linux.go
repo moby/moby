@@ -419,11 +419,6 @@ func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
 	return
 }
 
-// InitOSContext initializes OS context while configuring network resources
-func InitOSContext() func() {
-	return func() {}
-}
-
 func (n *networkNamespace) InvokeFunc(f func()) error {
 	origNS, err := netns.Get()
 	if err != nil {

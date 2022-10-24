@@ -12,7 +12,6 @@ import (
 
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/pkg/errors"
@@ -72,8 +71,6 @@ func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, err
 // interfaces on the system.
 func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
 	var v4Nets, v6Nets []*net.IPNet
-
-	defer osl.InitOSContext()()
 
 	link, _ := ns.NlHandle().LinkByName(name)
 	if link != nil {

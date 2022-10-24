@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
@@ -19,7 +18,6 @@ import (
 
 // CreateNetwork the network for the specified driver type
 func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	defer osl.InitOSContext()()
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
 		return fmt.Errorf("failed to check kernel version for ipvlan driver support: %v", err)
@@ -118,7 +116,6 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 
 // DeleteNetwork deletes the network for the specified driver type
 func (d *driver) DeleteNetwork(nid string) error {
-	defer osl.InitOSContext()()
 	n := d.network(nid)
 	if n == nil {
 		return fmt.Errorf("network id %s not found", nid)

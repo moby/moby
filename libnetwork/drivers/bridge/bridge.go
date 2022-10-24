@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
@@ -671,8 +670,6 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 }
 
 func (d *driver) createNetwork(config *networkConfiguration) (err error) {
-	defer osl.InitOSContext()()
-
 	// Initialize handle when needed
 	d.Lock()
 	if d.nlh == nil {
@@ -811,7 +808,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 func (d *driver) deleteNetwork(nid string) error {
 	var err error
 
-	defer osl.InitOSContext()()
 	// Get network handler and remove it from driver
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -934,8 +930,6 @@ func setHairpinMode(nlh *netlink.Handle, link netlink.Link, enable bool) error {
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
-	defer osl.InitOSContext()()
-
 	if ifInfo == nil {
 		return errors.New("invalid interface info passed")
 	}
@@ -1121,8 +1115,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 func (d *driver) DeleteEndpoint(nid, eid string) error {
 	var err error
 
-	defer osl.InitOSContext()()
-
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -1242,8 +1234,6 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	defer osl.InitOSContext()()
-
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1288,8 +1278,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
-	defer osl.InitOSContext()()
-
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return types.InternalMaskableErrorf("%s", err)
@@ -1314,8 +1302,6 @@ func (d *driver) Leave(nid, eid string) error {
 }
 
 func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
-	defer osl.InitOSContext()()
-
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1368,8 +1354,6 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 }
 
 func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
-	defer osl.InitOSContext()()
-
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
