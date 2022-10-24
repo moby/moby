@@ -34,6 +34,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/internal/channelz"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/resolver"
@@ -529,7 +530,7 @@ type ServerConfig struct {
 	InitialConnWindowSize int32
 	WriteBufferSize       int
 	ReadBufferSize        int
-	ChannelzParentID      int64
+	ChannelzParentID      *channelz.Identifier
 	MaxHeaderListSize     *uint32
 	HeaderTableSize       *uint32
 }
@@ -563,7 +564,7 @@ type ConnectOptions struct {
 	// ReadBufferSize sets the size of read buffer, which in turn determines how much data can be read at most for one read syscall.
 	ReadBufferSize int
 	// ChannelzParentID sets the addrConn id which initiate the creation of this client transport.
-	ChannelzParentID int64
+	ChannelzParentID *channelz.Identifier
 	// MaxHeaderListSize sets the max (uncompressed) size of header list that is prepared to be received.
 	MaxHeaderListSize *uint32
 	// UseProxy specifies if a proxy should be used.

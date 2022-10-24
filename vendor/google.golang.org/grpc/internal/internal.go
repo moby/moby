@@ -85,3 +85,9 @@ const (
 	// that supports backend returned by grpclb balancer.
 	CredsBundleModeBackendFromBalancer = "backend-from-balancer"
 )
+
+// RLSLoadBalancingPolicyName is the name of the RLS LB policy.
+//
+// It currently has an experimental suffix which would be removed once
+// end-to-end testing of the policy is completed.
+const RLSLoadBalancingPolicyName = "rls_experimental"
