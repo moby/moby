@@ -554,7 +554,7 @@ func (a *Driver) Cleanup() error {
 			logger.WithError(err).WithField("method", "Cleanup()").Warn()
 		}
 	}
-	return mount.RecursiveUnmount(a.root)
+	return nil
 }
 
 func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err error) {

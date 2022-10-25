@@ -56,7 +56,7 @@ require (
 	github.com/moby/patternmatcher v0.5.0
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.0.0-20220721174824-48dd89375d0a
-	github.com/moby/sys/mount v0.3.3
+	github.com/moby/sys/mount v0.3.3 // FIXME(thaJeztah): See replace rule below
 	github.com/moby/sys/mountinfo v0.6.2
 	github.com/moby/sys/sequential v0.5.0
 	github.com/moby/sys/signal v0.7.0
@@ -165,6 +165,8 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )
+
+replace github.com/moby/sys/mount => github.com/thaJeztah/sys/mount v0.1.1-0.20220818070310-e6ec1852fd37 // FIXME(thaJeztah): testing https://github.com/moby/sys/pull/62
 
 replace (
 	// More recent versions result in a panic in libnetwork.

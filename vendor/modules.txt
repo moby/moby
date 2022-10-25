@@ -668,7 +668,7 @@ github.com/moby/swarmkit/v2/volumequeue
 github.com/moby/swarmkit/v2/watch
 github.com/moby/swarmkit/v2/watch/queue
 github.com/moby/swarmkit/v2/xnet
-# github.com/moby/sys/mount v0.3.3
+# github.com/moby/sys/mount v0.3.3 => github.com/thaJeztah/sys/mount v0.1.1-0.20220818070310-e6ec1852fd37
 ## explicit; go 1.16
 github.com/moby/sys/mount
 # github.com/moby/sys/mountinfo v0.6.2
@@ -1131,6 +1131,7 @@ gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
+# github.com/moby/sys/mount => github.com/thaJeztah/sys/mount v0.1.1-0.20220818070310-e6ec1852fd37
 # github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
 # github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
