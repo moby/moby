@@ -32,6 +32,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -209,8 +210,8 @@ func (a *Driver) Status() [][2]string {
 	return [][2]string{
 		{"Root Dir", a.rootPath()},
 		{"Backing Filesystem", backingFs},
-		{"Dirs", fmt.Sprintf("%d", len(ids))},
-		{"Dirperm1 Supported", fmt.Sprintf("%v", useDirperm())},
+		{"Dirs", strconv.Itoa(len(ids))},
+		{"Dirperm1 Supported", strconv.FormatBool(useDirperm())},
 	}
 }
 

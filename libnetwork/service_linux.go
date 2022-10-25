@@ -600,7 +600,7 @@ func invokeFWMarker(path string, vip net.IP, fwMark uint32, ingressPorts []*Port
 
 	cmd := &exec.Cmd{
 		Path:   reexec.Self(),
-		Args:   append([]string{"fwmarker"}, path, vip.String(), fmt.Sprintf("%d", fwMark), addDelOpt, ingressPortsFile, eIP.String(), lbMode),
+		Args:   append([]string{"fwmarker"}, path, vip.String(), strconv.FormatUint(uint64(fwMark), 10), addDelOpt, ingressPortsFile, eIP.String(), lbMode),
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}

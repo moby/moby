@@ -51,7 +51,7 @@ func TestCommitFailure(t *testing.T) {
 	fms, td, cleanup := newFileMetadataStore(t)
 	defer cleanup()
 
-	if err := os.WriteFile(filepath.Join(td, "sha256"), []byte("was here first!"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(td, "sha256"), []byte("was here first!"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,7 +75,7 @@ func TestStartTransactionFailure(t *testing.T) {
 	fms, td, cleanup := newFileMetadataStore(t)
 	defer cleanup()
 
-	if err := os.WriteFile(filepath.Join(td, "tmp"), []byte("was here first!"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(td, "tmp"), []byte("was here first!"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -108,7 +108,7 @@ func TestGetOrphan(t *testing.T) {
 	defer cleanup()
 
 	layerRoot := filepath.Join(td, "sha256")
-	if err := os.MkdirAll(layerRoot, 0755); err != nil {
+	if err := os.MkdirAll(layerRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -123,7 +123,7 @@ func TestGetOrphan(t *testing.T) {
 		t.Fatal(err)
 	}
 	layerPath := fms.getLayerDirectory(layerid)
-	if err := os.WriteFile(filepath.Join(layerPath, "cache-id"), []byte(stringid.GenerateRandomID()), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(layerPath, "cache-id"), []byte(stringid.GenerateRandomID()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

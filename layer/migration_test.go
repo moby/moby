@@ -16,7 +16,7 @@ import (
 )
 
 func writeTarSplitFile(name string, tarContent []byte) error {
-	f, err := os.OpenFile(name, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(name, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -51,12 +51,12 @@ func TestLayerMigration(t *testing.T) {
 	defer os.RemoveAll(td)
 
 	layer1Files := []FileApplier{
-		newTestFile("/root/.bashrc", []byte("# Boring configuration"), 0644),
-		newTestFile("/etc/profile", []byte("# Base configuration"), 0644),
+		newTestFile("/root/.bashrc", []byte("# Boring configuration"), 0o644),
+		newTestFile("/etc/profile", []byte("# Base configuration"), 0o644),
 	}
 
 	layer2Files := []FileApplier{
-		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0644),
+		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0o644),
 	}
 
 	tar1, err := tarFromFiles(layer1Files...)
@@ -187,12 +187,12 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	defer os.RemoveAll(td)
 
 	layer1Files := []FileApplier{
-		newTestFile("/root/.bashrc", []byte("# Boring configuration"), 0644),
-		newTestFile("/etc/profile", []byte("# Base configuration"), 0644),
+		newTestFile("/root/.bashrc", []byte("# Boring configuration"), 0o644),
+		newTestFile("/etc/profile", []byte("# Base configuration"), 0o644),
 	}
 
 	layer2Files := []FileApplier{
-		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0644),
+		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0o644),
 	}
 
 	graph, err := newVFSGraphDriver(filepath.Join(td, "graphdriver-"))
