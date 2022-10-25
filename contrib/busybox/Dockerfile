@@ -19,7 +19,7 @@ FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 RUN mkdir C:\tmp && mkdir C:\bin
 ARG BUSYBOX_VERSION
 ARG BUSYBOX_SHA256SUM
-ADD https://frippery.org/files/busybox/busybox-w32-${BUSYBOX_VERSION}.exe /bin/busybox.exe
+ADD https://github.com/moby/busybox/releases/download/${BUSYBOX_VERSION}/busybox-w32-${BUSYBOX_VERSION}.exe /bin/busybox.exe
 RUN powershell \
     if ((Get-FileHash -Path /bin/busybox.exe -Algorithm SHA256).Hash -ne $Env:BUSYBOX_SHA256SUM) { \
         Throw \"Checksum validation failed\" \
