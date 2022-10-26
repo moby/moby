@@ -33,31 +33,30 @@ type createOpts struct {
 }
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
-	return daemon.containerCreate(createOpts{
+func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:  params,
 		managed: true,
 	})
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
-	return daemon.containerCreate(createOpts{
+func (daemon *Daemon) ContainerCreate(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params: params,
 	})
 }
 
 // ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
 // and ensures that we do not take the images ArgsEscaped
-func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
-	return daemon.containerCreate(createOpts{
+func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:                  params,
 		ignoreImagesArgsEscaped: true,
 	})
 }
 
-func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateResponse, error) {
-	ctx := context.TODO()
+func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (containertypes.CreateResponse, error) {
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
@@ -100,7 +99,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	ctr, err := daemon.create(opts)
+	ctr, err := daemon.create(ctx, opts)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
@@ -114,8 +113,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
-	ctx := context.TODO()
+func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *container.Container, retErr error) {
 	var (
 		ctr   *container.Container
 		img   *image.Image

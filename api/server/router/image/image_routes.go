@@ -68,7 +68,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		progressErr = ir.backend.PullImage(ctx, img, tag, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
-		progressErr = ir.backend.ImportImage(src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
+		progressErr = ir.backend.ImportImage(ctx, src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
 	}
 	if progressErr != nil {
 		if !output.Flushed() {

@@ -95,7 +95,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	if err != nil {
 		return nil, err
 	}
-	return b.build(source, dockerfile)
+	return b.build(ctx, source, dockerfile)
 }
 
 // builderOptions are the dependencies required by the builder
@@ -136,6 +136,11 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		config = new(types.ImageBuildOptions)
 	}
 
+	imageProber, err := newImageProber(clientCtx, options.Backend, config.CacheFrom, config.NoCache)
+	if err != nil {
+		return nil, err
+	}
+
 	b := &Builder{
 		clientCtx:        clientCtx,
 		options:          config,
@@ -147,7 +152,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		idMapping:        options.IDMapping,
 		imageSources:     newImageSources(clientCtx, options),
 		pathCache:        options.PathCache,
-		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),
+		imageProber:      imageProber,
 		containerManager: newContainerManager(options.Backend),
 	}
 
@@ -181,7 +186,7 @@ func buildLabelOptions(labels map[string]string, stages []instructions.Stage) {
 
 // Build runs the Dockerfile builder by parsing the Dockerfile and executing
 // the instructions from the file.
-func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
+func (b *Builder) build(ctx context.Context, source builder.Source, dockerfile *parser.Result) (*builder.Result, error) {
 	defer b.imageSources.Unmount()
 
 	stages, metaArgs, err := instructions.Parse(dockerfile.AST)
@@ -205,7 +210,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 	buildLabelOptions(b.options.Labels, stages)
 
 	dockerfile.PrintWarnings(b.Stderr)
-	dispatchState, err := b.dispatchDockerfileWithCancellation(stages, metaArgs, dockerfile.EscapeToken, source)
+	dispatchState, err := b.dispatchDockerfileWithCancellation(ctx, stages, metaArgs, dockerfile.EscapeToken, source)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +249,7 @@ func printCommand(out io.Writer, currentCommandIndex int, totalCommands int, cmd
 	return currentCommandIndex + 1
 }
 
-func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.Stage, metaArgs []instructions.ArgCommand, escapeToken rune, source builder.Source) (*dispatchState, error) {
+func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseResult []instructions.Stage, metaArgs []instructions.ArgCommand, escapeToken rune, source builder.Source) (*dispatchState, error) {
 	dispatchRequest := dispatchRequest{}
 	buildArgs := NewBuildArgs(b.options.BuildArgs)
 	totalCommands := len(metaArgs) + len(parseResult)
@@ -272,7 +277,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 		dispatchRequest = newDispatchRequest(b, escapeToken, source, buildArgs, stagesResults)
 
 		currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, stage.SourceCode)
-		if err := initializeStage(dispatchRequest, &stage); err != nil {
+		if err := initializeStage(ctx, dispatchRequest, &stage); err != nil {
 			return nil, err
 		}
 		dispatchRequest.state.updateRunConfig()
@@ -290,7 +295,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 
 			currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, cmd)
 
-			if err := dispatch(dispatchRequest, cmd); err != nil {
+			if err := dispatch(ctx, dispatchRequest, cmd); err != nil {
 				return nil, err
 			}
 			dispatchRequest.state.updateRunConfig()
@@ -317,7 +322,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 // coming from the query parameter of the same name.
 //
 // TODO: Remove?
-func BuildFromConfig(config *container.Config, changes []string, os string) (*container.Config, error) {
+func BuildFromConfig(ctx context.Context, config *container.Config, changes []string, os string) (*container.Config, error) {
 	if len(changes) == 0 {
 		return config, nil
 	}
@@ -327,7 +332,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	b, err := newBuilder(context.Background(), builderOptions{
+	b, err := newBuilder(ctx, builderOptions{
 		Options: &types.ImageBuildOptions{NoCache: true},
 	})
 	if err != nil {
@@ -360,7 +365,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 	dispatchRequest.state.imageID = config.Image
 	dispatchRequest.state.operatingSystem = os
 	for _, cmd := range commands {
-		err := dispatch(dispatchRequest, cmd)
+		err := dispatch(ctx, dispatchRequest, cmd)
 		if err != nil {
 			return nil, errdefs.InvalidParameter(err)
 		}

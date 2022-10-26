@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -115,7 +116,7 @@ othergrp:x:6666:
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
-			idPair, err := parseChownFlag(testcase.builder, testcase.state, testcase.chownStr, contextDir, testcase.idMapping)
+			idPair, err := parseChownFlag(context.TODO(), testcase.builder, testcase.state, testcase.chownStr, contextDir, testcase.idMapping)
 			assert.NilError(t, err, "Failed to parse chown flag: %q", testcase.chownStr)
 			assert.Check(t, is.DeepEqual(testcase.expected, idPair), "chown flag mapping failure")
 		})
@@ -156,7 +157,7 @@ othergrp:x:6666:
 		},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
-			_, err := parseChownFlag(testcase.builder, testcase.state, testcase.chownStr, contextDir, testcase.idMapping)
+			_, err := parseChownFlag(context.TODO(), testcase.builder, testcase.state, testcase.chownStr, contextDir, testcase.idMapping)
 			assert.Check(t, is.Error(err, testcase.descr), "Expected error string doesn't match")
 		})
 	}

@@ -4,6 +4,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 // non-contiguous functionality. Please read the comments.
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -27,7 +28,7 @@ func (b *Builder) getArchiver() *archive.Archiver {
 	return chrootarchive.NewArchiver(b.idMapping)
 }
 
-func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
+func (b *Builder) commit(ctx context.Context, dispatchState *dispatchState, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -36,7 +37,7 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 	}
 
 	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, dispatchState.operatingSystem))
-	id, err := b.probeAndCreate(dispatchState, runConfigWithCommentCmd)
+	id, err := b.probeAndCreate(ctx, dispatchState, runConfigWithCommentCmd)
 	if err != nil || id == "" {
 		return err
 	}
@@ -107,7 +108,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 	return nil
 }
 
-func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
+func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst copyInstruction) error {
 	state := req.state
 	srcHash := getSourceHashFromInfos(inst.infos)
 
@@ -147,7 +148,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	// translated (if necessary because of user namespaces), and replace
 	// the root pair with the chown pair for copy operations
 	if inst.chownStr != "" {
-		identity, err = parseChownFlag(b, state, inst.chownStr, destInfo.root, b.idMapping)
+		identity, err = parseChownFlag(ctx, b, state, inst.chownStr, destInfo.root, b.idMapping)
 		if err != nil {
 			if b.options.Platform != "windows" {
 				return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
@@ -331,18 +332,18 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
-func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *container.Config) (string, error) {
+func (b *Builder) probeAndCreate(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (string, error) {
 	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
 		return "", err
 	}
-	return b.create(runConfig)
+	return b.create(ctx, runConfig)
 }
 
-func (b *Builder) create(runConfig *container.Config) (string, error) {
+func (b *Builder) create(ctx context.Context, runConfig *container.Config) (string, error) {
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
 	hostConfig := hostConfigFromOptions(b.options)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(ctx, runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}
