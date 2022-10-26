@@ -317,10 +317,10 @@ unix://[/path/to/socket] to use.
   Set the containers network mtu. Default is `0`.
 
 **--max-concurrent-downloads**=*3*
-  Set the max concurrent downloads for each pull. Default is `3`.
+  Set the max concurrent downloads. Default is `3`.
 
 **--max-concurrent-uploads**=*5*
-  Set the max concurrent uploads for each push. Default is `5`.
+  Set the max concurrent uploads. Default is `5`.
 
 **--max-download-attempts**=*5*
   Set the max download attempts for each pull. Default is `5`.
