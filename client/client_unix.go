@@ -1,5 +1,5 @@
-//go:build linux || freebsd || openbsd || netbsd || darwin || solaris || illumos || dragonfly
-// +build linux freebsd openbsd netbsd darwin solaris illumos dragonfly
+//go:build !windows
+// +build !windows
 
 package client // import "github.com/docker/docker/client"
 

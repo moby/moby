@@ -2,17 +2,18 @@
 #
 # Run default validation, exclude vendor because it's slow
 
-export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Skip DCO check here, as it's already checked in a separate stage in the Jenkinsfile
 #. "${SCRIPTDIR}"/dco
 . "${SCRIPTDIR}"/default-seccomp
 . "${SCRIPTDIR}"/pkg-imports
+. "${SCRIPTDIR}"/yamllint
 . "${SCRIPTDIR}"/swagger
 . "${SCRIPTDIR}"/swagger-gen
 . "${SCRIPTDIR}"/toml
 . "${SCRIPTDIR}"/changelog-well-formed
 . "${SCRIPTDIR}"/changelog-date-descending
-#. "${SCRIPTDIR}"/deprecate-integration-cli
+. "${SCRIPTDIR}"/deprecate-integration-cli
 . "${SCRIPTDIR}"/golangci-lint
 . "${SCRIPTDIR}"/shfmt

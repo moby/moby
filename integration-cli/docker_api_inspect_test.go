@@ -31,7 +31,6 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 		cases = []acase{
 			{"v1.25", append(keysBase, "Mounts")},
 		}
-
 	} else {
 		cases = []acase{
 			{"v1.20", append(keysBase, "Mounts")},
@@ -51,7 +50,7 @@ func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
 			assert.Check(c, ok, "%s does not exist in response for version %s", key, cs.version)
 		}
 
-		//Issue #6830: type not properly converted to JSON/back
+		// Issue #6830: type not properly converted to JSON/back
 		_, ok := inspectJSON["Path"].(bool)
 		assert.Assert(c, !ok, "Path of `true` should not be converted to boolean `true` via JSON marshalling")
 	}

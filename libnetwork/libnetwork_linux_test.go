@@ -618,12 +618,12 @@ func TestEnableIPv6(t *testing.T) {
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
 	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\noptions ndots:0\n")
-	//take a copy of resolv.conf for restoring after test completes
+	// take a copy of resolv.conf for restoring after test completes
 	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	//cleanup
+	// cleanup
 	defer func() {
 		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			t.Fatal(err)
@@ -696,12 +696,12 @@ func TestResolvConfHost(t *testing.T) {
 
 	tmpResolvConf := []byte("search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\n")
 
-	//take a copy of resolv.conf for restoring after test completes
+	// take a copy of resolv.conf for restoring after test completes
 	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	//cleanup
+	// cleanup
 	defer func() {
 		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			t.Fatal(err)
@@ -779,12 +779,12 @@ func TestResolvConf(t *testing.T) {
 	expectedResolvConf1 := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\noptions ndots:0\n")
 	tmpResolvConf3 := []byte("search pommesfrites.fr\nnameserver 113.34.56.78\n")
 
-	//take a copy of resolv.conf for restoring after test completes
+	// take a copy of resolv.conf for restoring after test completes
 	resolvConfSystem, err := os.ReadFile("/etc/resolv.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	//cleanup
+	// cleanup
 	defer func() {
 		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 			t.Fatal(err)

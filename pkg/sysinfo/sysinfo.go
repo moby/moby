@@ -1,3 +1,4 @@
+// Package sysinfo stores information about which features a kernel supports.
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import "github.com/docker/docker/pkg/parsers"

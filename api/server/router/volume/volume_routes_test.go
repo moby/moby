@@ -574,6 +574,7 @@ func TestVolumeRemoveSwarmForce(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.Equal(t, len(b.volumes), 0)
+	assert.Equal(t, len(c.volumes), 0)
 }
 
 type fakeVolumeBackend struct {
@@ -616,9 +617,16 @@ func (b *fakeVolumeBackend) Create(_ context.Context, name, driverName string, _
 	return v, nil
 }
 
-func (b *fakeVolumeBackend) Remove(_ context.Context, name string, _ ...opts.RemoveOption) error {
+func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.RemoveOption) error {
+	removeOpts := &opts.RemoveConfig{}
+	for _, opt := range o {
+		opt(removeOpts)
+	}
+
 	if v, ok := b.volumes[name]; !ok {
-		return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+		if !removeOpts.PurgeOnError {
+			return errdefs.NotFound(fmt.Errorf("volume %s not found", name))
+		}
 	} else if v.Name == "inuse" {
 		return errdefs.Conflict(fmt.Errorf("volume in use"))
 	}

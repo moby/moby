@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/daemon/exec"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/logger"
@@ -74,8 +73,8 @@ type Daemon struct {
 	id                    string
 	repository            string
 	containers            container.Store
-	containersReplica     container.ViewDB
-	execCommands          *exec.Store
+	containersReplica     *container.ViewDB
+	execCommands          *container.ExecStore
 	imageService          ImageService
 	configStore           *config.Config
 	statsCollector        *stats.Collector
@@ -89,7 +88,6 @@ type Daemon struct {
 	sysInfo               *sysinfo.SysInfo
 	shutdown              bool
 	idMapping             idtools.IdentityMapping
-	graphDriver           string        // TODO: move graphDriver field to an InfoService
 	PluginStore           *plugin.Store // TODO: remove
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
@@ -144,6 +142,10 @@ func (daemon *Daemon) Features() *map[string]bool {
 
 // UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
 func (daemon *Daemon) UsesSnapshotter() bool {
+	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
+	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
+		return true
+	}
 	if daemon.configStore.Features != nil {
 		if b, ok := daemon.configStore.Features["containerd-snapshotter"]; ok {
 			return b
@@ -239,29 +241,25 @@ func (daemon *Daemon) restore() error {
 				log.WithError(err).Error("failed to load container")
 				return
 			}
-			if !system.IsOSSupported(c.OS) {
-				log.Errorf("failed to load container: %s (%q)", system.ErrNotSupportedOperatingSystem, c.OS)
+			if c.Driver != daemon.imageService.StorageDriver() {
+				// Ignore the container if it wasn't created with the current storage-driver
+				log.Debugf("not restoring container because it was created with another storage driver (%s)", c.Driver)
 				return
 			}
-			// Ignore the container if it does not support the current driver being used by the graph
-			if (c.Driver == "" && daemon.graphDriver == "aufs") || c.Driver == daemon.graphDriver {
-				rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
-				if err != nil {
-					log.WithError(err).Error("failed to load container mount")
-					return
-				}
-				c.RWLayer = rwlayer
-				log.WithFields(logrus.Fields{
-					"running": c.IsRunning(),
-					"paused":  c.IsPaused(),
-				}).Debug("loaded container")
-
-				mapLock.Lock()
-				containers[c.ID] = c
-				mapLock.Unlock()
-			} else {
-				log.Debugf("cannot load container because it was created with another storage driver")
+			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
+			if err != nil {
+				log.WithError(err).Error("failed to load container mount")
+				return
 			}
+			c.RWLayer = rwlayer
+			log.WithFields(logrus.Fields{
+				"running": c.IsRunning(),
+				"paused":  c.IsPaused(),
+			}).Debug("loaded container")
+
+			mapLock.Lock()
+			containers[c.ID] = c
+			mapLock.Unlock()
 		}(v.Name())
 	}
 	group.Wait()
@@ -322,40 +320,43 @@ func (daemon *Daemon) restore() error {
 
 			logger(c).Debug("restoring container")
 
-			var (
-				err      error
-				alive    bool
-				ec       uint32
-				exitedAt time.Time
-				process  libcontainerdtypes.Process
-			)
+			var es *containerd.ExitStatus
 
-			alive, _, process, err = daemon.containerd.Restore(context.Background(), c.ID, c.InitializeStdio)
-			if err != nil && !errdefs.IsNotFound(err) {
+			if err := c.RestoreTask(context.Background(), daemon.containerd); err != nil && !errdefs.IsNotFound(err) {
 				logger(c).WithError(err).Error("failed to restore container with containerd")
 				return
 			}
-			logger(c).Debugf("alive: %v", alive)
-			if !alive {
-				// If process is not nil, cleanup dead container from containerd.
-				// If process is nil then the above `containerd.Restore` returned an errdefs.NotFoundError,
-				// and docker's view of the container state will be updated accorrdingly via SetStopped further down.
-				if process != nil {
-					logger(c).Debug("cleaning up dead container process")
-					ec, exitedAt, err = process.Delete(context.Background())
-					if err != nil && !errdefs.IsNotFound(err) {
-						logger(c).WithError(err).Error("failed to delete container from containerd")
-						return
+
+			alive := false
+			status := containerd.Unknown
+			if tsk, ok := c.Task(); ok {
+				s, err := tsk.Status(context.Background())
+				if err != nil {
+					logger(c).WithError(err).Error("failed to get task status")
+				} else {
+					status = s.Status
+					alive = status != containerd.Stopped
+					if !alive {
+						logger(c).Debug("cleaning up dead container process")
+						es, err = tsk.Delete(context.Background())
+						if err != nil && !errdefs.IsNotFound(err) {
+							logger(c).WithError(err).Error("failed to delete task from containerd")
+							return
+						}
+					} else if !daemon.configStore.LiveRestoreEnabled {
+						logger(c).Debug("shutting down container considered alive by containerd")
+						if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
+							log.WithError(err).Error("error shutting down container")
+							return
+						}
+						status = containerd.Stopped
+						alive = false
+						c.ResetRestartManager(false)
 					}
 				}
-			} else if !daemon.configStore.LiveRestoreEnabled {
-				logger(c).Debug("shutting down container considered alive by containerd")
-				if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
-					log.WithError(err).Error("error shutting down container")
-					return
-				}
-				c.ResetRestartManager(false)
 			}
+			// If the containerd task for the container was not found, docker's view of the
+			// container state will be updated accordingly via SetStopped further down.
 
 			if c.IsRunning() || c.IsPaused() {
 				logger(c).Debug("syncing container on disk state with real state")
@@ -364,29 +365,22 @@ func (daemon *Daemon) restore() error {
 
 				switch {
 				case c.IsPaused() && alive:
-					s, err := daemon.containerd.Status(context.Background(), c.ID)
-					if err != nil {
-						logger(c).WithError(err).Error("failed to get container status")
-					} else {
-						logger(c).WithField("state", s).Info("restored container paused")
-						switch s {
-						case containerd.Paused, containerd.Pausing:
-							// nothing to do
-						case containerd.Stopped:
-							alive = false
-						case containerd.Unknown:
-							log.Error("unknown status for paused container during restore")
-						default:
-							// running
-							c.Lock()
-							c.Paused = false
-							daemon.setStateCounter(c)
-							daemon.updateHealthMonitor(c)
-							if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-								log.WithError(err).Error("failed to update paused container state")
-							}
-							c.Unlock()
+					logger(c).WithField("state", status).Info("restored container paused")
+					switch status {
+					case containerd.Paused, containerd.Pausing:
+						// nothing to do
+					case containerd.Unknown, containerd.Stopped, "":
+						log.WithField("status", status).Error("unexpected status for paused container during restore")
+					default:
+						// running
+						c.Lock()
+						c.Paused = false
+						daemon.setStateCounter(c)
+						daemon.updateHealthMonitor(c)
+						if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+							log.WithError(err).Error("failed to update paused container state")
 						}
+						c.Unlock()
 					}
 				case !c.IsPaused() && alive:
 					logger(c).Debug("restoring healthcheck")
@@ -398,7 +392,12 @@ func (daemon *Daemon) restore() error {
 				if !alive {
 					logger(c).Debug("setting stopped state")
 					c.Lock()
-					c.SetStopped(&container.ExitStatus{ExitCode: int(ec), ExitedAt: exitedAt})
+					var ces container.ExitStatus
+					if es != nil {
+						ces.ExitCode = int(es.ExitCode())
+						ces.ExitedAt = es.ExitTime()
+					}
+					c.SetStopped(&ces)
 					daemon.Cleanup(c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 						log.WithError(err).Error("failed to update stopped container state")
@@ -524,6 +523,9 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
+			if err := daemon.prepareMountPoints(c); err != nil {
+				log.WithError(err).Error("failed to prepare mount points for container")
+			}
 			if err := daemon.containerStart(c, "", "", true); err != nil {
 				log.WithError(err).Error("failed to start container")
 			}
@@ -838,21 +840,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
-	if isWindows {
-		// On Windows we don't support the environment variable, or a user supplied graphdriver
-		d.graphDriver = "windowsfilter"
-	} else {
-		// Unix platforms however run a single graphdriver for all containers, and it can
-		// be set through an environment variable, a daemon start parameter, or chosen through
-		// initialization of the layerstore through driver priority order for example.
-		if drv := os.Getenv("DOCKER_DRIVER"); drv != "" {
-			d.graphDriver = drv
-			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", drv)
-		} else {
-			d.graphDriver = config.GraphDriver // May still be empty. Layerstore init determines instead.
-		}
-	}
-
 	d.registryService = registryService
 	logger.RegisterPluginGetter(d.PluginStore)
 
@@ -920,13 +907,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 			rt = *rtPtr
 		}
-		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, config.ContainerdPluginNamespace, m, rt)
+		return pluginexec.New(ctx, getPluginExecRoot(config), pluginCli, config.ContainerdPluginNamespace, m, rt)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
 		Root:               filepath.Join(config.Root, "plugins"),
-		ExecRoot:           getPluginExecRoot(config.Root),
+		ExecRoot:           getPluginExecRoot(config),
 		Store:              d.PluginStore,
 		CreateExecutor:     createPluginExec,
 		RegistryService:    registryService,
@@ -942,30 +929,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
-		Root:                      config.Root,
-		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
-		GraphDriver:               d.graphDriver,
-		GraphDriverOptions:        config.GraphOptions,
-		IDMapping:                 idMapping,
-		PluginGetter:              d.PluginStore,
-		ExperimentalEnabled:       config.Experimental,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// As layerstore initialization may set the driver
-	d.graphDriver = layerStore.DriverName()
-
-	// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
-	// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-	if err := configureKernelSecuritySupport(config, d.graphDriver); err != nil {
-		return nil, err
-	}
-
-	imageRoot := filepath.Join(config.Root, "image", d.graphDriver)
-
 	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
 		return nil, err
@@ -978,23 +941,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		logrus.WithError(err).Warnf("unable to migrate engine ID; a new engine ID will be generated")
 	}
-
-	// We have a single tag/reference store for the daemon globally. However, it's
-	// stored under the graphdriver. On host platforms which only support a single
-	// container OS, but multiple selectable graphdrivers, this means depending on which
-	// graphdriver is chosen, the global reference store is under there. For
-	// platforms which support multiple container operating systems, this is slightly
-	// more problematic as where does the global ref store get located? Fortunately,
-	// for Windows, which is currently the only daemon supporting multiple container
-	// operating systems, the list of graphdrivers available isn't user configurable.
-	// For backwards compatibility, we just put it under the windowsfilter
-	// directory regardless.
-	refStoreLocation := filepath.Join(imageRoot, `repositories.json`)
-	rs, err := refstore.NewReferenceStore(refStoreLocation)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
-	}
-	d.ReferenceStore = rs
 
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
@@ -1017,7 +963,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if d.containersReplica, err = container.NewViewDB(); err != nil {
 		return nil, err
 	}
-	d.execCommands = exec.NewStore()
+	d.execCommands = container.NewExecStore()
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()
@@ -1026,13 +972,78 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	d.linkIndex = newLinkIndex()
 
-	if d.UsesSnapshotter() {
-		d.imageService = ctrd.NewService(d.containerdCli)
+	// On Windows we don't support the environment variable, or a user supplied graphdriver
+	// Unix platforms however run a single graphdriver for all containers, and it can
+	// be set through an environment variable, a daemon start parameter, or chosen through
+	// initialization of the layerstore through driver priority order for example.
+	driverName := os.Getenv("DOCKER_DRIVER")
+	if isWindows {
+		driverName = "windowsfilter"
+	} else if driverName != "" {
+		logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 	} else {
+		driverName = config.GraphDriver
+	}
+
+	if d.UsesSnapshotter() {
+		if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
+			logrus.Warn("Enabling containerd snapshotter through the $TEST_INTEGRATION_USE_SNAPSHOTTER environment variable. This should only be used for testing.")
+		}
+		logrus.Info("Starting daemon with containerd snapshotter integration enabled")
+
+		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
+		if driverName == "" {
+			driverName = containerd.DefaultSnapshotter
+		}
+
+		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
+		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
+		if err := configureKernelSecuritySupport(config, driverName); err != nil {
+			return nil, err
+		}
+		d.imageService = ctrd.NewService(d.containerdCli, driverName)
+	} else {
+		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
+			Root:                      config.Root,
+			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
+			GraphDriver:               driverName,
+			GraphDriverOptions:        config.GraphOptions,
+			IDMapping:                 idMapping,
+			PluginGetter:              d.PluginStore,
+			ExperimentalEnabled:       config.Experimental,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
+		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
+		if err := configureKernelSecuritySupport(config, layerStore.DriverName()); err != nil {
+			return nil, err
+		}
+
+		imageRoot := filepath.Join(config.Root, "image", layerStore.DriverName())
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
 			return nil, err
 		}
+
+		// We have a single tag/reference store for the daemon globally. However, it's
+		// stored under the graphdriver. On host platforms which only support a single
+		// container OS, but multiple selectable graphdrivers, this means depending on which
+		// graphdriver is chosen, the global reference store is under there. For
+		// platforms which support multiple container operating systems, this is slightly
+		// more problematic as where does the global ref store get located? Fortunately,
+		// for Windows, which is currently the only daemon supporting multiple container
+		// operating systems, the list of graphdrivers available isn't user configurable.
+		// For backwards compatibility, we just put it under the windowsfilter
+		// directory regardless.
+		refStoreLocation := filepath.Join(imageRoot, `repositories.json`)
+		rs, err := refstore.NewReferenceStore(refStoreLocation)
+		if err != nil {
+			return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
+		}
+		d.ReferenceStore = rs
 
 		imageStore, err := image.NewImageStore(ifs, layerStore)
 		if err != nil {
@@ -1078,7 +1089,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			imgSvcConfig.Leases = d.containerdCli.LeasesService()
 			imgSvcConfig.ContentStore = d.containerdCli.ContentStore()
 		} else {
-			cs, lm, err := d.configureLocalContentStore()
+			cs, lm, err := d.configureLocalContentStore(config.ContainerdNamespace)
 			if err != nil {
 				return nil, err
 			}
@@ -1129,7 +1140,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	logrus.WithFields(logrus.Fields{
 		"version":     dockerversion.Version,
 		"commit":      dockerversion.GitCommit,
-		"graphdriver": d.graphDriver,
+		"graphdriver": d.ImageService().StorageDriver(),
 	}).Info("Docker daemon")
 
 	return d, nil
@@ -1271,14 +1282,14 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 	}
 	logrus.WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
 
-	if container.BaseFS != nil && container.BaseFS.Path() != dir.Path() {
+	if container.BaseFS != "" && container.BaseFS != dir {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.
 		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
-			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.imageService.GraphDriverName(), container.ID, container.BaseFS, dir)
+			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+				container.Driver, container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields
@@ -1375,7 +1386,6 @@ func (daemon *Daemon) networkOptions(pg plugingetter.PluginGetter, activeSandbox
 	dd := runconfig.DefaultDaemonNetworkMode()
 
 	options = []nwconfig.Option{
-		nwconfig.OptionExperimental(conf.Experimental),
 		nwconfig.OptionDataDir(conf.Root),
 		nwconfig.OptionExecRoot(conf.GetExecRoot()),
 		nwconfig.OptionDefaultDriver(string(dd)),

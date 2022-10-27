@@ -186,7 +186,7 @@ func (aSpace *addrSpace) UnmarshalJSON(data []byte) error {
 
 	aSpace.scope = datastore.LocalScope
 	s := m["Scope"].(string)
-	if s == string(datastore.GlobalScope) {
+	if s == datastore.GlobalScope {
 		aSpace.scope = datastore.GlobalScope
 	}
 

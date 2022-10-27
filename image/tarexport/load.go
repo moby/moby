@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
+	"github.com/moby/sys/sequential"
 	"github.com/moby/sys/symlink"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
@@ -168,9 +169,9 @@ func (l *tarexporter) setParentID(id, parentID image.ID) error {
 }
 
 func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
-	// We use system.OpenSequential to use sequential file access on Windows, avoiding
-	// depleting the standby list. On Linux, this equates to a regular os.Open.
-	rawTar, err := system.OpenSequential(filename)
+	// We use sequential file access to avoid depleting the standby list on Windows.
+	// On Linux, this equates to a regular os.Open.
+	rawTar, err := sequential.Open(filename)
 	if err != nil {
 		logrus.Debugf("Error reading embedded tar: %v", err)
 		return nil, err

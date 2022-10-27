@@ -222,7 +222,6 @@ func configReferencesToGRPC(sr []*types.ConfigReference) ([]*swarmapi.ConfigRefe
 func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigReference {
 	refs := make([]*types.ConfigReference, 0, len(sr))
 	for _, s := range sr {
-
 		r := &types.ConfigReference{
 			ConfigID:   s.ConfigID,
 			ConfigName: s.ConfigName,

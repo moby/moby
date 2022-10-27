@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd/plugin"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
@@ -68,6 +69,10 @@ func UnixCli() bool {
 	return isUnixCli
 }
 
+func GitHubActions() bool {
+	return os.Getenv("GITHUB_ACTIONS") != ""
+}
+
 func Network() bool {
 	// Set a timeout on the GET at 15s
 	const timeout = 15 * time.Second
@@ -97,6 +102,17 @@ func Apparmor() bool {
 
 func Devicemapper() bool {
 	return strings.HasPrefix(testEnv.DaemonInfo.Driver, "devicemapper")
+}
+
+// containerdSnapshotterEnabled checks if the daemon in the test-environment is
+// configured with containerd-snapshotters enabled.
+func containerdSnapshotterEnabled() bool {
+	for _, v := range testEnv.DaemonInfo.DriverStatus {
+		if v[0] == "driver-type" {
+			return v[1] == string(plugin.SnapshotPlugin)
+		}
+	}
+	return false
 }
 
 func IPv6() bool {

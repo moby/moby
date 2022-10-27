@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
+	"github.com/imdario/mergo"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -69,7 +70,8 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
 	defer file.Remove()
 
-	conf := New()
+	conf, err := New()
+	assert.NilError(t, err)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.BoolVarP(&conf.Debug, "debug", "D", false, "")
@@ -111,7 +113,8 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 	file := fs.NewFile(t, "docker-config", fs.WithContent(data))
 	defer file.Remove()
 
-	c := &Config{}
+	c, err := New()
+	assert.NilError(t, err)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	shmSize := opts.MemBytes(DefaultShmSize)
@@ -139,23 +142,14 @@ func TestUnixValidateConfigurationErrors(t *testing.T) {
 			},
 			expectedErr: `runtime name 'runc' is reserved`,
 		},
-		{
-			doc: `default runtime should be present in runtimes`,
-			config: &Config{
-				Runtimes: map[string]types.Runtime{
-					"foo": {},
-				},
-				CommonConfig: CommonConfig{
-					DefaultRuntime: "bar",
-				},
-			},
-			expectedErr: `specified default runtime 'bar' does not exist`,
-		},
 	}
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			err := Validate(tc.config)
+			cfg, err := New()
+			assert.NilError(t, err)
+			assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
+			err = Validate(cfg)
 			assert.ErrorContains(t, err, tc.expectedErr)
 		})
 	}

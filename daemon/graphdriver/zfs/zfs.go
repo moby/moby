@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
@@ -232,7 +231,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 }
 
 func (d *Driver) cloneFilesystem(name, parentName string) error {
-	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
+	snapshotName := strconv.Itoa(time.Now().Nanosecond())
 	parentDataset := zfs.Dataset{Name: parentName}
 	snapshot, err := parentDataset.Snapshot(snapshotName /*recursive */, false)
 	if err != nil {
@@ -363,12 +362,12 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get returns the mountpoint for the given id after creating the target directories if necessary.
-func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
+func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	mountpoint := d.mountPath(id)
 	if count := d.ctr.Increment(mountpoint); count > 1 {
-		return containerfs.NewLocalContainerFS(mountpoint), nil
+		return mountpoint, nil
 	}
 	defer func() {
 		if retErr != nil {
@@ -379,7 +378,6 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 				if rmErr := unix.Rmdir(mountpoint); rmErr != nil && !os.IsNotExist(rmErr) {
 					logrus.WithField("storage-driver", "zfs").Debugf("Failed to remove %s: %v", id, rmErr)
 				}
-
 			}
 		}
 	}()
@@ -391,20 +389,20 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	root := d.idMap.RootPair()
 	// Create the target directories if they don't exist
 	if err := idtools.MkdirAllAndChown(mountpoint, 0755, root); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if err := mount.Mount(filesystem, mountpoint, "zfs", options); err != nil {
-		return nil, errors.Wrap(err, "error creating zfs mount")
+		return "", errors.Wrap(err, "error creating zfs mount")
 	}
 
 	// this could be our first mount after creation of the filesystem, and the root dir may still have root
 	// permissions instead of the remapped root uid:gid (if user namespaces are enabled):
 	if err := root.Chown(mountpoint); err != nil {
-		return nil, fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
+		return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
 	}
 
-	return containerfs.NewLocalContainerFS(mountpoint), nil
+	return mountpoint, nil
 }
 
 // Put removes the existing mountpoint for the given id if it exists.

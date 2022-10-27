@@ -120,7 +120,6 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 				NetworkID: v.NetworkID,
 				Addr:      v.Addr})
 		}
-
 	}
 
 	return endpoint

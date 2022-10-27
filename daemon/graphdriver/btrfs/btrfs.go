@@ -51,7 +51,6 @@ type btrfsOptions struct {
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
 func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdriver.Driver, error) {
-
 	// Perform feature detection on /var/lib/docker/btrfs if it's an existing directory.
 	// This covers situations where /var/lib/docker/btrfs is a mount, and on a different
 	// filesystem than /var/lib/docker.
@@ -157,7 +156,7 @@ func (d *Driver) Status() [][2]string {
 		status = append(status, [2]string{"Build Version", bv})
 	}
 	if lv := btrfsLibVersion(); lv != -1 {
-		status = append(status, [2]string{"Library Version", fmt.Sprintf("%d", lv)})
+		status = append(status, [2]string{"Library Version", strconv.Itoa(lv)})
 	}
 	return status
 }
@@ -270,7 +269,7 @@ func subvolDelete(dirpath, name string, quotaEnabled bool) error {
 	var args C.struct_btrfs_ioctl_vol_args
 
 	// walk the btrfs subvolumes
-	walkSubvolumes := func(p string, f os.FileInfo, err error) error {
+	walkSubVolumes := func(p string, f os.DirEntry, err error) error {
 		if err != nil {
 			if os.IsNotExist(err) && p != fullPath {
 				// missing most likely because the path was a subvolume that got removed in the previous iteration
@@ -294,7 +293,7 @@ func subvolDelete(dirpath, name string, quotaEnabled bool) error {
 		}
 		return nil
 	}
-	if err := filepath.Walk(path.Join(dirpath, name), walkSubvolumes); err != nil {
+	if err := filepath.WalkDir(path.Join(dirpath, name), walkSubVolumes); err != nil {
 		return fmt.Errorf("Recursively walking subvolumes for %s failed: %v", dirpath, err)
 	}
 
@@ -627,29 +626,29 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get the requested filesystem id.
-func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
+func (d *Driver) Get(id, mountLabel string) (string, error) {
 	dir := d.subvolumesDirID(id)
 	st, err := os.Stat(dir)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if !st.IsDir() {
-		return nil, fmt.Errorf("%s: not a directory", dir)
+		return "", fmt.Errorf("%s: not a directory", dir)
 	}
 
 	if quota, err := os.ReadFile(d.quotasDirID(id)); err == nil {
 		if size, err := strconv.ParseUint(string(quota), 10, 64); err == nil && size >= d.options.minSpace {
 			if err := d.enableQuota(); err != nil {
-				return nil, err
+				return "", err
 			}
 			if err := subvolLimitQgroup(dir, size); err != nil {
-				return nil, err
+				return "", err
 			}
 		}
 	}
 
-	return containerfs.NewLocalContainerFS(dir), nil
+	return dir, nil
 }
 
 // Put is not implemented for BTRFS as there is no cleanup required for the id.

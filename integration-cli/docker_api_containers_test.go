@@ -545,7 +545,6 @@ func (s *DockerAPISuite) TestContainerAPICreate(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPICreateEmptyConfig(c *testing.T) {
-
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer cli.Close()
@@ -1070,7 +1069,6 @@ func (s *DockerAPISuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Regexp("^Path cannot be empty\n$", string(b)))
-
 }
 
 func (s *DockerAPISuite) TestContainerAPICopyResourcePathNotFoundPre124(c *testing.T) {
@@ -1092,7 +1090,6 @@ func (s *DockerAPISuite) TestContainerAPICopyResourcePathNotFoundPre124(c *testi
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
 	assert.Assert(c, is.Regexp("^Could not find the file /notexist in container "+name+"\n$", string(b)))
-
 }
 
 func (s *DockerAPISuite) TestContainerAPICopyContainerNotFoundPr124(c *testing.T) {
@@ -1230,7 +1227,6 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 
 // Regression test for https://github.com/docker/docker/issues/6231
 func (s *DockerAPISuite) TestContainerAPIChunkedEncoding(c *testing.T) {
-
 	config := map[string]interface{}{
 		"Image":     "busybox",
 		"Cmd":       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
@@ -1920,7 +1916,6 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				msg: "Source must not be specified",
 			},
 		}...)
-
 	}
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -2148,7 +2143,6 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			assert.NilError(c, err)
 
 			switch {
-
 			// Named volumes still exist after the container is removed
 			case x.spec.Type == "volume" && len(x.spec.Source) > 0:
 				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)

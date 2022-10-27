@@ -1,6 +1,5 @@
 linters:
   enable:
-    - deadcode
     - depguard
     - goimports
     - gosec
@@ -10,11 +9,9 @@ linters:
     - misspell
     - revive
     - staticcheck
-    - structcheck
     - typecheck
     - unconvert
     - unused
-    - varcheck
 
   disable:
     - errcheck
@@ -36,6 +33,11 @@ linters-settings:
       # The io/ioutil package has been deprecated.
       # https://go.dev/doc/go1.16#ioutil
       - io/ioutil
+  revive:
+    rules:
+      # FIXME make sure all packages have a description. Currently, there's many packages without.
+      - name: package-comments
+        disabled: true
 issues:
   # The default exclusion rules are a bit too permissive, so copying the relevant ones below
   exclude-use-default: false
@@ -111,19 +113,6 @@ issues:
     - text: "SA1019: httputil.ErrPersistEOF"
       linters:
         - staticcheck
-    # This code is doing some fun stuff with reflect and it trips up the linter.
-    - text: "field `foo` is unused"
-      path: "libnetwork/options/options_test.go"
-      linters:
-        - structcheck
-        - unused
-    # This field is only used on windows but is defined in a platform agnostic file.
-    # The linter doesn't understand that the field is used.
-    - text: "`resolverOnce` is unused"
-      path: libnetwork/network.go
-      linters:
-        - structcheck
-        - unused
 
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0

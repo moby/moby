@@ -61,7 +61,6 @@ func (s *DockerCLICreateSuite) TestCreateArgs(c *testing.T) {
 	if len(cont.Args) != len(expected) || b {
 		c.Fatalf("Unexpected args. Expected %v, received: %v", expected, cont.Args)
 	}
-
 }
 
 // Make sure we can grow the container's rootfs at creation time.
@@ -135,9 +134,7 @@ func (s *DockerCLICreateSuite) TestCreateWithPortRange(c *testing.T) {
 	for k, v := range cont.HostConfig.PortBindings {
 		assert.Equal(c, len(v), 1, fmt.Sprintf("Expected 1 ports binding, for the port  %s but found %s", k, v))
 		assert.Equal(c, k.Port(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
-
 	}
-
 }
 
 func (s *DockerCLICreateSuite) TestCreateWithLargePortRange(c *testing.T) {
@@ -165,7 +162,6 @@ func (s *DockerCLICreateSuite) TestCreateWithLargePortRange(c *testing.T) {
 		assert.Equal(c, len(v), 1)
 		assert.Equal(c, k.Port(), v[0].HostPort, fmt.Sprintf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 	}
-
 }
 
 // "test123" should be printed by docker create + start
@@ -194,7 +190,6 @@ func (s *DockerCLICreateSuite) TestCreateVolumesCreated(c *testing.T) {
 	if err != nil {
 		c.Fatalf("Error statting volume host path: %q", err)
 	}
-
 }
 
 func (s *DockerCLICreateSuite) TestCreateLabels(c *testing.T) {

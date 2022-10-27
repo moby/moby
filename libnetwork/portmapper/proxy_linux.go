@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
@@ -37,16 +38,18 @@ func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 			Path: path,
 			Args: args,
 			SysProcAttr: &syscall.SysProcAttr{
-				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the daemon process dies
+				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the creating thread in the daemon process dies (https://go.dev/issue/27505)
 			},
 		},
+		wait: make(chan error, 1),
 	}, nil
 }
 
 // proxyCommand wraps an exec.Cmd to run the userland TCP and UDP
 // proxies as separate processes.
 type proxyCommand struct {
-	cmd *exec.Cmd
+	cmd  *exec.Cmd
+	wait chan error
 }
 
 func (p *proxyCommand) Start() error {
@@ -56,7 +59,29 @@ func (p *proxyCommand) Start() error {
 	}
 	defer r.Close()
 	p.cmd.ExtraFiles = []*os.File{w}
-	if err := p.cmd.Start(); err != nil {
+
+	// As p.cmd.SysProcAttr.Pdeathsig is set, the signal will be sent to the
+	// process when the OS thread on which p.cmd.Start() was executed dies.
+	// If the thread is allowed to be released back into the goroutine
+	// thread pool, the thread could get terminated at any time if a
+	// goroutine gets scheduled onto it which calls runtime.LockOSThread()
+	// and exits without a matching number of runtime.UnlockOSThread()
+	// calls. Ensure that the thread from which Start() is called stays
+	// alive until the proxy or the daemon process exits to prevent the
+	// proxy from getting terminated early. See https://go.dev/issue/27505
+	// for more details.
+	started := make(chan error)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		err := p.cmd.Start()
+		started <- err
+		if err != nil {
+			return
+		}
+		p.wait <- p.cmd.Wait()
+	}()
+	if err := <-started; err != nil {
 		return err
 	}
 	w.Close()
@@ -92,7 +117,7 @@ func (p *proxyCommand) Stop() error {
 		if err := p.cmd.Process.Signal(os.Interrupt); err != nil {
 			return err
 		}
-		return p.cmd.Wait()
+		return <-p.wait
 	}
 	return nil
 }

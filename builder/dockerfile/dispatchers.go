@@ -64,7 +64,6 @@ func dispatchEnv(d dispatchRequest, c *instructions.EnvCommand) error {
 //
 // Sets the maintainer metadata.
 func dispatchMaintainer(d dispatchRequest, c *instructions.MaintainerCommand) error {
-
 	d.state.maintainer = c.Maintainer
 	return d.builder.commit(d.state, "MAINTAINER "+c.Maintainer)
 }
@@ -557,7 +556,6 @@ func dispatchVolume(d dispatchRequest, c *instructions.VolumeCommand) error {
 //
 // Set the signal that will be used to kill the container.
 func dispatchStopSignal(d dispatchRequest, c *instructions.StopSignalCommand) error {
-
 	_, err := signal.ParseSignal(c.Signal)
 	if err != nil {
 		return errdefs.InvalidParameter(err)

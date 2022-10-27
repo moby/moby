@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"runtime"
@@ -10,13 +11,13 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	imagetypes "github.com/docker/docker/api/types/image"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -34,17 +35,16 @@ type createOpts struct {
 // CreateManagedContainer creates a container that is managed by a Service
 func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(createOpts{
-		params:                  params,
-		managed:                 true,
-		ignoreImagesArgsEscaped: false})
+		params:  params,
+		managed: true,
+	})
 }
 
 // ContainerCreate creates a regular container
 func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(createOpts{
-		params:                  params,
-		managed:                 false,
-		ignoreImagesArgsEscaped: false})
+		params: params,
+	})
 }
 
 // ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
@@ -52,11 +52,12 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (conta
 func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(params types.ContainerCreateConfig) (containertypes.CreateResponse, error) {
 	return daemon.containerCreate(createOpts{
 		params:                  params,
-		managed:                 false,
-		ignoreImagesArgsEscaped: true})
+		ignoreImagesArgsEscaped: true,
+	})
 }
 
 func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateResponse, error) {
+	ctx := context.TODO()
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
@@ -68,7 +69,11 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 	}
 
 	if opts.params.Platform == nil && opts.params.Config.Image != "" {
-		if img, _ := daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform); img != nil {
+		img, err := daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
+		if err != nil {
+			return containertypes.CreateResponse{}, err
+		}
+		if img != nil {
 			p := maximumSpec()
 			imgPlat := v1.Platform{
 				OS:           img.OS,
@@ -110,6 +115,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.CreateRes
 
 // Create creates a new container from the given configuration with a given name.
 func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
+	ctx := context.TODO()
 	var (
 		ctr   *container.Container
 		img   *image.Image
@@ -119,14 +125,11 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	)
 
 	if opts.params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
+		img, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image, imagetypes.GetImageOpts{Platform: opts.params.Platform})
 		if err != nil {
 			return nil, err
 		}
 		os = img.OperatingSystem()
-		if !system.IsOSSupported(os) {
-			return nil, system.ErrNotSupportedOperatingSystem
-		}
 		imgID = img.ID()
 	} else if isWindows {
 		os = "linux" // 'scratch' case.

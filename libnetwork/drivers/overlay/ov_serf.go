@@ -179,9 +179,7 @@ func (d *driver) resolvePeer(nid string, peerIP net.IP) (net.HardwareAddr, net.I
 	}
 }
 
-func (d *driver) startSerfLoop(eventCh chan serf.Event, notifyCh chan ovNotify,
-	exitCh chan chan struct{}) {
-
+func (d *driver) startSerfLoop(eventCh chan serf.Event, notifyCh chan ovNotify, exitCh chan chan struct{}) {
 	for {
 		select {
 		case notify, ok := <-notifyCh:

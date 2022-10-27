@@ -777,6 +777,28 @@ func DefaultProfile() *Seccomp {
 				Caps: []string{"CAP_SYSLOG"},
 			},
 		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names: []string{
+					"bpf",
+				},
+				Action: specs.ActAllow,
+			},
+			Includes: &Filter{
+				Caps: []string{"CAP_BPF"},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names: []string{
+					"perf_event_open",
+				},
+				Action: specs.ActAllow,
+			},
+			Includes: &Filter{
+				Caps: []string{"CAP_PERFMON"},
+			},
+		},
 	}
 
 	errnoRet := uint(unix.EPERM)

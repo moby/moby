@@ -26,13 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	// ErrRootFSReadOnly is returned when a container
-	// rootfs is marked readonly.
-	ErrRootFSReadOnly = errors.New("container rootfs is marked read-only")
-	getPortMapInfo    = getSandboxPortMapInfo
-)
-
 func (daemon *Daemon) getDNSSearchSettings(container *container.Container) []string {
 	if len(container.HostConfig.DNSSearch) > 0 {
 		return container.HostConfig.DNSSearch
@@ -465,7 +458,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 
 	networkName := mode.NetworkName()
 	if mode.IsDefault() {
-		networkName = daemon.netController.Config().Daemon.DefaultNetwork
+		networkName = daemon.netController.Config().DefaultNetwork
 	}
 
 	if mode.IsUserDefined() {
@@ -562,7 +555,6 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 		if err := daemon.connectToNetwork(container, defaultNetName, nConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}
-
 	}
 
 	// the intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
@@ -601,7 +593,6 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 				}
 			}()
 		}
-
 	}
 
 	if _, err := container.WriteHostConfig(); err != nil {

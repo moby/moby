@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -200,18 +201,34 @@ func (r *remote) startContainerd() error {
 			cmd.Env = append(cmd.Env, e)
 		}
 	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
 
-	r.daemonWaitCh = make(chan struct{})
+	startedCh := make(chan error)
 	go func() {
+		// On Linux, when cmd.SysProcAttr.Pdeathsig is set,
+		// the signal is sent to the subprocess when the creating thread
+		// terminates. The runtime terminates a thread if a goroutine
+		// exits while locked to it. Prevent the containerd process
+		// from getting killed prematurely by ensuring that the thread
+		// used to start it remains alive until it or the daemon process
+		// exits. See https://go.dev/issue/27505 for more details.
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		err := cmd.Start()
+		startedCh <- err
+		if err != nil {
+			return
+		}
+
+		r.daemonWaitCh = make(chan struct{})
 		// Reap our child when needed
 		if err := cmd.Wait(); err != nil {
 			r.logger.WithError(err).Errorf("containerd did not exit successfully")
 		}
 		close(r.daemonWaitCh)
 	}()
+	if err := <-startedCh; err != nil {
+		return err
+	}
 
 	r.daemonPid = cmd.Process.Pid
 

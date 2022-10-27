@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/container"
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
@@ -14,24 +15,21 @@ import (
 // the absolute path to the resource relative to the container's rootfs, and
 // an error if the path points to outside the container's rootfs.
 func (container *Container) ResolvePath(path string) (resolvedPath, absPath string, err error) {
-	if container.BaseFS == nil {
-		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	if container.BaseFS == "" {
+		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
 	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
-	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path, container.BaseFS)
+	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Consider the given path as an absolute path in the container.
-	absPath = archive.PreserveTrailingDotOrSeparator(
-		container.BaseFS.Join(string(container.BaseFS.Separator()), path),
-		path,
-		container.BaseFS.Separator())
+	absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(filepath.Separator), path), path)
 
 	// Split the absPath into its Directory and Base components. We will
 	// resolve the dir in the scope of the container then append the base.
-	dirPath, basePath := container.BaseFS.Split(absPath)
+	dirPath, basePath := filepath.Split(absPath)
 
 	resolvedDirPath, err := container.GetResourcePath(dirPath)
 	if err != nil {
@@ -40,7 +38,7 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 
 	// resolvedDirPath will have been cleaned (no trailing path separators) so
 	// we can manually join it with the base path element.
-	resolvedPath = resolvedDirPath + string(container.BaseFS.Separator()) + basePath
+	resolvedPath = resolvedDirPath + string(filepath.Separator) + basePath
 	return resolvedPath, absPath, nil
 }
 
@@ -49,12 +47,11 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 // resolved to a path on the host corresponding to the given absolute path
 // inside the container.
 func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.ContainerPathStat, err error) {
-	if container.BaseFS == nil {
-		return nil, errors.New("StatPath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	if container.BaseFS == "" {
+		return nil, errors.New("StatPath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
-	driver := container.BaseFS
 
-	lstat, err := driver.Lstat(resolvedPath)
+	lstat, err := os.Lstat(resolvedPath)
 	if err != nil {
 		return nil, err
 	}
@@ -67,17 +64,17 @@ func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.
 			return nil, err
 		}
 
-		linkTarget, err = driver.Rel(driver.Path(), hostPath)
+		linkTarget, err = filepath.Rel(container.BaseFS, hostPath)
 		if err != nil {
 			return nil, err
 		}
 
 		// Make it an absolute path.
-		linkTarget = driver.Join(string(driver.Separator()), linkTarget)
+		linkTarget = filepath.Join(string(filepath.Separator), linkTarget)
 	}
 
 	return &types.ContainerPathStat{
-		Name:       driver.Base(absPath),
+		Name:       filepath.Base(absPath),
 		Size:       lstat.Size(),
 		Mode:       lstat.Mode(),
 		Mtime:      lstat.ModTime(),

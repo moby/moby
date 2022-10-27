@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -19,6 +20,9 @@ func (daemon *Daemon) ContainerChanges(name string) ([]archive.Change, error) {
 		return nil, errors.New("Windows does not support diff of a running container")
 	}
 
+	if daemon.UsesSnapshotter() {
+		return nil, errdefs.NotImplemented(errors.New("not implemented"))
+	}
 	container.Lock()
 	defer container.Unlock()
 	if container.RWLayer == nil {

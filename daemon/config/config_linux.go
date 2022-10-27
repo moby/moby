@@ -3,11 +3,17 @@ package config // import "github.com/docker/docker/daemon/config"
 import (
 	"fmt"
 	"net"
+	"os/exec"
+	"path/filepath"
 
+	"github.com/containerd/cgroups"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/rootless"
 	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -160,4 +166,48 @@ func (conf *Config) ValidatePlatformConfig() error {
 // IsRootless returns conf.Rootless on Linux but false on Windows
 func (conf *Config) IsRootless() bool {
 	return conf.Rootless
+}
+
+func setPlatformDefaults(cfg *Config) error {
+	cfg.Ulimits = make(map[string]*units.Ulimit)
+	cfg.ShmSize = opts.MemBytes(DefaultShmSize)
+	cfg.SeccompProfile = SeccompProfileDefault
+	cfg.IpcMode = string(DefaultIpcMode)
+	cfg.Runtimes = make(map[string]types.Runtime)
+
+	if cgroups.Mode() != cgroups.Unified {
+		cfg.CgroupNamespaceMode = string(DefaultCgroupV1NamespaceMode)
+	} else {
+		cfg.CgroupNamespaceMode = string(DefaultCgroupNamespaceMode)
+	}
+
+	if rootless.RunningWithRootlessKit() {
+		cfg.Rootless = true
+
+		var err error
+		// use rootlesskit-docker-proxy for exposing the ports in RootlessKit netns to the initial namespace.
+		cfg.BridgeConfig.UserlandProxyPath, err = exec.LookPath(rootless.RootlessKitDockerProxyBinary)
+		if err != nil {
+			return errors.Wrapf(err, "running with RootlessKit, but %s not installed", rootless.RootlessKitDockerProxyBinary)
+		}
+
+		dataHome, err := homedir.GetDataHome()
+		if err != nil {
+			return err
+		}
+		runtimeDir, err := homedir.GetRuntimeDir()
+		if err != nil {
+			return err
+		}
+
+		cfg.Root = filepath.Join(dataHome, "docker")
+		cfg.ExecRoot = filepath.Join(runtimeDir, "docker")
+		cfg.Pidfile = filepath.Join(runtimeDir, "docker.pid")
+	} else {
+		cfg.Root = "/var/lib/docker"
+		cfg.ExecRoot = "/var/run/docker"
+		cfg.Pidfile = "/var/run/docker.pid"
+	}
+
+	return nil
 }

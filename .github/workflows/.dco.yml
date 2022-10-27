@@ -1,0 +1,48 @@
+# reusable workflow
+name: .dco
+
+# TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
+
+on:
+  workflow_call:
+
+env:
+  ALPINE_VERSION: 3.16
+
+jobs:
+  run:
+    runs-on: ubuntu-20.04
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      -
+        name: Dump context
+        uses: actions/github-script@v6
+        with:
+          script: |
+            console.log(JSON.stringify(context, null, 2));
+      -
+        name: Get base ref
+        id: base-ref
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            if (/^refs\/pull\//.test(context.ref) && context.payload?.pull_request?.base?.ref != undefined) {
+              return context.payload.pull_request.base.ref;
+            }
+            return context.ref.replace(/^refs\/heads\//g, '');
+      -
+        name: Validate
+        run: |
+          docker run --rm \
+            -v "$(pwd):/workspace" \
+            -e VALIDATE_REPO \
+            -e VALIDATE_BRANCH \
+            alpine:${{ env.ALPINE_VERSION }} sh -c 'apk add --no-cache -q bash git openssh-client && git config --system --add safe.directory /workspace && cd /workspace && hack/validate/dco'
+        env:
+          VALIDATE_REPO: ${{ github.server_url }}/${{ github.repository }}.git
+          VALIDATE_BRANCH: ${{ steps.base-ref.outputs.result }}

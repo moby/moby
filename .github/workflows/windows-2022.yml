@@ -1,0 +1,25 @@
+name: windows-2022
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+  pull_request:
+
+jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
+  run:
+    needs:
+      - validate-dco
+    uses: ./.github/workflows/.windows.yml
+    with:
+      os: windows-2022
+      send_coverage: true

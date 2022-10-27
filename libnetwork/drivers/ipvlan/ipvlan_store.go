@@ -154,6 +154,7 @@ func (config *configuration) MarshalJSON() ([]byte, error) {
 	nMap["Mtu"] = config.Mtu
 	nMap["Parent"] = config.Parent
 	nMap["IpvlanMode"] = config.IpvlanMode
+	nMap["IpvlanFlag"] = config.IpvlanFlag
 	nMap["Internal"] = config.Internal
 	nMap["CreatedSubIface"] = config.CreatedSlaveLink
 	if len(config.Ipv4Subnets) > 0 {
@@ -187,6 +188,7 @@ func (config *configuration) UnmarshalJSON(b []byte) error {
 	config.Mtu = int(nMap["Mtu"].(float64))
 	config.Parent = nMap["Parent"].(string)
 	config.IpvlanMode = nMap["IpvlanMode"].(string)
+	config.IpvlanFlag = nMap["IpvlanFlag"].(string)
 	config.Internal = nMap["Internal"].(bool)
 	config.CreatedSlaveLink = nMap["CreatedSubIface"].(bool)
 	if v, ok := nMap["Ipv4Subnets"]; ok {

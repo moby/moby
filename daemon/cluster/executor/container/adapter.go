@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
@@ -75,7 +76,10 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.imageBackend.GetImage(spec.Image, nil)
+			_, err := c.imageBackend.GetImage(ctx, spec.Image, imagetypes.GetImageOpts{})
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
 			if err == nil {
 				return nil
 			}
@@ -456,7 +460,6 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 			// It returns an error if the driver name is different - that is a valid error
 			return err
 		}
-
 	}
 
 	return nil

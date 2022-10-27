@@ -308,7 +308,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceWithGroup(c *testing.T) {
 
 	out, err = d.Cmd("exec", container, "id")
 	assert.NilError(c, err, out)
-	assert.Equal(c, strings.TrimSpace(out), "uid=0(root) gid=0(root) groups=10(wheel),29(audio),50(staff),777")
+	assert.Equal(c, strings.TrimSpace(out), "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777")
 }
 
 func (s *DockerSwarmSuite) TestSwarmContainerAutoStart(c *testing.T) {
@@ -615,7 +615,6 @@ const globalNetworkPlugin = "global-network-plugin"
 const globalIPAMPlugin = "global-ipam-plugin"
 
 func setupRemoteGlobalNetworkPlugin(c *testing.T, mux *http.ServeMux, url, netDrv, ipamDrv string) {
-
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintf(w, `{"Implements": ["%s", "%s"]}`, driverapi.NetworkPluginEndpointType, ipamapi.PluginEndpointType)
@@ -923,7 +922,6 @@ func (s *DockerSwarmSuite) TestSwarmServiceNetworkUpdate(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskNetworks, checker.DeepEquals(map[string]int{barNetwork: 1, bazNetwork: 1})), poll.WithTimeout(defaultReconciliationTimeout))
-
 }
 
 func (s *DockerSwarmSuite) TestDNSConfig(c *testing.T) {

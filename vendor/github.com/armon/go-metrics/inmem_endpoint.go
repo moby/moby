@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -41,6 +42,16 @@ type SampledValue struct {
 	DisplayLabels map[string]string `json:"Labels"`
 }
 
+// deepCopy allocates a new instance of AggregateSample
+func (source *SampledValue) deepCopy() SampledValue {
+	dest := *source
+	if source.AggregateSample != nil {
+		dest.AggregateSample = &AggregateSample{}
+		*dest.AggregateSample = *source.AggregateSample
+	}
+	return dest
+}
+
 // DisplayMetrics returns a summary of the metrics from the most recent finished interval.
 func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	data := i.Data()
@@ -52,11 +63,18 @@ func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) 
 		return nil, fmt.Errorf("no metric intervals have been initialized yet")
 	case n == 1:
 		// Show the current interval if it's all we have
-		interval = i.intervals[0]
+		interval = data[0]
 	default:
 		// Show the most recent finished interval if we have one
-		interval = i.intervals[n-2]
+		interval = data[n-2]
 	}
+
+	return newMetricSummaryFromInterval(interval), nil
+}
+
+func newMetricSummaryFromInterval(interval *IntervalMetrics) MetricsSummary {
+	interval.RLock()
+	defer interval.RUnlock()
 
 	summary := MetricsSummary{
 		Timestamp: interval.Interval.Round(time.Second).UTC().String(),
@@ -90,7 +108,7 @@ func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) 
 	summary.Counters = formatSamples(interval.Counters)
 	summary.Samples = formatSamples(interval.Samples)
 
-	return summary, nil
+	return summary
 }
 
 func formatSamples(source map[string]SampledValue) []SampledValue {
@@ -115,4 +133,30 @@ func formatSamples(source map[string]SampledValue) []SampledValue {
 	})
 
 	return output
+}
+
+type Encoder interface {
+	Encode(interface{}) error
+}
+
+// Stream writes metrics using encoder.Encode each time an interval ends. Runs
+// until the request context is cancelled, or the encoder returns an error.
+// The caller is responsible for logging any errors from encoder.
+func (i *InmemSink) Stream(ctx context.Context, encoder Encoder) {
+	interval := i.getInterval()
+
+	for {
+		select {
+		case <-interval.done:
+			summary := newMetricSummaryFromInterval(interval)
+			if err := encoder.Encode(summary); err != nil {
+				return
+			}
+
+			// update interval to the next one
+			interval = i.getInterval()
+		case <-ctx.Done():
+			return
+		}
+	}
 }

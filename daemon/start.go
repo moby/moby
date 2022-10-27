@@ -9,6 +9,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -178,28 +179,17 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	ctx := context.TODO()
 
-	err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions)
+	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions)
 	if err != nil {
-		if errdefs.IsConflict(err) {
-			logrus.WithError(err).WithField("container", container.ID).Error("Container not cleaned up from containerd from previous run")
-			// best effort to clean up old container object
-			daemon.containerd.DeleteTask(ctx, container.ID)
-			if err := daemon.containerd.Delete(ctx, container.ID); err != nil && !errdefs.IsNotFound(err) {
-				logrus.WithError(err).WithField("container", container.ID).Error("Error cleaning up stale containerd container object")
-			}
-			err = daemon.containerd.Create(ctx, container.ID, spec, shim, createOptions)
-		}
-		if err != nil {
-			return translateContainerdStartErr(container.Path, container.SetExitCode, err)
-		}
+		return translateContainerdStartErr(container.Path, container.SetExitCode, err)
 	}
 
 	// TODO(mlaventure): we need to specify checkpoint options here
-	pid, err := daemon.containerd.Start(context.Background(), container.ID, checkpointDir,
+	tsk, err := ctr.Start(ctx, checkpointDir,
 		container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
-		if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {
+		if err := ctr.Delete(context.Background()); err != nil {
 			logrus.WithError(err).WithField("container", container.ID).
 				Error("failed to delete failed start container")
 		}
@@ -207,7 +197,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 
 	container.HasBeenManuallyRestarted = false
-	container.SetRunning(pid, true)
+	container.SetRunning(ctr, tsk, true)
 	container.HasBeenStartedBefore = true
 	daemon.setStateCounter(container)
 
@@ -227,6 +217,14 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (daemon *Daemon) Cleanup(container *container.Container) {
+	// Microsoft HCS containers get in a bad state if host resources are
+	// released while the container still exists.
+	if ctr, ok := container.C8dContainer(); ok {
+		if err := ctr.Delete(context.Background()); err != nil {
+			logrus.Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
+		}
+	}
+
 	daemon.releaseNetwork(container)
 
 	if err := container.UnmountIpcMount(); err != nil {
@@ -253,15 +251,11 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		daemon.unregisterExecCommand(container, eConfig)
 	}
 
-	if container.BaseFS != nil && container.BaseFS.Path() != "" {
+	if container.BaseFS != "" {
 		if err := container.UnmountVolumes(daemon.LogVolumeEvent); err != nil {
 			logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
 		}
 	}
 
 	container.CancelAttachContext()
-
-	if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {
-		logrus.Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
-	}
 }

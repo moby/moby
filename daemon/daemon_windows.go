@@ -14,6 +14,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/local"
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
@@ -22,7 +23,6 @@ import (
 	winlibnetwork "github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
@@ -55,15 +55,15 @@ func adjustParallelLimit(n int, limit int) int {
 }
 
 // Windows has no concept of an execution state directory. So use config.Root here.
-func getPluginExecRoot(root string) string {
-	return filepath.Join(root, "plugins")
+func getPluginExecRoot(cfg *config.Config) string {
+	return filepath.Join(cfg.Root, "plugins")
 }
 
 func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 
-func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.ContainerFS) error {
+func setupInitLayer(idMapping idtools.IdentityMapping) func(string) error {
 	return nil
 }
 
@@ -515,14 +515,17 @@ func driverOptions(_ *config.Config) nwconfig.Option {
 }
 
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
-	if !c.IsRunning() {
-		return nil, errNotRunning(c.ID)
+	c.Lock()
+	task, err := c.GetRunningTask()
+	c.Unlock()
+	if err != nil {
+		return nil, err
 	}
 
 	// Obtain the stats from HCS via libcontainerd
-	stats, err := daemon.containerd.Stats(context.Background(), c.ID)
+	stats, err := task.Stats(context.Background())
 	if err != nil {
-		if strings.Contains(err.Error(), "container not found") {
+		if errdefs.IsNotFound(err) {
 			return nil, containerNotFound(c.ID)
 		}
 		return nil, err

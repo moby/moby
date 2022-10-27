@@ -11,7 +11,7 @@ import (
 
 // MakeGitContext returns a Context from gitURL that is cloned in a temporary directory.
 func MakeGitContext(gitURL string) (builder.Source, error) {
-	root, err := git.Clone(gitURL)
+	root, err := git.Clone(gitURL, git.WithIsolatedConfig(true))
 	if err != nil {
 		return nil, err
 	}

@@ -35,7 +35,7 @@ func TestCloseRootDirectory(t *testing.T) {
 		t.Fatalf("Error while executing Close: %s", err)
 	}
 
-	_, err = os.Stat(src.Root().Path())
+	_, err = os.Stat(src.Root())
 
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("Directory should not exist at this point")
@@ -60,7 +60,7 @@ func TestHashFile(t *testing.T) {
 		t.Fatalf("Hash returned empty sum")
 	}
 
-	expected := "1149ab94af7be6cc1da1335e398f24ee1cf4926b720044d229969dfc248ae7ec"
+	expected := "55dfeb344351ab27f59aa60ebb0ed12025a2f2f4677bf77d26ea7a671274a9ca"
 
 	if actual := sum; expected != actual {
 		t.Fatalf("invalid checksum. expected %s, got %s", expected, actual)
@@ -97,7 +97,7 @@ func TestHashSubdir(t *testing.T) {
 		t.Fatalf("Hash returned empty sum")
 	}
 
-	expected := "d7f8d6353dee4816f9134f4156bf6a9d470fdadfb5d89213721f7e86744a4e69"
+	expected := "74a3326b8e766ce63a8e5232f22e9dd895be647fb3ca7d337e5e0a9b3da8ef28"
 
 	if actual := sum; expected != actual {
 		t.Fatalf("invalid checksum. expected %s, got %s", expected, actual)
@@ -118,7 +118,7 @@ func TestRemoveDirectory(t *testing.T) {
 
 	src := makeTestArchiveContext(t, contextDir)
 
-	_, err = src.Root().Stat(src.Root().Join(src.Root().Path(), relativePath))
+	_, err = os.Stat(filepath.Join(src.Root(), relativePath))
 	if err != nil {
 		t.Fatalf("Statting %s shouldn't fail: %+v", relativePath, err)
 	}
@@ -129,7 +129,7 @@ func TestRemoveDirectory(t *testing.T) {
 		t.Fatalf("Error when executing Remove: %s", err)
 	}
 
-	_, err = src.Root().Stat(src.Root().Join(src.Root().Path(), relativePath))
+	_, err = os.Stat(filepath.Join(src.Root(), relativePath))
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Directory should not exist at this point: %+v ", err)
 	}

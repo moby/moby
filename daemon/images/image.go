@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
@@ -44,14 +45,13 @@ type manifest struct {
 	Config specs.Descriptor `json:"config"`
 }
 
-func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.Platform) bool {
-	ctx := context.TODO()
+func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform specs.Platform) (bool, error) {
 	logger := logrus.WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
 
-	ls, leaseErr := i.leases.ListResources(context.TODO(), leases.Lease{ID: imageKey(img.ID().Digest())})
+	ls, leaseErr := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().Digest())})
 	if leaseErr != nil {
 		logger.WithError(leaseErr).Error("Error looking up image leases")
-		return false
+		return false, leaseErr
 	}
 
 	// Note we are comparing against manifest lists here, which we expect to always have a CPU variant set (where applicable).
@@ -137,20 +137,20 @@ func (i *ImageService) manifestMatchesPlatform(img *image.Image, platform specs.
 
 			if m.Config.Digest == img.ID().Digest() {
 				logger.WithField("manifestDigest", md.Digest).Debug("Found matching manifest for image")
-				return true
+				return true, nil
 			}
 
 			logger.WithField("otherDigest", md.Digest).Debug("Skipping non-matching manifest")
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retImg *image.Image, retErr error) {
+func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
 	defer func() {
-		if retErr != nil || retImg == nil || platform == nil {
+		if retErr != nil || retImg == nil || options.Platform == nil {
 			return
 		}
 
@@ -159,15 +159,17 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 			Architecture: retImg.Architecture,
 			Variant:      retImg.Variant,
 		}
-		p := *platform
+		p := *options.Platform
 		// Note that `platforms.Only` will fuzzy match this for us
-		// For example: an armv6 image will run just fine an an armv7 CPU, without emulation or anything.
+		// For example: an armv6 image will run just fine on an armv7 CPU, without emulation or anything.
 		if OnlyPlatformWithFallback(p).Match(imgPlat) {
 			return
 		}
 		// In some cases the image config can actually be wrong (e.g. classic `docker build` may not handle `--platform` correctly)
-		// So we'll look up the manifest list that coresponds to this imaage to check if at least the manifest list says it is the correct image.
-		if i.manifestMatchesPlatform(retImg, p) {
+		// So we'll look up the manifest list that corresponds to this image to check if at least the manifest list says it is the correct image.
+		var matches bool
+		matches, retErr = i.manifestMatchesPlatform(ctx, retImg, p)
+		if matches || retErr != nil {
 			return
 		}
 
@@ -177,7 +179,7 @@ func (i *ImageService) GetImage(refOrID string, platform *specs.Platform) (retIm
 		//   The image store does not store the manifest list and image tags are assigned to architecture specific images.
 		//   So we can have a `foo` image that is amd64 but the user requested armv7. If the user looks at the list of images.
 		//   This may be confusing.
-		//   The alternative to this is to return a errdefs.Conflict error with a helpful message, but clients will not be
+		//   The alternative to this is to return an errdefs.Conflict error with a helpful message, but clients will not be
 		//   able to automatically tell what causes the conflict.
 		retErr = errdefs.NotFound(errors.Errorf("image with reference %s was found but does not match the specified platform: wanted %s, actual: %s", refOrID, platforms.Format(p), platforms.Format(imgPlat)))
 	}()

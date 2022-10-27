@@ -139,7 +139,7 @@ func testBreakout(untarFn string, tmpdir string, headers []*tar.Header) error {
 	// Since victim/hello was generated with time.Now(), it is safe to assume
 	// that any file whose content matches exactly victim/hello, managed somehow
 	// to access victim/hello.
-	return filepath.Walk(dest, func(path string, info os.FileInfo, err error) error {
+	return filepath.WalkDir(dest, func(path string, info os.DirEntry, err error) error {
 		if info.IsDir() {
 			if err != nil {
 				// skip directory if error

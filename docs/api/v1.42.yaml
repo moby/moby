@@ -24,7 +24,7 @@ info:
   title: "Docker Engine API"
   version: "1.42"
   x-logo:
-    url: "https://docs.docker.com/images/logo-docker-main.png"
+    url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
     The Engine API is an HTTP API served by Docker Engine. It is the API the
     Docker client uses to communicate with the Engine, so everything the Docker
@@ -8786,7 +8786,17 @@ paths:
               description: "Max API Version the server supports"
             Builder-Version:
               type: "string"
-              description: "Default version of docker image builder"
+              description: |
+                Default version of docker image builder
+
+                The default on Linux is version "2" (BuildKit), but the daemon
+                can be configured to recommend version "1" (classic Builder).
+                Windows does not yet support BuildKit for native Windows images,
+                and uses "1" (classic builder) as a default.
+
+                This value is a recommendation as advertised by the daemon, and
+                it is up to the client to choose which builder to use.
+              default: "2"
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
@@ -9689,6 +9699,7 @@ paths:
 
             Available filters:
             - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune volumes with (or without, in case `label!=...` is used) the specified labels.
+            - `all` (`all=true`) - Consider all (local) volumes for pruning and not just anonymous volumes.
           type: "string"
       responses:
         200:

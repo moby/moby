@@ -8,12 +8,12 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -82,10 +82,10 @@ type rwLayer struct {
 	released   bool
 	layerStore layer.Store
 	rwLayer    layer.RWLayer
-	fs         containerfs.ContainerFS
+	fs         string
 }
 
-func (l *rwLayer) Root() containerfs.ContainerFS {
+func (l *rwLayer) Root() string {
 	return l.fs
 }
 
@@ -114,11 +114,11 @@ func (l *rwLayer) Release() error {
 		return nil
 	}
 
-	if l.fs != nil {
+	if l.fs != "" {
 		if err := l.rwLayer.Unmount(); err != nil {
 			return errors.Wrap(err, "failed to unmount RWLayer")
 		}
-		l.fs = nil
+		l.fs = ""
 	}
 
 	metadata, err := l.layerStore.ReleaseRWLayer(l.rwLayer)
@@ -167,7 +167,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		return nil, err
 	}
 
-	img, err := i.GetImage(name, platform)
+	img, err := i.GetImage(ctx, name, imagetypes.GetImageOpts{Platform: platform})
 	if errdefs.IsNotFound(err) && img != nil && platform != nil {
 		imgPlat := specs.Platform{
 			OS:           img.OS,
@@ -211,11 +211,13 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		img, err := i.GetImage(refOrID, opts.Platform)
+		img, err := i.GetImage(ctx, refOrID, imagetypes.GetImageOpts{Platform: opts.Platform})
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
-		// TODO: shouldn't we error out if error is different from "not found" ?
+		if err != nil && !errdefs.IsNotFound(err) {
+			return nil, nil, err
+		}
 		if img != nil {
 			if !system.IsOSSupported(img.OperatingSystem()) {
 				return nil, nil, system.ErrNotSupportedOperatingSystem

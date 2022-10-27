@@ -398,7 +398,6 @@ func TestCreateServiceSysctls(t *testing.T) {
 	// net.ipv4.ip_nonlocal_bind is, we can verify that setting the sysctl
 	// options works
 	for _, expected := range []string{"0", "1"} {
-
 		// store the map we're going to be using everywhere.
 		expectedSysctls := map[string]string{"net.ipv4.ip_nonlocal_bind": expected}
 

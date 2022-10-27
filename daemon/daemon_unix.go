@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/containerd/cgroups"
@@ -38,7 +39,6 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -558,7 +558,6 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	if len(resources.BlkioDeviceWriteBps) > 0 && !sysInfo.BlkioWriteBpsDevice {
 		warnings = append(warnings, "Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
-
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 && !sysInfo.BlkioReadIOpsDevice {
 		warnings = append(warnings, "Your kernel does not support IOPS Block read limit or the cgroup is not mounted. Block I/O IOPS read limit discarded.")
@@ -764,7 +763,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 	configureRuntimes(conf)
 	if rtName := conf.GetDefaultRuntimeName(); rtName != "" {
 		if conf.GetRuntime(rtName) == nil {
-			return fmt.Errorf("specified default runtime '%s' does not exist", rtName)
+			if !config.IsPermissibleC8dRuntimeName(rtName) {
+				return fmt.Errorf("specified default runtime '%s' does not exist", rtName)
+			}
 		}
 	}
 	return nil
@@ -820,7 +821,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 			return nil
 		}
 
-		if driverName == "overlay" || driverName == "overlay2" {
+		if driverName == "overlay" || driverName == "overlay2" || driverName == "overlayfs" {
 			// If driver is overlay or overlay2, make sure kernel
 			// supports selinux with overlay.
 			supported, err := overlaySupportsSelinux()
@@ -1070,8 +1071,8 @@ func removeDefaultBridgeInterface() {
 	}
 }
 
-func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.ContainerFS) error {
-	return func(initPath containerfs.ContainerFS) error {
+func setupInitLayer(idMapping idtools.IdentityMapping) func(string) error {
+	return func(initPath string) error {
 		return initlayer.Setup(initPath, idMapping.RootPair())
 	}
 }
@@ -1088,7 +1089,6 @@ func setupInitLayer(idMapping idtools.IdentityMapping) func(containerfs.Containe
 //
 // If names are used, they are verified to exist in passwd/group
 func parseRemappedRoot(usergrp string) (string, string, error) {
-
 	var (
 		userID, groupID     int
 		username, groupname string
@@ -1248,7 +1248,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 			if dirPath == "/" {
 				break
 			}
-			if !idtools.CanAccess(dirPath, remappedRoot) {
+			if !canAccess(dirPath, remappedRoot) {
 				return fmt.Errorf("a subdirectory in your graphroot path (%s) restricts access to the remapped root uid/gid; please fix by allowing 'o+x' permissions on existing directories", config.Root)
 			}
 		}
@@ -1258,6 +1258,34 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 		logrus.WithError(err).WithField("dir", config.Root).Warn("Error while setting daemon root propagation, this is not generally critical but may cause some functionality to not work or fallback to less desirable behavior")
 	}
 	return nil
+}
+
+// canAccess takes a valid (existing) directory and a uid, gid pair and determines
+// if that uid, gid pair has access (execute bit) to the directory.
+//
+// Note: this is a very rudimentary check, and may not produce accurate results,
+// so should not be used for anything other than the current use, see:
+// https://github.com/moby/moby/issues/43724
+func canAccess(path string, pair idtools.Identity) bool {
+	statInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	perms := statInfo.Mode().Perm()
+	if perms&0o001 == 0o001 {
+		// world access
+		return true
+	}
+	ssi := statInfo.Sys().(*syscall.Stat_t)
+	if ssi.Uid == uint32(pair.UID) && (perms&0o100 == 0o100) {
+		// owner access.
+		return true
+	}
+	if ssi.Gid == uint32(pair.GID) && (perms&0o010 == 0o010) {
+		// group access.
+		return true
+	}
+	return false
 }
 
 func setupDaemonRootPropagation(cfg *config.Config) error {
@@ -1385,10 +1413,13 @@ func copyBlkioEntry(entries []*statsV1.BlkIOEntry) []types.BlkioStatEntry {
 }
 
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
-	if !c.IsRunning() {
-		return nil, errNotRunning(c.ID)
+	c.Lock()
+	task, err := c.GetRunningTask()
+	c.Unlock()
+	if err != nil {
+		return nil, err
 	}
-	cs, err := daemon.containerd.Stats(context.Background(), c.ID)
+	cs, err := task.Stats(context.Background())
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
 			return nil, containerNotFound(c.ID)

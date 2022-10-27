@@ -13,7 +13,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/exec"
 	"github.com/sirupsen/logrus"
 )
 
@@ -69,11 +68,10 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		cmdSlice = append(getShell(cntr), cmdSlice...)
 	}
 	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
-	execConfig := exec.NewConfig()
+	execConfig := container.NewExecConfig(cntr)
 	execConfig.OpenStdin = false
 	execConfig.OpenStdout = true
 	execConfig.OpenStderr = true
-	execConfig.ContainerID = cntr.ID
 	execConfig.DetachKeys = []byte{}
 	execConfig.Entrypoint = entrypoint
 	execConfig.Args = args
@@ -133,12 +131,19 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	case <-tm.C:
 		cancelProbe()
 		logrus.WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
-		// Wait for probe to exit (it might take a while to respond to the TERM
-		// signal and we don't want dying probes to pile up).
+		// Wait for probe to exit (it might take some time to call containerd to kill
+		// the process and we don't want dying probes to pile up).
 		<-execErr
+
+		var msg string
+		if out := output.String(); len(out) > 0 {
+			msg = fmt.Sprintf("Health check exceeded timeout (%v): %s", probeTimeout, out)
+		} else {
+			msg = fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout)
+		}
 		return &types.HealthcheckResult{
 			ExitCode: -1,
-			Output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),
+			Output:   msg,
 			End:      time.Now(),
 		}, nil
 	case err := <-execErr:
@@ -151,14 +156,23 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	if err != nil {
 		return nil, err
 	}
-	if info.ExitCode == nil {
-		return nil, fmt.Errorf("healthcheck for container %s has no exit code", cntr.ID)
+	exitCode, err := func() (int, error) {
+		info.Lock()
+		defer info.Unlock()
+		if info.ExitCode == nil {
+			info.Unlock()
+			return 0, fmt.Errorf("healthcheck for container %s has no exit code", cntr.ID)
+		}
+		return *info.ExitCode, nil
+	}()
+	if err != nil {
+		return nil, err
 	}
 	// Note: Go's json package will handle invalid UTF-8 for us
 	out := output.String()
 	return &types.HealthcheckResult{
 		End:      time.Now(),
-		ExitCode: *info.ExitCode,
+		ExitCode: exitCode,
 		Output:   out,
 	}, nil
 }

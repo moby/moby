@@ -92,13 +92,12 @@ type sandbox struct {
 
 // These are the container configs used to customize container /etc/hosts file.
 type hostsPathConfig struct {
-	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
-	hostName        string         //nolint:structcheck
-	domainName      string         //nolint:structcheck
-	hostsPath       string         //nolint:structcheck
-	originHostsPath string         //nolint:structcheck
-	extraHosts      []extraHost    //nolint:structcheck
-	parentUpdates   []parentUpdate //nolint:structcheck
+	hostName        string
+	domainName      string
+	hostsPath       string
+	originHostsPath string
+	extraHosts      []extraHost
+	parentUpdates   []parentUpdate
 }
 
 type parentUpdate struct {
@@ -114,13 +113,12 @@ type extraHost struct {
 
 // These are the container configs used to customize container /etc/resolv.conf file.
 type resolvConfPathConfig struct {
-	// Note(cpuguy83): The linter is drunk and says none of these fields are used while they are
-	resolvConfPath       string   //nolint:structcheck
-	originResolvConfPath string   //nolint:structcheck
-	resolvConfHashFile   string   //nolint:structcheck
-	dnsList              []string //nolint:structcheck
-	dnsSearchList        []string //nolint:structcheck
-	dnsOptionsList       []string //nolint:structcheck
+	resolvConfPath       string
+	originResolvConfPath string
+	resolvConfHashFile   string
+	dnsList              []string
+	dnsSearchList        []string
+	dnsOptionsList       []string
 }
 
 type containerConfig struct {
@@ -569,7 +567,6 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	}
 
 	for i := 0; i < len(reqName); i++ {
-
 		// First check for local container alias
 		ip, ipv6Miss := sb.resolveName(reqName[i], networkName[i], epList, true, ipType)
 		if ip != nil {
@@ -796,7 +793,6 @@ func (sb *sandbox) restoreOslSandbox() error {
 	// restore osl sandbox
 	Ifaces := make(map[string][]osl.IfaceOption)
 	for _, ep := range sb.endpoints {
-		var ifaceOptions []osl.IfaceOption
 		ep.Lock()
 		joinInfo := ep.joinInfo
 		i := ep.iface
@@ -807,7 +803,10 @@ func (sb *sandbox) restoreOslSandbox() error {
 			continue
 		}
 
-		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
+		ifaceOptions := []osl.IfaceOption{
+			sb.osSbox.InterfaceOptions().Address(i.addr),
+			sb.osSbox.InterfaceOptions().Routes(i.routes),
+		}
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))
 		}
@@ -817,7 +816,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
 		}
-		Ifaces[fmt.Sprintf("%s+%s", i.srcName, i.dstPrefix)] = ifaceOptions
+		Ifaces[i.srcName+i.dstPrefix] = ifaceOptions
 		if joinInfo != nil {
 			routes = append(routes, joinInfo.StaticRoutes...)
 		}
@@ -832,8 +831,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 	}
 
 	// restore osl sandbox
-	err := sb.osSbox.Restore(Ifaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
-	return err
+	return sb.osSbox.Restore(Ifaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
 }
 
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {

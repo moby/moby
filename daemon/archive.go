@@ -3,6 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -14,37 +15,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
-
-// ErrExtractPointNotDirectory is used to convey that the operation to extract
-// a tar archive to a directory in a container has failed because the specified
-// path does not refer to a directory.
-var ErrExtractPointNotDirectory = errors.New("extraction point is not a directory")
-
-// The daemon will use the following interfaces if the container fs implements
-// these for optimized copies to and from the container.
-type extractor interface {
-	ExtractArchive(src io.Reader, dst string, opts *archive.TarOptions) error
-}
-
-type archiver interface {
-	ArchivePath(src string, opts *archive.TarOptions) (io.ReadCloser, error)
-}
-
-// helper functions to extract or archive
-func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarOptions, root string) error {
-	if ea, ok := i.(extractor); ok {
-		return ea.ExtractArchive(src, dst, opts)
-	}
-
-	return chrootarchive.UntarWithRoot(src, dst, opts, root)
-}
-
-func archivePath(i interface{}, src string, opts *archive.TarOptions, root string) (io.ReadCloser, error) {
-	if ap, ok := i.(archiver); ok {
-		return ap.ArchivePath(src, opts)
-	}
-	return chrootarchive.Tar(src, opts, root)
-}
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the container identified by the given name.
@@ -122,7 +92,7 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 // ContainerExtractToDir extracts the given archive to the specified location
 // in the filesystem of the container identified by the given name. The given
 // path must be of a directory in the container. If it is not, the error will
-// be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
+// be an errdefs.InvalidParameter. If noOverwriteDirNonDir is true then it will
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) error {
@@ -165,7 +135,7 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	}
 
 	// Normalize path before sending to rootfs
-	path = container.BaseFS.FromSlash(path)
+	path = filepath.FromSlash(path)
 
 	resolvedPath, absPath, err := container.ResolvePath(path)
 	if err != nil {
@@ -208,7 +178,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	}
 
 	// Normalize path before sending to rootfs
-	path = container.BaseFS.FromSlash(path)
+	path = filepath.FromSlash(path)
 
 	resolvedPath, absPath, err := container.ResolvePath(path)
 	if err != nil {
@@ -228,24 +198,23 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	// also catches the case when the root directory of the container is
 	// requested: we want the archive entries to start with "/" and not the
 	// container ID.
-	driver := container.BaseFS
 
 	// Get the source and the base paths of the container resolved path in order
 	// to get the proper tar options for the rebase tar.
-	resolvedPath = driver.Clean(resolvedPath)
-	if driver.Base(resolvedPath) == "." {
-		resolvedPath += string(driver.Separator()) + "."
+	resolvedPath = filepath.Clean(resolvedPath)
+	if filepath.Base(resolvedPath) == "." {
+		resolvedPath += string(filepath.Separator) + "."
 	}
 
 	sourceDir := resolvedPath
 	sourceBase := "."
 
 	if stat.Mode&os.ModeDir == 0 { // not dir
-		sourceDir, sourceBase = driver.Split(resolvedPath)
+		sourceDir, sourceBase = filepath.Split(resolvedPath)
 	}
-	opts := archive.TarResourceRebaseOpts(sourceBase, driver.Base(absPath))
+	opts := archive.TarResourceRebaseOpts(sourceBase, filepath.Base(absPath))
 
-	data, err := archivePath(driver, sourceDir, opts, container.BaseFS.Path())
+	data, err := chrootarchive.Tar(sourceDir, opts, container.BaseFS)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -265,7 +234,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 
 // containerExtractToDir extracts the given tar archive to the specified location in the
 // filesystem of this container. The given path must be of a directory in the
-// container. If it is not, the error will be ErrExtractPointNotDirectory. If
+// container. If it is not, the error will be an errdefs.InvalidParameter. If
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
@@ -285,11 +254,10 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	}
 
 	// Normalize path before sending to rootfs'
-	path = container.BaseFS.FromSlash(path)
-	driver := container.BaseFS
+	path = filepath.FromSlash(path)
 
 	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
-	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path, driver)
+	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return err
 	}
@@ -301,10 +269,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	// that you can extract an archive to a symlink that points to a directory.
 
 	// Consider the given path as an absolute path in the container.
-	absPath := archive.PreserveTrailingDotOrSeparator(
-		driver.Join(string(driver.Separator()), path),
-		path,
-		driver.Separator())
+	absPath := archive.PreserveTrailingDotOrSeparator(filepath.Join(string(filepath.Separator), path), path)
 
 	// This will evaluate the last path element if it is a symlink.
 	resolvedPath, err := container.GetResourcePath(absPath)
@@ -312,13 +277,13 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	stat, err := driver.Lstat(resolvedPath)
+	stat, err := os.Lstat(resolvedPath)
 	if err != nil {
 		return err
 	}
 
 	if !stat.IsDir() {
-		return ErrExtractPointNotDirectory
+		return errdefs.InvalidParameter(errors.New("extraction point is not a directory"))
 	}
 
 	// Need to check if the path is in a volume. If it is, it cannot be in a
@@ -335,31 +300,28 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	// a volume file path.
 	var baseRel string
 	if strings.HasPrefix(resolvedPath, `\\?\Volume{`) {
-		if strings.HasPrefix(resolvedPath, driver.Path()) {
-			baseRel = resolvedPath[len(driver.Path()):]
+		if strings.HasPrefix(resolvedPath, container.BaseFS) {
+			baseRel = resolvedPath[len(container.BaseFS):]
 			if baseRel[:1] == `\` {
 				baseRel = baseRel[1:]
 			}
 		}
 	} else {
-		baseRel, err = driver.Rel(driver.Path(), resolvedPath)
+		baseRel, err = filepath.Rel(container.BaseFS, resolvedPath)
 	}
 	if err != nil {
 		return err
 	}
 	// Make it an absolute path.
-	absPath = driver.Join(string(driver.Separator()), baseRel)
+	absPath = filepath.Join(string(filepath.Separator), baseRel)
 
-	// @ TODO: gupta-ak: Technically, this works since it no-ops
-	// on Windows and the file system is local anyway on linux.
-	// But eventually, it should be made driver aware.
 	toVolume, err := checkIfPathIsInAVolume(container, absPath)
 	if err != nil {
 		return err
 	}
 
 	if !toVolume && container.HostConfig.ReadonlyRootfs {
-		return ErrRootFSReadOnly
+		return errdefs.InvalidParameter(errors.New("container rootfs is marked read-only"))
 	}
 
 	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
@@ -374,7 +336,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	}
 
-	if err := extractArchive(driver, content, resolvedPath, options, container.BaseFS.Path()); err != nil {
+	if err := chrootarchive.UntarWithRoot(content, resolvedPath, options, container.BaseFS); err != nil {
 		return err
 	}
 
@@ -416,27 +378,26 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	}
 
 	// Normalize path before sending to rootfs
-	resource = container.BaseFS.FromSlash(resource)
-	driver := container.BaseFS
+	resource = filepath.FromSlash(resource)
 
 	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
 		return nil, err
 	}
-	stat, err := driver.Stat(basePath)
+	stat, err := os.Stat(basePath)
 	if err != nil {
 		return nil, err
 	}
 	var filter []string
 	if !stat.IsDir() {
-		d, f := driver.Split(basePath)
+		d, f := filepath.Split(basePath)
 		basePath = d
 		filter = []string{f}
 	}
-	archv, err := archivePath(driver, basePath, &archive.TarOptions{
+	archv, err := chrootarchive.Tar(basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
-	}, container.BaseFS.Path())
+	}, container.BaseFS)
 	if err != nil {
 		return nil, err
 	}

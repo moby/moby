@@ -1,0 +1,501 @@
+name: test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+    tags:
+      - 'v*'
+  pull_request:
+
+env:
+  GO_VERSION: 1.19.2
+  GOTESTLIST_VERSION: v0.2.0
+  TESTSTAT_VERSION: v0.1.3
+  ITG_CLI_MATRIX_SIZE: 6
+  BUILDX: docker buildx
+  USE_BUILDX: 1
+  DOCKER_EXPERIMENTAL: 1
+  DOCKER_GRAPHDRIVER: overlay2
+
+jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+
+  build-dev:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - ""
+          - systemd
+    steps:
+      -
+        name: Prepare
+        run: |
+          if [ "${{ matrix.mode }}" = "systemd" ]; then
+            echo "SYSTEMD=true" >> $GITHUB_ENV
+          fi
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            *.cache-from=type=gha,scope=dev${{ matrix.mode }}
+            *.cache-to=type=gha,scope=dev${{ matrix.mode }},mode=max
+            *.output=type=cacheonly
+
+  validate-prepare:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+    outputs:
+      matrix: ${{ steps.scripts.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Create matrix
+        id: scripts
+        run: |
+          scripts=$(jq -ncR '[inputs]' <<< "$(ls -I .validate -I all -I default -I dco -I golangci-lint.yml -I yamllint.yaml -A ./hack/validate/)")
+          echo "::set-output name=matrix::$scripts"
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.scripts.outputs.matrix }}
+
+  validate:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-prepare
+      - build-dev
+    strategy:
+      fail-fast: true
+      matrix:
+        script: ${{ fromJson(needs.validate-prepare.outputs.matrix) }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      -
+        name: Set up runner
+        uses: ./.github/actions/setup-runner
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            dev.cache-from=type=gha,scope=dev
+      -
+        name: Validate
+        run: |
+          make -o build validate-${{ matrix.script }}
+
+  unit:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-dev
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up runner
+        uses: ./.github/actions/setup-runner
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            dev.cache-from=type=gha,scope=dev
+      -
+        name: Test
+        run: |
+          make -o build test-unit
+      -
+        name: Prepare reports
+        if: always()
+        run: |
+          mkdir -p bundles /tmp/reports
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C /tmp/reports
+          sudo chown -R $(id -u):$(id -g) /tmp/reports
+          tree -nh /tmp/reports
+      -
+        name: Send to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./bundles
+          env_vars: RUNNER_OS
+          flags: unit
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-reports
+          path: /tmp/reports/*
+
+  unit-report:
+    runs-on: ubuntu-20.04
+    if: always()
+    needs:
+      - unit
+    steps:
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Download reports
+        uses: actions/download-artifact@v3
+        with:
+          name: unit-reports
+          path: /tmp/reports
+      -
+        name: Install teststat
+        run: |
+          go install github.com/vearutop/teststat@${{ env.TESTSTAT_VERSION }}
+      -
+        name: Create summary
+        run: |
+          teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
+
+  docker-py:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-dev
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up runner
+        uses: ./.github/actions/setup-runner
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            dev.cache-from=type=gha,scope=dev
+      -
+        name: Test
+        run: |
+          make -o build test-docker-py
+      -
+        name: Prepare reports
+        if: always()
+        run: |
+          mkdir -p bundles /tmp/reports
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C /tmp/reports
+          sudo chown -R $(id -u):$(id -g) /tmp/reports
+          tree -nh /tmp/reports
+      -
+        name: Test daemon logs
+        if: always()
+        run: |
+          cat bundles/test-docker-py/docker.log
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-py-reports
+          path: /tmp/reports/*
+
+  integration-flaky:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-dev
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up runner
+        uses: ./.github/actions/setup-runner
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            dev.cache-from=type=gha,scope=dev
+      -
+        name: Test
+        run: |
+          make -o build test-integration-flaky
+        env:
+          TEST_SKIP_INTEGRATION_CLI: 1
+
+  integration:
+    runs-on: ${{ matrix.os }}
+    needs:
+      - build-dev
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-22.04
+        mode:
+          - ""
+          - rootless
+          - systemd
+          #- rootless-systemd FIXME: https://github.com/moby/moby/issues/44084
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up runner
+        uses: ./.github/actions/setup-runner
+      -
+        name: Prepare
+        run: |
+          CACHE_DEV_SCOPE=dev
+          if [[ "${{ matrix.mode }}" == *"rootless"* ]]; then
+            echo "DOCKER_ROOTLESS=1" >> $GITHUB_ENV
+          fi
+          if [[ "${{ matrix.mode }}" == *"systemd"* ]]; then
+            echo "SYSTEMD=true" >> $GITHUB_ENV
+            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}systemd"
+          fi
+          echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            dev.cache-from=type=gha,scope=${{ env.CACHE_DEV_SCOPE }}
+      -
+        name: Test
+        run: |
+          make -o build test-integration
+        env:
+          TEST_SKIP_INTEGRATION_CLI: 1
+          TESTCOVERAGE: 1
+      -
+        name: Prepare reports
+        if: always()
+        run: |
+          reportsPath="/tmp/reports/${{ matrix.os }}"
+          if [ -n "${{ matrix.mode }}" ]; then
+            reportsPath="$reportsPath-${{ matrix.mode }}"
+          fi
+          mkdir -p bundles $reportsPath
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          sudo chown -R $(id -u):$(id -g) $reportsPath
+          tree -nh $reportsPath
+      -
+        name: Send to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./bundles/test-integration
+          env_vars: RUNNER_OS
+          flags: integration,${{ matrix.mode }}
+      -
+        name: Test daemon logs
+        if: always()
+        run: |
+          cat bundles/test-integration/docker.log
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-reports
+          path: /tmp/reports/*
+
+  integration-report:
+    runs-on: ubuntu-20.04
+    if: always()
+    needs:
+      - integration
+    steps:
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Download reports
+        uses: actions/download-artifact@v3
+        with:
+          name: integration-reports
+          path: /tmp/reports
+      -
+        name: Install teststat
+        run: |
+          go install github.com/vearutop/teststat@${{ env.TESTSTAT_VERSION }}
+      -
+        name: Create summary
+        run: |
+          teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
+
+  integration-cli-prepare:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+    outputs:
+      matrix: ${{ steps.tests.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Install gotestlist
+        run:
+          go install github.com/crazy-max/gotestlist/cmd/gotestlist@${{ env.GOTESTLIST_VERSION }}
+      -
+        name: Create matrix
+        id: tests
+        working-directory: ./integration-cli
+        run: |
+          # Distribute integration-cli tests for the matrix in integration-test job.
+          # Also prepend ./... to the matrix. This is a special case to run "Test integration" step exclusively.
+          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} ./...)"
+          matrix="$(echo "$matrix" | jq -c '. |= ["./..."] + .')"
+          echo "::set-output name=matrix::$matrix"
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.tests.outputs.matrix }}
+
+  integration-cli:
+    runs-on: ubuntu-20.04
+    needs:
+      - build-dev
+      - integration-cli-prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJson(needs.integration-cli-prepare.outputs.matrix) }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up runner
+        uses: ./.github/actions/setup-runner
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build dev image
+        uses: docker/bake-action@v2
+        with:
+          targets: dev
+          set: |
+            dev.cache-from=type=gha,scope=dev
+      -
+        name: Test
+        run: |
+          make -o build test-integration
+        env:
+          TEST_SKIP_INTEGRATION: 1
+          TESTCOVERAGE: 1
+          TESTFLAGS: "-test.run (${{ matrix.test }})/"
+      -
+        name: Prepare reports
+        if: always()
+        run: |
+          reportsPath=/tmp/reports/$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          mkdir -p bundles $reportsPath
+          echo "${{ matrix.test }}" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
+          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          tar -xzf /tmp/reports.tar.gz -C $reportsPath
+          sudo chown -R $(id -u):$(id -g) $reportsPath
+          tree -nh $reportsPath
+      -
+        name: Send to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./bundles/test-integration
+          env_vars: RUNNER_OS
+          flags: integration-cli
+      -
+        name: Test daemon logs
+        if: always()
+        run: |
+          cat bundles/test-integration/docker.log
+      -
+        name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-cli-reports
+          path: /tmp/reports/*
+
+  integration-cli-report:
+    runs-on: ubuntu-20.04
+    if: always()
+    needs:
+      - integration-cli
+    steps:
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      -
+        name: Download reports
+        uses: actions/download-artifact@v3
+        with:
+          name: integration-cli-reports
+          path: /tmp/reports
+      -
+        name: Install teststat
+        run: |
+          go install github.com/vearutop/teststat@${{ env.TESTSTAT_VERSION }}
+      -
+        name: Create summary
+        run: |
+          teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY

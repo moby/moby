@@ -120,7 +120,6 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *testing.T) {
 			assert.Assert(c, !strings.Contains(record.out, "unauthorized"), `message should not contain "unauthorized"`)
 		}
 	}
-
 }
 
 // TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies
@@ -284,6 +283,6 @@ func (s *DockerCLIPullSuite) TestPullLinuxImageFailsOnWindows(c *testing.T) {
 // Regression test for https://github.com/docker/docker/issues/28892
 func (s *DockerCLIPullSuite) TestPullWindowsImageFailsOnLinux(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network)
-	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2019")
+	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2022")
 	assert.ErrorContains(c, err, "no matching manifest for linux")
 }

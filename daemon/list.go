@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
@@ -108,7 +110,7 @@ func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.C
 	return daemon.reduceContainers(config, daemon.refreshImage)
 }
 
-func (daemon *Daemon) filterByNameIDMatches(view container.View, filter *listContext) ([]container.Snapshot, error) {
+func (daemon *Daemon) filterByNameIDMatches(view *container.View, filter *listContext) ([]container.Snapshot, error) {
 	idSearch := false
 	names := filter.filters.Get("name")
 	ids := filter.filters.Get("id")
@@ -241,7 +243,8 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, filter *l
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerListOptions) (*listContext, error) {
+func (daemon *Daemon) foldFilter(view *container.View, config *types.ContainerListOptions) (*listContext, error) {
+	ctx := context.TODO()
 	psFilters := config.Filters
 
 	var filtExited []int
@@ -317,7 +320,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ancestor, nil)
+			img, err := daemon.imageService.GetImage(ctx, ancestor, imagetypes.GetImageOpts{})
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -360,7 +363,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	}, nil
 }
 
-func idOrNameFilter(view container.View, value string) (*container.Snapshot, error) {
+func idOrNameFilter(view *container.View, value string) (*container.Snapshot, error) {
 	filter, err := view.Get(value)
 	switch err.(type) {
 	case container.NoSuchContainerError:
@@ -578,10 +581,11 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 
 // refreshImage checks if the Image ref still points to the correct ID, and updates the ref to the actual ID when it doesn't
 func (daemon *Daemon) refreshImage(s *container.Snapshot, filter *listContext) (*types.Container, error) {
+	ctx := context.TODO()
 	c := s.Container
 	tmpImage := s.Image // keep the original ref if still valid (hasn't changed)
 	if tmpImage != s.ImageID {
-		img, err := daemon.imageService.GetImage(tmpImage, nil)
+		img, err := daemon.imageService.GetImage(ctx, tmpImage, imagetypes.GetImageOpts{})
 		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}

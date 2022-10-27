@@ -661,7 +661,6 @@ func TestCollectBatchTicker(t *testing.T) {
 	assert.Equal(t, logline+" 3", aws.StringValue(argument.LogEvents[0].Message))
 
 	stream.Close()
-
 }
 
 func TestCollectBatchMultilinePattern(t *testing.T) {
@@ -1427,7 +1426,7 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	times := maximumLogEventsPerPut
 	timestamp := time.Now()
 	for i := 0; i < times; i++ {
-		line := fmt.Sprintf("%d", i)
+		line := strconv.Itoa(i)
 		if i%2 == 0 {
 			timestamp.Add(1 * time.Nanosecond)
 		}

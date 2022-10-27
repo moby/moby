@@ -6,15 +6,15 @@ import (
 
 	"github.com/docker/docker/layer"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCreate(t *testing.T) {
-	is, cleanup := defaultImageStore(t)
+	imgStore, cleanup := defaultImageStore(t)
 	defer cleanup()
 
-	_, err := is.Create([]byte(`{}`))
-	assert.Check(t, cmp.Error(err, "invalid image JSON, no RootFS key"))
+	_, err := imgStore.Create([]byte(`{}`))
+	assert.Check(t, is.Error(err, "invalid image JSON, no RootFS key"))
 }
 
 func TestRestore(t *testing.T) {
@@ -33,118 +33,118 @@ func TestRestore(t *testing.T) {
 	err = fs.SetMetadata(id2, "parent", []byte(id1))
 	assert.NilError(t, err)
 
-	is, err := NewImageStore(fs, &mockLayerGetReleaser{})
+	imgStore, err := NewImageStore(fs, &mockLayerGetReleaser{})
 	assert.NilError(t, err)
 
-	assert.Check(t, cmp.Len(is.Map(), 2))
+	assert.Check(t, is.Len(imgStore.Map(), 2))
 
-	img1, err := is.Get(ID(id1))
+	img1, err := imgStore.Get(ID(id1))
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(ID(id1), img1.computedID))
-	assert.Check(t, cmp.Equal(string(id1), img1.computedID.String()))
+	assert.Check(t, is.Equal(ID(id1), img1.computedID))
+	assert.Check(t, is.Equal(string(id1), img1.computedID.String()))
 
-	img2, err := is.Get(ID(id2))
+	img2, err := imgStore.Get(ID(id2))
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal("abc", img1.Comment))
-	assert.Check(t, cmp.Equal("def", img2.Comment))
+	assert.Check(t, is.Equal("abc", img1.Comment))
+	assert.Check(t, is.Equal("def", img2.Comment))
 
-	_, err = is.GetParent(ID(id1))
+	_, err = imgStore.GetParent(ID(id1))
 	assert.ErrorContains(t, err, "failed to read metadata")
 
-	p, err := is.GetParent(ID(id2))
+	p, err := imgStore.GetParent(ID(id2))
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(ID(id1), p))
+	assert.Check(t, is.Equal(ID(id1), p))
 
-	children := is.Children(ID(id1))
-	assert.Check(t, cmp.Len(children, 1))
-	assert.Check(t, cmp.Equal(ID(id2), children[0]))
-	assert.Check(t, cmp.Len(is.Heads(), 1))
+	children := imgStore.Children(ID(id1))
+	assert.Check(t, is.Len(children, 1))
+	assert.Check(t, is.Equal(ID(id2), children[0]))
+	assert.Check(t, is.Len(imgStore.Heads(), 1))
 
-	sid1, err := is.Search(string(id1)[:10])
+	sid1, err := imgStore.Search(string(id1)[:10])
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(ID(id1), sid1))
+	assert.Check(t, is.Equal(ID(id1), sid1))
 
-	sid1, err = is.Search(id1.Hex()[:6])
+	sid1, err = imgStore.Search(id1.Hex()[:6])
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(ID(id1), sid1))
+	assert.Check(t, is.Equal(ID(id1), sid1))
 
 	invalidPattern := id1.Hex()[1:6]
-	_, err = is.Search(invalidPattern)
+	_, err = imgStore.Search(invalidPattern)
 	assert.ErrorContains(t, err, "No such image")
 }
 
 func TestAddDelete(t *testing.T) {
-	is, cleanup := defaultImageStore(t)
+	imgStore, cleanup := defaultImageStore(t)
 	defer cleanup()
 
-	id1, err := is.Create([]byte(`{"comment": "abc", "rootfs": {"type": "layers", "diff_ids": ["2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"]}}`))
+	id1, err := imgStore.Create([]byte(`{"comment": "abc", "rootfs": {"type": "layers", "diff_ids": ["2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"]}}`))
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(ID("sha256:8d25a9c45df515f9d0fe8e4a6b1c64dd3b965a84790ddbcc7954bb9bc89eb993"), id1))
+	assert.Check(t, is.Equal(ID("sha256:8d25a9c45df515f9d0fe8e4a6b1c64dd3b965a84790ddbcc7954bb9bc89eb993"), id1))
 
-	img, err := is.Get(id1)
+	img, err := imgStore.Get(id1)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal("abc", img.Comment))
+	assert.Check(t, is.Equal("abc", img.Comment))
 
-	id2, err := is.Create([]byte(`{"comment": "def", "rootfs": {"type": "layers", "diff_ids": ["2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"]}}`))
-	assert.NilError(t, err)
-
-	err = is.SetParent(id2, id1)
+	id2, err := imgStore.Create([]byte(`{"comment": "def", "rootfs": {"type": "layers", "diff_ids": ["2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"]}}`))
 	assert.NilError(t, err)
 
-	pid1, err := is.GetParent(id2)
-	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(pid1, id1))
-
-	_, err = is.Delete(id1)
+	err = imgStore.SetParent(id2, id1)
 	assert.NilError(t, err)
 
-	_, err = is.Get(id1)
+	pid1, err := imgStore.GetParent(id2)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(pid1, id1))
+
+	_, err = imgStore.Delete(id1)
+	assert.NilError(t, err)
+
+	_, err = imgStore.Get(id1)
 	assert.ErrorContains(t, err, "failed to get digest")
 
-	_, err = is.Get(id2)
+	_, err = imgStore.Get(id2)
 	assert.NilError(t, err)
 
-	_, err = is.GetParent(id2)
+	_, err = imgStore.GetParent(id2)
 	assert.ErrorContains(t, err, "failed to read metadata")
 }
 
 func TestSearchAfterDelete(t *testing.T) {
-	is, cleanup := defaultImageStore(t)
+	imgStore, cleanup := defaultImageStore(t)
 	defer cleanup()
 
-	id, err := is.Create([]byte(`{"comment": "abc", "rootfs": {"type": "layers"}}`))
+	id, err := imgStore.Create([]byte(`{"comment": "abc", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
 
-	id1, err := is.Search(string(id)[:15])
+	id1, err := imgStore.Search(string(id)[:15])
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(id1, id))
+	assert.Check(t, is.Equal(id1, id))
 
-	_, err = is.Delete(id)
+	_, err = imgStore.Delete(id)
 	assert.NilError(t, err)
 
-	_, err = is.Search(string(id)[:15])
+	_, err = imgStore.Search(string(id)[:15])
 	assert.ErrorContains(t, err, "No such image")
 }
 
 func TestParentReset(t *testing.T) {
-	is, cleanup := defaultImageStore(t)
+	imgStore, cleanup := defaultImageStore(t)
 	defer cleanup()
 
-	id, err := is.Create([]byte(`{"comment": "abc1", "rootfs": {"type": "layers"}}`))
+	id, err := imgStore.Create([]byte(`{"comment": "abc1", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
 
-	id2, err := is.Create([]byte(`{"comment": "abc2", "rootfs": {"type": "layers"}}`))
+	id2, err := imgStore.Create([]byte(`{"comment": "abc2", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
 
-	id3, err := is.Create([]byte(`{"comment": "abc3", "rootfs": {"type": "layers"}}`))
+	id3, err := imgStore.Create([]byte(`{"comment": "abc3", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
 
-	assert.Check(t, is.SetParent(id, id2))
-	assert.Check(t, cmp.Len(is.Children(id2), 1))
+	assert.Check(t, imgStore.SetParent(id, id2))
+	assert.Check(t, is.Len(imgStore.Children(id2), 1))
 
-	assert.Check(t, is.SetParent(id, id3))
-	assert.Check(t, cmp.Len(is.Children(id2), 0))
-	assert.Check(t, cmp.Len(is.Children(id3), 1))
+	assert.Check(t, imgStore.SetParent(id, id3))
+	assert.Check(t, is.Len(imgStore.Children(id2), 0))
+	assert.Check(t, is.Len(imgStore.Children(id3), 1))
 }
 
 func defaultImageStore(t *testing.T) (Store, func()) {
@@ -165,13 +165,13 @@ func TestGetAndSetLastUpdated(t *testing.T) {
 
 	updated, err := store.GetLastUpdated(id)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(updated.IsZero(), true))
+	assert.Check(t, is.Equal(updated.IsZero(), true))
 
 	assert.Check(t, store.SetLastUpdated(id))
 
 	updated, err = store.GetLastUpdated(id)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(updated.IsZero(), false))
+	assert.Check(t, is.Equal(updated.IsZero(), false))
 }
 
 func TestStoreLen(t *testing.T) {

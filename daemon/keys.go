@@ -4,7 +4,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -38,7 +37,8 @@ func setRootKeyLimit(limit int) error {
 		return err
 	}
 	defer keys.Close()
-	if _, err := fmt.Fprintf(keys, "%d", limit); err != nil {
+	_, err = keys.WriteString(strconv.Itoa(limit))
+	if err != nil {
 		return err
 	}
 	bytes, err := os.OpenFile(rootBytesFile, os.O_WRONLY, 0)
@@ -46,7 +46,7 @@ func setRootKeyLimit(limit int) error {
 		return err
 	}
 	defer bytes.Close()
-	_, err = fmt.Fprintf(bytes, "%d", limit*rootKeyByteMultiplier)
+	_, err = bytes.WriteString(strconv.Itoa(limit * rootKeyByteMultiplier))
 	return err
 }
 

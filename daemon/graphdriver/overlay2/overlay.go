@@ -15,13 +15,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/quota"
@@ -85,8 +85,7 @@ const (
 )
 
 type overlayOptions struct {
-	overrideKernelCheck bool
-	quota               quota.Quota
+	quota quota.Quota
 }
 
 // Driver contains information about the home directory and the list of active
@@ -152,7 +151,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		backingFs = fsName
 	}
 
-	supportsDType, err := fsutils.SupportsDType(testdir)
+	supportsDType, err := fs.SupportsDType(testdir)
 	if err != nil {
 		return nil, err
 	}
@@ -236,10 +235,8 @@ func parseOptions(options []string) (*overlayOptions, error) {
 		key = strings.ToLower(key)
 		switch key {
 		case "overlay2.override_kernel_check":
-			o.overrideKernelCheck, err = strconv.ParseBool(val)
-			if err != nil {
-				return nil, err
-			}
+			// TODO(thaJeztah): change this to an error, see https://github.com/docker/cli/pull/3806
+			logger.Warn("DEPRECATED: the overlay2.override_kernel_check option is ignored and will be removed in the next release. You can safely remove this option from your configuration.")
 		case "overlay2.size":
 			size, err := units.RAMInBytes(val)
 			if err != nil {
@@ -513,12 +510,12 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
-func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
+func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	diffDir := path.Join(dir, diffDirName)
@@ -526,14 +523,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if err != nil {
 		// If no lower, just return diff directory
 		if os.IsNotExist(err) {
-			return containerfs.NewLocalContainerFS(diffDir), nil
+			return diffDir, nil
 		}
-		return nil, err
+		return "", err
 	}
 
 	mergedDir := path.Join(dir, mergedDirName)
 	if count := d.ctr.Increment(mergedDir); count > 1 {
-		return containerfs.NewLocalContainerFS(mergedDir), nil
+		return mergedDir, nil
 	}
 	defer func() {
 		if retErr != nil {
@@ -559,7 +556,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if _, err := os.Stat(path.Join(dir, "committed")); err == nil {
 		readonly = true
 	} else if !os.IsNotExist(err) {
-		return nil, err
+		return "", err
 	}
 
 	var opts string
@@ -575,7 +572,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 
 	root := d.idMap.RootPair()
 	if err := idtools.MkdirAndChown(mergedDir, 0700, root); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	pageSize := unix.Getpagesize()
@@ -592,7 +589,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		}
 		mountData = label.FormatMountLabel(opts, mountLabel)
 		if len(mountData) > pageSize-1 {
-			return nil, fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
+			return "", fmt.Errorf("cannot mount layer, mount label too large %d", len(mountData))
 		}
 
 		mount = func(source string, target string, mType string, flags uintptr, label string) error {
@@ -602,18 +599,18 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	}
 
 	if err := mount("overlay", mountTarget, "overlay", 0, mountData); err != nil {
-		return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
+		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 
 	if !readonly {
 		// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 		// user namespace requires this to move a directory from lower to upper.
 		if err := root.Chown(path.Join(workDir, workDirName)); err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 
-	return containerfs.NewLocalContainerFS(mergedDir), nil
+	return mergedDir, nil
 }
 
 // Put unmounts the mount path created for the give id.

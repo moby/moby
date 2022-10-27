@@ -65,7 +65,6 @@ func makeTestMessages() []*logger.Message {
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("just one more message")},
 		{Source: "stdout", Timestamp: time.Now().Add(-1 * 90 * time.Minute), Line: []byte("someone adjusted the clock")},
 	}
-
 }
 
 func (tr Reader) testTail(t *testing.T, live bool) {

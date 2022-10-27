@@ -24,8 +24,9 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 	defer container.Unlock()
 
 	// We cannot Pause the container which is not running
-	if !container.Running {
-		return errNotRunning(container.ID)
+	tsk, err := container.GetRunningTask()
+	if err != nil {
+		return err
 	}
 
 	// We cannot Pause the container which is already paused
@@ -38,8 +39,8 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 		return errContainerIsRestarting(container.ID)
 	}
 
-	if err := daemon.containerd.Pause(context.Background(), container.ID); err != nil {
-		return fmt.Errorf("Cannot pause container %s: %s", container.ID, err)
+	if err := tsk.Pause(context.Background()); err != nil {
+		return fmt.Errorf("cannot pause container %s: %s", container.ID, err)
 	}
 
 	container.Paused = true

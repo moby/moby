@@ -198,6 +198,7 @@ func getUser(c *container.Container, username string) (specs.User, error) {
 	}
 	usr.UID = uint32(execUser.Uid)
 	usr.GID = uint32(execUser.Gid)
+	usr.AdditionalGids = []uint32{usr.GID}
 
 	var addGroups []int
 	if len(c.HostConfig.GroupAdd) > 0 {
@@ -705,7 +706,6 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		return nil
-
 	}
 }
 
@@ -720,8 +720,8 @@ func sysctlExists(s string) bool {
 // WithCommonOptions sets common docker options
 func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if c.BaseFS == nil && !daemon.UsesSnapshotter() {
-			return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly nil")
+		if c.BaseFS == "" && !daemon.UsesSnapshotter() {
+			return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
 		linkedEnv, err := daemon.setupLinkedContainers(c)
 		if err != nil {
@@ -729,7 +729,7 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		if !daemon.UsesSnapshotter() {
 			s.Root = &specs.Root{
-				Path:     c.BaseFS.Path(),
+				Path:     c.BaseFS,
 				Readonly: c.HostConfig.ReadonlyRootfs,
 			}
 		}
@@ -1045,8 +1045,17 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if daemon.configStore.Rootless {
 		opts = append(opts, WithRootless(daemon))
 	}
+
+	var snapshotter, snapshotKey string
+	if daemon.UsesSnapshotter() {
+		snapshotter = daemon.imageService.StorageDriver()
+		snapshotKey = c.ID
+	}
+
 	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
-		ID: c.ID,
+		ID:          c.ID,
+		Snapshotter: snapshotter,
+		SnapshotKey: snapshotKey,
 	}, &s, opts...)
 }
 

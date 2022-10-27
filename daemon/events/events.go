@@ -5,7 +5,7 @@ import (
 	"time"
 
 	eventtypes "github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/pkg/pubsub"
+	"github.com/moby/pubsub"
 )
 
 const (

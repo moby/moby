@@ -86,7 +86,7 @@ func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, cont
 // validatePortBindingIPv4 validates the port binding, populates the missing Host IP field and returns true
 // if this is a valid IPv4 binding, else returns false
 func (n *bridgeNetwork) validatePortBindingIPv4(bnd *types.PortBinding, containerIPv4, defHostIP net.IP) bool {
-	//Return early if there is a valid Host IP, but its not a IPv4 address
+	// Return early if there is a valid Host IP, but its not a IPv4 address
 	if len(bnd.HostIP) > 0 && bnd.HostIP.To4() == nil {
 		return false
 	}
@@ -100,7 +100,6 @@ func (n *bridgeNetwork) validatePortBindingIPv4(bnd *types.PortBinding, containe
 	}
 	bnd.IP = containerIPv4
 	return true
-
 }
 
 // validatePortBindingIPv6 validates the port binding, populates the missing Host IP field and returns true

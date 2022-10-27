@@ -59,6 +59,18 @@ keywords: "API, Docker, rcli, REST, documentation"
   if they are not set.
 * `GET /info` now omits the `KernelMemory` and `KernelMemoryTCP` if they are not
   supported by the host or host's configuration (if cgroups v2 are in use).
+* `GET /_ping` and `HEAD /_ping` now return `Builder-Version` by default.
+  This header contains the default builder to use, and is a recommendation as
+  advertised by the daemon. However, it is up to the client to choose which builder
+  to use.
+
+  The default value on Linux is version "2" (BuildKit), but the daemon can be
+  configured to recommend version "1" (classic Builder). Windows does not yet
+  support BuildKit for native Windows images, and uses "1" (classic builder) as
+  a default.
+
+  This change is not versioned, and affects all API versions if the daemon has
+  this patch. 
 * `GET /_ping` and `HEAD /_ping` now return a `Swarm` header, which allows a
   client to detect if Swarm is enabled on the daemon, without having to call
   additional endpoints.
@@ -113,6 +125,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   is set with a non-matching mount Type.
 * `POST /containers/{id}/exec` now accepts an optional `ConsoleSize` parameter.
   It allows to set the console size of the executed process immediately when it's created.
+* `POST /volumes/prune` will now only prune "anonymous" volumes (volumes which were not given a name) by default. A new filter parameter `all` can be set to a truth-y value (`true`, `1`) to get the old behavior.
 
 ## v1.41 API changes
 

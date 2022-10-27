@@ -222,7 +222,7 @@ type network struct {
 	dbExists         bool
 	persist          bool
 	drvOnce          *sync.Once
-	resolverOnce     sync.Once
+	resolverOnce     sync.Once //nolint:nolintlint,unused // only used on windows
 	resolver         []Resolver
 	internal         bool
 	attachable       bool
@@ -1168,7 +1168,6 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	defer n.ctrlr.networkLocker.Unlock(n.id) //nolint:errcheck
 
 	return n.createEndpoint(name, options...)
-
 }
 
 func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
@@ -1953,7 +1952,6 @@ func (n *network) TableEventRegister(tableName string, objType driverapi.ObjectT
 }
 
 func (n *network) UpdateIpamConfig(ipV4Data []driverapi.IPAMData) {
-
 	ipamV4Config := make([]*IpamConf, len(ipV4Data))
 
 	for i, data := range ipV4Data {
@@ -2233,7 +2231,6 @@ func (n *network) deleteLoadBalancerSandbox() error {
 	if err != nil {
 		logrus.Warnf("Failed to find load balancer endpoint %s on network %s: %v", endpointName, name, err)
 	} else {
-
 		info := endpoint.Info()
 		if info != nil {
 			sb := info.Sandbox()

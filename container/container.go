@@ -19,7 +19,6 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/container/stream"
-	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/logger/local"
@@ -28,6 +27,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -53,9 +53,6 @@ type ExitStatus struct {
 	// The exit code with which the container exited.
 	ExitCode int
 
-	// Whether the container encountered an OOM.
-	OOMKilled bool
-
 	// Time at which the container died
 	ExitedAt time.Time
 }
@@ -64,10 +61,10 @@ type ExitStatus struct {
 type Container struct {
 	StreamConfig *stream.Config
 	// embed for Container to support states directly.
-	*State          `json:"State"`          // Needed for Engine API version <= 1.11
-	Root            string                  `json:"-"` // Path to the "home" of the container, including metadata.
-	BaseFS          containerfs.ContainerFS `json:"-"` // interface containing graphdriver mount
-	RWLayer         layer.RWLayer           `json:"-"`
+	*State          `json:"State"` // Needed for Engine API version <= 1.11
+	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
+	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
+	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
 	Managed         bool
@@ -89,7 +86,7 @@ type Container struct {
 	HasBeenManuallyRestarted bool `json:"-"` // used to distinguish restart caused by restart policy from the manual one
 	MountPoints              map[string]*volumemounts.MountPoint
 	HostConfig               *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
-	ExecCommands             *exec.Store                `json:"-"`
+	ExecCommands             *ExecStore                 `json:"-"`
 	DependencyStore          agentexec.DependencyGetter `json:"-"`
 	SecretReferences         []*swarmtypes.SecretReference
 	ConfigReferences         []*swarmtypes.ConfigReference
@@ -124,7 +121,7 @@ func NewBaseContainer(id, root string) *Container {
 	return &Container{
 		ID:            id,
 		State:         NewState(),
-		ExecCommands:  exec.NewStore(),
+		ExecCommands:  NewExecStore(),
 		Root:          root,
 		MountPoints:   make(map[string]*volumemounts.MountPoint),
 		StreamConfig:  stream.NewConfig(),
@@ -196,7 +193,7 @@ func (container *Container) toDisk() (*Container, error) {
 
 // CheckpointTo makes the Container's current state visible to queries, and persists state.
 // Callers must hold a Container lock.
-func (container *Container) CheckpointTo(store ViewDB) error {
+func (container *Container) CheckpointTo(store *ViewDB) error {
 	deepCopy, err := container.toDisk()
 	if err != nil {
 		return err
@@ -302,18 +299,18 @@ func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity)
 // symlinking to a different path) between using this method and using the
 // path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetResourcePath(path string) (string, error) {
-	if container.BaseFS == nil {
-		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	if container.BaseFS == "" {
+		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
-	r, e := container.BaseFS.ResolveScopedPath(path, false)
+	r, e := containerfs.ResolveScopedPath(container.BaseFS, containerfs.CleanScopedPath(path))
 
 	// Log this here on the daemon side as there's otherwise no indication apart
 	// from the error being propagated all the way back to the client. This makes
 	// debugging significantly easier and clearly indicates the error comes from the daemon.
 	if e != nil {
-		logrus.Errorf("Failed to ResolveScopedPath BaseFS %s path %s %s\n", container.BaseFS.Path(), path, e)
+		logrus.Errorf("Failed to ResolveScopedPath BaseFS %s path %s %s\n", container.BaseFS, path, e)
 	}
 	return r, e
 }
@@ -753,6 +750,47 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// else.
 	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
+}
+
+// RestoreTask restores the containerd container and task handles and reattaches
+// the IO for the running task. Container state is not synced with containerd's
+// state.
+//
+// An errdefs.NotFound error is returned if the container does not exist in
+// containerd. However, a nil error is returned if the task does not exist in
+// containerd.
+func (container *Container) RestoreTask(ctx context.Context, client libcontainerdtypes.Client) error {
+	container.Lock()
+	defer container.Unlock()
+	var err error
+	container.ctr, err = client.LoadContainer(ctx, container.ID)
+	if err != nil {
+		return err
+	}
+	container.task, err = container.ctr.AttachTask(ctx, container.InitializeStdio)
+	if err != nil && !errdefs.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// GetRunningTask asserts that the container is running and returns the Task for
+// the container. An errdefs.Conflict error is returned if the container is not
+// in the Running state.
+//
+// A system error is returned if container is in a bad state: Running is true
+// but has a nil Task.
+//
+// The container lock must be held when calling this method.
+func (container *Container) GetRunningTask() (libcontainerdtypes.Task, error) {
+	if !container.Running {
+		return nil, errdefs.Conflict(fmt.Errorf("container %s is not running", container.ID))
+	}
+	tsk, ok := container.Task()
+	if !ok {
+		return nil, errdefs.System(errors.WithStack(fmt.Errorf("container %s is in Running state but has no containerd Task set", container.ID)))
+	}
+	return tsk, nil
 }
 
 type rio struct {

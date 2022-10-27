@@ -42,8 +42,7 @@ func (s *DockerCLIInspectSuite) TestInspectImage(c *testing.T) {
 	// fails, fix the difference in the image serialization instead of
 	// updating this hash.
 	imageTestID := "sha256:11f64303f0f7ffdc71f001788132bca5346831939a956e3e975c93267d89a16d"
-	usesContainerdSnapshotter := false // TODO(vvoland): Check for feature flag
-	if usesContainerdSnapshotter {
+	if containerdSnapshotterEnabled() {
 		// Under containerd ID of the image is the digest of the manifest list.
 		imageTestID = "sha256:e43ca824363c5c56016f6ede3a9035afe0e9bd43333215e0b0bde6193969725d"
 	}
@@ -92,7 +91,6 @@ func (s *DockerCLIInspectSuite) TestInspectStatus(c *testing.T) {
 	dockerCmd(c, "stop", out)
 	inspectOut = inspectField(c, out, "State.Status")
 	assert.Equal(c, inspectOut, "exited")
-
 }
 
 func (s *DockerCLIInspectSuite) TestInspectTypeFlagContainer(c *testing.T) {
@@ -137,7 +135,7 @@ func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T
 
 	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
 	assert.Assert(c, err != nil, "%d", exitCode)
-	assert.Equal(c, exitCode, 1, fmt.Sprintf("%s", err))
+	assert.Equal(c, exitCode, 1, err)
 	assert.Assert(c, strings.Contains(out, "not a valid value for --type"))
 }
 
@@ -149,7 +147,7 @@ func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	size, err := strconv.Atoi(out)
 	assert.Assert(c, err == nil, "failed to inspect size of the image: %s, %v", out, err)
 
-	//now see if the size turns out to be the same
+	// now see if the size turns out to be the same
 	formatStr := fmt.Sprintf("--format={{eq .Size %d}}", size)
 	out, _ = dockerCmd(c, "inspect", formatStr, imageTest)
 	result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
@@ -171,7 +169,7 @@ func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
 	exitCode, err := strconv.Atoi(out)
 	assert.Assert(c, err == nil, "failed to inspect exitcode of the container: %s, %v", out, err)
 
-	//now get the exit code to verify
+	// now get the exit code to verify
 	formatStr := fmt.Sprintf("--format={{eq .State.ExitCode %d}}", exitCode)
 	out, _ = dockerCmd(c, "inspect", formatStr, id)
 	inspectResult, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))

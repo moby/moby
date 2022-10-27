@@ -173,7 +173,6 @@ func TestFilterNetworks(t *testing.T) {
 			if testCase.err != "" {
 				if err == nil {
 					t.Fatalf("expect error '%s', got no error", testCase.err)
-
 				} else if !strings.Contains(err.Error(), testCase.err) {
 					t.Fatalf("expect error '%s', got '%s'", testCase.err, err)
 				}

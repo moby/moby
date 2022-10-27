@@ -4,11 +4,11 @@ import (
 	"errors"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/containerfs"
 )
 
 const (
@@ -52,7 +52,7 @@ func checkDirectory(t *testing.T, dir string, expectedFiles []string) {
 }
 
 func executeProcess(t *testing.T, contextDir string) {
-	modifiableCtx := &stubRemote{root: containerfs.NewLocalContainerFS(contextDir)}
+	modifiableCtx := &stubRemote{root: contextDir}
 
 	err := removeDockerfile(modifiableCtx, builder.DefaultDockerfileName)
 
@@ -72,7 +72,6 @@ func TestProcessShouldRemoveDockerfileDockerignore(t *testing.T) {
 	executeProcess(t, contextDir)
 
 	checkDirectory(t, contextDir, []string{shouldStayFilename})
-
 }
 
 func TestProcessNoDockerignore(t *testing.T) {
@@ -85,7 +84,6 @@ func TestProcessNoDockerignore(t *testing.T) {
 	executeProcess(t, contextDir)
 
 	checkDirectory(t, contextDir, []string{shouldStayFilename, builder.DefaultDockerfileName})
-
 }
 
 func TestProcessShouldLeaveAllFiles(t *testing.T) {
@@ -99,24 +97,23 @@ func TestProcessShouldLeaveAllFiles(t *testing.T) {
 	executeProcess(t, contextDir)
 
 	checkDirectory(t, contextDir, []string{shouldStayFilename, builder.DefaultDockerfileName, dockerignoreFilename})
-
 }
 
 // TODO: remove after moving to a separate pkg
 type stubRemote struct {
-	root containerfs.ContainerFS
+	root string
 }
 
 func (r *stubRemote) Hash(path string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func (r *stubRemote) Root() containerfs.ContainerFS {
+func (r *stubRemote) Root() string {
 	return r.root
 }
 func (r *stubRemote) Close() error {
 	return errors.New("not implemented")
 }
 func (r *stubRemote) Remove(p string) error {
-	return r.root.Remove(r.root.Join(r.root.Path(), p))
+	return os.Remove(filepath.Join(r.root, p))
 }

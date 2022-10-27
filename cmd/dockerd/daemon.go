@@ -139,13 +139,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	potentiallyUnderRuntimeDir := []string{cli.Config.ExecRoot}
 
 	if cli.Pidfile != "" {
-		pf, err := pidfile.New(cli.Pidfile)
-		if err != nil {
+		if err := pidfile.Write(cli.Pidfile); err != nil {
 			return errors.Wrap(err, "failed to start daemon")
 		}
 		potentiallyUnderRuntimeDir = append(potentiallyUnderRuntimeDir, cli.Pidfile)
 		defer func() {
-			if err := pf.Remove(); err != nil {
+			if err := os.Remove(cli.Pidfile); err != nil {
 				logrus.Error(err)
 			}
 		}()
@@ -325,7 +324,6 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 
 func (cli *DaemonCli) reloadConfig() {
 	reload := func(c *config.Config) {
-
 		// Revalidate and reload the authorization plugins
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 			logrus.Fatalf("Error validating authorization plugin: %v", err)
@@ -397,9 +395,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.Hosts = opts.Hosts
 	conf.LogLevel = opts.LogLevel
 
-	if flags.Changed("graph") && flags.Changed("data-root") {
-		return nil, errors.New(`cannot specify both "--graph" and "--data-root" option`)
-	}
 	if flags.Changed(FlagTLS) {
 		conf.TLS = &opts.TLS
 	}
@@ -448,10 +443,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 
 	if err := config.Validate(conf); err != nil {
 		return nil, err
-	}
-
-	if flags.Changed("graph") {
-		logrus.Warnf(`The "-g / --graph" flag is deprecated. Please use "--data-root" instead`)
 	}
 
 	// Check if duplicate label-keys with different values are found

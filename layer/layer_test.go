@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -80,7 +79,7 @@ func newTestStore(t *testing.T) (Store, string, func()) {
 	}
 }
 
-type layerInit func(root containerfs.ContainerFS) error
+type layerInit func(root string) error
 
 func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	containerID := stringid.GenerateRandomID()
@@ -121,7 +120,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 }
 
 type FileApplier interface {
-	ApplyFile(root containerfs.ContainerFS) error
+	ApplyFile(root string) error
 }
 
 type testFile struct {
@@ -138,22 +137,22 @@ func newTestFile(name string, content []byte, perm os.FileMode) FileApplier {
 	}
 }
 
-func (tf *testFile) ApplyFile(root containerfs.ContainerFS) error {
-	fullPath := root.Join(root.Path(), tf.name)
-	if err := root.MkdirAll(root.Dir(fullPath), 0755); err != nil {
+func (tf *testFile) ApplyFile(root string) error {
+	fullPath := filepath.Join(root, tf.name)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 		return err
 	}
 	// Check if already exists
-	if stat, err := root.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
-		if err := root.Lchmod(fullPath, tf.permission); err != nil {
+	if stat, err := os.Stat(fullPath); err == nil && stat.Mode().Perm() != tf.permission {
+		if err := driver.LocalDriver.Lchmod(fullPath, tf.permission); err != nil {
 			return err
 		}
 	}
-	return driver.WriteFile(root, fullPath, tf.content, tf.permission)
+	return os.WriteFile(fullPath, tf.content, tf.permission)
 }
 
 func initWithFiles(files ...FileApplier) layerInit {
-	return func(root containerfs.ContainerFS) error {
+	return func(root string) error {
 		for _, f := range files {
 			if err := f.ApplyFile(root); err != nil {
 				return err
@@ -248,7 +247,7 @@ func TestMountAndRegister(t *testing.T) {
 	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
-	li := initWithFiles(newTestFile("testfile.txt", []byte("some test data"), 0644))
+	li := initWithFiles(newTestFile("testfile.txt", []byte("some test data"), 0o644))
 	layer, err := createLayer(ls, "", li)
 	if err != nil {
 		t.Fatal(err)
@@ -267,7 +266,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := driver.ReadFile(path2, path2.Join(path2.Path(), "testfile.txt"))
+	b, err := os.ReadFile(filepath.Join(path2, "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,12 +292,12 @@ func TestLayerRelease(t *testing.T) {
 	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
-	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0644)))
+	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2, err := createLayer(ls, layer1.ChainID(), initWithFiles(newTestFile("layer2.txt", []byte("layer 2 file"), 0644)))
+	layer2, err := createLayer(ls, layer1.ChainID(), initWithFiles(newTestFile("layer2.txt", []byte("layer 2 file"), 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,12 +306,12 @@ func TestLayerRelease(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer3a, err := createLayer(ls, layer2.ChainID(), initWithFiles(newTestFile("layer3.txt", []byte("layer 3a file"), 0644)))
+	layer3a, err := createLayer(ls, layer2.ChainID(), initWithFiles(newTestFile("layer3.txt", []byte("layer 3a file"), 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer3b, err := createLayer(ls, layer2.ChainID(), initWithFiles(newTestFile("layer3.txt", []byte("layer 3b file"), 0644)))
+	layer3b, err := createLayer(ls, layer2.ChainID(), initWithFiles(newTestFile("layer3.txt", []byte("layer 3b file"), 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -342,12 +341,12 @@ func TestStoreRestore(t *testing.T) {
 	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
-	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0644)))
+	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2, err := createLayer(ls, layer1.ChainID(), initWithFiles(newTestFile("layer2.txt", []byte("layer 2 file"), 0644)))
+	layer2, err := createLayer(ls, layer1.ChainID(), initWithFiles(newTestFile("layer2.txt", []byte("layer 2 file"), 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,7 +355,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer3, err := createLayer(ls, layer2.ChainID(), initWithFiles(newTestFile("layer3.txt", []byte("layer 3 file"), 0644)))
+	layer3, err := createLayer(ls, layer2.ChainID(), initWithFiles(newTestFile("layer3.txt", []byte("layer 3 file"), 0o644)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +374,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := driver.WriteFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"), []byte("nothing here"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pathFS, "testfile.txt"), []byte("nothing here"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -409,20 +408,20 @@ func TestStoreRestore(t *testing.T) {
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if pathFS.Path() != mountPath.Path() {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
+	} else if pathFS != mountPath {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath, pathFS)
 	}
 
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
-	} else if pathFS.Path() != mountPath.Path() {
-		t.Fatalf("Unexpected path %s, expected %s", mountPath.Path(), pathFS.Path())
+	} else if pathFS != mountPath {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath, pathFS)
 	}
 	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := driver.ReadFile(pathFS, pathFS.Join(pathFS.Path(), "testfile.txt"))
+	b, err := os.ReadFile(filepath.Join(pathFS, "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,14 +457,14 @@ func TestTarStreamStability(t *testing.T) {
 	defer cleanup()
 
 	files1 := []FileApplier{
-		newTestFile("/etc/hosts", []byte("mydomain 10.0.0.1"), 0644),
-		newTestFile("/etc/profile", []byte("PATH=/usr/bin"), 0644),
+		newTestFile("/etc/hosts", []byte("mydomain 10.0.0.1"), 0o644),
+		newTestFile("/etc/profile", []byte("PATH=/usr/bin"), 0o644),
 	}
-	addedFile := newTestFile("/etc/shadow", []byte("root:::::::"), 0644)
+	addedFile := newTestFile("/etc/shadow", []byte("root:::::::"), 0o644)
 	files2 := []FileApplier{
-		newTestFile("/etc/hosts", []byte("mydomain 10.0.0.2"), 0644),
-		newTestFile("/etc/profile", []byte("PATH=/usr/bin"), 0664),
-		newTestFile("/root/.bashrc", []byte("PATH=/usr/sbin:/usr/bin"), 0644),
+		newTestFile("/etc/hosts", []byte("mydomain 10.0.0.2"), 0o644),
+		newTestFile("/etc/profile", []byte("PATH=/usr/bin"), 0o664),
+		newTestFile("/root/.bashrc", []byte("PATH=/usr/sbin:/usr/bin"), 0o644),
 	}
 
 	tar1, err := tarFromFiles(files1...)
@@ -597,7 +596,7 @@ func tarFromFiles(files ...FileApplier) ([]byte, error) {
 	defer os.RemoveAll(td)
 
 	for _, f := range files {
-		if err := f.ApplyFile(containerfs.NewLocalContainerFS(td)); err != nil {
+		if err := f.ApplyFile(td); err != nil {
 			return nil, err
 		}
 	}
@@ -647,11 +646,11 @@ func TestRegisterExistingLayer(t *testing.T) {
 	defer cleanup()
 
 	baseFiles := []FileApplier{
-		newTestFile("/etc/profile", []byte("# Base configuration"), 0644),
+		newTestFile("/etc/profile", []byte("# Base configuration"), 0o644),
 	}
 
 	layerFiles := []FileApplier{
-		newTestFile("/root/.bashrc", []byte("# Root configuration"), 0644),
+		newTestFile("/root/.bashrc", []byte("# Root configuration"), 0o644),
 	}
 
 	li := initWithFiles(baseFiles...)
@@ -687,12 +686,12 @@ func TestTarStreamVerification(t *testing.T) {
 	defer cleanup()
 
 	files1 := []FileApplier{
-		newTestFile("/foo", []byte("abc"), 0644),
-		newTestFile("/bar", []byte("def"), 0644),
+		newTestFile("/foo", []byte("abc"), 0o644),
+		newTestFile("/bar", []byte("def"), 0o644),
 	}
 	files2 := []FileApplier{
-		newTestFile("/foo", []byte("abc"), 0644),
-		newTestFile("/bar", []byte("def"), 0600), // different perm
+		newTestFile("/foo", []byte("abc"), 0o644),
+		newTestFile("/bar", []byte("def"), 0o600), // different perm
 	}
 
 	tar1, err := tarFromFiles(files1...)

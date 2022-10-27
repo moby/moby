@@ -17,6 +17,7 @@ import (
 	"github.com/docker/distribution/manifest/ocischema"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/distribution/reference"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -37,6 +38,11 @@ func (m *mockManifestGetter) Get(ctx context.Context, dgst digest.Digest, option
 		return nil, distribution.ErrManifestUnknown{Tag: dgst.String()}
 	}
 	return manifest, nil
+}
+
+func (m *mockManifestGetter) Exists(ctx context.Context, dgst digest.Digest) (bool, error) {
+	_, ok := m.manifests[dgst]
+	return ok, nil
 }
 
 type memoryLabelStore struct {
@@ -76,7 +82,9 @@ func (s *memoryLabelStore) Update(dgst digest.Digest, update map[string]string) 
 	for k, v := range update {
 		labels[k] = v
 	}
-
+	if s.labels == nil {
+		s.labels = map[digest.Digest]map[string]string{}
+	}
 	s.labels[dgst] = labels
 
 	return labels, nil
@@ -125,7 +133,7 @@ func TestManifestStore(t *testing.T) {
 	assert.NilError(t, err)
 	dgst := digest.Canonical.FromBytes(serialized)
 
-	setupTest := func(t *testing.T) (specs.Descriptor, *mockManifestGetter, *manifestStore, content.Store, func(*testing.T)) {
+	setupTest := func(t *testing.T) (reference.Named, specs.Descriptor, *mockManifestGetter, *manifestStore, content.Store, func(*testing.T)) {
 		root, err := os.MkdirTemp("", strings.ReplaceAll(t.Name(), "/", "_"))
 		assert.NilError(t, err)
 		defer func() {
@@ -141,7 +149,10 @@ func TestManifestStore(t *testing.T) {
 		store := &manifestStore{local: cs, remote: mg}
 		desc := specs.Descriptor{Digest: dgst, MediaType: specs.MediaTypeImageManifest, Size: int64(len(serialized))}
 
-		return desc, mg, store, cs, func(t *testing.T) {
+		ref, err := reference.Parse("foo/bar")
+		assert.NilError(t, err)
+
+		return ref.(reference.Named), desc, mg, store, cs, func(t *testing.T) {
 			assert.Check(t, os.RemoveAll(root))
 		}
 	}
@@ -171,7 +182,6 @@ func TestManifestStore(t *testing.T) {
 
 		err = w.Commit(ctx, desc.Size, desc.Digest, opts...)
 		assert.NilError(t, err)
-
 	}
 
 	// All tests should end up with no active ingest
@@ -182,22 +192,22 @@ func TestManifestStore(t *testing.T) {
 	}
 
 	t.Run("no remote or local", func(t *testing.T) {
-		desc, _, store, cs, teardown := setupTest(t)
+		ref, desc, _, store, cs, teardown := setupTest(t)
 		defer teardown(t)
 
-		_, err = store.Get(ctx, desc)
+		_, err = store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
 		// This error is what our digest getter returns when it doesn't know about the manifest
 		assert.Error(t, err, distribution.ErrManifestUnknown{Tag: dgst.String()}.Error())
 	})
 
 	t.Run("no local cache", func(t *testing.T) {
-		desc, mg, store, cs, teardown := setupTest(t)
+		ref, desc, mg, store, cs, teardown := setupTest(t)
 		defer teardown(t)
 
 		mg.manifests[desc.Digest] = m
 
-		m2, err := store.Get(ctx, desc)
+		m2, err := store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
@@ -207,23 +217,34 @@ func TestManifestStore(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Equal(i.Digest, desc.Digest))
 
+		distKey, distSource := makeDistributionSourceLabel(ref)
+		assert.Check(t, hasDistributionSource(i.Labels[distKey], distSource))
+
 		// Now check again, this should not hit the remote
-		m2, err = store.Get(ctx, desc)
+		m2, err = store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
 		assert.Check(t, cmp.Equal(mg.gets, 1))
+
+		t.Run("digested", func(t *testing.T) {
+			ref, err := reference.WithDigest(ref, desc.Digest)
+			assert.NilError(t, err)
+
+			_, err = store.Get(ctx, desc, ref)
+			assert.NilError(t, err)
+		})
 	})
 
 	t.Run("with local cache", func(t *testing.T) {
-		desc, mg, store, cs, teardown := setupTest(t)
+		ref, desc, mg, store, cs, teardown := setupTest(t)
 		defer teardown(t)
 
 		// first add the manifest to the coontent store
 		writeManifest(t, cs, desc)
 
 		// now do the get
-		m2, err := store.Get(ctx, desc)
+		m2, err := store.Get(ctx, desc, ref)
 		checkIngest(t, cs, desc)
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
@@ -237,13 +258,13 @@ func TestManifestStore(t *testing.T) {
 	// This is for the case of pull by digest where we don't know the media type of the manifest until it's actually pulled.
 	t.Run("unknown media type", func(t *testing.T) {
 		t.Run("no cache", func(t *testing.T) {
-			desc, mg, store, cs, teardown := setupTest(t)
+			ref, desc, mg, store, cs, teardown := setupTest(t)
 			defer teardown(t)
 
 			mg.manifests[desc.Digest] = m
 			desc.MediaType = ""
 
-			m2, err := store.Get(ctx, desc)
+			m2, err := store.Get(ctx, desc, ref)
 			checkIngest(t, cs, desc)
 			assert.NilError(t, err)
 			assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
@@ -252,13 +273,13 @@ func TestManifestStore(t *testing.T) {
 
 		t.Run("with cache", func(t *testing.T) {
 			t.Run("cached manifest has media type", func(t *testing.T) {
-				desc, mg, store, cs, teardown := setupTest(t)
+				ref, desc, mg, store, cs, teardown := setupTest(t)
 				defer teardown(t)
 
 				writeManifest(t, cs, desc)
 				desc.MediaType = ""
 
-				m2, err := store.Get(ctx, desc)
+				m2, err := store.Get(ctx, desc, ref)
 				checkIngest(t, cs, desc)
 				assert.NilError(t, err)
 				assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
@@ -266,13 +287,13 @@ func TestManifestStore(t *testing.T) {
 			})
 
 			t.Run("cached manifest has no media type", func(t *testing.T) {
-				desc, mg, store, cs, teardown := setupTest(t)
+				ref, desc, mg, store, cs, teardown := setupTest(t)
 				defer teardown(t)
 
 				desc.MediaType = ""
 				writeManifest(t, cs, desc)
 
-				m2, err := store.Get(ctx, desc)
+				m2, err := store.Get(ctx, desc, ref)
 				checkIngest(t, cs, desc)
 				assert.NilError(t, err)
 				assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
@@ -287,14 +308,14 @@ func TestManifestStore(t *testing.T) {
 	// Also makes sure the ingests are aborted.
 	t.Run("error persisting manifest", func(t *testing.T) {
 		t.Run("error on writer", func(t *testing.T) {
-			desc, mg, store, cs, teardown := setupTest(t)
+			ref, desc, mg, store, cs, teardown := setupTest(t)
 			defer teardown(t)
 			mg.manifests[desc.Digest] = m
 
 			csW := &testingContentStoreWrapper{ContentStore: store.local, errorOnWriter: errors.New("random error")}
 			store.local = csW
 
-			m2, err := store.Get(ctx, desc)
+			m2, err := store.Get(ctx, desc, ref)
 			checkIngest(t, cs, desc)
 			assert.NilError(t, err)
 			assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
@@ -306,14 +327,14 @@ func TestManifestStore(t *testing.T) {
 		})
 
 		t.Run("error on commit", func(t *testing.T) {
-			desc, mg, store, cs, teardown := setupTest(t)
+			ref, desc, mg, store, cs, teardown := setupTest(t)
 			defer teardown(t)
 			mg.manifests[desc.Digest] = m
 
 			csW := &testingContentStoreWrapper{ContentStore: store.local, errorOnCommit: errors.New("random error")}
 			store.local = csW
 
-			m2, err := store.Get(ctx, desc)
+			m2, err := store.Get(ctx, desc, ref)
 			checkIngest(t, cs, desc)
 			assert.NilError(t, err)
 			assert.Check(t, cmp.DeepEqual(m, m2, cmpopts.IgnoreUnexported(ocischema.DeserializedManifest{})))
@@ -348,7 +369,6 @@ func TestDetectManifestBlobMediaType(t *testing.T) {
 			assert.Equal(t, mt, tc.expected)
 		})
 	}
-
 }
 
 func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
@@ -418,5 +438,4 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 			assert.Equal(t, mt, "")
 		})
 	}
-
 }

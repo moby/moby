@@ -32,7 +32,7 @@ func TestParseHost(t *testing.T) {
 		"tcp://host:":              fmt.Sprintf("tcp://host:%d", DefaultHTTPPort),
 		"tcp://":                   DefaultTCPHost,
 		"tcp://:":                  DefaultTCPHost,
-		"tcp://:5555":              fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost),
+		"tcp://:5555":              fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost), //nolint:nosprintfhostport // sprintf is more readable for this case.
 		"tcp://[::1]":              fmt.Sprintf(`tcp://[::1]:%d`, DefaultHTTPPort),
 		"tcp://[::1]:":             fmt.Sprintf(`tcp://[::1]:%d`, DefaultHTTPPort),
 		"tcp://[::1]:5555":         `tcp://[::1]:5555`,
@@ -88,7 +88,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 	}
 	valids := map[string]string{
 		":":                       DefaultTCPHost,
-		":5555":                   fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost),
+		":5555":                   fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost), //nolint:nosprintfhostport // sprintf is more readable for this case.
 		"0.0.0.1:":                fmt.Sprintf("tcp://0.0.0.1:%d", DefaultHTTPPort),
 		"0.0.0.1:5555":            "tcp://0.0.0.1:5555",
 		"[::1]":                   fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),

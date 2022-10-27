@@ -291,7 +291,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 					return nil, nil, err
 				}
 				return []mount.Mount{{
-						Source:  rootfs.Path(),
+						Source:  rootfs,
 						Type:    "bind",
 						Options: []string{"rbind"},
 					}}, func() error {
@@ -312,7 +312,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 				return nil, nil, err
 			}
 			return []mount.Mount{{
-					Source:  rootfs.Path(),
+					Source:  rootfs,
 					Type:    "bind",
 					Options: []string{"rbind"},
 				}}, func() error {

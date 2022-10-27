@@ -2,7 +2,7 @@
 
 ARG CROSS="false"
 ARG SYSTEMD="false"
-ARG GO_VERSION=1.18.5
+ARG GO_VERSION=1.19.2
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.5.0
 
@@ -202,7 +202,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         PREFIX=/build /install.sh containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v1.46.2
+# FIXME: when updating golangci-lint, remove the temporary "nolint" in https://github.com/moby/moby/blob/7860686a8df15eea9def9e6189c6f9eca031bb6f/libnetwork/networkdb/cluster.go#L246
+ARG GOLANGCI_LINT_VERSION=v1.49.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
@@ -350,7 +351,8 @@ RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
  && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
  && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
 
-RUN pip3 install yamllint==1.26.1
+ARG YAMLLINT_VERSION=1.27.1
+RUN pip3 install yamllint==${YAMLLINT_VERSION}
 
 COPY --from=dockercli     /build/ /usr/local/cli
 COPY --from=frozen-images /build/ /docker-frozen-images

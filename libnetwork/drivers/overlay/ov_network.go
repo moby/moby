@@ -414,24 +414,24 @@ func (n *network) destroySandbox() {
 }
 
 func populateVNITbl() {
-	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
+	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
 		// NOTE(cpuguy83): The linter picked up on the fact that this walk function was not using this error argument
 		// That seems wrong... however I'm not familiar with this code or if that error matters
-		func(path string, info os.FileInfo, _ error) error {
+		func(path string, _ os.DirEntry, _ error) error {
 			_, fname := filepath.Split(path)
 
 			if len(strings.Split(fname, "-")) <= 1 {
 				return nil
 			}
 
-			ns, err := netns.GetFromPath(path)
+			n, err := netns.GetFromPath(path)
 			if err != nil {
 				logrus.Errorf("Could not open namespace path %s during vni population: %v", path, err)
 				return nil
 			}
-			defer ns.Close()
+			defer n.Close()
 
-			nlh, err := netlink.NewHandleAt(ns, unix.NETLINK_ROUTE)
+			nlh, err := netlink.NewHandleAt(n, unix.NETLINK_ROUTE)
 			if err != nil {
 				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
 				return nil
@@ -539,29 +539,26 @@ func checkOverlap(nw *net.IPNet) error {
 }
 
 func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) error {
-	sbox := n.sbox
-
 	// restore overlay osl sandbox
-	Ifaces := make(map[string][]osl.IfaceOption)
-	brIfaceOption := make([]osl.IfaceOption, 2)
-	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Address(s.gwIP))
-	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Bridge(true))
-	Ifaces[brName+"+br"] = brIfaceOption
-
-	err := sbox.Restore(Ifaces, nil, nil, nil)
-	if err != nil {
+	ifaces := map[string][]osl.IfaceOption{
+		brName + "+br": {
+			n.sbox.InterfaceOptions().Address(s.gwIP),
+			n.sbox.InterfaceOptions().Bridge(true),
+		},
+	}
+	if err := n.sbox.Restore(ifaces, nil, nil, nil); err != nil {
 		return err
 	}
 
-	Ifaces = make(map[string][]osl.IfaceOption)
-	vxlanIfaceOption := make([]osl.IfaceOption, 1)
-	vxlanIfaceOption = append(vxlanIfaceOption, sbox.InterfaceOptions().Master(brName))
-	Ifaces[vxlanName+"+vxlan"] = vxlanIfaceOption
-	return sbox.Restore(Ifaces, nil, nil, nil)
+	ifaces = map[string][]osl.IfaceOption{
+		vxlanName + "+vxlan": {
+			n.sbox.InterfaceOptions().Master(brName),
+		},
+	}
+	return n.sbox.Restore(ifaces, nil, nil, nil)
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
-
 	if hostMode {
 		// Try to delete stale bridge interface if it exists
 		if err := deleteInterface(brName); err != nil {
@@ -684,8 +681,8 @@ func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
 }
 
 func (n *network) cleanupStaleSandboxes() {
-	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
-		func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
+		func(path string, _ os.DirEntry, _ error) error {
 			_, fname := filepath.Split(path)
 
 			pList := strings.Split(fname, "-")
@@ -1076,7 +1073,7 @@ func (n *network) releaseVxlanID() ([]uint32, error) {
 }
 
 func (n *network) obtainVxlanID(s *subnet) error {
-	//return if the subnet already has a vxlan id assigned
+	// return if the subnet already has a vxlan id assigned
 	if n.vxlanID(s) != 0 {
 		return nil
 	}

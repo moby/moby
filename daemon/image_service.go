@@ -40,7 +40,7 @@ type ImageService interface {
 	ImportImage(src string, repository string, platform *v1.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
 	TagImage(imageName, repository, tag string) (string, error)
 	TagImageWithReference(imageID image.ID, newTag reference.Named) error
-	GetImage(refOrID string, platform *v1.Platform) (retImg *image.Image, retErr error)
+	GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error)
 	ImageHistory(name string) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
@@ -72,6 +72,6 @@ type ImageService interface {
 	DistributionServices() images.DistributionServices
 	Children(id image.ID) []image.ID
 	Cleanup() error
-	GraphDriverName() string
+	StorageDriver() string
 	UpdateConfig(maxDownloads, maxUploads int)
 }

@@ -20,8 +20,8 @@ import (
 
 const (
 	defaultPrefix = "/var/lib/docker/network/files"
-	dirPerm       = 0755
-	filePerm      = 0644
+	dirPerm       = 0o755
+	filePerm      = 0o644
 )
 
 func (sb *sandbox) startResolver(restore bool) {
@@ -209,9 +209,7 @@ func (sb *sandbox) setupDNS() error {
 
 	// When the user specify a conainter in the host namespace and do no have any dns option specified
 	// we just copy the host resolv.conf from the host itself
-	if sb.config.useDefaultSandBox &&
-		len(sb.config.dnsList) == 0 && len(sb.config.dnsSearchList) == 0 && len(sb.config.dnsOptionsList) == 0 {
-
+	if sb.config.useDefaultSandBox && len(sb.config.dnsList) == 0 && len(sb.config.dnsSearchList) == 0 && len(sb.config.dnsOptionsList) == 0 {
 		// We are working under the assumption that the origin file option had been properly expressed by the upper layer
 		// if not here we are going to error out
 		if err := copyFile(sb.config.originResolvConfPath, sb.config.resolvConfPath); err != nil {
@@ -325,7 +323,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if currHash != "" && currHash != currRC.Hash {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
-		//logrus.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
+		// logrus.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
 		return nil
 	}
 
@@ -334,7 +332,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644) //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+	err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm)
 	if err != nil {
 		return err
 	}

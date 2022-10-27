@@ -19,6 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // #5979
@@ -50,6 +51,7 @@ func (s *DockerCLIEventSuite) TestEventsRedirectStdout(c *testing.T) {
 
 func (s *DockerCLIEventSuite) TestEventsOOMDisableFalse(c *testing.T) {
 	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, swapMemorySupport, NotPpc64le)
+	skip.If(c, GitHubActions, "FIXME: https://github.com/moby/moby/pull/36541")
 
 	errChan := make(chan error, 1)
 	go func() {
@@ -80,6 +82,7 @@ func (s *DockerCLIEventSuite) TestEventsOOMDisableFalse(c *testing.T) {
 
 func (s *DockerCLIEventSuite) TestEventsOOMDisableTrue(c *testing.T) {
 	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotArm, swapMemorySupport, NotPpc64le)
+	skip.If(c, GitHubActions, "FIXME: https://github.com/moby/moby/pull/36541")
 
 	errChan := make(chan error, 1)
 	observer, err := newEventObserver(c)
@@ -388,7 +391,6 @@ func (s *DockerCLIEventSuite) TestEventsFilterNetworkID(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
-
 	// daemon config file
 	configFilePath := "test.json"
 	defer os.Remove(configFilePath)
@@ -436,7 +438,6 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
-
 	// daemon config file
 	configFilePath := "test.json"
 	defer os.Remove(configFilePath)

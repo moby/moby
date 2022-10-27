@@ -172,11 +172,8 @@ func (i *ImageService) Cleanup() error {
 	return nil
 }
 
-// GraphDriverName returns the name of the graph drvier
-// moved from Daemon.GraphDriverName, used by:
-// - newContainer
-// - to report an error in Daemon.Mount(container)
-func (i *ImageService) GraphDriverName() string {
+// StorageDriver returns the name of the storage driver used by the ImageService.
+func (i *ImageService) StorageDriver() string {
 	return i.layerStore.DriverName()
 }
 

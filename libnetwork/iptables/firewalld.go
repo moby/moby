@@ -206,7 +206,7 @@ func getDockerZoneSettings() []interface{} {
 		description: "zone for docker bridge network interfaces",
 		target:      "ACCEPT",
 	}
-	slice := []interface{}{
+	return []interface{}{
 		settings.version,
 		settings.name,
 		settings.description,
@@ -224,8 +224,6 @@ func getDockerZoneSettings() []interface{} {
 		settings.sourcePorts,
 		settings.icmpBlockInversion,
 	}
-	return slice
-
 }
 
 // setupDockerZone creates a zone called docker in firewalld which includes docker interfaces to allow

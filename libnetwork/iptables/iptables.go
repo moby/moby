@@ -260,7 +260,6 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 			} else if len(output) != 0 {
 				return fmt.Errorf("Could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
 			}
-
 		}
 		establish := []string{
 			"-o", bridgeName,
@@ -301,7 +300,6 @@ func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
 
 // Forward adds forwarding rule to 'filter' table and corresponding nat rule to 'nat' table.
 func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int, bridgeName string) error {
-
 	iptable := GetIptable(c.IPTable.Version)
 	daddr := ip.String()
 	if ip.IsUnspecified() {

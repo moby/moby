@@ -6,13 +6,14 @@ import (
 	"path/filepath"
 )
 
-// Size walks a directory tree and returns its total size in bytes.
-func Size(ctx context.Context, dir string) (size int64, err error) {
-	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
+// calcSize walks a directory tree and returns its total calcSize in bytes.
+func calcSize(ctx context.Context, dir string) (int64, error) {
+	var size int64
+	err := filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
-			// if dir does not exist, Size() returns the error.
 			// if dir/x disappeared while walking, Size() ignores dir/x.
-			if os.IsNotExist(err) && d != dir {
+			// if dir does not exist, Size() returns the error.
+			if d != dir && os.IsNotExist(err) {
 				return nil
 			}
 			return err
@@ -38,5 +39,5 @@ func Size(ctx context.Context, dir string) (size int64, err error) {
 
 		return nil
 	})
-	return
+	return size, err
 }

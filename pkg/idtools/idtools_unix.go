@@ -8,14 +8,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
 
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -24,14 +23,12 @@ var (
 )
 
 func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting bool) error {
-	// make an array containing the original path asked for, plus (for mkAll == true)
-	// all path components leading up to the complete path that don't exist before we MkdirAll
-	// so that we can chown all of them properly at the end.  If chownExisting is false, we won't
-	// chown the full directory path if it exists
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
 
-	var paths []string
-
-	stat, err := system.Stat(path)
+	stat, err := os.Stat(path)
 	if err == nil {
 		if !stat.IsDir() {
 			return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
@@ -40,10 +37,15 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 			return nil
 		}
 
-		// short-circuit--we were called with an existing directory and chown was requested
-		return setPermissions(path, mode, owner.UID, owner.GID, stat)
+		// short-circuit -- we were called with an existing directory and chown was requested
+		return setPermissions(path, mode, owner, stat)
 	}
 
+	// make an array containing the original path asked for, plus (for mkAll == true)
+	// all path components leading up to the complete path that don't exist before we MkdirAll
+	// so that we can chown all of them properly at the end.  If chownExisting is false, we won't
+	// chown the full directory path if it exists
+	var paths []string
 	if os.IsNotExist(err) {
 		paths = []string{path}
 	}
@@ -57,52 +59,24 @@ func mkdirAs(path string, mode os.FileMode, owner Identity, mkAll, chownExisting
 			if dirPath == "/" {
 				break
 			}
-			if _, err := os.Stat(dirPath); err != nil && os.IsNotExist(err) {
+			if _, err = os.Stat(dirPath); err != nil && os.IsNotExist(err) {
 				paths = append(paths, dirPath)
 			}
 		}
-		if err := system.MkdirAll(path, mode); err != nil {
+		if err = os.MkdirAll(path, mode); err != nil {
 			return err
 		}
-	} else {
-		if err := os.Mkdir(path, mode); err != nil && !os.IsExist(err) {
-			return err
-		}
+	} else if err = os.Mkdir(path, mode); err != nil {
+		return err
 	}
 	// even if it existed, we will chown the requested path + any subpaths that
 	// didn't exist when we called MkdirAll
 	for _, pathComponent := range paths {
-		if err := setPermissions(pathComponent, mode, owner.UID, owner.GID, nil); err != nil {
+		if err = setPermissions(pathComponent, mode, owner, nil); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// CanAccess takes a valid (existing) directory and a uid, gid pair and determines
-// if that uid, gid pair has access (execute bit) to the directory
-func CanAccess(path string, pair Identity) bool {
-	statInfo, err := system.Stat(path)
-	if err != nil {
-		return false
-	}
-	fileMode := os.FileMode(statInfo.Mode())
-	permBits := fileMode.Perm()
-	return accessible(statInfo.UID() == uint32(pair.UID),
-		statInfo.GID() == uint32(pair.GID), permBits)
-}
-
-func accessible(isOwner, isGroup bool, perms os.FileMode) bool {
-	if isOwner && (perms&0100 == 0100) {
-		return true
-	}
-	if isGroup && (perms&0010 == 0010) {
-		return true
-	}
-	if perms&0001 == 0001 {
-		return true
-	}
-	return false
 }
 
 // LookupUser uses traditional local system files lookup (from libcontainer/user) on a username,
@@ -195,7 +169,7 @@ func callGetent(database, key string) (io.Reader, error) {
 	}
 	out, err := execCmd(getentCmd, database, key)
 	if err != nil {
-		exitCode, errC := system.GetExitCode(err)
+		exitCode, errC := getExitCode(err)
 		if errC != nil {
 			return nil, err
 		}
@@ -209,32 +183,44 @@ func callGetent(database, key string) (io.Reader, error) {
 		default:
 			return nil, err
 		}
-
 	}
 	return bytes.NewReader(out), nil
+}
+
+// getExitCode returns the ExitStatus of the specified error if its type is
+// exec.ExitError, returns 0 and an error otherwise.
+func getExitCode(err error) (int, error) {
+	exitCode := 0
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			return procExit.ExitStatus(), nil
+		}
+	}
+	return exitCode, fmt.Errorf("failed to get exit code")
 }
 
 // setPermissions performs a chown/chmod only if the uid/gid don't match what's requested
 // Normally a Chown is a no-op if uid/gid match, but in some cases this can still cause an error, e.g. if the
 // dir is on an NFS share, so don't call chown unless we absolutely must.
 // Likewise for setting permissions.
-func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT) error {
+func setPermissions(p string, mode os.FileMode, owner Identity, stat os.FileInfo) error {
 	if stat == nil {
 		var err error
-		stat, err = system.Stat(p)
+		stat, err = os.Stat(p)
 		if err != nil {
 			return err
 		}
 	}
-	if os.FileMode(stat.Mode()).Perm() != mode.Perm() {
+	if stat.Mode().Perm() != mode.Perm() {
 		if err := os.Chmod(p, mode.Perm()); err != nil {
 			return err
 		}
 	}
-	if stat.UID() == uint32(uid) && stat.GID() == uint32(gid) {
+	ssi := stat.Sys().(*syscall.Stat_t)
+	if ssi.Uid == uint32(owner.UID) && ssi.Gid == uint32(owner.GID) {
 		return nil
 	}
-	return os.Chown(p, uid, gid)
+	return os.Chown(p, owner.UID, owner.GID)
 }
 
 // LoadIdentityMapping takes a requested username and
@@ -243,7 +229,7 @@ func setPermissions(p string, mode os.FileMode, uid, gid int, stat *system.StatT
 func LoadIdentityMapping(name string) (IdentityMapping, error) {
 	usr, err := LookupUser(name)
 	if err != nil {
-		return IdentityMapping{}, fmt.Errorf("Could not get user for username %s: %v", name, err)
+		return IdentityMapping{}, fmt.Errorf("could not get user for username %s: %v", name, err)
 	}
 
 	subuidRanges, err := lookupSubUIDRanges(usr)
@@ -273,7 +259,7 @@ func lookupSubUIDRanges(usr user.User) ([]IDMap, error) {
 		}
 	}
 	if len(rangeList) == 0 {
-		return nil, errors.Errorf("no subuid ranges found for user %q", usr.Name)
+		return nil, fmt.Errorf("no subuid ranges found for user %q", usr.Name)
 	}
 	return createIDMap(rangeList), nil
 }
@@ -290,7 +276,7 @@ func lookupSubGIDRanges(usr user.User) ([]IDMap, error) {
 		}
 	}
 	if len(rangeList) == 0 {
-		return nil, errors.Errorf("no subgid ranges found for user %q", usr.Name)
+		return nil, fmt.Errorf("no subgid ranges found for user %q", usr.Name)
 	}
 	return createIDMap(rangeList), nil
 }

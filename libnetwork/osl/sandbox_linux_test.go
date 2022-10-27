@@ -321,7 +321,6 @@ func TestSetInterfaceIP(t *testing.T) {
 }
 
 func TestLiveRestore(t *testing.T) {
-
 	defer testutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)

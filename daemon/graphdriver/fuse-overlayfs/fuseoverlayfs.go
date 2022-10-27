@@ -303,12 +303,12 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
-func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
+func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	diffDir := path.Join(dir, diffDirName)
@@ -316,14 +316,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if err != nil {
 		// If no lower, just return diff directory
 		if os.IsNotExist(err) {
-			return containerfs.NewLocalContainerFS(diffDir), nil
+			return diffDir, nil
 		}
-		return nil, err
+		return "", err
 	}
 
 	mergedDir := path.Join(dir, mergedDirName)
 	if count := d.ctr.Increment(mergedDir); count > 1 {
-		return containerfs.NewLocalContainerFS(mergedDir), nil
+		return mergedDir, nil
 	}
 	defer func() {
 		if retErr != nil {
@@ -351,7 +351,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if _, err := os.Stat(path.Join(dir, "committed")); err == nil {
 		readonly = true
 	} else if !os.IsNotExist(err) {
-		return nil, err
+		return "", err
 	}
 
 	var opts string
@@ -365,7 +365,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	mountTarget := mergedDir
 
 	if err := idtools.MkdirAndChown(mergedDir, 0700, d.idMap.RootPair()); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	mountProgram := exec.Command(binary, "-o", mountData, mountTarget)
@@ -377,10 +377,10 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		if output == "" {
 			output = "<stderr empty>"
 		}
-		return nil, errors.Wrapf(err, "using mount program %s: %s", binary, output)
+		return "", errors.Wrapf(err, "using mount program %s: %s", binary, output)
 	}
 
-	return containerfs.NewLocalContainerFS(mergedDir), nil
+	return mergedDir, nil
 }
 
 // Put unmounts the mount path created for the give id.

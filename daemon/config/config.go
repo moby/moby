@@ -7,9 +7,11 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/registry"
@@ -157,7 +159,7 @@ type CommonConfig struct {
 	NetworkDiagnosticPort int                       `json:"network-diagnostic-port,omitempty"`
 	Pidfile               string                    `json:"pidfile,omitempty"`
 	RawLogs               bool                      `json:"raw-logs,omitempty"`
-	RootDeprecated        string                    `json:"graph,omitempty"`
+	RootDeprecated        string                    `json:"graph,omitempty"` // Deprecated: use Root instead. TODO(thaJeztah): remove in next release.
 	Root                  string                    `json:"data-root,omitempty"`
 	ExecRoot              string                    `json:"exec-root,omitempty"`
 	SocketGroup           string                    `json:"group,omitempty"`
@@ -222,7 +224,7 @@ type CommonConfig struct {
 
 	DNSConfig
 	LogConfig
-	BridgeConfig // bridgeConfig holds bridge network specific configuration.
+	BridgeConfig // BridgeConfig holds bridge network specific configuration.
 	NetworkConfig
 	registry.ServiceOptions
 
@@ -275,9 +277,10 @@ func (conf *Config) IsValueSet(name string) bool {
 	return ok
 }
 
-// New returns a new fully initialized Config struct
-func New() *Config {
-	return &Config{
+// New returns a new fully initialized Config struct with default values set.
+func New() (*Config, error) {
+	// platform-agnostic default values for the Config.
+	cfg := &Config{
 		CommonConfig: CommonConfig{
 			ShutdownTimeout: DefaultShutdownTimeout,
 			LogConfig: LogConfig{
@@ -295,6 +298,12 @@ func New() *Config {
 			DefaultRuntime:            StockRuntimeName,
 		},
 	}
+
+	if err := setPlatformDefaults(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
 // GetConflictFreeLabels validates Labels for conflict
@@ -308,7 +317,7 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 		if len(stringSlice) > 1 {
 			// If there is a conflict we will return an error
 			if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
-				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
+				return nil, errors.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
 			}
 			labelMap[stringSlice[0]] = stringSlice[1]
 		}
@@ -316,7 +325,7 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 
 	newLabels := []string{}
 	for k, v := range labelMap {
-		newLabels = append(newLabels, fmt.Sprintf("%s=%s", k, v))
+		newLabels = append(newLabels, k+"="+v)
 	}
 	return newLabels, nil
 }
@@ -329,7 +338,10 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 		if flags.Changed("config-file") || !os.IsNotExist(err) {
 			return errors.Wrapf(err, "unable to configure the Docker daemon with file %s", configFile)
 		}
-		newConfig = New()
+		newConfig, err = New()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Check if duplicate label-keys with different values are found
@@ -462,16 +474,6 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return nil, err
 	}
 
-	if config.RootDeprecated != "" {
-		logrus.Warn(`The "graph" config file option is deprecated. Please use "data-root" instead.`)
-
-		if config.Root != "" {
-			return nil, errors.New(`cannot specify both "graph" and "data-root" config file options`)
-		}
-
-		config.Root = config.RootDeprecated
-	}
-
 	return &config, nil
 }
 
@@ -519,7 +521,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 		for key := range unknownKeys {
 			unknown = append(unknown, key)
 		}
-		return fmt.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
+		return errors.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
 	}
 
 	var conflicts []string
@@ -553,7 +555,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	flags.Visit(duplicatedConflicts)
 
 	if len(conflicts) > 0 {
-		return fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
+		return errors.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
 	}
 	return nil
 }
@@ -562,10 +564,15 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
+	//nolint:staticcheck // TODO(thaJeztah): remove in next release.
+	if config.RootDeprecated != "" {
+		return errors.New(`the "graph" config file option is deprecated; use "data-root" instead`)
+	}
+
 	// validate log-level
 	if config.LogLevel != "" {
 		if _, err := logrus.ParseLevel(config.LogLevel); err != nil {
-			return fmt.Errorf("invalid logging level: %s", config.LogLevel)
+			return errors.Errorf("invalid logging level: %s", config.LogLevel)
 		}
 	}
 
@@ -592,22 +599,22 @@ func Validate(config *Config) error {
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
 	if config.Mtu < 0 {
-		return fmt.Errorf("invalid default MTU: %d", config.Mtu)
+		return errors.Errorf("invalid default MTU: %d", config.Mtu)
 	}
 	if config.MaxConcurrentDownloads < 0 {
-		return fmt.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
+		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
 	if config.MaxConcurrentUploads < 0 {
-		return fmt.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
+		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
 	if config.MaxDownloadAttempts < 0 {
-		return fmt.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
+		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
 	// validate that "default" runtime is not reset
 	if runtimes := config.GetAllRuntimes(); len(runtimes) > 0 {
 		if _, ok := runtimes[StockRuntimeName]; ok {
-			return fmt.Errorf("runtime name '%s' is reserved", StockRuntimeName)
+			return errors.Errorf("runtime name '%s' is reserved", StockRuntimeName)
 		}
 	}
 
@@ -618,8 +625,8 @@ func Validate(config *Config) error {
 	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" {
 		if !builtinRuntimes[defaultRuntime] {
 			runtimes := config.GetAllRuntimes()
-			if _, ok := runtimes[defaultRuntime]; !ok {
-				return fmt.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
+			if _, ok := runtimes[defaultRuntime]; !ok && !IsPermissibleC8dRuntimeName(defaultRuntime) {
+				return errors.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
 			}
 		}
 	}
@@ -651,4 +658,38 @@ func MaskCredentials(rawURL string) string {
 	}
 	parsedURL.User = url.UserPassword("xxxxx", "xxxxx")
 	return parsedURL.String()
+}
+
+// IsPermissibleC8dRuntimeName tests whether name is safe to pass into
+// containerd as a runtime name, and whether the name is well-formed.
+// It does not check if the runtime is installed.
+//
+// A runtime name containing slash characters is interpreted by containerd as
+// the path to a runtime binary. If we allowed this, anyone with Engine API
+// access could get containerd to execute an arbitrary binary as root. Although
+// Engine API access is already equivalent to root on the host, the runtime name
+// has not historically been a vector to run arbitrary code as root so users are
+// not expecting it to become one.
+//
+// This restriction is not configurable. There are viable workarounds for
+// legitimate use cases: administrators and runtime developers can make runtimes
+// available for use with Docker by installing them onto PATH following the
+// [binary naming convention] for containerd Runtime v2.
+//
+// [binary naming convention]: https://github.com/containerd/containerd/blob/main/runtime/v2/README.md#binary-naming
+func IsPermissibleC8dRuntimeName(name string) bool {
+	// containerd uses a rather permissive test to validate runtime names:
+	//
+	//   - Any name for which filepath.IsAbs(name) is interpreted as the absolute
+	//     path to a shim binary. We want to block this behaviour.
+	//   - Any name which contains at least one '.' character and no '/' characters
+	//     and does not begin with a '.' character is a valid runtime name. The shim
+	//     binary name is derived from the final two components of the name and
+	//     searched for on the PATH. The name "a.." is technically valid per
+	//     containerd's implementation: it would resolve to a binary named
+	//     "containerd-shim---".
+	//
+	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/manager.go#L297-L317
+	// https://github.com/containerd/containerd/blob/11ded166c15f92450958078cd13c6d87131ec563/runtime/v2/shim/util.go#L83-L93
+	return !filepath.IsAbs(name) && !strings.ContainsRune(name, '/') && shim.BinaryName(name) != ""
 }

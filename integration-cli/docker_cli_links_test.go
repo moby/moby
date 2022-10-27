@@ -100,7 +100,6 @@ func (s *DockerCLILinksSuite) TestLinksPingLinkedContainersAfterRename(c *testin
 	dockerCmd(c, "run", "--rm", "--link", "container_new:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 	dockerCmd(c, "kill", idA)
 	dockerCmd(c, "kill", idB)
-
 }
 
 func (s *DockerCLILinksSuite) TestLinksInspectLinksStarted(c *testing.T) {
@@ -147,7 +146,6 @@ func (s *DockerCLILinksSuite) TestLinksNotStartedParentNotFail(c *testing.T) {
 	dockerCmd(c, "create", "--name=first", "busybox", "top")
 	dockerCmd(c, "create", "--name=second", "--link=first:first", "busybox", "top")
 	dockerCmd(c, "start", "first")
-
 }
 
 func (s *DockerCLILinksSuite) TestLinksHostsFilesInject(c *testing.T) {

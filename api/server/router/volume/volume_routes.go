@@ -162,11 +162,16 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	version := httputils.VersionFromContext(ctx)
 
 	err := v.backend.Remove(ctx, vars["name"], opts.WithPurgeOnError(force))
-	if err != nil {
-		if errdefs.IsNotFound(err) && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-			err := v.cluster.RemoveVolume(vars["name"], force)
-			if err != nil {
-				return err
+	// when a removal is forced, if the volume does not exist, no error will be
+	// returned. this means that to ensure forcing works on swarm volumes as
+	// well, we should always also force remove against the cluster.
+	if err != nil || force {
+		if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
+			if errdefs.IsNotFound(err) || force {
+				err := v.cluster.RemoveVolume(vars["name"], force)
+				if err != nil {
+					return err
+				}
 			}
 		} else {
 			return err
@@ -185,6 +190,12 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
+	}
+
+	// API version 1.42 changes behavior where prune should only prune anonymous volumes.
+	// To keep older API behavior working, we need to add this filter option to consider all (local) volumes for pruning, not just anonymous ones.
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.42") {
+		pruneFilters.Add("all", "true")
 	}
 
 	pruneReport, err := v.backend.Prune(ctx, pruneFilters)

@@ -186,7 +186,7 @@ type initializer struct {
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	c := &controller{
 		id:               stringid.GenerateRandomID(),
-		cfg:              config.ParseConfigOptions(cfgOptions...),
+		cfg:              config.New(cfgOptions...),
 		sandboxes:        sandboxTable{},
 		svcRecords:       make(map[string]svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
@@ -205,7 +205,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
-	for _, i := range getInitializers(c.cfg.Daemon.Experimental) {
+	for _, i := range getInitializers() {
 		var dcfg map[string]interface{}
 
 		// External plugins don't need config passed through daemon. They can
@@ -219,7 +219,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
-	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope), c.cfg.Daemon.DefaultAddressPool); err != nil {
+	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope), c.cfg.DefaultAddressPool); err != nil {
 		return nil, err
 	}
 
@@ -249,12 +249,12 @@ func (c *controller) SetClusterProvider(provider cluster.Provider) {
 	var sameProvider bool
 	c.Lock()
 	// Avoids to spawn multiple goroutine for the same cluster provider
-	if c.cfg.Daemon.ClusterProvider == provider {
+	if c.cfg.ClusterProvider == provider {
 		// If the cluster provider is already set, there is already a go routine spawned
 		// that is listening for events, so nothing to do here
 		sameProvider = true
 	} else {
-		c.cfg.Daemon.ClusterProvider = provider
+		c.cfg.ClusterProvider = provider
 	}
 	c.Unlock()
 
@@ -301,7 +301,7 @@ func (c *controller) getAgent() *agent {
 }
 
 func (c *controller) clusterAgentInit() {
-	clusterProvider := c.cfg.Daemon.ClusterProvider
+	clusterProvider := c.cfg.ClusterProvider
 	var keysAvailable bool
 	for {
 		eventType := <-clusterProvider.ListenClusterEvents()
@@ -408,7 +408,7 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 
 	config := make(map[string]interface{})
 
-	for _, label := range c.cfg.Daemon.Labels {
+	for _, label := range c.cfg.Labels {
 		if !strings.HasPrefix(netlabel.Key(label), netlabel.DriverPrefix+"."+ntype) {
 			continue
 		}
@@ -416,7 +416,7 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 		config[netlabel.Key(label)] = netlabel.Value(label)
 	}
 
-	drvCfg, ok := c.cfg.Daemon.DriverCfg[ntype]
+	drvCfg, ok := c.cfg.DriverCfg[ntype]
 	if ok {
 		for k, v := range drvCfg.(map[string]interface{}) {
 			config[k] = v
@@ -447,7 +447,7 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	// For now we accept the configuration reload only as a mean to provide a global store config after boot.
 	// Refuse the configuration if it alters an existing datastore client configuration.
 	update := false
-	cfg := config.ParseConfigOptions(cfgOptions...)
+	cfg := config.New(cfgOptions...)
 
 	for s := range c.cfg.Scopes {
 		if _, ok := cfg.Scopes[s]; !ok {
@@ -580,19 +580,19 @@ func (c *controller) Config() config.Config {
 func (c *controller) isManager() bool {
 	c.Lock()
 	defer c.Unlock()
-	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
+	if c.cfg == nil || c.cfg.ClusterProvider == nil {
 		return false
 	}
-	return c.cfg.Daemon.ClusterProvider.IsManager()
+	return c.cfg.ClusterProvider.IsManager()
 }
 
 func (c *controller) isAgent() bool {
 	c.Lock()
 	defer c.Unlock()
-	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
+	if c.cfg == nil || c.cfg.ClusterProvider == nil {
 		return false
 	}
-	return c.cfg.Daemon.ClusterProvider.IsAgent()
+	return c.cfg.ClusterProvider.IsAgent()
 }
 
 func (c *controller) isDistributedControl() bool {
@@ -675,7 +675,6 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	if network.scope == datastore.LocalScope && cap.DataScope == datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("cannot downgrade network scope for %s networks", networkType)
-
 	}
 	if network.ingress && cap.DataScope != datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
@@ -1038,8 +1037,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	if sb.ingress {
 		c.ingressSandbox = sb
-		sb.config.hostsPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/hosts")
-		sb.config.resolvConfPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/resolv.conf")
+		sb.config.hostsPath = filepath.Join(c.cfg.DataDir, "/network/files/hosts")
+		sb.config.resolvConfPath = filepath.Join(c.cfg.DataDir, "/network/files/resolv.conf")
 		sb.id = "ingress_sbox"
 	} else if sb.loadBalancerNID != "" {
 		sb.id = "lb_" + sb.loadBalancerNID
@@ -1287,7 +1286,7 @@ func (c *controller) iptablesEnabled() bool {
 		return false
 	}
 	// parse map cfg["bridge"]["generic"]["EnableIPTable"]
-	cfgBridge, ok := c.cfg.Daemon.DriverCfg["bridge"].(map[string]interface{})
+	cfgBridge, ok := c.cfg.DriverCfg["bridge"].(map[string]interface{})
 	if !ok {
 		return false
 	}

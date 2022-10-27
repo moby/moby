@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
@@ -25,8 +27,8 @@ const (
 )
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
-
-	img, err := daemon.imageService.GetImage(string(c.ImageID), nil)
+	ctx := context.TODO()
+	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
 	if err != nil {
 		return nil, err
 	}
@@ -234,11 +236,11 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	}
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 	if !isHyperV {
-		if c.BaseFS == nil {
-			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly nil")
+		if c.BaseFS == "" {
+			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
 
-		s.Root.Path = c.BaseFS.Path() // This is not set for Hyper-V containers
+		s.Root.Path = c.BaseFS // This is not set for Hyper-V containers
 		if !strings.HasSuffix(s.Root.Path, `\`) {
 			s.Root.Path = s.Root.Path + `\` // Ensure a correctly formatted volume GUID path \\?\Volume{GUID}\
 		}

@@ -15,7 +15,6 @@ import (
 // The existing image(s) is not destroyed.
 // If no parent is specified, a new image with the diff of all the specified image's layers merged into a new layer that has no parents.
 func (i *ImageService) SquashImage(id, parent string) (string, error) {
-
 	var (
 		img *image.Image
 		err error

@@ -10,10 +10,9 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net"
+	"strconv"
 	"sync"
 	"syscall"
-
-	"strconv"
 
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -76,7 +75,6 @@ func (e *encrMap) String() string {
 			b.WriteString(",")
 		}
 		b.WriteString("]")
-
 	}
 	return b.String()
 }

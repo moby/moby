@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/copy"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/fsutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/moby/locker"
@@ -142,7 +142,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		backingFs = fsName
 	}
 
-	supportsDType, err := fsutils.SupportsDType(testdir)
+	supportsDType, err := fs.SupportsDType(testdir)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,6 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 // Create is used to create the upper, lower, and merge directories required for overlay fs for a given id.
 // The parent filesystem is used to configure these directories for the overlay.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
-
 	if opts != nil && len(opts.StorageOpt) != 0 {
 		return fmt.Errorf("--storage-opt is not supported for overlay")
 	}
@@ -339,22 +338,22 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
-func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err error) {
+func (d *Driver) Get(id, mountLabel string) (_ string, err error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
-		return nil, err
+		return "", err
 	}
 	// If id has a root, just return it
 	rootDir := path.Join(dir, "root")
 	if _, err := os.Stat(rootDir); err == nil {
-		return containerfs.NewLocalContainerFS(rootDir), nil
+		return rootDir, nil
 	}
 
 	mergedDir := path.Join(dir, "merged")
 	if count := d.ctr.Increment(mergedDir); count > 1 {
-		return containerfs.NewLocalContainerFS(mergedDir), nil
+		return mergedDir, nil
 	}
 	defer func() {
 		if err != nil {
@@ -371,11 +370,11 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 	}()
 	lowerID, err := os.ReadFile(path.Join(dir, "lower-id"))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	root := d.idMap.RootPair()
 	if err := idtools.MkdirAndChown(mergedDir, 0700, root); err != nil {
-		return nil, err
+		return "", err
 	}
 	var (
 		lowerDir = path.Join(d.dir(string(lowerID)), "root")
@@ -384,14 +383,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 		opts     = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 	)
 	if err := unix.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-		return nil, fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
+		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 	// user namespace requires this to move a directory from lower to upper.
 	if err := root.Chown(path.Join(workDir, "work")); err != nil {
-		return nil, err
+		return "", err
 	}
-	return containerfs.NewLocalContainerFS(mergedDir), nil
+	return mergedDir, nil
 }
 
 // Put unmounts the mount path created for the give id.

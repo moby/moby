@@ -61,7 +61,6 @@ func checkOpaqueness(t *testing.T, path string, opaque string) {
 	if string(xattrOpaque) != opaque {
 		t.Fatalf("Unexpected opaque value: %q, expected %q", string(xattrOpaque), opaque)
 	}
-
 }
 
 func checkOverlayWhiteout(t *testing.T, path string) {
@@ -87,9 +86,8 @@ func checkFileMode(t *testing.T, path string, perm os.FileMode) {
 }
 
 func TestOverlayTarUntar(t *testing.T) {
-	oldmask, err := system.Umask(0)
-	assert.NilError(t, err)
-	defer system.Umask(oldmask)
+	restore := overrideUmask(0)
+	defer restore()
 
 	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)
@@ -126,9 +124,8 @@ func TestOverlayTarUntar(t *testing.T) {
 }
 
 func TestOverlayTarAUFSUntar(t *testing.T) {
-	oldmask, err := system.Umask(0)
-	assert.NilError(t, err)
-	defer system.Umask(oldmask)
+	restore := overrideUmask(0)
+	defer restore()
 
 	src, err := os.MkdirTemp("", "docker-test-overlay-tar-src")
 	assert.NilError(t, err)

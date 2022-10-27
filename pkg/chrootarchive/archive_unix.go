@@ -95,6 +95,12 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 	cmd.Stdout = output
 	cmd.Stderr = output
 
+	// reexec.Command() sets cmd.SysProcAttr.Pdeathsig on Linux, which
+	// causes the started process to be signaled when the creating OS thread
+	// dies. Ensure that the reexec is not prematurely signaled. See
+	// https://go.dev/issue/27505 for more information.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if err := cmd.Start(); err != nil {
 		w.Close()
 		return fmt.Errorf("Untar error on re-exec cmd: %v", err)
@@ -188,15 +194,27 @@ func invokePack(srcPath string, options *archive.TarOptions, root string) (io.Re
 		return nil, errors.Wrap(err, "error getting options pipe for tar process")
 	}
 
-	if err := cmd.Start(); err != nil {
-		return nil, errors.Wrap(err, "tar error on re-exec cmd")
-	}
-
+	started := make(chan error)
 	go func() {
+		// reexec.Command() sets cmd.SysProcAttr.Pdeathsig on Linux,
+		// which causes the started process to be signaled when the
+		// creating OS thread dies. Ensure that the subprocess is not
+		// prematurely signaled. See https://go.dev/issue/27505 for more
+		// information.
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		if err := cmd.Start(); err != nil {
+			started <- err
+			return
+		}
+		close(started)
 		err := cmd.Wait()
 		err = errors.Wrapf(err, "error processing tar file: %s", errBuff)
 		tarW.CloseWithError(err)
 	}()
+	if err := <-started; err != nil {
+		return nil, errors.Wrap(err, "tar error on re-exec cmd")
+	}
 
 	if err := json.NewEncoder(stdin).Encode(options); err != nil {
 		stdin.Close()

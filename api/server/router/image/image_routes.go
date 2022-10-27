@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	opts "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
@@ -192,7 +193,7 @@ func (ir *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	img, err := ir.backend.GetImage(vars["name"], nil)
+	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{})
 	if err != nil {
 		return err
 	}

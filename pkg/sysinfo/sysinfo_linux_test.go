@@ -33,7 +33,6 @@ func TestReadProcBool(t *testing.T) {
 	if readProcBool(path.Join(tmpDir, "no-exist")) {
 		t.Fatal("should be false for non-existent entry")
 	}
-
 }
 
 func TestCgroupEnabled(t *testing.T) {

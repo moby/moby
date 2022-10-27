@@ -3,9 +3,13 @@ package system // import "github.com/docker/docker/integration/system"
 import (
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/testutil/daemon"
@@ -90,6 +94,44 @@ func TestPingSwarmHeader(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, p.SwarmStatus.NodeState, swarm.LocalNodeStateInactive)
 		assert.Equal(t, p.SwarmStatus.ControlAvailable, false)
+	})
+}
+
+func TestPingBuilderHeader(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot spin up additional daemons on windows")
+
+	defer setupTest(t)()
+	d := daemon.New(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+	ctx := context.TODO()
+
+	t.Run("default config", func(t *testing.T) {
+		d.Start(t)
+		defer d.Stop(t)
+
+		var expected = types.BuilderBuildKit
+		if runtime.GOOS == "windows" {
+			expected = types.BuilderV1
+		}
+
+		p, err := client.Ping(ctx)
+		assert.NilError(t, err)
+		assert.Equal(t, p.BuilderVersion, expected)
+	})
+
+	t.Run("buildkit disabled", func(t *testing.T) {
+		cfg := filepath.Join(d.RootDir(), "daemon.json")
+		err := os.WriteFile(cfg, []byte(`{"features": { "buildkit": false }}`), 0644)
+		assert.NilError(t, err)
+		d.Start(t, "--config-file", cfg)
+		defer d.Stop(t)
+
+		var expected = types.BuilderV1
+		p, err := client.Ping(ctx)
+		assert.NilError(t, err)
+		assert.Equal(t, p.BuilderVersion, expected)
 	})
 }
 

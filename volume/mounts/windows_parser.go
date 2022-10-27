@@ -128,7 +128,6 @@ func (p *windowsParser) splitRawSpec(raw string, splitRegexp *regexp.Regexp) ([]
 			exists, isDir, _ := p.fi.fileInfo(matchgroups["destination"])
 			if exists && !isDir {
 				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
-
 			}
 		}
 	}

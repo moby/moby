@@ -58,7 +58,6 @@ func TestEventsErrorFromServer(t *testing.T) {
 }
 
 func TestEvents(t *testing.T) {
-
 	expectedURL := "/events"
 
 	filters := filters.NewArgs()

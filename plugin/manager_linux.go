@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
@@ -55,7 +54,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 		}
 	}
 
-	rootFS := containerfs.NewLocalContainerFS(filepath.Join(pm.config.Root, p.PluginObj.ID, rootFSFileName))
+	rootFS := filepath.Join(pm.config.Root, p.PluginObj.ID, rootFSFileName)
 	if err := initlayer.Setup(rootFS, idtools.Identity{UID: 0, GID: 0}); err != nil {
 		return errors.WithStack(err)
 	}
@@ -112,7 +111,6 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 			shutdownPlugin(p, c.exitChan, pm.executor)
 			return err
 		}
-
 	}
 	pm.config.Store.SetState(p, true)
 	pm.config.Store.CallHandler(p)

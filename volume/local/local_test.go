@@ -26,7 +26,6 @@ func TestGetAddress(t *testing.T) {
 			t.Errorf("Test case failed for %s actual: %s expected : %s", name, v, success)
 		}
 	}
-
 }
 
 func TestGetPassword(t *testing.T) {

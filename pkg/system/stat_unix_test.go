@@ -5,6 +5,7 @@ package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 
@@ -13,8 +14,10 @@ import (
 
 // TestFromStatT tests fromStatT for a tempfile
 func TestFromStatT(t *testing.T) {
-	file, _, _, dir := prepareFiles(t)
-	defer os.RemoveAll(dir)
+	file := filepath.Join(t.TempDir(), "exist")
+	if err := os.WriteFile(file, []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	stat := &syscall.Stat_t{}
 	err := syscall.Lstat(file, stat)

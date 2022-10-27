@@ -71,12 +71,12 @@ type hnsEndpoint struct {
 	nid       string
 	profileID string
 	Type      string
-	//Note: Currently, the sandboxID is the same as the containerID since windows does
-	//not expose the sandboxID.
-	//In the future, windows will support a proper sandboxID that is different
-	//than the containerID.
-	//Therefore, we are using sandboxID now, so that we won't have to change this code
-	//when windows properly supports a sandboxID.
+	// Note: Currently, the sandboxID is the same as the containerID since windows does
+	// not expose the sandboxID.
+	// In the future, windows will support a proper sandboxID that is different
+	// than the containerID.
+	// Therefore, we are using sandboxID now, so that we won't have to change this code
+	// when windows properly supports a sandboxID.
 	sandboxID      string
 	macAddress     net.HardwareAddr
 	epOption       *endpointOption       // User specified parameters
@@ -377,8 +377,8 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		for i, subnet := range hnsresponse.Subnets {
 			var gwIP, subnetIP *net.IPNet
 
-			//The gateway returned from HNS is an IPAddress.
-			//We need to convert it to an IPNet to use as the Gateway of driverapi.IPAMData struct
+			// The gateway returned from HNS is an IPAddress.
+			// We need to convert it to an IPNet to use as the Gateway of driverapi.IPAMData struct
 			gwCIDR := subnet.GatewayAddress + "/32"
 			_, gwIP, err = net.ParseCIDR(gwCIDR)
 			if err != nil {
