@@ -90,7 +90,7 @@ func lookupNTAccount(ctx context.Context, builder *Builder, accountName string, 
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
-	if err := builder.containerManager.Run(builder.clientCtx, container.ID, stdout, stderr); err != nil {
+	if err := builder.containerManager.Run(ctx, container.ID, stdout, stderr); err != nil {
 		if err, ok := err.(*statusCodeError); ok {
 			return idtools.Identity{}, &jsonmessage.JSONError{
 				Message: stderr.String(),

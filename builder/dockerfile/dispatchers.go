@@ -116,7 +116,7 @@ func dispatchCopy(ctx context.Context, d dispatchRequest, c *instructions.CopyCo
 	var im *imageMount
 	var err error
 	if c.From != "" {
-		im, err = d.getImageMount(c.From)
+		im, err = d.getImageMount(ctx, c.From)
 		if err != nil {
 			return errors.Wrapf(err, "invalid from flag value %s", c.From)
 		}
@@ -134,7 +134,7 @@ func dispatchCopy(ctx context.Context, d dispatchRequest, c *instructions.CopyCo
 	return d.builder.performCopy(ctx, d, copyInstruction)
 }
 
-func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error) {
+func (d *dispatchRequest) getImageMount(ctx context.Context, imageRefOrID string) (*imageMount, error) {
 	if imageRefOrID == "" {
 		// TODO: this could return the source in the default case as well?
 		return nil, nil
@@ -149,7 +149,7 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 		imageRefOrID = stage.Image
 		localOnly = true
 	}
-	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.builder.platform)
+	return d.builder.imageSources.Get(ctx, imageRefOrID, localOnly, d.builder.platform)
 }
 
 // FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
@@ -173,7 +173,7 @@ func initializeStage(ctx context.Context, d dispatchRequest, cmd *instructions.S
 		platform = &p
 	}
 
-	image, err := d.getFromImage(d.shlex, cmd.BaseName, platform)
+	image, err := d.getFromImage(ctx, d.shlex, cmd.BaseName, platform)
 	if err != nil {
 		return err
 	}
@@ -233,7 +233,7 @@ func (d *dispatchRequest) getExpandedString(shlex *shell.Lex, str string) (strin
 	return name, nil
 }
 
-func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform) (builder.Image, error) {
+func (d *dispatchRequest) getImageOrStage(ctx context.Context, name string, platform *specs.Platform) (builder.Image, error) {
 	var localOnly bool
 	if im, ok := d.stages.getByName(name); ok {
 		name = im.Image
@@ -260,13 +260,14 @@ func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform)
 		}
 		return builder.Image(imageImage), nil
 	}
-	imageMount, err := d.builder.imageSources.Get(name, localOnly, platform)
+	imageMount, err := d.builder.imageSources.Get(ctx, name, localOnly, platform)
 	if err != nil {
 		return nil, err
 	}
 	return imageMount.Image(), nil
 }
-func (d *dispatchRequest) getFromImage(shlex *shell.Lex, basename string, platform *specs.Platform) (builder.Image, error) {
+
+func (d *dispatchRequest) getFromImage(ctx context.Context, shlex *shell.Lex, basename string, platform *specs.Platform) (builder.Image, error) {
 	name, err := d.getExpandedString(shlex, basename)
 	if err != nil {
 		return nil, err
@@ -277,7 +278,7 @@ func (d *dispatchRequest) getFromImage(shlex *shell.Lex, basename string, platfo
 		return nil, errors.Errorf("base name (%s) should not be blank", basename)
 	}
 
-	return d.getImageOrStage(name, platform)
+	return d.getImageOrStage(ctx, name, platform)
 }
 
 func dispatchOnbuild(ctx context.Context, d dispatchRequest, c *instructions.OnbuildCommand) error {
@@ -369,7 +370,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 		return err
 	}
 
-	if err := d.builder.containerManager.Run(d.builder.clientCtx, cID, d.builder.Stdout, d.builder.Stderr); err != nil {
+	if err := d.builder.containerManager.Run(ctx, cID, d.builder.Stdout, d.builder.Stderr); err != nil {
 		if err, ok := err.(*statusCodeError); ok {
 			// TODO: change error type, because jsonmessage.JSONError assumes HTTP
 			msg := fmt.Sprintf(

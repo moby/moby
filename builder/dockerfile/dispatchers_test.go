@@ -36,9 +36,8 @@ func newBuilderWithMockBackend(t *testing.T) *Builder {
 		options:       opts,
 		docker:        mockBackend,
 		Stdout:        new(bytes.Buffer),
-		clientCtx:     ctx,
 		disableCommit: true,
-		imageSources: newImageSources(ctx, builderOptions{
+		imageSources: newImageSources(builderOptions{
 			Options: opts,
 			Backend: mockBackend,
 		}),

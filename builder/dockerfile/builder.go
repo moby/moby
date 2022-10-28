@@ -117,8 +117,7 @@ type Builder struct {
 	Aux    *streamformatter.AuxFormatter
 	Output io.Writer
 
-	docker    builder.Backend
-	clientCtx context.Context
+	docker builder.Backend
 
 	idMapping        idtools.IdentityMapping
 	disableCommit    bool
@@ -130,19 +129,18 @@ type Builder struct {
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
-func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, error) {
+func newBuilder(ctx context.Context, options builderOptions) (*Builder, error) {
 	config := options.Options
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
 
-	imageProber, err := newImageProber(clientCtx, options.Backend, config.CacheFrom, config.NoCache)
+	imageProber, err := newImageProber(ctx, options.Backend, config.CacheFrom, config.NoCache)
 	if err != nil {
 		return nil, err
 	}
 
 	b := &Builder{
-		clientCtx:        clientCtx,
 		options:          config,
 		Stdout:           options.ProgressWriter.StdoutFormatter,
 		Stderr:           options.ProgressWriter.StderrFormatter,
@@ -150,7 +148,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
 		idMapping:        options.IDMapping,
-		imageSources:     newImageSources(clientCtx, options),
+		imageSources:     newImageSources(options),
 		pathCache:        options.PathCache,
 		imageProber:      imageProber,
 		containerManager: newContainerManager(options.Backend),
@@ -284,7 +282,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseR
 		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
 		for _, cmd := range stage.Commands {
 			select {
-			case <-b.clientCtx.Done():
+			case <-ctx.Done():
 				logrus.Debug("Builder: build cancelled!")
 				fmt.Fprint(b.Stdout, "Build cancelled\n")
 				buildsFailed.WithValues(metricsBuildCanceled).Inc()

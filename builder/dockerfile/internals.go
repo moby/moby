@@ -127,7 +127,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(state.imageID, true, req.builder.platform)
+	imageMount, err := b.imageSources.Get(ctx, state.imageID, true, req.builder.platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
