@@ -4,7 +4,7 @@ Want to hack on the Moby Project? Awesome! We have a contributor's guide that ex
 [setting up a development environment and the contribution
 process](docs/contributing/). 
 
-[![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/opensource/project/who-written-for/)
+[![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/contribute/overview/)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
