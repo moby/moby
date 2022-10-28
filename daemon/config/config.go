@@ -24,11 +24,11 @@ import (
 const (
 	// DefaultMaxConcurrentDownloads is the default value for
 	// maximum number of downloads that
-	// may take place at a time for each pull.
+	// may take place at a time.
 	DefaultMaxConcurrentDownloads = 3
 	// DefaultMaxConcurrentUploads is the default value for
 	// maximum number of uploads that
-	// may take place at a time for each push.
+	// may take place at a time.
 	DefaultMaxConcurrentUploads = 5
 	// DefaultDownloadAttempts is the default value for
 	// maximum number of attempts that
