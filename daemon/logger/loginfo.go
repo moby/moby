@@ -59,8 +59,8 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 
 	envMapping := make(map[string]string)
 	for _, e := range info.ContainerEnv {
-		if kv := strings.SplitN(e, "=", 2); len(kv) == 2 {
-			envMapping[kv[0]] = kv[1]
+		if k, v, ok := strings.Cut(e, "="); ok {
+			envMapping[k] = v
 		}
 	}
 
