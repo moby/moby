@@ -662,12 +662,10 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 
 	for i := 0; i < len(serverConfig.Hosts); i++ {
 		protoAddr := serverConfig.Hosts[i]
-		protoAddrParts := strings.SplitN(serverConfig.Hosts[i], "://", 2)
-		if len(protoAddrParts) != 2 {
+		proto, addr, ok := strings.Cut(protoAddr, "://")
+		if !ok || addr == "" {
 			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
-
-		proto, addr := protoAddrParts[0], protoAddrParts[1]
 
 		// It's a bad idea to bind to TCP without tlsverify.
 		authEnabled := serverConfig.TLSConfig != nil && serverConfig.TLSConfig.ClientAuth == tls.RequireAndVerifyClientCert
@@ -719,7 +717,7 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 			return nil, err
 		}
 		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
-		hosts = append(hosts, protoAddrParts[1])
+		hosts = append(hosts, addr)
 		cli.api.Accept(addr, ls...)
 	}
 
