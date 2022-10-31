@@ -323,13 +323,13 @@ func New() *Config {
 func GetConflictFreeLabels(labels []string) ([]string, error) {
 	labelMap := map[string]string{}
 	for _, label := range labels {
-		stringSlice := strings.SplitN(label, "=", 2)
-		if len(stringSlice) > 1 {
+		key, val, ok := strings.Cut(label, "=")
+		if ok {
 			// If there is a conflict we will return an error
-			if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
-				return nil, errors.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
+			if v, ok := labelMap[key]; ok && v != val {
+				return nil, errors.Errorf("conflict labels for %s=%s and %s=%s", key, val, key, v)
 			}
-			labelMap[stringSlice[0]] = stringSlice[1]
+			labelMap[key] = val
 		}
 	}
 
