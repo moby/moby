@@ -50,7 +50,7 @@ func (n *network) startResolver() {
 		for _, subnet := range hnsresponse.Subnets {
 			if subnet.GatewayAddress != "" {
 				for i := 0; i < 3; i++ {
-					resolver := NewResolver(subnet.GatewayAddress, false, "", n)
+					resolver := NewResolver(subnet.GatewayAddress, false, n)
 					logrus.Debugf("Binding a resolver on network %s gateway %s", n.Name(), subnet.GatewayAddress)
 					executeInCompartment(hnsresponse.DNSServerCompartment, resolver.SetupFunc(53))
 
