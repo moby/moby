@@ -57,9 +57,9 @@ func Scan(text string) (*events.Message, error) {
 	}
 
 	attrs := make(map[string]string)
-	for _, a := range strings.SplitN(md["attributes"], ", ", -1) {
-		kv := strings.SplitN(a, "=", 2)
-		attrs[kv[0]] = kv[1]
+	for _, a := range strings.Split(md["attributes"], ", ") {
+		k, v, _ := strings.Cut(a, "=")
+		attrs[k] = v
 	}
 
 	return &events.Message{
