@@ -23,18 +23,6 @@ type linuxParser struct {
 	fi fileInfoProvider
 }
 
-func linuxSplitRawSpec(raw string) ([]string, error) {
-	if strings.Count(raw, ":") > 2 {
-		return nil, errInvalidSpec(raw)
-	}
-
-	arr := strings.SplitN(raw, ":", 3)
-	if arr[0] == "" {
-		return nil, errInvalidSpec(raw)
-	}
-	return arr, nil
-}
-
 func linuxValidateNotRoot(p string) error {
 	p = path.Clean(strings.ReplaceAll(p, `\`, `/`))
 	if p == "/" {
@@ -214,9 +202,9 @@ func (p *linuxParser) ReadWrite(mode string) bool {
 }
 
 func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
-	arr, err := linuxSplitRawSpec(raw)
-	if err != nil {
-		return nil, err
+	arr := strings.SplitN(raw, ":", 4)
+	if arr[0] == "" {
+		return nil, errInvalidSpec(raw)
 	}
 
 	var spec mount.Mount
@@ -334,26 +322,23 @@ func (p *linuxParser) ParseVolumesFrom(spec string) (string, string, error) {
 		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
-	specParts := strings.SplitN(spec, ":", 2)
-	id := specParts[0]
-	mode := "rw"
-
-	if len(specParts) == 2 {
-		mode = specParts[1]
-		if !linuxValidMountMode(mode) {
-			return "", "", errInvalidMode(mode)
-		}
-		// For now don't allow propagation properties while importing
-		// volumes from data container. These volumes will inherit
-		// the same propagation property as of the original volume
-		// in data container. This probably can be relaxed in future.
-		if linuxHasPropagation(mode) {
-			return "", "", errInvalidMode(mode)
-		}
-		// Do not allow copy modes on volumes-from
-		if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
-			return "", "", errInvalidMode(mode)
-		}
+	id, mode, _ := strings.Cut(spec, ":")
+	if mode == "" {
+		return id, "rw", nil
+	}
+	if !linuxValidMountMode(mode) {
+		return "", "", errInvalidMode(mode)
+	}
+	// For now don't allow propagation properties while importing
+	// volumes from data container. These volumes will inherit
+	// the same propagation property as of the original volume
+	// in data container. This probably can be relaxed in future.
+	if linuxHasPropagation(mode) {
+		return "", "", errInvalidMode(mode)
+	}
+	// Do not allow copy modes on volumes-from
+	if _, isSet := getCopyMode(mode, p.DefaultCopyMode()); isSet {
+		return "", "", errInvalidMode(mode)
 	}
 	return id, mode, nil
 }
