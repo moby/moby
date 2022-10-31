@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -23,7 +22,6 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -75,65 +73,13 @@ type network struct {
 }
 
 func init() {
-	reexec.Register("set-default-vlan", setDefaultVlan)
-
 	// Lock main() to the initial thread to exclude the goroutines executing
-	// func (*network).watchMiss() from being scheduled onto that thread.
-	// Changes to the network namespace of the initial thread alter
-	// /proc/self/ns/net, which would break any code which (incorrectly)
-	// assumes that that file is a handle to the network namespace for the
-	// thread it is currently executing on.
+	// func (*network).watchMiss() or func setDefaultVLAN() from being
+	// scheduled onto that thread. Changes to the network namespace of the
+	// initial thread alter /proc/self/ns/net, which would break any code
+	// which (incorrectly) assumes that that file is a handle to the network
+	// namespace for the thread it is currently executing on.
 	runtime.LockOSThread()
-}
-
-func setDefaultVlan() {
-	if len(os.Args) < 3 {
-		logrus.Error("insufficient number of arguments")
-		os.Exit(1)
-	}
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	nsPath := os.Args[1]
-	ns, err := netns.GetFromPath(nsPath)
-	if err != nil {
-		logrus.Errorf("overlay namespace get failed, %v", err)
-		os.Exit(1)
-	}
-	if err = netns.Set(ns); err != nil {
-		logrus.Errorf("setting into overlay namespace failed, %v", err)
-		os.Exit(1)
-	}
-
-	// make sure the sysfs mount doesn't propagate back
-	if err = unix.Unshare(unix.CLONE_NEWNS); err != nil {
-		logrus.Errorf("unshare failed, %v", err)
-		os.Exit(1)
-	}
-
-	flag := unix.MS_PRIVATE | unix.MS_REC
-	if err = unix.Mount("", "/", "", uintptr(flag), ""); err != nil {
-		logrus.Errorf("root mount failed, %v", err)
-		os.Exit(1)
-	}
-
-	if err = unix.Mount("sysfs", "/sys", "sysfs", 0, ""); err != nil {
-		logrus.Errorf("mounting sysfs failed, %v", err)
-		os.Exit(1)
-	}
-
-	brName := os.Args[2]
-	// IFLA_BR_VLAN_DEFAULT_PVID was added in Linux v4.4 (see torvalds/linux@0f963b7), so we can't use netlink for
-	// setting this until Docker drops support for CentOS/RHEL 7 (kernel 3.10, eol date: 2024-06-30).
-	path := filepath.Join("/sys/class/net", brName, "bridge/default_pvid")
-	data := []byte{'0', '\n'}
-
-	if err = os.WriteFile(path, data, 0644); err != nil {
-		logrus.Errorf("enabling default vlan on bridge %s failed %v", brName, err)
-		os.Exit(1)
-	}
-	os.Exit(0)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -641,32 +587,66 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
-	if !hostMode {
-		var name string
-		for _, i := range sbox.Info().Interfaces() {
-			if i.Bridge() {
-				name = i.DstName()
-			}
-		}
-		cmd := &exec.Cmd{
-			Path:   reexec.Self(),
-			Args:   []string{"set-default-vlan", sbox.Key(), name},
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
-		}
-		if err := cmd.Run(); err != nil {
-			// not a fatal error
-			logrus.Errorf("reexec to set bridge default vlan failed %v", err)
-		}
-	}
-
 	if hostMode {
-		if err := addFilters(n.id[:12], brName); err != nil {
-			return err
+		return addFilters(n.id[:12], brName)
+	}
+
+	if err := setDefaultVLAN(sbox); err != nil {
+		// not a fatal error
+		logrus.WithError(err).Error("set bridge default vlan failed")
+	}
+	return nil
+}
+
+func setDefaultVLAN(sbox osl.Sandbox) error {
+	var brName string
+	for _, i := range sbox.Info().Interfaces() {
+		if i.Bridge() {
+			brName = i.DstName()
 		}
 	}
 
-	return nil
+	// IFLA_BR_VLAN_DEFAULT_PVID was added in Linux v4.4 (see torvalds/linux@0f963b7), so we can't use netlink for
+	// setting this until Docker drops support for CentOS/RHEL 7 (kernel 3.10, eol date: 2024-06-30).
+	var innerErr error
+	err := sbox.InvokeFunc(func() {
+		// Contrary to what the sysfs(5) man page says, the entries of /sys/class/net
+		// represent the networking devices visible in the network namespace of the
+		// process which mounted the sysfs filesystem, irrespective of the network
+		// namespace of the process accessing the directory. Remount sysfs in order to
+		// see the network devices in sbox's network namespace, making sure the mount
+		// doesn't propagate back.
+		//
+		// The Linux implementation of (osl.Sandbox).InvokeFunc() runs the function in a
+		// dedicated goroutine. The effects of unshare(CLONE_NEWNS) on a thread cannot
+		// be reverted so the thread needs to be terminated once the goroutine is
+		// finished.
+		runtime.LockOSThread()
+		if err := unix.Unshare(unix.CLONE_NEWNS); err != nil {
+			innerErr = os.NewSyscallError("unshare", err)
+			return
+		}
+		if err := unix.Mount("", "/", "", unix.MS_SLAVE|unix.MS_REC, ""); err != nil {
+			innerErr = &os.PathError{Op: "mount", Path: "/", Err: err}
+			return
+		}
+		if err := unix.Mount("sysfs", "/sys", "sysfs", 0, ""); err != nil {
+			innerErr = &os.PathError{Op: "mount", Path: "/sys", Err: err}
+			return
+		}
+
+		path := filepath.Join("/sys/class/net", brName, "bridge/default_pvid")
+		data := []byte{'0', '\n'}
+
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			innerErr = fmt.Errorf("failed to enable default vlan on bridge %s: %w", brName, err)
+			return
+		}
+	})
+	if err != nil {
+		return err
+	}
+	return innerErr
 }
 
 // Must be called with the network lock
