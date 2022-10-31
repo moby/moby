@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -28,7 +27,7 @@ func (x *BuilderGCFilter) MarshalJSON() ([]byte, error) {
 	for _, k := range keys {
 		values := f.Get(k)
 		for _, v := range values {
-			arr = append(arr, fmt.Sprintf("%s=%s", k, v))
+			arr = append(arr, k+"="+v)
 		}
 	}
 	return json.Marshal(arr)
@@ -45,9 +44,9 @@ func (x *BuilderGCFilter) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for _, s := range arr {
-		fields := strings.SplitN(s, "=", 2)
-		name := strings.ToLower(strings.TrimSpace(fields[0]))
-		value := strings.TrimSpace(fields[1])
+		name, value, _ := strings.Cut(s, "=")
+		name = strings.ToLower(strings.TrimSpace(name))
+		value = strings.TrimSpace(value)
 		f.Add(name, value)
 	}
 	*x = BuilderGCFilter(f)
