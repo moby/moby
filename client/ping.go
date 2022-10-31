@@ -64,10 +64,10 @@ func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 		ping.BuilderVersion = types.BuilderVersion(bv)
 	}
 	if si := resp.header.Get("Swarm"); si != "" {
-		parts := strings.SplitN(si, "/", 2)
+		state, role, _ := strings.Cut(si, "/")
 		ping.SwarmStatus = &swarm.Status{
-			NodeState:        swarm.LocalNodeState(parts[0]),
-			ControlAvailable: len(parts) == 2 && parts[1] == "manager",
+			NodeState:        swarm.LocalNodeState(state),
+			ControlAvailable: role == "manager",
 		}
 	}
 	err := cli.checkResponseErr(resp)
