@@ -307,33 +307,30 @@ func TestNamedMapOpts(t *testing.T) {
 }
 
 func TestParseLink(t *testing.T) {
-	name, alias, err := ParseLink("name:alias")
-	if err != nil {
-		t.Fatalf("Expected not to error out on a valid name:alias format but got: %v", err)
-	}
-	if name != "name" {
-		t.Fatalf("Link name should have been name, got %s instead", name)
-	}
-	if alias != "alias" {
-		t.Fatalf("Link alias should have been alias, got %s instead", alias)
-	}
-	// short format definition
-	name, alias, err = ParseLink("name")
-	if err != nil {
-		t.Fatalf("Expected not to error out on a valid name only format but got: %v", err)
-	}
-	if name != "name" {
-		t.Fatalf("Link name should have been name, got %s instead", name)
-	}
-	if alias != "name" {
-		t.Fatalf("Link alias should have been name, got %s instead", alias)
-	}
-	// empty string link definition is not allowed
-	if _, _, err := ParseLink(""); err == nil || !strings.Contains(err.Error(), "empty string specified for links") {
-		t.Fatalf("Expected error 'empty string specified for links' but got: %v", err)
-	}
-	// more than two colons are not allowed
-	if _, _, err := ParseLink("link:alias:wrong"); err == nil || !strings.Contains(err.Error(), "bad format for links: link:alias:wrong") {
-		t.Fatalf("Expected error 'bad format for links: link:alias:wrong' but got: %v", err)
-	}
+	t.Run("name and alias", func(t *testing.T) {
+		name, alias, err := ParseLink("name:alias")
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(name, "name"))
+		assert.Check(t, is.Equal(alias, "alias"))
+	})
+	t.Run("short format", func(t *testing.T) {
+		name, alias, err := ParseLink("name")
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(name, "name"))
+		assert.Check(t, is.Equal(alias, "name"))
+	})
+	t.Run("empty string", func(t *testing.T) {
+		_, _, err := ParseLink("")
+		assert.Check(t, is.Error(err, "empty string specified for links"))
+	})
+	t.Run("more than two colons", func(t *testing.T) {
+		_, _, err := ParseLink("link:alias:wrong")
+		assert.Check(t, is.Error(err, "bad format for links: link:alias:wrong"))
+	})
+	t.Run("legacy format", func(t *testing.T) {
+		name, alias, err := ParseLink("/foo:/c1/bar")
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(name, "foo"))
+		assert.Check(t, is.Equal(alias, "bar"))
+	})
 }
