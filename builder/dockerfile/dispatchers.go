@@ -46,8 +46,7 @@ func dispatchEnv(ctx context.Context, d dispatchRequest, c *instructions.EnvComm
 		commitMessage.WriteString(" " + newVar)
 		gotOne := false
 		for i, envVar := range runConfig.Env {
-			envParts := strings.SplitN(envVar, "=", 2)
-			compareFrom := envParts[0]
+			compareFrom, _, _ := strings.Cut(envVar, "=")
 			if shell.EqualEnvKeys(compareFrom, name) {
 				runConfig.Env[i] = newVar
 				gotOne = true
@@ -408,9 +407,9 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 // These args are transparent so resulting image should be the same regardless
 // of the value.
 func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
-	var tmpBuildEnv []string
+	tmpBuildEnv := make([]string, 0, len(buildArgVars))
 	for _, env := range buildArgVars {
-		key := strings.SplitN(env, "=", 2)[0]
+		key, _, _ := strings.Cut(env, "=")
 		if buildArgs.IsReferencedOrNotBuiltin(key) {
 			tmpBuildEnv = append(tmpBuildEnv, env)
 		}
@@ -418,7 +417,7 @@ func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd strslice.S
 
 	sort.Strings(tmpBuildEnv)
 	tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
-	return strslice.StrSlice(append(tmpEnv, cmd...))
+	return append(tmpEnv, cmd...)
 }
 
 // CMD foo
