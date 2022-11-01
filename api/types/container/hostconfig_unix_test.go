@@ -15,7 +15,10 @@ func TestCgroupnsMode(t *testing.T) {
 		"":                {private: false, host: false, empty: true, valid: true},
 		"something:weird": {private: false, host: false, empty: false, valid: false},
 		"host":            {private: false, host: true, empty: false, valid: true},
-		"host:name":       {private: false, host: false, empty: false, valid: false},
+		"host:":           {valid: false},
+		"host:name":       {valid: false},
+		":name":           {valid: false},
+		":":               {valid: false},
 		"private":         {private: true, host: false, empty: false, valid: true},
 		"private:name":    {private: false, host: false, empty: false, valid: false},
 	}
@@ -70,6 +73,10 @@ func TestIpcMode(t *testing.T) {
 		"something:weird":       {},
 		":weird":                {},
 		"host":                  {host: true, valid: true},
+		"host:":                 {valid: false},
+		"host:name":             {valid: false},
+		":name":                 {valid: false},
+		":":                     {valid: false},
 		"container":             {},
 		"container:":            {container: true, valid: true, ctrName: ""},
 		"container:name":        {container: true, valid: true, ctrName: "name"},
@@ -94,7 +101,10 @@ func TestUTSMode(t *testing.T) {
 		"":                {private: true, host: false, valid: true},
 		"something:weird": {private: true, host: false, valid: false},
 		"host":            {private: false, host: true, valid: true},
-		"host:name":       {private: true, host: false, valid: true},
+		"host:":           {private: true, valid: false},
+		"host:name":       {private: true, valid: false},
+		":name":           {private: true, valid: false},
+		":":               {private: true, valid: false},
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
@@ -111,7 +121,10 @@ func TestUsernsMode(t *testing.T) {
 		"":                {private: true, host: false, valid: true},
 		"something:weird": {private: true, host: false, valid: false},
 		"host":            {private: false, host: true, valid: true},
-		"host:name":       {private: true, host: false, valid: true},
+		"host:":           {private: true, valid: false},
+		"host:name":       {private: true, valid: false},
+		":name":           {private: true, valid: false},
+		":":               {private: true, valid: false},
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
@@ -127,7 +140,10 @@ func TestPidMode(t *testing.T) {
 		"":                {private: true, host: false, valid: true},
 		"something:weird": {private: true, host: false, valid: false},
 		"host":            {private: false, host: true, valid: true},
-		"host:name":       {private: true, host: false, valid: true},
+		"host:":           {private: true, valid: false},
+		"host:name":       {private: true, valid: false},
+		":name":           {private: true, valid: false},
+		":":               {private: true, valid: false},
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {

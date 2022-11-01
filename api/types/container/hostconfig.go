@@ -175,21 +175,12 @@ func (n UsernsMode) IsHost() bool {
 
 // IsPrivate indicates whether the container uses the a private userns.
 func (n UsernsMode) IsPrivate() bool {
-	return !(n.IsHost())
+	return !n.IsHost()
 }
 
 // Valid indicates whether the userns is valid.
 func (n UsernsMode) Valid() bool {
-	if string(n) == "" {
-		return true
-	}
-
-	switch mode, _, _ := strings.Cut(string(n), ":"); mode {
-	case "host":
-		return true
-	default:
-		return false
-	}
+	return n == "" || n.IsHost()
 }
 
 // CgroupSpec represents the cgroup to use for the container.
@@ -217,7 +208,7 @@ type UTSMode string
 
 // IsPrivate indicates whether the container uses its private UTS namespace.
 func (n UTSMode) IsPrivate() bool {
-	return !(n.IsHost())
+	return !n.IsHost()
 }
 
 // IsHost indicates whether the container uses the host's UTS namespace.
@@ -227,13 +218,7 @@ func (n UTSMode) IsHost() bool {
 
 // Valid indicates whether the UTS namespace is valid.
 func (n UTSMode) Valid() bool {
-	parts := strings.Split(string(n), ":")
-	switch mode := parts[0]; mode {
-	case "", "host":
-	default:
-		return false
-	}
-	return true
+	return n == "" || n.IsHost()
 }
 
 // PidMode represents the pid namespace of the container.
@@ -257,15 +242,7 @@ func (n PidMode) IsContainer() bool {
 
 // Valid indicates whether the pid namespace is valid.
 func (n PidMode) Valid() bool {
-	mode, v, ok := strings.Cut(string(n), ":")
-	switch mode {
-	case "", "host":
-		return true
-	case "container":
-		return ok && v != ""
-	default:
-		return false
-	}
+	return n == "" || n.IsHost() || n.IsContainer()
 }
 
 // Container returns the name of the container whose pid namespace is going to be used.
