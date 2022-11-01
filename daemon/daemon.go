@@ -32,7 +32,7 @@ import (
 	"github.com/docker/docker/daemon/events"
 	_ "github.com/docker/docker/daemon/graphdriver/register" // register graph drivers
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/daemon/logger"
+	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/stats"
 	dmetadata "github.com/docker/docker/distribution/metadata"
@@ -760,10 +760,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
 	if isWindows {
-		if _, err := os.Stat(realTmp); err != nil && os.IsNotExist(err) {
-			if err := system.MkdirAll(realTmp, 0700); err != nil {
-				return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
-			}
+		if err := system.MkdirAll(realTmp, 0); err != nil {
+			return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 		}
 		os.Setenv("TEMP", realTmp)
 		os.Setenv("TMP", realTmp)
@@ -817,7 +815,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")
-	if err := idtools.MkdirAllAndChown(daemonRepo, 0710, idtools.Identity{
+	if err := idtools.MkdirAllAndChown(daemonRepo, 0o710, idtools.Identity{
 		UID: idtools.CurrentIdentity().UID,
 		GID: rootIDs.GID,
 	}); err != nil {
@@ -826,8 +824,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Create the directory where we'll store the runtime scripts (i.e. in
 	// order to support runtimeArgs)
-	daemonRuntimes := filepath.Join(config.Root, "runtimes")
-	if err := system.MkdirAll(daemonRuntimes, 0700); err != nil {
+	if err = os.Mkdir(filepath.Join(config.Root, "runtimes"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, err
 	}
 	if err := d.loadRuntimes(); err != nil {
@@ -835,13 +832,16 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if isWindows {
-		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0); err != nil {
+		// Note that permissions (0o700) are ignored on Windows; passing them to
+		// show intent only. We could consider using idtools.MkdirAndChown here
+		// to apply an ACL.
+		if err = os.Mkdir(filepath.Join(config.Root, "credentialspecs"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
 	}
 
 	d.registryService = registryService
-	logger.RegisterPluginGetter(d.PluginStore)
+	dlogger.RegisterPluginGetter(d.PluginStore)
 
 	metricsSockPath, err := d.listenMetricsSock()
 	if err != nil {
@@ -1077,7 +1077,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			if err != nil {
 				return nil, err
 			}
-			if err = system.MkdirAll(filepath.Join(config.Root, "trust"), 0700); err != nil {
+			if err = os.Mkdir(filepath.Join(config.Root, "trust"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 				return nil, err
 			}
 		}
@@ -1354,7 +1354,7 @@ func prepareTempDir(rootDir string) (string, error) {
 			}
 		}
 	}
-	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0700, idtools.CurrentIdentity())
+	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0o700, idtools.CurrentIdentity())
 }
 
 func (daemon *Daemon) setGenericResources(conf *config.Config) error {
