@@ -5,9 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,18 +13,11 @@ import (
 
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/pkg/reexec"
-	"github.com/gogo/protobuf/proto"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink/nl"
-	"github.com/vishvananda/netns"
 )
-
-func init() {
-	reexec.Register("redirector", redirector)
-}
 
 // Populate all loadbalancers on the network that the passed endpoint
 // belongs to, into this sandbox.
@@ -40,7 +31,7 @@ func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
 	eIP := ep.Iface().Address()
 
 	if n.ingress {
-		if err := addRedirectRules(sb.Key(), eIP, ep.ingressPorts); err != nil {
+		if err := sb.addRedirectRules(eIP, ep.ingressPorts); err != nil {
 			logrus.Errorf("Failed to add redirect rules for ep %s (%.7s): %v", ep.Name(), ep.ID(), err)
 		}
 	}
@@ -539,44 +530,6 @@ func plumbProxy(iPort *PortConfig, isDelete bool) error {
 	return nil
 }
 
-func writePortsToFile(ports []*PortConfig) (string, error) {
-	f, err := os.CreateTemp("", "port_configs")
-	if err != nil {
-		return "", err
-	}
-	defer f.Close() //nolint:gosec
-
-	buf, _ := proto.Marshal(&EndpointRecord{
-		IngressPorts: ports,
-	})
-
-	n, err := f.Write(buf)
-	if err != nil {
-		return "", err
-	}
-
-	if n < len(buf) {
-		return "", io.ErrShortWrite
-	}
-
-	return f.Name(), nil
-}
-
-func readPortsFromFile(fileName string) ([]*PortConfig, error) {
-	buf, err := os.ReadFile(fileName)
-	if err != nil {
-		return nil, err
-	}
-
-	var epRec EndpointRecord
-	err = proto.Unmarshal(buf, &epRec)
-	if err != nil {
-		return nil, err
-	}
-
-	return epRec.IngressPorts, nil
-}
-
 // configureFWMark configures the sandbox firewall to mark vip destined packets
 // with the firewall mark fwMark.
 func (sb *sandbox) configureFWMark(vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, isDelete bool, lbMode string) error {
@@ -632,60 +585,10 @@ func (sb *sandbox) configureFWMark(vip net.IP, fwMark uint32, ingressPorts []*Po
 	return innerErr
 }
 
-func addRedirectRules(path string, eIP *net.IPNet, ingressPorts []*PortConfig) error {
-	var ingressPortsFile string
-
-	if len(ingressPorts) != 0 {
-		var err error
-		ingressPortsFile, err = writePortsToFile(ingressPorts)
-		if err != nil {
-			return err
-		}
-		defer os.Remove(ingressPortsFile)
-	}
-
-	cmd := &exec.Cmd{
-		Path:   reexec.Self(),
-		Args:   append([]string{"redirector"}, path, eIP.String(), ingressPortsFile),
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("reexec failed: %v", err)
-	}
-
-	return nil
-}
-
-// Redirector reexec function.
-func redirector() {
+func (sb *sandbox) addRedirectRules(eIP *net.IPNet, ingressPorts []*PortConfig) error {
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	if len(os.Args) < 4 {
-		logrus.Error("invalid number of arguments..")
-		os.Exit(1)
-	}
-
-	var ingressPorts []*PortConfig
-	if os.Args[3] != "" {
-		var err error
-		ingressPorts, err = readPortsFromFile(os.Args[3])
-		if err != nil {
-			logrus.Errorf("Failed reading ingress ports file: %v", err)
-			os.Exit(2)
-		}
-	}
-
-	eIP, _, err := net.ParseCIDR(os.Args[2])
-	if err != nil {
-		logrus.Errorf("Failed to parse endpoint IP %s: %v", os.Args[2], err)
-		os.Exit(3)
-	}
-	ipAddr := eIP.String()
+	ipAddr := eIP.IP.String()
 
 	rules := make([][]string, 0, len(ingressPorts)*3) // 3 rules per port
 	for _, iPort := range ingressPorts {
@@ -706,47 +609,42 @@ func redirector() {
 		)
 	}
 
-	ns, err := netns.GetFromPath(os.Args[1])
+	var innerErr error
+	err := sb.ExecFunc(func() {
+		for _, rule := range rules {
+			if err := iptable.RawCombinedOutputNative(rule...); err != nil {
+				innerErr = fmt.Errorf("set up rule failed, %v: %w", rule, err)
+				return
+			}
+		}
+
+		if len(ingressPorts) == 0 {
+			return
+		}
+
+		// Ensure blocking rules for anything else in/to ingress network
+		for _, rule := range [][]string{
+			{"-d", ipAddr, "-p", "sctp", "-j", "DROP"},
+			{"-d", ipAddr, "-p", "udp", "-j", "DROP"},
+			{"-d", ipAddr, "-p", "tcp", "-j", "DROP"},
+		} {
+			if !iptable.ExistsNative(iptables.Filter, "INPUT", rule...) {
+				if err := iptable.RawCombinedOutputNative(append([]string{"-A", "INPUT"}, rule...)...); err != nil {
+					innerErr = fmt.Errorf("set up rule failed, %v: %w", rule, err)
+					return
+				}
+			}
+			rule[0] = "-s"
+			if !iptable.ExistsNative(iptables.Filter, "OUTPUT", rule...) {
+				if err := iptable.RawCombinedOutputNative(append([]string{"-A", "OUTPUT"}, rule...)...); err != nil {
+					innerErr = fmt.Errorf("set up rule failed, %v: %w", rule, err)
+					return
+				}
+			}
+		}
+	})
 	if err != nil {
-		logrus.Errorf("failed get network namespace %q: %v", os.Args[1], err)
-		os.Exit(4)
+		return err
 	}
-	defer ns.Close()
-
-	if err := netns.Set(ns); err != nil {
-		logrus.Errorf("setting into container net ns %v failed, %v", os.Args[1], err)
-		os.Exit(5)
-	}
-
-	for _, rule := range rules {
-		if err := iptable.RawCombinedOutputNative(rule...); err != nil {
-			logrus.Errorf("set up rule failed, %v: %v", rule, err)
-			os.Exit(6)
-		}
-	}
-
-	if len(ingressPorts) == 0 {
-		return
-	}
-
-	// Ensure blocking rules for anything else in/to ingress network
-	for _, rule := range [][]string{
-		{"-d", ipAddr, "-p", "sctp", "-j", "DROP"},
-		{"-d", ipAddr, "-p", "udp", "-j", "DROP"},
-		{"-d", ipAddr, "-p", "tcp", "-j", "DROP"},
-	} {
-		if !iptable.ExistsNative(iptables.Filter, "INPUT", rule...) {
-			if err := iptable.RawCombinedOutputNative(append([]string{"-A", "INPUT"}, rule...)...); err != nil {
-				logrus.Errorf("set up rule failed, %v: %v", rule, err)
-				os.Exit(7)
-			}
-		}
-		rule[0] = "-s"
-		if !iptable.ExistsNative(iptables.Filter, "OUTPUT", rule...) {
-			if err := iptable.RawCombinedOutputNative(append([]string{"-A", "OUTPUT"}, rule...)...); err != nil {
-				logrus.Errorf("set up rule failed, %v: %v", rule, err)
-				os.Exit(8)
-			}
-		}
-	}
+	return innerErr
 }
