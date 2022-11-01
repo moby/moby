@@ -250,7 +250,11 @@ func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
 }
 
 func mountNetworkNamespace(basePath string, lnPath string) error {
-	return syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, "")
+	err := syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, "")
+	if err != nil {
+		return fmt.Errorf("bind-mount %s -> %s: %w", basePath, lnPath, err)
+	}
+	return nil
 }
 
 // GetSandboxForExternalKey returns sandbox object for the supplied path

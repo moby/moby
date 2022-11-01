@@ -11,3 +11,14 @@ func RemoveNamespace(s *specs.Spec, nsType specs.LinuxNamespaceType) {
 		}
 	}
 }
+
+// NamespacePath returns the configured Path of the first namespace in
+// s.Linux.Namespaces of type nsType.
+func NamespacePath(s *specs.Spec, nsType specs.LinuxNamespaceType) (path string, ok bool) {
+	for _, n := range s.Linux.Namespaces {
+		if n.Type == nsType {
+			return n.Path, true
+		}
+	}
+	return "", false
+}
