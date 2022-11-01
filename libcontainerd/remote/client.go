@@ -142,8 +142,8 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 	return &created, nil
 }
 
-// Start create and start a task for the specified containerd id
-func (c *container) Start(ctx context.Context, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
+// NewTask creates a task for the specified containerd id
+func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
 	var (
 		cp             *types.Descriptor
 		t              containerd.Task
@@ -232,17 +232,12 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 	// Signal c.createIO that it can call CloseIO
 	stdinCloseSync <- t
 
-	if err := t.Start(ctx); err != nil {
-		// Only Stopped tasks can be deleted. Created tasks have to be
-		// killed first, to transition them to Stopped.
-		if _, err := t.Delete(ctx, containerd.WithProcessKill); err != nil {
-			c.client.logger.WithError(err).WithField("container", c.c8dCtr.ID()).
-				Error("failed to delete task after fail start")
-		}
-		return nil, wrapError(err)
-	}
-
 	return c.newTask(t), nil
+}
+
+func (t *task) Start(ctx context.Context) error {
+	return wrapError(t.Task.Start(ctx))
+
 }
 
 // Exec creates exec process.

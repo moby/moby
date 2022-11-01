@@ -188,16 +188,32 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 	if err != nil {
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
+	defer func() {
+		if err != nil {
+			if err := ctr.Delete(context.Background()); err != nil {
+				logrus.WithError(err).WithField("container", container.ID).
+					Error("failed to delete failed start container")
+			}
+		}
+	}()
 
 	// TODO(mlaventure): we need to specify checkpoint options here
-	tsk, err := ctr.Start(context.TODO(), // Passing ctx to ctr.Start caused integration tests to be stuck in the cleanup phase
+	tsk, err := ctr.NewTask(context.TODO(), // Passing ctx caused integration tests to be stuck in the cleanup phase
 		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
-		if err := ctr.Delete(context.Background()); err != nil {
-			logrus.WithError(err).WithField("container", container.ID).
-				Error("failed to delete failed start container")
+		return setExitCodeFromError(container.SetExitCode, err)
+	}
+	defer func() {
+		if err != nil {
+			if err := tsk.ForceDelete(ctx); err != nil {
+				logrus.WithError(err).WithField("container", container.ID).
+					Error("failed to delete task after fail start")
+			}
 		}
+	}()
+
+	if err := tsk.Start(context.TODO()); err != nil { // passing ctx caused integration tests to be stuck in the cleanup phase
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
 

@@ -81,8 +81,12 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 	}
 
 	p := c8dPlugin{log: log, ctr: ctr}
-	p.tsk, err = ctr.Start(ctx, "", false, attachStreamsFunc(stdout, stderr))
+	p.tsk, err = ctr.NewTask(ctx, "", false, attachStreamsFunc(stdout, stderr))
 	if err != nil {
+		p.deleteTaskAndContainer(ctx)
+		return err
+	}
+	if err := p.tsk.Start(ctx); err != nil {
 		p.deleteTaskAndContainer(ctx)
 		return err
 	}
