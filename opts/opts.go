@@ -162,12 +162,8 @@ func (opts *MapOpts) Set(value string) error {
 		}
 		value = v
 	}
-	vals := strings.SplitN(value, "=", 2)
-	if len(vals) == 1 {
-		(opts.values)[vals[0]] = ""
-	} else {
-		(opts.values)[vals[0]] = vals[1]
-	}
+	k, v, _ := strings.Cut(value, "=")
+	(opts.values)[k] = v
 	return nil
 }
 
