@@ -30,7 +30,7 @@ const (
 	// DNSServers A list of DNS servers associated with the endpoint
 	DNSServers = Prefix + ".endpoint.dnsservers"
 
-	//EnableIPv6 constant represents enabling IPV6 at network level
+	// EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
 
 	// DriverMTU constant represents the MTU size for the network driver
@@ -106,27 +106,18 @@ func MakeKVClient(scope string) string {
 
 // Key extracts the key portion of the label
 func Key(label string) (key string) {
-	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
-		key = kv[0]
-	}
-	return
+	key, _, _ = strings.Cut(label, "=")
+	return key
 }
 
 // Value extracts the value portion of the label
 func Value(label string) (value string) {
-	if kv := strings.SplitN(label, "=", 2); len(kv) > 1 {
-		value = kv[1]
-	}
-	return
+	_, value, _ = strings.Cut(label, "=")
+	return value
 }
 
 // KeyValue decomposes the label in the (key,value) pair
 func KeyValue(label string) (key string, value string) {
-	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
-		key = kv[0]
-		if len(kv) > 1 {
-			value = kv[1]
-		}
-	}
-	return
+	key, value, _ = strings.Cut(label, "=")
+	return key, value
 }
