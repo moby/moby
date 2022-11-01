@@ -830,7 +830,7 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 	if pp != nil {
 		platform = *pp
 	}
-	logrus.Debugf("%s resolved to a manifestList object with %d entries; looking for a %s/%s match", ref, len(mfstList.Manifests), platforms.Format(platform), runtime.GOARCH)
+	logrus.Debugf("%s resolved to a manifestList object with %d entries; looking for a %s match", ref, len(mfstList.Manifests), platforms.Format(platform))
 
 	manifestMatches := filterManifests(mfstList.Manifests, platform)
 
