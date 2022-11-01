@@ -279,29 +279,31 @@ func (daemon *Daemon) setWindowsCredentialSpec(c *container.Container, s *specs.
 	// this doesn't seem like a great idea?
 	credentialSpec := ""
 
+	// TODO(thaJeztah): extract validating and parsing SecurityOpt to a reusable function.
 	for _, secOpt := range c.HostConfig.SecurityOpt {
-		optSplits := strings.SplitN(secOpt, "=", 2)
-		if len(optSplits) != 2 {
+		k, v, ok := strings.Cut(secOpt, "=")
+		if !ok {
 			return errdefs.InvalidParameter(fmt.Errorf("invalid security option: no equals sign in supplied value %s", secOpt))
 		}
-		if !strings.EqualFold(optSplits[0], "credentialspec") {
-			return errdefs.InvalidParameter(fmt.Errorf("security option not supported: %s", optSplits[0]))
+		// FIXME(thaJeztah): options should not be case-insensitive
+		if !strings.EqualFold(k, "credentialspec") {
+			return errdefs.InvalidParameter(fmt.Errorf("security option not supported: %s", k))
 		}
 
-		credSpecSplits := strings.SplitN(optSplits[1], "://", 2)
-		if len(credSpecSplits) != 2 || credSpecSplits[1] == "" {
+		scheme, value, ok := strings.Cut(v, "://")
+		if !ok || value == "" {
 			return errInvalidCredentialSpecSecOpt
 		}
-		value := credSpecSplits[1]
-
 		var err error
-		switch strings.ToLower(credSpecSplits[0]) {
+		switch strings.ToLower(scheme) {
 		case "file":
-			if credentialSpec, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(value)); err != nil {
+			credentialSpec, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(value))
+			if err != nil {
 				return errdefs.InvalidParameter(err)
 			}
 		case "registry":
-			if credentialSpec, err = readCredentialSpecRegistry(c.ID, value); err != nil {
+			credentialSpec, err = readCredentialSpecRegistry(c.ID, value)
+			if err != nil {
 				return errdefs.InvalidParameter(err)
 			}
 		case "config":
@@ -439,44 +441,41 @@ func readCredentialSpecRegistry(id, name string) (string, error) {
 // This allows for staging on machines which do not have the necessary components.
 func readCredentialSpecFile(id, root, location string) (string, error) {
 	if filepath.IsAbs(location) {
-		return "", fmt.Errorf("invalid credential spec - file:// path cannot be absolute")
+		return "", fmt.Errorf("invalid credential spec: file:// path cannot be absolute")
 	}
 	base := filepath.Join(root, credentialSpecFileLocation)
 	full := filepath.Join(base, location)
 	if !strings.HasPrefix(full, base) {
-		return "", fmt.Errorf("invalid credential spec - file:// path must be under %s", base)
+		return "", fmt.Errorf("invalid credential spec: file:// path must be under %s", base)
 	}
 	bcontents, err := os.ReadFile(full)
 	if err != nil {
-		return "", errors.Wrapf(err, "credential spec for container %s could not be read from file %q", id, full)
+		return "", errors.Wrapf(err, "failed to load credential spec for container %s", id)
 	}
 	return string(bcontents[:]), nil
 }
 
 func setupWindowsDevices(devices []containertypes.DeviceMapping) (specDevices []specs.WindowsDevice, err error) {
-	if len(devices) == 0 {
-		return
-	}
-
 	for _, deviceMapping := range devices {
-		devicePath := deviceMapping.PathOnHost
-		if strings.HasPrefix(devicePath, "class/") {
-			devicePath = strings.Replace(devicePath, "class/", "class://", 1)
+		if strings.HasPrefix(deviceMapping.PathOnHost, "class/") {
+			specDevices = append(specDevices, specs.WindowsDevice{
+				ID:     strings.TrimPrefix(deviceMapping.PathOnHost, "class/"),
+				IDType: "class",
+			})
+		} else {
+			idType, id, ok := strings.Cut(deviceMapping.PathOnHost, "://")
+			if !ok {
+				return nil, errors.Errorf("invalid device assignment path: '%s', must be 'class/ID' or 'IDType://ID'", deviceMapping.PathOnHost)
+			}
+			if idType == "" {
+				return nil, errors.Errorf("invalid device assignment path: '%s', IDType cannot be empty", deviceMapping.PathOnHost)
+			}
+			specDevices = append(specDevices, specs.WindowsDevice{
+				ID:     id,
+				IDType: idType,
+			})
 		}
-
-		srcParts := strings.SplitN(devicePath, "://", 2)
-		if len(srcParts) != 2 {
-			return nil, errors.Errorf("invalid device assignment path: '%s', must be 'class/ID' or 'IDType://ID'", deviceMapping.PathOnHost)
-		}
-		if srcParts[0] == "" {
-			return nil, errors.Errorf("invalid device assignment path: '%s', IDType cannot be empty", deviceMapping.PathOnHost)
-		}
-		wd := specs.WindowsDevice{
-			ID:     srcParts[1],
-			IDType: srcParts[0],
-		}
-		specDevices = append(specDevices, wd)
 	}
 
-	return
+	return specDevices, nil
 }
