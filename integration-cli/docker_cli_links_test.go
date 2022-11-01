@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/runconfig"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type DockerCLILinksSuite struct {
@@ -39,11 +39,8 @@ func (s *DockerCLILinksSuite) TestLinksInvalidContainerTarget(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--link", "bogus:alias", "busybox", "true")
 
 	// an invalid container target should produce an error
-	assert.Assert(c, err != nil, "out: %s", out)
-	// an invalid container target should produce an error
-	// note: convert the output to lowercase first as the error string
-	// capitalization was changed after API version 1.32
-	assert.Assert(c, strings.Contains(strings.ToLower(out), "could not get container"))
+	assert.Check(c, is.ErrorContains(err, "could not get container for bogus"))
+	assert.Check(c, is.Contains(out, "could not get container"))
 }
 
 func (s *DockerCLILinksSuite) TestLinksPingLinkedContainers(c *testing.T) {
@@ -163,7 +160,7 @@ func (s *DockerCLILinksSuite) TestLinksHostsFilesInject(c *testing.T) {
 	readContainerFileWithExec(c, idOne, "/etc/hosts")
 	contentTwo := readContainerFileWithExec(c, idTwo, "/etc/hosts")
 	// Host is not present in updated hosts file
-	assert.Assert(c, strings.Contains(string(contentTwo), "onetwo"))
+	assert.Assert(c, is.Contains(string(contentTwo), "onetwo"))
 }
 
 func (s *DockerCLILinksSuite) TestLinksUpdateOnRestart(c *testing.T) {
@@ -183,29 +180,29 @@ func (s *DockerCLILinksSuite) TestLinksUpdateOnRestart(c *testing.T) {
 		return string(matches[1])
 	}
 	ip := getIP(content, "one")
-	assert.Equal(c, ip, realIP)
+	assert.Check(c, is.Equal(ip, realIP))
 
 	ip = getIP(content, "onetwo")
-	assert.Equal(c, ip, realIP)
+	assert.Check(c, is.Equal(ip, realIP))
 
 	dockerCmd(c, "restart", "one")
 	realIP = inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 
 	content = readContainerFileWithExec(c, id, "/etc/hosts")
 	ip = getIP(content, "one")
-	assert.Equal(c, ip, realIP)
+	assert.Check(c, is.Equal(ip, realIP))
 
 	ip = getIP(content, "onetwo")
-	assert.Equal(c, ip, realIP)
+	assert.Check(c, is.Equal(ip, realIP))
 }
 
 func (s *DockerCLILinksSuite) TestLinksEnvs(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
-	assert.Assert(c, strings.Contains(out, "FIRST_ENV_e1=\n"))
-	assert.Assert(c, strings.Contains(out, "FIRST_ENV_e2=v2"))
-	assert.Assert(c, strings.Contains(out, "FIRST_ENV_e3=v3=v3"))
+	assert.Assert(c, is.Contains(out, "FIRST_ENV_e1=\n"))
+	assert.Assert(c, is.Contains(out, "FIRST_ENV_e2=v2"))
+	assert.Assert(c, is.Contains(out, "FIRST_ENV_e3=v3=v3"))
 }
 
 func (s *DockerCLILinksSuite) TestLinkShortDefinition(c *testing.T) {
@@ -230,16 +227,16 @@ func (s *DockerCLILinksSuite) TestLinksNetworkHostContainer(c *testing.T) {
 	out, _, err := dockerCmdWithError("run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true")
 
 	// Running container linking to a container with --net host should have failed
-	assert.Assert(c, err != nil, "out: %s", out)
+	assert.Check(c, err != nil, "out: %s", out)
 	// Running container linking to a container with --net host should have failed
-	assert.Assert(c, strings.Contains(out, runconfig.ErrConflictHostNetworkAndLinks.Error()))
+	assert.Check(c, is.Contains(out, runconfig.ErrConflictHostNetworkAndLinks.Error()))
 }
 
 func (s *DockerCLILinksSuite) TestLinksEtcHostsRegularFile(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	// /etc/hosts should be a regular file
-	assert.Assert(c, cmp.Regexp("^-.+\n$", out))
+	assert.Assert(c, is.Regexp("^-.+\n$", out))
 }
 
 func (s *DockerCLILinksSuite) TestLinksMultipleWithSameName(c *testing.T) {
