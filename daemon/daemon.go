@@ -21,8 +21,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/log"
@@ -55,6 +53,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/libcontainerd/remote"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/cluster"
@@ -76,11 +75,7 @@ import (
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/semaphore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/credentials/insecure"
 	"resenje.org/singleflight"
 )
 
@@ -926,48 +921,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
-	backoffConfig := backoff.DefaultConfig
-	backoffConfig.MaxDelay = 3 * time.Second
-	connParams := grpc.ConnectParams{
-		Backoff: backoffConfig,
-	}
-	gopts := []grpc.DialOption{
-		// WithBlock makes sure that the following containerd request
-		// is reliable.
-		//
-		// NOTE: In one edge case with high load pressure, kernel kills
-		// dockerd, containerd and containerd-shims caused by OOM.
-		// When both dockerd and containerd restart, but containerd
-		// will take time to recover all the existing containers. Before
-		// containerd serving, dockerd will failed with gRPC error.
-		// That bad thing is that restore action will still ignore the
-		// any non-NotFound errors and returns running state for
-		// already stopped container. It is unexpected behavior. And
-		// we need to restart dockerd to make sure that anything is OK.
-		//
-		// It is painful. Add WithBlock can prevent the edge case. And
-		// n common case, the containerd will be serving in shortly.
-		// It is not harm to add WithBlock for containerd connection.
-		grpc.WithBlock(),
-
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithConnectParams(connParams),
-		grpc.WithContextDialer(dialer.ContextDialer),
-
-		// TODO(stevvooe): We may need to allow configuration of this on the client.
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-	}
-
 	if cfgStore.ContainerdAddr != "" {
-		d.containerdClient, err = containerd.New(
-			cfgStore.ContainerdAddr,
-			containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace),
-			containerd.WithDialOpts(gopts),
-			containerd.WithTimeout(60*time.Second),
-		)
+		d.containerdClient, err = remote.NewContainerdClient(cfgStore.ContainerdAddr, containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 		}
@@ -977,12 +932,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		var pluginCli *containerd.Client
 
 		if cfgStore.ContainerdAddr != "" {
-			pluginCli, err = containerd.New(
-				cfgStore.ContainerdAddr,
-				containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace),
-				containerd.WithDialOpts(gopts),
-				containerd.WithTimeout(60*time.Second),
-			)
+			pluginCli, err = remote.NewContainerdClient(cfgStore.ContainerdAddr, containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace))
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 			}
