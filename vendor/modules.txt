@@ -565,6 +565,7 @@ github.com/moby/buildkit/cmd/buildkitd/config
 github.com/moby/buildkit/control
 github.com/moby/buildkit/control/gateway
 github.com/moby/buildkit/executor
+github.com/moby/buildkit/executor/containerdexecutor
 github.com/moby/buildkit/executor/oci
 github.com/moby/buildkit/executor/runcexecutor
 github.com/moby/buildkit/exporter
