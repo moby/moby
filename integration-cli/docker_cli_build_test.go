@@ -211,21 +211,21 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementEnv(c *testing.T) {
 	envCount := 0
 
 	for _, env := range envResult {
-		parts := strings.SplitN(env, "=", 2)
-		if parts[0] == "bar" {
+		k, v, _ := strings.Cut(env, "=")
+		if k == "bar" {
 			found = true
-			if parts[1] != "zzz" {
-				c.Fatalf("Could not find replaced var for env `bar`: got %q instead of `zzz`", parts[1])
+			if v != "zzz" {
+				c.Fatalf("Could not find replaced var for env `bar`: got %q instead of `zzz`", v)
 			}
-		} else if strings.HasPrefix(parts[0], "env") {
+		} else if strings.HasPrefix(k, "env") {
 			envCount++
-			if parts[1] != "zzz" {
-				c.Fatalf("%s should be 'zzz' but instead its %q", parts[0], parts[1])
+			if v != "zzz" {
+				c.Fatalf("%s should be 'zzz' but instead its %q", k, v)
 			}
-		} else if strings.HasPrefix(parts[0], "env") {
+		} else if strings.HasPrefix(k, "env") {
 			envCount++
-			if parts[1] != "foo" {
-				c.Fatalf("%s should be 'foo' but instead its %q", parts[0], parts[1])
+			if v != "foo" {
+				c.Fatalf("%s should be 'foo' but instead its %q", k, v)
 			}
 		}
 	}
