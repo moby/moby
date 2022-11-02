@@ -60,7 +60,7 @@ type c8dPlugin struct {
 // deleteTaskAndContainer deletes plugin task and then plugin container from containerd
 func (p c8dPlugin) deleteTaskAndContainer(ctx context.Context) {
 	if p.tsk != nil {
-		if _, err := p.tsk.Delete(ctx); err != nil && !errdefs.IsNotFound(err) {
+		if err := p.tsk.ForceDelete(ctx); err != nil && !errdefs.IsNotFound(err) {
 			p.log.WithError(err).Error("failed to delete plugin task from containerd")
 		}
 	}
