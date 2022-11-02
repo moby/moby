@@ -63,10 +63,15 @@ func New(info logger.Info) (logger.Logger, error) {
 
 // Log logs the message to the ETW stream.
 func (etwLogger *etwLogs) Log(msg *logger.Message) error {
-	// TODO(thaJeztah): log structured events instead and use provider.WriteEvent().
-	m := createLogMessage(etwLogger, msg)
+	err := provider.WriteEvent("ContainerLogs", []etw.EventOpt{etw.WithLevel(0)}, etw.WithFields(
+		etw.StringField("container_name", etwLogger.containerName),
+		etw.StringField("image_name", etwLogger.imageName),
+		etw.StringField("container_id", etwLogger.containerID),
+		etw.StringField("image_id", etwLogger.imageID),
+		etw.StringField("source", msg.Source),
+		etw.StringField("log", string(msg.Line)),
+	))
 	logger.PutMessage(msg)
-	err := provider.WriteEvent("StringMessage", []etw.EventOpt{etw.WithLevel(0)}, etw.WithFields(etw.StringField("message", m)))
 	if err != nil {
 		logrus.WithError(err).Error("ETWLogs provider failed to log message")
 		return fmt.Errorf("ETWLogs provider failed to log message: %v", err)
@@ -82,16 +87,6 @@ func (etwLogger *etwLogs) Close() error {
 
 func (etwLogger *etwLogs) Name() string {
 	return name
-}
-
-func createLogMessage(etwLogger *etwLogs, msg *logger.Message) string {
-	return fmt.Sprintf("container_name: %s, image_name: %s, container_id: %s, image_id: %s, source: %s, log: %s",
-		etwLogger.containerName,
-		etwLogger.imageName,
-		etwLogger.containerID,
-		etwLogger.imageID,
-		msg.Source,
-		msg.Line)
 }
 
 func registerETWProvider() error {
