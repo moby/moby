@@ -45,17 +45,6 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 		return m.Less(*p1, *p2)
 	})
 
-	// deprecated: backwards compatibility with older versions that didn't compare variant
-	if len(matches) == 0 && p.Architecture == "arm" {
-		p = platforms.Normalize(p)
-		for _, desc := range manifests {
-			if desc.Platform.OS == p.OS && desc.Platform.Architecture == p.Architecture {
-				matches = append(matches, desc)
-				logrus.Debugf("found deprecated partial match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
-			}
-		}
-	}
-
 	return matches
 }
 
