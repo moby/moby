@@ -695,7 +695,7 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 			log.G(ctx).Warn("no certificate expiration specified, using default")
 		}
 		// Attempt to update our local RootCA with the new parameters
-		updatedRootCA, err := RootCAFromAPI(ctx, rCA, expiry)
+		updatedRootCA, err := RootCAFromAPI(rCA, expiry)
 		if err != nil {
 			return errors.Wrap(err, "invalid Root CA object in cluster")
 		}
@@ -901,7 +901,7 @@ func isFinalState(status api.IssuanceStatus) bool {
 }
 
 // RootCAFromAPI creates a RootCA object from an api.RootCA object
-func RootCAFromAPI(ctx context.Context, apiRootCA *api.RootCA, expiry time.Duration) (RootCA, error) {
+func RootCAFromAPI(apiRootCA *api.RootCA, expiry time.Duration) (RootCA, error) {
 	var intermediates []byte
 	signingCert := apiRootCA.CACert
 	signingKey := apiRootCA.CAKey

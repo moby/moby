@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/docker/go-events"
 	"github.com/sirupsen/logrus"
@@ -23,6 +24,10 @@ const (
 	// plugin interface is "docker.csicontroller/1.0". This gets only the CSI
 	// plugins with Controller capability.
 	DockerCSIPluginCap = "csicontroller"
+
+	// CSIRPCTimeout is the client-side timeout duration for RPCs to the CSI
+	// plugin.
+	CSIRPCTimeout = 15 * time.Second
 )
 
 type Manager struct {
@@ -149,10 +154,16 @@ func (vm *Manager) run(pctx context.Context) {
 // processVolumes encapuslates the logic for processing pending Volumes.
 func (vm *Manager) processVolume(ctx context.Context, id string, attempt uint) {
 	// set up log fields for a derrived context to pass to handleVolume.
-	dctx := log.WithFields(ctx, logrus.Fields{
+	logCtx := log.WithFields(ctx, logrus.Fields{
 		"volume.id": id,
 		"attempt":   attempt,
 	})
+
+	// Set a client-side timeout. Without this, one really long server-side
+	// timeout can block processing all volumes until it completes or fails.
+	dctx, cancel := context.WithTimeout(logCtx, CSIRPCTimeout)
+	// always gotta call the WithTimeout cancel
+	defer cancel()
 
 	err := vm.handleVolume(dctx, id)
 	// TODO(dperny): differentiate between retryable and non-retryable
