@@ -87,7 +87,7 @@ type ReadConfig struct {
 
 // LogReader is the interface for reading log messages for loggers that support reading.
 type LogReader interface {
-	// Read logs from underlying logging backend
+	// ReadLogs reads logs from underlying logging backend.
 	ReadLogs(ReadConfig) *LogWatcher
 }
 
