@@ -233,7 +233,9 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 	stdinCloseSync <- t
 
 	if err := t.Start(ctx); err != nil {
-		if _, err := t.Delete(ctx); err != nil {
+		// Only Stopped tasks can be deleted. Created tasks have to be
+		// killed first, to transition them to Stopped.
+		if _, err := t.Delete(ctx, containerd.WithProcessKill); err != nil {
 			c.client.logger.WithError(err).WithField("container", c.c8dCtr.ID()).
 				Error("failed to delete task after fail start")
 		}
