@@ -2,7 +2,6 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/containerd/containerd/content"
@@ -245,15 +244,15 @@ func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
 func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
 	ch := i.usage.DoChan("ImageDiskUsage", func() (interface{}, error) {
 		// Get all top images with extra attributes
-		images, err := i.Images(ctx, types.ImageListOptions{
+		imgs, err := i.Images(ctx, types.ImageListOptions{
 			Filters:        filters.NewArgs(),
 			SharedSize:     true,
 			ContainerCount: true,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve image list: %v", err)
+			return nil, errors.Wrap(err, "failed to retrieve image list")
 		}
-		return images, nil
+		return imgs, nil
 	})
 	select {
 	case <-ctx.Done():
