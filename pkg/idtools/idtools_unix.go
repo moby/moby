@@ -167,7 +167,7 @@ func callGetent(database, key string) (io.Reader, error) {
 	if getentCmd == "" {
 		return nil, fmt.Errorf("unable to find getent command")
 	}
-	out, err := execCmd(getentCmd, database, key)
+	out, err := exec.Command(getentCmd, database, key).CombinedOutput()
 	if err != nil {
 		exitCode, errC := getExitCode(err)
 		if errC != nil {
