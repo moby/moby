@@ -58,7 +58,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		Changes: r.Form["changes"],
 	}
 
-	imgID, err := s.backend.CreateImageFromContainer(r.Form.Get("container"), commitCfg)
+	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), commitCfg)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		config.Limit = limit
 	}
 
-	containers, err := s.backend.Containers(config)
+	containers, err := s.backend.Containers(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 
 	checkpoint := r.Form.Get("checkpoint")
 	checkpointDir := r.Form.Get("checkpoint-dir")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
+	if err := s.backend.ContainerStart(ctx, vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
 		return err
 	}
 
@@ -578,7 +578,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
-	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
+	ccr, err := s.backend.ContainerCreate(ctx, types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,
 		HostConfig:       hostConfig,

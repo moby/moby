@@ -252,7 +252,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	// notify systemd that we're shutting down
 	notifyStopping()
-	shutdownDaemon(d)
+	shutdownDaemon(ctx, d)
 
 	// Stop notification processing and any background processes
 	cancel()
@@ -359,27 +359,24 @@ func (cli *DaemonCli) stop() {
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
 // d.Shutdown() is waiting too long to kill container or worst it's
 // blocked there
-func shutdownDaemon(d *daemon.Daemon) {
-	shutdownTimeout := d.ShutdownTimeout()
-	ch := make(chan struct{})
-	go func() {
-		d.Shutdown()
-		close(ch)
-	}()
-	if shutdownTimeout < 0 {
-		<-ch
-		logrus.Debug("Clean shutdown succeeded")
-		return
+func shutdownDaemon(ctx context.Context, d *daemon.Daemon) {
+	var cancel context.CancelFunc
+	if timeout := d.ShutdownTimeout(); timeout >= 0 {
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
 	}
 
-	timeout := time.NewTimer(time.Duration(shutdownTimeout) * time.Second)
-	defer timeout.Stop()
+	go func() {
+		defer cancel()
+		d.Shutdown(ctx)
+	}()
 
-	select {
-	case <-ch:
-		logrus.Debug("Clean shutdown succeeded")
-	case <-timeout.C:
+	<-ctx.Done()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		logrus.Error("Force shutdown daemon")
+	} else {
+		logrus.Debug("Clean shutdown succeeded")
 	}
 }
 

@@ -37,7 +37,7 @@ type ImageService interface {
 	CountImages() int
 	ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
-	ImportImage(src string, repository string, platform *v1.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
+	ImportImage(ctx context.Context, src string, repository string, platform *v1.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
 	TagImage(imageName, repository, tag string) (string, error)
 	TagImageWithReference(imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error)
@@ -62,7 +62,7 @@ type ImageService interface {
 
 	// Build
 
-	MakeImageCache(sourceRefs []string) builder.ImageCache
+	MakeImageCache(ctx context.Context, cacheFrom []string) (builder.ImageCache, error)
 	CommitBuildStep(c backend.CommitConfig) (image.ID, error)
 
 	// Other
