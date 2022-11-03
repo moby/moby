@@ -76,6 +76,14 @@ type network struct {
 
 func init() {
 	reexec.Register("set-default-vlan", setDefaultVlan)
+
+	// Lock main() to the initial thread to exclude the goroutines executing
+	// func (*network).watchMiss() from being scheduled onto that thread.
+	// Changes to the network namespace of the initial thread alter
+	// /proc/self/ns/net, which would break any code which (incorrectly)
+	// assumes that that file is a handle to the network namespace for the
+	// thread it is currently executing on.
+	runtime.LockOSThread()
 }
 
 func setDefaultVlan() {
@@ -779,20 +787,36 @@ func (n *network) initSandbox(restore bool) error {
 func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
 	// With the new version of the netlink library the deserialize function makes
 	// requests about the interface of the netlink message. This can succeed only
-	// if this go routine is in the target namespace. For this reason following we
-	// lock the thread on that namespace
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
+	// if this go routine is in the target namespace.
+	origNs, err := netns.Get()
+	if err != nil {
+		logrus.WithError(err).Error("failed to get the initial network namespace")
+		return
+	}
+	defer origNs.Close()
 	newNs, err := netns.GetFromPath(nsPath)
 	if err != nil {
 		logrus.WithError(err).Errorf("failed to get the namespace %s", nsPath)
 		return
 	}
 	defer newNs.Close()
+
+	runtime.LockOSThread()
 	if err = netns.Set(newNs); err != nil {
 		logrus.WithError(err).Errorf("failed to enter the namespace %s", nsPath)
+		runtime.UnlockOSThread()
 		return
 	}
+	defer func() {
+		if err := netns.Set(origNs); err != nil {
+			logrus.WithError(err).Error("failed to restore the thread's initial network namespace")
+			// The error is only fatal for the current thread. Keep this
+			// goroutine locked to the thread to make the runtime replace it
+			// with a clean thread once this goroutine terminates.
+		} else {
+			runtime.UnlockOSThread()
+		}
+	}()
 	for {
 		msgs, _, err := nlSock.Receive()
 		if err != nil {

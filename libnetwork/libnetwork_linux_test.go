@@ -917,7 +917,6 @@ func parallelJoin(t *testing.T, rc libnetwork.Sandbox, ep libnetwork.Endpoint, t
 	sb := sboxes[thrNumber-1]
 	err = ep.Join(sb)
 
-	runtime.LockOSThread()
 	if err != nil {
 		if _, ok := err.(types.ForbiddenError); !ok {
 			t.Fatalf("thread %d: %v", thrNumber, err)
@@ -934,7 +933,6 @@ func parallelLeave(t *testing.T, rc libnetwork.Sandbox, ep libnetwork.Endpoint, 
 	sb := sboxes[thrNumber-1]
 
 	err = ep.Leave(sb)
-	runtime.LockOSThread()
 	if err != nil {
 		if _, ok := err.(types.ForbiddenError); !ok {
 			t.Fatalf("thread %d: %v", thrNumber, err)
@@ -966,13 +964,9 @@ func runParallelTests(t *testing.T, thrNumber int) {
 	}
 
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
 	if thrNumber == first {
 		createGlobalInstance(t)
-	}
-
-	if thrNumber != first {
+	} else {
 		<-start
 
 		thrdone := make(chan struct{})
@@ -985,18 +979,15 @@ func runParallelTests(t *testing.T, thrNumber int) {
 
 		err = netns.Set(testns)
 		if err != nil {
+			runtime.UnlockOSThread()
 			t.Fatal(err)
 		}
 	}
 	defer func() {
 		if err := netns.Set(origins); err != nil {
-			// NOTE(@cpuguy83): This...
-			// I touched this code because the linter found that we weren't checking the error...
-			// It returns an error because "origins" is a closed file handle *unless* createGlobalInstance is called.
-			// Which... this test is run in parallel and `createGlobalInstance` modifies `origins` without synchronization.
-			// I'm not sure what exactly the *intent* of this code was, but it looks very broken.
-			// Anyway that's why I'm only logging the error and not failing the test.
-			t.Log(err)
+			t.Fatalf("Error restoring the current thread's netns: %v", err)
+		} else {
+			runtime.UnlockOSThread()
 		}
 	}()
 

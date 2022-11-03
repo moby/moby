@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -197,7 +196,6 @@ func TestDisableIPv6DAD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 	defer destroyTest(t, s)
 
 	n, ok := s.(*networkNamespace)
@@ -257,7 +255,6 @@ func TestSetInterfaceIP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 	defer destroyTest(t, s)
 
 	n, ok := s.(*networkNamespace)
@@ -332,7 +329,6 @@ func TestLiveRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 	defer destroyTest(t, s)
 
 	n, ok := s.(*networkNamespace)
@@ -482,7 +478,6 @@ func TestSandboxCreateTwice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 
 	// Create another sandbox with the same key to see if we handle it
 	// gracefully.
@@ -490,7 +485,6 @@ func TestSandboxCreateTwice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 
 	err = s.Destroy()
 	if err != nil {
@@ -532,7 +526,6 @@ func TestAddRemoveInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 
 	if s.Key() != key {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)

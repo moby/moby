@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -32,7 +31,6 @@ func validateID(nid, eid string) error {
 }
 
 func createVethPair() (string, string, error) {
-	defer osl.InitOSContext()()
 	nlh := ns.NlHandle()
 
 	// Generate a name for what will be the host side pipe interface
@@ -59,8 +57,6 @@ func createVethPair() (string, string, error) {
 }
 
 func createVxlan(name string, vni uint32, mtu int) error {
-	defer osl.InitOSContext()()
-
 	vxlan := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{Name: name, MTU: mtu},
 		VxlanId:   int(vni),
@@ -79,8 +75,6 @@ func createVxlan(name string, vni uint32, mtu int) error {
 }
 
 func deleteInterfaceBySubnet(brPrefix string, s *subnet) error {
-	defer osl.InitOSContext()()
-
 	nlh := ns.NlHandle()
 	links, err := nlh.LinkList()
 	if err != nil {
@@ -109,8 +103,6 @@ func deleteInterfaceBySubnet(brPrefix string, s *subnet) error {
 }
 
 func deleteInterface(name string) error {
-	defer osl.InitOSContext()()
-
 	link, err := ns.NlHandle().LinkByName(name)
 	if err != nil {
 		return fmt.Errorf("failed to find interface with name %s: %v", name, err)
@@ -124,8 +116,6 @@ func deleteInterface(name string) error {
 }
 
 func deleteVxlanByVNI(path string, vni uint32) error {
-	defer osl.InitOSContext()()
-
 	nlh := ns.NlHandle()
 	if path != "" {
 		ns, err := netns.GetFromPath(path)

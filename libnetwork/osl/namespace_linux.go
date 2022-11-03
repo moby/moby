@@ -28,6 +28,14 @@ const defaultPrefix = "/var/run/docker"
 
 func init() {
 	reexec.Register("set-ipv6", reexecSetIPv6)
+
+	// Lock main() to the initial thread to exclude the goroutines spawned
+	// by func (*networkNamespace) InvokeFunc() from being scheduled onto
+	// that thread. Changes to the network namespace of the initial thread
+	// alter /proc/self/ns/net, which would break any code which
+	// (incorrectly) assumes that that file is a handle to the network
+	// namespace for the thread it is currently executing on.
+	runtime.LockOSThread()
 }
 
 var (
@@ -412,43 +420,41 @@ func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
 }
 
 func (n *networkNamespace) InvokeFunc(f func()) error {
-	return nsInvoke(n.nsPath(), func(nsFD int) error { return nil }, func(callerFD int) error {
-		f()
-		return nil
-	})
-}
-
-// InitOSContext initializes OS context while configuring network resources
-func InitOSContext() func() {
-	runtime.LockOSThread()
-	if err := ns.SetNamespace(); err != nil {
-		logrus.Error(err)
-	}
-	return runtime.UnlockOSThread
-}
-
-func nsInvoke(path string, prefunc func(nsFD int) error, postfunc func(callerFD int) error) error {
-	defer InitOSContext()()
-
-	newNs, err := netns.GetFromPath(path)
+	origNS, err := netns.Get()
 	if err != nil {
-		return fmt.Errorf("failed get network namespace %q: %v", path, err)
+		return fmt.Errorf("failed to get original network namespace: %w", err)
 	}
-	defer newNs.Close()
+	defer origNS.Close()
 
-	// Invoked before the namespace switch happens but after the namespace file
-	// handle is obtained.
-	if err := prefunc(int(newNs)); err != nil {
-		return fmt.Errorf("failed in prefunc: %v", err)
+	path := n.nsPath()
+	newNS, err := netns.GetFromPath(path)
+	if err != nil {
+		return fmt.Errorf("failed get network namespace %q: %w", path, err)
 	}
+	defer newNS.Close()
 
-	if err = netns.Set(newNs); err != nil {
-		return err
-	}
-	defer ns.SetNamespace()
-
-	// Invoked after the namespace switch.
-	return postfunc(ns.ParseHandlerInt())
+	done := make(chan error, 1)
+	go func() {
+		runtime.LockOSThread()
+		if err := netns.Set(newNS); err != nil {
+			runtime.UnlockOSThread()
+			done <- err
+			return
+		}
+		defer func() {
+			close(done)
+			if err := netns.Set(origNS); err != nil {
+				logrus.WithError(err).Warn("failed to restore thread's network namespace")
+				// Recover from the error by leaving this goroutine locked to
+				// the thread. The runtime will terminate the thread and replace
+				// it with a clean one when this goroutine returns.
+			} else {
+				runtime.UnlockOSThread()
+			}
+		}()
+		f()
+	}()
+	return <-done
 }
 
 func (n *networkNamespace) nsPath() string {
