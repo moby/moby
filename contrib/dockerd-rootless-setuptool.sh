@@ -37,6 +37,8 @@ BIN=""
 SYSTEMD=""
 CFG_DIR=""
 XDG_RUNTIME_DIR_CREATED=""
+USERNAME=""
+USERNAME_ESCAPED=""
 
 # run checks and also initialize global vars
 init() {
@@ -77,6 +79,11 @@ init() {
 		ERROR "HOME needs to be writable"
 		exit 1
 	fi
+
+	# Set USERNAME from `id -un` and potentially protect backslash
+	# for windbind/samba domain users
+	USERNAME=$(id -un)
+	USERNAME_ESCAPED=$(echo $USERNAME | sed 's/\\/\\\\/g')
 
 	# set CFG_DIR
 	CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -222,21 +229,21 @@ init() {
 	fi
 
 	# instructions: validate subuid/subgid files for current user
-	if ! grep -q "^$(id -un):\|^$(id -u):" /etc/subuid 2> /dev/null; then
+	if ! grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subuid 2> /dev/null; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
-				# Add subuid entry for $(id -un)
-				echo "$(id -un):100000:65536" >> /etc/subuid
+				# Add subuid entry for ${USERNAME}
+				echo "${USERNAME}:100000:65536" >> /etc/subuid
 			EOI
 		)
 	fi
-	if ! grep -q "^$(id -un):\|^$(id -u):" /etc/subgid 2> /dev/null; then
+	if ! grep -q "^$USERNAME_ESCAPED:\|^$(id -u):" /etc/subgid 2> /dev/null; then
 		instructions=$(
 			cat <<- EOI
 				${instructions}
-				# Add subgid entry for $(id -un)
-				echo "$(id -un):100000:65536" >> /etc/subgid
+				# Add subgid entry for ${USERNAME}
+				echo "${USERNAME}:100000:65536" >> /etc/subgid
 			EOI
 		)
 	fi
@@ -340,7 +347,7 @@ install_systemd() {
 	)
 	INFO "Installed ${SYSTEMD_UNIT} successfully."
 	INFO "To control ${SYSTEMD_UNIT}, run: \`systemctl --user (start|stop|restart) ${SYSTEMD_UNIT}\`"
-	INFO "To run ${SYSTEMD_UNIT} on system startup, run: \`sudo loginctl enable-linger $(id -un)\`"
+	INFO "To run ${SYSTEMD_UNIT} on system startup, run: \`sudo loginctl enable-linger ${USERNAME}\`"
 	echo
 }
 
