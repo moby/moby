@@ -36,6 +36,23 @@ var (
 	testns  = netns.None()
 )
 
+var createTesthostNetworkOnce sync.Once
+
+func getTesthostNetwork(t *testing.T) libnetwork.Network {
+	t.Helper()
+	createTesthostNetworkOnce.Do(func() {
+		_, err := createTestNetwork("host", "testhost", options.Generic{}, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	n, err := controller.NetworkByName("testhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
 func createGlobalInstance(t *testing.T) {
 	var err error
 	defer close(start)
@@ -60,11 +77,7 @@ func createGlobalInstance(t *testing.T) {
 		},
 	}
 
-	net1, err := controller.NetworkByName("testhost")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	net1 := getTesthostNetwork(t)
 	net2, err := createTestNetwork("bridge", "network2", netOption, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -124,11 +137,7 @@ func TestHost(t *testing.T) {
 		}
 	}()
 
-	network, err := createTestNetwork("host", "testhost", options.Generic{}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	network := getTesthostNetwork(t)
 	ep1, err := network.CreateEndpoint("testep1")
 	if err != nil {
 		t.Fatal(err)
@@ -708,11 +717,7 @@ func TestResolvConfHost(t *testing.T) {
 		}
 	}()
 
-	n, err := controller.NetworkByName("testhost")
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	n := getTesthostNetwork(t)
 	ep1, err := n.CreateEndpoint("ep1", libnetwork.CreateOptionDisableResolution())
 	if err != nil {
 		t.Fatal(err)
@@ -991,10 +996,7 @@ func runParallelTests(t *testing.T, thrNumber int) {
 		}
 	}()
 
-	net1, err := controller.NetworkByName("testhost")
-	if err != nil {
-		t.Fatal(err)
-	}
+	net1 := getTesthostNetwork(t)
 	if net1 == nil {
 		t.Fatal("Could not find testhost")
 	}
@@ -1044,7 +1046,9 @@ func runParallelTests(t *testing.T, thrNumber int) {
 			<-thrdone
 		}
 
-		testns.Close()
+		if testns != origins {
+			testns.Close()
+		}
 		if err := net2.Delete(); err != nil {
 			t.Fatal(err)
 		}
