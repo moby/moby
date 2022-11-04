@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
@@ -667,6 +668,10 @@ func reexecSetIPv6() {
 }
 
 func setIPv6(path, iface string, enable bool) error {
+	if !netutils.IsV6Listenable() {
+		return nil
+	}
+
 	cmd := &exec.Cmd{
 		Path:   reexec.Self(),
 		Args:   append([]string{"set-ipv6"}, path, iface, strconv.FormatBool(enable)),
