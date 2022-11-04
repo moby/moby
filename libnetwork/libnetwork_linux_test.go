@@ -11,12 +11,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/testutils"
@@ -1123,34 +1123,12 @@ func TestBridge(t *testing.T) {
 		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
 	}
 	expectedLen := 10
-	if !isV6Listenable() {
+	if !netutils.IsV6Listenable() {
 		expectedLen = 5
 	}
 	if len(pm) != expectedLen {
 		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
 	}
-}
-
-var (
-	v6ListenableCached bool
-	v6ListenableOnce   sync.Once
-)
-
-// This is copied from the bridge driver package b/c the bridge driver is not platform agnostic.
-func isV6Listenable() bool {
-	v6ListenableOnce.Do(func() {
-		ln, err := net.Listen("tcp6", "[::1]:0")
-		if err != nil {
-			// When the kernel was booted with `ipv6.disable=1`,
-			// we get err "listen tcp6 [::1]:0: socket: address family not supported by protocol"
-			// https://github.com/moby/moby/issues/42288
-			logrus.Debugf("port_mapping: v6Listenable=false (%v)", err)
-		} else {
-			v6ListenableCached = true
-			ln.Close()
-		}
-	})
-	return v6ListenableCached
 }
 
 func TestParallel3(t *testing.T) {
