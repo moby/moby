@@ -1046,7 +1046,9 @@ func runParallelTests(t *testing.T, thrNumber int) {
 			<-thrdone
 		}
 
-		testns.Close()
+		if testns != origins {
+			testns.Close()
+		}
 		if err := net2.Delete(); err != nil {
 			t.Fatal(err)
 		}
