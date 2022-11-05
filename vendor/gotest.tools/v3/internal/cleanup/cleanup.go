@@ -1,4 +1,5 @@
-/*Package cleanup handles migration to and support for the Go 1.14+
+/*
+Package cleanup handles migration to and support for the Go 1.14+
 testing.TB.Cleanup() function.
 */
 package cleanup

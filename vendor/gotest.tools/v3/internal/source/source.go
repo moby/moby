@@ -1,3 +1,4 @@
+// Package source provides utilities for handling source-code.
 package source // import "gotest.tools/v3/internal/source"
 
 import (

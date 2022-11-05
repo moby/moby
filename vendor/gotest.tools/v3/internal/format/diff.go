@@ -1,3 +1,4 @@
+// Package format provides utilities for formatting diffs and messages.
 package format
 
 import (
