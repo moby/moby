@@ -6,6 +6,7 @@
 package cmpopts
 
 import (
+	"errors"
 	"math"
 	"reflect"
 	"time"
@@ -41,6 +42,7 @@ func isEmpty(x, y interface{}) bool {
 // The fraction and margin must be non-negative.
 //
 // The mathematical expression used is equivalent to:
+//
 //	|x-y| ≤ max(fraction*min(|x|, |y|), margin)
 //
 // EquateApprox can be used in conjunction with EquateNaNs.
@@ -145,4 +147,10 @@ func areConcreteErrors(x, y interface{}) bool {
 	_, ok1 := x.(error)
 	_, ok2 := y.(error)
 	return ok1 && ok2
+}
+
+func compareErrors(x, y interface{}) bool {
+	xe := x.(error)
+	ye := y.(error)
+	return errors.Is(xe, ye) || errors.Is(ye, xe)
 }
