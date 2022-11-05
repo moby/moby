@@ -154,13 +154,12 @@ var rootChain = defaultRootChain
 
 // DefaultScopes returns a map of default scopes and its config for clients to use.
 func DefaultScopes(dataDir string) map[string]*ScopeCfg {
+	s := makeDefaultScopes()
 	if dataDir != "" {
-		defaultScopes[LocalScope].Client.Address = dataDir + "/network/files/local-kv.db"
-		return defaultScopes
+		s[LocalScope].Client.Address = dataDir + "/network/files/local-kv.db"
 	}
 
-	defaultScopes[LocalScope].Client.Address = defaultPrefix + "/local-kv.db"
-	return defaultScopes
+	return s
 }
 
 // IsValid checks if the scope config has valid configuration.
