@@ -1,10 +1,13 @@
-package pidfile // import "github.com/docker/docker/pkg/pidfile"
+package process
 
 import (
+	"os"
+
 	"golang.org/x/sys/windows"
 )
 
-func processExists(pid int) bool {
+// Alive returns true if process with a given pid is running.
+func Alive(pid int) bool {
 	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 	if err != nil {
 		return false
@@ -27,4 +30,23 @@ func processExists(pid int) bool {
 		return c == uint32(windows.STATUS_PENDING)
 	}
 	return true
+}
+
+// Kill force-stops a process.
+func Kill(pid int) error {
+	p, err := os.FindProcess(pid)
+	if err == nil {
+		err = p.Kill()
+		if err != nil && err != os.ErrProcessDone {
+			return err
+		}
+	}
+	return nil
+}
+
+// Zombie is not supported on Windows.
+//
+// TODO(thaJeztah): remove once we remove the stubs from pkg/system.
+func Zombie(_ int) (bool, error) {
+	return false, nil
 }

@@ -15,8 +15,8 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/process"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -352,10 +352,9 @@ func killProcessDirectly(container *container.Container) error {
 	}
 
 	// In case there were some exceptions(e.g., state of zombie and D)
-	if system.IsProcessAlive(pid) {
+	if process.Alive(pid) {
 		// Since we can not kill a zombie pid, add zombie check here
-		isZombie, err := system.IsProcessZombie(pid)
-		// TODO(thaJeztah) should we ignore os.IsNotExist() here? ("/proc/<pid>/stat" will be gone if the process exited)
+		isZombie, err := process.Zombie(pid)
 		if err != nil {
 			logrus.WithError(err).WithField("container", container.ID).Warn("Container state is invalid")
 			return err
