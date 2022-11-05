@@ -145,9 +145,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestUnknownDriver(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	_, err := createTestNetwork("unknowndriver", "testnetwork", options.Generic{}, nil, nil)
 	if err == nil {
@@ -172,9 +170,7 @@ func TestNilRemoteDriver(t *testing.T) {
 }
 
 func TestNetworkName(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -208,9 +204,7 @@ func TestNetworkName(t *testing.T) {
 }
 
 func TestNetworkType(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -234,9 +228,7 @@ func TestNetworkType(t *testing.T) {
 }
 
 func TestNetworkID(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -260,9 +252,7 @@ func TestNetworkID(t *testing.T) {
 }
 
 func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		"BridgeName": "testnetwork",
@@ -301,9 +291,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 }
 
 func TestNetworkConfig(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	// Verify config network cannot inherit another config network
 	_, err := controller.NewNetwork("bridge", "config_network0", "",
@@ -403,9 +391,7 @@ func TestNetworkConfig(t *testing.T) {
 }
 
 func TestUnknownNetwork(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		"BridgeName": "testnetwork",
@@ -435,9 +421,7 @@ func TestUnknownNetwork(t *testing.T) {
 }
 
 func TestUnknownEndpoint(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		"BridgeName": "testnetwork",
@@ -477,9 +461,7 @@ func TestUnknownEndpoint(t *testing.T) {
 }
 
 func TestNetworkEndpointsWalkers(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
@@ -607,9 +589,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 }
 
 func TestDuplicateEndpoint(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -656,9 +636,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 }
 
 func TestControllerQuery(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	// Create network 1
 	netOption := options.Generic{
@@ -758,9 +736,7 @@ func TestControllerQuery(t *testing.T) {
 }
 
 func TestNetworkQuery(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
@@ -907,9 +883,7 @@ func (f *fakeSandbox) DisableService() error {
 }
 
 func TestEndpointDeleteWithActiveContainer(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -982,9 +956,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 }
 
 func TestEndpointMultipleJoins(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	n, err := createTestNetwork(bridgeNetType, "testmultiple", options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -1056,9 +1028,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 }
 
 func TestLeaveAll(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -1121,9 +1091,7 @@ func TestLeaveAll(t *testing.T) {
 }
 
 func TestContainerInvalidLeave(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -1187,9 +1155,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 }
 
 func TestEndpointUpdateParent(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{

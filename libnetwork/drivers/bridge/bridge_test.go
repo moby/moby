@@ -180,9 +180,7 @@ func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 }
 
 func TestCreateFullOptions(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -236,9 +234,7 @@ func TestCreateFullOptions(t *testing.T) {
 }
 
 func TestCreateNoConfig(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
@@ -251,9 +247,7 @@ func TestCreateNoConfig(t *testing.T) {
 }
 
 func TestCreateFullOptionsLabels(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -359,9 +353,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -387,9 +379,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateFail(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -407,9 +397,7 @@ func TestCreateFail(t *testing.T) {
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -617,9 +605,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 }
 
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -720,9 +706,7 @@ func getPortMapping() []types.PortBinding {
 }
 
 func TestLinkContainers(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 	iptable := iptables.GetIptable(iptables.IPv4)
@@ -876,9 +860,7 @@ func TestLinkContainers(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	// Test mtu
 	c := networkConfiguration{Mtu: -2}
@@ -949,9 +931,7 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaultGw(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -1095,9 +1075,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 }
 
 func TestCreateParallel(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 

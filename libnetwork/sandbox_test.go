@@ -82,9 +82,7 @@ func TestSandboxAddEmpty(t *testing.T) {
 
 // // If different priorities are specified, internal option and ipv6 addresses mustn't influence endpoint order
 func TestSandboxAddMultiPrio(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	opts := [][]NetworkOption{
 		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
@@ -169,9 +167,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 }
 
 func TestSandboxAddSamePrio(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	opts := [][]NetworkOption{
 		{},

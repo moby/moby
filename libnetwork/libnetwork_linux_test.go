@@ -62,13 +62,9 @@ func createGlobalInstance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if testutils.IsRunningInContainer() {
-		testns = origins
-	} else {
-		testns, err = netns.New()
-		if err != nil {
-			t.Fatal(err)
-		}
+	testns, err = netns.New()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	netOption := options.Generic{
@@ -207,9 +203,7 @@ func TestHost(t *testing.T) {
 
 // Testing IPV6 from MAC address
 func TestBridgeIpv6FromMac(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -283,9 +277,7 @@ func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 }
 
 func TestEndpointJoin(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
@@ -459,9 +451,7 @@ func TestExternalKey(t *testing.T) {
 }
 
 func externalKeyTest(t *testing.T, reexec bool) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -621,9 +611,7 @@ func reexecSetKey(key string, containerID string, controllerID string) error {
 }
 
 func TestEnableIPv6(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
 	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\noptions ndots:0\n")
@@ -699,9 +687,7 @@ func TestEnableIPv6(t *testing.T) {
 }
 
 func TestResolvConfHost(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	tmpResolvConf := []byte("search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\n")
 
@@ -775,9 +761,7 @@ func TestResolvConfHost(t *testing.T) {
 }
 
 func TestResolvConf(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	tmpResolvConf1 := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
 	tmpResolvConf2 := []byte("search pommesfrites.fr\nnameserver 112.34.56.78\nnameserver 2001:4860:4860::8888\n")
@@ -1069,9 +1053,7 @@ func TestParallel2(t *testing.T) {
 }
 
 func TestBridge(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	netOption := options.Generic{
 		netlabel.EnableIPv6: true,

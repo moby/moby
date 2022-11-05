@@ -562,9 +562,7 @@ func TestServiceVIPReuse(t *testing.T) {
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	cfgOptions, err := OptionBoltdbWithRandomDBFile()
 	if err != nil {

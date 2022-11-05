@@ -47,6 +47,17 @@ func SetupTestOSContext(t *testing.T) func() {
 	// sure to re-initialize initNs context
 	ns.Init()
 
+	nl := ns.NlHandle()
+	lo, err := nl.LinkByName("lo")
+	if err != nil {
+		restore()
+		t.Fatalf("Failed to get handle to loopback interface 'lo' in new netns: %v", err)
+	}
+	if err := nl.LinkSetUp(lo); err != nil {
+		restore()
+		t.Fatalf("Failed to enable loopback interface in new netns: %v", err)
+	}
+
 	return func() {
 		if err := newNS.Close(); err != nil {
 			t.Logf("Warning: netns closing failed (%v)", err)
