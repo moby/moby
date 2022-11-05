@@ -142,7 +142,7 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config            *configuration
+	config            configuration
 	natChain          *iptables.ChainInfo
 	filterChain       *iptables.ChainInfo
 	isolationChain1   *iptables.ChainInfo
@@ -160,7 +160,7 @@ type driver struct {
 
 // New constructs a new bridge driver
 func newDriver() *driver {
-	return &driver{networks: map[string]*bridgeNetwork{}, config: &configuration{}}
+	return &driver{networks: map[string]*bridgeNetwork{}}
 }
 
 // Init registers a new instance of bridge driver
@@ -348,7 +348,7 @@ func (n *bridgeNetwork) isolateNetwork(enable bool) error {
 
 func (d *driver) configure(option map[string]interface{}) error {
 	var (
-		config            *configuration
+		config            configuration
 		err               error
 		natChain          *iptables.ChainInfo
 		filterChain       *iptables.ChainInfo
@@ -360,20 +360,17 @@ func (d *driver) configure(option map[string]interface{}) error {
 		isolationChain2V6 *iptables.ChainInfo
 	)
 
-	genericData, ok := option[netlabel.GenericData]
-	if !ok || genericData == nil {
-		return nil
-	}
-
-	switch opt := genericData.(type) {
+	switch opt := option[netlabel.GenericData].(type) {
 	case options.Generic:
 		opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
 		if err != nil {
 			return err
 		}
-		config = opaqueConfig.(*configuration)
+		config = *opaqueConfig.(*configuration)
 	case *configuration:
-		config = opt
+		config = *opt
+	case nil:
+		// No GenericData option set. Use defaults.
 	default:
 		return &ErrInvalidDriverConfig{}
 	}
