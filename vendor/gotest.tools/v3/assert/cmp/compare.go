@@ -68,9 +68,10 @@ type RegexOrPattern interface{}
 // Regexp succeeds if value v matches regular expression re.
 //
 // Example:
-//   assert.Assert(t, cmp.Regexp("^[0-9a-f]{32}$", str))
-//   r := regexp.MustCompile("^[0-9a-f]{32}$")
-//   assert.Assert(t, cmp.Regexp(r, str))
+//
+//	assert.Assert(t, cmp.Regexp("^[0-9a-f]{32}$", str))
+//	r := regexp.MustCompile("^[0-9a-f]{32}$")
+//	assert.Assert(t, cmp.Regexp(r, str))
 func Regexp(re RegexOrPattern, v string) Comparison {
 	match := func(re *regexp.Regexp) Result {
 		return toResult(
@@ -248,7 +249,7 @@ type causer interface {
 }
 
 func formatErrorMessage(err error) string {
-	// nolint: errorlint // unwrapping is not appropriate here
+	//nolint:errorlint // unwrapping is not appropriate here
 	if _, ok := err.(causer); ok {
 		return fmt.Sprintf("%q\n%+v", err, err)
 	}
@@ -288,15 +289,23 @@ func isNil(obj interface{}, msgFunc func(reflect.Value) string) Comparison {
 // ErrorType succeeds if err is not nil and is of the expected type.
 //
 // Expected can be one of:
-//   func(error) bool
+//
+//	func(error) bool
+//
 // Function should return true if the error is the expected type.
-//   type struct{}, type &struct{}
+//
+//	type struct{}, type &struct{}
+//
 // A struct or a pointer to a struct.
 // Fails if the error is not of the same type as expected.
-//   type &interface{}
+//
+//	type &interface{}
+//
 // A pointer to an interface type.
 // Fails if err does not implement the interface.
-//   reflect.Type
+//
+//	reflect.Type
+//
 // Fails if err does not implement the reflect.Type
 func ErrorType(err error, expected interface{}) Comparison {
 	return func() Result {

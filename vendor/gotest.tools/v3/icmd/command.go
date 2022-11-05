@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
-	exec "golang.org/x/sys/execabs"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 )

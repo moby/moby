@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,10 +42,10 @@ type manifestDirectory interface {
 func WithContent(content string) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
-			m.SetContent(ioutil.NopCloser(strings.NewReader(content)))
+			m.SetContent(io.NopCloser(strings.NewReader(content)))
 			return nil
 		}
-		return ioutil.WriteFile(path.Path(), []byte(content), defaultFileMode)
+		return os.WriteFile(path.Path(), []byte(content), defaultFileMode)
 	}
 }
 
@@ -54,10 +53,10 @@ func WithContent(content string) PathOp {
 func WithBytes(raw []byte) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
-			m.SetContent(ioutil.NopCloser(bytes.NewReader(raw)))
+			m.SetContent(io.NopCloser(bytes.NewReader(raw)))
 			return nil
 		}
-		return ioutil.WriteFile(path.Path(), raw, defaultFileMode)
+		return os.WriteFile(path.Path(), raw, defaultFileMode)
 	}
 }
 
@@ -65,7 +64,7 @@ func WithBytes(raw []byte) PathOp {
 func WithReaderContent(r io.Reader) PathOp {
 	return func(path Path) error {
 		if m, ok := path.(manifestFile); ok {
-			m.SetContent(ioutil.NopCloser(r))
+			m.SetContent(io.NopCloser(r))
 			return nil
 		}
 		f, err := os.OpenFile(path.Path(), os.O_WRONLY, defaultFileMode)
@@ -107,7 +106,7 @@ func WithFile(filename, content string, ops ...PathOp) PathOp {
 }
 
 func createFile(fullpath string, content string) error {
-	return ioutil.WriteFile(fullpath, []byte(content), defaultFileMode)
+	return os.WriteFile(fullpath, []byte(content), defaultFileMode)
 }
 
 // WithFiles creates all the files in the directory at path with their content
@@ -191,32 +190,36 @@ func WithMode(mode os.FileMode) PathOp {
 }
 
 func copyDirectory(source, dest string) error {
-	entries, err := ioutil.ReadDir(source)
+	entries, err := os.ReadDir(source)
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
 		sourcePath := filepath.Join(source, entry.Name())
 		destPath := filepath.Join(dest, entry.Name())
-		switch {
-		case entry.IsDir():
-			if err := os.Mkdir(destPath, 0755); err != nil {
-				return err
-			}
-			if err := copyDirectory(sourcePath, destPath); err != nil {
-				return err
-			}
-		case entry.Mode()&os.ModeSymlink != 0:
-			if err := copySymLink(sourcePath, destPath); err != nil {
-				return err
-			}
-		default:
-			if err := copyFile(sourcePath, destPath); err != nil {
-				return err
-			}
+		err = copyEntry(entry, destPath, sourcePath)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func copyEntry(entry os.DirEntry, destPath string, sourcePath string) error {
+	if entry.IsDir() {
+		if err := os.Mkdir(destPath, 0755); err != nil {
+			return err
+		}
+		return copyDirectory(sourcePath, destPath)
+	}
+	info, err := entry.Info()
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return copySymLink(sourcePath, destPath)
+	}
+	return copyFile(sourcePath, destPath)
 }
 
 func copySymLink(source, dest string) error {
@@ -228,11 +231,11 @@ func copySymLink(source, dest string) error {
 }
 
 func copyFile(source, dest string) error {
-	content, err := ioutil.ReadFile(source)
+	content, err := os.ReadFile(source)
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(dest, content, 0644)
+	return os.WriteFile(dest, content, 0644)
 }
 
 // WithSymlink creates a symlink in the directory which links to target.

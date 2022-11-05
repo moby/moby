@@ -54,8 +54,8 @@ func UpdateExpectedValue(stackIndex int, x, y interface{}) error {
 		return ErrNotFound
 	}
 
-	argIndex, varName := getVarNameForExpectedValueArg(expr)
-	if argIndex < 0 || varName == "" {
+	argIndex, ident := getIdentForExpectedValueArg(expr)
+	if argIndex < 0 || ident == nil {
 		debug("no arguments started with the word 'expected': %v",
 			debugFormatNode{Node: &ast.CallExpr{Args: expr}})
 		return ErrNotFound
@@ -71,7 +71,7 @@ func UpdateExpectedValue(stackIndex int, x, y interface{}) error {
 		debug("value must be type string, got %T", value)
 		return ErrNotFound
 	}
-	return UpdateVariable(filename, fileset, astFile, varName, strValue)
+	return UpdateVariable(filename, fileset, astFile, ident, strValue)
 }
 
 // UpdateVariable writes to filename the contents of astFile with the value of
@@ -80,10 +80,10 @@ func UpdateVariable(
 	filename string,
 	fileset *token.FileSet,
 	astFile *ast.File,
-	varName string,
+	ident *ast.Ident,
 	value string,
 ) error {
-	obj := astFile.Scope.Objects[varName]
+	obj := ident.Obj
 	if obj == nil {
 		return ErrNotFound
 	}
@@ -92,19 +92,32 @@ func UpdateVariable(
 		return ErrNotFound
 	}
 
-	spec, ok := obj.Decl.(*ast.ValueSpec)
-	if !ok {
+	switch decl := obj.Decl.(type) {
+	case *ast.ValueSpec:
+		if len(decl.Names) != 1 {
+			debug("more than one name in ast.ValueSpec")
+			return ErrNotFound
+		}
+
+		decl.Values[0] = &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "`" + value + "`",
+		}
+
+	case *ast.AssignStmt:
+		if len(decl.Lhs) != 1 {
+			debug("more than one name in ast.AssignStmt")
+			return ErrNotFound
+		}
+
+		decl.Rhs[0] = &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: "`" + value + "`",
+		}
+
+	default:
 		debug("can only update *ast.ValueSpec, found %T", obj.Decl)
 		return ErrNotFound
-	}
-	if len(spec.Names) != 1 {
-		debug("more than one name in ast.ValueSpec")
-		return ErrNotFound
-	}
-
-	spec.Values[0] = &ast.BasicLit{
-		Kind:  token.STRING,
-		Value: "`" + value + "`",
 	}
 
 	var buf bytes.Buffer
@@ -125,14 +138,14 @@ func UpdateVariable(
 	return nil
 }
 
-func getVarNameForExpectedValueArg(expr []ast.Expr) (int, string) {
+func getIdentForExpectedValueArg(expr []ast.Expr) (int, *ast.Ident) {
 	for i := 1; i < 3; i++ {
 		switch e := expr[i].(type) {
 		case *ast.Ident:
 			if strings.HasPrefix(strings.ToLower(e.Name), "expected") {
-				return i, e.Name
+				return i, e
 			}
 		}
 	}
-	return -1, ""
+	return -1, nil
 }

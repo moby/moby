@@ -3,7 +3,7 @@ package fs
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -86,9 +86,9 @@ func eqFile(x, y *file) []problem {
 		return p
 	}
 
-	xContent, xErr := ioutil.ReadAll(x.content)
+	xContent, xErr := io.ReadAll(x.content)
 	defer x.content.Close()
-	yContent, yErr := ioutil.ReadAll(y.content)
+	yContent, yErr := io.ReadAll(y.content)
 	defer y.content.Close()
 
 	if xErr != nil {

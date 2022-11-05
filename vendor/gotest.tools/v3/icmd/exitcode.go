@@ -2,8 +2,7 @@ package icmd
 
 import (
 	"errors"
-
-	exec "golang.org/x/sys/execabs"
+	"os/exec"
 )
 
 func processExitCode(err error) int {

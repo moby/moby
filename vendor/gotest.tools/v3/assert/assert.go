@@ -1,7 +1,8 @@
-/*Package assert provides assertions for comparing expected values to actual
+/*
+Package assert provides assertions for comparing expected values to actual
 values in tests. When an assertion fails a helpful error message is printed.
 
-Example usage
+# Example usage
 
 All the assertions in this package use testing.T.Helper to mark themselves as
 test helpers. This allows the testing package to print the filename and line
@@ -64,7 +65,7 @@ message is omitted from these examples for brevity.
 	assert.Assert(t, ref != nil) // use Assert for NotNil
 	// assertion failed: ref is nil
 
-Assert and Check
+# Assert and Check
 
 Assert and Check are very similar, they both accept a Comparison, and fail
 the test when the comparison fails. The one difference is that Assert uses
@@ -76,20 +77,18 @@ Like testing.T.FailNow, Assert must be called from the goroutine running the tes
 not from other goroutines created during the test. Check is safe to use from any
 goroutine.
 
-Comparisons
+# Comparisons
 
 Package http://pkg.go.dev/gotest.tools/v3/assert/cmp provides
 many common comparisons. Additional comparisons can be written to compare
 values in other ways. See the example Assert (CustomComparison).
 
-Automated migration from testify
+# Automated migration from testify
 
 gty-migrate-from-testify is a command which translates Go source code from
 testify assertions to the assertions provided by this package.
 
 See http://pkg.go.dev/gotest.tools/v3/assert/cmd/gty-migrate-from-testify.
-
-
 */
 package assert // import "gotest.tools/v3/assert"
 
@@ -119,19 +118,18 @@ type helperT interface {
 //
 // The comparison argument may be one of three types:
 //
-//   bool
-//     True is success. False is a failure. The failure message will contain
-//     the literal source code of the expression.
+//	bool
+//	  True is success. False is a failure. The failure message will contain
+//	  the literal source code of the expression.
 //
-//   cmp.Comparison
-//     Uses cmp.Result.Success() to check for success or failure.
-//     The comparison is responsible for producing a helpful failure message.
-//     http://pkg.go.dev/gotest.tools/v3/assert/cmp provides many common comparisons.
+//	cmp.Comparison
+//	  Uses cmp.Result.Success() to check for success or failure.
+//	  The comparison is responsible for producing a helpful failure message.
+//	  http://pkg.go.dev/gotest.tools/v3/assert/cmp provides many common comparisons.
 //
-//   error
-//     A nil value is considered success, and a non-nil error is a failure.
-//     The return value of error.Error is used as the failure message.
-//
+//	error
+//	  A nil value is considered success, and a non-nil error is a failure.
+//	  The return value of error.Error is used as the failure message.
 //
 // Extra details can be added to the failure message using msgAndArgs. msgAndArgs
 // may be either a single string, or a format string and args that will be
@@ -187,8 +185,8 @@ func NilError(t TestingT, err error, msgAndArgs ...interface{}) {
 // x and y as part of the failure message to identify the actual and expected
 // values.
 //
-//   assert.Equal(t, actual, expected)
-//   // main_test.go:41: assertion failed: 1 (actual int) != 21 (expected int32)
+//	assert.Equal(t, actual, expected)
+//	// main_test.go:41: assertion failed: 1 (actual int) != 21 (expected int32)
 //
 // If either x or y are a multi-line string the failure message will include a
 // unified diff of the two values. If the values only differ by whitespace
@@ -269,19 +267,19 @@ func ErrorContains(t TestingT, err error, substring string, msgAndArgs ...interf
 //
 // Expected can be one of:
 //
-//   func(error) bool
-//     The function should return true if the error is the expected type.
+//	func(error) bool
+//	  The function should return true if the error is the expected type.
 //
-//   struct{} or *struct{}
-//     A struct or a pointer to a struct. The assertion fails if the error is
-//     not of the same type.
+//	struct{} or *struct{}
+//	  A struct or a pointer to a struct. The assertion fails if the error is
+//	  not of the same type.
 //
-//   *interface{}
-//     A pointer to an interface type. The assertion fails if err does not
-//     implement the interface.
+//	*interface{}
+//	  A pointer to an interface type. The assertion fails if err does not
+//	  implement the interface.
 //
-//   reflect.Type
-//     The assertion fails if err does not implement the reflect.Type.
+//	reflect.Type
+//	  The assertion fails if err does not implement the reflect.Type.
 //
 // ErrorType uses t.FailNow to fail the test. Like t.FailNow, ErrorType
 // must be called from the goroutine running the test function, not from other
