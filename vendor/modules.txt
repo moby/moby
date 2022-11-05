@@ -972,7 +972,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11
+# golang.org/x/time v0.1.0
 ## explicit
 golang.org/x/time/rate
 # google.golang.org/api v0.54.0
