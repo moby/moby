@@ -47,7 +47,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/ishidawataru/sctp v0.0.0-20210707070123-9a39160e9062
 	github.com/klauspost/compress v1.15.9
-	github.com/miekg/dns v1.1.27
+	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
 	github.com/moby/buildkit v0.10.6
 	github.com/moby/ipvs v1.0.2
