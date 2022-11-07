@@ -619,11 +619,30 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 	return imageID, manifestDigest, nil
 }
 
+func checkSupportedMediaType(mediaType string) error {
+	supportedMediaTypes := []string{
+		"application/vnd.oci.image.",
+		"application/vnd.docker.",
+	}
+
+	lowerMt := strings.ToLower(mediaType)
+	for _, mt := range supportedMediaTypes {
+		if strings.HasPrefix(lowerMt, mt) {
+			return nil
+		}
+	}
+	return unsupportedMediaTypeError{MediaType: mediaType}
+}
+
 func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *specs.Platform) (id digest.Digest, err error) {
 	if _, err := p.config.ImageStore.Get(ctx, target.Digest); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
 		return target.Digest, nil
+	}
+
+	if err := checkSupportedMediaType(target.MediaType); err != nil {
+		return "", err
 	}
 
 	var descriptors []xfer.DownloadDescriptor
@@ -633,6 +652,9 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 	for _, d := range layers {
 		if err := d.Digest.Validate(); err != nil {
 			return "", errors.Wrapf(err, "could not validate layer digest %q", d.Digest)
+		}
+		if err := checkSupportedMediaType(d.MediaType); err != nil {
+			return "", err
 		}
 		layerDescriptor := &v2LayerDescriptor{
 			digest:            d.Digest,
