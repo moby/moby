@@ -1075,7 +1075,8 @@ func TestCreateWithExistingBridge(t *testing.T) {
 }
 
 func TestCreateParallel(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	c := testutils.SetupTestOSContextEx(t)
+	defer c.Cleanup(t)
 
 	d := newDriver()
 
@@ -1085,7 +1086,8 @@ func TestCreateParallel(t *testing.T) {
 
 	ch := make(chan error, 100)
 	for i := 0; i < 100; i++ {
-		go func(name string, ch chan<- error) {
+		name := "net" + strconv.Itoa(i)
+		c.Go(t, func() {
 			config := &networkConfiguration{BridgeName: name}
 			genericOption := make(map[string]interface{})
 			genericOption[netlabel.GenericData] = config
@@ -1098,7 +1100,7 @@ func TestCreateParallel(t *testing.T) {
 				return
 			}
 			ch <- nil
-		}("net"+strconv.Itoa(i), ch)
+		})
 	}
 	// wait for the go routines
 	var success int

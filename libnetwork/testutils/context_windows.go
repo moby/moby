@@ -2,12 +2,14 @@ package testutils
 
 import "testing"
 
-// SetupTestOSContext joins a new network namespace, and returns its associated
-// teardown function.
-//
-// Example usage:
-//
-//	defer SetupTestOSContext(t)()
-func SetupTestOSContext(t *testing.T) func() {
-	return func() {}
+type OSContext struct{}
+
+func SetupTestOSContextEx(*testing.T) *OSContext {
+	return nil
+}
+
+func (*OSContext) Cleanup(t *testing.T) {}
+
+func (*OSContext) Set() (func(Logger), error) {
+	return func(Logger) {}, nil
 }
