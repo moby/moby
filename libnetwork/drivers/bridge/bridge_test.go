@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -607,6 +608,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
+	d.portAllocator = portallocator.NewInstance()
 
 	config := &configuration{
 		EnableIPTables:      true,
@@ -1079,6 +1081,7 @@ func TestCreateParallel(t *testing.T) {
 	defer c.Cleanup(t)
 
 	d := newDriver()
+	d.portAllocator = portallocator.NewInstance()
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)

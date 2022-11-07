@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
@@ -155,12 +156,16 @@ type driver struct {
 	store             datastore.DataStore
 	nlh               *netlink.Handle
 	configNetwork     sync.Mutex
+	portAllocator     *portallocator.PortAllocator // Overridable for tests.
 	sync.Mutex
 }
 
 // New constructs a new bridge driver
 func newDriver() *driver {
-	return &driver{networks: map[string]*bridgeNetwork{}}
+	return &driver{
+		networks:      map[string]*bridgeNetwork{},
+		portAllocator: portallocator.Get(),
+	}
 }
 
 // Init registers a new instance of bridge driver
@@ -685,8 +690,8 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		id:           config.ID,
 		endpoints:    make(map[string]*bridgeEndpoint),
 		config:       config,
-		portMapper:   portmapper.New(d.config.UserlandProxyPath),
-		portMapperV6: portmapper.New(d.config.UserlandProxyPath),
+		portMapper:   portmapper.NewWithPortAllocator(d.portAllocator, d.config.UserlandProxyPath),
+		portMapperV6: portmapper.NewWithPortAllocator(d.portAllocator, d.config.UserlandProxyPath),
 		bridge:       bridgeIface,
 		driver:       d,
 	}
