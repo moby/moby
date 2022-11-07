@@ -338,6 +338,8 @@ jobs:
           If ("${{ matrix.runtime }}" -eq "containerd") {
             $runtimeArg="--containerd=\\.\pipe\containerd-containerd"
             echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+            echo "TEST_INTEGRATION_USE_SNAPSHOTTER=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+            echo "DOCKER_GRAPHDRIVER=windows" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
           New-Item -ItemType Directory "$env:TEMP\moby-root" -ErrorAction SilentlyContinue | Out-Null
           New-Item -ItemType Directory "$env:TEMP\moby-exec" -ErrorAction SilentlyContinue | Out-Null
