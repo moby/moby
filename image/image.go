@@ -28,6 +28,8 @@ func (id ID) Digest() digest.Digest {
 }
 
 // IDFromDigest creates an ID from a digest
+//
+// Deprecated: cast to an ID using ID(digest).
 func IDFromDigest(digest digest.Digest) ID {
 	return ID(digest)
 }

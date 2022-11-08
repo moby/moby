@@ -68,7 +68,7 @@ func NewImageStore(fs StoreBackend, lss LayerGetReleaser) (Store, error) {
 
 func (is *store) restore() error {
 	err := is.fs.Walk(func(dgst digest.Digest) error {
-		img, err := is.Get(IDFromDigest(dgst))
+		img, err := is.Get(ID(dgst))
 		if err != nil {
 			logrus.Errorf("invalid image %v, %v", dgst, err)
 			return nil
@@ -92,12 +92,10 @@ func (is *store) restore() error {
 			return err
 		}
 
-		imageMeta := &imageMeta{
+		is.images[ID(dgst)] = &imageMeta{
 			layer:    l,
 			children: make(map[ID]struct{}),
 		}
-
-		is.images[IDFromDigest(dgst)] = imageMeta
 
 		return nil
 	})
@@ -141,15 +139,15 @@ func (is *store) Create(config []byte) (ID, error) {
 		return "", errdefs.InvalidParameter(errors.New("too many non-empty layers in History section"))
 	}
 
-	dgst, err := is.fs.Set(config)
+	imageDigest, err := is.fs.Set(config)
 	if err != nil {
 		return "", errdefs.InvalidParameter(err)
 	}
-	imageID := IDFromDigest(dgst)
 
 	is.Lock()
 	defer is.Unlock()
 
+	imageID := ID(imageDigest)
 	if _, exists := is.images[imageID]; exists {
 		return imageID, nil
 	}
@@ -167,13 +165,12 @@ func (is *store) Create(config []byte) (ID, error) {
 		}
 	}
 
-	imageMeta := &imageMeta{
+	is.images[imageID] = &imageMeta{
 		layer:    l,
 		children: make(map[ID]struct{}),
 	}
 
-	is.images[imageID] = imageMeta
-	if err := is.digestSet.Add(imageID.Digest()); err != nil {
+	if err = is.digestSet.Add(imageDigest); err != nil {
 		delete(is.images, imageID)
 		return "", errdefs.InvalidParameter(err)
 	}
@@ -197,7 +194,7 @@ func (is *store) Search(term string) (ID, error) {
 		}
 		return "", errors.WithStack(err)
 	}
-	return IDFromDigest(dgst), nil
+	return ID(dgst), nil
 }
 
 func (is *store) Get(id ID) (*Image, error) {

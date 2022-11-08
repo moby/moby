@@ -230,17 +230,15 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 		if !ok {
 			return nil, ErrImageDoesNotExist{ref}
 		}
-		id := image.IDFromDigest(digested.Digest())
-		if img, err := i.imageStore.Get(id); err == nil {
+		if img, err := i.imageStore.Get(image.ID(digested.Digest())); err == nil {
 			return img, nil
 		}
 		return nil, ErrImageDoesNotExist{ref}
 	}
 
-	if digest, err := i.referenceStore.Get(namedRef); err == nil {
+	if dgst, err := i.referenceStore.Get(namedRef); err == nil {
 		// Search the image stores to get the operating system, defaulting to host OS.
-		id := image.IDFromDigest(digest)
-		if img, err := i.imageStore.Get(id); err == nil {
+		if img, err := i.imageStore.Get(image.ID(dgst)); err == nil {
 			return img, nil
 		}
 	}
