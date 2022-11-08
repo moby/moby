@@ -171,7 +171,7 @@ func (r *V2) Close() {
 
 func (r *V2) getBlobFilename(blobDigest digest.Digest) string {
 	// Split the digest into its algorithm and hex components.
-	dgstAlg, dgstHex := blobDigest.Algorithm(), blobDigest.Hex()
+	dgstAlg, dgstHex := blobDigest.Algorithm(), blobDigest.Encoded()
 
 	// The path to the target blob data looks something like:
 	//   baseDir + "docker/registry/v2/blobs/sha256/a3/a3ed...46d4/data"

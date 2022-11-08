@@ -216,7 +216,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 		}
 
 		manifest = append(manifest, manifestItem{
-			Config:       id.Digest().Hex() + ".json",
+			Config:       id.Digest().Encoded() + ".json",
 			RepoTags:     repoTags,
 			Layers:       layers,
 			LayerSources: foreignSrcs,
@@ -304,9 +304,9 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 			return nil, err
 		}
 
-		v1Img.ID = v1ID.Hex()
+		v1Img.ID = v1ID.Encoded()
 		if parent != "" {
-			v1Img.Parent = parent.Hex()
+			v1Img.Parent = parent.Encoded()
 		}
 
 		v1Img.OS = img.OS
@@ -324,8 +324,8 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 		}
 	}
 
-	configFile := filepath.Join(s.outDir, id.Digest().Hex()+".json")
-	if err := os.WriteFile(configFile, img.RawJSON(), 0644); err != nil {
+	configFile := filepath.Join(s.outDir, id.Digest().Encoded()+".json")
+	if err := os.WriteFile(configFile, img.RawJSON(), 0o644); err != nil {
 		return nil, err
 	}
 	if err := system.Chtimes(configFile, img.Created, img.Created); err != nil {

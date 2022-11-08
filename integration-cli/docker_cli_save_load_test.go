@@ -123,7 +123,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveCheckTimes(c *testing.T) {
 	out, err = RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", repoName),
 		exec.Command("tar", "tv"),
-		exec.Command("grep", "-E", fmt.Sprintf("%s %s", data[0].Created.Format(tarTvTimeFormat), digest.Digest(data[0].ID).Hex())))
+		exec.Command("grep", "-E", fmt.Sprintf("%s %s", data[0].Created.Format(tarTvTimeFormat), digest.Digest(data[0].ID).Encoded())))
 	assert.NilError(c, err, "failed to save repo with image ID and 'repositories' file: %s, %v", out, err)
 }
 
@@ -258,7 +258,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveRepoWithMultipleImages(c *testing.T) {
 
 	// prefixes are not in tar
 	for i := range expected {
-		expected[i] = digest.Digest(expected[i]).Hex()
+		expected[i] = digest.Digest(expected[i]).Encoded()
 	}
 
 	sort.Strings(actual)
