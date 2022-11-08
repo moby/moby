@@ -25,6 +25,7 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
+	defer ctrl.Stop()
 	nw, err := ctrl.NewNetwork("host", "host", "", NetworkOptionPersist(false))
 	if err != nil {
 		t.Fatalf("Error creating default \"host\" network: %v", err)

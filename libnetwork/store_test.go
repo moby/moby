@@ -27,6 +27,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
+	defer ctrl.Stop()
 	nw, err := ctrl.NewNetwork("host", "host", "")
 	if err != nil {
 		t.Fatalf("Error creating default \"host\" network: %v", err)
@@ -49,6 +50,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}
+	defer ctrl.Stop()
 	if _, err = ctrl.NetworkByID(nw.ID()); err != nil {
 		t.Fatalf("Error getting network %v", err)
 	}
@@ -82,8 +84,9 @@ func TestMultipleControllersWithSameStore(t *testing.T) {
 	}
 	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	_, err = New(cfgOptions...)
+	ctrl2, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Local store must support concurrent controllers")
 	}
+	ctrl2.Stop()
 }
