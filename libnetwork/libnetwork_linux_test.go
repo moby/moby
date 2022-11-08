@@ -31,22 +31,17 @@ const (
 	bridgeNetType = "bridge"
 )
 
+// Shared state for createGlobalInstance() and runParallelTests().
 var (
 	origins = netns.None()
 	testns  = netns.None()
+
+	controller libnetwork.NetworkController
 )
 
-var createTesthostNetworkOnce sync.Once
-
-func getTesthostNetwork(t *testing.T) libnetwork.Network {
+func makeTesthostNetwork(t *testing.T, c libnetwork.NetworkController) libnetwork.Network {
 	t.Helper()
-	createTesthostNetworkOnce.Do(func() {
-		_, err := createTestNetwork(controller, "host", "testhost", options.Generic{}, nil, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-	n, err := controller.NetworkByName("testhost")
+	n, err := createTestNetwork(c, "host", "testhost", options.Generic{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,13 +62,16 @@ func createGlobalInstance(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	controller = newController(t)
+	t.Cleanup(controller.Stop)
+
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
 			"BridgeName": "network",
 		},
 	}
 
-	net1 := getTesthostNetwork(t)
+	net1 := makeTesthostNetwork(t, controller)
 	net2, err := createTestNetwork(controller, "bridge", "network2", netOption, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -105,6 +103,9 @@ func createGlobalInstance(t *testing.T) {
 }
 
 func TestHost(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
+
 	sbx1, err := controller.NewSandbox("host_c1",
 		libnetwork.OptionHostname("test1"),
 		libnetwork.OptionDomainname("docker.io"),
@@ -133,7 +134,7 @@ func TestHost(t *testing.T) {
 		}
 	}()
 
-	network := getTesthostNetwork(t)
+	network := makeTesthostNetwork(t, controller)
 	ep1, err := network.CreateEndpoint("testep1")
 	if err != nil {
 		t.Fatal(err)
@@ -204,6 +205,7 @@ func TestHost(t *testing.T) {
 // Testing IPV6 from MAC address
 func TestBridgeIpv6FromMac(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -278,6 +280,7 @@ func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 
 func TestEndpointJoin(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
@@ -452,6 +455,7 @@ func TestExternalKey(t *testing.T) {
 
 func externalKeyTest(t *testing.T, reexec bool) {
 	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -612,6 +616,7 @@ func reexecSetKey(key string, containerID string, controllerID string) error {
 
 func TestEnableIPv6(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
 	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 127.0.0.11\nnameserver 2001:4860:4860::8888\noptions ndots:0\n")
@@ -688,6 +693,7 @@ func TestEnableIPv6(t *testing.T) {
 
 func TestResolvConfHost(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
 
 	tmpResolvConf := []byte("search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\n")
 
@@ -703,7 +709,7 @@ func TestResolvConfHost(t *testing.T) {
 		}
 	}()
 
-	n := getTesthostNetwork(t)
+	n := makeTesthostNetwork(t, controller)
 	ep1, err := n.CreateEndpoint("ep1", libnetwork.CreateOptionDisableResolution())
 	if err != nil {
 		t.Fatal(err)
@@ -762,6 +768,7 @@ func TestResolvConfHost(t *testing.T) {
 
 func TestResolvConf(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
 
 	tmpResolvConf1 := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
 	tmpResolvConf2 := []byte("search pommesfrites.fr\nnameserver 112.34.56.78\nnameserver 2001:4860:4860::8888\n")
@@ -980,7 +987,10 @@ func runParallelTests(t *testing.T, thrNumber int) {
 		}
 	}()
 
-	net1 := getTesthostNetwork(t)
+	net1, err := controller.NetworkByName("testhost")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if net1 == nil {
 		t.Fatal("Could not find testhost")
 	}
@@ -1054,6 +1064,7 @@ func TestParallel2(t *testing.T) {
 
 func TestBridge(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
 
 	netOption := options.Generic{
 		netlabel.EnableIPv6: true,
@@ -1144,6 +1155,9 @@ func TestParallel3(t *testing.T) {
 }
 
 func TestNullIpam(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	controller := newController(t)
+
 	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", "", libnetwork.NetworkOptionIpam(ipamapi.NullIPAM, "", nil, nil, nil))
 	if err == nil || err.Error() != "ipv4 pool is empty" {
 		t.Fatal("bridge network should complain empty pool")

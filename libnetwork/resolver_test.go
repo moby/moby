@@ -77,6 +77,7 @@ func checkDNSRRType(t *testing.T, actual, expected uint16) {
 func TestDNSIPQuery(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
+	defer testutils.SetupTestOSContext(t)()
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
