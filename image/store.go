@@ -69,19 +69,19 @@ func (is *store) restore() error {
 	err := is.fs.Walk(func(dgst digest.Digest) error {
 		img, err := is.Get(IDFromDigest(dgst))
 		if err != nil {
-			logrus.Errorf("invalid image %v, %v", dgst, err)
+			logrus.WithField("digest", dgst).WithError(err).Error("invalid image")
 			return nil
 		}
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
 			if !system.IsOSSupported(img.OperatingSystem()) {
-				logrus.Errorf("not restoring image with unsupported operating system %v, %v, %s", dgst, chainID, img.OperatingSystem())
+				logrus.WithField("digest", dgst).WithField("chainID", chainID).WithField("os", img.OperatingSystem()).Errorf("not restoring image with unsupported operating system")
 				return nil
 			}
 			l, err = is.lss.Get(chainID)
 			if err != nil {
 				if err == layer.ErrLayerDoesNotExist {
-					logrus.Errorf("layer does not exist, not restoring image %v, %v, %s", dgst, chainID, img.OperatingSystem())
+					logrus.WithField("digest", dgst).WithField("chainID", chainID).WithField("os", img.OperatingSystem()).Errorf("layer does not exist, not restoring image")
 					return nil
 				}
 				return err
