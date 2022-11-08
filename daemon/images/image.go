@@ -49,7 +49,7 @@ type manifest struct {
 func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform specs.Platform) (bool, error) {
 	logger := logrus.WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
 
-	ls, leaseErr := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().Digest())})
+	ls, leaseErr := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
 	if leaseErr != nil {
 		logger.WithError(leaseErr).Error("Error looking up image leases")
 		return false, leaseErr
