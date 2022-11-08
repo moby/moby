@@ -348,6 +348,11 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 		return err
 	}
 
+	// /32 "subnets" dont exist
+	if ipVer == v4 && numAddresses == 1 {
+		h.Set(0)
+	}
+
 	// Pre-reserve the network address on IPv4 networks large
 	// enough to have one (i.e., anything bigger than a /31.
 	if !(ipVer == v4 && numAddresses <= 2) {
