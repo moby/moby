@@ -117,11 +117,11 @@ func (serv *v2MetadataService) digestNamespace() string {
 }
 
 func (serv *v2MetadataService) diffIDKey(diffID layer.DiffID) string {
-	return string(digest.Digest(diffID).Algorithm()) + "/" + digest.Digest(diffID).Hex()
+	return string(digest.Digest(diffID).Algorithm()) + "/" + digest.Digest(diffID).Encoded()
 }
 
 func (serv *v2MetadataService) digestKey(dgst digest.Digest) string {
-	return string(dgst.Algorithm()) + "/" + dgst.Hex()
+	return string(dgst.Algorithm()) + "/" + dgst.Encoded()
 }
 
 // GetMetadata finds the metadata associated with a layer DiffID.

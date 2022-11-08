@@ -109,7 +109,7 @@ func (cs *CachableSource) HandleChange(kind fsutil.ChangeKind, p string, fi os.F
 	}
 
 	hfi := &fileInfo{
-		sum: h.Digest().Hex(),
+		sum: h.Digest().Encoded(),
 	}
 	cs.txn.Insert([]byte(p), hfi)
 	cs.mu.Unlock()

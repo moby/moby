@@ -31,7 +31,7 @@ func TestFSGetInvalidData(t *testing.T) {
 	dgst, err := store.Set([]byte("foobar"))
 	assert.Check(t, err)
 
-	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, string(dgst.Algorithm()), dgst.Hex()), []byte("foobar2"), 0600)
+	err = os.WriteFile(filepath.Join(store.(*fs).root, contentDirName, string(dgst.Algorithm()), dgst.Encoded()), []byte("foobar2"), 0o600)
 	assert.Check(t, err)
 
 	_, err = store.Get(dgst)
@@ -43,7 +43,7 @@ func TestFSInvalidSet(t *testing.T) {
 	defer cleanup()
 
 	id := digest.FromBytes([]byte("foobar"))
-	err := os.Mkdir(filepath.Join(store.(*fs).root, contentDirName, string(id.Algorithm()), id.Hex()), 0700)
+	err := os.Mkdir(filepath.Join(store.(*fs).root, contentDirName, string(id.Algorithm()), id.Encoded()), 0o700)
 	assert.Check(t, err)
 
 	_, err = store.Set([]byte("foobar"))

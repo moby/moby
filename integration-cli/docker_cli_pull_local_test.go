@@ -323,7 +323,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *testing.T) {
 	assert.NilError(c, err, "error marshalling manifest list")
 
 	manifestListDigest := digest.FromBytes(manifestListJSON)
-	hexDigest := manifestListDigest.Hex()
+	hexDigest := manifestListDigest.Encoded()
 
 	registryV2Path := s.reg.Path()
 

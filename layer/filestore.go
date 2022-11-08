@@ -50,7 +50,7 @@ func newFSMetadataStore(root string) (*fileMetadataStore, error) {
 
 func (fms *fileMetadataStore) getLayerDirectory(layer ChainID) string {
 	dgst := digest.Digest(layer)
-	return filepath.Join(fms.root, string(dgst.Algorithm()), dgst.Hex())
+	return filepath.Join(fms.root, string(dgst.Algorithm()), dgst.Encoded())
 }
 
 func (fms *fileMetadataStore) getLayerFilename(layer ChainID, filename string) string {
@@ -366,7 +366,7 @@ func (fms *fileMetadataStore) List() ([]ChainID, []string, error) {
 
 		for _, fi := range fileInfos {
 			if fi.IsDir() && fi.Name() != "mounts" {
-				dgst := digest.NewDigestFromHex(string(algorithm), fi.Name())
+				dgst := digest.NewDigestFromEncoded(algorithm, fi.Name())
 				if err := dgst.Validate(); err != nil {
 					logrus.Debugf("Ignoring invalid digest %s:%s", algorithm, fi.Name())
 				} else {
