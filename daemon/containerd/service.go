@@ -76,13 +76,6 @@ func (i *ImageService) CountImages() int {
 	return len(imgs)
 }
 
-// Children returns the children image.IDs for a parent image.
-// called from list.go to filter containers
-// TODO: refactor to expose an ancestry for image.ID?
-func (i *ImageService) Children(id image.ID) []image.ID {
-	panic("not implemented")
-}
-
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
 // TODO: accept an opt struct instead of container?
