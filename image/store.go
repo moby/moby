@@ -67,22 +67,29 @@ func NewImageStore(fs StoreBackend, lss LayerGetReleaser) (Store, error) {
 }
 
 func (is *store) restore() error {
+	// As the code below is run when restoring all images (which can be "many"),
+	// constructing the "logrus.WithFields" is deliberately not "DRY", as the
+	// logger is only used for error-cases, and we don't want to do allocations
+	// if we don't need it. The "f" type alias is here is just for convenience,
+	// and to make the code _slightly_ more DRY. See the discussion on GitHub;
+	// https://github.com/moby/moby/pull/44426#discussion_r1059519071
+	type f = logrus.Fields
 	err := is.fs.Walk(func(dgst digest.Digest) error {
 		img, err := is.Get(ID(dgst))
 		if err != nil {
-			logrus.Errorf("invalid image %v, %v", dgst, err)
+			logrus.WithFields(f{"digest": dgst, "err": err}).Error("invalid image")
 			return nil
 		}
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
 			if !system.IsOSSupported(img.OperatingSystem()) {
-				logrus.Errorf("not restoring image with unsupported operating system %v, %v, %s", dgst, chainID, img.OperatingSystem())
+				logrus.WithFields(f{"chainID": chainID, "os": img.OperatingSystem()}).Error("not restoring image with unsupported operating system")
 				return nil
 			}
 			l, err = is.lss.Get(chainID)
 			if err != nil {
 				if err == layer.ErrLayerDoesNotExist {
-					logrus.Errorf("layer does not exist, not restoring image %v, %v, %s", dgst, chainID, img.OperatingSystem())
+					logrus.WithFields(f{"chainID": chainID, "os": img.OperatingSystem(), "err": err}).Error("not restoring image")
 					return nil
 				}
 				return err
