@@ -230,16 +230,16 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	is.Lock()
 	defer is.Unlock()
 
-	imageMeta := is.images[id]
-	if imageMeta == nil {
+	imgMeta := is.images[id]
+	if imgMeta == nil {
 		return nil, errdefs.NotFound(fmt.Errorf("unrecognized image ID %s", id.String()))
 	}
 	_, err := is.Get(id)
 	if err != nil {
 		return nil, errdefs.NotFound(fmt.Errorf("unrecognized image %s, %v", id.String(), err))
 	}
-	for id := range imageMeta.children {
-		is.fs.DeleteMetadata(id.Digest(), "parent")
+	for cID := range imgMeta.children {
+		is.fs.DeleteMetadata(cID.Digest(), "parent")
 	}
 	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)
@@ -251,24 +251,24 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	delete(is.images, id)
 	is.fs.Delete(id.Digest())
 
-	if imageMeta.layer != nil {
-		return is.lss.Release(imageMeta.layer)
+	if imgMeta.layer != nil {
+		return is.lss.Release(imgMeta.layer)
 	}
 	return nil, nil
 }
 
-func (is *store) SetParent(id, parent ID) error {
+func (is *store) SetParent(id, parentID ID) error {
 	is.Lock()
 	defer is.Unlock()
-	parentMeta := is.images[parent]
+	parentMeta := is.images[parentID]
 	if parentMeta == nil {
-		return errdefs.NotFound(fmt.Errorf("unknown parent image ID %s", parent.String()))
+		return errdefs.NotFound(fmt.Errorf("unknown parent image ID %s", parentID.String()))
 	}
 	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)
 	}
 	parentMeta.children[id] = struct{}{}
-	return is.fs.SetMetadata(id.Digest(), "parent", []byte(parent))
+	return is.fs.SetMetadata(id.Digest(), "parent", []byte(parentID))
 }
 
 func (is *store) GetParent(id ID) (ID, error) {
