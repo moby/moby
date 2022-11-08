@@ -1087,6 +1087,8 @@ func TestCreateParallel(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
+	ipV4Data := getIPv4Data(t, "docker0")
+
 	ch := make(chan error, 100)
 	for i := 0; i < 100; i++ {
 		name := "net" + strconv.Itoa(i)
@@ -1094,11 +1096,11 @@ func TestCreateParallel(t *testing.T) {
 			config := &networkConfiguration{BridgeName: name}
 			genericOption := make(map[string]interface{})
 			genericOption[netlabel.GenericData] = config
-			if err := d.CreateNetwork(name, genericOption, nil, getIPv4Data(t, "docker0"), nil); err != nil {
+			if err := d.CreateNetwork(name, genericOption, nil, ipV4Data, nil); err != nil {
 				ch <- fmt.Errorf("failed to create %s", name)
 				return
 			}
-			if err := d.CreateNetwork(name, genericOption, nil, getIPv4Data(t, "docker0"), nil); err == nil {
+			if err := d.CreateNetwork(name, genericOption, nil, ipV4Data, nil); err == nil {
 				ch <- fmt.Errorf("failed was able to create overlap %s", name)
 				return
 			}
