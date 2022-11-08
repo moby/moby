@@ -1332,23 +1332,3 @@ func TestValidRemoteDriver(t *testing.T) {
 		}
 	}()
 }
-
-var (
-	start  = make(chan struct{})
-	done   = make(chan chan struct{}, numThreads-1)
-	sboxes = make([]libnetwork.Sandbox, numThreads)
-)
-
-const (
-	iterCnt    = 25
-	numThreads = 3
-	first      = 1
-	last       = numThreads
-	debug      = false
-)
-
-func debugf(format string, a ...interface{}) {
-	if debug {
-		fmt.Printf(format, a...)
-	}
-}
