@@ -51,11 +51,10 @@ func newController(t *testing.T) libnetwork.NetworkController {
 		},
 	}
 
-	cfgOptions, err := libnetwork.OptionBoltdbWithRandomDBFile()
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := libnetwork.New(append(cfgOptions, config.OptionDriverConfig(bridgeNetType, genericOption))...)
+	c, err := libnetwork.New(
+		libnetwork.OptionBoltdbWithRandomDBFile(t),
+		config.OptionDriverConfig(bridgeNetType, genericOption),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

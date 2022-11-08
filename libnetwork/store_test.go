@@ -1,8 +1,8 @@
 package libnetwork
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -57,34 +57,29 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 }
 
 // OptionBoltdbWithRandomDBFile function returns a random dir for local store backend
-func OptionBoltdbWithRandomDBFile() ([]config.Option, error) {
-	tmp, err := os.CreateTemp("", "libnetwork-")
-	if err != nil {
-		return nil, fmt.Errorf("Error creating temp file: %v", err)
+func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
+	t.Helper()
+	tmp := filepath.Join(t.TempDir(), "bolt.db")
+	if err := os.WriteFile(tmp, nil, 0o600); err != nil {
+		t.Fatal(err)
 	}
-	if err := tmp.Close(); err != nil {
-		return nil, fmt.Errorf("Error closing temp file: %v", err)
+
+	return func(c *config.Config) {
+		config.OptionLocalKVProvider("boltdb")(c)
+		config.OptionLocalKVProviderURL(tmp)(c)
+		config.OptionLocalKVProviderConfig(&store.Config{Bucket: "testBackend"})(c)
 	}
-	cfgOptions := []config.Option{}
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider("boltdb"))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(tmp.Name()))
-	sCfg := &store.Config{Bucket: "testBackend"}
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(sCfg))
-	return cfgOptions, nil
 }
 
 func TestMultipleControllersWithSameStore(t *testing.T) {
-	cfgOptions, err := OptionBoltdbWithRandomDBFile()
-	if err != nil {
-		t.Fatalf("Error getting random boltdb configs %v", err)
-	}
-	ctrl1, err := New(cfgOptions...)
+	cfgOptions := OptionBoltdbWithRandomDBFile(t)
+	ctrl1, err := New(cfgOptions)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
 	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	ctrl2, err := New(cfgOptions...)
+	ctrl2, err := New(cfgOptions)
 	if err != nil {
 		t.Fatalf("Local store must support concurrent controllers")
 	}

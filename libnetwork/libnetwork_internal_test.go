@@ -570,11 +570,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	defer testutils.SetupTestOSContext(t)()
 
-	cfgOptions, err := OptionBoltdbWithRandomDBFile()
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := New(cfgOptions...)
+	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatal(err)
 	}

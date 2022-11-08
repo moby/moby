@@ -25,11 +25,10 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (NetworkController, []Net
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = option
 
-	cfgOptions, err := OptionBoltdbWithRandomDBFile()
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := New(append(cfgOptions, config.OptionDriverConfig(netType, genericOption))...)
+	c, err := New(
+		OptionBoltdbWithRandomDBFile(t),
+		config.OptionDriverConfig(netType, genericOption),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
