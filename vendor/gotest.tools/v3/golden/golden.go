@@ -1,4 +1,5 @@
-/*Package golden provides tools for comparing large mutli-line strings.
+/*
+Package golden provides tools for comparing large mutli-line strings.
 
 Golden files are files in the ./testdata/ subdirectory of the package under test.
 Golden files can be automatically updated to match new values by running
@@ -11,7 +12,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -62,7 +62,7 @@ func Get(t assert.TestingT, filename string) []byte {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}
-	expected, err := ioutil.ReadFile(Path(filename))
+	expected, err := os.ReadFile(Path(filename))
 	assert.NilError(t, err)
 	return expected
 }
@@ -167,7 +167,7 @@ func compare(actual []byte, filename string) (cmp.Result, []byte) {
 	if err := update(filename, actual); err != nil {
 		return cmp.ResultFromError(err), nil
 	}
-	expected, err := ioutil.ReadFile(Path(filename))
+	expected, err := os.ReadFile(Path(filename))
 	if err != nil {
 		return cmp.ResultFromError(err), nil
 	}
@@ -186,5 +186,5 @@ func update(filename string, actual []byte) error {
 			return err
 		}
 	}
-	return ioutil.WriteFile(Path(filename), actual, 0644)
+	return os.WriteFile(Path(filename), actual, 0644)
 }
