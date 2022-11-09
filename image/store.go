@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest/digestset"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
