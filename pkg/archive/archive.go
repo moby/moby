@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -29,7 +30,6 @@ import (
 	"github.com/moby/sys/sequential"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	exec "golang.org/x/sys/execabs"
 )
 
 // ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a
