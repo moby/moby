@@ -14,7 +14,7 @@ Moby is an open project guided by strong principles, aiming to be modular, flexi
 It is open to the community to help set its direction.
 
 - Modular: the project includes lots of components that have well-defined functions and APIs that work together.
-- Batteries included but swappable: Moby includes enough components to build fully featured container system, but its modular architecture ensures that most of the components can be swapped by different implementations.
+- Batteries included but swappable: Moby includes enough components to build fully featured container systems, but its modular architecture ensures that most of the components can be swapped by different implementations.
 - Usable security: Moby provides secure defaults without compromising usability.
 - Developer focused: The APIs are intended to be functional and useful to build powerful tools.
 They are not necessarily intended as end user tools but as components aimed at developers.
