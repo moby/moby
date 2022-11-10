@@ -397,7 +397,7 @@ func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	var dir string
 	for {
 		dgst := digest.Digest(layer.chainID)
-		tmpID := fmt.Sprintf("%s-%s-removing", dgst.Hex(), stringid.GenerateRandomID())
+		tmpID := fmt.Sprintf("%s-%s-removing", dgst.Encoded(), stringid.GenerateRandomID())
 		dir = filepath.Join(ls.store.root, string(dgst.Algorithm()), tmpID)
 		err := os.Rename(ls.store.getLayerDirectory(layer.chainID), dir)
 		if os.IsExist(err) {

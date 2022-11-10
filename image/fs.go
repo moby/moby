@@ -56,11 +56,11 @@ func newFSStore(root string) (*fs, error) {
 }
 
 func (s *fs) contentFile(dgst digest.Digest) string {
-	return filepath.Join(s.root, contentDirName, string(dgst.Algorithm()), dgst.Hex())
+	return filepath.Join(s.root, contentDirName, string(dgst.Algorithm()), dgst.Encoded())
 }
 
 func (s *fs) metadataDir(dgst digest.Digest) string {
-	return filepath.Join(s.root, metadataDirName, string(dgst.Algorithm()), dgst.Hex())
+	return filepath.Join(s.root, metadataDirName, string(dgst.Algorithm()), dgst.Encoded())
 }
 
 // Walk calls the supplied callback for each image ID in the storage backend.
@@ -73,7 +73,7 @@ func (s *fs) Walk(f DigestWalkFunc) error {
 		return err
 	}
 	for _, v := range dir {
-		dgst := digest.NewDigestFromHex(string(digest.Canonical), v.Name())
+		dgst := digest.NewDigestFromEncoded(digest.Canonical, v.Name())
 		if err := dgst.Validate(); err != nil {
 			logrus.Debugf("skipping invalid digest %s: %s", dgst, err)
 			continue

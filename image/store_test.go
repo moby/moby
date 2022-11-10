@@ -64,11 +64,11 @@ func TestRestore(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(ID(id1), sid1))
 
-	sid1, err = imgStore.Search(id1.Hex()[:6])
+	sid1, err = imgStore.Search(id1.Encoded()[:6])
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(ID(id1), sid1))
 
-	invalidPattern := id1.Hex()[1:6]
+	invalidPattern := id1.Encoded()[1:6]
 	_, err = imgStore.Search(invalidPattern)
 	assert.ErrorContains(t, err, "No such image")
 }

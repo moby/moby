@@ -717,13 +717,13 @@ func TestTarStreamVerification(t *testing.T) {
 	id2 := digest.Digest(layer2.ChainID())
 
 	// Replace tar data files
-	src, err := os.Open(filepath.Join(tmpdir, id1.Algorithm().String(), id1.Hex(), "tar-split.json.gz"))
+	src, err := os.Open(filepath.Join(tmpdir, id1.Algorithm().String(), id1.Encoded(), "tar-split.json.gz"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer src.Close()
 
-	dst, err := os.Create(filepath.Join(tmpdir, id2.Algorithm().String(), id2.Hex(), "tar-split.json.gz"))
+	dst, err := os.Create(filepath.Join(tmpdir, id2.Algorithm().String(), id2.Encoded(), "tar-split.json.gz"))
 	if err != nil {
 		t.Fatal(err)
 	}
