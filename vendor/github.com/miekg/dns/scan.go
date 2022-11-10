@@ -87,31 +87,18 @@ type lex struct {
 	column int    // column in the file
 }
 
-// Token holds the token that are returned when a zone file is parsed.
-type Token struct {
-	// The scanned resource record when error is not nil.
-	RR
-	// When an error occurred, this has the error specifics.
-	Error *ParseError
-	// A potential comment positioned after the RR and on the same line.
-	Comment string
-}
-
 // ttlState describes the state necessary to fill in an omitted RR TTL
 type ttlState struct {
 	ttl           uint32 // ttl is the current default TTL
 	isByDirective bool   // isByDirective indicates whether ttl was set by a $TTL directive
 }
 
-// NewRR reads the RR contained in the string s. Only the first RR is
-// returned. If s contains no records, NewRR will return nil with no
-// error.
+// NewRR reads the RR contained in the string s. Only the first RR is returned.
+// If s contains no records, NewRR will return nil with no error.
 //
-// The class defaults to IN and TTL defaults to 3600. The full zone
-// file syntax like $TTL, $ORIGIN, etc. is supported.
-//
-// All fields of the returned RR are set, except RR.Header().Rdlength
-// which is set to 0.
+// The class defaults to IN and TTL defaults to 3600. The full zone file syntax
+// like $TTL, $ORIGIN, etc. is supported. All fields of the returned RR are
+// set, except RR.Header().Rdlength which is set to 0.
 func NewRR(s string) (RR, error) {
 	if len(s) > 0 && s[len(s)-1] != '\n' { // We need a closing newline
 		return ReadRR(strings.NewReader(s+"\n"), "")
@@ -131,70 +118,6 @@ func ReadRR(r io.Reader, file string) (RR, error) {
 	zp.SetIncludeAllowed(true)
 	rr, _ := zp.Next()
 	return rr, zp.Err()
-}
-
-// ParseZone reads a RFC 1035 style zonefile from r. It returns
-// Tokens on the returned channel, each consisting of either a
-// parsed RR and optional comment or a nil RR and an error. The
-// channel is closed by ParseZone when the end of r is reached.
-//
-// The string file is used in error reporting and to resolve relative
-// $INCLUDE directives. The string origin is used as the initial
-// origin, as if the file would start with an $ORIGIN directive.
-//
-// The directives $INCLUDE, $ORIGIN, $TTL and $GENERATE are all
-// supported. Note that $GENERATE's range support up to a maximum of
-// of 65535 steps.
-//
-// Basic usage pattern when reading from a string (z) containing the
-// zone data:
-//
-//	for x := range dns.ParseZone(strings.NewReader(z), "", "") {
-//		if x.Error != nil {
-//                  // log.Println(x.Error)
-//              } else {
-//                  // Do something with x.RR
-//              }
-//	}
-//
-// Comments specified after an RR (and on the same line!) are
-// returned too:
-//
-//	foo. IN A 10.0.0.1 ; this is a comment
-//
-// The text "; this is comment" is returned in Token.Comment.
-// Comments inside the RR are returned concatenated along with the
-// RR. Comments on a line by themselves are discarded.
-//
-// To prevent memory leaks it is important to always fully drain the
-// returned channel. If an error occurs, it will always be the last
-// Token sent on the channel.
-//
-// Deprecated: New users should prefer the ZoneParser API.
-func ParseZone(r io.Reader, origin, file string) chan *Token {
-	t := make(chan *Token, 10000)
-	go parseZone(r, origin, file, t)
-	return t
-}
-
-func parseZone(r io.Reader, origin, file string, t chan *Token) {
-	defer close(t)
-
-	zp := NewZoneParser(r, origin, file)
-	zp.SetIncludeAllowed(true)
-
-	for rr, ok := zp.Next(); ok; rr, ok = zp.Next() {
-		t <- &Token{RR: rr, Comment: zp.Comment()}
-	}
-
-	if err := zp.Err(); err != nil {
-		pe, ok := err.(*ParseError)
-		if !ok {
-			pe = &ParseError{file: file, err: err.Error()}
-		}
-
-		t <- &Token{Error: pe}
-	}
 }
 
 // ZoneParser is a parser for an RFC 1035 style zonefile.
@@ -227,6 +150,9 @@ func parseZone(r io.Reader, origin, file string, t chan *Token) {
 // The text "; this is comment" is returned from Comment. Comments inside
 // the RR are returned concatenated along with the RR. Comments on a line
 // by themselves are discarded.
+//
+// Callers should not assume all returned data in an Resource Record is
+// syntactically correct, e.g. illegal base64 in RRSIGs will be returned as-is.
 type ZoneParser struct {
 	c *zlexer
 
@@ -247,7 +173,7 @@ type ZoneParser struct {
 
 	includeDepth uint8
 
-	includeAllowed bool
+	includeAllowed     bool
 	generateDisallowed bool
 }
 
@@ -654,10 +580,23 @@ func (zp *ZoneParser) Next() (RR, bool) {
 
 			st = zExpectRdata
 		case zExpectRdata:
-			var rr RR
-			if newFn, ok := TypeToRR[h.Rrtype]; ok && canParseAsRR(h.Rrtype) {
+			var (
+				rr             RR
+				parseAsRFC3597 bool
+			)
+			if newFn, ok := TypeToRR[h.Rrtype]; ok {
 				rr = newFn()
 				*rr.Header() = *h
+
+				// We may be parsing a known RR type using the RFC3597 format.
+				// If so, we handle that here in a generic way.
+				//
+				// This is also true for PrivateRR types which will have the
+				// RFC3597 parsing done for them and the Unpack method called
+				// to populate the RR instead of simply deferring to Parse.
+				if zp.c.Peek().token == "\\#" {
+					parseAsRFC3597 = true
+				}
 			} else {
 				rr = &RFC3597{Hdr: *h}
 			}
@@ -677,18 +616,30 @@ func (zp *ZoneParser) Next() (RR, bool) {
 				return zp.setParseError("unexpected newline", l)
 			}
 
-			if err := rr.parse(zp.c, zp.origin); err != nil {
+			parseAsRR := rr
+			if parseAsRFC3597 {
+				parseAsRR = &RFC3597{Hdr: *h}
+			}
+
+			if err := parseAsRR.parse(zp.c, zp.origin); err != nil {
 				// err is a concrete *ParseError without the file field set.
 				// The setParseError call below will construct a new
 				// *ParseError with file set to zp.file.
 
-				// If err.lex is nil than we have encounter an unknown RR type
-				// in that case we substitute our current lex token.
+				// err.lex may be nil in which case we substitute our current
+				// lex token.
 				if err.lex == (lex{}) {
 					return zp.setParseError(err.err, l)
 				}
 
 				return zp.setParseError(err.err, err.lex)
+			}
+
+			if parseAsRFC3597 {
+				err := parseAsRR.(*RFC3597).fromRFC3597(rr)
+				if err != nil {
+					return zp.setParseError(err.Error(), l)
+				}
 			}
 
 			return rr, true
@@ -698,18 +649,6 @@ func (zp *ZoneParser) Next() (RR, bool) {
 	// If we get here, we and the h.Rrtype is still zero, we haven't parsed anything, this
 	// is not an error, because an empty zone file is still a zone file.
 	return nil, false
-}
-
-// canParseAsRR returns true if the record type can be parsed as a
-// concrete RR. It blacklists certain record types that must be parsed
-// according to RFC 3597 because they lack a presentation format.
-func canParseAsRR(rrtype uint16) bool {
-	switch rrtype {
-	case TypeANY, TypeNULL, TypeOPT, TypeTSIG:
-		return false
-	default:
-		return true
-	}
 }
 
 type zlexer struct {
@@ -1287,9 +1226,27 @@ func stringToCm(token string) (e, m uint8, ok bool) {
 		if cmeters, err = strconv.Atoi(s[1]); err != nil {
 			return
 		}
+		// There's no point in having more than 2 digits in this part, and would rather make the implementation complicated ('123' should be treated as '12').
+		// So we simply reject it.
+		// We also make sure the first character is a digit to reject '+-' signs.
+		if len(s[1]) > 2 || s[1][0] < '0' || s[1][0] > '9' {
+			return
+		}
+		if len(s[1]) == 1 {
+			// 'nn.1' must be treated as 'nn-meters and 10cm, not 1cm.
+			cmeters *= 10
+		}
+		if s[0] == "" {
+			// This will allow omitting the 'meter' part, like .01 (meaning 0.01m = 1cm).
+			break
+		}
 		fallthrough
 	case 1:
 		if meters, err = strconv.Atoi(s[0]); err != nil {
+			return
+		}
+		// RFC1876 states the max value is 90000000.00.  The latter two conditions enforce it.
+		if s[0][0] < '0' || s[0][0] > '9' || meters > 90000000 || (meters == 90000000 && cmeters != 0) {
 			return
 		}
 	case 0:
@@ -1304,12 +1261,9 @@ func stringToCm(token string) (e, m uint8, ok bool) {
 		e = 0
 		val = cmeters
 	}
-	for val > 10 {
+	for val >= 10 {
 		e++
 		val /= 10
-	}
-	if e > 9 {
-		ok = false
 	}
 	m = uint8(val)
 	return
@@ -1352,6 +1306,9 @@ func appendOrigin(name, origin string) string {
 
 // LOC record helper function
 func locCheckNorth(token string, latitude uint32) (uint32, bool) {
+	if latitude > 90*1000*60*60 {
+		return latitude, false
+	}
 	switch token {
 	case "n", "N":
 		return LOC_EQUATOR + latitude, true
@@ -1363,6 +1320,9 @@ func locCheckNorth(token string, latitude uint32) (uint32, bool) {
 
 // LOC record helper function
 func locCheckEast(token string, longitude uint32) (uint32, bool) {
+	if longitude > 180*1000*60*60 {
+		return longitude, false
+	}
 	switch token {
 	case "e", "E":
 		return LOC_EQUATOR + longitude, true
@@ -1395,7 +1355,7 @@ func stringToNodeID(l lex) (uint64, *ParseError) {
 	if len(l.token) < 19 {
 		return 0, &ParseError{l.token, "bad NID/L64 NodeID/Locator64", l}
 	}
-	// There must be three colons at fixes postitions, if not its a parse error
+	// There must be three colons at fixes positions, if not its a parse error
 	if l.token[4] != ':' && l.token[9] != ':' && l.token[14] != ':' {
 		return 0, &ParseError{l.token, "bad NID/L64 NodeID/Locator64", l}
 	}
