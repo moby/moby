@@ -3,7 +3,9 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -14,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
@@ -80,9 +81,10 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// daemon. In all other volume/bind mount situations we have taken this
 	// same line--we don't chown host file content.
 	// See GitHub PR 34224 for details.
-	statT, err := system.Stat(tmpNWFileMount)
+	info, err := os.Stat(tmpNWFileMount)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(uint32(0), statT.UID()), "bind mounted network file should not change ownership from root")
+	fi := info.Sys().(*syscall.Stat_t)
+	assert.Check(t, is.Equal(fi.Uid, uint32(0)), "bind mounted network file should not change ownership from root")
 }
 
 func TestMountDaemonRoot(t *testing.T) {
