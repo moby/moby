@@ -393,3 +393,38 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Regression test for #38995 and #43390.
+func TestContainerCopyLeaksMounts(t *testing.T) {
+	defer setupTest(t)()
+
+	bindMount := mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: "/var",
+		Target: "/hostvar",
+		BindOptions: &mounttypes.BindOptions{
+			Propagation: mounttypes.PropagationRSlave,
+		},
+	}
+
+	ctx := context.Background()
+	client := testEnv.APIClient()
+	cid := container.Run(ctx, t, client, container.WithMount(bindMount), container.WithCmd("sleep", "120s"))
+
+	getMounts := func() string {
+		t.Helper()
+		res, err := container.Exec(ctx, client, cid, []string{"cat", "/proc/self/mountinfo"})
+		assert.NilError(t, err)
+		assert.Equal(t, res.ExitCode, 0)
+		return res.Stdout()
+	}
+
+	mountsBefore := getMounts()
+
+	_, _, err := client.CopyFromContainer(ctx, cid, "/etc/passwd")
+	assert.NilError(t, err)
+
+	mountsAfter := getMounts()
+
+	assert.Equal(t, mountsBefore, mountsAfter)
+}

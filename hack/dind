@@ -37,6 +37,10 @@ if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
 		> /sys/fs/cgroup/cgroup.subtree_control
 fi
 
+# Change mount propagation to shared to make the environment more similar to a
+# modern Linux system, e.g. with SystemD as PID 1.
+mount --make-rshared /
+
 if [ $# -gt 0 ]; then
 	exec "$@"
 fi

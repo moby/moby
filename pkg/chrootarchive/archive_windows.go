@@ -7,11 +7,6 @@ import (
 	"github.com/docker/docker/pkg/longpath"
 )
 
-// chroot is not supported by Windows
-func chroot(path string) error {
-	return nil
-}
-
 func invokeUnpack(decompressedArchive io.ReadCloser,
 	dest string,
 	options *archive.TarOptions, root string) error {

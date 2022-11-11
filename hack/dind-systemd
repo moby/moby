@@ -13,6 +13,11 @@ if [ ! -t 0 ]; then
 	exit 1
 fi
 
+# Change mount propagation to shared, which SystemD PID 1 would normally do
+# itself when started by the kernel. SystemD skips that when it detects it is
+# running in a container.
+mount --make-rshared /
+
 env > /etc/docker-entrypoint-env
 
 cat > /etc/systemd/system/docker-entrypoint.target << EOF

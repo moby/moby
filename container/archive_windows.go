@@ -18,7 +18,7 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 	if container.BaseFS == "" {
 		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly empty")
 	}
-	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
+	// Check if a drive letter supplied, it must be the system drive.
 	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return "", "", err

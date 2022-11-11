@@ -158,16 +158,23 @@ func TestCopyFromContainer(t *testing.T) {
 		expect map[string]string
 	}{
 		{"/", map[string]string{"/": "", "/foo": "hello", "/bar/quux/baz": "world", "/bar/filesymlink": "", "/bar/dirsymlink": "", "/bar/notarget": ""}},
+		{".", map[string]string{"./": "", "./foo": "hello", "./bar/quux/baz": "world", "./bar/filesymlink": "", "./bar/dirsymlink": "", "./bar/notarget": ""}},
+		{"/.", map[string]string{"./": "", "./foo": "hello", "./bar/quux/baz": "world", "./bar/filesymlink": "", "./bar/dirsymlink": "", "./bar/notarget": ""}},
+		{"./", map[string]string{"./": "", "./foo": "hello", "./bar/quux/baz": "world", "./bar/filesymlink": "", "./bar/dirsymlink": "", "./bar/notarget": ""}},
+		{"/./", map[string]string{"./": "", "./foo": "hello", "./bar/quux/baz": "world", "./bar/filesymlink": "", "./bar/dirsymlink": "", "./bar/notarget": ""}},
 		{"/bar/root", map[string]string{"root": ""}},
 		{"/bar/root/", map[string]string{"root/": "", "root/foo": "hello", "root/bar/quux/baz": "world", "root/bar/filesymlink": "", "root/bar/dirsymlink": "", "root/bar/notarget": ""}},
+		{"/bar/root/.", map[string]string{"./": "", "./foo": "hello", "./bar/quux/baz": "world", "./bar/filesymlink": "", "./bar/dirsymlink": "", "./bar/notarget": ""}},
 
 		{"bar/quux", map[string]string{"quux/": "", "quux/baz": "world"}},
 		{"bar/quux/", map[string]string{"quux/": "", "quux/baz": "world"}},
+		{"bar/quux/.", map[string]string{"./": "", "./baz": "world"}},
 		{"bar/quux/baz", map[string]string{"baz": "world"}},
 
 		{"bar/filesymlink", map[string]string{"filesymlink": ""}},
 		{"bar/dirsymlink", map[string]string{"dirsymlink": ""}},
 		{"bar/dirsymlink/", map[string]string{"dirsymlink/": "", "dirsymlink/baz": "world"}},
+		{"bar/dirsymlink/.", map[string]string{"./": "", "./baz": "world"}},
 		{"bar/notarget", map[string]string{"notarget": ""}},
 	} {
 		t.Run(x.src, func(t *testing.T) {
