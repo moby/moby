@@ -41,16 +41,3 @@ type Infos interface {
 	GetDefault() (Worker, error)
 	WorkerInfos() []client.WorkerInfo
 }
-
-// Pre-defined label keys
-const (
-	labelPrefix              = "org.mobyproject.buildkit.worker."
-	LabelExecutor            = labelPrefix + "executor"    // "oci" or "containerd"
-	LabelSnapshotter         = labelPrefix + "snapshotter" // containerd snapshotter name ("overlay", "native", ...)
-	LabelHostname            = labelPrefix + "hostname"
-	LabelNetwork             = labelPrefix + "network" // "cni" or "host"
-	LabelApparmorProfile     = labelPrefix + "apparmor.profile"
-	LabelOCIProcessMode      = labelPrefix + "oci.process-mode"     // OCI worker: process mode ("sandbox", "no-sandbox")
-	LabelContainerdUUID      = labelPrefix + "containerd.uuid"      // containerd worker: containerd UUID
-	LabelContainerdNamespace = labelPrefix + "containerd.namespace" // containerd worker: containerd namespace
-)

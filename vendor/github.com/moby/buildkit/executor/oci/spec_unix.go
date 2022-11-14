@@ -16,7 +16,9 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/entitlements/security"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 )
 
 func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
@@ -30,7 +32,10 @@ func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
 }
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
-func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []oci.SpecOpts, _ error) {
+func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string, selinuxB bool) (opts []oci.SpecOpts, _ error) {
+	if selinuxB && !selinux.GetEnabled() {
+		return nil, errors.New("selinux is not available")
+	}
 	switch mode {
 	case pb.SecurityMode_INSECURE:
 		return []oci.SpecOpts{
@@ -39,7 +44,9 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []
 			oci.WithWriteableSysfs,
 			func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
 				var err error
-				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				if selinuxB {
+					s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels([]string{"disable"})
+				}
 				return err
 			},
 		}, nil
@@ -52,7 +59,9 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string) (opts []
 		}
 		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
 			var err error
-			s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			if selinuxB {
+				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+			}
 			return err
 		})
 		return opts, nil
