@@ -1,14 +1,37 @@
 #!/usr/bin/env bash
-
-# This file is just wrapper around 'go mod vendor' tool.
+#
+# This file is just a wrapper around the 'go mod vendor' tool.
 # For updating dependencies you should change `vendor.mod` file in root of the
 # project.
 
 set -e
-set -x
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "${SCRIPTDIR}"/go-mod-prepare.sh
 
-GO111MODULE=auto go mod tidy -modfile 'vendor.mod' -compat 1.18
-GO111MODULE=auto go mod vendor -modfile vendor.mod
+export GO111MODULE=on
+
+tidy() (
+		set -x
+		go mod tidy -modfile vendor.mod -compat 1.18
+)
+
+vendor() (
+		set -x
+		go mod vendor -modfile vendor.mod
+)
+
+help() {
+	printf "%s:\n" "$(basename "$0")"
+	echo "  - tidy: run go mod tidy"
+	echo "  - vendor: run go mod vendor"
+	echo "  - all: run tidy && vendor"
+	echo "  - help: show this help"
+}
+
+case "$1" in
+	tidy) tidy ;;
+	vendor) vendor ;;
+	""|all) tidy && vendor ;;
+	*) help ;;
+esac
