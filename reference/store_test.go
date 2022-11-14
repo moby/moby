@@ -161,6 +161,10 @@ func TestAddDeleteGet(t *testing.T) {
 	if err = store.AddDigest(ref5.(reference.Canonical), testImageID2, false); err != nil {
 		t.Fatalf("error redundantly adding to store: %v", err)
 	}
+	err = store.AddDigest(ref5.(reference.Canonical), testImageID3, false)
+	assert.Check(t, is.ErrorType(err, errdefs.IsConflict), "overwriting a digest with a different digest should fail")
+	err = store.AddDigest(ref5.(reference.Canonical), testImageID3, true)
+	assert.Check(t, is.ErrorType(err, errdefs.IsConflict), "overwriting a digest cannot be forced")
 
 	// Attempt to overwrite with force == false
 	err = store.AddTag(ref4, testImageID3, false)
