@@ -1,53 +1,54 @@
 #!/usr/bin/env bash
 
+set -e
+
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
+tidy_files=('vendor.mod' 'vendor.sum')
+vendor_files=("${tidy_files[@]}" 'vendor/')
+
+validate_vendor_tidy() {
+	# run mod tidy
+	./hack/vendor.sh tidy
+	# check if any files have changed
+	git diff --quiet HEAD -- "${tidy_files[@]}"
+}
+
 validate_vendor_diff() {
-	IFS=$'\n'
-	check_files=('vendor.sum' 'vendor.mod' 'vendor/')
-	# shellcheck disable=SC2207
-	changed_files=($(validate_diff --diff-filter=ACMR --name-only -- "${check_files[@]}" || true))
-	unset IFS
+	mapfile -t changed_files < <(validate_diff --diff-filter=ACMR --name-only -- "${vendor_files[@]}")
 
 	if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ "${#changed_files[@]}" -gt 0 ]; then
 		# recreate vendor/
-		./hack/vendor.sh
+		./hack/vendor.sh vendor
 		# check if any files have changed
-		diffs="$(git status --porcelain -- "${check_files[@]}" 2> /dev/null)"
-		mfiles="$(echo "$diffs" | awk '/^ M / {print $2}')"
-		if [ "$diffs" ]; then
-			{
-				echo 'The result of go mod vendor differs'
-				echo
-				echo "$diffs"
-				echo
-				echo 'Please vendor your package with hack/vendor.sh.'
-				echo
-				if [ -n "$mfiles" ]; then
-					git diff -- "$mfiles"
-				fi
-			} >&2
-			false
-		else
-			echo 'Congratulations! All vendoring changes are done the right way.'
-		fi
+		git diff --quiet HEAD -- "${vendor_files[@]}"
 	else
-		echo 'No vendor changes in diff.'
+		echo >&2 'No vendor changes in diff; skipping vendor check.'
 	fi
 }
 
-# 1. make sure all the vendored packages are used
-# 2. make sure all the packages contain license information (just warning, because it can cause false-positive)
-validate_vendor_used() {
+validate_vendor_license() {
 	for f in $(mawk '$1 = "#" { print $2 }' 'vendor/modules.txt'); do
 		if [ -d "vendor/$f" ]; then
 			if ! echo "vendor/$f"/* | grep -qiEc '/(LICENSE|COPYING)'; then
-				echo "WARNING: could not find copyright information for $f"
+				echo >&2 "WARNING: could not find copyright information for $f"
 			fi
 		fi
 	done
 }
 
-validate_vendor_diff
-validate_vendor_used
+if validate_vendor_tidy && validate_vendor_diff && validate_vendor_license; then
+	echo >&2 'Vendoring has been performed correctly!'
+else
+	{
+		echo 'Vendoring was not performed correctly; the following files changed during re-vendor:'
+		echo
+		git diff --name-status HEAD -- "${vendor_files[@]}"
+		echo
+		echo 'Please revendor with hack/vendor.sh'
+		echo
+		git diff --diff-filter=M -- "${vendor_files[@]}"
+	} >&2
+	exit 1
+fi
