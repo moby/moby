@@ -24,25 +24,26 @@ validate_vendor_diff() {
 		# check if any files have changed
 		git diff --quiet HEAD -- "${vendor_files[@]}"
 	else
-		echo >&2 'No vendor changes in diff; skipping vendor check.'
+		echo >&2 'INFO: no vendor changes in diff; skipping vendor check.'
 	fi
 }
 
 validate_vendor_license() {
-	for f in $(mawk '$1 = "#" { print $2 }' 'vendor/modules.txt'); do
-		if [ -d "vendor/$f" ]; then
-			if ! echo "vendor/$f"/* | grep -qiEc '/(LICENSE|COPYING)'; then
-				echo >&2 "WARNING: could not find copyright information for $f"
-			fi
+	while IFS= read -r module; do
+		test -d "vendor/$module" || continue
+		if ! compgen -G "vendor/$module/*" | grep -qEi '/(LICENSE|COPYING)[^/]*$'; then
+			echo >&2 "WARNING: could not find copyright information for $module"
 		fi
-	done
+	done < <(awk '/^# /{ print $2 }' vendor/modules.txt)
 }
 
 if validate_vendor_tidy && validate_vendor_diff && validate_vendor_license; then
-	echo >&2 'Vendoring has been performed correctly!'
+	echo >&2 'PASS: Vendoring has been performed correctly!'
 else
 	{
-		echo 'Vendoring was not performed correctly; the following files changed during re-vendor:'
+		echo 'FAIL: Vendoring was not performed correctly!'
+		echo
+		echo 'The following files changed during re-vendor:'
 		echo
 		git diff --name-status HEAD -- "${vendor_files[@]}"
 		echo
