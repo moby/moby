@@ -43,6 +43,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-memdb v1.3.2
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/memberlist v0.4.0
 	github.com/hashicorp/serf v0.8.5
 	github.com/imdario/mergo v0.3.12
@@ -123,7 +124,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
