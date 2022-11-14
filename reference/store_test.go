@@ -28,20 +28,11 @@ var (
 )
 
 func TestLoad(t *testing.T) {
-	jsonFile, err := os.CreateTemp("", "tag-store-test")
-	if err != nil {
-		t.Fatalf("error creating temp file: %v", err)
-	}
-	defer os.RemoveAll(jsonFile.Name())
+	jsonFile := filepath.Join(t.TempDir(), "repositories.json")
+	err := os.WriteFile(jsonFile, marshalledSaveLoadTestCases, 0o666)
+	assert.NilError(t, err)
 
-	// Write canned json to the temp file
-	_, err = jsonFile.Write(marshalledSaveLoadTestCases)
-	if err != nil {
-		t.Fatalf("error writing to temp file: %v", err)
-	}
-	jsonFile.Close()
-
-	store, err := NewReferenceStore(jsonFile.Name())
+	store, err := NewReferenceStore(jsonFile)
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}
@@ -62,15 +53,11 @@ func TestLoad(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	jsonFile, err := os.CreateTemp("", "tag-store-test")
+	jsonFile := filepath.Join(t.TempDir(), "repositories.json")
+	err := os.WriteFile(jsonFile, []byte(`{}`), 0o666)
 	assert.NilError(t, err)
 
-	_, err = jsonFile.Write([]byte(`{}`))
-	assert.NilError(t, err)
-	jsonFile.Close()
-	defer os.RemoveAll(jsonFile.Name())
-
-	store, err := NewReferenceStore(jsonFile.Name())
+	store, err := NewReferenceStore(jsonFile)
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}
@@ -93,7 +80,7 @@ func TestSave(t *testing.T) {
 		}
 	}
 
-	jsonBytes, err := os.ReadFile(jsonFile.Name())
+	jsonBytes, err := os.ReadFile(jsonFile)
 	if err != nil {
 		t.Fatalf("could not read json file: %v", err)
 	}
@@ -104,16 +91,11 @@ func TestSave(t *testing.T) {
 }
 
 func TestAddDeleteGet(t *testing.T) {
-	jsonFile, err := os.CreateTemp("", "tag-store-test")
-	if err != nil {
-		t.Fatalf("error creating temp file: %v", err)
-	}
-	_, err = jsonFile.Write([]byte(`{}`))
+	jsonFile := filepath.Join(t.TempDir(), "repositories.json")
+	err := os.WriteFile(jsonFile, []byte(`{}`), 0o666)
 	assert.NilError(t, err)
-	_ = jsonFile.Close()
-	defer func() { _ = os.RemoveAll(jsonFile.Name()) }()
 
-	store, err := NewReferenceStore(jsonFile.Name())
+	store, err := NewReferenceStore(jsonFile)
 	if err != nil {
 		t.Fatalf("error creating tag store: %v", err)
 	}
@@ -335,11 +317,7 @@ func TestAddDeleteGet(t *testing.T) {
 }
 
 func TestInvalidTags(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "tag-store-test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	store, err := NewReferenceStore(filepath.Join(tmpDir, "repositories.json"))
+	store, err := NewReferenceStore(filepath.Join(t.TempDir(), "repositories.json"))
 	assert.NilError(t, err)
 	id := digest.Digest("sha256:470022b8af682154f57a2163d030eb369549549cba00edc69e1b99b46bb924d6")
 
