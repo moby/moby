@@ -475,7 +475,7 @@ github.com/mistifyio/go-zfs
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
-# github.com/moby/buildkit v0.10.5
+# github.com/moby/buildkit v0.10.6
 ## explicit; go 1.17
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -766,7 +766,7 @@ github.com/spf13/pflag
 # github.com/tinylib/msgp v1.1.0
 ## explicit
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
+# github.com/tonistiigi/fsutil v0.0.0-20220315205639-9ed612626da3
 ## explicit; go 1.13
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy

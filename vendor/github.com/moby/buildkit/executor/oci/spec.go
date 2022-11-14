@@ -50,7 +50,7 @@ func (pm ProcessMode) String() string {
 
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, cgroupParent string, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, tracingSocket string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, cgroupParent string, processMode ProcessMode, idmap *idtools.IdentityMapping, apparmorProfile string, selinuxB bool, tracingSocket string, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
 	}
@@ -81,7 +81,7 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
-	if securityOpts, err := generateSecurityOpts(meta.SecurityMode, apparmorProfile); err == nil {
+	if securityOpts, err := generateSecurityOpts(meta.SecurityMode, apparmorProfile, selinuxB); err == nil {
 		opts = append(opts, securityOpts...)
 	} else {
 		return nil, nil, err

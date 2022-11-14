@@ -123,7 +123,13 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 			return nil
 		}
 
-		var dir visitedDir
+		var (
+			dir   visitedDir
+			isDir bool
+		)
+		if fi != nil {
+			isDir = fi.IsDir()
+		}
 
 		if includeMatcher != nil || excludeMatcher != nil {
 			for len(parentDirs) != 0 {
@@ -134,7 +140,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				parentDirs = parentDirs[:len(parentDirs)-1]
 			}
 
-			if fi.IsDir() {
+			if isDir {
 				dir = visitedDir{
 					fi:          fi,
 					path:        path,
@@ -156,12 +162,12 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				return errors.Wrap(err, "failed to match includepatterns")
 			}
 
-			if fi.IsDir() {
+			if isDir {
 				dir.includeMatchInfo = matchInfo
 			}
 
 			if !m {
-				if fi.IsDir() && onlyPrefixIncludes {
+				if isDir && onlyPrefixIncludes {
 					// Optimization: we can skip walking this dir if no include
 					// patterns could match anything inside it.
 					dirSlash := path + string(filepath.Separator)
@@ -191,12 +197,12 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				return errors.Wrap(err, "failed to match excludepatterns")
 			}
 
-			if fi.IsDir() {
+			if isDir {
 				dir.excludeMatchInfo = matchInfo
 			}
 
 			if m {
-				if fi.IsDir() && onlyPrefixExcludeExceptions {
+				if isDir && onlyPrefixExcludeExceptions {
 					// Optimization: we can skip walking this dir if no
 					// exceptions to exclude patterns could match anything
 					// inside it.
@@ -230,7 +236,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 		if includeMatcher != nil || excludeMatcher != nil {
 			defer func() {
-				if fi.IsDir() {
+				if isDir {
 					parentDirs = append(parentDirs, dir)
 				}
 			}()
