@@ -156,13 +156,13 @@ func (store *refStore) addReference(ref reference.Named, id digest.Digest, force
 
 		// force only works for tags
 		if digested, isDigest := ref.(reference.Canonical); isDigest {
-			return errors.WithStack(conflictingTagError("Cannot overwrite digest " + digested.Digest().String()))
+			return errors.WithStack(conflictingTagError("cannot overwrite digest " + digested.Digest().String()))
 		}
 
 		if !force {
 			return errors.WithStack(
 				conflictingTagError(
-					fmt.Sprintf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use the force option", refStr, oldID.String()),
+					fmt.Sprintf("tag %s is already set to image %s, use the force option to replace it", refStr, oldID.String()),
 				),
 			)
 		}

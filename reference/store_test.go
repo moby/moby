@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -163,9 +163,8 @@ func TestAddDeleteGet(t *testing.T) {
 	}
 
 	// Attempt to overwrite with force == false
-	if err = store.AddTag(ref4, testImageID3, false); err == nil || !strings.HasPrefix(err.Error(), "Conflict:") {
-		t.Fatalf("did not get expected error on overwrite attempt - got %v", err)
-	}
+	err = store.AddTag(ref4, testImageID3, false)
+	assert.Check(t, is.ErrorType(err, errdefs.IsConflict), "did not get expected error on overwrite attempt")
 	// Repeat to overwrite with force == true
 	if err = store.AddTag(ref4, testImageID3, true); err != nil {
 		t.Fatalf("failed to force tag overwrite: %v", err)
@@ -325,12 +324,12 @@ func TestInvalidTags(t *testing.T) {
 	ref, err := reference.ParseNormalizedNamed("sha256:abc")
 	assert.NilError(t, err)
 	err = store.AddTag(ref, id, true)
-	assert.Check(t, is.ErrorContains(err, ""))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 
 	// setting digest as a tag
 	ref, err = reference.ParseNormalizedNamed("registry@sha256:367eb40fd0330a7e464777121e39d2f5b3e8e23a1e159342e53ab05c9e4d94e6")
 	assert.NilError(t, err)
 
 	err = store.AddTag(ref, id, true)
-	assert.Check(t, is.ErrorContains(err, ""))
+	assert.Check(t, is.ErrorType(err, errdefs.IsInvalidParameter))
 }
