@@ -76,7 +76,7 @@ jobs:
         id: scripts
         run: |
           scripts=$(jq -ncR '[inputs]' <<< "$(ls -I .validate -I all -I default -I dco -I golangci-lint.yml -I yamllint.yaml -A ./hack/validate/)")
-          echo "::set-output name=matrix::$scripts"
+          echo "matrix=$scripts" >> $GITHUB_OUTPUT
       -
         name: Show matrix
         run: |
@@ -403,7 +403,7 @@ jobs:
           # Also prepend ./... to the matrix. This is a special case to run "Test integration" step exclusively.
           matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} ./...)"
           matrix="$(echo "$matrix" | jq -c '. |= ["./..."] + .')"
-          echo "::set-output name=matrix::$matrix"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
       -
         name: Show matrix
         run: |

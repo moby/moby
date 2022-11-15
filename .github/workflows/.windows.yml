@@ -231,7 +231,7 @@ jobs:
           # Also prepend ./... to the matrix. This is a special case to run "Test integration" step exclusively.
           matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} ./...)"
           matrix="$(echo "$matrix" | jq -c '. |= ["./..."] + .')"
-          echo "::set-output name=matrix::$matrix"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
       -
         name: Show matrix
         run: |
