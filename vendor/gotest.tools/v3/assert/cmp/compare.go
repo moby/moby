@@ -35,7 +35,7 @@ func DeepEqual(x, y interface{}, opts ...cmp.Option) Comparison {
 		if diff == "" {
 			return ResultSuccess
 		}
-		return multiLineDiffResult(diff)
+		return multiLineDiffResult(diff, x, y)
 	}
 }
 
@@ -68,9 +68,10 @@ type RegexOrPattern interface{}
 // Regexp succeeds if value v matches regular expression re.
 //
 // Example:
-//   assert.Assert(t, cmp.Regexp("^[0-9a-f]{32}$", str))
-//   r := regexp.MustCompile("^[0-9a-f]{32}$")
-//   assert.Assert(t, cmp.Regexp(r, str))
+//
+//	assert.Assert(t, cmp.Regexp("^[0-9a-f]{32}$", str))
+//	r := regexp.MustCompile("^[0-9a-f]{32}$")
+//	assert.Assert(t, cmp.Regexp(r, str))
 func Regexp(re RegexOrPattern, v string) Comparison {
 	match := func(re *regexp.Regexp) Result {
 		return toResult(
@@ -102,7 +103,7 @@ func Equal(x, y interface{}) Comparison {
 			return ResultSuccess
 		case isMultiLineStringCompare(x, y):
 			diff := format.UnifiedDiff(format.DiffConfig{A: x.(string), B: y.(string)})
-			return multiLineDiffResult(diff)
+			return multiLineDiffResult(diff, x, y)
 		}
 		return ResultFailureTemplate(`
 			{{- printf "%v" .Data.x}} (
@@ -128,12 +129,12 @@ func isMultiLineStringCompare(x, y interface{}) bool {
 	return strings.Contains(strX, "\n") || strings.Contains(strY, "\n")
 }
 
-func multiLineDiffResult(diff string) Result {
+func multiLineDiffResult(diff string, x, y interface{}) Result {
 	return ResultFailureTemplate(`
 --- {{ with callArg 0 }}{{ formatNode . }}{{else}}←{{end}}
 +++ {{ with callArg 1 }}{{ formatNode . }}{{else}}→{{end}}
 {{ .Data.diff }}`,
-		map[string]interface{}{"diff": diff})
+		map[string]interface{}{"diff": diff, "x": x, "y": y})
 }
 
 // Len succeeds if the sequence has the expected length.
@@ -248,7 +249,7 @@ type causer interface {
 }
 
 func formatErrorMessage(err error) string {
-	// nolint: errorlint // unwrapping is not appropriate here
+	//nolint:errorlint // unwrapping is not appropriate here
 	if _, ok := err.(causer); ok {
 		return fmt.Sprintf("%q\n%+v", err, err)
 	}
@@ -288,15 +289,23 @@ func isNil(obj interface{}, msgFunc func(reflect.Value) string) Comparison {
 // ErrorType succeeds if err is not nil and is of the expected type.
 //
 // Expected can be one of:
-//   func(error) bool
+//
+//	func(error) bool
+//
 // Function should return true if the error is the expected type.
-//   type struct{}, type &struct{}
+//
+//	type struct{}, type &struct{}
+//
 // A struct or a pointer to a struct.
 // Fails if the error is not of the same type as expected.
-//   type &interface{}
+//
+//	type &interface{}
+//
 // A pointer to an interface type.
 // Fails if err does not implement the interface.
-//   reflect.Type
+//
+//	reflect.Type
+//
 // Fails if err does not implement the reflect.Type
 func ErrorType(err error, expected interface{}) Comparison {
 	return func() Result {
