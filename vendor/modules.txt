@@ -746,15 +746,15 @@ github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/rexray/gocsi v1.2.2 => github.com/dperny/gocsi v1.2.3-pre
 ## explicit; go 1.12
-# github.com/rootless-containers/rootlesskit v1.0.0
-## explicit; go 1.16
+# github.com/rootless-containers/rootlesskit v1.1.0
+## explicit; go 1.19
 github.com/rootless-containers/rootlesskit/pkg/api
 github.com/rootless-containers/rootlesskit/pkg/api/client
 github.com/rootless-containers/rootlesskit/pkg/port
 # github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 ## explicit
 github.com/sean-/seed
-# github.com/sirupsen/logrus v1.8.1
+# github.com/sirupsen/logrus v1.9.0
 ## explicit; go 1.13
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v1.1.3
@@ -950,7 +950,7 @@ golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/singleflight
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.1.0
+# golang.org/x/sys v0.2.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
