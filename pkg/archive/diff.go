@@ -229,13 +229,8 @@ func applyLayerHandler(dest string, layer io.Reader, options *TarOptions, decomp
 	dest = filepath.Clean(dest)
 
 	// We need to be able to set any perms
-	if runtime.GOOS != "windows" {
-		oldmask, err := system.Umask(0)
-		if err != nil {
-			return 0, err
-		}
-		defer system.Umask(oldmask)
-	}
+	restore := overrideUmask(0)
+	defer restore()
 
 	if decompress {
 		decompLayer, err := DecompressStream(layer)

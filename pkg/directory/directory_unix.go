@@ -10,14 +10,15 @@ import (
 	"syscall"
 )
 
-// Size walks a directory tree and returns its total size in bytes.
-func Size(ctx context.Context, dir string) (size int64, err error) {
+// calcSize walks a directory tree and returns its total size in bytes.
+func calcSize(ctx context.Context, dir string) (int64, error) {
+	var size int64
 	data := make(map[uint64]struct{})
-	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
+	err := filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
-			// if dir does not exist, Size() returns the error.
 			// if dir/x disappeared while walking, Size() ignores dir/x.
-			if os.IsNotExist(err) && d != dir {
+			// if dir does not exist, Size() returns the error.
+			if d != dir && os.IsNotExist(err) {
 				return nil
 			}
 			return err
@@ -40,16 +41,16 @@ func Size(ctx context.Context, dir string) (size int64, err error) {
 
 		// Check inode to handle hard links correctly
 		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		if _, exists := data[inode]; exists {
+		//nolint:unconvert // inode is not an uint64 on all platforms.
+		if _, exists := data[uint64(inode)]; exists {
 			return nil
 		}
-		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		data[inode] = struct{}{}
+
+		data[uint64(inode)] = struct{}{} //nolint:unconvert // inode is not an uint64 on all platforms.
 
 		size += s
 
 		return nil
 	})
-	return
+	return size, err
 }
