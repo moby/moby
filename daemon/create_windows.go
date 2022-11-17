@@ -3,11 +3,16 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/Microsoft/hcsshim/osversion"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/image"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"
+	"github.com/sirupsen/logrus"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
@@ -73,4 +78,67 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		container.AddMountPointWithVolume(mp.Destination, &volumeWrapper{v: v, s: daemon.volumes}, mp.RW)
 	}
 	return nil
+}
+
+// checkImageIsolationCompatiblity checks whether the provided image is compatible
+// with the host config's isolation settings.
+func (daemon *Daemon) checkImageIsolationCompatiblity(hostConfig *containertypes.HostConfig, img *image.Image) error {
+	hostOSV := osversion.Get()
+	isHyperV := hostConfig.Isolation.IsHyperV()
+	// fallback on default daemon isolation if none was explicitly provided:
+	if hostConfig.Isolation.IsDefault() {
+		isHyperV = daemon.defaultIsolation.IsHyperV()
+	}
+	return checkImageCompatibilityForHostIsolation(hostOSV, img.OSVersion, isHyperV)
+}
+
+// checkImageCompatibilityForHostIsolation checks whether the provided `imageOSVersion`
+// should be able to run on the provided host OS version given Hyper-V isolation.
+// Its contained logic can be distilled into:
+// - if imageOS == hostOS => can run under any isolation mode
+// - if imageOS < hostOS => must be run under Hyper-V
+// - if imageOS > hostOS => can be run under Hyper-V only on an RS5 (1809+) host
+// Please see the below:
+// https://learn.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility?tabs=windows-server-2016%2Cwindows-10#windows-server-host-os-compatibility
+func checkImageCompatibilityForHostIsolation(hostOSV osversion.OSVersion, imageOSVersion string, isHyperV bool) error {
+	var err error
+	var imageOSBuildU64 uint64
+	splitImageOSVersion := strings.Split(imageOSVersion, ".") // eg 10.0.16299.nnnn
+	if len(splitImageOSVersion) >= 3 {
+		if imageOSBuildU64, err = strconv.ParseUint(splitImageOSVersion[2], 10, 16); err == nil {
+			logrus.Debugf("parsed Windows build number %d from image OS version %s", imageOSBuildU64, imageOSVersion)
+		} else {
+			return fmt.Errorf("failed to ParseUint() Windows image build %q from image version %q: %s", splitImageOSVersion[2], imageOSVersion, err)
+		}
+	} else {
+		return fmt.Errorf("failed to split and parse Windows image version %q (was expecting format like '10.0.16299.nnnn')", imageOSVersion)
+	}
+	truncatedImageOSVersion := fmt.Sprintf("%s.%s.%s", splitImageOSVersion[0], splitImageOSVersion[1], splitImageOSVersion[2])
+
+	imageOSBuild := uint16(imageOSBuildU64)
+	if imageOSBuild == hostOSV.Build {
+		// same image version should run on identically-versioned host regardless of isolation:
+		logrus.Debugf("image version %s is trivially compatible with host version %s", truncatedImageOSVersion, hostOSV.ToString())
+		return nil
+	} else if imageOSBuild < hostOSV.Build {
+		// images older than the host must be run under Hyper-V:
+		if isHyperV {
+			logrus.Debugf("older image version %s is compatible with host version %s under Hyper-V", truncatedImageOSVersion, hostOSV.ToString())
+			return nil
+		} else {
+			return fmt.Errorf("an older Windows version %s-based image can only be run on a %s host using Hyper-V isolation", truncatedImageOSVersion, hostOSV.ToString())
+		}
+	} else {
+		// images newer than the host can only run if the host is RS5 and is using Hyper-V:
+		if hostOSV.Build < osversion.RS5 {
+			return fmt.Errorf("a Windows version %s-based image is incompatible with a %s host", truncatedImageOSVersion, hostOSV.ToString())
+		} else {
+			if isHyperV {
+				logrus.Debugf("newer Windows image version %s is compatible with host version %s under Hyper-V", truncatedImageOSVersion, hostOSV.ToString())
+				return nil
+			} else {
+				return fmt.Errorf("a newer Windows version %s-based image can only be run on a %s host using Hyper-V isolation", truncatedImageOSVersion, hostOSV.ToString())
+			}
+		}
+	}
 }

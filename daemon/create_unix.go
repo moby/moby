@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/oci"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -90,5 +91,12 @@ func (daemon *Daemon) populateVolumes(c *container.Container) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// checkImageIsolationCompatiblity checks whether the provided image is compatible
+// with the host config's isolation settings.
+// This is currently only used for determining image compatiblity on Windows.
+func (daemon *Daemon) checkImageIsolationCompatiblity(hostConfig *containertypes.HostConfig, img *image.Image) error {
 	return nil
 }
