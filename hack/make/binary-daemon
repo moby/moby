@@ -17,10 +17,10 @@ copy_binaries() {
 	for file in containerd containerd-shim-runc-v2 ctr runc docker-init rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh dockerd-rootless-setuptool.sh; do
 		cp -f "$(command -v "$file")" "$dir/"
 	done
-
-	# vpnkit is available for x86_64 and aarch64
-	if command -v "vpnkit.$(uname -m)" 2>&1 > /dev/null; then
-		cp -f "$(command -v "vpnkit.$(uname -m)")" "$dir/vpnkit"
+	# vpnkit might not be available for the target platform, see vpnkit stage in
+	# the Dockerfile for more information.
+	if command -v vpnkit > /dev/null 2>&1; then
+		cp -f "$(command -v vpnkit)" "$dir/"
 	fi
 }
 
