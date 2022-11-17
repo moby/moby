@@ -157,14 +157,18 @@ main() {
 	else
 		bundles=("$@")
 	fi
-		export DEST="${bundle_dir}/$(basename "$bundle")"
 	for bundle in "${bundles[@]}"; do
+		DEST="${bundle_dir}/$(basename "$bundle")"
 		# Cygdrive paths don't play well with go build -o.
 		if [[ "$(uname -s)" == CYGWIN* ]]; then
 			DEST="$(cygpath -mw "$DEST")"
 		fi
 		mkdir -p "$DEST"
+		export DEST
+
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
+		export ABS_DEST
+
 		bundle "$bundle"
 		echo
 	done

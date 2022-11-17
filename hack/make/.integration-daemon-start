@@ -74,6 +74,9 @@ if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
 	fi
 fi
 
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT
+
 if [ -n "$DOCKER_ROOTLESS" ]; then
 	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
 		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'
@@ -83,7 +86,7 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	uid=$(id -u $user)
 	# shellcheck disable=SC2174
 	mkdir -p -m 700 "/tmp/docker-${uid}"
-	chown "$user" "/tmp/docker-${uid}"
+	chown -R "$user" "/tmp/docker-${uid}" "$tmp_dir"
 	chmod -R o+w "$DEST"
 	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
 fi
@@ -100,8 +103,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		)
 	fi
 
-	# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
-	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	export DOCKER_HOST="unix://${tmp_dir}/docker.sock"
 	(
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
@@ -109,11 +111,11 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 			${dockerd} --debug \
 			--host "$DOCKER_HOST" \
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
-			--pidfile "$DEST/docker.pid" \
+			--pidfile "${DEST}/docker.pid" \
 			--userland-proxy="$DOCKER_USERLANDPROXY" \
 			${storage_params} \
 			${extra_params} \
-			&> "$DEST/docker.log"
+			&> "${DEST}/docker.log"
 	) &
 else
 	export DOCKER_HOST="$DOCKER_TEST_HOST"

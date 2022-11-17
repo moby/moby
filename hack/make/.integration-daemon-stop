@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ ! "$(go env GOOS)" = 'windows' ]; then
-	for pidFile in $(find "$DEST" -name docker.pid); do
+	while IFS= read -r pidFile; do
 		pid=$(
 			[ -n "$TESTDEBUG" ] && set -x
 			cat "$pidFile"
@@ -17,7 +17,7 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 		if [ -d "$root" ]; then
 			umount "$root" || true
 		fi
-	done
+	done < <(find "$DEST" -name docker.pid)
 
 	if [ -z "$DOCKER_TEST_HOST" ]; then
 		# Stop apparmor if it is enabled
