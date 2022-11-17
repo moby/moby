@@ -38,18 +38,13 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		return nil, err
 	}
 
-	var danglingOnly bool
-	if opts.Filters.Contains("dangling") {
-		if opts.Filters.ExactMatch("dangling", "true") {
-			danglingOnly = true
-		} else if !opts.Filters.ExactMatch("dangling", "false") {
-			return nil, invalidFilter{"dangling", opts.Filters.Get("dangling")}
-		}
+	danglingOnly, err := opts.Filters.GetBoolOrDefault("dangling", false)
+	if err != nil {
+		return nil, err
 	}
 
 	var (
 		beforeFilter, sinceFilter time.Time
-		err                       error
 	)
 	err = opts.Filters.WalkValues("before", func(value string) error {
 		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})

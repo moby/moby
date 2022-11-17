@@ -1,25 +1,8 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
-	"fmt"
-
 	metrics "github.com/docker/go-metrics"
 )
-
-type invalidFilter struct {
-	filter string
-	value  interface{}
-}
-
-func (e invalidFilter) Error() string {
-	msg := "invalid filter '" + e.filter
-	if e.value != nil {
-		msg += fmt.Sprintf("=%s", e.value)
-	}
-	return msg + "'"
-}
-
-func (e invalidFilter) InvalidParameter() {}
 
 var imageActions metrics.LabeledTimer
 
