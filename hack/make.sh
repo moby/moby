@@ -147,21 +147,21 @@ main() {
 
 	if [ -z "${KEEPBUNDLE-}" ]; then
 		echo "Removing ${bundle_dir}/"
-		rm -rf "${bundle_dir}"/*
+		rm -rf "${bundle_dir:?}"/*
 		echo
 	fi
 	mkdir -p "${bundle_dir}"
 
 	if [ $# -lt 1 ]; then
-		bundles=(${DEFAULT_BUNDLES[@]})
+		bundles=("${DEFAULT_BUNDLES[@]}")
 	else
-		bundles=($@)
+		bundles=("$@")
 	fi
-	for bundle in ${bundles[@]}; do
 		export DEST="${bundle_dir}/$(basename "$bundle")"
+	for bundle in "${bundles[@]}"; do
 		# Cygdrive paths don't play well with go build -o.
 		if [[ "$(uname -s)" == CYGWIN* ]]; then
-			export DEST="$(cygpath -mw "$DEST")"
+			DEST="$(cygpath -mw "$DEST")"
 		fi
 		mkdir -p "$DEST"
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
