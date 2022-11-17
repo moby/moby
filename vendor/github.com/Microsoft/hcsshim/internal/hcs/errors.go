@@ -154,7 +154,7 @@ func (e *HcsError) Error() string {
 
 func (e *HcsError) Temporary() bool {
 	err, ok := e.Err.(net.Error)
-	return ok && err.Temporary()
+	return ok && err.Temporary() //nolint:staticcheck
 }
 
 func (e *HcsError) Timeout() bool {
@@ -193,7 +193,7 @@ func (e *SystemError) Error() string {
 
 func (e *SystemError) Temporary() bool {
 	err, ok := e.Err.(net.Error)
-	return ok && err.Temporary()
+	return ok && err.Temporary() //nolint:staticcheck
 }
 
 func (e *SystemError) Timeout() bool {
@@ -224,7 +224,7 @@ func (e *ProcessError) Error() string {
 
 func (e *ProcessError) Temporary() bool {
 	err, ok := e.Err.(net.Error)
-	return ok && err.Temporary()
+	return ok && err.Temporary() //nolint:staticcheck
 }
 
 func (e *ProcessError) Timeout() bool {
