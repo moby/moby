@@ -79,7 +79,6 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'
 		exit 1
 	fi
-	ln -sf "$(command -v vpnkit."$(uname -m)")" /usr/local/bin/vpnkit
 	user="unprivilegeduser"
 	uid=$(id -u $user)
 	# shellcheck disable=SC2174
