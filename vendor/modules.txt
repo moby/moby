@@ -744,7 +744,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rexray/gocsi v1.2.2 => github.com/dperny/gocsi v1.2.3-pre
+# github.com/rexray/gocsi v1.2.2
 ## explicit; go 1.12
 # github.com/rootless-containers/rootlesskit v1.1.0
 ## explicit; go 1.19
@@ -1129,4 +1129,3 @@ gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
 # github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
-# github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre

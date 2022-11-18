@@ -165,12 +165,8 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 )
 
-replace (
-	// Resolve dependency hell with github.com/cloudflare/cfssl (transitive via
-	// swarmkit) by pinning the certificate-transparency-go version. Remove once
-	// module go.etcd.io/etcd/server/v3 has upgraded its dependency on
-	// go.opentelemetry.io/otel to v1.
-	github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
-	// Removes etcd dependency
-	github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
-)
+// Resolve dependency hell with github.com/cloudflare/cfssl (transitive via
+// swarmkit) by pinning the certificate-transparency-go version. Remove once
+// module go.etcd.io/etcd/server/v3 has upgraded its dependency on
+// go.opentelemetry.io/otel to v1.
+replace github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
