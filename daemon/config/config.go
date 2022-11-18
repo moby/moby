@@ -241,7 +241,7 @@ type CommonConfig struct {
 
 	DNSConfig
 	LogConfig
-	BridgeConfig // bridgeConfig holds bridge network specific configuration.
+	BridgeConfig // BridgeConfig holds bridge network specific configuration.
 	NetworkConfig
 	registry.ServiceOptions
 
@@ -323,19 +323,19 @@ func New() *Config {
 func GetConflictFreeLabels(labels []string) ([]string, error) {
 	labelMap := map[string]string{}
 	for _, label := range labels {
-		stringSlice := strings.SplitN(label, "=", 2)
-		if len(stringSlice) > 1 {
+		key, val, ok := strings.Cut(label, "=")
+		if ok {
 			// If there is a conflict we will return an error
-			if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
-				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
+			if v, ok := labelMap[key]; ok && v != val {
+				return nil, errors.Errorf("conflict labels for %s=%s and %s=%s", key, val, key, v)
 			}
-			labelMap[stringSlice[0]] = stringSlice[1]
+			labelMap[key] = val
 		}
 	}
 
 	newLabels := []string{}
 	for k, v := range labelMap {
-		newLabels = append(newLabels, fmt.Sprintf("%s=%s", k, v))
+		newLabels = append(newLabels, k+"="+v)
 	}
 	return newLabels, nil
 }
@@ -528,7 +528,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 		for key := range unknownKeys {
 			unknown = append(unknown, key)
 		}
-		return fmt.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
+		return errors.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
 	}
 
 	var conflicts []string
@@ -562,7 +562,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	flags.Visit(duplicatedConflicts)
 
 	if len(conflicts) > 0 {
-		return fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
+		return errors.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
 	}
 	return nil
 }
@@ -579,7 +579,7 @@ func Validate(config *Config) error {
 	// validate log-level
 	if config.LogLevel != "" {
 		if _, err := logrus.ParseLevel(config.LogLevel); err != nil {
-			return fmt.Errorf("invalid logging level: %s", config.LogLevel)
+			return errors.Errorf("invalid logging level: %s", config.LogLevel)
 		}
 	}
 
@@ -606,22 +606,22 @@ func Validate(config *Config) error {
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
 	if config.Mtu < 0 {
-		return fmt.Errorf("invalid default MTU: %d", config.Mtu)
+		return errors.Errorf("invalid default MTU: %d", config.Mtu)
 	}
 	if config.MaxConcurrentDownloads < 0 {
-		return fmt.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
+		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
 	if config.MaxConcurrentUploads < 0 {
-		return fmt.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
+		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
 	if config.MaxDownloadAttempts < 0 {
-		return fmt.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
+		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 
 	// validate that "default" runtime is not reset
 	if runtimes := config.GetAllRuntimes(); len(runtimes) > 0 {
 		if _, ok := runtimes[StockRuntimeName]; ok {
-			return fmt.Errorf("runtime name '%s' is reserved", StockRuntimeName)
+			return errors.Errorf("runtime name '%s' is reserved", StockRuntimeName)
 		}
 	}
 
@@ -633,7 +633,7 @@ func Validate(config *Config) error {
 		if !builtinRuntimes[defaultRuntime] {
 			runtimes := config.GetAllRuntimes()
 			if _, ok := runtimes[defaultRuntime]; !ok && !IsPermissibleC8dRuntimeName(defaultRuntime) {
-				return fmt.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
+				return errors.Errorf("specified default runtime '%s' does not exist", defaultRuntime)
 			}
 		}
 	}

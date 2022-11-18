@@ -2,7 +2,8 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"strconv"
 	"time"
 
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
@@ -22,8 +23,8 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 
 	if err = daemon.containerd.ResizeTerminal(context.Background(), container.ID, libcontainerdtypes.InitProcessName, width, height); err == nil {
 		attributes := map[string]string{
-			"height": fmt.Sprintf("%d", height),
-			"width":  fmt.Sprintf("%d", width),
+			"height": strconv.Itoa(height),
+			"width":  strconv.Itoa(width),
 		}
 		daemon.LogContainerEventWithAttributes(container, "resize", attributes)
 	}
@@ -48,6 +49,6 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 	case <-ec.Started:
 		return daemon.containerd.ResizeTerminal(context.Background(), ec.ContainerID, ec.ID, width, height)
 	case <-timeout.C:
-		return fmt.Errorf("timeout waiting for exec session ready")
+		return errors.New("timeout waiting for exec session ready")
 	}
 }
