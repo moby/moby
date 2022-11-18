@@ -183,7 +183,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS gowinres
 # GOWINRES_VERSION defines go-winres tool version
-ARG GOWINRES_VERSION=v0.2.3
+ARG GOWINRES_VERSION=v0.3.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build/ GO111MODULE=on go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
