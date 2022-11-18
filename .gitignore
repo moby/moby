@@ -13,8 +13,6 @@ thumbs.db
 .bashrc
 .editorconfig
 
-# top-level go.mod is not meant to be checked in
-/go.mod
 # build artifacts
 bundles/
 cli/winresources/*/*.syso
