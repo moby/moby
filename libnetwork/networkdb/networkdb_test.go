@@ -107,18 +107,21 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 	for i := int64(0); i < maxRetries; i++ {
 		db.RLock()
 		nn, nnok := db.networks[node]
-		db.RUnlock()
 		if nnok {
 			n, ok := nn[id]
+			leaving := n.leaving
+			db.RUnlock()
 			if present && ok {
 				return
 			}
 
 			if !present &&
-				((ok && n.leaving) ||
+				((ok && leaving) ||
 					!ok) {
 				return
 			}
+		} else {
+			db.RUnlock()
 		}
 
 		time.Sleep(sleepInterval)
@@ -131,18 +134,11 @@ func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value s
 	t.Helper()
 	n := 80
 	for i := 0; i < n; i++ {
-		entry, err := db.getEntry(tname, nid, key)
-		if present && err == nil && string(entry.value) == value {
+		v, err := db.GetEntry(tname, nid, key)
+		if present && err == nil && string(v) == value {
 			return
 		}
-
-		if !present &&
-			((err == nil && entry.deleting) ||
-				(err != nil)) {
-			return
-		}
-
-		if i == n-1 && !present && err != nil {
+		if err != nil && !present {
 			return
 		}
 
@@ -586,7 +582,9 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 		assert.NilError(t, err)
 	}
 	for i := 0; i < 2; i++ {
+		dbs[i].Lock()
 		assert.Check(t, is.Equal(keysWriteDelete, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries number should match")
+		dbs[i].Unlock()
 	}
 
 	// from this point the timer for the garbage collection started, wait 5 seconds and then join a new node
@@ -595,18 +593,24 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	err = dbs[2].JoinNetwork("network1")
 	assert.NilError(t, err)
 	for i := 0; i < 3; i++ {
+		dbs[i].Lock()
 		assert.Check(t, is.Equal(keysWriteDelete, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries number should match")
+		dbs[i].Unlock()
 	}
 	// at this point the entries should had been all deleted
 	time.Sleep(30 * time.Second)
 	for i := 0; i < 3; i++ {
+		dbs[i].Lock()
 		assert.Check(t, is.Equal(0, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries should had been garbage collected")
+		dbs[i].Unlock()
 	}
 
 	// make sure that entries are not coming back
 	time.Sleep(15 * time.Second)
 	for i := 0; i < 3; i++ {
+		dbs[i].Lock()
 		assert.Check(t, is.Equal(0, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries should had been garbage collected")
+		dbs[i].Unlock()
 	}
 
 	closeNetworkDBInstances(t, dbs)
@@ -742,6 +746,7 @@ func TestNodeReincarnation(t *testing.T) {
 	assert.Check(t, is.Len(dbs[0].failedNodes, 1))
 	assert.Check(t, is.Len(dbs[0].leftNodes, 1))
 
+	dbs[0].Lock()
 	b := dbs[0].purgeReincarnation(&memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")})
 	assert.Check(t, b)
 	dbs[0].nodes["node4"] = &node{Node: memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")}}
@@ -762,6 +767,7 @@ func TestNodeReincarnation(t *testing.T) {
 	assert.Check(t, is.Len(dbs[0].failedNodes, 0))
 	assert.Check(t, is.Len(dbs[0].leftNodes, 3))
 
+	dbs[0].Unlock()
 	closeNetworkDBInstances(t, dbs)
 }
 
@@ -897,8 +903,9 @@ func TestNetworkDBIslands(t *testing.T) {
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := 0; i < 3; i++ {
 		logrus.Infof("node %d coming back", i)
-		dbs[i].config.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
-		dbs[i] = launchNode(t, *dbs[i].config)
+		conf := *dbs[i].config
+		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+		dbs[i] = launchNode(t, conf)
 	}
 
 	// Give some time for the reconnect routine to run, it runs every 6s.
