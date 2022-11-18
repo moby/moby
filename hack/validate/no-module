@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Check that no one is trying to commit a go.mod.
+
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOTDIR="$(git -C "$SCRIPTDIR" rev-parse --show-toplevel)"
+
+if test -e "${ROOTDIR}/go.mod"; then
+	{
+		echo 'FAIL: go.mod found in repository root!'
+		echo
+		echo '      Moby is not a Go module; please delete go.mod and try again.'
+	} >&2
+	exit 1
+else
+	echo 'PASS: No go.mod found in repository root!'
+fi
