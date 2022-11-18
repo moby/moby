@@ -53,8 +53,9 @@ func (daemon *Daemon) loadRuntimes() error {
 
 func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error) {
 	runtimeDir := filepath.Join(daemon.configStore.Root, "runtimes")
+	runtimeOldDir := runtimeDir + "-old"
 	// Remove old temp directory if any
-	os.RemoveAll(runtimeDir + "-old")
+	os.RemoveAll(runtimeOldDir)
 	tmpDir, err := os.MkdirTemp(daemon.configStore.Root, "gen-runtimes")
 	if err != nil {
 		return errors.Wrap(err, "failed to get temp dir to generate runtime scripts")
@@ -68,8 +69,12 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 			return
 		}
 
-		if err = os.Rename(runtimeDir, runtimeDir+"-old"); err != nil {
+		if err = os.Rename(runtimeDir, runtimeOldDir); err != nil {
+			logrus.WithError(err).WithField("dir", runtimeDir).
+				Warn("failed to rename runtimes dir to old. Will try to removing it")
 			if err = os.RemoveAll(runtimeDir); err != nil {
+				logrus.WithError(err).WithField("dir", runtimeDir).
+					Warn("failed to remove old runtimes dir")
 				return
 			}
 		}
@@ -77,8 +82,8 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 			err = errors.Wrap(err, "failed to setup runtimes dir, new containers may not start")
 			return
 		}
-		if err = os.RemoveAll(runtimeDir + "-old"); err != nil {
-			logrus.WithError(err).WithField("dir", tmpDir).
+		if err = os.RemoveAll(runtimeOldDir); err != nil {
+			logrus.WithError(err).WithField("dir", runtimeOldDir).
 				Warn("failed to remove old runtimes dir")
 		}
 	}()
