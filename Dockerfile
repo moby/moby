@@ -6,6 +6,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.1.2
 
 ARG VPNKIT_VERSION=0.5.0
+ARG DOCKERCLI_VERSION=v17.06.2-ce
 
 ARG CROSS="false"
 ARG SYSTEMD="false"
@@ -272,13 +273,34 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
      && /build/shfmt --version
 
-FROM dev-base AS dockercli
-ARG DOCKERCLI_CHANNEL
+# dockercli
+FROM base AS dockercli-src
+WORKDIR /tmp/dockercli
+RUN git init . && git remote add origin "https://github.com/docker/cli.git"
 ARG DOCKERCLI_VERSION
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/dockercli.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh dockercli
+RUN git fetch -q --depth 1 origin "${DOCKERCLI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+RUN [ -d ./components/cli ] && mv ./components/cli /usr/src/dockercli || mv /tmp/dockercli /usr/src/dockercli
+WORKDIR /usr/src/dockercli
+
+FROM base AS dockercli
+WORKDIR /go/src/github.com/docker/cli
+ARG DOCKERCLI_VERSION
+ARG DOCKERCLI_CHANNEL=stable
+ARG TARGETPLATFORM
+RUN xx-apt-get install -y --no-install-recommends gcc libc6-dev
+RUN --mount=from=dockercli-src,src=/usr/src/dockercli,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM <<EOT
+  set -e
+  DOWNLOAD_URL="https://download.docker.com/linux/static/${DOCKERCLI_CHANNEL}/$(xx-info march)/docker-${DOCKERCLI_VERSION#v}.tgz"
+  if curl --head --silent --fail "${DOWNLOAD_URL}" 1>/dev/null 2>&1; then
+    mkdir /build
+    curl -Ls "${DOWNLOAD_URL}" | tar -xz docker/docker
+    mv docker/docker /build/docker
+  else
+    CGO_ENABLED=0 xx-go build -o /build/docker ./cmd/docker
+  fi
+  xx-verify /build/docker
+EOT
 
 # runc
 FROM base AS runc-src
