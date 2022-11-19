@@ -25,3 +25,6 @@ junit-report.xml
 
 # top-level go.mod is not meant to be checked in
 /go.mod
+
+# ignore custom development certificates
+/hack/dockerfile/certs/*.crt
