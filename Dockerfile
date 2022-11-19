@@ -44,36 +44,44 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
         && apt-get install -y --no-install-recommends criu \
         && install -D /usr/sbin/criu /build/criu
 
+# registry
+FROM base AS registry-src
+WORKDIR /usr/src/registry
+RUN git init . && git remote add origin "https://github.com/distribution/distribution.git"
+
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
-
 # REGISTRY_VERSION specifies the version of the registry to build and install
 # from the https://github.com/docker/distribution repository. This version of
 # the registry is used to test both schema 1 and schema 2 manifests. Generally,
 # the version specified here should match a current release.
 ARG REGISTRY_VERSION=v2.3.0
-
 # REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
 # install from the https://github.com/docker/distribution repository. This is
 # an older (pre v2.3.0) version of the registry that only supports schema1
 # manifests. This version of the registry is not working on arm64, so installation
 # is skipped on that architecture.
 ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
-RUN --mount=type=cache,target=/root/.cache/go-build \
+ARG TARGETPLATFORM
+RUN --mount=from=registry-src,src=/usr/src/registry,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=registry-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ \
-        set -x \
-        && git clone https://github.com/docker/distribution.git . \
-        && git checkout -q "$REGISTRY_VERSION" \
-        && GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-           go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
-        && case $(dpkg --print-architecture) in \
-               amd64|armhf|ppc64*|s390x) \
-               git checkout -q "$REGISTRY_VERSION_SCHEMA1"; \
-               GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
-                   go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
-                ;; \
-           esac
+    --mount=type=tmpfs,target=/go/src <<EOT
+  set -ex
+  git fetch -q --depth 1 origin "${REGISTRY_VERSION}" +refs/tags/*:refs/tags/*
+  git checkout -q FETCH_HEAD
+  export GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"
+  CGO_ENABLED=0 xx-go build -o /build/registry-v2 -v ./cmd/registry
+  xx-verify /build/registry-v2
+  case $TARGETPLATFORM in
+    linux/amd64|linux/arm/v7|linux/ppc64le|linux/s390x)
+      git fetch -q --depth 1 origin "${REGISTRY_VERSION_SCHEMA1}" +refs/tags/*:refs/tags/*
+      git checkout -q FETCH_HEAD
+      CGO_ENABLED=0 xx-go build -o /build/registry-v2-schema1 -v ./cmd/registry
+      xx-verify /build/registry-v2-schema1
+      ;;
+  esac
+EOT
 
 FROM base AS swagger
 WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
