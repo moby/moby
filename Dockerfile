@@ -14,6 +14,13 @@ ARG DEBIAN_FRONTEND=noninteractive
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
+# dummy stage to make sure the image is built for deps that don't support some
+# architectures
+FROM --platform=$BUILDPLATFORM busybox AS build-dummy
+RUN mkdir -p /build
+FROM scratch AS binary-dummy
+COPY --from=build-dummy /build /build
+
 # base
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
 COPY --from=xx / /
