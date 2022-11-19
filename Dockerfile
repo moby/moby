@@ -314,18 +314,39 @@ FROM runc-build AS runc-linux
 FROM binary-dummy AS runc-windows
 FROM runc-${TARGETOS} AS runc
 
-FROM dev-base AS tini
+# tini
+FROM base AS tini-src
+WORKDIR /usr/src/tini
+RUN git init . && git remote add origin "https://github.com/krallin/tini.git"
+# TINI_VERSION specifies the version of tini (docker-init) to build. This
+# binary is used when starting containers with the `--init` option.
+ARG TINI_VERSION=v0.19.0
+RUN git fetch -q --depth 1 origin "${TINI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS tini-build
+WORKDIR /go/src/github.com/krallin/tini
 ARG DEBIAN_FRONTEND
-ARG TINI_VERSION
 RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            cmake \
-            vim-common
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/tini.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh tini
+        apt-get update && apt-get install -y --no-install-recommends cmake
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
+        xx-apt-get install -y --no-install-recommends \
+            gcc libc6-dev
+RUN --mount=from=tini-src,src=/usr/src/tini,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=tini-build-$TARGETPLATFORM <<EOT
+  set -e
+  CC=$(xx-info)-gcc cmake .
+  make tini-static
+  xx-verify --static tini-static
+  mkdir /build
+  mv tini-static /build/docker-init
+EOT
+
+FROM tini-build AS tini-linux
+FROM binary-dummy AS tini-windows
+FROM tini-${TARGETOS} AS tini
 
 FROM dev-base AS rootlesskit
 ARG ROOTLESSKIT_VERSION
