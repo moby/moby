@@ -101,7 +101,6 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 
 func BenchmarkJSONFileLoggerLog(b *testing.B) {
 	tmp := fs.NewDir(b, "bench-jsonfilelog")
-	defer tmp.Remove()
 
 	jsonlogger, err := New(logger.Info{
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",

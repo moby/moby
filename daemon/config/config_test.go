@@ -119,9 +119,7 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 // Test for #40711
 func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	emptyConfigFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
-	defer emptyConfigFile.Remove()
 	configFile := fs.NewFile(t, "config", fs.WithContent(`{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`))
-	defer configFile.Remove()
 
 	expected := []*ipamutils.NetworkToSplit{{Base: "10.123.0.0/16", Size: 24}}
 
@@ -554,7 +552,6 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 
 func TestReloadWithConflictingLabels(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=bar","foo=baz"]}`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	var lbls []string
@@ -571,7 +568,6 @@ func TestReloadWithConflictingLabels(t *testing.T) {
 
 func TestReloadWithDuplicateLabels(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=the-same","foo=the-same"]}`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	var lbls []string
