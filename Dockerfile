@@ -1,19 +1,28 @@
 # syntax=docker/dockerfile:1
 
-ARG CROSS="false"
-ARG SYSTEMD="false"
 ARG GO_VERSION=1.19.4
-ARG DEBIAN_FRONTEND=noninteractive
-ARG VPNKIT_VERSION=0.5.0
-
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
+ARG XX_VERSION=1.1.2
 
-FROM ${GOLANG_IMAGE} AS base
+ARG VPNKIT_VERSION=0.5.0
+
+ARG CROSS="false"
+ARG SYSTEMD="false"
+ARG DEBIAN_FRONTEND=noninteractive
+
+# cross compilation helper
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
+
+# base
+FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
+COPY --from=xx / /
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
+ARG DEBIAN_FRONTEND
+RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
 
 FROM base AS criu
