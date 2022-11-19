@@ -37,7 +37,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.NilError(t, err)
 				assert.DeepEqual(t, du, types.DiskUsage{
 					Images:     []*types.ImageSummary{},
-					Containers: []*types.Container{},
+					Containers: []*types.ContainerUsage{},
 					Volumes:    []*volume.Volume{},
 					BuildCache: []*types.BuildCache{},
 				})
@@ -53,6 +53,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.NilError(t, err)
 				assert.Assert(t, du.LayersSize > 0)
 				assert.Equal(t, len(du.Images), 1)
+				assert.Assert(t, du.Images[0].ID != "")
 				assert.DeepEqual(t, du, types.DiskUsage{
 					LayersSize: du.LayersSize,
 					Images: []*types.ImageSummary{
@@ -64,7 +65,7 @@ func TestDiskUsage(t *testing.T) {
 							VirtualSize: du.LayersSize,
 						},
 					},
-					Containers: []*types.Container{},
+					Containers: []*types.ContainerUsage{},
 					Volumes:    []*volume.Volume{},
 					BuildCache: []*types.BuildCache{},
 				})
@@ -79,8 +80,11 @@ func TestDiskUsage(t *testing.T) {
 				du, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
 				assert.NilError(t, err)
 				assert.Equal(t, len(du.Containers), 1)
-				assert.Equal(t, len(du.Containers[0].Names), 1)
+				assert.Assert(t, du.Containers[0].Command != "")
 				assert.Assert(t, du.Containers[0].Created >= prev.Images[0].Created)
+				assert.Equal(t, len(du.Containers[0].Names), 1)
+				assert.Assert(t, du.Containers[0].Names[0] != "")
+				assert.Assert(t, du.Containers[0].Status != "")
 				assert.DeepEqual(t, du, types.DiskUsage{
 					LayersSize: prev.LayersSize,
 					Images: []*types.ImageSummary{
@@ -90,22 +94,20 @@ func TestDiskUsage(t *testing.T) {
 							return &sum
 						}(),
 					},
-					Containers: []*types.Container{
+					Containers: []*types.ContainerUsage{
 						{
-							ID:              cID,
-							Names:           du.Containers[0].Names,
-							Image:           "busybox",
-							ImageID:         prev.Images[0].ID,
-							Command:         du.Containers[0].Command, // not relevant for the test
-							Created:         du.Containers[0].Created,
-							Ports:           du.Containers[0].Ports, // not relevant for the test
-							SizeRootFs:      prev.Images[0].Size,
-							Labels:          du.Containers[0].Labels,          // not relevant for the test
-							State:           du.Containers[0].State,           // not relevant for the test
-							Status:          du.Containers[0].Status,          // not relevant for the test
-							HostConfig:      du.Containers[0].HostConfig,      // not relevant for the test
-							NetworkSettings: du.Containers[0].NetworkSettings, // not relevant for the test
-							Mounts:          du.Containers[0].Mounts,          // not relevant for the test
+							ID:         cID,
+							Image:      "busybox",
+							ImageID:    prev.Images[0].ID,
+							Command:    du.Containers[0].Command,
+							Created:    du.Containers[0].Created,
+							Ports:      []types.Port{},
+							Names:      du.Containers[0].Names,
+							SizeRootFs: prev.Images[0].Size,
+							Labels:     map[string]string{},
+							State:      "running",
+							Status:     du.Containers[0].Status,
+							Mounts:     []types.MountPoint{},
 						},
 					},
 					Volumes:    []*volume.Volume{},

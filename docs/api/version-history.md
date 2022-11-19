@@ -23,6 +23,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* Removed `HostConfig` and `NetworkSettings`  fields
+  from container usage data returned by `GET /system/df`.
+  `GET /containers/json?all=true&size=true` can be used instead to access values of the
+  removed fields along with the size information.
 * Removed the `BuilderSize` field on the `GET /system/df` endpoint. This field
   was introduced in API 1.31 as part of an experimental feature, and no longer
   used since API 1.40.

@@ -1972,7 +1972,7 @@ definitions:
         type: "string"
         description: "Mount path of the volume on the host."
         x-nullable: false
-        example: "/var/lib/docker/volumes/tardis"
+        example: "/var/lib/docker/volumes/tardis/_data"
       CreatedAt:
         type: "string"
         format: "dateTime"
@@ -2040,6 +2040,7 @@ definitions:
               driver. For volumes created with other volume drivers, this field
               is set to `-1` ("not available")
             x-nullable: false
+            example: 10920104
           RefCount:
             type: "integer"
             format: "int64"
@@ -2048,6 +2049,7 @@ definitions:
               The number of containers referencing this volume. This field
               is set to `-1` if the reference-count is not available.
             x-nullable: false
+            example: 2
 
   VolumeCreateOptions:
     description: "Volume configuration"
@@ -2326,6 +2328,29 @@ definitions:
       UsageCount:
         type: "integer"
         example: 26
+    example:
+      -
+        ID: "hw53o5aio51xtltp5xjp8v7fx"
+        Parents: []
+        Type: "regular"
+        Description: "pulled from docker.io/library/debian@sha256:234cb88d3020898631af0ccbbcca9a66ae7306ecd30c9720690858c1b007d2a0"
+        InUse: false
+        Shared: true
+        Size: 0
+        CreatedAt: "2021-06-28T13:31:01.474619385Z"
+        LastUsedAt: "2021-07-07T22:02:32.738075951Z"
+        UsageCount: 26
+      -
+        ID: "ndlpt0hhvkqcdfkputsk4cq9c"
+        Parents: ["ndlpt0hhvkqcdfkputsk4cq9c"]
+        Type: "regular"
+        Description: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
+        InUse: false
+        Shared: true
+        Size: 51
+        CreatedAt: "2021-06-28T13:31:03.002625487Z"
+        LastUsedAt: "2021-07-07T22:02:32.773909517Z"
+        UsageCount: 26
 
   ImageID:
     type: "object"
@@ -4497,6 +4522,68 @@ definitions:
         items:
           $ref: "#/definitions/MountPoint"
 
+  ContainerUsage:
+    description: "ContainerUsage describes the data usage of a container"
+    type: "object"
+    properties:
+      Id:
+        description: "The ID of this container"
+        type: "string"
+        x-go-name: "ID"
+        example: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
+      Names:
+        description: "The names that this container has been given"
+        type: "array"
+        items:
+          type: "string"
+        example: ["thirsty_lederberg"]
+      Image:
+        description: "The name of the image used when creating this container"
+        type: "string"
+        example: "busybox"
+      ImageID:
+        description: "The ID of the image that this container was created from"
+        type: "string"
+        example: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
+      Command:
+        type: "string"
+        description: "Command to run when starting this container"
+        example: "top"
+      Created:
+        description: "When the container was created"
+        type: "integer"
+        format: "int64"
+        example: 1472592424
+      Ports:
+        description: "The ports exposed by this container"
+        type: "array"
+        items:
+          $ref: "#/definitions/Port"
+      SizeRw:
+        description: "The size of files that have been created or changed by this container"
+        type: "integer"
+        format: "int64"
+      SizeRootFs:
+        description: "The total size of all the files in this container"
+        type: "integer"
+        format: "int64"
+        example: 1092588
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+      State:
+        $ref: "#/definitions/ContainerStateStatus"
+      Status:
+        description: "Additional human-readable status of this container"
+        type: "string"
+        example: "Exited (0) 56 minutes ago"
+      Mounts:
+        type: "array"
+        items:
+          $ref: "#/definitions/MountPoint"
+
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
     type: "object"
@@ -4612,6 +4699,14 @@ definitions:
       Spec:
         $ref: "#/definitions/ConfigSpec"
 
+  ContainerStateStatus:
+    description: |
+      String representation of the container state. Can be one of "created",
+      "running", "paused", "restarting", "removing", "exited", or "dead".
+    type: "string"
+    enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
+    example: "running"
+
   ContainerState:
     description: |
       ContainerState stores container's running state. It's part of ContainerJSONBase
@@ -4620,12 +4715,7 @@ definitions:
     x-nullable: true
     properties:
       Status:
-        description: |
-          String representation of the container state. Can be one of "created",
-          "running", "paused", "restarting", "removing", "exited", or "dead".
-        type: "string"
-        enum: ["created", "running", "paused", "restarting", "removing", "exited", "dead"]
-        example: "running"
+        $ref: "#/definitions/ContainerStateStatus"
       Running:
         description: |
           Whether this container is running.
@@ -9013,6 +9103,7 @@ paths:
               LayersSize:
                 type: "integer"
                 format: "int64"
+                example: 1092588
               Images:
                 type: "array"
                 items:
@@ -9020,7 +9111,7 @@ paths:
               Containers:
                 type: "array"
                 items:
-                  $ref: "#/definitions/ContainerSummary"
+                  $ref: "#/definitions/ContainerUsage"
               Volumes:
                 type: "array"
                 items:
@@ -9029,88 +9120,6 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/BuildCache"
-            example:
-              LayersSize: 1092588
-              Images:
-                -
-                  Id: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
-                  ParentId: ""
-                  RepoTags:
-                    - "busybox:latest"
-                  RepoDigests:
-                    - "busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6"
-                  Created: 1466724217
-                  Size: 1092588
-                  SharedSize: 0
-                  VirtualSize: 1092588
-                  Labels: {}
-                  Containers: 1
-              Containers:
-                -
-                  Id: "e575172ed11dc01bfce087fb27bee502db149e1a0fad7c296ad300bbff178148"
-                  Names:
-                    - "/top"
-                  Image: "busybox"
-                  ImageID: "sha256:2b8fd9751c4c0f5dd266fcae00707e67a2545ef34f9a29354585f93dac906749"
-                  Command: "top"
-                  Created: 1472592424
-                  Ports: []
-                  SizeRootFs: 1092588
-                  Labels: {}
-                  State: "exited"
-                  Status: "Exited (0) 56 minutes ago"
-                  HostConfig:
-                    NetworkMode: "default"
-                  NetworkSettings:
-                    Networks:
-                      bridge:
-                        IPAMConfig: null
-                        Links: null
-                        Aliases: null
-                        NetworkID: "d687bc59335f0e5c9ee8193e5612e8aee000c8c62ea170cfb99c098f95899d92"
-                        EndpointID: "8ed5115aeaad9abb174f68dcf135b49f11daf597678315231a32ca28441dec6a"
-                        Gateway: "172.18.0.1"
-                        IPAddress: "172.18.0.2"
-                        IPPrefixLen: 16
-                        IPv6Gateway: ""
-                        GlobalIPv6Address: ""
-                        GlobalIPv6PrefixLen: 0
-                        MacAddress: "02:42:ac:12:00:02"
-                  Mounts: []
-              Volumes:
-                -
-                  Name: "my-volume"
-                  Driver: "local"
-                  Mountpoint: "/var/lib/docker/volumes/my-volume/_data"
-                  Labels: null
-                  Scope: "local"
-                  Options: null
-                  UsageData:
-                    Size: 10920104
-                    RefCount: 2
-              BuildCache:
-                -
-                  ID: "hw53o5aio51xtltp5xjp8v7fx"
-                  Parents: []
-                  Type: "regular"
-                  Description: "pulled from docker.io/library/debian@sha256:234cb88d3020898631af0ccbbcca9a66ae7306ecd30c9720690858c1b007d2a0"
-                  InUse: false
-                  Shared: true
-                  Size: 0
-                  CreatedAt: "2021-06-28T13:31:01.474619385Z"
-                  LastUsedAt: "2021-07-07T22:02:32.738075951Z"
-                  UsageCount: 26
-                -
-                  ID: "ndlpt0hhvkqcdfkputsk4cq9c"
-                  Parents: ["ndlpt0hhvkqcdfkputsk4cq9c"]
-                  Type: "regular"
-                  Description: "mount / from exec /bin/sh -c echo 'Binary::apt::APT::Keep-Downloaded-Packages \"true\";' > /etc/apt/apt.conf.d/keep-cache"
-                  InUse: false
-                  Shared: true
-                  Size: 51
-                  CreatedAt: "2021-06-28T13:31:03.002625487Z"
-                  LastUsedAt: "2021-07-07T22:02:32.773909517Z"
-                  UsageCount: 26
         500:
           description: "server error"
           schema:

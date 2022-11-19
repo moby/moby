@@ -35,8 +35,15 @@ func TestDiskUsage(t *testing.T) {
 			du := types.DiskUsage{
 				LayersSize: int64(100),
 				Images:     nil,
-				Containers: nil,
-				Volumes:    nil,
+				Containers: []*types.ContainerUsage{
+					{
+						ID:         "test-id",
+						Names:      []string{"test-names"},
+						SizeRw:     42,
+						SizeRootFs: 4242,
+					},
+				},
+				Volumes: nil,
 			}
 
 			b, err := json.Marshal(du)

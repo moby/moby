@@ -689,12 +689,30 @@ type DiskUsageOptions struct {
 	Types []DiskUsageObject
 }
 
+// ContainerUsage contains container usage part of response of Engine API:
+// GET "/system/df"
+type ContainerUsage struct {
+	ID         string `json:"Id"` // Use "Id" in JSON for backward-compatibility with API < 1.42
+	Names      []string
+	Image      string
+	ImageID    string
+	Command    string
+	Created    int64
+	Ports      []Port
+	SizeRw     int64 `json:",omitempty"`
+	SizeRootFs int64 `json:",omitempty"`
+	Labels     map[string]string
+	State      string
+	Status     string
+	Mounts     []MountPoint
+}
+
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
 	LayersSize  int64
 	Images      []*ImageSummary
-	Containers  []*Container
+	Containers  []*ContainerUsage
 	Volumes     []*volume.Volume
 	BuildCache  []*BuildCache
 	BuilderSize int64 `json:",omitempty"` // Deprecated: deprecated in API 1.38, and no longer used since API 1.40.
