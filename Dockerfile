@@ -348,17 +348,40 @@ FROM tini-build AS tini-linux
 FROM binary-dummy AS tini-windows
 FROM tini-${TARGETOS} AS tini
 
-FROM dev-base AS rootlesskit
-ARG ROOTLESSKIT_VERSION
-ARG PREFIX=/build
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/rootlesskit.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
+# rootlesskit
+FROM base AS rootlesskit-src
+WORKDIR /usr/src/rootlesskit
+RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
+# When updating, also update rootlesskit commit in vendor.mod accordingly.
+ARG ROOTLESSKIT_VERSION=v1.1.0
+RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS rootlesskit-build
+WORKDIR /go/src/github.com/rootless-containers/rootlesskit
+ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptcache,target=/var/cache/apt \
+        apt-get update && xx-apt-get install -y --no-install-recommends \
+            gcc libc6-dev
+ENV GO111MODULE=on
+ARG DOCKER_STATIC
+RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
     --mount=type=cache,target=/go/pkg/mod \
-        /install.sh rootlesskit \
-     && "${PREFIX}"/rootlesskit --version \
-     && "${PREFIX}"/rootlesskit-docker-proxy --help
-COPY ./contrib/dockerd-rootless.sh /build
-COPY ./contrib/dockerd-rootless-setuptool.sh /build
+    --mount=type=cache,target=/root/.cache/go-build,id=rootlesskit-build-$TARGETPLATFORM <<EOT
+  set -e
+  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
+  xx-go build -o /build/rootlesskit -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit
+  xx-go build -o /build/rootlesskit-docker-proxy -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit-docker-proxy
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit-docker-proxy
+EOT
+COPY ./contrib/dockerd-rootless.sh /build/
+COPY ./contrib/dockerd-rootless-setuptool.sh /build/
+
+FROM rootlesskit-build AS rootlesskit-linux
+FROM binary-dummy AS rootlesskit-windows
+FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
 ARG CRUN_VERSION=1.4.5
