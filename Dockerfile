@@ -280,13 +280,39 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         PREFIX=/build /install.sh dockercli
 
-FROM runtime-dev AS runc
-ARG RUNC_VERSION
-ARG RUNC_BUILDTAGS
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/runc.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh runc
+# runc
+FROM base AS runc-src
+WORKDIR /usr/src/runc
+RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
+# RUNC_VERSION should match the version that is used by the containerd version
+# that is used. If you need to update runc, open a pull request in the containerd
+# project first, and update both after that is merged. When updating RUNC_VERSION,
+# consider updating runc in vendor.mod accordingly.
+ARG RUNC_VERSION=v1.1.4
+RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS runc-build
+WORKDIR /go/src/github.com/opencontainers/runc
+ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-runc-aptcache,target=/var/cache/apt \
+        apt-get update && xx-apt-get install -y --no-install-recommends \
+            dpkg-dev gcc libc6-dev libseccomp-dev
+ARG DOCKER_STATIC
+RUN --mount=from=runc-src,src=/usr/src/runc,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=runc-build-$TARGETPLATFORM <<EOT
+  set -e
+  xx-go --wrap
+  CGO_ENABLED=1 make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") runc
+  mkdir /build
+  mv runc /build/
+EOT
+
+FROM runc-build AS runc-linux
+FROM binary-dummy AS runc-windows
+FROM runc-${TARGETOS} AS runc
 
 FROM dev-base AS tini
 ARG DEBIAN_FRONTEND
