@@ -14,7 +14,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/Microsoft/hcsshim v0.9.5
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
-	github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310
+	github.com/armon/go-radix v1.0.1-0.20221118154546-54df44f2176c
 	github.com/aws/aws-sdk-go v1.31.6
 	github.com/bsphere/le_go v0.0.0-20170215134836-7a984a84b549
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
@@ -116,7 +116,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/certificate-transparency-go v1.1.2 // indirect
+	github.com/google/certificate-transparency-go v1.1.2 // indirect; replaced; see "replace" section at the bottom of this file for the actual version.
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
@@ -166,15 +166,8 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 )
 
-replace (
-	// More recent versions result in a panic in libnetwork.
-	// FIXME(thaJeztah): we need to fix how we use this library or replace it; see https://github.com/moby/moby/issues/43753
-	github.com/armon/go-radix => github.com/armon/go-radix v0.0.0-20150105235045-e39d623f12e8
-	// Resolve dependency hell with github.com/cloudflare/cfssl (transitive via
-	// swarmkit) by pinning the certificate-transparency-go version. Remove once
-	// module go.etcd.io/etcd/server/v3 has upgraded its dependency on
-	// go.opentelemetry.io/otel to v1.
-	github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
-	// Removes etcd dependency
-	github.com/rexray/gocsi => github.com/dperny/gocsi v1.2.3-pre
-)
+// Resolve dependency hell with github.com/cloudflare/cfssl (transitive via
+// swarmkit) by pinning the certificate-transparency-go version. Remove once
+// module go.etcd.io/etcd/server/v3 has upgraded its dependency on
+// go.opentelemetry.io/otel to v1.
+replace github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
