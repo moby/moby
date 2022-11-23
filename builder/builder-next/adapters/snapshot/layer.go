@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/longpath"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/errgroup"
@@ -55,7 +55,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 		})
 	}
 
-	tmpDir, err := ioutils.TempDir("", "docker-tarsplit")
+	tmpDir, err := longpath.MkdirTemp("", "docker-tarsplit")
 	if err != nil {
 		return nil, err
 	}

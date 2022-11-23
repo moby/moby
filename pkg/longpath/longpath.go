@@ -6,6 +6,8 @@
 package longpath // import "github.com/docker/docker/pkg/longpath"
 
 import (
+	"os"
+	"runtime"
 	"strings"
 )
 
@@ -24,4 +26,18 @@ func AddPrefix(path string) string {
 		}
 	}
 	return path
+}
+
+// MkdirTemp is the equivalent of [os.MkdirTemp], except that on Windows
+// the result is in Windows longpath format. On Unix systems it is
+// equivalent to [os.MkdirTemp].
+func MkdirTemp(dir, prefix string) (string, error) {
+	tempDir, err := os.MkdirTemp(dir, prefix)
+	if err != nil {
+		return "", err
+	}
+	if runtime.GOOS != "windows" {
+		return tempDir, nil
+	}
+	return AddPrefix(tempDir), nil
 }
