@@ -893,7 +893,7 @@ go.uber.org/atomic
 # go.uber.org/multierr v1.8.0
 ## explicit; go 1.14
 go.uber.org/multierr
-# go.uber.org/zap v1.17.0
+# go.uber.org/zap v1.21.0
 ## explicit; go 1.13
 go.uber.org/zap
 go.uber.org/zap/buffer
