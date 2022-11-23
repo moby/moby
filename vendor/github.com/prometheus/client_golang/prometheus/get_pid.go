@@ -1,4 +1,4 @@
-// Copyright 2020 The Prometheus Authors
+// Copyright 2015 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,10 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build linux && (ppc64 || ppc64le)
-// +build linux
-// +build ppc64 ppc64le
+//go:build !js || wasm
+// +build !js wasm
 
-package procfs
+package prometheus
 
-var parseCPUInfo = parseCPUInfoPPC
+import "os"
+
+func getPIDFn() func() (int, error) {
+	pid := os.Getpid()
+	return func() (int, error) {
+		return pid, nil
+	}
+}
