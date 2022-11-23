@@ -101,6 +101,18 @@ type envConfig struct {
 	//  AWS_CA_BUNDLE=$HOME/my_custom_ca_bundle
 	CustomCABundle string
 
+	// Sets the TLC client certificate that should be used by the SDK's HTTP transport
+	// when making requests. The certificate must be paired with a TLS client key file.
+	//
+	//  AWS_SDK_GO_CLIENT_TLS_CERT=$HOME/my_client_cert
+	ClientTLSCert string
+
+	// Sets the TLC client key that should be used by the SDK's HTTP transport
+	// when making requests. The key must be paired with a TLS client certificate file.
+	//
+	//  AWS_SDK_GO_CLIENT_TLS_KEY=$HOME/my_client_key
+	ClientTLSKey string
+
 	csmEnabled  string
 	CSMEnabled  *bool
 	CSMPort     string
@@ -148,6 +160,11 @@ type envConfig struct {
 	//
 	// AWS_S3_USE_ARN_REGION=true
 	S3UseARNRegion bool
+
+	// Specifies the alternative endpoint to use for EC2 IMDS.
+	//
+	// AWS_EC2_METADATA_SERVICE_ENDPOINT=http://[::1]
+	EC2IMDSEndpoint string
 }
 
 var (
@@ -210,6 +227,18 @@ var (
 	}
 	s3UseARNRegionEnvKey = []string{
 		"AWS_S3_USE_ARN_REGION",
+	}
+	ec2IMDSEndpointEnvKey = []string{
+		"AWS_EC2_METADATA_SERVICE_ENDPOINT",
+	}
+	useCABundleKey = []string{
+		"AWS_CA_BUNDLE",
+	}
+	useClientTLSCert = []string{
+		"AWS_SDK_GO_CLIENT_TLS_CERT",
+	}
+	useClientTLSKey = []string{
+		"AWS_SDK_GO_CLIENT_TLS_KEY",
 	}
 )
 
@@ -294,7 +323,9 @@ func envConfigLoad(enableSharedConfig bool) (envConfig, error) {
 		cfg.SharedConfigFile = defaults.SharedConfigFilename()
 	}
 
-	cfg.CustomCABundle = os.Getenv("AWS_CA_BUNDLE")
+	setFromEnvVal(&cfg.CustomCABundle, useCABundleKey)
+	setFromEnvVal(&cfg.ClientTLSCert, useClientTLSCert)
+	setFromEnvVal(&cfg.ClientTLSKey, useClientTLSKey)
 
 	var err error
 	// STS Regional Endpoint variable
@@ -331,6 +362,8 @@ func envConfigLoad(enableSharedConfig bool) (envConfig, error) {
 				s3UseARNRegionEnvKey[0], s3UseARNRegion)
 		}
 	}
+
+	setFromEnvVal(&cfg.EC2IMDSEndpoint, ec2IMDSEndpointEnvKey)
 
 	return cfg, nil
 }
