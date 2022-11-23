@@ -1,0 +1,322 @@
+{
+    "release-type": "go-yoshi",
+    "include-component-in-tag": true,
+    "tag-separator": "/",
+    "packages": {
+        "accessapproval": {
+            "component": "accessapproval"
+        },
+        "accesscontextmanager": {
+            "component": "accesscontextmanager"
+        },
+        "aiplatform": {
+            "component": "aiplatform"
+        },
+        "analytics": {
+            "component": "analytics"
+        },
+        "apigateway": {
+            "component": "apigateway"
+        },
+        "apigeeconnect": {
+            "component": "apigeeconnect"
+        },
+        "appengine": {
+            "component": "appengine"
+        },
+        "area120": {
+            "component": "area120"
+        },
+        "artifactregistry": {
+            "component": "artifactregistry"
+        },
+        "asset": {
+            "component": "asset"
+        },
+        "assuredworkloads": {
+            "component": "assuredworkloads"
+        },
+        "automl": {
+            "component": "automl"
+        },
+        "baremetalsolution": {
+            "component": "baremetalsolution"
+        },
+        "batch": {
+            "component": "batch"
+        },
+        "billing": {
+            "component": "billing"
+        },
+        "binaryauthorization": {
+            "component": "binaryauthorization"
+        },
+        "certificatemanager": {
+            "component": "certificatemanager"
+        },
+        "channel": {
+            "component": "channel"
+        },
+        "cloudbuild": {
+            "component": "cloudbuild"
+        },
+        "clouddms": {
+            "component": "clouddms"
+        },
+        "cloudtasks": {
+            "component": "cloudtasks"
+        },
+        "compute": {
+            "component": "compute"
+        },
+        "contactcenterinsights": {
+            "component": "contactcenterinsights"
+        },
+        "container": {
+            "component": "container"
+        },
+        "containeranalysis": {
+            "component": "containeranalysis"
+        },
+        "datacatalog": {
+            "component": "datacatalog"
+        },
+        "dataflow": {
+            "component": "dataflow"
+        },
+        "datafusion": {
+            "component": "datafusion"
+        },
+        "datalabeling": {
+            "component": "datalabeling"
+        },
+        "dataplex": {
+            "component": "dataplex"
+        },
+        "dataproc": {
+            "component": "dataproc"
+        },
+        "dataqna": {
+            "component": "dataqna"
+        },
+        "datastream": {
+            "component": "datastream"
+        },
+        "deploy": {
+            "component": "deploy"
+        },
+        "dialogflow": {
+            "component": "dialogflow"
+        },
+        "dlp": {
+            "component": "dlp"
+        },
+        "documentai": {
+            "component": "documentai"
+        },
+        "domains": {
+            "component": "domains"
+        },
+        "essentialcontacts": {
+            "component": "essentialcontacts"
+        },
+        "eventarc": {
+            "component": "eventarc"
+        },
+        "filestore": {
+            "component": "filestore"
+        },
+        "functions": {
+            "component": "functions"
+        },
+        "gaming": {
+            "component": "gaming"
+        },
+        "gkebackup": {
+            "component": "gkebackup"
+        },
+        "gkeconnect": {
+            "component": "gkeconnect"
+        },
+        "gkehub": {
+            "component": "gkehub"
+        },
+        "gkemulticloud": {
+            "component": "gkemulticloud"
+        },
+        "grafeas": {
+            "component": "grafeas"
+        },
+        "gsuiteaddons": {
+            "component": "gsuiteaddons"
+        },
+        "iam": {
+            "component": "iam"
+        },
+        "iap": {
+            "component": "iap"
+        },
+        "ids": {
+            "component": "ids"
+        },
+        "iot": {
+            "component": "iot"
+        },
+        "kms": {
+            "component": "kms"
+        },
+        "language": {
+            "component": "language"
+        },
+        "lifesciences": {
+            "component": "lifesciences"
+        },
+        "managedidentities": {
+            "component": "managedidentities"
+        },
+        "mediatranslation": {
+            "component": "mediatranslation"
+        },
+        "memcache": {
+            "component": "memcache"
+        },
+        "metastore": {
+            "component": "metastore"
+        },
+        "monitoring": {
+            "component": "monitoring"
+        },
+        "networkconnectivity": {
+            "component": "networkconnectivity"
+        },
+        "networkmanagement": {
+            "component": "networkmanagement"
+        },
+        "networksecurity": {
+            "component": "networksecurity"
+        },
+        "notebooks": {
+            "component": "notebooks"
+        },
+        "optimization": {
+            "component": "optimization"
+        },
+        "orchestration": {
+            "component": "orchestration"
+        },
+        "orgpolicy": {
+            "component": "orgpolicy"
+        },
+        "osconfig": {
+            "component": "osconfig"
+        },
+        "oslogin": {
+            "component": "oslogin"
+        },
+        "phishingprotection": {
+            "component": "phishingprotection"
+        },
+        "policytroubleshooter": {
+            "component": "policytroubleshooter"
+        },
+        "privatecatalog": {
+            "component": "privatecatalog"
+        },
+        "recaptchaenterprise/v2": {
+            "component": "recaptchaenterprise"
+        },
+        "recommendationengine": {
+            "component": "recommendationengine"
+        },
+        "recommender": {
+            "component": "recommender"
+        },
+        "redis": {
+            "component": "redis"
+        },
+        "resourcemanager": {
+            "component": "resourcemanager"
+        },
+        "resourcesettings": {
+            "component": "resourcesettings"
+        },
+        "retail": {
+            "component": "retail"
+        },
+        "run": {
+            "component": "run"
+        },
+        "scheduler": {
+            "component": "scheduler"
+        },
+        "secretmanager": {
+            "component": "secretmanager"
+        },
+        "security": {
+            "component": "security"
+        },
+        "securitycenter": {
+            "component": "securitycenter"
+        },
+        "servicecontrol": {
+            "component": "servicecontrol"
+        },
+        "servicedirectory": {
+            "component": "servicedirectory"
+        },
+        "servicemanagement": {
+            "component": "servicemanagement"
+        },
+        "serviceusage": {
+            "component": "serviceusage"
+        },
+        "shell": {
+            "component": "shell"
+        },
+        "speech": {
+            "component": "speech"
+        },
+        "storagetransfer": {
+            "component": "storagetransfer"
+        },
+        "talent": {
+            "component": "talent"
+        },
+        "texttospeech": {
+            "component": "texttospeech"
+        },
+        "tpu": {
+            "component": "tpu"
+        },
+        "trace": {
+            "component": "trace"
+        },
+        "translate": {
+            "component": "translate"
+        },
+        "video": {
+            "component": "video"
+        },
+        "videointelligence": {
+            "component": "videointelligence"
+        },
+        "vision/v2": {
+            "component": "vision"
+        },
+        "vmmigration": {
+            "component": "vmmigration"
+        },
+        "vpcaccess": {
+            "component": "vpcaccess"
+        },
+        "webrisk": {
+            "component": "webrisk"
+        },
+        "websecurityscanner": {
+            "component": "websecurityscanner"
+        },
+        "workflows": {
+            "component": "workflows"
+        }
+    }
+}

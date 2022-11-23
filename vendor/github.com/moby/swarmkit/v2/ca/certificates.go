@@ -754,7 +754,7 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, connBroker *connectionbro
 		io.Copy(verifier, bytes.NewReader(response.Certificate))
 
 		if !verifier.Verified() {
-			return RootCA{}, errors.Errorf("remote CA does not match fingerprint. Expected: %s", d.Hex())
+			return RootCA{}, errors.Errorf("remote CA does not match fingerprint. Expected: %s", d.Encoded())
 		}
 	}
 

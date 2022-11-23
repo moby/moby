@@ -1,8 +1,10 @@
-# cloud.google.com/go v0.93.3
-## explicit; go 1.11
+# cloud.google.com/go v0.102.1
+## explicit; go 1.15
 cloud.google.com/go
-cloud.google.com/go/compute/metadata
 cloud.google.com/go/internal/version
+# cloud.google.com/go/compute v1.7.0
+## explicit; go 1.15
+cloud.google.com/go/compute/metadata
 # cloud.google.com/go/logging v1.4.2
 ## explicit; go 1.11
 cloud.google.com/go/logging
@@ -378,8 +380,8 @@ github.com/golang/protobuf/ptypes/wrappers
 # github.com/google/btree v1.1.2
 ## explicit; go 1.18
 github.com/google/btree
-# github.com/google/certificate-transparency-go v1.1.2 => github.com/google/certificate-transparency-go v1.0.20
-## explicit
+# github.com/google/certificate-transparency-go v1.1.4
+## explicit; go 1.17
 github.com/google/certificate-transparency-go
 github.com/google/certificate-transparency-go/asn1
 github.com/google/certificate-transparency-go/client
@@ -402,9 +404,16 @@ github.com/google/shlex
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
-# github.com/googleapis/gax-go/v2 v2.0.5
-## explicit
+# github.com/googleapis/enterprise-certificate-proxy v0.1.0
+## explicit; go 1.18
+github.com/googleapis/enterprise-certificate-proxy/client
+github.com/googleapis/enterprise-certificate-proxy/client/util
+# github.com/googleapis/gax-go/v2 v2.4.0
+## explicit; go 1.15
 github.com/googleapis/gax-go/v2
+github.com/googleapis/gax-go/v2/apierror
+github.com/googleapis/gax-go/v2/apierror/internal/proto
+github.com/googleapis/gax-go/v2/internal
 # github.com/gorilla/mux v1.8.0
 ## explicit; go 1.12
 github.com/gorilla/mux
@@ -605,8 +614,8 @@ github.com/moby/patternmatcher
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.0.0-20221102165002-6341884e5fc9
-## explicit; go 1.17
+# github.com/moby/swarmkit/v2 v2.0.0-20221123162438-b17f02f0a054
+## explicit; go 1.18
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
 github.com/moby/swarmkit/v2/agent/csi
@@ -800,23 +809,23 @@ github.com/vishvananda/netns
 # go.etcd.io/bbolt v1.3.6
 ## explicit; go 1.12
 go.etcd.io/bbolt
-# go.etcd.io/etcd/client/pkg/v3 v3.5.2
+# go.etcd.io/etcd/client/pkg/v3 v3.5.6
 ## explicit; go 1.16
 go.etcd.io/etcd/client/pkg/v3/fileutil
-# go.etcd.io/etcd/pkg/v3 v3.5.2
+# go.etcd.io/etcd/pkg/v3 v3.5.6
 ## explicit; go 1.16
 go.etcd.io/etcd/pkg/v3/crc
 go.etcd.io/etcd/pkg/v3/idutil
 go.etcd.io/etcd/pkg/v3/ioutil
 go.etcd.io/etcd/pkg/v3/pbutil
-# go.etcd.io/etcd/raft/v3 v3.5.2
+# go.etcd.io/etcd/raft/v3 v3.5.6
 ## explicit; go 1.16
 go.etcd.io/etcd/raft/v3
 go.etcd.io/etcd/raft/v3/confchange
 go.etcd.io/etcd/raft/v3/quorum
 go.etcd.io/etcd/raft/v3/raftpb
 go.etcd.io/etcd/raft/v3/tracker
-# go.etcd.io/etcd/server/v3 v3.5.2
+# go.etcd.io/etcd/server/v3 v3.5.6
 ## explicit; go 1.16
 go.etcd.io/etcd/server/v3/etcdserver/api/snap
 go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
@@ -979,10 +988,12 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.1.0
 ## explicit
 golang.org/x/time/rate
-# google.golang.org/api v0.54.0
-## explicit; go 1.11
+# google.golang.org/api v0.93.0
+## explicit; go 1.15
+google.golang.org/api/googleapi
 google.golang.org/api/internal
 google.golang.org/api/internal/impersonate
+google.golang.org/api/internal/third_party/uritemplates
 google.golang.org/api/iterator
 google.golang.org/api/option
 google.golang.org/api/option/internaloption
@@ -1016,6 +1027,8 @@ google.golang.org/genproto/googleapis/api/monitoredres
 google.golang.org/genproto/googleapis/logging/type
 google.golang.org/genproto/googleapis/logging/v2
 google.golang.org/genproto/googleapis/longrunning
+google.golang.org/genproto/googleapis/rpc/code
+google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/protobuf/field_mask
 # google.golang.org/grpc v1.48.0
@@ -1134,4 +1147,11 @@ gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
-# github.com/google/certificate-transparency-go => github.com/google/certificate-transparency-go v1.0.20
+# k8s.io/klog/v2 v2.80.1
+## explicit; go 1.13
+k8s.io/klog/v2
+k8s.io/klog/v2/internal/buffer
+k8s.io/klog/v2/internal/clock
+k8s.io/klog/v2/internal/dbg
+k8s.io/klog/v2/internal/serialize
+k8s.io/klog/v2/internal/severity
