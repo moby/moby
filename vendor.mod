@@ -163,7 +163,7 @@ require (
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/api v0.54.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 )
 
 // Resolve dependency hell with github.com/cloudflare/cfssl (transitive via
