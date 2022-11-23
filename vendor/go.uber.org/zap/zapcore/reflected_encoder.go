@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Uber Technologies, Inc.
+// Copyright (c) 2016 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,9 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// See #682 for more information.
-// +build !go1.12
+package zapcore
 
-package zap
+import (
+	"encoding/json"
+	"io"
+)
 
-const _stdLogDefaultDepth = 2
+// ReflectedEncoder serializes log fields that can't be serialized with Zap's
+// JSON encoder. These have the ReflectType field type.
+// Use EncoderConfig.NewReflectedEncoder to set this.
+type ReflectedEncoder interface {
+	// Encode encodes and writes to the underlying data stream.
+	Encode(interface{}) error
+}
+
+func defaultReflectedEncoder(w io.Writer) ReflectedEncoder {
+	enc := json.NewEncoder(w)
+	// For consistency with our custom JSON encoder.
+	enc.SetEscapeHTML(false)
+	return enc
+}
