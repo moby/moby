@@ -77,7 +77,7 @@ var (
 	// environment variable
 	// "GRPC_XDS_EXPERIMENTAL_ENABLE_AGGREGATE_AND_LOGICAL_DNS_CLUSTER" to
 	// "true".
-	XDSAggregateAndDNS = strings.EqualFold(os.Getenv(aggregateAndDNSSupportEnv), "true")
+	XDSAggregateAndDNS = !strings.EqualFold(os.Getenv(aggregateAndDNSSupportEnv), "false")
 
 	// XDSRBAC indicates whether xDS configured RBAC HTTP Filter is enabled,
 	// which can be disabled by setting the environment variable
