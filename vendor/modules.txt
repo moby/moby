@@ -683,8 +683,8 @@ github.com/moby/sys/signal
 # github.com/moby/sys/symlink v0.2.0
 ## explicit; go 1.16
 github.com/moby/sys/symlink
-# github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
-## explicit; go 1.13
+# github.com/moby/term v0.0.0-20221120202655-abb19827d345
+## explicit; go 1.18
 github.com/moby/term
 github.com/moby/term/windows
 # github.com/morikuni/aec v1.0.0
