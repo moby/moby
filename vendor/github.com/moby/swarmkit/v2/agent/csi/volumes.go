@@ -17,7 +17,7 @@ import (
 	"github.com/moby/swarmkit/v2/volumequeue"
 )
 
-const CSI_CALL_TIMEOUT = 15 * time.Second
+const csiCallTimeout = 15 * time.Second
 
 // volumeState keeps track of the state of a volume on this node.
 type volumeState struct {
@@ -39,8 +39,8 @@ type volumes struct {
 	// volumes is a mapping of volume ID to volumeState
 	volumes map[string]volumeState
 
-	// plugins is the PluginManager, which provides translation to the CSI RPCs
-	plugins plugin.PluginManager
+	// plugins is the Manager, which provides translation to the CSI RPCs
+	plugins plugin.Manager
 
 	// pendingVolumes is a VolumeQueue which manages which volumes are
 	// processed and when.
@@ -51,7 +51,7 @@ type volumes struct {
 func NewManager(pg plugingetter.PluginGetter, secrets exec.SecretGetter) exec.VolumesManager {
 	r := &volumes{
 		volumes:        map[string]volumeState{},
-		plugins:        plugin.NewPluginManager(pg, secrets),
+		plugins:        plugin.NewManager(pg, secrets),
 		pendingVolumes: volumequeue.NewVolumeQueue(),
 	}
 	go r.retryVolumes()
@@ -107,7 +107,7 @@ func (r *volumes) tryVolume(ctx context.Context, id string, attempt uint) {
 	// These are too complicated to be worth the engineering effort at this
 	// time.
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, CSI_CALL_TIMEOUT)
+	timeoutCtx, cancel := context.WithTimeout(ctx, csiCallTimeout)
 	// always gotta call the WithTimeout cancel
 	defer cancel()
 

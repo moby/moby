@@ -57,7 +57,6 @@ type statusReporterKey struct {
 type worker struct {
 	db                *bolt.DB
 	executor          exec.Executor
-	publisher         exec.LogPublisher
 	listeners         map[*statusReporterKey]struct{}
 	taskevents        *watch.Queue
 	publisherProvider exec.LogPublisherProvider

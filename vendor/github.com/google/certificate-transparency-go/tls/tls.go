@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Google LLC. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,41 +106,41 @@ var (
 //
 // For example, a TLS structure:
 //
-//   enum { e1(1), e2(2) } EnumType;
-//   struct {
-//      EnumType sel;
-//      select(sel) {
-//         case e1: uint16
-//         case e2: uint32
-//      } data;
-//   } VariantItem;
+//	enum { e1(1), e2(2) } EnumType;
+//	struct {
+//	   EnumType sel;
+//	   select(sel) {
+//	      case e1: uint16
+//	      case e2: uint32
+//	   } data;
+//	} VariantItem;
 //
 // would have a corresponding Go type:
 //
-//   type VariantItem struct {
-//      Sel    tls.Enum  `tls:"maxval:2"`
-//      Data16 *uint16   `tls:"selector:Sel,val:1"`
-//      Data32 *uint32   `tls:"selector:Sel,val:2"`
-//    }
+//	type VariantItem struct {
+//	   Sel    tls.Enum  `tls:"maxval:2"`
+//	   Data16 *uint16   `tls:"selector:Sel,val:1"`
+//	   Data32 *uint32   `tls:"selector:Sel,val:2"`
+//	 }
 //
 // TLS fixed-length vectors of types other than opaque or uint8 are not supported.
 //
 // For TLS variable-length vectors that are themselves used in other vectors,
 // create a single-field structure to represent the inner type. For example, for:
 //
-//   opaque InnerType<1..65535>;
-//   struct {
-//     InnerType inners<1,65535>;
-//   } Something;
+//	opaque InnerType<1..65535>;
+//	struct {
+//	  InnerType inners<1,65535>;
+//	} Something;
 //
 // convert to:
 //
-//   type InnerType struct {
-//      Val    []byte       `tls:"minlen:1,maxlen:65535"`
-//   }
-//   type Something struct {
-//      Inners []InnerType  `tls:"minlen:1,maxlen:65535"`
-//   }
+//	type InnerType struct {
+//	   Val    []byte       `tls:"minlen:1,maxlen:65535"`
+//	}
+//	type Something struct {
+//	   Inners []InnerType  `tls:"minlen:1,maxlen:65535"`
+//	}
 //
 // If the encoded value does not fit in the Go type, Unmarshal returns a parse error.
 func Unmarshal(b []byte, val interface{}) ([]byte, error) {

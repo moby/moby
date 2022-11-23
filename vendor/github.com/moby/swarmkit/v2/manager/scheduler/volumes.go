@@ -50,9 +50,11 @@ func newVolumeSet() *volumeSet {
 	}
 }
 
+// getVolume returns the volume object for the given ID as stored in the
+// volumeSet, or nil if none exists.
+//
+//nolint:unused // TODO(thaJeztah) this is currently unused: is it safe to remove?
 func (vs *volumeSet) getVolume(id string) *api.Volume {
-	// getVolume returns the volume object for the given ID as stored in the
-	// volumeSet, or nil if none exists
 	return vs.volumes[id].volume
 }
 
@@ -77,6 +79,7 @@ func (vs *volumeSet) addOrUpdateVolume(v *api.Volume) {
 	vs.byName[v.Spec.Annotations.Name] = v.ID
 }
 
+//nolint:unused // only used in tests.
 func (vs *volumeSet) removeVolume(volumeID string) {
 	if info, ok := vs.volumes[volumeID]; ok {
 		// if the volume exists in the set, look up its group ID and remove it

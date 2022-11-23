@@ -132,8 +132,7 @@ type Node struct {
 	// RemovedFromRaft notifies about node deletion from raft cluster
 	RemovedFromRaft chan struct{}
 	cancelFunc      func()
-	// removeRaftCh notifies about node deletion from raft cluster
-	removeRaftCh        chan struct{}
+
 	removeRaftOnce      sync.Once
 	leadershipBroadcast *watch.Queue
 
@@ -1289,6 +1288,7 @@ func (n *Node) processRaftMessageLogger(ctx context.Context, msg *api.ProcessRaf
 	return log.G(ctx).WithFields(fields)
 }
 
+//nolint:unused // currently unused, but should be used again; see TODO in Node.ProcessRaftMessage
 func (n *Node) reportNewAddress(ctx context.Context, id uint64) error {
 	// too early
 	if !n.IsMember() {
@@ -1418,9 +1418,9 @@ func (n *Node) ProcessRaftMessage(ctx context.Context, msg *api.ProcessRaftMessa
 	// See https://github.com/docker/docker/issues/30455.
 	// This should be reenabled in the future with additional
 	// safeguards (perhaps storing multiple addresses per node).
-	//if err := n.reportNewAddress(ctx, msg.Message.From); err != nil {
+	// if err := n.reportNewAddress(ctx, msg.Message.From); err != nil {
 	//	log.G(ctx).WithError(err).Errorf("failed to report new address of %x to transport", msg.Message.From)
-	//}
+	// }
 
 	// Reject vote requests from unreachable peers
 	if msg.Message.Type == raftpb.MsgVote {
