@@ -25,9 +25,71 @@ import (
 
 	//nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
 	"github.com/golang/protobuf/proto"
-	"github.com/prometheus/client_golang/prometheus/internal"
 	dto "github.com/prometheus/client_model/go"
+
+	"github.com/prometheus/client_golang/prometheus/internal"
 )
+
+const (
+	// constants for strings referenced more than once.
+	goGCHeapTinyAllocsObjects               = "/gc/heap/tiny/allocs:objects"
+	goGCHeapAllocsObjects                   = "/gc/heap/allocs:objects"
+	goGCHeapFreesObjects                    = "/gc/heap/frees:objects"
+	goGCHeapFreesBytes                      = "/gc/heap/frees:bytes"
+	goGCHeapAllocsBytes                     = "/gc/heap/allocs:bytes"
+	goGCHeapObjects                         = "/gc/heap/objects:objects"
+	goGCHeapGoalBytes                       = "/gc/heap/goal:bytes"
+	goMemoryClassesTotalBytes               = "/memory/classes/total:bytes"
+	goMemoryClassesHeapObjectsBytes         = "/memory/classes/heap/objects:bytes"
+	goMemoryClassesHeapUnusedBytes          = "/memory/classes/heap/unused:bytes"
+	goMemoryClassesHeapReleasedBytes        = "/memory/classes/heap/released:bytes"
+	goMemoryClassesHeapFreeBytes            = "/memory/classes/heap/free:bytes"
+	goMemoryClassesHeapStacksBytes          = "/memory/classes/heap/stacks:bytes"
+	goMemoryClassesOSStacksBytes            = "/memory/classes/os-stacks:bytes"
+	goMemoryClassesMetadataMSpanInuseBytes  = "/memory/classes/metadata/mspan/inuse:bytes"
+	goMemoryClassesMetadataMSPanFreeBytes   = "/memory/classes/metadata/mspan/free:bytes"
+	goMemoryClassesMetadataMCacheInuseBytes = "/memory/classes/metadata/mcache/inuse:bytes"
+	goMemoryClassesMetadataMCacheFreeBytes  = "/memory/classes/metadata/mcache/free:bytes"
+	goMemoryClassesProfilingBucketsBytes    = "/memory/classes/profiling/buckets:bytes"
+	goMemoryClassesMetadataOtherBytes       = "/memory/classes/metadata/other:bytes"
+	goMemoryClassesOtherBytes               = "/memory/classes/other:bytes"
+)
+
+// rmNamesForMemStatsMetrics represents runtime/metrics names required to populate goRuntimeMemStats from like logic.
+var rmNamesForMemStatsMetrics = []string{
+	goGCHeapTinyAllocsObjects,
+	goGCHeapAllocsObjects,
+	goGCHeapFreesObjects,
+	goGCHeapAllocsBytes,
+	goGCHeapObjects,
+	goGCHeapGoalBytes,
+	goMemoryClassesTotalBytes,
+	goMemoryClassesHeapObjectsBytes,
+	goMemoryClassesHeapUnusedBytes,
+	goMemoryClassesHeapReleasedBytes,
+	goMemoryClassesHeapFreeBytes,
+	goMemoryClassesHeapStacksBytes,
+	goMemoryClassesOSStacksBytes,
+	goMemoryClassesMetadataMSpanInuseBytes,
+	goMemoryClassesMetadataMSPanFreeBytes,
+	goMemoryClassesMetadataMCacheInuseBytes,
+	goMemoryClassesMetadataMCacheFreeBytes,
+	goMemoryClassesProfilingBucketsBytes,
+	goMemoryClassesMetadataOtherBytes,
+	goMemoryClassesOtherBytes,
+}
+
+func bestEffortLookupRM(lookup []string) []metrics.Description {
+	ret := make([]metrics.Description, 0, len(lookup))
+	for _, rm := range metrics.All() {
+		for _, m := range lookup {
+			if m == rm.Name {
+				ret = append(ret, rm)
+			}
+		}
+	}
+	return ret
+}
 
 type goCollector struct {
 	base baseGoCollector
@@ -36,70 +98,124 @@ type goCollector struct {
 	// snapshot is always produced by Collect.
 	mu sync.Mutex
 
-	// rm... fields all pertain to the runtime/metrics package.
-	rmSampleBuf []metrics.Sample
-	rmSampleMap map[string]*metrics.Sample
-	rmMetrics   []collectorMetric
+	// Contains all samples that has to retrieved from runtime/metrics (not all of them will be exposed).
+	sampleBuf []metrics.Sample
+	// sampleMap allows lookup for MemStats metrics and runtime/metrics histograms for exact sums.
+	sampleMap map[string]*metrics.Sample
+
+	// rmExposedMetrics represents all runtime/metrics package metrics
+	// that were configured to be exposed.
+	rmExposedMetrics     []collectorMetric
+	rmExactSumMapForHist map[string]string
 
 	// With Go 1.17, the runtime/metrics package was introduced.
 	// From that point on, metric names produced by the runtime/metrics
 	// package could be generated from runtime/metrics names. However,
 	// these differ from the old names for the same values.
 	//
-	// This field exist to export the same values under the old names
+	// This field exists to export the same values under the old names
 	// as well.
-	msMetrics memStatsMetrics
+	msMetrics        memStatsMetrics
+	msMetricsEnabled bool
+}
+
+type rmMetricDesc struct {
+	metrics.Description
+}
+
+func matchRuntimeMetricsRules(rules []internal.GoCollectorRule) []rmMetricDesc {
+	var descs []rmMetricDesc
+	for _, d := range metrics.All() {
+		var (
+			deny = true
+			desc rmMetricDesc
+		)
+
+		for _, r := range rules {
+			if !r.Matcher.MatchString(d.Name) {
+				continue
+			}
+			deny = r.Deny
+		}
+		if deny {
+			continue
+		}
+
+		desc.Description = d
+		descs = append(descs, desc)
+	}
+	return descs
+}
+
+func defaultGoCollectorOptions() internal.GoCollectorOptions {
+	return internal.GoCollectorOptions{
+		RuntimeMetricSumForHist: map[string]string{
+			"/gc/heap/allocs-by-size:bytes": goGCHeapAllocsBytes,
+			"/gc/heap/frees-by-size:bytes":  goGCHeapFreesBytes,
+		},
+		RuntimeMetricRules: []internal.GoCollectorRule{
+			//{Matcher: regexp.MustCompile("")},
+		},
+	}
 }
 
 // NewGoCollector is the obsolete version of collectors.NewGoCollector.
 // See there for documentation.
 //
 // Deprecated: Use collectors.NewGoCollector instead.
-func NewGoCollector() Collector {
-	descriptions := metrics.All()
+func NewGoCollector(opts ...func(o *internal.GoCollectorOptions)) Collector {
+	opt := defaultGoCollectorOptions()
+	for _, o := range opts {
+		o(&opt)
+	}
+
+	exposedDescriptions := matchRuntimeMetricsRules(opt.RuntimeMetricRules)
 
 	// Collect all histogram samples so that we can get their buckets.
 	// The API guarantees that the buckets are always fixed for the lifetime
 	// of the process.
 	var histograms []metrics.Sample
-	for _, d := range descriptions {
+	for _, d := range exposedDescriptions {
 		if d.Kind == metrics.KindFloat64Histogram {
 			histograms = append(histograms, metrics.Sample{Name: d.Name})
 		}
 	}
-	metrics.Read(histograms)
+
+	if len(histograms) > 0 {
+		metrics.Read(histograms)
+	}
+
 	bucketsMap := make(map[string][]float64)
 	for i := range histograms {
 		bucketsMap[histograms[i].Name] = histograms[i].Value.Float64Histogram().Buckets
 	}
 
-	// Generate a Desc and ValueType for each runtime/metrics metric.
-	metricSet := make([]collectorMetric, 0, len(descriptions))
-	sampleBuf := make([]metrics.Sample, 0, len(descriptions))
-	sampleMap := make(map[string]*metrics.Sample, len(descriptions))
-	for i := range descriptions {
-		d := &descriptions[i]
-		namespace, subsystem, name, ok := internal.RuntimeMetricsToProm(d)
+	// Generate a collector for each exposed runtime/metrics metric.
+	metricSet := make([]collectorMetric, 0, len(exposedDescriptions))
+	// SampleBuf is used for reading from runtime/metrics.
+	// We are assuming the largest case to have stable pointers for sampleMap purposes.
+	sampleBuf := make([]metrics.Sample, 0, len(exposedDescriptions)+len(opt.RuntimeMetricSumForHist)+len(rmNamesForMemStatsMetrics))
+	sampleMap := make(map[string]*metrics.Sample, len(exposedDescriptions))
+	for _, d := range exposedDescriptions {
+		namespace, subsystem, name, ok := internal.RuntimeMetricsToProm(&d.Description)
 		if !ok {
 			// Just ignore this metric; we can't do anything with it here.
 			// If a user decides to use the latest version of Go, we don't want
-			// to fail here. This condition is tested elsewhere.
+			// to fail here. This condition is tested in TestExpectedRuntimeMetrics.
 			continue
 		}
 
-		// Set up sample buffer for reading, and a map
-		// for quick lookup of sample values.
 		sampleBuf = append(sampleBuf, metrics.Sample{Name: d.Name})
 		sampleMap[d.Name] = &sampleBuf[len(sampleBuf)-1]
 
 		var m collectorMetric
 		if d.Kind == metrics.KindFloat64Histogram {
-			_, hasSum := rmExactSumMap[d.Name]
+			_, hasSum := opt.RuntimeMetricSumForHist[d.Name]
 			unit := d.Name[strings.IndexRune(d.Name, ':')+1:]
 			m = newBatchHistogram(
 				NewDesc(
 					BuildFQName(namespace, subsystem, name),
-					d.Description,
+					d.Description.Description,
 					nil,
 					nil,
 				),
@@ -111,24 +227,61 @@ func NewGoCollector() Collector {
 				Namespace: namespace,
 				Subsystem: subsystem,
 				Name:      name,
-				Help:      d.Description,
-			})
+				Help:      d.Description.Description,
+			},
+			)
 		} else {
 			m = NewGauge(GaugeOpts{
 				Namespace: namespace,
 				Subsystem: subsystem,
 				Name:      name,
-				Help:      d.Description,
+				Help:      d.Description.Description,
 			})
 		}
 		metricSet = append(metricSet, m)
 	}
+
+	// Add exact sum metrics to sampleBuf if not added before.
+	for _, h := range histograms {
+		sumMetric, ok := opt.RuntimeMetricSumForHist[h.Name]
+		if !ok {
+			continue
+		}
+
+		if _, ok := sampleMap[sumMetric]; ok {
+			continue
+		}
+		sampleBuf = append(sampleBuf, metrics.Sample{Name: sumMetric})
+		sampleMap[sumMetric] = &sampleBuf[len(sampleBuf)-1]
+	}
+
+	var (
+		msMetrics      memStatsMetrics
+		msDescriptions []metrics.Description
+	)
+
+	if !opt.DisableMemStatsLikeMetrics {
+		msMetrics = goRuntimeMemStats()
+		msDescriptions = bestEffortLookupRM(rmNamesForMemStatsMetrics)
+
+		// Check if metric was not exposed before and if not, add to sampleBuf.
+		for _, mdDesc := range msDescriptions {
+			if _, ok := sampleMap[mdDesc.Name]; ok {
+				continue
+			}
+			sampleBuf = append(sampleBuf, metrics.Sample{Name: mdDesc.Name})
+			sampleMap[mdDesc.Name] = &sampleBuf[len(sampleBuf)-1]
+		}
+	}
+
 	return &goCollector{
-		base:        newBaseGoCollector(),
-		rmSampleBuf: sampleBuf,
-		rmSampleMap: sampleMap,
-		rmMetrics:   metricSet,
-		msMetrics:   goRuntimeMemStats(),
+		base:                 newBaseGoCollector(),
+		sampleBuf:            sampleBuf,
+		sampleMap:            sampleMap,
+		rmExposedMetrics:     metricSet,
+		rmExactSumMapForHist: opt.RuntimeMetricSumForHist,
+		msMetrics:            msMetrics,
+		msMetricsEnabled:     !opt.DisableMemStatsLikeMetrics,
 	}
 }
 
@@ -138,7 +291,7 @@ func (c *goCollector) Describe(ch chan<- *Desc) {
 	for _, i := range c.msMetrics {
 		ch <- i.desc
 	}
-	for _, m := range c.rmMetrics {
+	for _, m := range c.rmExposedMetrics {
 		ch <- m.Desc()
 	}
 }
@@ -148,8 +301,12 @@ func (c *goCollector) Collect(ch chan<- Metric) {
 	// Collect base non-memory metrics.
 	c.base.Collect(ch)
 
+	if len(c.sampleBuf) == 0 {
+		return
+	}
+
 	// Collect must be thread-safe, so prevent concurrent use of
-	// rmSampleBuf. Just read into rmSampleBuf but write all the data
+	// sampleBuf elements. Just read into sampleBuf but write all the data
 	// we get into our Metrics or MemStats.
 	//
 	// This lock also ensures that the Metrics we send out are all from
@@ -164,14 +321,17 @@ func (c *goCollector) Collect(ch chan<- Metric) {
 	defer c.mu.Unlock()
 
 	// Populate runtime/metrics sample buffer.
-	metrics.Read(c.rmSampleBuf)
+	metrics.Read(c.sampleBuf)
 
-	// Update all our metrics from rmSampleBuf.
-	for i, sample := range c.rmSampleBuf {
+	// Collect all our runtime/metrics user chose to expose from sampleBuf (if any).
+	for i, metric := range c.rmExposedMetrics {
+		// We created samples for exposed metrics first in order, so indexes match.
+		sample := c.sampleBuf[i]
+
 		// N.B. switch on concrete type because it's significantly more efficient
 		// than checking for the Counter and Gauge interface implementations. In
 		// this case, we control all the types here.
-		switch m := c.rmMetrics[i].(type) {
+		switch m := metric.(type) {
 		case *counter:
 			// Guard against decreases. This should never happen, but a failure
 			// to do so will result in a panic, which is a harsh consequence for
@@ -191,12 +351,15 @@ func (c *goCollector) Collect(ch chan<- Metric) {
 			panic("unexpected metric type")
 		}
 	}
-	// ms is a dummy MemStats that we populate ourselves so that we can
-	// populate the old metrics from it.
-	var ms runtime.MemStats
-	memStatsFromRM(&ms, c.rmSampleMap)
-	for _, i := range c.msMetrics {
-		ch <- MustNewConstMetric(i.desc, i.valType, i.eval(&ms))
+
+	if c.msMetricsEnabled {
+		// ms is a dummy MemStats that we populate ourselves so that we can
+		// populate the old metrics from it if goMemStatsCollection is enabled.
+		var ms runtime.MemStats
+		memStatsFromRM(&ms, c.sampleMap)
+		for _, i := range c.msMetrics {
+			ch <- MustNewConstMetric(i.desc, i.valType, i.eval(&ms))
+		}
 	}
 }
 
@@ -224,11 +387,6 @@ func unwrapScalarRMValue(v metrics.Value) float64 {
 	}
 }
 
-var rmExactSumMap = map[string]string{
-	"/gc/heap/allocs-by-size:bytes": "/gc/heap/allocs:bytes",
-	"/gc/heap/frees-by-size:bytes":  "/gc/heap/frees:bytes",
-}
-
 // exactSumFor takes a runtime/metrics metric name (that is assumed to
 // be of kind KindFloat64Histogram) and returns its exact sum and whether
 // its exact sum exists.
@@ -236,11 +394,11 @@ var rmExactSumMap = map[string]string{
 // The runtime/metrics API for histograms doesn't currently expose exact
 // sums, but some of the other metrics are in fact exact sums of histograms.
 func (c *goCollector) exactSumFor(rmName string) float64 {
-	sumName, ok := rmExactSumMap[rmName]
+	sumName, ok := c.rmExactSumMapForHist[rmName]
 	if !ok {
 		return 0
 	}
-	s, ok := c.rmSampleMap[sumName]
+	s, ok := c.sampleMap[sumName]
 	if !ok {
 		return 0
 	}
@@ -261,35 +419,30 @@ func memStatsFromRM(ms *runtime.MemStats, rm map[string]*metrics.Sample) {
 	// while having Mallocs - Frees still represent a live object count.
 	// Unfortunately, MemStats doesn't actually export a large allocation count,
 	// so it's impossible to pull this number out directly.
-	tinyAllocs := lookupOrZero("/gc/heap/tiny/allocs:objects")
-	ms.Mallocs = lookupOrZero("/gc/heap/allocs:objects") + tinyAllocs
-	ms.Frees = lookupOrZero("/gc/heap/frees:objects") + tinyAllocs
+	tinyAllocs := lookupOrZero(goGCHeapTinyAllocsObjects)
+	ms.Mallocs = lookupOrZero(goGCHeapAllocsObjects) + tinyAllocs
+	ms.Frees = lookupOrZero(goGCHeapFreesObjects) + tinyAllocs
 
-	ms.TotalAlloc = lookupOrZero("/gc/heap/allocs:bytes")
-	ms.Sys = lookupOrZero("/memory/classes/total:bytes")
+	ms.TotalAlloc = lookupOrZero(goGCHeapAllocsBytes)
+	ms.Sys = lookupOrZero(goMemoryClassesTotalBytes)
 	ms.Lookups = 0 // Already always zero.
-	ms.HeapAlloc = lookupOrZero("/memory/classes/heap/objects:bytes")
+	ms.HeapAlloc = lookupOrZero(goMemoryClassesHeapObjectsBytes)
 	ms.Alloc = ms.HeapAlloc
-	ms.HeapInuse = ms.HeapAlloc + lookupOrZero("/memory/classes/heap/unused:bytes")
-	ms.HeapReleased = lookupOrZero("/memory/classes/heap/released:bytes")
-	ms.HeapIdle = ms.HeapReleased + lookupOrZero("/memory/classes/heap/free:bytes")
+	ms.HeapInuse = ms.HeapAlloc + lookupOrZero(goMemoryClassesHeapUnusedBytes)
+	ms.HeapReleased = lookupOrZero(goMemoryClassesHeapReleasedBytes)
+	ms.HeapIdle = ms.HeapReleased + lookupOrZero(goMemoryClassesHeapFreeBytes)
 	ms.HeapSys = ms.HeapInuse + ms.HeapIdle
-	ms.HeapObjects = lookupOrZero("/gc/heap/objects:objects")
-	ms.StackInuse = lookupOrZero("/memory/classes/heap/stacks:bytes")
-	ms.StackSys = ms.StackInuse + lookupOrZero("/memory/classes/os-stacks:bytes")
-	ms.MSpanInuse = lookupOrZero("/memory/classes/metadata/mspan/inuse:bytes")
-	ms.MSpanSys = ms.MSpanInuse + lookupOrZero("/memory/classes/metadata/mspan/free:bytes")
-	ms.MCacheInuse = lookupOrZero("/memory/classes/metadata/mcache/inuse:bytes")
-	ms.MCacheSys = ms.MCacheInuse + lookupOrZero("/memory/classes/metadata/mcache/free:bytes")
-	ms.BuckHashSys = lookupOrZero("/memory/classes/profiling/buckets:bytes")
-	ms.GCSys = lookupOrZero("/memory/classes/metadata/other:bytes")
-	ms.OtherSys = lookupOrZero("/memory/classes/other:bytes")
-	ms.NextGC = lookupOrZero("/gc/heap/goal:bytes")
-
-	// N.B. LastGC is omitted because runtime.GCStats already has this.
-	// See https://github.com/prometheus/client_golang/issues/842#issuecomment-861812034
-	// for more details.
-	ms.LastGC = 0
+	ms.HeapObjects = lookupOrZero(goGCHeapObjects)
+	ms.StackInuse = lookupOrZero(goMemoryClassesHeapStacksBytes)
+	ms.StackSys = ms.StackInuse + lookupOrZero(goMemoryClassesOSStacksBytes)
+	ms.MSpanInuse = lookupOrZero(goMemoryClassesMetadataMSpanInuseBytes)
+	ms.MSpanSys = ms.MSpanInuse + lookupOrZero(goMemoryClassesMetadataMSPanFreeBytes)
+	ms.MCacheInuse = lookupOrZero(goMemoryClassesMetadataMCacheInuseBytes)
+	ms.MCacheSys = ms.MCacheInuse + lookupOrZero(goMemoryClassesMetadataMCacheFreeBytes)
+	ms.BuckHashSys = lookupOrZero(goMemoryClassesProfilingBucketsBytes)
+	ms.GCSys = lookupOrZero(goMemoryClassesMetadataOtherBytes)
+	ms.OtherSys = lookupOrZero(goMemoryClassesOtherBytes)
+	ms.NextGC = lookupOrZero(goGCHeapGoalBytes)
 
 	// N.B. GCCPUFraction is intentionally omitted. This metric is not useful,
 	// and often misleading due to the fact that it's an average over the lifetime
@@ -324,6 +477,11 @@ type batchHistogram struct {
 // buckets must always be from the runtime/metrics package, following
 // the same conventions.
 func newBatchHistogram(desc *Desc, buckets []float64, hasSum bool) *batchHistogram {
+	// We need to remove -Inf values. runtime/metrics keeps them around.
+	// But -Inf bucket should not be allowed for prometheus histograms.
+	if buckets[0] == math.Inf(-1) {
+		buckets = buckets[1:]
+	}
 	h := &batchHistogram{
 		desc:    desc,
 		buckets: buckets,
@@ -382,8 +540,10 @@ func (h *batchHistogram) Write(out *dto.Metric) error {
 	for i, count := range h.counts {
 		totalCount += count
 		if !h.hasSum {
-			// N.B. This computed sum is an underestimate.
-			sum += h.buckets[i] * float64(count)
+			if count != 0 {
+				// N.B. This computed sum is an underestimate.
+				sum += h.buckets[i] * float64(count)
+			}
 		}
 
 		// Skip the +Inf bucket, but only for the bucket list.
