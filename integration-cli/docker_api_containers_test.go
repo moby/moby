@@ -26,7 +26,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/docker/volume"
@@ -1738,7 +1737,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 	}
 
 	if testEnv.IsLocalDaemon() {
-		tmpDir, err := ioutils.TempDir("", "test-mounts-api")
+		tmpDir, err := os.MkdirTemp("", "test-mounts-api")
 		assert.NilError(c, err)
 		defer os.RemoveAll(tmpDir)
 		cases = append(cases, []testCase{
@@ -2051,7 +2050,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 
 		// for modes only supported on Linux
 		if DaemonIsLinux() {
-			tmpDir3, err := ioutils.TempDir("", "test-mounts-api-3")
+			tmpDir3, err := os.MkdirTemp("", "test-mounts-api-3")
 			assert.NilError(c, err)
 			defer os.RemoveAll(tmpDir3)
 
