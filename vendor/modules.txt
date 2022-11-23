@@ -319,7 +319,7 @@ github.com/dustin/go-humanize
 # github.com/felixge/httpsnoop v1.0.2
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
-# github.com/fernet/fernet-go v0.0.0-20180830025343-9eac43b88a5e
+# github.com/fernet/fernet-go v0.0.0-20211208181803-9f70042a33ee
 ## explicit
 github.com/fernet/fernet-go
 # github.com/fluent/fluent-logger-golang v1.9.0
