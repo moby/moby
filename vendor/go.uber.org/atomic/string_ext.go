@@ -21,6 +21,8 @@
 package atomic
 
 //go:generate bin/gen-atomicwrapper -name=String -type=string -wrapped=Value -file=string.go
+// Note: No Swap as String wraps Value, which wraps the stdlib sync/atomic.Value which
+// only supports Swap as of go1.17: https://github.com/golang/go/issues/39351
 
 // String returns the wrapped value.
 func (s *String) String() string {
