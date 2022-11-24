@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/fileutils"
+	"github.com/moby/patternmatcher"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil/types"
 )
@@ -19,8 +19,28 @@ type WalkOpt struct {
 	// FollowPaths contains symlinks that are resolved into include patterns
 	// before performing the fs walk
 	FollowPaths []string
-	Map         FilterFunc
+	Map         MapFunc
 }
+
+type MapFunc func(string, *types.Stat) MapResult
+
+// The result of the walk function controls
+// both how WalkDir continues and whether the path is kept.
+type MapResult int
+
+const (
+	// Keep the current path and continue.
+	MapResultKeep MapResult = iota
+
+	// Exclude the current path and continue.
+	MapResultExclude
+
+	// Exclude the current path, and skip the rest of the dir.
+	// If path is a dir, skip the current directory.
+	// If path is a file, skip the rest of the parent directory.
+	// (This matches the semantics of fs.SkipDir.)
+	MapResultSkipDir
+)
 
 func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) error {
 	root, err := filepath.EvalSymlinks(p)
@@ -37,8 +57,8 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 	var (
 		includePatterns []string
-		includeMatcher  *fileutils.PatternMatcher
-		excludeMatcher  *fileutils.PatternMatcher
+		includeMatcher  *patternmatcher.PatternMatcher
+		excludeMatcher  *patternmatcher.PatternMatcher
 	)
 
 	if opt != nil && opt.IncludePatterns != nil {
@@ -63,7 +83,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 	onlyPrefixIncludes := true
 	if len(includePatterns) != 0 {
-		includeMatcher, err = fileutils.NewPatternMatcher(includePatterns)
+		includeMatcher, err = patternmatcher.New(includePatterns)
 		if err != nil {
 			return errors.Wrapf(err, "invalid includepatterns: %s", opt.IncludePatterns)
 		}
@@ -79,7 +99,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 	onlyPrefixExcludeExceptions := true
 	if opt != nil && opt.ExcludePatterns != nil {
-		excludeMatcher, err = fileutils.NewPatternMatcher(opt.ExcludePatterns)
+		excludeMatcher, err = patternmatcher.New(opt.ExcludePatterns)
 		if err != nil {
 			return errors.Wrapf(err, "invalid excludepatterns: %s", opt.ExcludePatterns)
 		}
@@ -97,8 +117,8 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		path             string
 		origpath         string
 		pathWithSep      string
-		includeMatchInfo fileutils.MatchInfo
-		excludeMatchInfo fileutils.MatchInfo
+		includeMatchInfo patternmatcher.MatchInfo
+		excludeMatchInfo patternmatcher.MatchInfo
 		calledFn         bool
 	}
 
@@ -153,7 +173,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		skip := false
 
 		if includeMatcher != nil {
-			var parentIncludeMatchInfo fileutils.MatchInfo
+			var parentIncludeMatchInfo patternmatcher.MatchInfo
 			if len(parentDirs) != 0 {
 				parentIncludeMatchInfo = parentDirs[len(parentDirs)-1].includeMatchInfo
 			}
@@ -188,7 +208,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		}
 
 		if excludeMatcher != nil {
-			var parentExcludeMatchInfo fileutils.MatchInfo
+			var parentExcludeMatchInfo patternmatcher.MatchInfo
 			if len(parentDirs) != 0 {
 				parentExcludeMatchInfo = parentDirs[len(parentDirs)-1].excludeMatchInfo
 			}
@@ -258,7 +278,10 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 			return ctx.Err()
 		default:
 			if opt != nil && opt.Map != nil {
-				if allowed := opt.Map(stat.Path, stat); !allowed {
+				result := opt.Map(stat.Path, stat)
+				if result == MapResultSkipDir {
+					return filepath.SkipDir
+				} else if result == MapResultExclude {
 					return nil
 				}
 			}
@@ -277,7 +300,8 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 				default:
 				}
 				if opt != nil && opt.Map != nil {
-					if allowed := opt.Map(parentStat.Path, parentStat); !allowed {
+					result := opt.Map(parentStat.Path, parentStat)
+					if result == MapResultSkipDir || result == MapResultExclude {
 						continue
 					}
 				}
@@ -295,11 +319,11 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 	})
 }
 
-func patternWithoutTrailingGlob(p *fileutils.Pattern) string {
+func patternWithoutTrailingGlob(p *patternmatcher.Pattern) string {
 	patStr := p.String()
-	// We use filepath.Separator here because fileutils.Pattern patterns
+	// We use filepath.Separator here because patternmatcher.Pattern patterns
 	// get transformed to use the native path separator:
-	// https://github.com/moby/moby/blob/79651b7a979b40e26af353ad283ca7ea5d67a855/pkg/fileutils/fileutils.go#L54
+	// https://github.com/moby/patternmatcher/blob/130b41bafc16209dc1b52a103fdac1decad04f1a/patternmatcher.go#L52
 	patStr = strings.TrimSuffix(patStr, string(filepath.Separator)+"**")
 	patStr = strings.TrimSuffix(patStr, string(filepath.Separator)+"*")
 	return patStr

@@ -1,29 +1,30 @@
-#syntax=docker/dockerfile:1.2
-ARG GO_VERSION=1.16
+#syntax=docker/dockerfile:1
+ARG GO_VERSION=1.18
 
-FROM --platform=amd64 tonistiigi/xx:golang AS goxx
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.1.0 AS xx
 
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS base
-RUN apk add --no-cache gcc musl-dev
-COPY --from=goxx / /
+RUN apk add --no-cache git
+COPY --from=xx / /
 WORKDIR /src
 
 FROM base AS build
 ARG TARGETPLATFORM
-RUN --mount=target=. \
+RUN --mount=target=. --mount=target=/go/pkg/mod,type=cache \
     --mount=target=/root/.cache,type=cache \
-    go build ./...
+    xx-go build ./...
 
 FROM base AS test
-RUN --mount=target=. \
+ARG TESTFLAGS
+RUN --mount=target=. --mount=target=/go/pkg/mod,type=cache \
     --mount=target=/root/.cache,type=cache \
-    go test -test.v ./...
+    CGO_ENABLED=0 xx-go test -test.v ${TESTFLAGS} ./...
 
 FROM base AS test-noroot
 RUN mkdir /go/pkg && chmod 0777 /go/pkg
 USER 1000:1000
 RUN --mount=target=. \
     --mount=target=/tmp/.cache,type=cache \
-    GOCACHE=/tmp/gocache go test -test.v ./...
+    CGO_ENABLED=0 GOCACHE=/tmp/gocache xx-go test -test.v ./...
 
 FROM build

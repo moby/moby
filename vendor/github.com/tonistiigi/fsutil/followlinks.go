@@ -1,7 +1,6 @@
 package fsutil
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -75,7 +74,7 @@ func (r *symlinkResolver) readSymlink(p string, allowWildcard bool) ([]string, e
 	realPath := filepath.Join(r.root, p)
 	base := filepath.Base(p)
 	if allowWildcard && containsWildcards(base) {
-		fis, err := ioutil.ReadDir(filepath.Dir(realPath))
+		fis, err := os.ReadDir(filepath.Dir(realPath))
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil, nil
