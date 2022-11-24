@@ -99,6 +99,21 @@ func (s *sequenceDecs) initialize(br *bitReader, hist *history, out []byte) erro
 	return nil
 }
 
+func (s *sequenceDecs) freeDecoders() {
+	if f := s.litLengths.fse; f != nil && !f.preDefined {
+		fseDecoderPool.Put(f)
+		s.litLengths.fse = nil
+	}
+	if f := s.offsets.fse; f != nil && !f.preDefined {
+		fseDecoderPool.Put(f)
+		s.offsets.fse = nil
+	}
+	if f := s.matchLengths.fse; f != nil && !f.preDefined {
+		fseDecoderPool.Put(f)
+		s.matchLengths.fse = nil
+	}
+}
+
 // execute will execute the decoded sequence with the provided history.
 // The sequence must be evaluated before being sent.
 func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error {
@@ -299,7 +314,10 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 		}
 		size := ll + ml + len(out)
 		if size-startSize > maxBlockSize {
-			return fmt.Errorf("output (%d) bigger than max block size (%d)", size-startSize, maxBlockSize)
+			if size-startSize == 424242 {
+				panic("here")
+			}
+			return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 		}
 		if size > cap(out) {
 			// Not enough size, which can happen under high volume block streaming conditions
@@ -411,7 +429,7 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 
 	// Check if space for literals
 	if size := len(s.literals) + len(s.out) - startSize; size > maxBlockSize {
-		return fmt.Errorf("output (%d) bigger than max block size (%d)", size, maxBlockSize)
+		return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 	}
 
 	// Add final literals
