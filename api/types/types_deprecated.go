@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/docker/docker/api/types/checkpoint"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/system"
 )
 
@@ -78,6 +79,11 @@ type ImageSummary = image.Summary
 //
 // Deprecated: use [image.Metadata].
 type ImageMetadata = image.Metadata
+
+// ServiceUpdateResponse service update response.
+//
+// Deprecated: use [swarm.ServiceUpdateResponse].
+type ServiceUpdateResponse = swarm.ServiceUpdateResponse
 
 // DecodeSecurityOptions decodes a security options string slice to a type safe
 // [system.SecurityOpt].

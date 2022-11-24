@@ -280,8 +280,8 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags types.ServiceUpdateOptions, queryRegistry bool) (*types.ServiceUpdateResponse, error) {
-	var resp *types.ServiceUpdateResponse
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags types.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
+	var resp *swarm.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
@@ -299,7 +299,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 			return err
 		}
 
-		resp = &types.ServiceUpdateResponse{}
+		resp = &swarm.ServiceUpdateResponse{}
 
 		switch serviceSpec.Task.Runtime.(type) {
 		case *swarmapi.TaskSpec_Attachment:

@@ -11,8 +11,7 @@ swagger generate model -f api/swagger.yaml \
 	-n PluginMount \
 	-n PluginEnv \
 	-n PluginInterfaceType \
-	-n Port \
-	-n ServiceUpdateResponse
+	-n Port
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/container --skip-validator -C api/swagger-gen.yaml \
@@ -40,3 +39,7 @@ swagger generate operation -f api/swagger.yaml \
 	-n ContainerTop \
 	-n ContainerUpdate \
 	-n ImageHistory
+
+swagger generate model -f api/swagger.yaml \
+	-t api -m types/swarm --skip-validator -C api/swagger-gen.yaml \
+	-n ServiceUpdateResponse
