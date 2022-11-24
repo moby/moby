@@ -42,4 +42,5 @@ swagger generate operation -f api/swagger.yaml \
 
 swagger generate model -f api/swagger.yaml \
 	-t api -m types/swarm --skip-validator -C api/swagger-gen.yaml \
+	-n ServiceCreateResponse \
 	-n ServiceUpdateResponse

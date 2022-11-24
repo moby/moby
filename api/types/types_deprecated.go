@@ -80,6 +80,12 @@ type ImageSummary = image.Summary
 // Deprecated: use [image.Metadata].
 type ImageMetadata = image.Metadata
 
+// ServiceCreateResponse contains the information returned to a client
+// on the creation of a new service.
+//
+// Deprecated: use [swarm.ServiceCreateResponse].
+type ServiceCreateResponse = swarm.ServiceCreateResponse
+
 // ServiceUpdateResponse service update response.
 //
 // Deprecated: use [swarm.ServiceUpdateResponse].

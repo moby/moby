@@ -38,7 +38,7 @@ func TestServiceCreate(t *testing.T) {
 			if req.Method != http.MethodPost {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
-			b, err := json.Marshal(types.ServiceCreateResponse{
+			b, err := json.Marshal(swarm.ServiceCreateResponse{
 				ID: "service_id",
 			})
 			if err != nil {
@@ -77,7 +77,7 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				assert.Check(t, is.Len(serviceSpec.TaskTemplate.Placement.Platforms, 1))
 
 				p := serviceSpec.TaskTemplate.Placement.Platforms[0]
-				b, err := json.Marshal(types.ServiceCreateResponse{
+				b, err := json.Marshal(swarm.ServiceCreateResponse{
 					ID: "service_" + p.OS + "_" + p.Architecture,
 				})
 				if err != nil {
@@ -153,7 +153,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				}
 				serviceCreateImage = service.TaskTemplate.ContainerSpec.Image
 
-				b, err := json.Marshal(types.ServiceCreateResponse{
+				b, err := json.Marshal(swarm.ServiceCreateResponse{
 					ID: "service_id",
 				})
 				if err != nil {

@@ -19,7 +19,7 @@ type Backend interface {
 	UnlockSwarm(req swarm.UnlockRequest) error
 	GetServices(types.ServiceListOptions) ([]swarm.Service, error)
 	GetService(idOrName string, insertDefaults bool) (swarm.Service, error)
-	CreateService(swarm.ServiceSpec, string, bool) (*types.ServiceCreateResponse, error)
+	CreateService(swarm.ServiceSpec, string, bool) (*swarm.ServiceCreateResponse, error)
 	UpdateService(string, uint64, swarm.ServiceSpec, types.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)
 	RemoveService(string) error
 	ServiceLogs(context.Context, *backend.LogSelector, *types.ContainerLogsOptions) (<-chan *backend.LogMessage, error)

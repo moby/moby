@@ -180,8 +180,8 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*types.ServiceCreateResponse, error) {
-	var resp *types.ServiceCreateResponse
+func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
+	var resp *swarm.ServiceCreateResponse
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
@@ -193,7 +193,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			return errdefs.InvalidParameter(err)
 		}
 
-		resp = &types.ServiceCreateResponse{}
+		resp = &swarm.ServiceCreateResponse{}
 
 		switch serviceSpec.Task.Runtime.(type) {
 		case *swarmapi.TaskSpec_Attachment:
