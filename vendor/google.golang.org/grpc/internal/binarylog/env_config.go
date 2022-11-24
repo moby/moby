@@ -57,7 +57,7 @@ func NewLoggerFromConfigString(s string) Logger {
 	return l
 }
 
-// fillMethodLoggerWithConfigString parses config, creates methodLogger and adds
+// fillMethodLoggerWithConfigString parses config, creates TruncatingMethodLogger and adds
 // it to the right map in the logger.
 func (l *logger) fillMethodLoggerWithConfigString(config string) error {
 	// "" is invalid.
