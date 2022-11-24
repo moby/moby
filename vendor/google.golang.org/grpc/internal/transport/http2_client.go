@@ -78,6 +78,7 @@ type http2Client struct {
 	framer *framer
 	// controlBuf delivers all the control related tasks (e.g., window
 	// updates, reset streams, and various settings) to the controller.
+	// Do not access controlBuf with mu held.
 	controlBuf *controlBuffer
 	fc         *trInFlow
 	// The scheme used: https if TLS is on, http otherwise.
@@ -109,6 +110,7 @@ type http2Client struct {
 	waitingStreams        uint32
 	nextID                uint32
 
+	// Do not access controlBuf with mu held.
 	mu            sync.Mutex // guard the following variables
 	state         transportState
 	activeStreams map[uint32]*Stream
@@ -324,6 +326,8 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		keepaliveEnabled:      keepaliveEnabled,
 		bufferPool:            newBufferPool(),
 	}
+	// Add peer information to the http2client context.
+	t.ctx = peer.NewContext(t.ctx, t.getPeer())
 
 	if md, ok := addr.Metadata.(*metadata.MD); ok {
 		t.md = *md
@@ -467,7 +471,7 @@ func (t *http2Client) newStream(ctx context.Context, callHdr *CallHdr) *Stream {
 func (t *http2Client) getPeer() *peer.Peer {
 	return &peer.Peer{
 		Addr:     t.remoteAddr,
-		AuthInfo: t.authInfo,
+		AuthInfo: t.authInfo, // Can be nil
 	}
 }
 
@@ -685,7 +689,6 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (*Stream,
 				cleanup(err)
 				return err
 			}
-			t.activeStreams[id] = s
 			if channelz.IsOn() {
 				atomic.AddInt64(&t.czData.streamsStarted, 1)
 				atomic.StoreInt64(&t.czData.lastStreamCreatedTime, time.Now().UnixNano())
@@ -719,6 +722,13 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (*Stream,
 		t.nextID += 2
 		s.id = h.streamID
 		s.fc = &inFlow{limit: uint32(t.initialWindowSize)}
+		t.mu.Lock()
+		if t.activeStreams == nil { // Can be niled from Close().
+			t.mu.Unlock()
+			return false // Don't create a stream if the transport is already closed.
+		}
+		t.activeStreams[s.id] = s
+		t.mu.Unlock()
 		if t.streamQuota > 0 && t.waitingStreams > 0 {
 			select {
 			case t.streamsQuotaAvailable <- struct{}{}:
@@ -744,13 +754,7 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (*Stream,
 	}
 	for {
 		success, err := t.controlBuf.executeAndPut(func(it interface{}) bool {
-			if !checkForStreamQuota(it) {
-				return false
-			}
-			if !checkForHeaderListSize(it) {
-				return false
-			}
-			return true
+			return checkForHeaderListSize(it) && checkForStreamQuota(it)
 		}, hdr)
 		if err != nil {
 			// Connection closed.
@@ -1003,13 +1007,13 @@ func (t *http2Client) updateWindow(s *Stream, n uint32) {
 // for the transport and the stream based on the current bdp
 // estimation.
 func (t *http2Client) updateFlowControl(n uint32) {
-	t.mu.Lock()
-	for _, s := range t.activeStreams {
-		s.fc.newLimit(n)
-	}
-	t.mu.Unlock()
 	updateIWS := func(interface{}) bool {
 		t.initialWindowSize = int32(n)
+		t.mu.Lock()
+		for _, s := range t.activeStreams {
+			s.fc.newLimit(n)
+		}
+		t.mu.Unlock()
 		return true
 	}
 	t.controlBuf.executeAndPut(updateIWS, &outgoingWindowUpdate{streamID: 0, increment: t.fc.newLimit(n)})
@@ -1215,7 +1219,7 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) {
 	default:
 		t.setGoAwayReason(f)
 		close(t.goAway)
-		t.controlBuf.put(&incomingGoAway{})
+		defer t.controlBuf.put(&incomingGoAway{}) // Defer as t.mu is currently held.
 		// Notify the clientconn about the GOAWAY before we set the state to
 		// draining, to allow the client to stop attempting to create streams
 		// before disallowing new streams on this connection.
@@ -1228,18 +1232,29 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) {
 	if upperLimit == 0 { // This is the first GoAway Frame.
 		upperLimit = math.MaxUint32 // Kill all streams after the GoAway ID.
 	}
+
+	t.prevGoAwayID = id
+	if len(t.activeStreams) == 0 {
+		t.mu.Unlock()
+		t.Close(connectionErrorf(true, nil, "received goaway and there are no active streams"))
+		return
+	}
+
+	streamsToClose := make([]*Stream, 0)
 	for streamID, stream := range t.activeStreams {
 		if streamID > id && streamID <= upperLimit {
 			// The stream was unprocessed by the server.
-			atomic.StoreUint32(&stream.unprocessed, 1)
-			t.closeStream(stream, errStreamDrain, false, http2.ErrCodeNo, statusGoAway, nil, false)
+			if streamID > id && streamID <= upperLimit {
+				atomic.StoreUint32(&stream.unprocessed, 1)
+				streamsToClose = append(streamsToClose, stream)
+			}
 		}
 	}
-	t.prevGoAwayID = id
-	active := len(t.activeStreams)
 	t.mu.Unlock()
-	if active == 0 {
-		t.Close(connectionErrorf(true, nil, "received goaway and there are no active streams"))
+	// Called outside t.mu because closeStream can take controlBuf's mu, which
+	// could induce deadlock and is not allowed.
+	for _, stream := range streamsToClose {
+		t.closeStream(stream, errStreamDrain, false, http2.ErrCodeNo, statusGoAway, nil, false)
 	}
 }
 

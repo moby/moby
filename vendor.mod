@@ -88,7 +88,7 @@ require (
 	golang.org/x/text v0.8.0
 	golang.org/x/time v0.1.0
 	google.golang.org/genproto v0.0.0-20220706185917-7780775163c4
-	google.golang.org/grpc v1.48.0
+	google.golang.org/grpc v1.50.1
 	gotest.tools/v3 v3.5.0
 )
 
