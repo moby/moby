@@ -8192,7 +8192,9 @@ paths:
           default: ""
       responses:
         200:
-          description: "no error"
+          description: "no error; detailed documentation of the response to be added: https://github.com/moby/moby/issues/44505"
+          schema:
+            $ref: "#/definitions/BuildInfo"
         400:
           description: "Bad parameter"
           schema:
@@ -8268,7 +8270,9 @@ paths:
         - "application/json"
       responses:
         200:
-          description: "no error"
+          description: "no error; detailed documentation of the response to be added: https://github.com/moby/moby/issues/44505"
+          schema:
+            $ref: "#/definitions/CreateImageInfo"
         404:
           description: "repository does not exist or no read access"
           schema:
@@ -8469,7 +8473,9 @@ paths:
         - "application/octet-stream"
       responses:
         200:
-          description: "No error"
+          description: "No error; detailed documentation of the response to be added: https://github.com/moby/moby/issues/44505"
+          schema:
+            $ref: "#/definitions/PushImageInfo"
         404:
           description: "No such image"
           schema:
