@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
@@ -128,13 +129,7 @@ type ImageInspect struct {
 	// Metadata of the image in the local cache.
 	//
 	// This information is local to the daemon, and not part of the image itself.
-	Metadata ImageMetadata
-}
-
-// ImageMetadata contains engine-local data about the image
-type ImageMetadata struct {
-	// LastTagTime is the date and time at which the image was last tagged.
-	LastTagTime time.Time `json:",omitempty"`
+	Metadata image.Metadata
 }
 
 // Container contains response of Engine API:
@@ -514,7 +509,7 @@ type DiskUsageOptions struct {
 // GET "/system/df"
 type DiskUsage struct {
 	LayersSize  int64
-	Images      []*ImageSummary
+	Images      []*image.Summary
 	Containers  []*Container
 	Volumes     []*volume.Volume
 	BuildCache  []*BuildCache
@@ -538,7 +533,7 @@ type VolumesPruneReport struct {
 // ImagesPruneReport contains the response for Engine API:
 // POST "/images/prune"
 type ImagesPruneReport struct {
-	ImagesDeleted  []ImageDeleteResponseItem
+	ImagesDeleted  []image.DeleteResponse
 	SpaceReclaimed uint64
 }
 

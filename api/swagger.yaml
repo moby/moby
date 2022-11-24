@@ -1840,6 +1840,7 @@ definitions:
             x-nullable: true
   ImageSummary:
     type: "object"
+    x-go-name: "Summary"
     required:
       - Id
       - ParentId
@@ -4477,6 +4478,7 @@ definitions:
 
   ImageDeleteResponseItem:
     type: "object"
+    x-go-name: "DeleteResponse"
     properties:
       Untagged:
         description: "The image ID of an image that was untagged"

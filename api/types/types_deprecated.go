@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/docker/docker/api/types/checkpoint"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/system"
 )
 
@@ -62,6 +63,21 @@ type SecurityOpt = system.SecurityOpt
 //
 // Deprecated: use [system.KeyValue].
 type KeyValue = system.KeyValue
+
+// ImageDeleteResponseItem image delete response item.
+//
+// Deprecated: use [image.DeleteResponse].
+type ImageDeleteResponseItem = image.DeleteResponse
+
+// ImageSummary image summary.
+//
+// Deprecated: use [image.Summary].
+type ImageSummary = image.Summary
+
+// ImageMetadata contains engine-local data about the image.
+//
+// Deprecated: use [image.Metadata].
+type ImageMetadata = image.Metadata
 
 // DecodeSecurityOptions decodes a security options string slice to a type safe
 // [system.SecurityOpt].

@@ -94,11 +94,11 @@ type ImageAPIClient interface {
 	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)
 	ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(ctx context.Context, image string) (types.ImageInspect, []byte, error)
-	ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error)
+	ImageList(ctx context.Context, options types.ImageListOptions) ([]image.Summary, error)
 	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
 	ImagePull(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
 	ImagePush(ctx context.Context, ref string, options types.ImagePushOptions) (io.ReadCloser, error)
-	ImageRemove(ctx context.Context, image string, options types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error)
+	ImageRemove(ctx context.Context, image string, options types.ImageRemoveOptions) ([]image.DeleteResponse, error)
 	ImageSearch(ctx context.Context, term string, options types.ImageSearchOptions) ([]registry.SearchResult, error)
 	ImageSave(ctx context.Context, images []string) (io.ReadCloser, error)
 	ImageTag(ctx context.Context, image, ref string) error

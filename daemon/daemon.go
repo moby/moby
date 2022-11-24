@@ -27,6 +27,7 @@ import (
 	dist "github.com/docker/distribution"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	imagetypes "github.com/docker/docker/api/types/image"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
@@ -122,7 +123,7 @@ type Daemon struct {
 	seccompProfilePath string
 
 	usageContainers singleflight.Group[struct{}, []*types.Container]
-	usageImages     singleflight.Group[struct{}, []*types.ImageSummary]
+	usageImages     singleflight.Group[struct{}, []*imagetypes.Summary]
 	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
 	usageLayer      singleflight.Group[struct{}, int64]
 

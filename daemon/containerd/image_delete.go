@@ -9,8 +9,8 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/internal/compatcontext"
@@ -52,7 +52,7 @@ import (
 // conflict will not be reported.
 //
 // TODO(thaJeztah): image delete should send prometheus counters; see https://github.com/moby/moby/issues/45268
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]imagetypes.DeleteResponse, error) {
 	parsedRef, err := reference.ParseNormalizedNamed(imageRef)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, err
 		}
 		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
-		records := []types.ImageDeleteResponseItem{{Untagged: reference.FamiliarString(reference.TagNameOnly(parsedRef))}}
+		records := []imagetypes.DeleteResponse{{Untagged: reference.FamiliarString(reference.TagNameOnly(parsedRef))}}
 		return records, nil
 	}
 
@@ -111,7 +111,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		}
 
 		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
-		records := []types.ImageDeleteResponseItem{{Untagged: reference.FamiliarString(reference.TagNameOnly(parsedRef))}}
+		records := []imagetypes.DeleteResponse{{Untagged: reference.FamiliarString(reference.TagNameOnly(parsedRef))}}
 		return records, nil
 	}
 
@@ -122,8 +122,8 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 // also deletes dangling parents if there is no conflict in doing so.
 // Parent images are removed quietly, and if there is any issue/conflict
 // it is logged but does not halt execution/an error is not returned.
-func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
-	var records []types.ImageDeleteResponseItem
+func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, prune bool) ([]imagetypes.DeleteResponse, error) {
+	var records []imagetypes.DeleteResponse
 
 	// Workaround for: https://github.com/moby/buildkit/issues/3797
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
@@ -163,7 +163,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 		}
 	}
 	i.LogImageEvent(imgID, imgID, events.ActionDelete)
-	records = append(records, types.ImageDeleteResponseItem{Deleted: imgID})
+	records = append(records, imagetypes.DeleteResponse{Deleted: imgID})
 
 	for _, parent := range parents {
 		if !isDanglingImage(parent.img) {
@@ -176,7 +176,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 		}
 		parentID := parent.img.Target.Digest.String()
 		i.LogImageEvent(parentID, parentID, events.ActionDelete)
-		records = append(records, types.ImageDeleteResponseItem{Deleted: parentID})
+		records = append(records, imagetypes.DeleteResponse{Deleted: parentID})
 	}
 
 	return records, nil
@@ -238,7 +238,7 @@ const (
 // images and untagged references are appended to the given records. If any
 // error or conflict is encountered, it will be returned immediately without
 // deleting the image.
-func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, records *[]types.ImageDeleteResponseItem, force bool) error {
+func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, records *[]imagetypes.DeleteResponse, force bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
@@ -264,7 +264,7 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img images.Image, 
 
 	if !isDanglingImage(img) {
 		i.LogImageEvent(imgID.String(), imgID.String(), events.ActionUnTag)
-		*records = append(*records, types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(untaggedRef)})
+		*records = append(*records, imagetypes.DeleteResponse{Untagged: reference.FamiliarString(untaggedRef)})
 	}
 
 	return nil

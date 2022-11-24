@@ -25,14 +25,14 @@ var acceptedImageFilterTags = map[string]bool{
 
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
-type byCreated []*types.ImageSummary
+type byCreated []*imagetypes.Summary
 
 func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Images returns a filtered list of images.
-func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*imagetypes.Summary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -83,8 +83,8 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	}
 
 	var (
-		summaries     = make([]*types.ImageSummary, 0, len(selectedImages))
-		summaryMap    map[*image.Image]*types.ImageSummary
+		summaries     = make([]*imagetypes.Summary, 0, len(selectedImages))
+		summaryMap    map[*image.Image]*imagetypes.Summary
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
@@ -197,7 +197,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		if opts.ContainerCount || opts.SharedSize {
 			// Lazily init summaryMap.
 			if summaryMap == nil {
-				summaryMap = make(map[*image.Image]*types.ImageSummary, len(selectedImages))
+				summaryMap = make(map[*image.Image]*imagetypes.Summary, len(selectedImages))
 			}
 			summaryMap[img] = summary
 		}
@@ -252,12 +252,12 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	return summaries, nil
 }
 
-func newImageSummary(image *image.Image, size int64) *types.ImageSummary {
+func newImageSummary(image *image.Image, size int64) *imagetypes.Summary {
 	var created int64
 	if image.Created != nil {
 		created = image.Created.Unix()
 	}
-	summary := &types.ImageSummary{
+	summary := &imagetypes.Summary{
 		ParentID: image.Parent.String(),
 		ID:       image.ID().String(),
 		Created:  created,

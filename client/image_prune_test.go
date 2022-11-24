@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/docker/api/types"
@@ -84,7 +85,7 @@ func TestImagesPrune(t *testing.T) {
 					assert.Check(t, is.Equal(expected, actual))
 				}
 				content, err := json.Marshal(types.ImagesPruneReport{
-					ImagesDeleted: []types.ImageDeleteResponseItem{
+					ImagesDeleted: []image.DeleteResponse{
 						{
 							Deleted: "image_id1",
 						},
