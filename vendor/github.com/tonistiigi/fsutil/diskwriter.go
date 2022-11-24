@@ -4,6 +4,7 @@ import (
 	"context"
 	"hash"
 	"io"
+	gofs "io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -33,10 +34,11 @@ type DiskWriter struct {
 	opt  DiskWriterOpt
 	dest string
 
-	ctx    context.Context
-	cancel func()
-	eg     *errgroup.Group
-	filter FilterFunc
+	ctx         context.Context
+	cancel      func()
+	eg          *errgroup.Group
+	filter      FilterFunc
+	dirModTimes map[string]int64
 }
 
 func NewDiskWriter(ctx context.Context, dest string, opt DiskWriterOpt) (*DiskWriter, error) {
@@ -51,17 +53,32 @@ func NewDiskWriter(ctx context.Context, dest string, opt DiskWriterOpt) (*DiskWr
 	eg, ctx := errgroup.WithContext(ctx)
 
 	return &DiskWriter{
-		opt:    opt,
-		dest:   dest,
-		eg:     eg,
-		ctx:    ctx,
-		cancel: cancel,
-		filter: opt.Filter,
+		opt:         opt,
+		dest:        dest,
+		eg:          eg,
+		ctx:         ctx,
+		cancel:      cancel,
+		filter:      opt.Filter,
+		dirModTimes: map[string]int64{},
 	}, nil
 }
 
 func (dw *DiskWriter) Wait(ctx context.Context) error {
-	return dw.eg.Wait()
+	if err := dw.eg.Wait(); err != nil {
+		return err
+	}
+	return filepath.WalkDir(dw.dest, func(path string, d gofs.DirEntry, prevErr error) error {
+		if prevErr != nil {
+			return prevErr
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		if mtime, ok := dw.dirModTimes[path]; ok {
+			return chtimes(path, mtime)
+		}
+		return nil
+	})
 }
 
 func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, err error) (retErr error) {
@@ -147,6 +164,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 		if err := os.Mkdir(newPath, fi.Mode()); err != nil {
 			return errors.Wrapf(err, "failed to create dir %s", newPath)
 		}
+		dw.dirModTimes[destPath] = statCopy.ModTime
 	case fi.Mode()&os.ModeDevice != 0 || fi.Mode()&os.ModeNamedPipe != 0:
 		if err := handleTarTypeBlockCharFifo(newPath, &statCopy); err != nil {
 			return errors.Wrapf(err, "failed to create device %s", newPath)
@@ -321,10 +339,6 @@ func (lfw *lazyFileWriter) Close() error {
 		err = os.Chmod(lfw.dest, *lfw.fileMode)
 	}
 	return err
-}
-
-func mkdev(major int64, minor int64) uint32 {
-	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
 }
 
 // Random number state.

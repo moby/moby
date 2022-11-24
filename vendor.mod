@@ -81,7 +81,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
-	github.com/tonistiigi/fsutil v0.0.0-20220315205639-9ed612626da3
+	github.com/tonistiigi/fsutil v0.0.0-20221114235510-0127568185cf
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.11.2
 	github.com/vishvananda/netlink v1.2.1-beta.2

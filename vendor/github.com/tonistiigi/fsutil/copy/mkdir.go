@@ -4,25 +4,7 @@ import (
 	"os"
 	"syscall"
 	"time"
-
-	"github.com/pkg/errors"
 )
-
-func Chown(p string, old *User, fn Chowner) error {
-	if fn == nil {
-		return nil
-	}
-	user, err := fn(old)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	if user != nil {
-		if err := os.Lchown(p, user.UID, user.GID); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // MkdirAll is forked os.MkdirAll
 func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) error {

@@ -814,8 +814,8 @@ github.com/spf13/pflag
 # github.com/tinylib/msgp v1.1.6
 ## explicit; go 1.14
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20220315205639-9ed612626da3
-## explicit; go 1.13
+# github.com/tonistiigi/fsutil v0.0.0-20221114235510-0127568185cf
+## explicit; go 1.18
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
