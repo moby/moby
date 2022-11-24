@@ -1,0 +1,136 @@
+/*
+	Copyright The containerd Authors.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+syntax = "proto3";
+
+package containerd.runtime.sandbox.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+import "github.com/containerd/containerd/api/types/mount.proto";
+import "github.com/containerd/containerd/api/types/platform.proto";
+
+option go_package = "github.com/containerd/containerd/api/runtime/sandbox/v1;sandbox";
+
+// Sandbox is an optional interface that shim may implement to support sandboxes environments.
+// A typical example of sandbox is microVM or pause container - an entity that groups containers and/or
+// holds resources relevant for this group.
+service Sandbox {
+	// CreateSandbox will be called right after sandbox shim instance launched.
+	// It is a good place to initialize sandbox environment.
+	rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
+
+	// StartSandbox will start previsouly created sandbox.
+	rpc StartSandbox(StartSandboxRequest) returns (StartSandboxResponse);
+
+	// Platform queries the platform the sandbox is going to run containers on.
+	// containerd will use this to generate a proper OCI spec.
+	rpc Platform(PlatformRequest) returns (PlatformResponse);
+
+	// StopSandbox will stop existing sandbox instance
+	rpc StopSandbox(StopSandboxRequest) returns (StopSandboxResponse);
+
+	// WaitSandbox blocks until sanbox exits.
+	rpc WaitSandbox(WaitSandboxRequest) returns (WaitSandboxResponse);
+
+	// SandboxStatus will return current status of the running sandbox instance
+	rpc SandboxStatus(SandboxStatusRequest) returns (SandboxStatusResponse);
+
+	// PingSandbox is a lightweight API call to check whether sandbox alive.
+	rpc PingSandbox(PingRequest) returns (PingResponse);
+
+	// ShutdownSandbox must shutdown shim instance.
+	rpc ShutdownSandbox(ShutdownSandboxRequest) returns (ShutdownSandboxResponse);
+}
+
+message CreateSandboxRequest {
+	string sandbox_id = 1;
+	string bundle_path = 2;
+	repeated containerd.types.Mount rootfs = 3;
+	google.protobuf.Any options = 4;
+	string netns_path = 5;
+}
+
+message CreateSandboxResponse {}
+
+message StartSandboxRequest {
+	string sandbox_id = 1;
+}
+
+message StartSandboxResponse {
+	uint32 pid = 1;
+	google.protobuf.Timestamp created_at = 2;
+}
+
+message PlatformRequest {
+	string sandbox_id = 1;
+}
+
+message PlatformResponse {
+	containerd.types.Platform platform = 1;
+}
+
+message StopSandboxRequest {
+	string sandbox_id = 1;
+	uint32 timeout_secs = 2;
+}
+
+message StopSandboxResponse {}
+
+message UpdateSandboxRequest {
+	string sandbox_id = 1;
+	google.protobuf.Any resources = 2;
+	map<string, string> annotations = 3;
+}
+
+message WaitSandboxRequest {
+	string sandbox_id = 1;
+}
+
+message WaitSandboxResponse {
+	uint32 exit_status = 1;
+	google.protobuf.Timestamp exited_at = 2;
+}
+
+message UpdateSandboxResponse {}
+
+message SandboxStatusRequest {
+	string sandbox_id = 1;
+	bool verbose = 2;
+}
+
+message SandboxStatusResponse {
+	string sandbox_id = 1;
+	uint32 pid = 2;
+	string state = 3;
+	map<string, string> info = 4;
+	google.protobuf.Timestamp created_at = 5;
+	google.protobuf.Timestamp exited_at = 6;
+	google.protobuf.Any extra = 7;
+}
+
+message PingRequest {
+	string sandbox_id = 1;
+}
+
+message PingResponse {}
+
+message ShutdownSandboxRequest {
+	string sandbox_id = 1;
+}
+
+message ShutdownSandboxResponse {}

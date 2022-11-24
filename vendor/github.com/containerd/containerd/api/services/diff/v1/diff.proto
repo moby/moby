@@ -18,8 +18,8 @@ syntax = "proto3";
 
 package containerd.services.diff.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
 import "github.com/containerd/containerd/api/types/mount.proto";
 import "github.com/containerd/containerd/api/types/descriptor.proto";
 
@@ -73,6 +73,10 @@ message DiffRequest {
 	// Labels are the labels to apply to the generated content
 	// on content store commit.
 	map<string, string> labels = 5;
+
+	// SourceDateEpoch specifies the timestamp used for whiteouts to provide control for reproducibility.
+	// See also https://reproducible-builds.org/docs/source-date-epoch/ .
+	google.protobuf.Timestamp source_date_epoch = 6;
 }
 
 message DiffResponse {

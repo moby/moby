@@ -1,23 +1,51 @@
 run:
   timeout: 8m
+  tests: true
+  build-tags:
+    - admin
+    - functional
+    - integration
+  skip-dirs:
+    # paths are relative to module root
+    - cri-containerd/test-images
 
 linters:
   enable:
-    - stylecheck
+    # defaults:
+    # - errcheck
+    # - gosimple
+    # - govet
+    # - ineffassign
+    # - staticcheck
+    # - typecheck
+    # - unused
+
+    - gofmt # whether code was gofmt-ed
+    - nolintlint # ill-formed or insufficient nolint directives
+    - stylecheck # golint replacement
+    - thelper #  test helpers without t.Helper()
 
 linters-settings:
   stylecheck:
     # https://staticcheck.io/docs/checks
     checks: ["all"]
 
-
 issues:
-  # This repo has a LOT of generated schema files, operating system bindings, and other things that ST1003 from stylecheck won't like
-  # (screaming case Windows api constants for example). There's also some structs that we *could* change the initialisms to be Go
-  # friendly (Id -> ID) but they're exported and it would be a breaking change. This makes it so that most new code, code that isn't
-  # supposed to be a pretty faithful mapping to an OS call/constants, or non-generated code still checks if we're following idioms,
-  # while ignoring the things that are just noise or would be more of a hassle than it'd be worth to change.
   exclude-rules:
+    # path is relative to module root, which is ./test/
+    - path: cri-containerd
+      linters:
+        - stylecheck
+      text: "^ST1003: should not use underscores in package names$"
+      source: "^package cri_containerd$"
+
+    # This repo has a LOT of generated schema files, operating system bindings, and other
+    # things that ST1003 from stylecheck won't like (screaming case Windows api constants for example).
+    # There's also some structs that we *could* change the initialisms to be Go friendly
+    # (Id -> ID) but they're exported and it would be a breaking change.
+    # This makes it so that most new code, code that isn't supposed to be a pretty faithful
+    # mapping to an OS call/constants, or non-generated code still checks if we're following idioms,
+    # while ignoring the things that are just noise or would be more of a hassle than it'd be worth to change.
     - path: layer.go
       linters:
         - stylecheck
@@ -28,10 +56,20 @@ issues:
         - stylecheck
       Text: "ST1003:"
 
-    - path: internal\\hcs\\schema2\\
+    - path: cmd\\ncproxy\\nodenetsvc\\
       linters:
         - stylecheck
       Text: "ST1003:"
+
+    - path: cmd\\ncproxy_mock\\
+      linters:
+        - stylecheck
+      Text: "ST1003:"
+
+    - path: internal\\hcs\\schema2\\
+      linters:
+        - stylecheck
+        - gofmt
 
     - path: internal\\wclayer\\
       linters:

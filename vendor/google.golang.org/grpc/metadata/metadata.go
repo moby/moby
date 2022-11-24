@@ -41,10 +41,11 @@ type MD map[string][]string
 // New creates an MD from a given key-value map.
 //
 // Only the following ASCII characters are allowed in keys:
-//  - digits: 0-9
-//  - uppercase letters: A-Z (normalized to lower)
-//  - lowercase letters: a-z
-//  - special characters: -_.
+//   - digits: 0-9
+//   - uppercase letters: A-Z (normalized to lower)
+//   - lowercase letters: a-z
+//   - special characters: -_.
+//
 // Uppercase letters are automatically converted to lowercase.
 //
 // Keys beginning with "grpc-" are reserved for grpc-internal use only and may
@@ -62,10 +63,11 @@ func New(m map[string]string) MD {
 // Pairs panics if len(kv) is odd.
 //
 // Only the following ASCII characters are allowed in keys:
-//  - digits: 0-9
-//  - uppercase letters: A-Z (normalized to lower)
-//  - lowercase letters: a-z
-//  - special characters: -_.
+//   - digits: 0-9
+//   - uppercase letters: A-Z (normalized to lower)
+//   - lowercase letters: a-z
+//   - special characters: -_.
+//
 // Uppercase letters are automatically converted to lowercase.
 //
 // Keys beginning with "grpc-" are reserved for grpc-internal use only and may
@@ -196,7 +198,7 @@ func FromIncomingContext(ctx context.Context) (MD, bool) {
 // ValueFromIncomingContext returns the metadata value corresponding to the metadata
 // key from the incoming metadata if it exists. Key must be lower-case.
 //
-// Experimental
+// # Experimental
 //
 // Notice: This API is EXPERIMENTAL and may be changed or removed in a
 // later release.

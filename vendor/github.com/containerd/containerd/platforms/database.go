@@ -21,13 +21,6 @@ import (
 	"strings"
 )
 
-// isLinuxOS returns true if the operating system is Linux.
-//
-// The OS value should be normalized before calling this function.
-func isLinuxOS(os string) bool {
-	return os == "linux"
-}
-
 // These function are generated from https://golang.org/src/go/build/syslist.go.
 //
 // We use switch statements because they are slightly faster than map lookups

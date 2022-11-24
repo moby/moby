@@ -19,6 +19,7 @@ import (
 	"errors"
 	"sync"
 
+	"go.opentelemetry.io/otel/exporters/otlp/internal"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -45,7 +46,11 @@ func (e *Exporter) ExportSpans(ctx context.Context, ss []tracesdk.ReadOnlySpan) 
 		return nil
 	}
 
-	return e.client.UploadTraces(ctx, protoSpans)
+	err := e.client.UploadTraces(ctx, protoSpans)
+	if err != nil {
+		return internal.WrapTracesError(err)
+	}
+	return nil
 }
 
 // Start establishes a connection to the receiving endpoint.
@@ -98,5 +103,16 @@ func New(ctx context.Context, client Client) (*Exporter, error) {
 func NewUnstarted(client Client) *Exporter {
 	return &Exporter{
 		client: client,
+	}
+}
+
+// MarshalLog is the marshaling function used by the logging system to represent this exporter.
+func (e *Exporter) MarshalLog() interface{} {
+	return struct {
+		Type   string
+		Client Client
+	}{
+		Type:   "otlptrace",
+		Client: e.client,
 	}
 }

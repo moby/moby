@@ -29,7 +29,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes/docker/auth"
 	remoteerrors "github.com/containerd/containerd/remotes/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type dockerAuthorizer struct {
@@ -43,13 +42,6 @@ type dockerAuthorizer struct {
 	handlers map[string]*authHandler
 
 	onFetchRefreshToken OnFetchRefreshToken
-}
-
-// NewAuthorizer creates a Docker authorizer using the provided function to
-// get credentials for the token server or basic auth.
-// Deprecated: Use NewDockerAuthorizer
-func NewAuthorizer(client *http.Client, f func(string) (string, string, error)) Authorizer {
-	return NewDockerAuthorizer(WithAuthClient(client), WithAuthCreds(f))
 }
 
 type authorizerConfig struct {
@@ -319,7 +311,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (token, refreshToken st
 					}
 					return resp.Token, resp.RefreshToken, nil
 				}
-				log.G(ctx).WithFields(logrus.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"status": errStatus.Status,
 					"body":   string(errStatus.Body),
 				}).Debugf("token request failed")

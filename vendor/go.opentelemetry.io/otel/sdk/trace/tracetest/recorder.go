@@ -32,6 +32,7 @@ type SpanRecorder struct {
 
 var _ sdktrace.SpanProcessor = (*SpanRecorder)(nil)
 
+// NewSpanRecorder returns a new initialized SpanRecorder.
 func NewSpanRecorder() *SpanRecorder {
 	return new(SpanRecorder)
 }

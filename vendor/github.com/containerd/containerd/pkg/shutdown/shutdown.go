@@ -37,6 +37,11 @@ type Service interface {
 	// the shutdown channel is closed. A callback error will propagate to the
 	// context error
 	RegisterCallback(func(context.Context) error)
+	// Done returns a channel that's closed when all shutdown callbacks are invoked.
+	Done() <-chan struct{}
+	// Err returns nil if Done is not yet closed.
+	// If Done is closed, Err returns first failed callback error or ErrShutdown.
+	Err() error
 }
 
 // WithShutdown returns a context which is similar to a cancel context, but
@@ -99,6 +104,7 @@ func (s *shutdownService) Err() error {
 	defer s.mu.Unlock()
 	return s.err
 }
+
 func (s *shutdownService) RegisterCallback(fn func(context.Context) error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -1,3 +1,5 @@
+//go:build windows
+
 package safefile
 
 import (
@@ -156,7 +158,6 @@ func LinkRelative(oldname string, oldroot *os.File, newname string, newroot *os.
 		if (fi.FileAttributes & syscall.FILE_ATTRIBUTE_REPARSE_POINT) != 0 {
 			return &os.LinkError{Op: "link", Old: oldf.Name(), New: filepath.Join(newroot.Name(), newname), Err: winapi.RtlNtStatusToDosError(winapi.STATUS_REPARSE_POINT_ENCOUNTERED)}
 		}
-
 	} else {
 		parent = newroot
 	}
@@ -337,6 +338,33 @@ func MkdirRelative(path string, root *os.File) error {
 		err = &os.PathError{Op: "mkdir", Path: filepath.Join(root.Name(), path), Err: err}
 	}
 	return err
+}
+
+// MkdirAllRelative creates each directory in the path relative to a root, failing if
+// any existing intermediate path components are reparse points.
+func MkdirAllRelative(path string, root *os.File) error {
+	pathParts := strings.Split(filepath.Clean(path), (string)(filepath.Separator))
+	for index := range pathParts {
+		partialPath := filepath.Join(pathParts[0 : index+1]...)
+		stat, err := LstatRelative(partialPath, root)
+
+		if err != nil {
+			if os.IsNotExist(err) {
+				if err := MkdirRelative(partialPath, root); err != nil {
+					return err
+				}
+				continue
+			}
+			return err
+		}
+
+		if !stat.IsDir() {
+			fullPath := filepath.Join(root.Name(), partialPath)
+			return &os.PathError{Op: "mkdir", Path: fullPath, Err: syscall.ENOTDIR}
+		}
+	}
+
+	return nil
 }
 
 // LstatRelative performs a stat operation on a file relative to a root, failing

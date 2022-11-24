@@ -17,12 +17,9 @@
 package cni
 
 const (
-	CNIPluginName        = "cni"
-	DefaultNetDir        = "/etc/cni/net.d"
-	DefaultCNIDir        = "/opt/cni/bin"
-	DefaultMaxConfNum    = 1
-	VendorCNIDirTemplate = "%s/opt/%s/bin"
-	DefaultPrefix        = "eth"
+	CNIPluginName     = "cni"
+	DefaultMaxConfNum = 1
+	DefaultPrefix     = "eth"
 )
 
 type config struct {

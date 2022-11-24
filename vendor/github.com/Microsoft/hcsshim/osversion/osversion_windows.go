@@ -45,6 +45,15 @@ func Build() uint16 {
 	return Get().Build
 }
 
-func (osv OSVersion) ToString() string {
+// String returns the OSVersion formatted as a string. It implements the
+// [fmt.Stringer] interface.
+func (osv OSVersion) String() string {
 	return fmt.Sprintf("%d.%d.%d", osv.MajorVersion, osv.MinorVersion, osv.Build)
+}
+
+// ToString returns the OSVersion formatted as a string.
+//
+// Deprecated: use [OSVersion.String].
+func (osv OSVersion) ToString() string {
+	return osv.String()
 }

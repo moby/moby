@@ -1,7 +1,7 @@
 # containerd roadmap
 
 containerd uses the issues and milestones to define its roadmap.
-`ROADMAP.md` files are common in open source projects but we find they quickly become out of date.
+`ROADMAP.md` files are common in open source projects, but we find they quickly become out of date.
 We opt for an issues and milestone approach that our maintainers and community can keep up-to-date as work is added and completed.
 
 ## Issues

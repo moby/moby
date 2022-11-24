@@ -98,6 +98,16 @@ message Options {
 	// The typical example is if Containerd has restarted but is expected to come back online. A 0 for this field is interpreted as an infinite
 	// timeout.
 	int32 io_retry_timeout_in_sec = 17;
+
+	// default_container_annotations specifies a set of annotations that should be set for every workload container
+	map<string, string> default_container_annotations = 18;
+
+	// no_inherit_host_timezone specifies to skip inheriting the hosts time zone for WCOW UVMs and instead default to
+	// UTC.
+	bool no_inherit_host_timezone = 19;
+
+	// scrub_logs enables removing environment variables and other potentially sensitive information from logs
+	bool scrub_logs = 20;
 }
 
 // ProcessDetails contains additional information about a process. This is the additional

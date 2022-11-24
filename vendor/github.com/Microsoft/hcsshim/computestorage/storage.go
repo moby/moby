@@ -7,7 +7,7 @@ import (
 	hcsschema "github.com/Microsoft/hcsshim/internal/hcs/schema2"
 )
 
-//go:generate go run ../mksyscall_windows.go -output zsyscall_windows.go storage.go
+//go:generate go run github.com/Microsoft/go-winio/tools/mkwinsyscall -output zsyscall_windows.go storage.go
 
 //sys hcsImportLayer(layerPath string, sourceFolderPath string, layerData string) (hr error) = computestorage.HcsImportLayer?
 //sys hcsExportLayer(layerPath string, exportFolderPath string, layerData string, options string) (hr error) = computestorage.HcsExportLayer?
@@ -20,10 +20,13 @@ import (
 //sys hcsGetLayerVhdMountPath(vhdHandle windows.Handle, mountPath **uint16) (hr error) = computestorage.HcsGetLayerVhdMountPath?
 //sys hcsSetupBaseOSVolume(layerPath string, volumePath string, options string) (hr error) = computestorage.HcsSetupBaseOSVolume?
 
+type Version = hcsschema.Version
+type Layer = hcsschema.Layer
+
 // LayerData is the data used to describe parent layer information.
 type LayerData struct {
-	SchemaVersion hcsschema.Version `json:"SchemaVersion,omitempty"`
-	Layers        []hcsschema.Layer `json:"Layers,omitempty"`
+	SchemaVersion Version `json:"SchemaVersion,omitempty"`
+	Layers        []Layer `json:"Layers,omitempty"`
 }
 
 // ExportLayerOptions are the set of options that are used with the `computestorage.HcsExportLayer` syscall.

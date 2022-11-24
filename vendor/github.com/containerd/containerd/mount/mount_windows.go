@@ -18,7 +18,6 @@ package mount
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,13 +26,8 @@ import (
 	"github.com/Microsoft/hcsshim"
 )
 
-var (
-	// ErrNotImplementOnWindows is returned when an action is not implemented for windows
-	ErrNotImplementOnWindows = errors.New("not implemented under windows")
-)
-
-// Mount to the provided target
-func (m *Mount) Mount(target string) error {
+// Mount to the provided target.
+func (m *Mount) mount(target string) error {
 	if m.Type != "windows-layer" {
 		return fmt.Errorf("invalid windows mount type: '%s'", m.Type)
 	}
@@ -64,8 +58,9 @@ func (m *Mount) Mount(target string) error {
 		return fmt.Errorf("failed to get layer mount path for %s: %w", m.Source, err)
 	}
 	mountPath = mountPath + `\`
+
 	if err = os.Symlink(mountPath, target); err != nil {
-		return fmt.Errorf("failed to link mount to taget %s: %w", target, err)
+		return fmt.Errorf("failed to link mount to target %s: %w", target, err)
 	}
 	return nil
 }
@@ -110,4 +105,9 @@ func Unmount(mount string, flags int) error {
 // UnmountAll unmounts from the provided path
 func UnmountAll(mount string, flags int) error {
 	return Unmount(mount, flags)
+}
+
+// UnmountRecursive unmounts from the provided path
+func UnmountRecursive(mount string, flags int) error {
+	return UnmountAll(mount, flags)
 }

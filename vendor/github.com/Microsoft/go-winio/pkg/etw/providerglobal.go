@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package etw
@@ -14,7 +15,6 @@ type providerMap struct {
 	m    map[uint]*Provider
 	i    uint
 	lock sync.Mutex
-	once sync.Once
 }
 
 var providers = providerMap{
@@ -49,6 +49,8 @@ func (p *providerMap) getProvider(index uint) *Provider {
 
 	return p.m[index]
 }
+
+//todo: combine these into struct, so that "globalProviderCallback" is guaranteed to be initialized through method access
 
 var providerCallbackOnce sync.Once
 var globalProviderCallback uintptr

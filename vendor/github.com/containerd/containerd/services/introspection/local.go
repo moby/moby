@@ -20,6 +20,7 @@ import (
 	context "context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	api "github.com/containerd/containerd/api/services/introspection/v1"
@@ -27,10 +28,11 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/plugin"
+	ptypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/services"
-	"github.com/gogo/googleapis/google/rpc"
-	ptypes "github.com/gogo/protobuf/types"
 	"github.com/google/uuid"
+	"google.golang.org/genproto/googleapis/rpc/code"
+	rpc "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
@@ -55,7 +57,7 @@ type Local struct {
 	mu          sync.Mutex
 	root        string
 	plugins     *plugin.Set
-	pluginCache []api.Plugin
+	pluginCache []*api.Plugin
 }
 
 var _ = (api.IntrospectionClient)(&Local{})
@@ -74,14 +76,13 @@ func (l *Local) Plugins(ctx context.Context, req *api.PluginsRequest, _ ...grpc.
 		return nil, errdefs.ToGRPCf(errdefs.ErrInvalidArgument, err.Error())
 	}
 
-	var plugins []api.Plugin
+	var plugins []*api.Plugin
 	allPlugins := l.getPlugins()
 	for _, p := range allPlugins {
-		if !filter.Match(adaptPlugin(p)) {
-			continue
+		p := p
+		if filter.Match(adaptPlugin(p)) {
+			plugins = append(plugins, p)
 		}
-
-		plugins = append(plugins, p)
 	}
 
 	return &api.PluginsResponse{
@@ -89,7 +90,7 @@ func (l *Local) Plugins(ctx context.Context, req *api.PluginsRequest, _ ...grpc.
 	}, nil
 }
 
-func (l *Local) getPlugins() []api.Plugin {
+func (l *Local) getPlugins() []*api.Plugin {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	plugins := l.plugins.GetAll()
@@ -105,8 +106,18 @@ func (l *Local) Server(ctx context.Context, _ *ptypes.Empty, _ ...grpc.CallOptio
 	if err != nil {
 		return nil, errdefs.ToGRPC(err)
 	}
+	pid := os.Getpid()
+	var pidns uint64
+	if runtime.GOOS == "linux" {
+		pidns, err = statPIDNS(pid)
+		if err != nil {
+			return nil, errdefs.ToGRPC(err)
+		}
+	}
 	return &api.ServerResponse{
-		UUID: u,
+		UUID:  u,
+		Pid:   uint64(pid),
+		Pidns: pidns,
 	}, nil
 }
 
@@ -149,7 +160,7 @@ func (l *Local) uuidPath() string {
 }
 
 func adaptPlugin(o interface{}) filters.Adaptor {
-	obj := o.(api.Plugin)
+	obj := o.(*api.Plugin)
 	return filters.AdapterFunc(func(fieldpath []string) (string, bool) {
 		if len(fieldpath) == 0 {
 			return "", false
@@ -175,12 +186,12 @@ func adaptPlugin(o interface{}) filters.Adaptor {
 	})
 }
 
-func pluginsToPB(plugins []*plugin.Plugin) []api.Plugin {
-	var pluginsPB []api.Plugin
+func pluginsToPB(plugins []*plugin.Plugin) []*api.Plugin {
+	var pluginsPB []*api.Plugin
 	for _, p := range plugins {
-		var platforms []types.Platform
+		var platforms []*types.Platform
 		for _, p := range p.Meta.Platforms {
-			platforms = append(platforms, types.Platform{
+			platforms = append(platforms, &types.Platform{
 				OS:           p.OS,
 				Architecture: p.Architecture,
 				Variant:      p.Variant,
@@ -210,13 +221,13 @@ func pluginsToPB(plugins []*plugin.Plugin) []api.Plugin {
 				}
 			} else {
 				initErr = &rpc.Status{
-					Code:    int32(rpc.UNKNOWN),
+					Code:    int32(code.Code_UNKNOWN),
 					Message: err.Error(),
 				}
 			}
 		}
 
-		pluginsPB = append(pluginsPB, api.Plugin{
+		pluginsPB = append(pluginsPB, &api.Plugin{
 			Type:         p.Registration.Type.String(),
 			ID:           p.Registration.ID,
 			Requires:     requires,

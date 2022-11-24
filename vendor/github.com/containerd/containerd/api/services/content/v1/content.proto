@@ -18,7 +18,6 @@ syntax = "proto3";
 
 package containerd.services.content.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
@@ -92,16 +91,16 @@ service Content {
 
 message Info {
 	// Digest is the hash identity of the blob.
-	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 1;
 
 	// Size is the total number of bytes in the blob.
 	int64 size = 2;
 
 	// CreatedAt provides the time at which the blob was committed.
-	google.protobuf.Timestamp created_at = 3 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp created_at = 3;
 
 	// UpdatedAt provides the time the info was last updated.
-	google.protobuf.Timestamp updated_at = 4 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp updated_at = 4;
 
 	// Labels are arbitrary data on snapshots.
 	//
@@ -110,15 +109,15 @@ message Info {
 }
 
 message InfoRequest {
-	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 1;
 }
 
 message InfoResponse {
-	Info info = 1 [(gogoproto.nullable) = false];
+	Info info = 1;
 }
 
 message UpdateRequest {
-	Info info = 1 [(gogoproto.nullable) = false];
+	Info info = 1;
 
 	// UpdateMask specifies which fields to perform the update on. If empty,
 	// the operation applies to all fields.
@@ -130,7 +129,7 @@ message UpdateRequest {
 }
 
 message UpdateResponse {
-	Info info = 1 [(gogoproto.nullable) = false];
+	Info info = 1;
 }
 
 message ListContentRequest {
@@ -141,26 +140,26 @@ message ListContentRequest {
 	// filters. Expanded, containers that match the following will be
 	// returned:
 	//
-	//   filters[0] or filters[1] or ... or filters[n-1] or filters[n]
+	//	filters[0] or filters[1] or ... or filters[n-1] or filters[n]
 	//
 	// If filters is zero-length or nil, all items will be returned.
 	repeated string filters = 1;
 }
 
 message ListContentResponse {
-	repeated Info info = 1 [(gogoproto.nullable) = false];
+	repeated Info info = 1;
 }
 
 message DeleteContentRequest {
 	// Digest specifies which content to delete.
-	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 1;
 }
 
 // ReadContentRequest defines the fields that make up a request to read a portion of
 // data from a stored object.
 message ReadContentRequest {
 	// Digest is the hash identity to read.
-	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 1;
 
 	// Offset specifies the number of bytes from the start at which to begin
 	// the read. If zero or less, the read will be from the start. This uses
@@ -179,12 +178,12 @@ message ReadContentResponse {
 }
 
 message Status {
-	google.protobuf.Timestamp started_at = 1 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
-	google.protobuf.Timestamp updated_at = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp started_at = 1;
+	google.protobuf.Timestamp updated_at = 2;
 	string ref = 3;
 	int64 offset = 4;
 	int64 total = 5;
-	string expected = 6 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string expected = 6;
 }
 
 
@@ -201,17 +200,14 @@ message ListStatusesRequest {
 }
 
 message ListStatusesResponse {
-	repeated Status statuses = 1 [(gogoproto.nullable) = false];
+	repeated Status statuses = 1;
 }
 
 // WriteAction defines the behavior of a WriteRequest.
 enum WriteAction {
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "WriteAction";
-
 	// WriteActionStat instructs the writer to return the current status while
 	// holding the lock on the write.
-	STAT = 0 [(gogoproto.enumvalue_customname) = "WriteActionStat"];
+	STAT = 0;
 
 	// WriteActionWrite sets the action for the write request to write data.
 	//
@@ -219,7 +215,7 @@ enum WriteAction {
 	// transaction will be left open for further writes.
 	//
 	// This is the default.
-	WRITE = 1 [(gogoproto.enumvalue_customname) = "WriteActionWrite"];
+	WRITE = 1;
 
 	// WriteActionCommit will write any outstanding data in the message and
 	// commit the write, storing it under the digest.
@@ -228,7 +224,7 @@ enum WriteAction {
 	// commit it.
 	//
 	// This action will always terminate the write.
-	COMMIT = 2 [(gogoproto.enumvalue_customname) = "WriteActionCommit"];
+	COMMIT = 2;
 }
 
 // WriteContentRequest writes data to the request ref at offset.
@@ -269,7 +265,7 @@ message WriteContentRequest {
 	// Only the latest version will be used to check the content against the
 	// digest. It is only required to include it on a single message, before or
 	// with the commit action message.
-	string expected = 4 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string expected = 4;
 
 	// Offset specifies the number of bytes from the start at which to begin
 	// the write. For most implementations, this means from the start of the
@@ -304,13 +300,13 @@ message WriteContentResponse {
 	//
 	// This must be set for stat and commit write actions. All other write
 	// actions may omit this.
-	google.protobuf.Timestamp started_at = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp started_at = 2;
 
 	// UpdatedAt provides the last time of a successful write.
 	//
 	// This must be set for stat and commit write actions. All other write
 	// actions may omit this.
-	google.protobuf.Timestamp updated_at = 3 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp updated_at = 3;
 
 	// Offset is the current committed size for the write.
 	int64 offset = 4;
@@ -326,7 +322,7 @@ message WriteContentResponse {
 	// Digest, if present, includes the digest up to the currently committed
 	// bytes. If action is commit, this field will be set. It is implementation
 	// defined if this is set for other actions.
-	string digest = 6 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string digest = 6;
 }
 
 message AbortRequest {

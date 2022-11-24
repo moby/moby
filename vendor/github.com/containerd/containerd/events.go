@@ -22,7 +22,8 @@ import (
 	eventsapi "github.com/containerd/containerd/api/services/events/v1"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
-	"github.com/containerd/typeurl"
+	"github.com/containerd/containerd/protobuf"
+	"github.com/containerd/typeurl/v2"
 )
 
 // EventService handles the publish, forward and subscribe of events.
@@ -51,7 +52,7 @@ func (e *eventRemote) Publish(ctx context.Context, topic string, event events.Ev
 	}
 	req := &eventsapi.PublishRequest{
 		Topic: topic,
-		Event: any,
+		Event: protobuf.FromAny(any),
 	}
 	if _, err := e.client.Publish(ctx, req); err != nil {
 		return errdefs.FromGRPC(err)
@@ -62,10 +63,10 @@ func (e *eventRemote) Publish(ctx context.Context, topic string, event events.Ev
 func (e *eventRemote) Forward(ctx context.Context, envelope *events.Envelope) error {
 	req := &eventsapi.ForwardRequest{
 		Envelope: &eventsapi.Envelope{
-			Timestamp: envelope.Timestamp,
+			Timestamp: protobuf.ToTimestamp(envelope.Timestamp),
 			Namespace: envelope.Namespace,
 			Topic:     envelope.Topic,
-			Event:     envelope.Event,
+			Event:     protobuf.FromAny(envelope.Event),
 		},
 	}
 	if _, err := e.client.Forward(ctx, req); err != nil {
@@ -104,7 +105,7 @@ func (e *eventRemote) Subscribe(ctx context.Context, filters ...string) (ch <-ch
 
 			select {
 			case evq <- &events.Envelope{
-				Timestamp: ev.Timestamp,
+				Timestamp: protobuf.FromTimestamp(ev.Timestamp),
 				Namespace: ev.Namespace,
 				Topic:     ev.Topic,
 				Event:     ev.Event,

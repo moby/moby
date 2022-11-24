@@ -1,3 +1,5 @@
+//go:build windows
+
 package computestorage
 
 import (
@@ -17,8 +19,8 @@ import (
 //
 // `layerData` is the parent read-only layer data.
 func AttachLayerStorageFilter(ctx context.Context, layerPath string, layerData LayerData) (err error) {
-	title := "hcsshim.AttachLayerStorageFilter"
-	ctx, span := trace.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
+	title := "hcsshim::AttachLayerStorageFilter"
+	ctx, span := oc.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
 	defer span.End()
 	defer func() { oc.SetSpanStatus(span, err) }()
 	span.AddAttributes(

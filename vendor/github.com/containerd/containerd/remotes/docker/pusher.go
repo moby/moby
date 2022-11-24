@@ -191,6 +191,9 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 		if resp == nil {
 			resp, err = req.doWithRetries(ctx, nil)
 			if err != nil {
+				if errors.Is(err, ErrInvalidAuthorization) {
+					return nil, fmt.Errorf("push access denied, repository does not exist or may require authorization: %w", err)
+				}
 				return nil, err
 			}
 		}

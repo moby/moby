@@ -1,0 +1,80 @@
+# Cirrus CI gives open-source projects free 16.0 CPUs,
+# we use 4 CPUs x 3 tasks = 12 CPUs.
+# https://cirrus-ci.org/faq/#are-there-any-limits
+#
+# Undocumented constraints;
+# - The maximum memory limit is 4G times the number of CPUs.
+# - The number of CPUs should be multiple of 2.
+
+task:
+  name: Vagrant
+
+  compute_engine_instance:
+    image_project: cirrus-images
+    image: family/docker-kvm
+    platform: linux
+    nested_virtualization: true
+    cpu: 4
+    memory: 16G
+
+  env:
+    GOTEST: gotestsum --
+    # By default, Cirrus CI doesn't have HOME defined
+    HOME: /root
+    matrix:
+      BOX: fedora/37-cloud-base
+      # v7.0.0 does not boot. v6.0.0 was not released.
+      BOX: rockylinux/8@5.0.0
+  install_libvirt_vagrant_script: |
+    apt-get update
+    apt-get install -y libvirt-daemon libvirt-daemon-system vagrant vagrant-libvirt
+    systemctl enable --now libvirtd
+
+  vagrant_cache:
+    folder: /root/.vagrant.d
+    fingerprint_script: uname --kernel-release --kernel-version && cat Vagrantfile
+
+  vagrant_up_script: |
+    vagrant up --no-tty
+
+  integration_script: |
+    vagrant up --provision-with=selinux,install-runc,install-gotestsum,test-integration
+
+  cri_integration_script: |
+    vagrant up --provision-with=selinux,install-runc,install-gotestsum,test-cri-integration
+
+  cri_test_script: |
+    vagrant up --provision-with=selinux,install-runc,install-gotestsum,test-cri
+
+task:
+  name: CGroupsV2 - rootless CRI test
+
+  env:
+    HOME: /root
+
+  compute_engine_instance:
+    image_project: cirrus-images
+    image: family/docker-kvm
+    platform: linux
+    nested_virtualization: true
+    cpu: 4
+    memory: 16G
+
+  install_libvirt_vagrant_script: |
+    apt-get update
+    apt-get install -y libvirt-daemon libvirt-daemon-system vagrant vagrant-libvirt
+    systemctl enable --now libvirtd
+
+  vagrant_cache:
+    folder: /root/.vagrant.d
+    fingerprint_script: uname -a; cat Vagrantfile
+
+  vagrant_up_script: |
+    vagrant up --provision-with=install-rootless-podman --no-tty
+
+  podman_build_script: |
+    # Execute rootless podman to create the UserNS env
+    vagrant ssh -- podman build --target cri-in-userns -t cri-in-userns -f /vagrant/contrib/Dockerfile.test /vagrant
+
+  test_script: |
+    vagrant ssh -- podman run --rm --privileged cri-in-userns

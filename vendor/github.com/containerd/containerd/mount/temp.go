@@ -49,7 +49,7 @@ func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) erro
 
 	// We should do defer first, if not we will not do Unmount when only a part of Mounts are failed.
 	defer func() {
-		if uerr = UnmountAll(root, 0); uerr != nil {
+		if uerr = UnmountMounts(mounts, root, 0); uerr != nil {
 			uerr = fmt.Errorf("failed to unmount %s: %w", root, uerr)
 			if err == nil {
 				err = uerr

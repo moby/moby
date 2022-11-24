@@ -17,20 +17,28 @@
 
 # Vagrantfile for Fedora and EL
 Vagrant.configure("2") do |config|
-  config.vm.box = ENV["BOX"] || "fedora/37-cloud-base"
-  config.vm.box_version = ENV["BOX_VERSION"]
+  config.vm.box = ENV["BOX"] ? ENV["BOX"].split("@")[0] : "fedora/37-cloud-base"
+  # BOX_VERSION is deprecated. Use "BOX=<BOX>@<BOX_VERSION>".
+  config.vm.box_version = ENV["BOX_VERSION"] || (ENV["BOX"].split("@")[1] if ENV["BOX"])
+
   memory = 4096
   cpus = 2
-  config.vm.provider :virtualbox do |v|
+  disk_size = 60
+  config.vm.provider :virtualbox do |v, o|
     v.memory = memory
     v.cpus = cpus
+    # Needs env var VAGRANT_EXPERIMENTAL="disks"
+    o.vm.disk :disk, size: "#{disk_size}GB", primary: true
   end
   config.vm.provider :libvirt do |v|
     v.memory = memory
     v.cpus = cpus
+    v.machine_virtual_size = disk_size
   end
 
   config.vm.synced_folder ".", "/vagrant", type: "rsync"
+
+  config.vm.provision 'shell', path: 'script/resize-vagrant-root.sh'
 
   # Disabled by default. To run:
   #   vagrant up --provision-with=upgrade-packages
@@ -93,7 +101,7 @@ EOF
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.upload_path = "/tmp/vagrant-install-golang"
     sh.env = {
-        'GO_VERSION': ENV['GO_VERSION'] || "1.19.6",
+        'GO_VERSION': ENV['GO_VERSION'] || "1.20.2",
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash
@@ -199,6 +207,19 @@ EOF
       SHELL
   end
 
+  config.vm.provision "install-failpoint-binaries", type: "shell",  run: "once" do |sh|
+      sh.upload_path = "/tmp/vagrant-install-failpoint-binaries"
+      sh.inline = <<~SHELL
+        #!/usr/bin/env bash
+        source /etc/environment
+        source /etc/profile.d/sh.local
+        set -eux -o pipefail
+        ${GOPATH}/src/github.com/containerd/containerd/script/setup/install-failpoint-binaries
+        chcon -v -t container_runtime_exec_t $(type -ap containerd-shim-runc-fp-v1)
+        containerd-shim-runc-fp-v1 -v
+      SHELL
+  end
+
   # SELinux is Enforcing by default.
   # To set SELinux as Disabled on a VM that has already been provisioned:
   #   SELINUX=Disabled vagrant up --provision-with=selinux
@@ -224,6 +245,7 @@ EOF
         'RUNC_FLAVOR': ENV['RUNC_FLAVOR'] || "runc",
         'GOTEST': ENV['GOTEST'] || "go test",
         'GOTESTSUM_JUNITFILE': ENV['GOTESTSUM_JUNITFILE'],
+        'GOTESTSUM_JSONFILE': ENV['GOTESTSUM_JSONFILE'],
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash
@@ -234,6 +256,36 @@ EOF
         cd ${GOPATH}/src/github.com/containerd/containerd
         go test -v -count=1 -race ./metrics/cgroups
         make integration EXTRA_TESTFLAGS="-timeout 15m -no-criu -test.v" TEST_RUNTIME=io.containerd.runc.v2 RUNC_FLAVOR=$RUNC_FLAVOR
+    SHELL
+  end
+
+  # SELinux is Enforcing by default (via provisioning) in this VM. To re-run with SELinux disabled:
+  #   SELINUX=Disabled vagrant up --provision-with=selinux,test-cri-integration
+  #
+  config.vm.provision "test-cri-integration", type: "shell", run: "never" do |sh|
+    sh.upload_path = "/tmp/test-cri-integration"
+    sh.env = {
+        'GOTEST': ENV['GOTEST'] || "go test",
+        'GOTESTSUM_JUNITFILE': ENV['GOTESTSUM_JUNITFILE'],
+        'GOTESTSUM_JSONFILE': ENV['GOTESTSUM_JSONFILE'],
+        'GITHUB_WORKSPACE': '',
+        'ENABLE_CRI_SANDBOXES': ENV['ENABLE_CRI_SANDBOXES'],
+    }
+    sh.inline = <<~SHELL
+        #!/usr/bin/env bash
+        source /etc/environment
+        source /etc/profile.d/sh.local
+        set -eux -o pipefail
+        cleanup() {
+          rm -rf /var/lib/containerd* /run/containerd* /tmp/containerd* /tmp/test* /tmp/failpoint* /tmp/nri*
+        }
+        cleanup
+        cd ${GOPATH}/src/github.com/containerd/containerd
+        # cri-integration.sh executes containerd from ./bin, not from $PATH .
+        make BUILDTAGS="seccomp selinux no_aufs no_btrfs no_devmapper no_zfs" binaries bin/cri-integration.test
+        chcon -v -t container_runtime_exec_t ./bin/{containerd,containerd-shim*}
+        CONTAINERD_RUNTIME=io.containerd.runc.v2 ./script/test/cri-integration.sh
+        cleanup
     SHELL
   end
 

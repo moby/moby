@@ -1,5 +1,5 @@
-// Package hcn is a shim for the Host Compute Networking (HCN) service, which manages networking for Windows Server
-// containers and Hyper-V containers. Previous to RS5, HCN was referred to as Host Networking Service (HNS).
+//go:build windows
+
 package hcn
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/Microsoft/go-winio/pkg/guid"
 )
 
-//go:generate go run ../mksyscall_windows.go -output zsyscall_windows.go hcn.go
+//go:generate go run github.com/Microsoft/go-winio/tools/mkwinsyscall -output zsyscall_windows.go hcn.go
 
 /// HNS V1 API
 
@@ -228,7 +228,7 @@ func IPv6DualStackSupported() error {
 	return platformDoesNotSupportError("IPv6 DualStack")
 }
 
-//L4proxySupported returns an error if the HCN verison does not support L4Proxy
+// L4proxySupported returns an error if the HCN version does not support L4Proxy
 func L4proxyPolicySupported() error {
 	supported, err := GetCachedSupportedFeatures()
 	if err != nil {
@@ -240,7 +240,7 @@ func L4proxyPolicySupported() error {
 	return platformDoesNotSupportError("L4ProxyPolicy")
 }
 
-// L4WfpProxySupported returns an error if the HCN verison does not support L4WfpProxy
+// L4WfpProxySupported returns an error if the HCN version does not support L4WfpProxy
 func L4WfpProxyPolicySupported() error {
 	supported, err := GetCachedSupportedFeatures()
 	if err != nil {

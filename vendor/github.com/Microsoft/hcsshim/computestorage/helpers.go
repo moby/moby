@@ -1,3 +1,5 @@
+//go:build windows
+
 package computestorage
 
 import (
@@ -6,10 +8,12 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Microsoft/go-winio/pkg/security"
 	"github.com/Microsoft/go-winio/vhd"
+	"github.com/Microsoft/hcsshim/internal/memory"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
+
+	"github.com/Microsoft/hcsshim/internal/security"
 )
 
 const defaultVHDXBlockSizeInMB = 1
@@ -59,8 +63,8 @@ func SetupContainerBaseLayer(ctx context.Context, layerPath, baseVhdPath, diffVh
 	createParams := &vhd.CreateVirtualDiskParameters{
 		Version: 2,
 		Version2: vhd.CreateVersion2{
-			MaximumSize:      sizeInGB * 1024 * 1024 * 1024,
-			BlockSizeInBytes: defaultVHDXBlockSizeInMB * 1024 * 1024,
+			MaximumSize:      sizeInGB * memory.GiB,
+			BlockSizeInBytes: defaultVHDXBlockSizeInMB * memory.MiB,
 		},
 	}
 	handle, err := vhd.CreateVirtualDisk(baseVhdPath, vhd.VirtualDiskAccessNone, vhd.CreateVirtualDiskFlagNone, createParams)
@@ -135,8 +139,8 @@ func SetupUtilityVMBaseLayer(ctx context.Context, uvmPath, baseVhdPath, diffVhdP
 	createParams := &vhd.CreateVirtualDiskParameters{
 		Version: 2,
 		Version2: vhd.CreateVersion2{
-			MaximumSize:      sizeInGB * 1024 * 1024 * 1024,
-			BlockSizeInBytes: defaultVHDXBlockSizeInMB * 1024 * 1024,
+			MaximumSize:      sizeInGB * memory.GiB,
+			BlockSizeInBytes: defaultVHDXBlockSizeInMB * memory.MiB,
 		},
 	}
 	handle, err := vhd.CreateVirtualDisk(baseVhdPath, vhd.VirtualDiskAccessNone, vhd.CreateVirtualDiskFlagNone, createParams)

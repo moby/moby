@@ -22,8 +22,8 @@ import (
 
 	api "github.com/containerd/containerd/api/services/introspection/v1"
 	"github.com/containerd/containerd/plugin"
+	ptypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/services"
-	ptypes "github.com/gogo/protobuf/types"
 	"google.golang.org/grpc"
 )
 
@@ -49,7 +49,7 @@ func init() {
 
 			localClient, ok := i.(*Local)
 			if !ok {
-				return nil, errors.New("Could not create a local client for introspection service")
+				return nil, errors.New("could not create a local client for introspection service")
 			}
 			localClient.UpdateLocal(ic.Root)
 
@@ -62,6 +62,7 @@ func init() {
 
 type server struct {
 	local api.IntrospectionClient
+	api.UnimplementedIntrospectionServer
 }
 
 var _ = (api.IntrospectionServer)(&server{})

@@ -50,6 +50,14 @@ func WithCapabilityDNS(dns DNS) NamespaceOpts {
 	}
 }
 
+// WithCapabilityCgroupPath passes in the cgroup path capability.
+func WithCapabilityCgroupPath(cgroupPath string) NamespaceOpts {
+	return func(c *Namespace) error {
+		c.capabilityArgs["cgroupPath"] = cgroupPath
+		return nil
+	}
+}
+
 // WithCapability support well-known capabilities
 // https://www.cni.dev/docs/conventions/#well-known-capabilities
 func WithCapability(name string, capability interface{}) NamespaceOpts {

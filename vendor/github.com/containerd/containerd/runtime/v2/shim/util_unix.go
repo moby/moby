@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -26,6 +25,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -87,15 +87,20 @@ func AnonReconnectDialer(address string, timeout time.Duration) (net.Conn, error
 // NewSocket returns a new socket
 func NewSocket(address string) (*net.UnixListener, error) {
 	var (
-		sock = socket(address)
-		path = sock.path()
+		sock       = socket(address)
+		path       = sock.path()
+		isAbstract = sock.isAbstract()
+		perm       = os.FileMode(0600)
 	)
 
-	isAbstract := sock.isAbstract()
+	// Darwin needs +x to access socket, otherwise it'll fail with "bind: permission denied" when running as non-root.
+	if runtime.GOOS == "darwin" {
+		perm = 0700
+	}
 
 	if !isAbstract {
-		if err := os.MkdirAll(filepath.Dir(path), 0600); err != nil {
-			return nil, fmt.Errorf("%s: %w", path, err)
+		if err := os.MkdirAll(filepath.Dir(path), perm); err != nil {
+			return nil, fmt.Errorf("mkdir failed for %s: %w", path, err)
 		}
 	}
 	l, err := net.Listen("unix", path)
@@ -104,12 +109,13 @@ func NewSocket(address string) (*net.UnixListener, error) {
 	}
 
 	if !isAbstract {
-		if err := os.Chmod(path, 0600); err != nil {
+		if err := os.Chmod(path, perm); err != nil {
 			os.Remove(sock.path())
 			l.Close()
-			return nil, err
+			return nil, fmt.Errorf("chmod failed for %s: %w", path, err)
 		}
 	}
+
 	return l.(*net.UnixListener), nil
 }
 

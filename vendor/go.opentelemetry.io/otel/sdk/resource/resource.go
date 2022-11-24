@@ -129,6 +129,7 @@ func (r *Resource) Attributes() []attribute.KeyValue {
 	return r.attrs.ToSlice()
 }
 
+// SchemaURL returns the schema URL associated with Resource r.
 func (r *Resource) SchemaURL() string {
 	if r == nil {
 		return ""
@@ -179,13 +180,14 @@ func Merge(a, b *Resource) (*Resource, error) {
 
 	// Merge the schema URL.
 	var schemaURL string
-	if a.schemaURL == "" {
+	switch true {
+	case a.schemaURL == "":
 		schemaURL = b.schemaURL
-	} else if b.schemaURL == "" {
+	case b.schemaURL == "":
 		schemaURL = a.schemaURL
-	} else if a.schemaURL == b.schemaURL {
+	case a.schemaURL == b.schemaURL:
 		schemaURL = a.schemaURL
-	} else {
+	default:
 		return Empty(), errMergeConflictSchemaURL
 	}
 
@@ -194,7 +196,7 @@ func Merge(a, b *Resource) (*Resource, error) {
 	mi := attribute.NewMergeIterator(b.Set(), a.Set())
 	combine := make([]attribute.KeyValue, 0, a.Len()+b.Len())
 	for mi.Next() {
-		combine = append(combine, mi.Label())
+		combine = append(combine, mi.Attribute())
 	}
 	merged := NewWithAttributes(schemaURL, combine...)
 	return merged, nil

@@ -398,7 +398,7 @@ func (cs *contentStore) Writer(ctx context.Context, opts ...content.WriterOpt) (
 				return nil
 			}
 
-			if cs.shared {
+			if cs.shared || isSharedContent(tx, wOpts.Desc.Digest) {
 				if st, err := cs.Store.Info(ctx, wOpts.Desc.Digest); err == nil {
 					// Ensure the expected size is the same, it is likely
 					// an error if the size is mismatched but the caller
@@ -704,6 +704,33 @@ func (cs *contentStore) checkAccess(ctx context.Context, dgst digest.Digest) err
 		}
 		return nil
 	})
+}
+
+func isSharedContent(tx *bolt.Tx, dgst digest.Digest) bool {
+	v1bkt := tx.Bucket(bucketKeyVersion)
+	if v1bkt == nil {
+		return false
+	}
+	// iterate through each namespace
+	v1c := v1bkt.Cursor()
+	for nk, _ := v1c.First(); nk != nil; nk, _ = v1c.Next() {
+		ns := string(nk)
+		lbkt := getNamespaceLabelsBucket(tx, ns)
+		if lbkt == nil {
+			continue
+		}
+		// iterate through each label
+		lbc := lbkt.Cursor()
+		for k, v := lbc.First(); k != nil; k, v = lbc.Next() {
+			if string(k) == labels.LabelSharedNamespace {
+				if string(v) == "true" && getBlobBucket(tx, ns, dgst) != nil {
+					return true
+				}
+				break
+			}
+		}
+	}
+	return false
 }
 
 func validateInfo(info *content.Info) error {

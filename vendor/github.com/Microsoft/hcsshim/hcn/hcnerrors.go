@@ -1,5 +1,5 @@
-// Package hcn is a shim for the Host Compute Networking (HCN) service, which manages networking for Windows Server
-// containers and Hyper-V containers. Previous to RS5, HCN was referred to as Host Networking Service (HNS).
+//go:build windows
+
 package hcn
 
 import (
@@ -10,6 +10,7 @@ import (
 	"github.com/Microsoft/hcsshim/internal/hcserror"
 	"github.com/Microsoft/hcsshim/internal/interop"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/windows"
 )
 
 var (
@@ -48,8 +49,8 @@ type ErrorCode uint32
 
 // For common errors, define the error as it is in windows, so we can quickly determine it later
 const (
-	ERROR_NOT_FOUND                     = 0x490
-	HCN_E_PORT_ALREADY_EXISTS ErrorCode = 0x803b0013
+	ERROR_NOT_FOUND                     = ErrorCode(windows.ERROR_NOT_FOUND)
+	HCN_E_PORT_ALREADY_EXISTS ErrorCode = ErrorCode(windows.HCN_E_PORT_ALREADY_EXISTS)
 )
 
 type HcnError struct {
@@ -87,10 +88,10 @@ func new(hr error, title string, rest string) error {
 
 //
 // Note that the below errors are not errors returned by hcn itself
-// we wish to seperate them as they are shim usage error
+// we wish to separate them as they are shim usage error
 //
 
-// NetworkNotFoundError results from a failed seach for a network by Id or Name
+// NetworkNotFoundError results from a failed search for a network by Id or Name
 type NetworkNotFoundError struct {
 	NetworkName string
 	NetworkID   string
@@ -103,7 +104,7 @@ func (e NetworkNotFoundError) Error() string {
 	return fmt.Sprintf("Network ID %q not found", e.NetworkID)
 }
 
-// EndpointNotFoundError results from a failed seach for an endpoint by Id or Name
+// EndpointNotFoundError results from a failed search for an endpoint by Id or Name
 type EndpointNotFoundError struct {
 	EndpointName string
 	EndpointID   string
@@ -116,7 +117,7 @@ func (e EndpointNotFoundError) Error() string {
 	return fmt.Sprintf("Endpoint ID %q not found", e.EndpointID)
 }
 
-// NamespaceNotFoundError results from a failed seach for a namsepace by Id
+// NamespaceNotFoundError results from a failed search for a namsepace by Id
 type NamespaceNotFoundError struct {
 	NamespaceID string
 }
@@ -125,7 +126,7 @@ func (e NamespaceNotFoundError) Error() string {
 	return fmt.Sprintf("Namespace ID %q not found", e.NamespaceID)
 }
 
-// LoadBalancerNotFoundError results from a failed seach for a loadbalancer by Id
+// LoadBalancerNotFoundError results from a failed search for a loadbalancer by Id
 type LoadBalancerNotFoundError struct {
 	LoadBalancerId string
 }
@@ -134,7 +135,7 @@ func (e LoadBalancerNotFoundError) Error() string {
 	return fmt.Sprintf("LoadBalancer %q not found", e.LoadBalancerId)
 }
 
-// RouteNotFoundError results from a failed seach for a route by Id
+// RouteNotFoundError results from a failed search for a route by Id
 type RouteNotFoundError struct {
 	RouteId string
 }

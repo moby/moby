@@ -35,6 +35,9 @@ var (
 
 type (
 	loggerKey struct{}
+
+	// Fields type to pass to `WithFields`, alias from `logrus`.
+	Fields = logrus.Fields
 )
 
 const (

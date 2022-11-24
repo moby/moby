@@ -24,8 +24,9 @@ import (
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/protobuf"
+	protobuftypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/snapshots"
-	protobuftypes "github.com/gogo/protobuf/types"
 )
 
 // NewSnapshotter returns a new Snapshotter which communicates over a GRPC
@@ -192,22 +193,22 @@ func (p *proxySnapshotter) Cleanup(ctx context.Context) error {
 }
 
 func toKind(kind snapshotsapi.Kind) snapshots.Kind {
-	if kind == snapshotsapi.KindActive {
+	if kind == snapshotsapi.Kind_ACTIVE {
 		return snapshots.KindActive
 	}
-	if kind == snapshotsapi.KindView {
+	if kind == snapshotsapi.Kind_VIEW {
 		return snapshots.KindView
 	}
 	return snapshots.KindCommitted
 }
 
-func toInfo(info snapshotsapi.Info) snapshots.Info {
+func toInfo(info *snapshotsapi.Info) snapshots.Info {
 	return snapshots.Info{
 		Name:    info.Name,
 		Parent:  info.Parent,
 		Kind:    toKind(info.Kind),
-		Created: info.CreatedAt,
-		Updated: info.UpdatedAt,
+		Created: protobuf.FromTimestamp(info.CreatedAt),
+		Updated: protobuf.FromTimestamp(info.UpdatedAt),
 		Labels:  info.Labels,
 	}
 }
@@ -215,7 +216,7 @@ func toInfo(info snapshotsapi.Info) snapshots.Info {
 func toUsage(resp *snapshotsapi.UsageResponse) snapshots.Usage {
 	return snapshots.Usage{
 		Inodes: resp.Inodes,
-		Size:   resp.Size_,
+		Size:   resp.Size,
 	}
 }
 
@@ -225,6 +226,7 @@ func toMounts(mm []*types.Mount) []mount.Mount {
 		mounts[i] = mount.Mount{
 			Type:    m.Type,
 			Source:  m.Source,
+			Target:  m.Target,
 			Options: m.Options,
 		}
 	}
@@ -233,21 +235,21 @@ func toMounts(mm []*types.Mount) []mount.Mount {
 
 func fromKind(kind snapshots.Kind) snapshotsapi.Kind {
 	if kind == snapshots.KindActive {
-		return snapshotsapi.KindActive
+		return snapshotsapi.Kind_ACTIVE
 	}
 	if kind == snapshots.KindView {
-		return snapshotsapi.KindView
+		return snapshotsapi.Kind_VIEW
 	}
-	return snapshotsapi.KindCommitted
+	return snapshotsapi.Kind_COMMITTED
 }
 
-func fromInfo(info snapshots.Info) snapshotsapi.Info {
-	return snapshotsapi.Info{
+func fromInfo(info snapshots.Info) *snapshotsapi.Info {
+	return &snapshotsapi.Info{
 		Name:      info.Name,
 		Parent:    info.Parent,
 		Kind:      fromKind(info.Kind),
-		CreatedAt: info.Created,
-		UpdatedAt: info.Updated,
+		CreatedAt: protobuf.ToTimestamp(info.Created),
+		UpdatedAt: protobuf.ToTimestamp(info.Updated),
 		Labels:    info.Labels,
 	}
 }

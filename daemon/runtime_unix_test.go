@@ -10,6 +10,8 @@ import (
 
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
@@ -141,8 +143,13 @@ func TestGetRuntime(t *testing.T) {
 	stockRuntime, ok := d.configStore.Runtimes[config.StockRuntimeName]
 	assert.Assert(t, ok, "stock runtime could not be found (test needs to be updated)")
 
-	configdOpts := *stockRuntime.ShimConfig.Opts.(*v2runcoptions.Options)
+	configdOpts := proto.Clone(stockRuntime.ShimConfig.Opts.(*v2runcoptions.Options)).(*v2runcoptions.Options)
 	configdOpts.BinaryName = configuredRuntime.Path
+	wantConfigdRuntime := configuredRuntime
+	wantConfigdRuntime.ShimConfig = &types.ShimConfig{
+		Binary: stockRuntime.ShimConfig.Binary,
+		Opts:   configdOpts,
+	}
 
 	for _, tt := range []struct {
 		name, runtime string
@@ -227,7 +234,7 @@ func TestGetRuntime(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotShim, gotOpts, err := d.getRuntime(tt.runtime)
 			assert.Check(t, is.Equal(gotShim, tt.wantShim))
-			assert.Check(t, is.DeepEqual(gotOpts, tt.wantOpts))
+			assert.Check(t, is.DeepEqual(gotOpts, tt.wantOpts, cmpopts.IgnoreUnexported(v2runcoptions.Options{})))
 			if tt.wantShim != "" {
 				assert.Check(t, err)
 			} else {

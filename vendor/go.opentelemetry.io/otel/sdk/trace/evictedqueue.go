@@ -29,7 +29,12 @@ func newEvictedQueue(capacity int) evictedQueue {
 // add adds value to the evictedQueue eq. If eq is at capacity, the oldest
 // queued value will be discarded and the drop count incremented.
 func (eq *evictedQueue) add(value interface{}) {
-	if len(eq.queue) == eq.capacity {
+	if eq.capacity == 0 {
+		eq.droppedCount++
+		return
+	}
+
+	if eq.capacity > 0 && len(eq.queue) == eq.capacity {
 		// Drop first-in while avoiding allocating more capacity to eq.queue.
 		copy(eq.queue[:eq.capacity-1], eq.queue[1:])
 		eq.queue = eq.queue[:eq.capacity-1]

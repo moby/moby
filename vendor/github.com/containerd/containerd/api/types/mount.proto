@@ -18,8 +18,6 @@ syntax = "proto3";
 
 package containerd.types;
 
-import weak "gogoproto/gogo.proto";
-
 option go_package = "github.com/containerd/containerd/api/types;types";
 
 // Mount describes mounts for a container.

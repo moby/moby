@@ -1,10 +1,15 @@
+//go:build windows
+
 package jobobject
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/Microsoft/hcsshim/internal/queue"
@@ -12,19 +17,14 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// This file provides higher level constructs for the win32 job object API.
-// Most of the core creation and management functions are already present in "golang.org/x/sys/windows"
-// (CreateJobObject, AssignProcessToJobObject, etc.) as well as most of the limit information
-// structs and associated limit flags. Whatever is not present from the job object API
-// in golang.org/x/sys/windows is located in /internal/winapi.
-//
-// https://docs.microsoft.com/en-us/windows/win32/procthread/job-objects
-
 // JobObject is a high level wrapper around a Windows job object. Holds a handle to
 // the job, a queue to receive iocp notifications about the lifecycle
 // of the job and a mutex for synchronized handle access.
 type JobObject struct {
-	handle     windows.Handle
+	handle windows.Handle
+	// All accesses to this MUST be done atomically except in `Open` as the object
+	// is being created in the function. 1 signifies that this job is currently a silo.
+	silo       uint32
 	mq         *queue.MessageQueue
 	handleLock sync.RWMutex
 }
@@ -56,6 +56,7 @@ const (
 var (
 	ErrAlreadyClosed = errors.New("the handle has already been closed")
 	ErrNotRegistered = errors.New("job is not registered to receive notifications")
+	ErrNotSilo       = errors.New("job is not a silo")
 )
 
 // Options represents the set of configurable options when making or opening a job object.
@@ -68,6 +69,9 @@ type Options struct {
 	// `UseNTVariant` specifies if we should use the `Nt` variant of Open/CreateJobObject.
 	// Defaults to false.
 	UseNTVariant bool
+	// `Silo` specifies to promote the job to a silo. This additionally sets the flag
+	// JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE as it is required for the upgrade to complete.
+	Silo bool
 	// `IOTracking` enables tracking I/O statistics on the job object. More specifically this
 	// calls SetInformationJobObject with the JobObjectIoAttribution class.
 	EnableIOTracking bool
@@ -143,6 +147,16 @@ func Create(ctx context.Context, options *Options) (_ *JobObject, err error) {
 		}
 	}
 
+	if options.Silo {
+		// This is a required setting for upgrading to a silo.
+		if err := job.SetTerminateOnLastHandleClose(); err != nil {
+			return nil, err
+		}
+		if err := job.PromoteToSilo(); err != nil {
+			return nil, err
+		}
+	}
+
 	return job, nil
 }
 
@@ -163,7 +177,7 @@ func Open(ctx context.Context, options *Options) (_ *JobObject, err error) {
 	}
 
 	var jobHandle windows.Handle
-	if options != nil && options.UseNTVariant {
+	if options.UseNTVariant {
 		oa := winapi.ObjectAttributes{
 			Length:     unsafe.Sizeof(winapi.ObjectAttributes{}),
 			ObjectName: unicodeJobName,
@@ -174,7 +188,7 @@ func Open(ctx context.Context, options *Options) (_ *JobObject, err error) {
 			return nil, winapi.RtlNtStatusToDosError(status)
 		}
 	} else {
-		jobHandle, err = winapi.OpenJobObject(winapi.JOB_OBJECT_ALL_ACCESS, false, unicodeJobName.Buffer)
+		jobHandle, err = winapi.OpenJobObject(winapi.JOB_OBJECT_ALL_ACCESS, 0, unicodeJobName.Buffer)
 		if err != nil {
 			return nil, err
 		}
@@ -190,9 +204,13 @@ func Open(ctx context.Context, options *Options) (_ *JobObject, err error) {
 		handle: jobHandle,
 	}
 
+	if isJobSilo(jobHandle) {
+		job.silo = 1
+	}
+
 	// If the IOCP we'll be using to receive messages for all jobs hasn't been
 	// created, create it and start polling.
-	if options != nil && options.Notifications {
+	if options.Notifications {
 		mq, err := setupNotifications(ctx, job)
 		if err != nil {
 			return nil, err
@@ -448,6 +466,119 @@ func (job *JobObject) QueryStorageStats() (*winapi.JOBOBJECT_IO_ATTRIBUTION_INFO
 		return nil, fmt.Errorf("failed to query for job object storage stats: %w", err)
 	}
 	return &info, nil
+}
+
+// ApplyFileBinding makes a file binding using the Bind Filter from target to root. If the job has
+// not been upgraded to a silo this call will fail. The binding is only applied and visible for processes
+// running in the job, any processes on the host or in another job will not be able to see the binding.
+func (job *JobObject) ApplyFileBinding(root, target string, readOnly bool) error {
+	job.handleLock.RLock()
+	defer job.handleLock.RUnlock()
+
+	if job.handle == 0 {
+		return ErrAlreadyClosed
+	}
+
+	if !job.isSilo() {
+		return ErrNotSilo
+	}
+
+	// The parent directory needs to exist for the bind to work. MkdirAll stats and
+	// returns nil if the directory exists internally so we should be fine to mkdirall
+	// every time.
+	if err := os.MkdirAll(filepath.Dir(root), 0); err != nil {
+		return err
+	}
+
+	rootPtr, err := windows.UTF16PtrFromString(root)
+	if err != nil {
+		return err
+	}
+
+	targetPtr, err := windows.UTF16PtrFromString(target)
+	if err != nil {
+		return err
+	}
+
+	flags := winapi.BINDFLT_FLAG_USE_CURRENT_SILO_MAPPING
+	if readOnly {
+		flags |= winapi.BINDFLT_FLAG_READ_ONLY_MAPPING
+	}
+
+	if err := winapi.BfSetupFilter(
+		job.handle,
+		flags,
+		rootPtr,
+		targetPtr,
+		nil,
+		0,
+	); err != nil {
+		return fmt.Errorf("failed to bind target %q to root %q for job object: %w", target, root, err)
+	}
+	return nil
+}
+
+// isJobSilo is a helper to determine if a job object that was opened is a silo. This should ONLY be called
+// from `Open` and any callers in this package afterwards should use `job.isSilo()`
+func isJobSilo(h windows.Handle) bool {
+	// None of the information from the structure that this info class expects will be used, this is just used as
+	// the call will fail if the job hasn't been upgraded to a silo so we can use this to tell when we open a job
+	// if it's a silo or not. Because none of the info matters simply define a dummy struct with the size that the call
+	// expects which is 16 bytes.
+	type isSiloObj struct {
+		_ [16]byte
+	}
+	var siloInfo isSiloObj
+	err := winapi.QueryInformationJobObject(
+		h,
+		winapi.JobObjectSiloBasicInformation,
+		unsafe.Pointer(&siloInfo),
+		uint32(unsafe.Sizeof(siloInfo)),
+		nil,
+	)
+	return err == nil
+}
+
+// PromoteToSilo promotes a job object to a silo. There must be no running processess
+// in the job for this to succeed. If the job is already a silo this is a no-op.
+func (job *JobObject) PromoteToSilo() error {
+	job.handleLock.RLock()
+	defer job.handleLock.RUnlock()
+
+	if job.handle == 0 {
+		return ErrAlreadyClosed
+	}
+
+	if job.isSilo() {
+		return nil
+	}
+
+	pids, err := job.Pids()
+	if err != nil {
+		return err
+	}
+
+	if len(pids) != 0 {
+		return fmt.Errorf("job cannot have running processes to be promoted to a silo, found %d running processes", len(pids))
+	}
+
+	_, err = windows.SetInformationJobObject(
+		job.handle,
+		winapi.JobObjectCreateSilo,
+		0,
+		0,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to promote job to silo: %w", err)
+	}
+
+	atomic.StoreUint32(&job.silo, 1)
+	return nil
+}
+
+// isSilo returns if the job object is a silo.
+func (job *JobObject) isSilo() bool {
+	return atomic.LoadUint32(&job.silo) == 1
 }
 
 // QueryPrivateWorkingSet returns the private working set size for the job. This is calculated by adding up the

@@ -1,3 +1,5 @@
+//go:build windows && (386 || arm)
+// +build windows
 // +build 386 arm
 
 package etw

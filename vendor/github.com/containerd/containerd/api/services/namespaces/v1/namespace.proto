@@ -18,7 +18,6 @@ syntax = "proto3";
 
 package containerd.services.namespaces.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 
@@ -60,7 +59,7 @@ message GetNamespaceRequest {
 }
 
 message GetNamespaceResponse {
-	Namespace namespace = 1 [(gogoproto.nullable) = false];
+	Namespace namespace = 1;
 }
 
 message ListNamespacesRequest {
@@ -68,15 +67,15 @@ message ListNamespacesRequest {
 }
 
 message ListNamespacesResponse {
-	repeated Namespace namespaces = 1 [(gogoproto.nullable) = false];
+	repeated Namespace namespaces = 1;
 }
 
 message CreateNamespaceRequest {
-	Namespace namespace = 1 [(gogoproto.nullable) = false];
+	Namespace namespace = 1;
 }
 
 message CreateNamespaceResponse {
-	Namespace namespace = 1 [(gogoproto.nullable) = false];
+	Namespace namespace = 1;
 }
 
 // UpdateNamespaceRequest updates the metadata for a namespace.
@@ -88,7 +87,7 @@ message UpdateNamespaceRequest {
 	// Namespace provides the target value, as declared by the mask, for the update.
 	//
 	// The namespace field must be set.
-	Namespace namespace = 1 [(gogoproto.nullable) = false];
+	Namespace namespace = 1;
 
 	// UpdateMask specifies which fields to perform the update on. If empty,
 	// the operation applies to all fields.
@@ -100,7 +99,7 @@ message UpdateNamespaceRequest {
 }
 
 message UpdateNamespaceResponse {
-	Namespace namespace = 1 [(gogoproto.nullable) = false];
+	Namespace namespace = 1;
 }
 
 message DeleteNamespaceRequest {

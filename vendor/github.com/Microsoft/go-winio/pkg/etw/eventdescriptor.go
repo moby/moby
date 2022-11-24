@@ -1,3 +1,5 @@
+//go:build windows
+
 package etw
 
 // Channel represents the ETW logging channel that is used. It can be used by
@@ -45,6 +47,8 @@ const (
 )
 
 // EventDescriptor represents various metadata for an ETW event.
+//
+//nolint:structcheck // task is currently unused
 type eventDescriptor struct {
 	id      uint16
 	version uint8
@@ -70,6 +74,8 @@ func newEventDescriptor() *eventDescriptor {
 // should uniquely identify the other event metadata (contained in
 // EventDescriptor, and field metadata). Only the lower 24 bits of this value
 // are relevant.
+//
+//nolint:unused // keep for future use
 func (ed *eventDescriptor) identity() uint32 {
 	return (uint32(ed.version) << 16) | uint32(ed.id)
 }
@@ -78,6 +84,8 @@ func (ed *eventDescriptor) identity() uint32 {
 // should uniquely identify the other event metadata (contained in
 // EventDescriptor, and field metadata). Only the lower 24 bits of this value
 // are relevant.
+//
+//nolint:unused // keep for future use
 func (ed *eventDescriptor) setIdentity(identity uint32) {
 	ed.id = uint16(identity)
 	ed.version = uint8(identity >> 16)

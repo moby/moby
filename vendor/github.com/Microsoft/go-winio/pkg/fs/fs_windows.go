@@ -27,5 +27,5 @@ func GetFileSystemType(path string) (fsType string, err error) {
 	drive += `\`
 	err = windows.GetVolumeInformation(windows.StringToUTF16Ptr(drive), nil, 0, nil, nil, nil, &buf[0], size)
 	fsType = windows.UTF16ToString(buf)
-	return
+	return fsType, err
 }

@@ -332,7 +332,7 @@ func (ccw *remoteBalancerCCWrapper) callRemoteBalancer(ctx context.Context) (bac
 	lbClient := &loadBalancerClient{cc: ccw.cc}
 	stream, err := lbClient.BalanceLoad(ctx, grpc.WaitForReady(true))
 	if err != nil {
-		return true, fmt.Errorf("grpclb: failed to perform RPC to the remote balancer %v", err)
+		return true, fmt.Errorf("grpclb: failed to perform RPC to the remote balancer: %v", err)
 	}
 	ccw.lb.mu.Lock()
 	ccw.lb.remoteBalancerConnected = true

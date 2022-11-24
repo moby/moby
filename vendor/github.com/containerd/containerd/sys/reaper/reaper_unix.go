@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -91,7 +90,7 @@ type Monitor struct {
 	subscribers map[chan runc.Exit]*subscriber
 }
 
-// Start starts the command a registers the process with the reaper
+// Start starts the command and registers the process with the reaper
 func (m *Monitor) Start(c *exec.Cmd) (chan runc.Exit, error) {
 	ec := m.Subscribe()
 	if err := c.Start(); err != nil {

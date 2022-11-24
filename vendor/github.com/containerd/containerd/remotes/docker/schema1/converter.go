@@ -14,6 +14,9 @@
    limitations under the License.
 */
 
+// Package schema1 provides a converter to fetch an image formatted in Docker Image Manifest v2, Schema 1.
+//
+// Deprecated: use images formatted in Docker Image Manifest v2, Schema 2, or OCI Image Spec v1.
 package schema1
 
 import (
@@ -33,6 +36,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	digest "github.com/opencontainers/go-digest"
@@ -363,12 +367,12 @@ func (c *Converter) fetchBlob(ctx context.Context, desc ocispec.Descriptor) erro
 	cinfo := content.Info{
 		Digest: desc.Digest,
 		Labels: map[string]string{
-			"containerd.io/uncompressed": state.diffID.String(),
+			labels.LabelUncompressed:     state.diffID.String(),
 			labelDockerSchema1EmptyLayer: strconv.FormatBool(state.empty),
 		},
 	}
 
-	if _, err := c.contentStore.Update(ctx, cinfo, "labels.containerd.io/uncompressed", fmt.Sprintf("labels.%s", labelDockerSchema1EmptyLayer)); err != nil {
+	if _, err := c.contentStore.Update(ctx, cinfo, "labels."+labels.LabelUncompressed, fmt.Sprintf("labels.%s", labelDockerSchema1EmptyLayer)); err != nil {
 		return fmt.Errorf("failed to update uncompressed label: %w", err)
 	}
 
@@ -387,7 +391,7 @@ func (c *Converter) reuseLabelBlobState(ctx context.Context, desc ocispec.Descri
 	}
 	desc.Size = cinfo.Size
 
-	diffID, ok := cinfo.Labels["containerd.io/uncompressed"]
+	diffID, ok := cinfo.Labels[labels.LabelUncompressed]
 	if !ok {
 		return false, nil
 	}
@@ -406,7 +410,7 @@ func (c *Converter) reuseLabelBlobState(ctx context.Context, desc ocispec.Descri
 	bState := blobState{empty: isEmpty}
 
 	if bState.diffID, err = digest.Parse(diffID); err != nil {
-		log.G(ctx).WithField("id", desc.Digest).Warnf("failed to parse digest from label containerd.io/uncompressed: %v", diffID)
+		log.G(ctx).WithField("id", desc.Digest).Warnf("failed to parse digest from label %s: %v", labels.LabelUncompressed, diffID)
 		return false, nil
 	}
 

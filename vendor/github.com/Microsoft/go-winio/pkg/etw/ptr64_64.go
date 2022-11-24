@@ -1,3 +1,5 @@
+//go:build windows && (amd64 || arm64)
+// +build windows
 // +build amd64 arm64
 
 package etw

@@ -18,6 +18,8 @@ Documentation=https://containerd.io
 After=network.target local-fs.target
 
 [Service]
+#uncomment to enable the experimental sbservice (sandboxed) version of containerd/cri integration
+#Environment="ENABLE_CRI_SANDBOXES=sandboxed"
 ExecStartPre=-/sbin/modprobe overlay
 ExecStart=/usr/local/bin/containerd
 

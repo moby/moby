@@ -31,9 +31,12 @@ func Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
 // If none is registered then an instance of NoopTracerProvider is returned.
 //
 // Use the trace provider to create a named tracer. E.g.
-//     tracer := otel.GetTracerProvider().Tracer("example.com/foo")
+//
+//	tracer := otel.GetTracerProvider().Tracer("example.com/foo")
+//
 // or
-//     tracer := otel.Tracer("example.com/foo")
+//
+//	tracer := otel.Tracer("example.com/foo")
 func GetTracerProvider() trace.TracerProvider {
 	return global.TracerProvider()
 }

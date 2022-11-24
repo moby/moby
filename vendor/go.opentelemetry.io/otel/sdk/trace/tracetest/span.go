@@ -24,6 +24,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// SpanStubs is a slice of SpanStub use for testing an SDK.
 type SpanStubs []SpanStub
 
 // SpanStubsFromReadOnlySpans returns SpanStubs populated from ro.
@@ -95,29 +96,29 @@ func SpanStubFromReadOnlySpan(ro tracesdk.ReadOnlySpan) SpanStub {
 		DroppedLinks:           ro.DroppedLinks(),
 		ChildSpanCount:         ro.ChildSpanCount(),
 		Resource:               ro.Resource(),
-		InstrumentationLibrary: ro.InstrumentationLibrary(),
+		InstrumentationLibrary: ro.InstrumentationScope(),
 	}
 }
 
 // Snapshot returns a read-only copy of the SpanStub.
 func (s SpanStub) Snapshot() tracesdk.ReadOnlySpan {
 	return spanSnapshot{
-		name:                   s.Name,
-		spanContext:            s.SpanContext,
-		parent:                 s.Parent,
-		spanKind:               s.SpanKind,
-		startTime:              s.StartTime,
-		endTime:                s.EndTime,
-		attributes:             s.Attributes,
-		events:                 s.Events,
-		links:                  s.Links,
-		status:                 s.Status,
-		droppedAttributes:      s.DroppedAttributes,
-		droppedEvents:          s.DroppedEvents,
-		droppedLinks:           s.DroppedLinks,
-		childSpanCount:         s.ChildSpanCount,
-		resource:               s.Resource,
-		instrumentationLibrary: s.InstrumentationLibrary,
+		name:                 s.Name,
+		spanContext:          s.SpanContext,
+		parent:               s.Parent,
+		spanKind:             s.SpanKind,
+		startTime:            s.StartTime,
+		endTime:              s.EndTime,
+		attributes:           s.Attributes,
+		events:               s.Events,
+		links:                s.Links,
+		status:               s.Status,
+		droppedAttributes:    s.DroppedAttributes,
+		droppedEvents:        s.DroppedEvents,
+		droppedLinks:         s.DroppedLinks,
+		childSpanCount:       s.ChildSpanCount,
+		resource:             s.Resource,
+		instrumentationScope: s.InstrumentationLibrary,
 	}
 }
 
@@ -125,22 +126,22 @@ type spanSnapshot struct {
 	// Embed the interface to implement the private method.
 	tracesdk.ReadOnlySpan
 
-	name                   string
-	spanContext            trace.SpanContext
-	parent                 trace.SpanContext
-	spanKind               trace.SpanKind
-	startTime              time.Time
-	endTime                time.Time
-	attributes             []attribute.KeyValue
-	events                 []tracesdk.Event
-	links                  []tracesdk.Link
-	status                 tracesdk.Status
-	droppedAttributes      int
-	droppedEvents          int
-	droppedLinks           int
-	childSpanCount         int
-	resource               *resource.Resource
-	instrumentationLibrary instrumentation.Library
+	name                 string
+	spanContext          trace.SpanContext
+	parent               trace.SpanContext
+	spanKind             trace.SpanKind
+	startTime            time.Time
+	endTime              time.Time
+	attributes           []attribute.KeyValue
+	events               []tracesdk.Event
+	links                []tracesdk.Link
+	status               tracesdk.Status
+	droppedAttributes    int
+	droppedEvents        int
+	droppedLinks         int
+	childSpanCount       int
+	resource             *resource.Resource
+	instrumentationScope instrumentation.Scope
 }
 
 func (s spanSnapshot) Name() string                     { return s.name }
@@ -158,6 +159,9 @@ func (s spanSnapshot) DroppedLinks() int                { return s.droppedLinks 
 func (s spanSnapshot) DroppedEvents() int               { return s.droppedEvents }
 func (s spanSnapshot) ChildSpanCount() int              { return s.childSpanCount }
 func (s spanSnapshot) Resource() *resource.Resource     { return s.resource }
+func (s spanSnapshot) InstrumentationScope() instrumentation.Scope {
+	return s.instrumentationScope
+}
 func (s spanSnapshot) InstrumentationLibrary() instrumentation.Library {
-	return s.instrumentationLibrary
+	return s.instrumentationScope
 }

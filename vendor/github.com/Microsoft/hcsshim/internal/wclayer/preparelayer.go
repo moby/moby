@@ -1,3 +1,5 @@
+//go:build windows
+
 package wclayer
 
 import (
@@ -19,7 +21,7 @@ var prepareLayerLock sync.Mutex
 // Disabling the filter must be done via UnprepareLayer.
 func PrepareLayer(ctx context.Context, path string, parentLayerPaths []string) (err error) {
 	title := "hcsshim::PrepareLayer"
-	ctx, span := trace.StartSpan(ctx, title)
+	ctx, span := oc.StartSpan(ctx, title)
 	defer span.End()
 	defer func() { oc.SetSpanStatus(span, err) }()
 	span.AddAttributes(

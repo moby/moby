@@ -1,3 +1,5 @@
+//go:build windows
+
 package etw
 
 import (
@@ -13,11 +15,11 @@ const (
 )
 
 type eventDataDescriptor struct {
-	ptr       ptr64
-	size      uint32
-	dataType  eventDataDescriptorType
-	reserved1 uint8
-	reserved2 uint16
+	ptr      ptr64
+	size     uint32
+	dataType eventDataDescriptorType
+	_        uint8
+	_        uint16
 }
 
 func newEventDataDescriptor(dataType eventDataDescriptorType, buffer []byte) eventDataDescriptor {

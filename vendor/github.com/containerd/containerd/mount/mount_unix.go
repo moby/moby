@@ -1,5 +1,4 @@
-//go:build darwin || openbsd
-// +build darwin openbsd
+//go:build !windows && !darwin && !openbsd
 
 /*
    Copyright The containerd Authors.
@@ -19,24 +18,44 @@
 
 package mount
 
-import "errors"
+import (
+	"sort"
 
-var (
-	// ErrNotImplementOnUnix is returned for methods that are not implemented
-	ErrNotImplementOnUnix = errors.New("not implemented under unix")
+	"github.com/moby/sys/mountinfo"
 )
 
-// Mount is not implemented on this platform
-func (m *Mount) Mount(target string) error {
-	return ErrNotImplementOnUnix
-}
+// UnmountRecursive unmounts the target and all mounts underneath, starting
+// with the deepest mount first.
+func UnmountRecursive(target string, flags int) error {
+	if target == "" {
+		return nil
+	}
+	mounts, err := mountinfo.GetMounts(mountinfo.PrefixFilter(target))
+	if err != nil {
+		return err
+	}
 
-// Unmount is not implemented on this platform
-func Unmount(mount string, flags int) error {
-	return ErrNotImplementOnUnix
-}
+	targetSet := make(map[string]struct{})
+	for _, m := range mounts {
+		targetSet[m.Mountpoint] = struct{}{}
+	}
 
-// UnmountAll is not implemented on this platform
-func UnmountAll(mount string, flags int) error {
-	return ErrNotImplementOnUnix
+	var targets []string
+	for m := range targetSet {
+		targets = append(targets, m)
+	}
+
+	// Make the deepest mount be first
+	sort.SliceStable(targets, func(i, j int) bool {
+		return len(targets[i]) > len(targets[j])
+	})
+
+	for i, target := range targets {
+		if err := UnmountAll(target, flags); err != nil {
+			if i == len(targets)-1 { // last mount
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package internal // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal"
 
 import (
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 // ParseFullMethod returns a span name following the OpenTelemetry semantic
@@ -34,10 +34,10 @@ func ParseFullMethod(fullMethod string) (string, []attribute.KeyValue) {
 
 	var attrs []attribute.KeyValue
 	if service := parts[0]; service != "" {
-		attrs = append(attrs, semconv.RPCServiceKey.String(service))
+		attrs = append(attrs, semconv.RPCService(service))
 	}
 	if method := parts[1]; method != "" {
-		attrs = append(attrs, semconv.RPCMethodKey.String(method))
+		attrs = append(attrs, semconv.RPCMethod(method))
 	}
 	return name, attrs
 }

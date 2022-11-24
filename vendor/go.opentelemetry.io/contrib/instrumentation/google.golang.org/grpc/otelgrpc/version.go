@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelgrpc
+package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 // Version is the current release version of the gRPC instrumentation.
 func Version() string {
-	return "0.29.0"
+	return "0.40.0"
 	// This string is updated by the pre_release.sh script during release
 }
 

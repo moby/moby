@@ -48,8 +48,8 @@ func Iterator(iter attribute.Iterator) []*commonpb.KeyValue {
 }
 
 // ResourceAttributes transforms a Resource OTLP key-values.
-func ResourceAttributes(resource *resource.Resource) []*commonpb.KeyValue {
-	return Iterator(resource.Iter())
+func ResourceAttributes(res *resource.Resource) []*commonpb.KeyValue {
+	return Iterator(res.Iter())
 }
 
 // KeyValue transforms an attribute KeyValue into an OTLP key-value.

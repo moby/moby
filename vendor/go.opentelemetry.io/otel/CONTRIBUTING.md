@@ -506,14 +506,19 @@ Approvers:
 - [Josh MacDonald](https://github.com/jmacd), LightStep
 - [Sam Xie](https://github.com/XSAM), Cisco/AppDynamics
 - [David Ashpole](https://github.com/dashpole), Google
-- [Gustavo Silva Paiva](https://github.com/paivagustavo), LightStep
 - [Robert Pająk](https://github.com/pellared), Splunk
+- [Chester Cheung](https://github.com/hanyuancheung), Tencent
+- [Damien Mathieu](https://github.com/dmathieu), Elastic
 
 Maintainers:
 
 - [Aaron Clawson](https://github.com/MadVikingGod), LightStep
 - [Anthony Mirabella](https://github.com/Aneurysm9), AWS
 - [Tyler Yahn](https://github.com/MrAlias), Splunk
+
+Emeritus:
+
+- [Gustavo Silva Paiva](https://github.com/paivagustavo), LightStep
 
 ### Become an Approver or a Maintainer
 

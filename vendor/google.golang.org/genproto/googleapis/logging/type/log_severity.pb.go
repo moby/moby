@@ -44,7 +44,7 @@ const (
 // filter expression will match log entries with severities `INFO`, `NOTICE`,
 // and `WARNING`:
 //
-//     severity > DEBUG AND severity <= WARNING
+//	severity > DEBUG AND severity <= WARNING
 //
 // If you are writing log entries, you should map other severity encodings to
 // one of these standard levels. For example, you might map all of Java's FINE,

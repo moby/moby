@@ -22,7 +22,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 type (
@@ -60,9 +60,9 @@ var (
 func (telemetrySDK) Detect(context.Context) (*Resource, error) {
 	return NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.TelemetrySDKNameKey.String("opentelemetry"),
-		semconv.TelemetrySDKLanguageKey.String("go"),
-		semconv.TelemetrySDKVersionKey.String(otel.Version()),
+		semconv.TelemetrySDKName("opentelemetry"),
+		semconv.TelemetrySDKLanguageGo,
+		semconv.TelemetrySDKVersion(otel.Version()),
 	), nil
 }
 
@@ -92,7 +92,7 @@ func (sd stringDetector) Detect(ctx context.Context) (*Resource, error) {
 	return NewWithAttributes(sd.schemaURL, sd.K.String(value)), nil
 }
 
-// Detect implements Detector
+// Detect implements Detector.
 func (defaultServiceNameDetector) Detect(ctx context.Context) (*Resource, error) {
 	return StringDetector(
 		semconv.SchemaURL,
