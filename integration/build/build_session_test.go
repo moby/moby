@@ -95,8 +95,9 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 	sess, err := session.NewSession(ctx, "foo1", "foo")
 	assert.Check(t, err)
 
-	fsProvider := filesync.NewFSSyncProvider([]filesync.SyncedDir{
-		{Dir: dir},
+	// FIXME(thaJeztah): what should be passed here? see https://github.com/moby/buildkit/commit/3548517cf2c6bc4e6ee5bcae6b276fb8b236164e
+	fsProvider := filesync.NewFSSyncProvider(filesync.StaticDirSource{
+		dir: filesync.SyncedDir{Dir: dir},
 	})
 	sess.Allow(fsProvider)
 

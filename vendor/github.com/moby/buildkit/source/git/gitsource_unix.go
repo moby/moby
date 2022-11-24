@@ -28,7 +28,7 @@ func gitMain() {
 	unix.Umask(0022)
 
 	// Reexec git command
-	cmd := exec.Command(os.Args[1], os.Args[2:]...)
+	cmd := exec.Command(os.Args[1], os.Args[2:]...) //nolint:gosec // reexec
 	cmd.SysProcAttr = &unix.SysProcAttr{
 		Setpgid:   true,
 		Pdeathsig: unix.SIGTERM,

@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
-	"github.com/moby/buildkit/util/compression"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -103,15 +102,11 @@ func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
 }
 
-func (e *imageExporterInstance) Config() exporter.Config {
-	return exporter.Config{
-		Compression: compression.Config{
-			Type: compression.Default,
-		},
-	}
+func (e *imageExporterInstance) Config() *exporter.Config {
+	return exporter.NewConfig()
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {
+func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, sessionID string) (map[string]string, error) {
 	if len(inp.Refs) > 1 {
 		return nil, fmt.Errorf("exporting multiple references to image store is currently unsupported")
 	}

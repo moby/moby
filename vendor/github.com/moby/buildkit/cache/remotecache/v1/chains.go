@@ -146,7 +146,7 @@ func (c *item) removeLink(src *item) bool {
 	return found
 }
 
-func (c *item) AddResult(createdAt time.Time, result *solver.Remote) {
+func (c *item) AddResult(_ digest.Digest, _ int, createdAt time.Time, result *solver.Remote) {
 	c.resultTime = createdAt
 	c.result = result
 }
@@ -214,7 +214,7 @@ func (c *item) walkAllResults(fn func(i *item) error, visited map[*item]struct{}
 type nopRecord struct {
 }
 
-func (c *nopRecord) AddResult(createdAt time.Time, result *solver.Remote) {
+func (c *nopRecord) AddResult(_ digest.Digest, _ int, createdAt time.Time, result *solver.Remote) {
 }
 
 func (c *nopRecord) LinkFrom(rec solver.CacheExporterRecord, index int, selector string) {

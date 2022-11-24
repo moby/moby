@@ -12,6 +12,7 @@ type MultiReader struct {
 	initialized bool
 	done        chan struct{}
 	writers     map[*progressWriter]func()
+	sent        []*Progress
 }
 
 func NewMultiReader(pr Reader) *MultiReader {
@@ -31,9 +32,61 @@ func (mr *MultiReader) Reader(ctx context.Context) Reader {
 	pw, _, ctx := NewFromContext(ctx)
 
 	w := pw.(*progressWriter)
-	mr.writers[w] = closeWriter
+
+	isBehind := len(mr.sent) > 0
+
+	select {
+	case <-mr.done:
+		isBehind = true
+	default:
+		if !isBehind {
+			mr.writers[w] = closeWriter
+		}
+	}
 
 	go func() {
+		if isBehind {
+			close := func() {
+				w.Close()
+				closeWriter()
+			}
+			i := 0
+			for {
+				mr.mu.Lock()
+				sent := mr.sent
+				count := len(sent) - i
+				if count == 0 {
+					select {
+					case <-ctx.Done():
+						close()
+						mr.mu.Unlock()
+						return
+					case <-mr.done:
+						close()
+						mr.mu.Unlock()
+						return
+					default:
+					}
+					mr.writers[w] = closeWriter
+					mr.mu.Unlock()
+					break
+				}
+				mr.mu.Unlock()
+				for i, p := range sent[i:] {
+					w.writeRawProgress(p)
+					if i%100 == 0 {
+						select {
+						case <-ctx.Done():
+							close()
+							return
+						default:
+						}
+					}
+				}
+				i += count
+			}
+		}
+
 		select {
 		case <-ctx.Done():
 		case <-mr.done:
@@ -61,6 +114,7 @@ func (mr *MultiReader) handle() error {
 					w.Close()
 					c()
 				}
+				close(mr.done)
 				mr.mu.Unlock()
 				return nil
 			}
@@ -72,6 +126,7 @@ func (mr *MultiReader) handle() error {
 				w.writeRawProgress(p)
 			}
 		}
+		mr.sent = append(mr.sent, p...)
 		mr.mu.Unlock()
 	}
 }

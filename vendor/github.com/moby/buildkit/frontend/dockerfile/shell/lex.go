@@ -377,7 +377,7 @@ func (sw *shellWord) processDollar() (string, error) {
 		}
 
 		// Grab the current value of the variable in question so we
-		// can use to to determine what to do based on the modifier
+		// can use it to determine what to do based on the modifier
 		newValue, found := sw.getEnv(name)
 
 		switch modifier {

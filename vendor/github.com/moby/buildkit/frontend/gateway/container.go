@@ -298,14 +298,15 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 	signal := make(chan syscall.Signal)
 	procInfo := executor.ProcessInfo{
 		Meta: executor.Meta{
-			Args:         req.Args,
-			Env:          req.Env,
-			User:         req.User,
-			Cwd:          req.Cwd,
-			Tty:          req.Tty,
-			NetMode:      gwCtr.netMode,
-			ExtraHosts:   gwCtr.extraHosts,
-			SecurityMode: req.SecurityMode,
+			Args:                      req.Args,
+			Env:                       req.Env,
+			User:                      req.User,
+			Cwd:                       req.Cwd,
+			Tty:                       req.Tty,
+			NetMode:                   gwCtr.netMode,
+			ExtraHosts:                gwCtr.extraHosts,
+			SecurityMode:              req.SecurityMode,
+			RemoveMountStubsRecursive: req.RemoveMountStubsRecursive,
 		},
 		Stdin:  req.Stdin,
 		Stdout: req.Stdout,

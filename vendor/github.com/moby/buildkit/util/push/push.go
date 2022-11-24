@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
@@ -16,6 +15,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/attestation"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/progress"
@@ -126,7 +126,7 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 		return err
 	}
 
-	layersDone := oneOffProgress(ctx, "pushing layers")
+	layersDone := progress.OneOff(ctx, "pushing layers")
 	err = images.Dispatch(ctx, skipNonDistributableBlobs(images.Handlers(handlers...)), nil, ocispecs.Descriptor{
 		Digest:    dgst,
 		Size:      ra.Size(),
@@ -136,7 +136,7 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 		return err
 	}
 
-	mfstDone := oneOffProgress(ctx, fmt.Sprintf("pushing manifest for %s", ref))
+	mfstDone := progress.OneOff(ctx, fmt.Sprintf("pushing manifest for %s", ref))
 	for i := len(manifestStack) - 1; i >= 0; i-- {
 		if _, err := pushHandler(ctx, manifestStack[i]); err != nil {
 			return mfstDone(err)
@@ -212,23 +212,6 @@ func annotateDistributionSourceHandler(manager content.Manager, annotations map[
 	}
 }
 
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
-	st := progress.Status{
-		Started: &now,
-	}
-	pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		now := time.Now()
-		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
-		return err
-	}
-}
-
 func childrenHandler(provider content.Provider) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
 		var descs []ocispecs.Descriptor
@@ -266,7 +249,8 @@ func childrenHandler(provider content.Provider) images.HandlerFunc {
 			}
 		case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerGzip,
 			images.MediaTypeDockerSchema2Config, ocispecs.MediaTypeImageConfig,
-			ocispecs.MediaTypeImageLayer, ocispecs.MediaTypeImageLayerGzip:
+			ocispecs.MediaTypeImageLayer, ocispecs.MediaTypeImageLayerGzip,
+			attestation.MediaTypeDockerSchema2AttestationType:
 			// childless data types.
 			return nil, nil
 		default:

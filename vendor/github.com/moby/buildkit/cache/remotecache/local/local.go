@@ -102,11 +102,15 @@ func getContentStore(ctx context.Context, sm *session.Manager, g session.Group, 
 }
 
 func attrsToCompression(attrs map[string]string) (*compression.Config, error) {
-	compressionType := compression.Default
+	var compressionType compression.Type
 	if v, ok := attrs[attrLayerCompression]; ok {
-		if c := compression.Parse(v); c != compression.UnknownCompression {
-			compressionType = c
+		c, err := compression.Parse(v)
+		if err != nil {
+			return nil, err
 		}
+		compressionType = c
+	} else {
+		compressionType = compression.Default
 	}
 	compressionConfig := compression.New(compressionType)
 	if v, ok := attrs[attrForceCompression]; ok {

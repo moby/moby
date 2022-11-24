@@ -1,10 +1,10 @@
 package sshforward
 
 import (
-	io "io"
+	"context"
+	"io"
 
 	"github.com/pkg/errors"
-	context "golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 

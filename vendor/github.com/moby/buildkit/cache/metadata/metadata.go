@@ -317,6 +317,9 @@ func (s *StorageItem) Queue(fn func(b *bolt.Bucket) error) {
 func (s *StorageItem) Commit() error {
 	s.qmu.Lock()
 	defer s.qmu.Unlock()
+	if len(s.queue) == 0 {
+		return nil
+	}
 	return errors.WithStack(s.Update(func(b *bolt.Bucket) error {
 		for _, fn := range s.queue {
 			if err := fn(b); err != nil {

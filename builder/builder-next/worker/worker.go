@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
@@ -59,10 +60,12 @@ type Opt struct {
 	ID                string
 	Labels            map[string]string
 	GCPolicy          []client.PruneInfo
+	BuildkitVersion   client.BuildkitVersion // FIXME(thaJeztah): what version to set here? (should we use go.mod version?)
 	Executor          executor.Executor
 	Snapshotter       snapshot.Snapshotter
 	ContentStore      content.Store
 	CacheManager      cache.Manager
+	LeaseManager      leases.Manager // FIXME(thaJeztah): what needs to be set here? see https://github.com/moby/buildkit/commit/688e2c2272c58021390da6ebbfc1c5f6ddbe81da
 	ImageSource       *containerimage.Source
 	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
@@ -155,6 +158,17 @@ func (w *Worker) Platforms(noCache bool) []ocispec.Platform {
 // GCPolicy returns automatic GC Policy
 func (w *Worker) GCPolicy() []client.PruneInfo {
 	return w.Opt.GCPolicy
+}
+
+// BuildkitVersion returns BuildKit version
+func (w *Worker) BuildkitVersion() client.BuildkitVersion {
+	return w.Opt.BuildkitVersion
+}
+
+// Close implements network.Provider.Close to ... <INSERT THE BLANKS>
+func (w *Worker) Close() error {
+	// FIXME(thaJeztah): anything to be done here? https://github.com/moby/buildkit/commit/f6b002e29ee506e7cb6b6b423793ae4d381ba468
+	return nil
 }
 
 // ContentStore returns content store
@@ -379,6 +393,14 @@ func (w *Worker) Executor() executor.Executor {
 // CacheManager returns cache.Manager for accessing local storage
 func (w *Worker) CacheManager() cache.Manager {
 	return w.Opt.CacheManager
+}
+
+// LeaseManager returns leases.Manager for <FILL IN THE BLANKS>
+func (w *Worker) LeaseManager() leases.Manager {
+	// FIXME(thaJeztah): what needs to be set here?
+	// see https://github.com/moby/buildkit/commit/688e2c2272c58021390da6ebbfc1c5f6ddbe81da
+	// see https://github.com/moby/buildkit/commit/dbee61670d686dcbaa6f956eaede5a1716a12b35
+	return w.Opt.LeaseManager
 }
 
 type discardProgress struct{}

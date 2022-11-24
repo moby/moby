@@ -120,6 +120,9 @@ github.com/beorn7/perks/quantile
 # github.com/bsphere/le_go v0.0.0-20200109081728-fc06dab2caa8
 ## explicit; go 1.12
 github.com/bsphere/le_go
+# github.com/cenkalti/backoff/v4 v4.1.2
+## explicit; go 1.13
+github.com/cenkalti/backoff/v4
 # github.com/cespare/xxhash/v2 v2.1.2
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
@@ -186,6 +189,7 @@ github.com/containerd/containerd/content
 github.com/containerd/containerd/content/local
 github.com/containerd/containerd/content/proxy
 github.com/containerd/containerd/contrib/nvidia
+github.com/containerd/containerd/contrib/seccomp/kernelversion
 github.com/containerd/containerd/defaults
 github.com/containerd/containerd/diff
 github.com/containerd/containerd/diff/walking
@@ -234,6 +238,7 @@ github.com/containerd/containerd/services/content/contentserver
 github.com/containerd/containerd/services/introspection
 github.com/containerd/containerd/services/server/config
 github.com/containerd/containerd/snapshots
+github.com/containerd/containerd/snapshots/overlay/overlayutils
 github.com/containerd/containerd/snapshots/proxy
 github.com/containerd/containerd/sys
 github.com/containerd/containerd/sys/reaper
@@ -250,10 +255,12 @@ github.com/containerd/fifo
 # github.com/containerd/go-runc v1.0.0
 ## explicit; go 1.13
 github.com/containerd/go-runc
-# github.com/containerd/stargz-snapshotter v0.11.3
-## explicit; go 1.16
-github.com/containerd/stargz-snapshotter/snapshot/overlayutils
-# github.com/containerd/stargz-snapshotter/estargz v0.11.3
+# github.com/containerd/nydus-snapshotter v0.3.1
+## explicit; go 1.17
+github.com/containerd/nydus-snapshotter/pkg/converter
+github.com/containerd/nydus-snapshotter/pkg/converter/tool
+github.com/containerd/nydus-snapshotter/pkg/errdefs
+# github.com/containerd/stargz-snapshotter/estargz v0.13.0
 ## explicit; go 1.16
 github.com/containerd/stargz-snapshotter/estargz
 github.com/containerd/stargz-snapshotter/estargz/errorutil
@@ -456,6 +463,10 @@ github.com/hashicorp/serf/serf
 # github.com/imdario/mergo v0.3.12
 ## explicit; go 1.13
 github.com/imdario/mergo
+# github.com/in-toto/in-toto-golang v0.3.4-0.20220709202702-fa494aaa0add
+## explicit; go 1.17
+github.com/in-toto/in-toto-golang/in_toto
+github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2
 # github.com/inconshreveable/mousetrap v1.0.1
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
@@ -486,8 +497,8 @@ github.com/mistifyio/go-zfs
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
-# github.com/moby/buildkit v0.10.6
-## explicit; go 1.17
+# github.com/moby/buildkit v0.11.0-rc2
+## explicit; go 1.18
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
 github.com/moby/buildkit/cache
@@ -506,16 +517,23 @@ github.com/moby/buildkit/client/connhelper
 github.com/moby/buildkit/client/llb
 github.com/moby/buildkit/client/llb/imagemetaresolver
 github.com/moby/buildkit/client/ociindex
+github.com/moby/buildkit/cmd/buildkitd/config
 github.com/moby/buildkit/control
 github.com/moby/buildkit/control/gateway
 github.com/moby/buildkit/executor
 github.com/moby/buildkit/executor/oci
 github.com/moby/buildkit/executor/runcexecutor
 github.com/moby/buildkit/exporter
+github.com/moby/buildkit/exporter/attestation
+github.com/moby/buildkit/exporter/containerimage
 github.com/moby/buildkit/exporter/containerimage/exptypes
+github.com/moby/buildkit/exporter/containerimage/image
 github.com/moby/buildkit/exporter/local
 github.com/moby/buildkit/exporter/tar
+github.com/moby/buildkit/exporter/util/epoch
 github.com/moby/buildkit/frontend
+github.com/moby/buildkit/frontend/attestations
+github.com/moby/buildkit/frontend/attestations/sbom
 github.com/moby/buildkit/frontend/dockerfile/builder
 github.com/moby/buildkit/frontend/dockerfile/command
 github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb
@@ -529,6 +547,8 @@ github.com/moby/buildkit/frontend/gateway/forwarder
 github.com/moby/buildkit/frontend/gateway/grpcclient
 github.com/moby/buildkit/frontend/gateway/pb
 github.com/moby/buildkit/frontend/subrequests
+github.com/moby/buildkit/frontend/subrequests/outline
+github.com/moby/buildkit/frontend/subrequests/targets
 github.com/moby/buildkit/identity
 github.com/moby/buildkit/session
 github.com/moby/buildkit/session/auth
@@ -550,16 +570,23 @@ github.com/moby/buildkit/solver/llbsolver/file
 github.com/moby/buildkit/solver/llbsolver/mounts
 github.com/moby/buildkit/solver/llbsolver/ops
 github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes
+github.com/moby/buildkit/solver/llbsolver/ops/opsutils
+github.com/moby/buildkit/solver/llbsolver/proc
+github.com/moby/buildkit/solver/llbsolver/provenance
 github.com/moby/buildkit/solver/pb
+github.com/moby/buildkit/solver/result
 github.com/moby/buildkit/source
 github.com/moby/buildkit/source/git
 github.com/moby/buildkit/source/http
 github.com/moby/buildkit/source/local
 github.com/moby/buildkit/source/types
+github.com/moby/buildkit/sourcepolicy
+github.com/moby/buildkit/sourcepolicy/pb
 github.com/moby/buildkit/util/apicaps
 github.com/moby/buildkit/util/apicaps/pb
 github.com/moby/buildkit/util/appdefaults
 github.com/moby/buildkit/util/archutil
+github.com/moby/buildkit/util/attestation
 github.com/moby/buildkit/util/bklog
 github.com/moby/buildkit/util/buildinfo
 github.com/moby/buildkit/util/buildinfo/types
@@ -573,6 +600,7 @@ github.com/moby/buildkit/util/flightcontrol
 github.com/moby/buildkit/util/gitutil
 github.com/moby/buildkit/util/grpcerrors
 github.com/moby/buildkit/util/imageutil
+github.com/moby/buildkit/util/iohelper
 github.com/moby/buildkit/util/leaseutil
 github.com/moby/buildkit/util/network
 github.com/moby/buildkit/util/overlay
@@ -580,6 +608,7 @@ github.com/moby/buildkit/util/progress
 github.com/moby/buildkit/util/progress/controller
 github.com/moby/buildkit/util/progress/logs
 github.com/moby/buildkit/util/pull/pullprogress
+github.com/moby/buildkit/util/purl
 github.com/moby/buildkit/util/push
 github.com/moby/buildkit/util/resolver
 github.com/moby/buildkit/util/resolver/config
@@ -588,14 +617,17 @@ github.com/moby/buildkit/util/resolver/retryhandler
 github.com/moby/buildkit/util/rootless/specconv
 github.com/moby/buildkit/util/sshutil
 github.com/moby/buildkit/util/stack
+github.com/moby/buildkit/util/staticfs
 github.com/moby/buildkit/util/suggest
 github.com/moby/buildkit/util/system
 github.com/moby/buildkit/util/throttle
 github.com/moby/buildkit/util/tracing
+github.com/moby/buildkit/util/tracing/detect
 github.com/moby/buildkit/util/tracing/exec
 github.com/moby/buildkit/util/tracing/otlptracegrpc
 github.com/moby/buildkit/util/tracing/transform
 github.com/moby/buildkit/util/urlutil
+github.com/moby/buildkit/util/wildcard
 github.com/moby/buildkit/util/winlayers
 github.com/moby/buildkit/version
 github.com/moby/buildkit/worker
@@ -701,6 +733,10 @@ github.com/moby/term/windows
 # github.com/morikuni/aec v1.0.0
 ## explicit
 github.com/morikuni/aec
+# github.com/onsi/ginkgo v1.16.4
+## explicit; go 1.15
+# github.com/onsi/gomega v1.20.1
+## explicit; go 1.18
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
@@ -726,6 +762,9 @@ github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
 github.com/opencontainers/selinux/pkg/pwalkdir
+# github.com/package-url/packageurl-go v0.1.1-0.20220428063043-89078438f170
+## explicit; go 1.17
+github.com/package-url/packageurl-go
 # github.com/pelletier/go-toml v1.9.4
 ## explicit; go 1.12
 github.com/pelletier/go-toml
@@ -761,9 +800,22 @@ github.com/rootless-containers/rootlesskit/pkg/port
 # github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 ## explicit
 github.com/sean-/seed
+# github.com/secure-systems-lab/go-securesystemslib v0.4.0
+## explicit; go 1.17
+github.com/secure-systems-lab/go-securesystemslib/cjson
+github.com/secure-systems-lab/go-securesystemslib/dsse
+# github.com/shibumi/go-pathspec v1.3.0
+## explicit; go 1.17
+github.com/shibumi/go-pathspec
 # github.com/sirupsen/logrus v1.9.0
 ## explicit; go 1.13
 github.com/sirupsen/logrus
+# github.com/spdx/tools-golang v0.3.1-0.20221108182156-8a01147e6342 => github.com/jedevc/spdx-tools-golang v0.0.0-20221205121515-6fe9d226281a
+## explicit; go 1.13
+github.com/spdx/tools-golang/json
+github.com/spdx/tools-golang/spdx/common
+github.com/spdx/tools-golang/spdx/v2_2
+github.com/spdx/tools-golang/spdx/v2_3
 # github.com/spf13/cobra v1.6.1
 ## explicit; go 1.15
 github.com/spf13/cobra
@@ -859,10 +911,20 @@ go.opentelemetry.io/otel/internal/baggage
 go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/v1.7.0
+# go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.4.1
+## explicit; go 1.16
+go.opentelemetry.io/otel/exporters/otlp/internal/retry
 # go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.4.1
 ## explicit; go 1.16
 go.opentelemetry.io/otel/exporters/otlp/otlptrace
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlpconfig
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform
+# go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.4.1
+## explicit; go 1.16
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
+# go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.4.1
+## explicit; go 1.16
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
 # go.opentelemetry.io/otel/internal/metric v0.27.0
 ## explicit; go 1.16
 go.opentelemetry.io/otel/internal/metric/global
@@ -881,6 +943,7 @@ go.opentelemetry.io/otel/sdk/internal
 go.opentelemetry.io/otel/sdk/internal/env
 go.opentelemetry.io/otel/sdk/resource
 go.opentelemetry.io/otel/sdk/trace
+go.opentelemetry.io/otel/sdk/trace/tracetest
 # go.opentelemetry.io/otel/trace v1.4.1
 ## explicit; go 1.16
 go.opentelemetry.io/otel/trace
@@ -1047,6 +1110,7 @@ google.golang.org/grpc/credentials/google
 google.golang.org/grpc/credentials/insecure
 google.golang.org/grpc/credentials/oauth
 google.golang.org/grpc/encoding
+google.golang.org/grpc/encoding/gzip
 google.golang.org/grpc/encoding/proto
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/health
@@ -1149,3 +1213,4 @@ k8s.io/klog/v2/internal/severity
 # resenje.org/singleflight v0.3.0
 ## explicit; go 1.18
 resenje.org/singleflight
+# github.com/spdx/tools-golang => github.com/jedevc/spdx-tools-golang v0.0.0-20221205121515-6fe9d226281a

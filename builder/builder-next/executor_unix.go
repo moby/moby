@@ -4,6 +4,7 @@
 package buildkit
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -68,7 +69,11 @@ type bridgeProvider struct {
 	Root string
 }
 
-func (p *bridgeProvider) New() (network.Namespace, error) {
+// New implements network.Provider.New
+//
+// FIXME(thaJeztah): Anything to pick up from context? See https://github.com/moby/buildkit/commit/588a72d04c74a183cec21fb8103393be4c723d04
+// FIXME(thaJeztah): Anything to implement for hostname? See https://github.com/moby/buildkit/commit/e3c9e064a930f5c8572c94ae8c782de01f206bbe
+func (p *bridgeProvider) New(ctx context.Context, hostname string) (network.Namespace, error) {
 	n, err := p.NetworkByName(networkName)
 	if err != nil {
 		return nil, err
@@ -80,6 +85,12 @@ func (p *bridgeProvider) New() (network.Namespace, error) {
 	})
 
 	return iface, nil
+}
+
+// Close implements worker.Worker.Close to ... <INSERT THE BLANKS>
+func (p *bridgeProvider) Close() error {
+	// FIXME(thaJeztah): anything to be done here? https://github.com/moby/buildkit/commit/f6b002e29ee506e7cb6b6b423793ae4d381ba468
+	return nil
 }
 
 type lnInterface struct {

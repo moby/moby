@@ -11,7 +11,6 @@ import (
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
-	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/identity"
@@ -19,9 +18,11 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/errdefs"
 	llberrdefs "github.com/moby/buildkit/solver/llbsolver/errdefs"
+	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/sourcepolicy"
+	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/bklog"
-	"github.com/moby/buildkit/util/buildinfo"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
@@ -63,20 +64,35 @@ func (b *llbBridge) Warn(ctx context.Context, dgst digest.Digest, msg string, op
 	})
 }
 
-func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImports []gw.CacheOptionsEntry) (solver.CachedResult, solver.BuildSources, error) {
+func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImports []gw.CacheOptionsEntry, pol []*spb.Policy) (solver.CachedResultWithProvenance, error) {
 	w, err := b.resolveWorker()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	ent, err := loadEntitlements(b.builder)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+	srcPol, err := loadSourcePolicy(b.builder)
+	if err != nil {
+		return nil, err
+	}
+	var polEngine SourcePolicyEvaluator
+	if srcPol != nil || len(pol) > 0 {
+		if srcPol != nil {
+			pol = append([]*spb.Policy{srcPol}, pol...)
+		}
+
+		polEngine = sourcepolicy.NewEngine(pol)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var cms []solver.CacheManager
 	for _, im := range cacheImports {
 		cmID, err := cmKey(im)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		b.cmsMu.Lock()
 		var cm solver.CacheManager
@@ -91,7 +107,7 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 						}
 						ci, desc, err := resolveCI(ctx, g, im.Attrs)
 						if err != nil {
-							return err
+							return errors.Wrapf(err, "failed to configure %v cache importer", im.Type)
 						}
 						cmNew, err = ci.Resolve(ctx, desc, cmID, w)
 						return err
@@ -111,9 +127,9 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 	}
 	dpc := &detectPrunedCacheID{}
 
-	edge, err := Load(def, dpc.Load, ValidateEntitlements(ent), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
+	edge, err := Load(ctx, def, polEngine, dpc.Load, ValidateEntitlements(ent), WithCacheSources(cms), NormalizeRuntimePlatforms(), WithValidateCaps())
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to load LLB")
+		return nil, errors.Wrap(err, "failed to load LLB")
 	}
 
 	if len(dpc.ids) > 0 {
@@ -124,107 +140,44 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 		if err := b.eachWorker(func(w worker.Worker) error {
 			return w.PruneCacheMounts(ctx, ids)
 		}); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	res, bi, err := b.builder.Build(ctx, edge)
+	res, err := b.builder.Build(ctx, edge)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return res, bi, nil
-}
-
-func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid string) (res *frontend.Result, err error) {
-	if req.Definition != nil && req.Definition.Def != nil && req.Frontend != "" {
-		return nil, errors.New("cannot solve with both Definition and Frontend specified")
-	}
-
-	if req.Definition != nil && req.Definition.Def != nil {
-		res = &frontend.Result{Ref: newResultProxy(b, req)}
-		if req.Evaluate {
-			_, err = res.Ref.Result(ctx)
-		}
-	} else if req.Frontend != "" {
-		f, ok := b.frontends[req.Frontend]
-		if !ok {
-			return nil, errors.Errorf("invalid frontend: %s", req.Frontend)
-		}
-		res, err = f.Solve(ctx, b, req.FrontendOpt, req.FrontendInputs, sid, b.sm)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return &frontend.Result{}, nil
-	}
-
-	if len(res.Refs) > 0 {
-		for p := range res.Refs {
-			dtbi, err := buildinfo.GetMetadata(res.Metadata, fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, p), req.Frontend, req.FrontendOpt)
-			if err != nil {
-				return nil, err
-			}
-			if dtbi != nil && len(dtbi) > 0 {
-				if res.Metadata == nil {
-					res.Metadata = make(map[string][]byte)
-				}
-				res.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, p)] = dtbi
-			}
-		}
-	} else {
-		dtbi, err := buildinfo.GetMetadata(res.Metadata, exptypes.ExporterBuildInfo, req.Frontend, req.FrontendOpt)
-		if err != nil {
-			return nil, err
-		}
-		if dtbi != nil && len(dtbi) > 0 {
-			if res.Metadata == nil {
-				res.Metadata = make(map[string][]byte)
-			}
-			res.Metadata[exptypes.ExporterBuildInfo] = dtbi
-		}
-	}
-
-	return
+	return res, nil
 }
 
 type resultProxy struct {
-	cb         func(context.Context) (solver.CachedResult, solver.BuildSources, error)
-	def        *pb.Definition
+	id         string
+	b          *provenanceBridge
+	req        frontend.SolveRequest
 	g          flightcontrol.Group
 	mu         sync.Mutex
 	released   bool
 	v          solver.CachedResult
-	bsrc       solver.BuildSources
 	err        error
 	errResults []solver.Result
+	provenance *provenance.Capture
 }
 
-func newResultProxy(b *llbBridge, req frontend.SolveRequest) *resultProxy {
-	rp := &resultProxy{
-		def: req.Definition,
-	}
-	rp.cb = func(ctx context.Context) (solver.CachedResult, solver.BuildSources, error) {
-		res, bsrc, err := b.loadResult(ctx, req.Definition, req.CacheImports)
-		var ee *llberrdefs.ExecError
-		if errors.As(err, &ee) {
-			ee.EachRef(func(res solver.Result) error {
-				rp.errResults = append(rp.errResults, res)
-				return nil
-			})
-			// acquire ownership so ExecError finalizer doesn't attempt to release as well
-			ee.OwnerBorrowed = true
-		}
-		return res, bsrc, err
-	}
-	return rp
+func newResultProxy(b *provenanceBridge, req frontend.SolveRequest) *resultProxy {
+	return &resultProxy{req: req, b: b, id: identity.NewID()}
+}
+
+func (rp *resultProxy) ID() string {
+	return rp.id
 }
 
 func (rp *resultProxy) Definition() *pb.Definition {
-	return rp.def
+	return rp.req.Definition
 }
 
-func (rp *resultProxy) BuildSources() solver.BuildSources {
-	return rp.bsrc
+func (rp *resultProxy) Provenance() interface{} {
+	return rp.provenance
 }
 
 func (rp *resultProxy) Release(ctx context.Context) (err error) {
@@ -255,12 +208,12 @@ func (rp *resultProxy) wrapError(err error) error {
 	}
 	var ve *errdefs.VertexError
 	if errors.As(err, &ve) {
-		if rp.def.Source != nil {
-			locs, ok := rp.def.Source.Locations[string(ve.Digest)]
+		if rp.req.Definition.Source != nil {
+			locs, ok := rp.req.Definition.Source.Locations[string(ve.Digest)]
 			if ok {
 				for _, loc := range locs.Locations {
 					err = errdefs.WithSource(err, errdefs.Source{
-						Info:   rp.def.Source.Infos[loc.SourceIndex],
+						Info:   rp.req.Definition.Source.Infos[loc.SourceIndex],
 						Ranges: loc.Ranges,
 					})
 				}
@@ -268,6 +221,20 @@ func (rp *resultProxy) wrapError(err error) error {
 		}
 	}
 	return err
+}
+
+func (rp *resultProxy) loadResult(ctx context.Context) (solver.CachedResultWithProvenance, error) {
+	res, err := rp.b.loadResult(ctx, rp.req.Definition, rp.req.CacheImports, rp.req.SourcePolicies)
+	var ee *llberrdefs.ExecError
+	if errors.As(err, &ee) {
+		ee.EachRef(func(res solver.Result) error {
+			rp.errResults = append(rp.errResults, res)
+			return nil
+		})
+		// acquire ownership so ExecError finalizer doesn't attempt to release as well
+		ee.OwnerBorrowed = true
+	}
+	return res, err
 }
 
 func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err error) {
@@ -285,7 +252,7 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 			return rp.v, rp.err
 		}
 		rp.mu.Unlock()
-		v, bsrc, err := rp.cb(ctx)
+		v, err := rp.loadResult(ctx)
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -304,8 +271,16 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 			return nil, errors.Errorf("evaluating released result")
 		}
 		rp.v = v
-		rp.bsrc = bsrc
 		rp.err = err
+		if err == nil {
+			capture, err := captureProvenance(ctx, v)
+			if err != nil && rp.err != nil {
+				rp.err = errors.Wrapf(rp.err, "failed to capture provenance: %v", err)
+				v.Release(context.TODO())
+				rp.v = nil
+			}
+			rp.provenance = capture
+		}
 		rp.mu.Unlock()
 		return v, err
 	})

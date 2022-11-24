@@ -3,7 +3,7 @@ package contentutil
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -117,7 +117,7 @@ func (b *buffer) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (conten
 	if err != nil {
 		return nil, err
 	}
-	return &readerAt{Reader: r, Closer: ioutil.NopCloser(r), size: int64(r.Len())}, nil
+	return &readerAt{Reader: r, Closer: io.NopCloser(r), size: int64(r.Len())}, nil
 }
 
 func (b *buffer) getBytesReader(ctx context.Context, dgst digest.Digest) (*bytes.Reader, error) {

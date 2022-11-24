@@ -61,7 +61,7 @@ func (smc *sourceMapCollector) Add(dgst digest.Digest, ls []*SourceLocation) {
 		}
 		smc.index[l.SourceMap] = idx
 	}
-	smc.locations[dgst] = ls
+	smc.locations[dgst] = append(smc.locations[dgst], ls...)
 }
 
 func (smc *sourceMapCollector) Marshal(ctx context.Context, co ...ConstraintsOpt) (*pb.Source, error) {
