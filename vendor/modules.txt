@@ -333,7 +333,7 @@ github.com/fernet/fernet-go
 github.com/fluent/fluent-logger-golang/fluent
 # github.com/fsnotify/fsnotify v1.5.1
 ## explicit; go 1.13
-# github.com/go-logr/logr v1.2.2
+# github.com/go-logr/logr v1.2.3
 ## explicit; go 1.16
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
