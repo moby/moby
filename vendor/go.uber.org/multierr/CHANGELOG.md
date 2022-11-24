@@ -1,6 +1,18 @@
 Releases
 ========
 
+v1.8.0 (2022-02-28)
+===================
+
+-   `Combine`: perform zero allocations when there are no errors.
+
+
+v1.7.0 (2021-05-06)
+===================
+
+-   Add `AppendInvoke` to append into errors from `defer` blocks.
+
+
 v1.6.0 (2020-09-14)
 ===================
 

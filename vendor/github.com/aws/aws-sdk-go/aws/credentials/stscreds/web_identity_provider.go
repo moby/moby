@@ -52,8 +52,20 @@ type WebIdentityRoleProvider struct {
 	credentials.Expiry
 	PolicyArns []*sts.PolicyDescriptorType
 
-	client       stsiface.STSAPI
+	// Duration the STS credentials will be valid for. Truncated to seconds.
+	// If unset, the assumed role will use AssumeRoleWithWebIdentity's default
+	// expiry duration. See
+	// https://docs.aws.amazon.com/sdk-for-go/api/service/sts/#STS.AssumeRoleWithWebIdentity
+	// for more information.
+	Duration time.Duration
+
+	// The amount of time the credentials will be refreshed before they expire.
+	// This is useful refresh credentials before they expire to reduce risk of
+	// using credentials as they expire. If unset, will default to no expiry
+	// window.
 	ExpiryWindow time.Duration
+
+	client stsiface.STSAPI
 
 	tokenFetcher    TokenFetcher
 	roleARN         string
@@ -107,11 +119,18 @@ func (p *WebIdentityRoleProvider) RetrieveWithContext(ctx credentials.Context) (
 		// uses unix time in nanoseconds to uniquely identify sessions.
 		sessionName = strconv.FormatInt(now().UnixNano(), 10)
 	}
+
+	var duration *int64
+	if p.Duration != 0 {
+		duration = aws.Int64(int64(p.Duration / time.Second))
+	}
+
 	req, resp := p.client.AssumeRoleWithWebIdentityRequest(&sts.AssumeRoleWithWebIdentityInput{
 		PolicyArns:       p.PolicyArns,
 		RoleArn:          &p.roleARN,
 		RoleSessionName:  &sessionName,
 		WebIdentityToken: aws.String(string(b)),
+		DurationSeconds:  duration,
 	})
 
 	req.SetContext(ctx)

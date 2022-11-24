@@ -30,6 +30,7 @@ const (
 	payOffset         = ivOffset + aes.BlockSize
 	overhead          = 1 + 8 + aes.BlockSize + sha256.Size // ver + ts + iv + hmac
 	maxClockSkew      = 60 * time.Second
+	uint64Bytes       = 8
 )
 
 var encoding = base64.URLEncoding
@@ -63,7 +64,7 @@ func decodedLen(n int) int {
 
 // if msg is nil, decrypts in place and returns a slice of tok.
 func verify(msg, tok []byte, ttl time.Duration, now time.Time, k *Key) []byte {
-	if len(tok) < 1 || tok[0] != version {
+	if len(tok) < 1+uint64Bytes || tok[0] != version {
 		return nil
 	}
 	ts := time.Unix(int64(binary.BigEndian.Uint64(tok[1:])), 0)
@@ -71,6 +72,9 @@ func verify(msg, tok []byte, ttl time.Duration, now time.Time, k *Key) []byte {
 		return nil
 	}
 	n := len(tok) - sha256.Size
+	if n <= 0 {
+		return nil
+	}
 	var hmac [sha256.Size]byte
 	genhmac(hmac[:0], tok[:n], k.signBytes())
 	if subtle.ConstantTimeCompare(tok[n:], hmac[:]) != 1 {

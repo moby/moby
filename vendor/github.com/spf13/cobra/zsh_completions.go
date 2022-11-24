@@ -1,3 +1,17 @@
+// Copyright 2013-2022 The Cobra Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cobra
 
 import (
@@ -75,7 +89,7 @@ func genZshComp(buf io.StringWriter, name string, includeDesc bool) {
 	if !includeDesc {
 		compCmd = ShellCompNoDescRequestCmd
 	}
-	WriteStringAndCheck(buf, fmt.Sprintf(`#compdef _%[1]s %[1]s
+	WriteStringAndCheck(buf, fmt.Sprintf(`#compdef %[1]s
 
 # zsh completion for %-36[1]s -*- shell-script -*-
 
@@ -95,7 +109,7 @@ _%[1]s()
     local shellCompDirectiveFilterFileExt=%[6]d
     local shellCompDirectiveFilterDirs=%[7]d
 
-    local lastParam lastChar flagPrefix requestComp out directive compCount comp lastComp
+    local lastParam lastChar flagPrefix requestComp out directive comp lastComp noSpace
     local -a completions
 
     __%[1]s_debug "\n========= starting completion logic =========="
@@ -163,8 +177,24 @@ _%[1]s()
         return
     fi
 
-    compCount=0
+    local activeHelpMarker="%[8]s"
+    local endIndex=${#activeHelpMarker}
+    local startIndex=$((${#activeHelpMarker}+1))
+    local hasActiveHelp=0
     while IFS='\n' read -r comp; do
+        # Check if this is an activeHelp statement (i.e., prefixed with $activeHelpMarker)
+        if [ "${comp[1,$endIndex]}" = "$activeHelpMarker" ];then
+            __%[1]s_debug "ActiveHelp found: $comp"
+            comp="${comp[$startIndex,-1]}"
+            if [ -n "$comp" ]; then
+                compadd -x "${comp}"
+                __%[1]s_debug "ActiveHelp will need delimiter"
+                hasActiveHelp=1
+            fi
+
+            continue
+        fi
+
         if [ -n "$comp" ]; then
             # If requested, completions are returned with a description.
             # The description is preceded by a TAB character.
@@ -172,15 +202,30 @@ _%[1]s()
             # We first need to escape any : as part of the completion itself.
             comp=${comp//:/\\:}
 
-            local tab=$(printf '\t')
+            local tab="$(printf '\t')"
             comp=${comp//$tab/:}
 
-            ((compCount++))
             __%[1]s_debug "Adding completion: ${comp}"
             completions+=${comp}
             lastComp=$comp
         fi
     done < <(printf "%%s\n" "${out[@]}")
+
+    # Add a delimiter after the activeHelp statements, but only if:
+    # - there are completions following the activeHelp statements, or
+    # - file completion will be performed (so there will be choices after the activeHelp)
+    if [ $hasActiveHelp -eq 1 ]; then
+        if [ ${#completions} -ne 0 ] || [ $((directive & shellCompDirectiveNoFileComp)) -eq 0 ]; then
+            __%[1]s_debug "Adding activeHelp delimiter"
+            compadd -x "--"
+            hasActiveHelp=0
+        fi
+    fi
+
+    if [ $((directive & shellCompDirectiveNoSpace)) -ne 0 ]; then
+        __%[1]s_debug "Activating nospace."
+        noSpace="-S ''"
+    fi
 
     if [ $((directive & shellCompDirectiveFilterFileExt)) -ne 0 ]; then
         # File extension filtering
@@ -199,7 +244,7 @@ _%[1]s()
         _arguments '*:filename:'"$filteringCmd"
     elif [ $((directive & shellCompDirectiveFilterDirs)) -ne 0 ]; then
         # File completion for directories only
-        local subDir
+        local subdir
         subdir="${completions[1]}"
         if [ -n "$subdir" ]; then
             __%[1]s_debug "Listing directories in $subdir"
@@ -208,33 +253,49 @@ _%[1]s()
             __%[1]s_debug "Listing directories in ."
         fi
 
+        local result
         _arguments '*:dirname:_files -/'" ${flagPrefix}"
+        result=$?
         if [ -n "$subdir" ]; then
             popd >/dev/null 2>&1
         fi
-    elif [ $((directive & shellCompDirectiveNoSpace)) -ne 0 ] && [ ${compCount} -eq 1 ]; then
-        __%[1]s_debug "Activating nospace."
-        # We can use compadd here as there is no description when
-        # there is only one completion.
-        compadd -S '' "${lastComp}"
-    elif [ ${compCount} -eq 0 ]; then
-        if [ $((directive & shellCompDirectiveNoFileComp)) -ne 0 ]; then
-            __%[1]s_debug "deactivating file completion"
-        else
-            # Perform file completion
-            __%[1]s_debug "activating file completion"
-            _arguments '*:filename:_files'" ${flagPrefix}"
-        fi
+        return $result
     else
-        _describe "completions" completions $(echo $flagPrefix)
+        __%[1]s_debug "Calling _describe"
+        if eval _describe "completions" completions $flagPrefix $noSpace; then
+            __%[1]s_debug "_describe found some completions"
+
+            # Return the success of having called _describe
+            return 0
+        else
+            __%[1]s_debug "_describe did not find completions."
+            __%[1]s_debug "Checking if we should do file completion."
+            if [ $((directive & shellCompDirectiveNoFileComp)) -ne 0 ]; then
+                __%[1]s_debug "deactivating file completion"
+
+                # We must return an error code here to let zsh know that there were no
+                # completions found by _describe; this is what will trigger other
+                # matching algorithms to attempt to find completions.
+                # For example zsh can match letters in the middle of words.
+                return 1
+            else
+                # Perform file completion
+                __%[1]s_debug "Activating file completion"
+
+                # We must return the result of this command, so it must be the
+                # last command, or else we must store its result to return it.
+                _arguments '*:filename:_files'" ${flagPrefix}"
+            fi
+        fi
     fi
 }
 
 # don't run the completion function when being source-ed or eval-ed
 if [ "$funcstack[1]" = "_%[1]s" ]; then
-	_%[1]s
+    _%[1]s
 fi
 `, name, compCmd,
 		ShellCompDirectiveError, ShellCompDirectiveNoSpace, ShellCompDirectiveNoFileComp,
-		ShellCompDirectiveFilterFileExt, ShellCompDirectiveFilterDirs))
+		ShellCompDirectiveFilterFileExt, ShellCompDirectiveFilterDirs,
+		activeHelpMarker))
 }

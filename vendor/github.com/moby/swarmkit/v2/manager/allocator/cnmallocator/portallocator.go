@@ -297,10 +297,6 @@ func (pa *portAllocator) hostPublishPortsNeedUpdate(s *api.Service) bool {
 	return false
 }
 
-func (pa *portAllocator) isPortsAllocated(s *api.Service) bool {
-	return pa.isPortsAllocatedOnInit(s, false)
-}
-
 func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) bool {
 	// If service has no user-defined endpoint and allocated endpoint,
 	// we assume it is allocated and return true.

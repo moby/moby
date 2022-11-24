@@ -2,7 +2,7 @@
 
 1. [File an issue](https://github.com/googleapis/google-cloud-go/issues/new/choose).
    The issue will be used to discuss the bug or feature and should be created
-   before sending a CL.
+   before sending a PR.
 
 1. [Install Go](https://golang.org/dl/).
     1. Ensure that your `GOBIN` directory (by default `$(go env GOPATH)/bin`)
