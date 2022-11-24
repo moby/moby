@@ -65,7 +65,6 @@ type Server struct {
 	signingMu sync.Mutex
 
 	// lets us monitor and finish root rotations
-	rootReconciler                  *rootRotationReconciler
 	rootReconciliationRetryInterval time.Duration
 }
 

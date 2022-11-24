@@ -21,6 +21,7 @@ package google
 import (
 	"context"
 	"net"
+	"net/url"
 	"strings"
 
 	"google.golang.org/grpc/credentials"
@@ -28,12 +29,16 @@ import (
 )
 
 const cfeClusterNamePrefix = "google_cfe_"
+const cfeClusterResourceNamePrefix = "/envoy.config.cluster.v3.Cluster/google_cfe_"
+const cfeClusterAuthorityName = "traffic-director-c2p.xds.googleapis.com"
 
 // clusterTransportCreds is a combo of TLS + ALTS.
 //
 // On the client, ClientHandshake picks TLS or ALTS based on address attributes.
 // - if attributes has cluster name
-//   - if cluster name has prefix "google_cfe_", use TLS
+//   - if cluster name has prefix "google_cfe_", or
+//     "xdstp://traffic-director-c2p.xds.googleapis.com/envoy.config.cluster.v3.Cluster/google_cfe_",
+//     use TLS
 //   - otherwise, use ALTS
 // - else, do TLS
 //
@@ -50,18 +55,49 @@ func newClusterTransportCreds(tls, alts credentials.TransportCredentials) *clust
 	}
 }
 
-func (c *clusterTransportCreds) ClientHandshake(ctx context.Context, authority string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+// clusterName returns the xDS cluster name stored in the attributes in the
+// context.
+func clusterName(ctx context.Context) string {
 	chi := credentials.ClientHandshakeInfoFromContext(ctx)
 	if chi.Attributes == nil {
-		return c.tls.ClientHandshake(ctx, authority, rawConn)
+		return ""
 	}
-	cn, ok := internal.GetXDSHandshakeClusterName(chi.Attributes)
-	if !ok || strings.HasPrefix(cn, cfeClusterNamePrefix) {
-		return c.tls.ClientHandshake(ctx, authority, rawConn)
+	cluster, _ := internal.GetXDSHandshakeClusterName(chi.Attributes)
+	return cluster
+}
+
+// isDirectPathCluster returns true if the cluster in the context is a
+// directpath cluster, meaning ALTS should be used.
+func isDirectPathCluster(ctx context.Context) bool {
+	cluster := clusterName(ctx)
+	if cluster == "" {
+		// No cluster; not xDS; use TLS.
+		return false
 	}
-	// If attributes have cluster name, and cluster name is not cfe, it's a
-	// backend address, use ALTS.
-	return c.alts.ClientHandshake(ctx, authority, rawConn)
+	if strings.HasPrefix(cluster, cfeClusterNamePrefix) {
+		// xDS cluster prefixed by "google_cfe_"; use TLS.
+		return false
+	}
+	if !strings.HasPrefix(cluster, "xdstp:") {
+		// Other xDS cluster name; use ALTS.
+		return true
+	}
+	u, err := url.Parse(cluster)
+	if err != nil {
+		// Shouldn't happen, but assume ALTS.
+		return true
+	}
+	// If authority AND path match our CFE checks, use TLS; otherwise use ALTS.
+	return u.Host != cfeClusterAuthorityName || !strings.HasPrefix(u.Path, cfeClusterResourceNamePrefix)
+}
+
+func (c *clusterTransportCreds) ClientHandshake(ctx context.Context, authority string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	if isDirectPathCluster(ctx) {
+		// If attributes have cluster name, and cluster name is not cfe, it's a
+		// backend address, use ALTS.
+		return c.alts.ClientHandshake(ctx, authority, rawConn)
+	}
+	return c.tls.ClientHandshake(ctx, authority, rawConn)
 }
 
 func (c *clusterTransportCreds) ServerHandshake(conn net.Conn) (net.Conn, credentials.AuthInfo, error) {

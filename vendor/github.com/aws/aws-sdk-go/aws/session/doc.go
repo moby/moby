@@ -208,6 +208,8 @@ env values as well.
 
 	AWS_SDK_LOAD_CONFIG=1
 
+Custom Shared Config and Credential Files
+
 Shared credentials file path can be set to instruct the SDK to use an alternative
 file for the shared credentials. If not set the file will be loaded from
 $HOME/.aws/credentials on Linux/Unix based systems, and
@@ -221,6 +223,8 @@ $HOME/.aws/config on Linux/Unix based systems, and
 %USERPROFILE%\.aws\config on Windows.
 
 	AWS_CONFIG_FILE=$HOME/my_shared_config
+
+Custom CA Bundle
 
 Path to a custom Credentials Authority (CA) bundle PEM file that the SDK
 will use instead of the default system's root CA bundle. Use this only
@@ -241,5 +245,45 @@ over the AWS_CA_BUNDLE environment variable, and will be used if both are set.
 Setting a custom HTTPClient in the aws.Config options will override this setting.
 To use this option and custom HTTP client, the HTTP client needs to be provided
 when creating the session. Not the service client.
+
+Custom Client TLS Certificate
+
+The SDK supports the environment and session option being configured with
+Client TLS certificates that are sent as a part of the client's TLS handshake
+for client authentication. If used, both Cert and Key values are required. If
+one is missing, or either fail to load the contents of the file an error will
+be returned.
+
+HTTP Client's Transport concrete implementation must be a http.Transport
+or creating the session will fail.
+
+	AWS_SDK_GO_CLIENT_TLS_KEY=$HOME/my_client_key
+	AWS_SDK_GO_CLIENT_TLS_CERT=$HOME/my_client_cert
+
+This can also be configured via the session.Options ClientTLSCert and ClientTLSKey.
+
+	sess, err := session.NewSessionWithOptions(session.Options{
+		ClientTLSCert: myCertFile,
+		ClientTLSKey: myKeyFile,
+	})
+
+Custom EC2 IMDS Endpoint
+
+The endpoint of the EC2 IMDS client can be configured via the environment
+variable, AWS_EC2_METADATA_SERVICE_ENDPOINT when creating the client with a
+Session. See Options.EC2IMDSEndpoint for more details.
+
+  AWS_EC2_METADATA_SERVICE_ENDPOINT=http://169.254.169.254
+
+If using an URL with an IPv6 address literal, the IPv6 address
+component must be enclosed in square brackets.
+
+  AWS_EC2_METADATA_SERVICE_ENDPOINT=http://[::1]
+
+The custom EC2 IMDS endpoint can also be specified via the Session options.
+
+  sess, err := session.NewSessionWithOptions(session.Options{
+      EC2IMDSEndpoint: "http://[::1]",
+  })
 */
 package session

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Uber Technologies, Inc.
+// Copyright (c) 2017-2021 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -35,8 +35,53 @@
 //
 // 	err = multierr.Append(reader.Close(), writer.Close())
 //
-// This makes it possible to record resource cleanup failures from deferred
-// blocks with the help of named return values.
+// The underlying list of errors for a returned error object may be retrieved
+// with the Errors function.
+//
+// 	errors := multierr.Errors(err)
+// 	if len(errors) > 0 {
+// 		fmt.Println("The following errors occurred:", errors)
+// 	}
+//
+// Appending from a loop
+//
+// You sometimes need to append into an error from a loop.
+//
+// 	var err error
+// 	for _, item := range items {
+// 		err = multierr.Append(err, process(item))
+// 	}
+//
+// Cases like this may require knowledge of whether an individual instance
+// failed. This usually requires introduction of a new variable.
+//
+// 	var err error
+// 	for _, item := range items {
+// 		if perr := process(item); perr != nil {
+// 			log.Warn("skipping item", item)
+// 			err = multierr.Append(err, perr)
+// 		}
+// 	}
+//
+// multierr includes AppendInto to simplify cases like this.
+//
+// 	var err error
+// 	for _, item := range items {
+// 		if multierr.AppendInto(&err, process(item)) {
+// 			log.Warn("skipping item", item)
+// 		}
+// 	}
+//
+// This will append the error into the err variable, and return true if that
+// individual error was non-nil.
+//
+// See AppendInto for more information.
+//
+// Deferred Functions
+//
+// Go makes it possible to modify the return value of a function in a defer
+// block if the function was using named returns. This makes it possible to
+// record resource cleanup failures from deferred blocks.
 //
 // 	func sendRequest(req Request) (err error) {
 // 		conn, err := openConnection()
@@ -49,13 +94,20 @@
 // 		// ...
 // 	}
 //
-// The underlying list of errors for a returned error object may be retrieved
-// with the Errors function.
+// multierr provides the Invoker type and AppendInvoke function to make cases
+// like the above simpler and obviate the need for a closure. The following is
+// roughly equivalent to the example above.
 //
-// 	errors := multierr.Errors(err)
-// 	if len(errors) > 0 {
-// 		fmt.Println("The following errors occurred:", errors)
+// 	func sendRequest(req Request) (err error) {
+// 		conn, err := openConnection()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		defer multierr.AppendInvoke(&err, multierr.Close(conn))
+// 		// ...
 // 	}
+//
+// See AppendInvoke and Invoker for more information.
 //
 // Advanced Usage
 //
@@ -87,6 +139,7 @@ package multierr // import "go.uber.org/multierr"
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -184,6 +237,33 @@ func (merr *multiError) Errors() []error {
 		return nil
 	}
 	return merr.errors
+}
+
+// As attempts to find the first error in the error list that matches the type
+// of the value that target points to.
+//
+// This function allows errors.As to traverse the values stored on the
+// multierr error.
+func (merr *multiError) As(target interface{}) bool {
+	for _, err := range merr.Errors() {
+		if errors.As(err, target) {
+			return true
+		}
+	}
+	return false
+}
+
+// Is attempts to match the provided error against errors in the error list.
+//
+// This function allows errors.Is to traverse the values stored on the
+// multierr error.
+func (merr *multiError) Is(target error) bool {
+	for _, err := range merr.Errors() {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
 }
 
 func (merr *multiError) Error() string {
@@ -292,6 +372,14 @@ func inspect(errors []error) (res inspectResult) {
 
 // fromSlice converts the given list of errors into a single error.
 func fromSlice(errors []error) error {
+	// Don't pay to inspect small slices.
+	switch len(errors) {
+	case 0:
+		return nil
+	case 1:
+		return errors[0]
+	}
+
 	res := inspect(errors)
 	switch res.Count {
 	case 0:
@@ -301,8 +389,13 @@ func fromSlice(errors []error) error {
 		return errors[res.FirstErrorIdx]
 	case len(errors):
 		if !res.ContainsMultiError {
-			// already flat
-			return &multiError{errors: errors}
+			// Error list is flat. Make a copy of it
+			// Otherwise "errors" escapes to the heap
+			// unconditionally for all other cases.
+			// This lets us optimize for the "no errors" case.
+			out := make([]error, len(errors))
+			copy(out, errors)
+			return &multiError{errors: out}
 		}
 	}
 
@@ -421,7 +514,7 @@ func Append(left error, right error) error {
 // 		items = append(items, item)
 // 	}
 //
-// Compare this with a verison that relies solely on Append:
+// Compare this with a version that relies solely on Append:
 //
 // 	var err error
 // 	for line := range lines {
@@ -446,4 +539,114 @@ func AppendInto(into *error, err error) (errored bool) {
 	}
 	*into = Append(*into, err)
 	return true
+}
+
+// Invoker is an operation that may fail with an error. Use it with
+// AppendInvoke to append the result of calling the function into an error.
+// This allows you to conveniently defer capture of failing operations.
+//
+// See also, Close and Invoke.
+type Invoker interface {
+	Invoke() error
+}
+
+// Invoke wraps a function which may fail with an error to match the Invoker
+// interface. Use it to supply functions matching this signature to
+// AppendInvoke.
+//
+// For example,
+//
+// 	func processReader(r io.Reader) (err error) {
+// 		scanner := bufio.NewScanner(r)
+// 		defer multierr.AppendInvoke(&err, multierr.Invoke(scanner.Err))
+// 		for scanner.Scan() {
+// 			// ...
+// 		}
+// 		// ...
+// 	}
+//
+// In this example, the following line will construct the Invoker right away,
+// but defer the invocation of scanner.Err() until the function returns.
+//
+// 	defer multierr.AppendInvoke(&err, multierr.Invoke(scanner.Err))
+type Invoke func() error
+
+// Invoke calls the supplied function and returns its result.
+func (i Invoke) Invoke() error { return i() }
+
+// Close builds an Invoker that closes the provided io.Closer. Use it with
+// AppendInvoke to close io.Closers and append their results into an error.
+//
+// For example,
+//
+// 	func processFile(path string) (err error) {
+// 		f, err := os.Open(path)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		defer multierr.AppendInvoke(&err, multierr.Close(f))
+// 		return processReader(f)
+// 	}
+//
+// In this example, multierr.Close will construct the Invoker right away, but
+// defer the invocation of f.Close until the function returns.
+//
+// 	defer multierr.AppendInvoke(&err, multierr.Close(f))
+func Close(closer io.Closer) Invoker {
+	return Invoke(closer.Close)
+}
+
+// AppendInvoke appends the result of calling the given Invoker into the
+// provided error pointer. Use it with named returns to safely defer
+// invocation of fallible operations until a function returns, and capture the
+// resulting errors.
+//
+// 	func doSomething(...) (err error) {
+// 		// ...
+// 		f, err := openFile(..)
+// 		if err != nil {
+// 			return err
+// 		}
+//
+// 		// multierr will call f.Close() when this function returns and
+// 		// if the operation fails, its append its error into the
+// 		// returned error.
+// 		defer multierr.AppendInvoke(&err, multierr.Close(f))
+//
+// 		scanner := bufio.NewScanner(f)
+// 		// Similarly, this scheduled scanner.Err to be called and
+// 		// inspected when the function returns and append its error
+// 		// into the returned error.
+// 		defer multierr.AppendInvoke(&err, multierr.Invoke(scanner.Err))
+//
+// 		// ...
+// 	}
+//
+// Without defer, AppendInvoke behaves exactly like AppendInto.
+//
+// 	err := // ...
+// 	multierr.AppendInvoke(&err, mutltierr.Invoke(foo))
+//
+// 	// ...is roughly equivalent to...
+//
+// 	err := // ...
+// 	multierr.AppendInto(&err, foo())
+//
+// The advantage of the indirection introduced by Invoker is to make it easy
+// to defer the invocation of a function. Without this indirection, the
+// invoked function will be evaluated at the time of the defer block rather
+// than when the function returns.
+//
+// 	// BAD: This is likely not what the caller intended. This will evaluate
+// 	// foo() right away and append its result into the error when the
+// 	// function returns.
+// 	defer multierr.AppendInto(&err, foo())
+//
+// 	// GOOD: This will defer invocation of foo unutil the function returns.
+// 	defer multierr.AppendInvoke(&err, multierr.Invoke(foo))
+//
+// multierr provides a few Invoker implementations out of the box for
+// convenience. See Invoker for more information.
+func AppendInvoke(into *error, invoker Invoker) {
+	AppendInto(into, invoker.Invoke())
 }

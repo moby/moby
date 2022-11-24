@@ -12,6 +12,17 @@ go:
   - 1.11.x
   - 1.12.x
   - 1.13.x
+  - 1.14.x
+  - 1.15.x
+  - tip
 
-install: go get -v -t ./...
-script: make test
+allow_failures:
+  - go: tip
+
+script: make build
+
+matrix:
+  include:
+    - language: go
+      go: 1.15.x
+      script: make test

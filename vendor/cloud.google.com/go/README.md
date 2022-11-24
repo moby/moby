@@ -27,67 +27,18 @@ make backwards-incompatible changes.
 
 ## Supported APIs
 
-| Google API                                      | Status | Package                                                                                                                       |
-| ----------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| [Asset][cloud-asset]                            | stable | [`cloud.google.com/go/asset/apiv1`](https://pkg.go.dev/cloud.google.com/go/asset/v1beta)                                      |
-| [Automl][cloud-automl]                          | stable | [`cloud.google.com/go/automl/apiv1`](https://pkg.go.dev/cloud.google.com/go/automl/apiv1)                                     |
-| [BigQuery][cloud-bigquery]                      | stable | [`cloud.google.com/go/bigquery`](https://pkg.go.dev/cloud.google.com/go/bigquery)                                             |
-| [Bigtable][cloud-bigtable]                      | stable | [`cloud.google.com/go/bigtable`](https://pkg.go.dev/cloud.google.com/go/bigtable)                                             |
-| [Cloudbuild][cloud-build]                       | stable | [`cloud.google.com/go/cloudbuild/apiv1`](https://pkg.go.dev/cloud.google.com/go/cloudbuild/apiv1)                             |
-| [Cloudtasks][cloud-tasks]                       | stable | [`cloud.google.com/go/cloudtasks/apiv2`](https://pkg.go.dev/cloud.google.com/go/cloudtasks/apiv2)                             |
-| [Compute Engine][cloud-compute]                 | alpha  | [`cloud.google.com/go/compute/apiv1`](https://pkg.go.dev/cloud.google.com/go/compute/apiv1)                                   |
-| [Container][cloud-container]                    | stable | [`cloud.google.com/go/container/apiv1`](https://pkg.go.dev/cloud.google.com/go/container/apiv1)                               |
-| [ContainerAnalysis][cloud-containeranalysis]    | beta   | [`cloud.google.com/go/containeranalysis/apiv1`](https://pkg.go.dev/cloud.google.com/go/containeranalysis/apiv1)               |
-| [Dataproc][cloud-dataproc]                      | stable | [`cloud.google.com/go/dataproc/apiv1`](https://pkg.go.dev/cloud.google.com/go/dataproc/apiv1)                                 |
-| [Datastore][cloud-datastore]                    | stable | [`cloud.google.com/go/datastore`](https://pkg.go.dev/cloud.google.com/go/datastore)                                           |
-| [Debugger][cloud-debugger]                      | stable | [`cloud.google.com/go/debugger/apiv2`](https://pkg.go.dev/cloud.google.com/go/debugger/apiv2)                                 |
-| [Dialogflow][cloud-dialogflow]                  | stable | [`cloud.google.com/go/dialogflow/apiv2`](https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2)                             |
-| [Data Loss Prevention][cloud-dlp]               | stable | [`cloud.google.com/go/dlp/apiv2`](https://pkg.go.dev/cloud.google.com/go/dlp/apiv2)                                           |
-| [ErrorReporting][cloud-errors]                  | alpha  | [`cloud.google.com/go/errorreporting`](https://pkg.go.dev/cloud.google.com/go/errorreporting)                                 |
-| [Firestore][cloud-firestore]                    | stable | [`cloud.google.com/go/firestore`](https://pkg.go.dev/cloud.google.com/go/firestore)                                           |
-| [IAM][cloud-iam]                                | stable | [`cloud.google.com/go/iam`](https://pkg.go.dev/cloud.google.com/go/iam)                                                       |
-| [IoT][cloud-iot]                                | stable | [`cloud.google.com/go/iot/apiv1`](https://pkg.go.dev/cloud.google.com/go/iot/apiv1)                                           |
-| [IRM][cloud-irm]                                | alpha  | [`cloud.google.com/go/irm/apiv1alpha2`](https://pkg.go.dev/cloud.google.com/go/irm/apiv1alpha2)                               |
-| [KMS][cloud-kms]                                | stable | [`cloud.google.com/go/kms/apiv1`](https://pkg.go.dev/cloud.google.com/go/kms/apiv1)                                           |
-| [Natural Language][cloud-natural-language]      | stable | [`cloud.google.com/go/language/apiv1`](https://pkg.go.dev/cloud.google.com/go/language/apiv1)                                 |
-| [Logging][cloud-logging]                        | stable | [`cloud.google.com/go/logging`](https://pkg.go.dev/cloud.google.com/go/logging)                                               |
-| [Memorystore][cloud-memorystore]                | alpha  | [`cloud.google.com/go/redis/apiv1`](https://pkg.go.dev/cloud.google.com/go/redis/apiv1)                                       |
-| [Monitoring][cloud-monitoring]                  | stable | [`cloud.google.com/go/monitoring/apiv3`](https://pkg.go.dev/cloud.google.com/go/monitoring/apiv3)                             |
-| [OS Login][cloud-oslogin]                       | stable | [`cloud.google.com/go/oslogin/apiv1`](https://pkg.go.dev/cloud.google.com/go/oslogin/apiv1)                                   |
-| [Pub/Sub][cloud-pubsub]                         | stable | [`cloud.google.com/go/pubsub`](https://pkg.go.dev/cloud.google.com/go/pubsub)                                                 |
-| [Pub/Sub Lite][cloud-pubsublite]                | stable | [`cloud.google.com/go/pubsublite`](https://pkg.go.dev/cloud.google.com/go/pubsublite)                                         |
-| [Phishing Protection][cloud-phishingprotection] | alpha  | [`cloud.google.com/go/phishingprotection/apiv1beta1`](https://pkg.go.dev/cloud.google.com/go/phishingprotection/apiv1beta1)   |
-| [reCAPTCHA Enterprise][cloud-recaptcha]         | alpha  | [`cloud.google.com/go/recaptchaenterprise/apiv1beta1`](https://pkg.go.dev/cloud.google.com/go/recaptchaenterprise/apiv1beta1) |
-| [Recommender][cloud-recommender]                | beta   | [`cloud.google.com/go/recommender/apiv1beta1`](https://pkg.go.dev/cloud.google.com/go/recommender/apiv1beta1)                 |
-| [Scheduler][cloud-scheduler]                    | stable | [`cloud.google.com/go/scheduler/apiv1`](https://pkg.go.dev/cloud.google.com/go/scheduler/apiv1)                               |
-| [Securitycenter][cloud-securitycenter]          | stable | [`cloud.google.com/go/securitycenter/apiv1`](https://pkg.go.dev/cloud.google.com/go/securitycenter/apiv1)                     |
-| [Spanner][cloud-spanner]                        | stable | [`cloud.google.com/go/spanner`](https://pkg.go.dev/cloud.google.com/go/spanner)                                               |
-| [Speech][cloud-speech]                          | stable | [`cloud.google.com/go/speech/apiv1`](https://pkg.go.dev/cloud.google.com/go/speech/apiv1)                                     |
-| [Storage][cloud-storage]                        | stable | [`cloud.google.com/go/storage`](https://pkg.go.dev/cloud.google.com/go/storage)                                               |
-| [Talent][cloud-talent]                          | alpha  | [`cloud.google.com/go/talent/apiv4beta1`](https://pkg.go.dev/cloud.google.com/go/talent/apiv4beta1)                           |
-| [Text To Speech][cloud-texttospeech]            | stable | [`cloud.google.com/go/texttospeech/apiv1`](https://pkg.go.dev/cloud.google.com/go/texttospeech/apiv1)                         |
-| [Trace][cloud-trace]                            | stable | [`cloud.google.com/go/trace/apiv2`](https://pkg.go.dev/cloud.google.com/go/trace/apiv2)                                       |
-| [Translate][cloud-translate]                    | stable | [`cloud.google.com/go/translate`](https://pkg.go.dev/cloud.google.com/go/translate)                                           |
-| [Video Intelligence][cloud-video]               | beta   | [`cloud.google.com/go/videointelligence/apiv1beta2`](https://pkg.go.dev/cloud.google.com/go/videointelligence/apiv1beta2)     |
-| [Vision][cloud-vision]                          | stable | [`cloud.google.com/go/vision/apiv1`](https://pkg.go.dev/cloud.google.com/go/vision/apiv1)                                     |
-| [Webrisk][cloud-webrisk]                        | alpha  | [`cloud.google.com/go/webrisk/apiv1beta1`](https://pkg.go.dev/cloud.google.com/go/webrisk/apiv1beta1)                         |
-
-> **Alpha status**: the API is still being actively developed. As a
-> result, it might change in backward-incompatible ways and is not recommended
-> for production use.
->
-> **Beta status**: the API is largely complete, but still has outstanding
-> features and bugs to be addressed. There may be minor backwards-incompatible
-> changes where necessary.
->
-> **Stable status**: the API is mature and ready for production use. We will
-> continue addressing bugs and feature requests.
-
-Documentation and examples are available at [pkg.go.dev/cloud.google.com/go](https://pkg.go.dev/cloud.google.com/go)
+For an updated list of all of our released APIs please see our
+[reference docs](https://cloud.google.com/go/docs/reference).
 
 ## [Go Versions Supported](#supported-versions)
 
-We currently support Go versions 1.11 and newer.
+Our libraries are compatible with at least the three most recent, major Go
+releases. They are currently compatible with:
+
+- Go 1.18
+- Go 1.17
+- Go 1.16
+- Go 1.15
 
 ## Authorization
 
@@ -125,12 +76,12 @@ client, err := storage.NewClient(ctx, option.WithTokenSource(tokenSource))
 ## Contributing
 
 Contributions are welcome. Please, see the
-[CONTRIBUTING](https://github.com/GoogleCloudPlatform/google-cloud-go/blob/master/CONTRIBUTING.md)
+[CONTRIBUTING](https://github.com/GoogleCloudPlatform/google-cloud-go/blob/main/CONTRIBUTING.md)
 document for details.
 
 Please note that this project is released with a Contributor Code of Conduct.
 By participating in this project you agree to abide by its terms.
-See [Contributor Code of Conduct](https://github.com/GoogleCloudPlatform/google-cloud-go/blob/master/CONTRIBUTING.md#contributor-code-of-conduct)
+See [Contributor Code of Conduct](https://github.com/GoogleCloudPlatform/google-cloud-go/blob/main/CONTRIBUTING.md#contributor-code-of-conduct)
 for more information.
 
 [cloud-asset]: https://cloud.google.com/security-command-center/docs/how-to-asset-inventory
