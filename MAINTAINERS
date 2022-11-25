@@ -71,6 +71,7 @@
 			"programmerq",
 			"ripcurld",
 			"rumpl",
+			"sam-thibault",
 			"samwhited",
 			"thajeztah",
 			"vvoland"
@@ -473,6 +474,11 @@
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
+
+	[people.sam-thibault]
+	Name = "Sam Thibault"
+	Email = "sam.thibault@docker.com"
+	GitHub = "sam-thibault"
 
 	[people.samuelkarp]
 	Name = "Samuel Karp"
