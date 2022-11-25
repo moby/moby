@@ -265,10 +265,10 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 }
 
 func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
-	// err is used to hold the error which will always trigger
+	// cErr is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
-	var err error
+	var cErr error
 	var pid string
 	var p *roLayer
 
@@ -282,15 +282,15 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		pid = p.cacheID
 		// Release parent chain if error
 		defer func() {
-			if err != nil {
+			if cErr != nil {
 				ls.layerL.Lock()
 				ls.releaseLayer(p)
 				ls.layerL.Unlock()
 			}
 		}()
 		if p.depth() >= maxLayerDepth {
-			err = ErrMaxDepthExceeded
-			return nil, err
+			cErr = ErrMaxDepthExceeded
+			return nil, cErr
 		}
 	}
 
@@ -304,18 +304,18 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		descriptor:     descriptor,
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
-		return nil, err
+	if cErr = ls.driver.Create(layer.cacheID, pid, nil); cErr != nil {
+		return nil, cErr
 	}
 
-	tx, err := ls.store.StartTransaction()
-	if err != nil {
-		return nil, err
+	tx, cErr := ls.store.StartTransaction()
+	if cErr != nil {
+		return nil, cErr
 	}
 
 	defer func() {
-		if err != nil {
-			logrus.Debugf("Cleaning up layer %s: %v", layer.cacheID, err)
+		if cErr != nil {
+			logrus.Debugf("Cleaning up layer %s: %v", layer.cacheID, cErr)
 			if err := ls.driver.Remove(layer.cacheID); err != nil {
 				logrus.Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
 			}
@@ -325,8 +325,8 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		}
 	}()
 
-	if err = ls.applyTar(tx, ts, pid, layer); err != nil {
-		return nil, err
+	if cErr = ls.applyTar(tx, ts, pid, layer); cErr != nil {
+		return nil, cErr
 	}
 
 	if layer.parent == nil {
@@ -335,8 +335,8 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		layer.chainID = createChainIDFromParent(layer.parent.chainID, layer.diffID)
 	}
 
-	if err = storeLayer(tx, layer); err != nil {
-		return nil, err
+	if cErr = storeLayer(tx, layer); cErr != nil {
+		return nil, cErr
 	}
 
 	ls.layerL.Lock()
@@ -344,12 +344,12 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 
 	if existingLayer := ls.get(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return the error
-		err = errors.New("layer already exists")
+		cErr = errors.New("layer already exists")
 		return existingLayer.getReference(), nil
 	}
 
-	if err = tx.Commit(layer.chainID); err != nil {
-		return nil, err
+	if cErr = tx.Commit(layer.chainID); cErr != nil {
+		return nil, cErr
 	}
 
 	ls.layerMap[layer.chainID] = layer
