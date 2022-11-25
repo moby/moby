@@ -2,6 +2,7 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -132,7 +133,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			if err != nil {
 				// The layer may have been deleted between the call to `Map()` or
 				// `Heads()` and the call to `Get()`, so we just ignore this error
-				if err == layer.ErrLayerDoesNotExist {
+				if errors.Is(err, layer.ErrLayerDoesNotExist) {
 					continue
 				}
 				return nil, err

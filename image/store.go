@@ -88,7 +88,7 @@ func (is *store) restore() error {
 			}
 			l, err = is.lss.Get(chainID)
 			if err != nil {
-				if err == layer.ErrLayerDoesNotExist {
+				if errors.Is(err, layer.ErrLayerDoesNotExist) {
 					logrus.WithFields(f{"chainID": chainID, "os": img.OperatingSystem(), "err": err}).Error("not restoring image")
 					return nil
 				}

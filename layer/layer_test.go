@@ -2,6 +2,7 @@ package layer // import "github.com/docker/docker/layer"
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -397,7 +398,7 @@ func TestStoreRestore(t *testing.T) {
 	// Create again with same name, should return error
 	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), nil); err == nil {
 		t.Fatal("Expected error creating mount with same name")
-	} else if err != ErrMountNameConflict {
+	} else if !errors.Is(err, ErrMountNameConflict) {
 		t.Fatal(err)
 	}
 
