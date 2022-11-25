@@ -149,3 +149,7 @@ while ! ${TEST_CLIENT_BINARY} version &> /dev/null; do
 	sleep 2
 done
 printf "\n"
+
+if [ "$(docker version --format '{{ .Server.Os }}')" != 'windows' ]; then
+	bundle .build-empty-images
+fi
