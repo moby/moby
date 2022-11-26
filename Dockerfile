@@ -451,6 +451,31 @@ FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-arm64
 FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
 FROM vpnkit-${TARGETOS} AS vpnkit
 
+# containerutility
+FROM base AS containerutil-src
+WORKDIR /usr/src/containerutil
+RUN git init . && git remote add origin "https://github.com/docker-archive/windows-container-utility.git"
+ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
+RUN git fetch -q --depth 1 origin "${CONTAINERUTILITY_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS containerutil-build
+WORKDIR /usr/src/containerutil
+ARG TARGETPLATFORM
+RUN xx-apt-get install -y --no-install-recommends gcc g++ libc6-dev
+RUN --mount=from=containerutil-src,src=/usr/src/containerutil,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=containerutil-build-$TARGETPLATFORM <<EOT
+  set -e
+  CC="$(xx-info)-gcc" CXX="$(xx-info)-g++" make
+  xx-verify --static containerutility.exe
+  mkdir /build
+  mv containerutility.exe /build/
+EOT
+
+FROM binary-dummy AS containerutil-linux
+FROM containerutil-build AS containerutil-windows-amd64
+FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
+FROM containerutil-${TARGETOS} AS containerutil
+
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev-systemd-false
 ARG DEBIAN_FRONTEND
@@ -523,6 +548,7 @@ COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
+COPY --from=containerutil /build/ /usr/local/bin/
 COPY --from=crun          /build/ /usr/local/bin/
 COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
@@ -573,6 +599,7 @@ COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
+COPY --from=containerutil /build/ /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 
