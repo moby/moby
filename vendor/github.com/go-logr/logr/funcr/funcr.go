@@ -351,15 +351,15 @@ func (f Formatter) prettyWithFlags(value interface{}, flags uint32, depth int) s
 	if v, ok := value.(logr.Marshaler); ok {
 		// Replace the value with what the type wants to get logged.
 		// That then gets handled below via reflection.
-		value = v.MarshalLog()
+		value = invokeMarshaler(v)
 	}
 
 	// Handle types that want to format themselves.
 	switch v := value.(type) {
 	case fmt.Stringer:
-		value = v.String()
+		value = invokeStringer(v)
 	case error:
-		value = v.Error()
+		value = invokeError(v)
 	}
 
 	// Handling the most common types without reflect is a small perf win.
@@ -408,8 +408,9 @@ func (f Formatter) prettyWithFlags(value interface{}, flags uint32, depth int) s
 			if i > 0 {
 				buf.WriteByte(',')
 			}
+			k, _ := v[i].(string) // sanitize() above means no need to check success
 			// arbitrary keys might need escaping
-			buf.WriteString(prettyString(v[i].(string)))
+			buf.WriteString(prettyString(k))
 			buf.WriteByte(':')
 			buf.WriteString(f.prettyWithFlags(v[i+1], 0, depth+1))
 		}
@@ -594,6 +595,33 @@ func isEmpty(v reflect.Value) bool {
 		return v.IsNil()
 	}
 	return false
+}
+
+func invokeMarshaler(m logr.Marshaler) (ret interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			ret = fmt.Sprintf("<panic: %s>", r)
+		}
+	}()
+	return m.MarshalLog()
+}
+
+func invokeStringer(s fmt.Stringer) (ret string) {
+	defer func() {
+		if r := recover(); r != nil {
+			ret = fmt.Sprintf("<panic: %s>", r)
+		}
+	}()
+	return s.String()
+}
+
+func invokeError(e error) (ret string) {
+	defer func() {
+		if r := recover(); r != nil {
+			ret = fmt.Sprintf("<panic: %s>", r)
+		}
+	}()
+	return e.Error()
 }
 
 // Caller represents the original call site for a log line, after considering

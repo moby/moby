@@ -48,7 +48,7 @@ require (
 	github.com/hashicorp/serf v0.8.5
 	github.com/imdario/mergo v0.3.12
 	github.com/ishidawataru/sctp v0.0.0-20210707070123-9a39160e9062
-	github.com/klauspost/compress v1.15.9
+	github.com/klauspost/compress v1.15.12
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
 	github.com/moby/buildkit v0.10.6
@@ -66,12 +66,12 @@ require (
 	github.com/morikuni/aec v1.0.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20220303224323-02efb9a75ee1
-	github.com/opencontainers/runc v1.1.2
+	github.com/opencontainers/runc v1.1.3
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/selinux v1.10.2
 	github.com/pelletier/go-toml v1.9.4
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_golang v1.14.0
 	github.com/rootless-containers/rootlesskit v1.1.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
@@ -82,7 +82,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/net v0.1.0
+	golang.org/x/net v0.2.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.2.0
 	golang.org/x/time v0.1.0
@@ -110,7 +110,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fernet/fernet-go v0.0.0-20211208181803-9f70042a33ee // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/go-logr/logr v1.2.2 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
@@ -134,7 +134,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rexray/gocsi v1.2.2 // indirect
@@ -159,7 +159,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/crypto v0.1.0 // indirect
+	golang.org/x/crypto v0.2.0 // indirect
 	golang.org/x/oauth2 v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/api v0.93.0 // indirect
