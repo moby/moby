@@ -83,22 +83,28 @@ RUN --mount=from=registry-src,src=/usr/src/registry,rw \
   esac
 EOT
 
-FROM base AS swagger
-WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
-
+# go-swagger
+FROM base AS swagger-src
+WORKDIR /usr/src/swagger
+# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
+# TODO: move to under moby/ or fix upstream go-swagger to work for us.
+RUN git init . && git remote add origin "https://github.com/kolyshkin/go-swagger.git"
 # GO_SWAGGER_COMMIT specifies the version of the go-swagger binary to build and
 # install. Go-swagger is used in CI for validating swagger.yaml in hack/validate/swagger-gen
-#
-# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix,
-# TODO: move to under moby/ or fix upstream go-swagger to work for us.
-ENV GO_SWAGGER_COMMIT c56166c036004ba7a3a321e5951ba472b9ae298c
-RUN --mount=type=cache,target=/root/.cache/go-build \
+ARG GO_SWAGGER_COMMIT=c56166c036004ba7a3a321e5951ba472b9ae298c
+RUN git fetch -q --depth 1 origin "${GO_SWAGGER_COMMIT}" && git checkout -q FETCH_HEAD
+
+FROM base AS swagger
+WORKDIR /go/src/github.com/go-swagger/go-swagger
+ARG TARGETPLATFORM
+RUN --mount=from=swagger-src,src=/usr/src/swagger,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ \
-        set -x \
-        && git clone https://github.com/kolyshkin/go-swagger.git . \
-        && git checkout -q "$GO_SWAGGER_COMMIT" \
-        && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
+    --mount=type=tmpfs,target=/go/src/ <<EOT
+  set -e
+  xx-go build -o /build/swagger ./cmd/swagger
+  xx-verify /build/swagger
+EOT
 
 # frozen-images
 # See also frozenImages in "testutil/environment/protect.go" (which needs to
