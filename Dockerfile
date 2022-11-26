@@ -209,17 +209,46 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
      && /build/go-winres --help
 
-FROM dev-base AS containerd
+# containerd
+FROM base AS containerd-src
+WORKDIR /usr/src/containerd
+RUN git init . && git remote add origin "https://github.com/containerd/containerd.git"
+# CONTAINERD_VERSION is used to build containerd binaries, and used for the
+# integration tests. The distributed docker .deb and .rpm packages depend on a
+# separate (containerd.io) package, which may be a different version as is
+# specified here. The containerd golang package is also pinned in vendor.mod.
+# When updating the binary version you may also need to update the vendor
+# version to pick up bug fixes or new APIs, however, usually the Go packages
+# are built from a commit from the master branch.
+ARG CONTAINERD_VERSION=v1.7.0-beta.0
+RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS containerd-build
+WORKDIR /go/src/github.com/containerd/containerd
 ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            libbtrfs-dev
-ARG CONTAINERD_VERSION
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/containerd.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh containerd
+        apt-get update && xx-apt-get install -y --no-install-recommends \
+            gcc libbtrfs-dev libsecret-1-dev
+ARG DOCKER_STATIC
+RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=containerd-build-$TARGETPLATFORM <<EOT
+  set -e
+  export CC=$(xx-info)-gcc
+  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
+  xx-go --wrap
+  make $([ "$DOCKER_STATIC" = "1" ] && echo "STATIC=1") binaries
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd-shim-runc-v2
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/ctr
+  mkdir /build
+  mv bin/containerd bin/containerd-shim-runc-v2 bin/ctr /build
+EOT
+
+FROM containerd-build AS containerd-linux
+FROM binary-dummy AS containerd-windows
+FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
 # FIXME: when updating golangci-lint, remove the temporary "nolint" in https://github.com/moby/moby/blob/7860686a8df15eea9def9e6189c6f9eca031bb6f/libnetwork/networkdb/cluster.go#L246
