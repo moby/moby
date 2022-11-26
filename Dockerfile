@@ -182,26 +182,38 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
-FROM base AS delve
+# delve
+FROM base AS delve-src
+WORKDIR /usr/src/delve
+RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # DELVE_VERSION specifies the version of the Delve debugger binary
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
-#
 ARG DELVE_VERSION=v1.8.1
-# Delve on Linux is currently only supported on amd64 and arm64;
+RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS delve-build
+WORKDIR /usr/src/delve
+ARG TARGETPLATFORM
+RUN --mount=from=delve-src,src=/usr/src/delve,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=delve-build-$TARGETPLATFORM \
+    --mount=type=cache,target=/go/pkg/mod <<EOT
+  set -e
+  GO111MODULE=on xx-go build -o /build/dlv ./cmd/dlv
+  xx-verify /build/dlv
+EOT
+
+# delve is currently only supported on linux/amd64 and linux/arm64;
 # https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        case $(dpkg --print-architecture) in \
-            amd64|arm64) \
-                GOBIN=/build/ GO111MODULE=on go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}" \
-                && /build/dlv --help \
-                ;; \
-            *) \
-                mkdir -p /build/ \
-                ;; \
-        esac
+FROM binary-dummy AS delve-windows
+FROM binary-dummy AS delve-linux-arm
+FROM binary-dummy AS delve-linux-ppc64le
+FROM binary-dummy AS delve-linux-s390x
+FROM delve-build AS delve-linux-amd64
+FROM delve-build AS delve-linux-arm64
+FROM delve-linux-${TARGETARCH} AS delve-linux
+FROM delve-${TARGETOS} AS delve
 
 FROM base AS tomll
 # GOTOML_VERSION specifies the version of the tomll binary to build and install
