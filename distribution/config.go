@@ -46,8 +46,6 @@ type Config struct {
 	// ReferenceStore manages tags. This value is optional, when excluded
 	// content will not be tagged.
 	ReferenceStore refstore.Store
-	// RequireSchema2 ensures that only schema2 manifests are used.
-	RequireSchema2 bool
 }
 
 // ImagePullConfig stores pull configuration.
