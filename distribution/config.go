@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -74,9 +73,6 @@ type ImagePushConfig struct {
 	ConfigMediaType string
 	// LayerStores manages layers.
 	LayerStores PushLayerProvider
-	// TrustKey is the private key for legacy signatures. This is typically
-	// an ephemeral key, since these signatures are no longer verified.
-	TrustKey libtrust.PrivateKey
 	// UploadManager dispatches uploads.
 	UploadManager *xfer.LayerUploadManager
 }
