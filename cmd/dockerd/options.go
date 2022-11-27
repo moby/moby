@@ -65,8 +65,6 @@ func (o *daemonOptions) installFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.TLS, FlagTLS, DefaultTLSValue, "Use TLS; implied by --tlsverify")
 	flags.BoolVar(&o.TLSVerify, FlagTLSVerify, dockerTLSVerify || DefaultTLSValue, "Use TLS and verify the remote")
 
-	// TODO use flag flags.String("identity"}, "i", "", "Path to libtrust key file")
-
 	o.TLSOptions = &tlsconfig.Options{}
 	tlsOptions := o.TLSOptions
 	flags.StringVar(&tlsOptions.CAFile, "tlscacert", filepath.Join(dockerCertPath, DefaultCaFile), "Trust certs signed only by this CA")
