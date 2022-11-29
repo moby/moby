@@ -114,9 +114,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 			return 0, err
 		}
 
-		for cnt := range ctlg.Repositories {
-			entries[cnt] = ctlg.Repositories[cnt]
-		}
+		copy(entries, ctlg.Repositories)
 		numFilled = len(ctlg.Repositories)
 
 		link := resp.Header.Get("Link")
