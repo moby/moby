@@ -15,9 +15,7 @@ import (
 )
 
 // CreateEndpoint assigns the mac, ip and endpoint id for the new container
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
-	epOptions map[string]interface{}) error {
-
+func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
