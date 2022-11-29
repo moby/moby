@@ -84,9 +84,9 @@ var (
 	// "GRPC_XDS_EXPERIMENTAL_RBAC" to "false".
 	XDSRBAC = !strings.EqualFold(os.Getenv(rbacSupportEnv), "false")
 	// XDSOutlierDetection indicates whether outlier detection support is
-	// enabled, which can be enabled by setting the environment variable
-	// "GRPC_EXPERIMENTAL_ENABLE_OUTLIER_DETECTION" to "true".
-	XDSOutlierDetection = strings.EqualFold(os.Getenv(outlierDetectionSupportEnv), "true")
+	// enabled, which can be disabled by setting the environment variable
+	// "GRPC_EXPERIMENTAL_ENABLE_OUTLIER_DETECTION" to "false".
+	XDSOutlierDetection = !strings.EqualFold(os.Getenv(outlierDetectionSupportEnv), "false")
 	// XDSFederation indicates whether federation support is enabled.
 	XDSFederation = strings.EqualFold(os.Getenv(federationEnv), "true")
 
