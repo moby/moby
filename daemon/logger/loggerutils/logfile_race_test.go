@@ -44,7 +44,7 @@ func TestConcurrentLogging(t *testing.T) {
 		ct := ct
 		dir := t.TempDir()
 		g.Go(func() (err error) {
-			logfile, err := NewLogFile(filepath.Join(dir, "log.log"), capacity, maxFiles, compress, createDecoder, 0644, getTailReader)
+			logfile, err := NewLogFile(filepath.Join(dir, "log.log"), capacity, maxFiles, compress, createDecoder, 0o644, getTailReader)
 			if err != nil {
 				return err
 			}

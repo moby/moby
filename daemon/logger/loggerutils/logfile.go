@@ -317,7 +317,7 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 		}
 	}()
 
-	outFile, err := openFile(fileName+".gz", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0640)
+	outFile, err := openFile(fileName+".gz", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0o640)
 	if err != nil {
 		return errors.Wrap(err, "failed to open or create gzip log file")
 	}
