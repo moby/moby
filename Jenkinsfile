@@ -276,8 +276,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -389,8 +388,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
