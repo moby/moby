@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -63,10 +64,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 	"golang.org/x/sync/semaphore"
-	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
+	"resenje.org/singleflight"
 )
 
 var (
@@ -112,7 +113,10 @@ type Daemon struct {
 	seccompProfile     []byte
 	seccompProfilePath string
 
-	usage singleflight.Group
+	usageContainers singleflight.Group[struct{}, []*types.Container]
+	usageImages     singleflight.Group[struct{}, []*types.ImageSummary]
+	usageVolumes    singleflight.Group[struct{}, []*volume.Volume]
+	usageLayer      singleflight.Group[struct{}, int64]
 
 	pruneRunning int32
 	hosts        map[string]bool // hosts stores the addresses the daemon is listening on

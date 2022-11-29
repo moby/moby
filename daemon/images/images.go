@@ -39,7 +39,7 @@ func (i *ImageService) Map() map[image.ID]*image.Image {
 }
 
 // Images returns a filtered list of images.
-func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
 	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -86,6 +86,12 @@ func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		if beforeFilter != nil {
 			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
 				continue

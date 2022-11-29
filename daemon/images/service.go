@@ -2,13 +2,10 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/leases"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution/metadata"
@@ -19,7 +16,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"golang.org/x/sync/singleflight"
 )
 
 type containerStore interface {
@@ -81,7 +77,6 @@ type ImageService struct {
 	leases                    leases.Manager
 	content                   content.Store
 	contentNamespace          string
-	usage                     singleflight.Group
 }
 
 // DistributionServices provides daemon image storage services
@@ -190,32 +185,21 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	ch := i.usage.DoChan("LayerDiskUsage", func() (interface{}, error) {
-		var allLayersSize int64
-		layerRefs := i.getLayerRefs()
-		allLayers := i.layerStore.Map()
-		for _, l := range allLayers {
-			select {
-			case <-ctx.Done():
-				return allLayersSize, ctx.Err()
-			default:
-				size := l.DiffSize()
-				if _, ok := layerRefs[l.ChainID()]; ok {
-					allLayersSize += size
-				}
+	var allLayersSize int64
+	layerRefs := i.getLayerRefs()
+	allLayers := i.layerStore.Map()
+	for _, l := range allLayers {
+		select {
+		case <-ctx.Done():
+			return allLayersSize, ctx.Err()
+		default:
+			size := l.DiffSize()
+			if _, ok := layerRefs[l.ChainID()]; ok {
+				allLayersSize += size
 			}
 		}
-		return allLayersSize, nil
-	})
-	select {
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return 0, res.Err
-		}
-		return res.Val.(int64), nil
 	}
+	return allLayersSize, nil
 }
 
 func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
@@ -237,31 +221,6 @@ func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
 	}
 
 	return layerRefs
-}
-
-// ImageDiskUsage returns information about image data disk usage.
-func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
-	ch := i.usage.DoChan("ImageDiskUsage", func() (interface{}, error) {
-		// Get all top images with extra attributes
-		images, err := i.Images(ctx, types.ImageListOptions{
-			Filters:        filters.NewArgs(),
-			SharedSize:     true,
-			ContainerCount: true,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve image list: %v", err)
-		}
-		return images, nil
-	})
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return nil, res.Err
-		}
-		return res.Val.([]*types.ImageSummary), nil
-	}
 }
 
 // UpdateConfig values
