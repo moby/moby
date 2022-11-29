@@ -961,7 +961,6 @@ golang.org/x/oauth2/jwt
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-golang.org/x/sync/singleflight
 golang.org/x/sync/syncmap
 # golang.org/x/sys v0.2.0
 ## explicit; go 1.17
@@ -1153,3 +1152,6 @@ k8s.io/klog/v2/internal/clock
 k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
+# resenje.org/singleflight v0.3.0
+## explicit; go 1.18
+resenje.org/singleflight

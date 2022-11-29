@@ -89,6 +89,7 @@ require (
 	google.golang.org/genproto v0.0.0-20220706185917-7780775163c4
 	google.golang.org/grpc v1.48.0
 	gotest.tools/v3 v3.4.0
+	resenje.org/singleflight v0.3.0
 )
 
 require (

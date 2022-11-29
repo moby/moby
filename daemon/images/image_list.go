@@ -78,6 +78,12 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		allContainers []*container.Container
 	)
 	for id, img := range selectedImages {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		if beforeFilter != nil {
 			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
 				continue
