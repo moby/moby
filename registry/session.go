@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -25,7 +24,6 @@ import (
 type session struct {
 	indexEndpoint *v1Endpoint
 	client        *http.Client
-	id            string
 }
 
 type authTransport struct {
@@ -180,7 +178,6 @@ func newSession(client *http.Client, endpoint *v1Endpoint) *session {
 	return &session{
 		client:        client,
 		indexEndpoint: endpoint,
-		id:            stringid.GenerateRandomID(),
 	}
 }
 
