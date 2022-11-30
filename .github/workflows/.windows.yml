@@ -105,6 +105,7 @@ jobs:
 
   unit-test:
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 120
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
@@ -239,6 +240,7 @@ jobs:
 
   integration-test:
     runs-on: ${{ inputs.os }}
+    timeout-minutes: 120
     needs:
       - build
       - integration-test-prepare

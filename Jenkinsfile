@@ -260,12 +260,6 @@ pipeline {
                         }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    // ppc64le machines run on Docker 18.06, and buildkit has some
-                    // bugs on that version. Build and use buildx instead.
-                    environment {
-                        USE_BUILDX      = '1'
-                        DOCKER_BUILDKIT = '0'
-                    }
 
                     stages {
                         stage("Print info") {
@@ -282,8 +276,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -379,12 +372,6 @@ pipeline {
                         }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    // ppc64le machines run on Docker 18.06, and buildkit has some
-                    // bugs on that version. Build and use buildx instead.
-                    environment {
-                        USE_BUILDX      = '1'
-                        DOCKER_BUILDKIT = '0'
-                    }
 
                     stages {
                         stage("Print info") {
@@ -401,8 +388,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                make bundles/buildx
-                                bundles/buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
