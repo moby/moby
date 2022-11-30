@@ -2001,7 +2001,13 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 				strings.HasSuffix(req, strings.TrimPrefix(key, "*"))) {
 			selectedKey = key
 			ok = true
-			ipSet, _ = sr.svcMap.Get(selectedKey)
+			var found bool
+			ipSet, found = sr.svcMap.Get(selectedKey)
+			if !found {
+				logrus.Errorf("svcMap changed unexpectedly looking for key %s", key)
+				continue
+			}
+
 			break
 		}
 	}
