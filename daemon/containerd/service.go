@@ -6,22 +6,18 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/snapshots"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/pkg/errors"
-	"golang.org/x/sync/singleflight"
 )
 
 // ImageService implements daemon.ImageService
 type ImageService struct {
 	client      *containerd.Client
 	snapshotter string
-	usage       singleflight.Group
 }
 
 // NewService creates a new ImageService.
@@ -105,53 +101,17 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	ch := i.usage.DoChan("LayerDiskUsage", func() (interface{}, error) {
-		var allLayersSize int64
-		snapshotter := i.client.SnapshotService(i.snapshotter)
-		snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
-			usage, err := snapshotter.Usage(ctx, info.Name)
-			if err != nil {
-				return err
-			}
-			allLayersSize += usage.Size
-			return nil
-		})
-		return allLayersSize, nil
-	})
-	select {
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return 0, res.Err
-		}
-		return res.Val.(int64), nil
-	}
-}
-
-// ImageDiskUsage returns information about image data disk usage.
-func (i *ImageService) ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error) {
-	ch := i.usage.DoChan("ImageDiskUsage", func() (interface{}, error) {
-		// Get all top images with extra attributes
-		imgs, err := i.Images(ctx, types.ImageListOptions{
-			Filters:        filters.NewArgs(),
-			SharedSize:     true,
-			ContainerCount: true,
-		})
+	var allLayersSize int64
+	snapshotter := i.client.SnapshotService(i.snapshotter)
+	snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
+		usage, err := snapshotter.Usage(ctx, info.Name)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve image list")
+			return err
 		}
-		return imgs, nil
+		allLayersSize += usage.Size
+		return nil
 	})
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return nil, res.Err
-		}
-		return res.Val.([]*types.ImageSummary), nil
-	}
+	return allLayersSize, nil
 }
 
 // UpdateConfig values

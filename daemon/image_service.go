@@ -35,7 +35,6 @@ type ImageService interface {
 	LogImageEvent(imageID, refName, action string)
 	LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string)
 	CountImages() int
-	ImageDiskUsage(ctx context.Context) ([]*types.ImageSummary, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 	ImportImage(ctx context.Context, src string, repository string, platform *v1.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
 	TagImage(imageName, repository, tag string) (string, error)
