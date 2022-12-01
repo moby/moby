@@ -279,6 +279,24 @@ func TestCmdStreamGood(t *testing.T) {
 	}
 }
 
+func TestCmdStreamDeadlock(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "cat >/dev/null & sleep 10")
+	rc, err := cmdStream(cmd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		rc.Close()
+		close(done)
+	}()
+	select {
+	case <-time.After(2 * time.Second):
+		t.Fatal("deadlock")
+	case <-done:
+	}
+}
+
 func TestUntarPathWithInvalidDest(t *testing.T) {
 	tempFolder, err := os.MkdirTemp("", "docker-archive-test")
 	assert.NilError(t, err)
