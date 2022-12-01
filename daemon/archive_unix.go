@@ -66,13 +66,13 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		return nil, nil, err
 	}
 
-	sourceDir, sourceBase := absPath, "."
-	if stat.Mode&os.ModeDir == 0 { // not dir
-		sourceDir, sourceBase = filepath.Split(absPath)
+	var opts *archive.TarOptions
+	if stat.Mode&os.ModeSymlink != 0 {
+		_, sourceBase := filepath.Split(absPath)
+		opts = archive.TarResourceRebaseOpts(sourceBase, filepath.Base(absPath))
 	}
-	opts := archive.TarResourceRebaseOpts(sourceBase, filepath.Base(absPath))
 
-	tb, err := archive.NewTarballer(sourceDir, opts)
+	tb, err := archive.NewTarballer(absPath, opts)
 	if err != nil {
 		return nil, nil, err
 	}
