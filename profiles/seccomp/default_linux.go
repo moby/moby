@@ -348,7 +348,6 @@ func DefaultProfile() *Seccomp {
 					"signalfd4",
 					"sigprocmask",
 					"sigreturn",
-					"socket",
 					"socketcall",
 					"socketpair",
 					"splice",
@@ -413,6 +412,19 @@ func DefaultProfile() *Seccomp {
 			},
 			Includes: &Filter{
 				MinKernel: &KernelVersion{4, 8},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names:  []string{"socket"},
+				Action: specs.ActAllow,
+				Args: []specs.LinuxSeccompArg{
+					{
+						Index: 0,
+						Value: unix.AF_VSOCK,
+						Op:    specs.OpNotEqual,
+					},
+				},
 			},
 		},
 		{
