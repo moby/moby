@@ -935,14 +935,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// Try to preserve the daemon ID (which is the trust-key's ID) when upgrading
-	// an existing installation; this is a "best-effort".
-	idPath := filepath.Join(config.Root, "engine-id")
-	err = migrateTrustKeyID(config.TrustKeyPath, idPath)
-	if err != nil {
-		logrus.WithError(err).Warnf("unable to migrate engine ID; a new engine ID will be generated")
-	}
-
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	//
@@ -955,7 +947,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.id, err = loadOrCreateID(idPath)
+	d.id, err = loadOrCreateID(filepath.Join(config.Root, "engine-id"))
 	if err != nil {
 		return nil, err
 	}
@@ -1068,19 +1060,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			ReferenceStore:            rs,
 			RegistryService:           registryService,
 			ContentNamespace:          config.ContainerdNamespace,
-		}
-
-		// This is a temporary environment variables used in CI to allow pushing
-		// manifest v2 schema 1 images to test-registries used for testing *pulling*
-		// these images.
-		if os.Getenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE") != "" {
-			imgSvcConfig.TrustKey, err = loadOrCreateTrustKey(config.TrustKeyPath)
-			if err != nil {
-				return nil, err
-			}
-			if err = os.Mkdir(filepath.Join(config.Root, "trust"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-				return nil, err
-			}
 		}
 
 		// containerd is not currently supported with Windows.

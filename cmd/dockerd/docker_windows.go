@@ -24,11 +24,7 @@ func runDaemon(opts *daemonOptions) error {
 
 	// Windows specific settings as these are not defaulted.
 	if opts.configFile == "" {
-		configDir, err := getDaemonConfDir(opts.daemonConfig.Root)
-		if err != nil {
-			return err
-		}
-		opts.configFile = filepath.Join(configDir, "daemon.json")
+		opts.configFile = filepath.Join(opts.daemonConfig.Root, "config", "daemon.json")
 	}
 	if runAsService {
 		// If Windows SCM manages the service - no need for PID files

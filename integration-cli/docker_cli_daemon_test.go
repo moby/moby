@@ -35,7 +35,6 @@ import (
 	"github.com/docker/docker/opts"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	units "github.com/docker/go-units"
-	"github.com/docker/libtrust"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -553,24 +552,6 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *testing.T) {
 		} else if !strings.Contains(output, "port is already allocated") {
 			c.Fatalf("Expected port is already allocated error: %q", output)
 		}
-	}
-}
-
-func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *testing.T) {
-	// TODO: skip or update for Windows daemon
-	os.Remove("/etc/docker/key.json")
-	c.Setenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE", "1")
-	s.d.Start(c)
-	s.d.Stop(c)
-
-	k, err := libtrust.LoadKeyFile("/etc/docker/key.json")
-	if err != nil {
-		c.Fatalf("Error opening key file")
-	}
-	kid := k.KeyID()
-	// Test Key ID is a valid fingerprint (e.g. QQXN:JY5W:TBXI:MK3X:GX6P:PD5D:F56N:NHCS:LVRZ:JA46:R24J:XEFF)
-	if len(kid) != 59 {
-		c.Fatalf("Bad key ID: %s", kid)
 	}
 }
 
@@ -1198,60 +1179,6 @@ func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *testing.T) {
 
 	if _, err := os.Stat(sockPath); err == nil || !os.IsNotExist(err) {
 		c.Fatal("unix socket is not cleaned up")
-	}
-}
-
-func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *testing.T) {
-	type Config struct {
-		Crv string `json:"crv"`
-		D   string `json:"d"`
-		Kid string `json:"kid"`
-		Kty string `json:"kty"`
-		X   string `json:"x"`
-		Y   string `json:"y"`
-	}
-
-	os.Remove("/etc/docker/key.json")
-	c.Setenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE", "1")
-	s.d.Start(c)
-	s.d.Stop(c)
-
-	config := &Config{}
-	bytes, err := os.ReadFile("/etc/docker/key.json")
-	if err != nil {
-		c.Fatalf("Error reading key.json file: %s", err)
-	}
-
-	// byte[] to Data-Struct
-	if err := json.Unmarshal(bytes, &config); err != nil {
-		c.Fatalf("Error Unmarshal: %s", err)
-	}
-
-	// replace config.Kid with the fake value
-	config.Kid = "VSAJ:FUYR:X3H2:B2VZ:KZ6U:CJD5:K7BX:ZXHY:UZXT:P4FT:MJWG:HRJ4"
-
-	// NEW Data-Struct to byte[]
-	newBytes, err := json.Marshal(&config)
-	if err != nil {
-		c.Fatalf("Error Marshal: %s", err)
-	}
-
-	// write back
-	if err := os.WriteFile("/etc/docker/key.json", newBytes, 0400); err != nil {
-		c.Fatalf("Error os.WriteFile: %s", err)
-	}
-
-	defer os.Remove("/etc/docker/key.json")
-
-	if err := s.d.StartWithError(); err == nil {
-		c.Fatalf("It should not be successful to start daemon with wrong key: %v", err)
-	}
-
-	content, err := s.d.ReadLogFile()
-	assert.Assert(c, err == nil)
-
-	if !strings.Contains(string(content), "Public Key ID does not match") {
-		c.Fatalf("Missing KeyID message from daemon logs: %s", string(content))
 	}
 }
 

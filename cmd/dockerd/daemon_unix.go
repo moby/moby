@@ -56,10 +56,6 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir(_ string) (string, error) {
-	return getDefaultDaemonConfigDir()
-}
-
 func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
 	opts := []supervisor.DaemonOpt{
 		// TODO(thaJeztah) change this to use /proc/self/oom_score_adj instead,

@@ -24,62 +24,27 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-const (
-	libtrustKey   = `{"crv":"P-256","d":"dm28PH4Z4EbyUN8L0bPonAciAQa1QJmmyYd876mnypY","kid":"WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB","kty":"EC","x":"Mh5-JINSjaa_EZdXDttri255Z5fbCEOTQIZjAcScFTk","y":"eUyuAjfxevb07hCCpvi4Zi334Dy4GDWQvEToGEX4exQ"}`
-	libtrustKeyID = "WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB"
-)
-
-func TestConfigDaemonLibtrustID(t *testing.T) {
-	skip.If(t, runtime.GOOS == "windows")
-
-	d := daemon.New(t)
-	defer d.Stop(t)
-
-	trustKey := filepath.Join(d.RootDir(), "key.json")
-	err := os.WriteFile(trustKey, []byte(libtrustKey), 0644)
-	assert.NilError(t, err)
-
-	cfg := filepath.Join(d.RootDir(), "daemon.json")
-	err = os.WriteFile(cfg, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
-	assert.NilError(t, err)
-
-	d.Start(t, "--config-file", cfg)
-	info := d.Info(t)
-	assert.Equal(t, info.ID, libtrustKeyID)
-}
-
 func TestConfigDaemonID(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 
 	d := daemon.New(t)
 	defer d.Stop(t)
 
-	trustKey := filepath.Join(d.RootDir(), "key.json")
-	err := os.WriteFile(trustKey, []byte(libtrustKey), 0644)
-	assert.NilError(t, err)
-
-	cfg := filepath.Join(d.RootDir(), "daemon.json")
-	err = os.WriteFile(cfg, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
-	assert.NilError(t, err)
-
-	// Verify that on an installation with a trust-key present, the ID matches
-	// the trust-key ID, and that the ID has been migrated to the engine-id file.
-	d.Start(t, "--config-file", cfg, "--iptables=false")
+	d.Start(t, "--iptables=false")
 	info := d.Info(t)
-	assert.Equal(t, info.ID, libtrustKeyID)
-
-	idFile := filepath.Join(d.RootDir(), "engine-id")
-	id, err := os.ReadFile(idFile)
-	assert.NilError(t, err)
-	assert.Equal(t, string(id), libtrustKeyID)
+	assert.Check(t, info.ID != "")
 	d.Stop(t)
 
 	// Verify that (if present) the engine-id file takes precedence
 	const engineID = "this-is-the-engine-id"
-	err = os.WriteFile(idFile, []byte(engineID), 0600)
+	idFile := filepath.Join(d.RootDir(), "engine-id")
+	assert.Check(t, os.Remove(idFile))
+	// Using 0644 to allow rootless daemons to read the file (ideally
+	// we'd chown the file to have the remapped user as owner).
+	err := os.WriteFile(idFile, []byte(engineID), 0o644)
 	assert.NilError(t, err)
 
-	d.Start(t, "--config-file", cfg, "--iptables=false")
+	d.Start(t, "--iptables=false")
 	info = d.Info(t)
 	assert.Equal(t, info.ID, engineID)
 	d.Stop(t)

@@ -438,10 +438,6 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *spe
 
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
-		if p.config.RequireSchema2 {
-			return false, fmt.Errorf("invalid manifest: not schema2")
-		}
-
 		// give registries time to upgrade to schema2 and only warn if we know a registry has been upgraded long time ago
 		// TODO: condition to be removed
 		if reference.Domain(ref) == "docker.io" {
