@@ -20,6 +20,22 @@ import (
 )
 
 var (
+	// supportedMediaTypes represents acceptable media-type(-prefixes)
+	// we use this list to prevent obscure errors when trying to pull
+	// OCI artifacts.
+	supportedMediaTypes = []string{
+		// valid prefixes
+		"application/vnd.oci.image",
+		"application/vnd.docker",
+
+		// these types may occur on old images, and are copied from
+		// defaultImageTypes below.
+		"application/octet-stream",
+		"application/json",
+		"text/html",
+		"",
+	}
+
 	// defaultImageTypes represents the schema2 config types for images
 	defaultImageTypes = []string{
 		schema2.MediaTypeImageConfig,

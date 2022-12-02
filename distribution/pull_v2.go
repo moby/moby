@@ -604,14 +604,12 @@ func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unver
 }
 
 func checkSupportedMediaType(mediaType string) error {
-	supportedMediaTypes := []string{
-		"application/vnd.oci.image.",
-		"application/vnd.docker.",
-	}
-
 	lowerMt := strings.ToLower(mediaType)
 	for _, mt := range supportedMediaTypes {
-		if strings.HasPrefix(lowerMt, mt) {
+		// The should either be an exact match, or have a valid prefix
+		// we append a "." when matching prefixes to exclude "false positives";
+		// for example, we don't want to match "application/vnd.oci.images_are_fun_yolo".
+		if lowerMt == mt || strings.HasPrefix(lowerMt, mt+".") {
 			return nil
 		}
 	}
