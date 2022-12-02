@@ -72,7 +72,7 @@ jobs:
           ./hack/go-mod-prepare.sh
           # FIXME(thaJeztah) temporarily overriding version to use for tests; remove with the next release of buildkit
           # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
-          echo "BUILDKIT_REF=4febae4f874bd8ef52dec30e988c8fe0bc96b3b9" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=0bfcd83e6db95e6c6877ee6e5224b994cea62ba1" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
