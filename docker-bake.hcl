@@ -1,6 +1,9 @@
 variable "BUNDLES_OUTPUT" {
   default = "./bundles"
 }
+variable "DOCKER_STATIC" {
+  default = "1"
+}
 variable "DOCKER_CROSSPLATFORMS" {
   default = ""
 }
@@ -9,6 +12,7 @@ target "_common" {
   args = {
     BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1
     APT_MIRROR = "cdn-fastly.deb.debian.org"
+    DOCKER_STATIC = DOCKER_STATIC
   }
 }
 
