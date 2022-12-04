@@ -10,6 +10,7 @@ ARG VPNKIT_VERSION=0.5.0
 ARG CROSS="false"
 ARG SYSTEMD="false"
 ARG DEBIAN_FRONTEND=noninteractive
+ARG DOCKER_STATIC=1
 
 # cross compilation helper
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
