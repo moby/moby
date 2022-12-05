@@ -10,6 +10,7 @@ require (
 	cloud.google.com/go/compute v1.7.0
 	cloud.google.com/go/logging v1.4.2
 	code.cloudfoundry.org/clock v1.0.0
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221118232415-3345c89a7c72
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0
 	github.com/Microsoft/go-winio v0.5.2
