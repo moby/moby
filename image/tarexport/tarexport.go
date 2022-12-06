@@ -11,7 +11,6 @@ const (
 	manifestFileName           = "manifest.json"
 	legacyLayerFileName        = "layer.tar"
 	legacyConfigFileName       = "json"
-	legacyVersionFileName      = "VERSION"
 	legacyRepositoriesFileName = "repositories"
 )
 
