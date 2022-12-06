@@ -63,6 +63,7 @@
 			"alexellis",
 			"andrewhsu",
 			"bsousaa",
+			"crazy-max",
 			"fntlnz",
 			"gianarb",
 			"ndeloof",
@@ -334,6 +335,11 @@
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
 	GitHub = "cpuguy83"
+
+	[people.crazy-max]
+	Name = "Kevin Alvarez"
+	Email = "contact@crazymax.dev"
+	GitHub = "crazy-max"
 
 	[people.crosbymichael]
 	Name = "Michael Crosby"
