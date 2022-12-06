@@ -66,7 +66,6 @@
 			"crazy-max",
 			"fntlnz",
 			"gianarb",
-			"ndeloof",
 			"neersighted",
 			"olljanat",
 			"programmerq",
@@ -445,11 +444,6 @@
 	Name = "Jana Radhakrishnan"
 	Email = "mrjana@docker.com"
 	GitHub = "mrjana"
-
-	[people.ndeloof]
-	Name = "Nicolas De Loof"
-	Email = "nicolas.deloof@gmail.com"
-	GitHub = "ndeloof"
 
 	[people.neersighted]
 	Name = "Bjorn Neergaard"
