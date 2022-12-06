@@ -156,7 +156,7 @@ FROM base AS delve
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
 #
-ARG DELVE_VERSION=v1.8.1
+ARG DELVE_VERSION=v1.9.1
 # Delve on Linux is currently only supported on amd64 and arm64;
 # https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
 RUN --mount=type=cache,target=/root/.cache/go-build \
