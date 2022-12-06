@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -49,6 +50,7 @@ func TestRestore(t *testing.T) {
 	assert.Check(t, is.Equal("def", img2.Comment))
 
 	_, err = imgStore.GetParent(ID(id1))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.ErrorContains(t, err, "failed to read metadata")
 
 	p, err := imgStore.GetParent(ID(id2))
@@ -70,7 +72,8 @@ func TestRestore(t *testing.T) {
 
 	invalidPattern := id1.Encoded()[1:6]
 	_, err = imgStore.Search(invalidPattern)
-	assert.ErrorContains(t, err, "No such image")
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorContains(err, invalidPattern))
 }
 
 func TestAddDelete(t *testing.T) {
@@ -99,12 +102,14 @@ func TestAddDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = imgStore.Get(id1)
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.ErrorContains(t, err, "failed to get digest")
 
 	_, err = imgStore.Get(id2)
 	assert.NilError(t, err)
 
 	_, err = imgStore.GetParent(id2)
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.ErrorContains(t, err, "failed to read metadata")
 }
 
@@ -123,7 +128,16 @@ func TestSearchAfterDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = imgStore.Search(string(id)[:15])
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.ErrorContains(t, err, "No such image")
+}
+
+func TestDeleteNotExisting(t *testing.T) {
+	imgStore, cleanup := defaultImageStore(t)
+	defer cleanup()
+
+	_, err := imgStore.Delete(ID("i_dont_exists"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestParentReset(t *testing.T) {
