@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
@@ -18,6 +19,8 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/sys/sequential"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -190,14 +193,67 @@ func (s *saveSession) save(outStream io.Writer) error {
 	var manifest []manifestItem
 	var parentLinks []parentLink
 
+	var manifestDescriptors []ocispec.Descriptor
+
 	for id, imageDescr := range s.images {
 		foreignSrcs, err := s.saveImage(id)
 		if err != nil {
 			return err
 		}
 
-		var repoTags []string
-		var layers []string
+		var (
+			repoTags []string
+			layers   []string
+			foreign  = make([]ocispec.Descriptor, 0, len(foreignSrcs))
+		)
+
+		for _, desc := range foreignSrcs {
+			foreign = append(foreign, ocispec.Descriptor{
+				MediaType:   desc.MediaType,
+				Digest:      desc.Digest,
+				Size:        desc.Size,
+				URLs:        desc.URLs,
+				Annotations: desc.Annotations,
+				Platform:    desc.Platform,
+			})
+		}
+
+		imgPlat := imageDescr.image.Platform()
+
+		m := ocispec.Manifest{
+			Versioned: specs.Versioned{
+				SchemaVersion: 2,
+			},
+			MediaType: ocispec.MediaTypeImageManifest,
+			Config: ocispec.Descriptor{
+				MediaType: ocispec.MediaTypeImageConfig,
+				Digest:    digest.Digest(imageDescr.image.ID()),
+				Size:      int64(len(imageDescr.image.RawJSON())),
+				Platform:  &imgPlat,
+			},
+			Layers: foreign,
+		}
+
+		data, err := json.Marshal(m)
+		if err != nil {
+			return errors.Wrap(err, "error marshaling manifest")
+		}
+		dgst := digest.FromBytes(data)
+
+		mFile := filepath.Join(s.outDir, "blobs", dgst.Algorithm().String(), dgst.Encoded())
+		if err := os.MkdirAll(filepath.Dir(mFile), 0o755); err != nil {
+			return errors.Wrap(err, "error creating blob directory")
+		}
+		if err := system.Chtimes(filepath.Dir(mFile), time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+			return errors.Wrap(err, "error setting blob directory timestamps")
+		}
+		if err := os.WriteFile(mFile, data, 0o644); err != nil {
+			return errors.Wrap(err, "error writing oci manifest file")
+		}
+		if err := system.Chtimes(mFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+			return errors.Wrap(err, "error setting blob directory timestamps")
+		}
+		size := int64(len(data))
 
 		for _, ref := range imageDescr.refs {
 			familiarName := reference.FamiliarName(ref)
@@ -206,6 +262,17 @@ func (s *saveSession) save(outStream io.Writer) error {
 			}
 			reposLegacy[familiarName][ref.Tag()] = imageDescr.layers[len(imageDescr.layers)-1].Encoded()
 			repoTags = append(repoTags, reference.FamiliarString(ref))
+
+			manifestDescriptors = append(manifestDescriptors, ocispec.Descriptor{
+				MediaType: ocispec.MediaTypeImageManifest,
+				Digest:    dgst,
+				Size:      size,
+				Platform:  m.Config.Platform,
+				Annotations: map[string]string{
+					images.AnnotationImageName: ref.String(),
+					ocispec.AnnotationRefName:  ref.Tag(),
+				},
+			})
 		}
 
 		for _, l := range imageDescr.layers {
@@ -251,8 +318,8 @@ func (s *saveSession) save(outStream io.Writer) error {
 		}
 	}
 
-	manifestFileName := filepath.Join(tempDir, manifestFileName)
-	f, err := os.OpenFile(manifestFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	manifestPath := filepath.Join(tempDir, manifestFileName)
+	f, err := os.OpenFile(manifestPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
@@ -264,8 +331,32 @@ func (s *saveSession) save(outStream io.Writer) error {
 
 	f.Close()
 
-	if err := system.Chtimes(manifestFileName, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+	if err := system.Chtimes(manifestPath, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 		return err
+	}
+
+	layoutPath := filepath.Join(tempDir, ociLayoutFilename)
+	if err := os.WriteFile(layoutPath, []byte(ociLayoutContent), 0o644); err != nil {
+		return errors.Wrap(err, "error writing oci layout file")
+	}
+	if err := system.Chtimes(layoutPath, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+		return errors.Wrap(err, "error setting oci layout file timestamps")
+	}
+
+	data, err := json.Marshal(ocispec.Index{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2,
+		},
+		MediaType: ocispec.MediaTypeImageIndex,
+		Manifests: manifestDescriptors,
+	})
+	if err != nil {
+		return errors.Wrap(err, "error marshaling oci index")
+	}
+
+	idxFile := filepath.Join(s.outDir, ociIndexFileName)
+	if err := os.WriteFile(idxFile, data, 0o644); err != nil {
+		return errors.Wrap(err, "error writing oci index file")
 	}
 
 	fs, err := archive.Tar(tempDir, archive.Uncompressed)
@@ -365,7 +456,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 	cfgDgst := digest.FromBytes(imageConfig)
 	configPath := filepath.Join(outDir, cfgDgst.Algorithm().String(), cfgDgst.Encoded())
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
-		return distribution.Descriptor{}, fmt.Errorf("could not create layer dir parent: %w", err)
+		return distribution.Descriptor{}, errors.Wrap(err, "could not create layer dir parent")
 	}
 
 	if err := os.WriteFile(configPath, imageConfig, 0644); err != nil {
@@ -390,11 +481,11 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		// We use sequential file access to avoid depleting the standby list on
 		// Windows. On Linux, this equates to a regular os.Create.
 		if err := os.MkdirAll(filepath.Dir(layerPath), 0755); err != nil {
-			return distribution.Descriptor{}, fmt.Errorf("could not create layer dir parent: %w", err)
+			return distribution.Descriptor{}, errors.Wrap(err, "could not create layer dir parent")
 		}
 		tarFile, err := sequential.Create(layerPath)
 		if err != nil {
-			return distribution.Descriptor{}, fmt.Errorf("error creating layer file: %w", err)
+			return distribution.Descriptor{}, errors.Wrap(err, "error creating layer file")
 		}
 		defer tarFile.Close()
 
@@ -411,7 +502,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 		for _, fname := range []string{outDir, configPath, layerPath} {
 			// todo: maybe save layer created timestamp?
 			if err := system.Chtimes(fname, createdTime, createdTime); err != nil {
-				return distribution.Descriptor{}, err
+				return distribution.Descriptor{}, errors.Wrap(err, "could not set layer timestamp")
 			}
 		}
 

@@ -12,6 +12,10 @@ const (
 	legacyLayerFileName        = "layer.tar"
 	legacyConfigFileName       = "json"
 	legacyRepositoriesFileName = "repositories"
+
+	ociIndexFileName  = "index.json"
+	ociLayoutFilename = "oci-layout"
+	ociLayoutContent  = `{"imageLayoutVersion": "1.0.0"}`
 )
 
 type manifestItem struct {

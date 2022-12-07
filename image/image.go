@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ID is the content-addressable ID of an image.
@@ -172,6 +173,17 @@ func (img *Image) OperatingSystem() string {
 		os = runtime.GOOS
 	}
 	return os
+}
+
+// Platform generates an OCI platform from the image
+func (img *Image) Platform() ocispec.Platform {
+	return ocispec.Platform{
+		Architecture: img.Architecture,
+		OS:           img.OS,
+		OSVersion:    img.OSVersion,
+		OSFeatures:   img.OSFeatures,
+		Variant:      img.Variant,
+	}
 }
 
 // MarshalJSON serializes the image to JSON. It sorts the top-level keys so
