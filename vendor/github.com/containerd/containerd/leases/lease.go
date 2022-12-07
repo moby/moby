@@ -65,10 +65,15 @@ func SynchronousDelete(ctx context.Context, o *DeleteOptions) error {
 	return nil
 }
 
-// WithLabels sets labels on a lease
+// WithLabels merges labels on a lease
 func WithLabels(labels map[string]string) Opt {
 	return func(l *Lease) error {
-		l.Labels = labels
+		if l.Labels == nil {
+			l.Labels = map[string]string{}
+		}
+		for k, v := range labels {
+			l.Labels[k] = v
+		}
 		return nil
 	}
 }
