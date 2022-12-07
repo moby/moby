@@ -118,6 +118,28 @@ type Transport struct {
 	// to mean no limit.
 	MaxHeaderListSize uint32
 
+	// MaxReadFrameSize is the http2 SETTINGS_MAX_FRAME_SIZE to send in the
+	// initial settings frame. It is the size in bytes of the largest frame
+	// payload that the sender is willing to receive. If 0, no setting is
+	// sent, and the value is provided by the peer, which should be 16384
+	// according to the spec:
+	// https://datatracker.ietf.org/doc/html/rfc7540#section-6.5.2.
+	// Values are bounded in the range 16k to 16M.
+	MaxReadFrameSize uint32
+
+	// MaxDecoderHeaderTableSize optionally specifies the http2
+	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
+	// informs the remote endpoint of the maximum size of the header compression
+	// table used to decode header blocks, in octets. If zero, the default value
+	// of 4096 is used.
+	MaxDecoderHeaderTableSize uint32
+
+	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
+	// header compression table used for encoding request headers. Received
+	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
+	// the default value of 4096 is used.
+	MaxEncoderHeaderTableSize uint32
+
 	// StrictMaxConcurrentStreams controls whether the server's
 	// SETTINGS_MAX_CONCURRENT_STREAMS should be respected
 	// globally. If false, new TCP connections are created to the
@@ -169,6 +191,19 @@ func (t *Transport) maxHeaderListSize() uint32 {
 		return 0
 	}
 	return t.MaxHeaderListSize
+}
+
+func (t *Transport) maxFrameReadSize() uint32 {
+	if t.MaxReadFrameSize == 0 {
+		return 0 // use the default provided by the peer
+	}
+	if t.MaxReadFrameSize < minMaxFrameSize {
+		return minMaxFrameSize
+	}
+	if t.MaxReadFrameSize > maxFrameSize {
+		return maxFrameSize
+	}
+	return t.MaxReadFrameSize
 }
 
 func (t *Transport) disableCompression() bool {
@@ -293,10 +328,11 @@ type ClientConn struct {
 	lastActive      time.Time
 	lastIdle        time.Time // time last idle
 	// Settings from peer: (also guarded by wmu)
-	maxFrameSize          uint32
-	maxConcurrentStreams  uint32
-	peerMaxHeaderListSize uint64
-	initialWindowSize     uint32
+	maxFrameSize           uint32
+	maxConcurrentStreams   uint32
+	peerMaxHeaderListSize  uint64
+	peerMaxHeaderTableSize uint32
+	initialWindowSize      uint32
 
 	// reqHeaderMu is a 1-element semaphore channel controlling access to sending new requests.
 	// Write to reqHeaderMu to lock it, read from it to unlock.
@@ -681,6 +717,20 @@ func (t *Transport) expectContinueTimeout() time.Duration {
 	return t.t1.ExpectContinueTimeout
 }
 
+func (t *Transport) maxDecoderHeaderTableSize() uint32 {
+	if v := t.MaxDecoderHeaderTableSize; v > 0 {
+		return v
+	}
+	return initialHeaderTableSize
+}
+
+func (t *Transport) maxEncoderHeaderTableSize() uint32 {
+	if v := t.MaxEncoderHeaderTableSize; v > 0 {
+		return v
+	}
+	return initialHeaderTableSize
+}
+
 func (t *Transport) NewClientConn(c net.Conn) (*ClientConn, error) {
 	return t.newClientConn(c, t.disableKeepAlives())
 }
@@ -721,15 +771,19 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 	})
 	cc.br = bufio.NewReader(c)
 	cc.fr = NewFramer(cc.bw, cc.br)
+	if t.maxFrameReadSize() != 0 {
+		cc.fr.SetMaxReadFrameSize(t.maxFrameReadSize())
+	}
 	if t.CountError != nil {
 		cc.fr.countError = t.CountError
 	}
-	cc.fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+	maxHeaderTableSize := t.maxDecoderHeaderTableSize()
+	cc.fr.ReadMetaHeaders = hpack.NewDecoder(maxHeaderTableSize, nil)
 	cc.fr.MaxHeaderListSize = t.maxHeaderListSize()
 
-	// TODO: SetMaxDynamicTableSize, SetMaxDynamicTableSizeLimit on
-	// henc in response to SETTINGS frames?
 	cc.henc = hpack.NewEncoder(&cc.hbuf)
+	cc.henc.SetMaxDynamicTableSizeLimit(t.maxEncoderHeaderTableSize())
+	cc.peerMaxHeaderTableSize = initialHeaderTableSize
 
 	if t.AllowHTTP {
 		cc.nextStreamID = 3
@@ -744,8 +798,14 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 		{ID: SettingEnablePush, Val: 0},
 		{ID: SettingInitialWindowSize, Val: transportDefaultStreamFlow},
 	}
+	if max := t.maxFrameReadSize(); max != 0 {
+		initialSettings = append(initialSettings, Setting{ID: SettingMaxFrameSize, Val: max})
+	}
 	if max := t.maxHeaderListSize(); max != 0 {
 		initialSettings = append(initialSettings, Setting{ID: SettingMaxHeaderListSize, Val: max})
+	}
+	if maxHeaderTableSize != initialHeaderTableSize {
+		initialSettings = append(initialSettings, Setting{ID: SettingHeaderTableSize, Val: maxHeaderTableSize})
 	}
 
 	cc.bw.Write(clientPreface)
@@ -2773,8 +2833,10 @@ func (rl *clientConnReadLoop) processSettingsNoWrite(f *SettingsFrame) error {
 			cc.cond.Broadcast()
 
 			cc.initialWindowSize = s.Val
+		case SettingHeaderTableSize:
+			cc.henc.SetMaxDynamicTableSize(s.Val)
+			cc.peerMaxHeaderTableSize = s.Val
 		default:
-			// TODO(bradfitz): handle more settings? SETTINGS_HEADER_TABLE_SIZE probably.
 			cc.vlogf("Unhandled Setting: %v", s)
 		}
 		return nil
