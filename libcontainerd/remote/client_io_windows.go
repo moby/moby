@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	//	"golang.org/x/net/context"
 )
 
 type delayedConnection struct {
