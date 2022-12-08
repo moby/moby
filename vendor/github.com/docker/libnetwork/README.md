@@ -1,3 +1,12 @@
+> **Warning**
+> libnetwork was moved to https://github.com/moby/moby/tree/master/libnetwork
+>
+> libnetwork has been merged to the main repo of Moby since Docker 22.06.
+>
+> The old libnetwork repo (https://github.com/moby/libnetwork) now only accepts PR for Docker 20.10,
+> and will be archived after the EOL of Docker 20.10.
+
+- - -
 # libnetwork - networking for containers
 
 [![Circle CI](https://circleci.com/gh/docker/libnetwork/tree/master.svg?style=svg)](https://circleci.com/gh/docker/libnetwork/tree/master) [![Coverage Status](https://coveralls.io/repos/docker/libnetwork/badge.svg)](https://coveralls.io/r/docker/libnetwork) [![GoDoc](https://godoc.org/github.com/docker/libnetwork?status.svg)](https://godoc.org/github.com/docker/libnetwork) [![Go Report Card](https://goreportcard.com/badge/github.com/docker/libnetwork)](https://goreportcard.com/report/github.com/docker/libnetwork)
