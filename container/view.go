@@ -391,7 +391,7 @@ func (v *View) transform(container *Container) *Snapshot {
 		for port, bindings := range container.NetworkSettings.Ports {
 			p, err := nat.ParsePort(port.Port())
 			if err != nil {
-				logrus.Warnf("invalid port map %+v", err)
+				logrus.WithError(err).Warn("invalid port map")
 				continue
 			}
 			if len(bindings) == 0 {
@@ -404,7 +404,7 @@ func (v *View) transform(container *Container) *Snapshot {
 			for _, binding := range bindings {
 				h, err := nat.ParsePort(binding.HostPort)
 				if err != nil {
-					logrus.Warnf("invalid host port map %+v", err)
+					logrus.WithError(err).Warn("invalid host port map")
 					continue
 				}
 				snapshot.Ports = append(snapshot.Ports, types.Port{
