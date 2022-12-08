@@ -287,25 +287,25 @@ func assembleStats(msg []byte) (SvcStats, error) {
 	for _, attr := range attrs {
 		attrType := int(attr.Attr.Type)
 		switch attrType {
-		case ipvsStatsConns:
+		case ipvsSvcStatsConns:
 			s.Connections = native.Uint32(attr.Value)
-		case ipvsStatsPktsIn:
+		case ipvsSvcStatsPktsIn:
 			s.PacketsIn = native.Uint32(attr.Value)
-		case ipvsStatsPktsOut:
+		case ipvsSvcStatsPktsOut:
 			s.PacketsOut = native.Uint32(attr.Value)
-		case ipvsStatsBytesIn:
+		case ipvsSvcStatsBytesIn:
 			s.BytesIn = native.Uint64(attr.Value)
-		case ipvsStatsBytesOut:
+		case ipvsSvcStatsBytesOut:
 			s.BytesOut = native.Uint64(attr.Value)
-		case ipvsStatsCPS:
+		case ipvsSvcStatsCPS:
 			s.CPS = native.Uint32(attr.Value)
-		case ipvsStatsPPSIn:
+		case ipvsSvcStatsPPSIn:
 			s.PPSIn = native.Uint32(attr.Value)
-		case ipvsStatsPPSOut:
+		case ipvsSvcStatsPPSOut:
 			s.PPSOut = native.Uint32(attr.Value)
-		case ipvsStatsBPSIn:
+		case ipvsSvcStatsBPSIn:
 			s.BPSIn = native.Uint32(attr.Value)
-		case ipvsStatsBPSOut:
+		case ipvsSvcStatsBPSOut:
 			s.BPSOut = native.Uint32(attr.Value)
 		}
 	}
@@ -447,9 +447,9 @@ func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error)
 		case ipvsDestAttrLowerThreshold:
 			d.LowerThreshold = native.Uint32(attr.Value)
 		case ipvsDestAttrActiveConnections:
-			d.ActiveConnections = int(native.Uint32(attr.Value))
+			d.ActiveConnections = int(native.Uint16(attr.Value))
 		case ipvsDestAttrInactiveConnections:
-			d.InactiveConnections = int(native.Uint32(attr.Value))
+			d.InactiveConnections = int(native.Uint16(attr.Value))
 		case ipvsDestAttrStats:
 			stats, err := assembleStats(attr.Value)
 			if err != nil {

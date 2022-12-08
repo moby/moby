@@ -99,8 +99,7 @@ func (c *Config) GetVersion() int {
 func (c *Config) ValidateV2() error {
 	version := c.GetVersion()
 	if version < 2 {
-		logrus.Warnf("containerd config version `%d` has been deprecated and will be removed in containerd v2.0, please switch to version `2`, "+
-			"see https://github.com/containerd/containerd/blob/main/docs/PLUGINS.md#version-header", version)
+		logrus.Warnf("deprecated version : `%d`, please switch to version `2`", version)
 		return nil
 	}
 	for _, p := range c.DisabledPlugins {

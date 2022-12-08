@@ -546,10 +546,56 @@ func setTarHeaderTypeflag(hdr *tar.Header, f *ConsumeFuzzer) error {
 	return nil
 }
 
+func tooSmallFileBody(length uint32) bool {
+	if length < 100 {
+		return true
+	}
+	if length < 500 {
+		return true
+	}
+	if length < 1000 {
+		return true
+	}
+	if length < 2000 {
+		return true
+	}
+	if length < 4000 {
+		return true
+	}
+	if length < 8000 {
+		return true
+	}
+	if length < 16000 {
+		return true
+	}
+	if length < 32000 {
+		return true
+	}
+	if length < 64000 {
+		return true
+	}
+	if length < 128000 {
+		return true
+	}
+	if length < 264000 {
+		return true
+	}
+	return false
+}
+
 func (f *ConsumeFuzzer) createTarFileBody() ([]byte, error) {
 	length, err := f.GetUint32()
 	if err != nil {
 		return nil, errors.New("not enough bytes to create byte array")
+	}
+
+	shouldUseLargeFileBody, err := f.GetBool()
+	if err != nil {
+		return nil, errors.New("not enough bytes to check long file body")
+	}
+
+	if shouldUseLargeFileBody && tooSmallFileBody(length) {
+		return nil, errors.New("File body was too small")
 	}
 
 	// A bit of optimization to attempt to create a file body

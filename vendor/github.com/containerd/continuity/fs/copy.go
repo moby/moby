@@ -33,7 +33,7 @@ var bufferPool = &sync.Pool{
 	},
 }
 
-// XAttrErrorHandler transform a non-nil xattr error.
+// XAttrErrorHandlers transform a non-nil xattr error.
 // Return nil to ignore an error.
 // xattrKey can be empty for listxattr operation.
 type XAttrErrorHandler func(dst, src, xattrKey string, err error) error

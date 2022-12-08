@@ -3,19 +3,19 @@
 
 Vagrant.configure("2") do |config|
 # Fedora box is used for testing cgroup v2 support
-  config.vm.box = "fedora/35-cloud-base"
+  config.vm.box = "fedora/32-cloud-base"
   config.vm.provider :virtualbox do |v|
-    v.memory = 4096
+    v.memory = 2048
     v.cpus = 2
   end
   config.vm.provider :libvirt do |v|
-    v.memory = 4096
+    v.memory = 2048
     v.cpus = 2
   end
   config.vm.provision "shell", inline: <<-SHELL
     set -eux -o pipefail
     # configuration
-    GO_VERSION="1.17.7"
+    GO_VERSION="1.15"
 
     # install gcc and Golang
     dnf -y install gcc

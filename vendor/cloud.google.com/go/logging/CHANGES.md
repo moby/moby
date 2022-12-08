@@ -1,5 +1,39 @@
 # Changes
 
+## [1.6.1](https://github.com/googleapis/google-cloud-go/compare/logging/v1.6.0...logging/v1.6.1) (2022-12-02)
+
+
+### Bug Fixes
+
+* **logging:** downgrade some dependencies ([7540152](https://github.com/googleapis/google-cloud-go/commit/754015236d5af7c82a75da218b71a87b9ead6eb5))
+
+## [1.6.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.5.0...logging/v1.6.0) (2022-11-29)
+
+
+### Features
+
+* **logging:** start generating proto stubs ([0eb700d](https://github.com/googleapis/google-cloud-go/commit/0eb700d17c4cac56f59038f0f3ae5a65257a3d38))
+
+
+### Bug Fixes
+
+* **logging:** Fix stdout log http request format ([#7083](https://github.com/googleapis/google-cloud-go/issues/7083)) ([2894e66](https://github.com/googleapis/google-cloud-go/commit/2894e66be7ff7536f725ede453d1834586a361bd))
+
+## [1.5.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.4.2...logging/v1.5.0) (2022-06-25)
+
+
+### Features
+
+* **logging:** add better version metadata to calls ([d1ad921](https://github.com/googleapis/google-cloud-go/commit/d1ad921d0322e7ce728ca9d255a3cf0437d26add))
+* **logging:** set versionClient to module version ([55f0d92](https://github.com/googleapis/google-cloud-go/commit/55f0d92bf112f14b024b4ab0076c9875a17423c9))
+* **logging:** support structured logging functionality ([#6029](https://github.com/googleapis/google-cloud-go/issues/6029)) ([56f4cdd](https://github.com/googleapis/google-cloud-go/commit/56f4cdd066cc9eaeece2c6fb466d58c3e7c41563))
+* **logging:** Update Logging API with latest changes ([5af548b](https://github.com/googleapis/google-cloud-go/commit/5af548bee4ffde279727b2e1ad9b072925106a74))
+
+
+### Bug Fixes
+
+* **logging:** remove instance_name resource label ([#5461](https://github.com/googleapis/google-cloud-go/issues/5461)) ([115385f](https://github.com/googleapis/google-cloud-go/commit/115385f066ee54cf35a093749bc2673a17b3fa08))
+
 ### [1.4.2](https://www.github.com/googleapis/google-cloud-go/compare/logging/v1.4.1...logging/v1.4.2) (2021-05-20)
 
 

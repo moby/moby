@@ -55,7 +55,6 @@ type messageJoin struct {
 type messageLeave struct {
 	LTime LamportTime
 	Node  string
-	Prune bool
 }
 
 // messagePushPullType is used when doing a state exchange. This

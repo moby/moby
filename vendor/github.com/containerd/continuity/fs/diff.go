@@ -22,8 +22,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/sirupsen/logrus"
 )
 
 // ChangeKind is the type of modification that

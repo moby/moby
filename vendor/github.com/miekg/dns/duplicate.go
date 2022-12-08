@@ -3,8 +3,9 @@ package dns
 //go:generate go run duplicate_generate.go
 
 // IsDuplicate checks of r1 and r2 are duplicates of each other, excluding the TTL.
-// So this means the header data is equal *and* the RDATA is the same. Returns true
-// if so, otherwise false. It's a protocol violation to have identical RRs in a message.
+// So this means the header data is equal *and* the RDATA is the same. Return true
+// is so, otherwise false.
+// It's a protocol violation to have identical RRs in a message.
 func IsDuplicate(r1, r2 RR) bool {
 	// Check whether the record header is identical.
 	if !r1.Header().isDuplicate(r2.Header()) {

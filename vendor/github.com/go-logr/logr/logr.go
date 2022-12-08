@@ -115,15 +115,6 @@ limitations under the License.
 // may be any Go value, but how the value is formatted is determined by the
 // LogSink implementation.
 //
-// Logger instances are meant to be passed around by value. Code that receives
-// such a value can call its methods without having to check whether the
-// instance is ready for use.
-//
-// Calling methods with the null logger (Logger{}) as instance will crash
-// because it has no LogSink. Therefore this null logger should never be passed
-// around. For cases where passing a logger is optional, a pointer to Logger
-// should be used.
-//
 // Key Naming Conventions
 //
 // Keys are not strictly required to conform to any specification or regex, but

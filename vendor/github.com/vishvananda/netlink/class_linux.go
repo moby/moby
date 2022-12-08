@@ -191,9 +191,9 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 		opt.Fsc.Set(fm1/8, fd, fm2/8)
 		um1, ud, um2 := hfsc.Usc.Attrs()
 		opt.Usc.Set(um1/8, ud, um2/8)
-		options.AddRtAttr(nl.TCA_HFSC_RSC, nl.SerializeHfscCurve(&opt.Rsc))
-		options.AddRtAttr(nl.TCA_HFSC_FSC, nl.SerializeHfscCurve(&opt.Fsc))
-		options.AddRtAttr(nl.TCA_HFSC_USC, nl.SerializeHfscCurve(&opt.Usc))
+		nl.NewRtAttrChild(options, nl.TCA_HFSC_RSC, nl.SerializeHfscCurve(&opt.Rsc))
+		nl.NewRtAttrChild(options, nl.TCA_HFSC_FSC, nl.SerializeHfscCurve(&opt.Fsc))
+		nl.NewRtAttrChild(options, nl.TCA_HFSC_USC, nl.SerializeHfscCurve(&opt.Usc))
 	}
 	req.AddData(options)
 	return nil
@@ -341,6 +341,7 @@ func parseHfscClassData(class Class, data []syscall.NetlinkRouteAttr) (bool, err
 func parseTcStats(data []byte) (*ClassStatistics, error) {
 	buf := &bytes.Buffer{}
 	buf.Write(data)
+	native := nl.NativeEndian()
 	tcStats := &tcStats{}
 	if err := binary.Read(buf, native, tcStats); err != nil {
 		return nil, err
@@ -362,6 +363,7 @@ func parseTcStats(data []byte) (*ClassStatistics, error) {
 func parseGnetStats(data []byte, gnetStats interface{}) error {
 	buf := &bytes.Buffer{}
 	buf.Write(data)
+	native := nl.NativeEndian()
 	return binary.Read(buf, native, gnetStats)
 }
 

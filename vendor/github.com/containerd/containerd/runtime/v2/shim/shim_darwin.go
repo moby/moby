@@ -18,8 +18,8 @@ package shim
 
 import "github.com/containerd/ttrpc"
 
-func newServer(opts ...ttrpc.ServerOpt) (*ttrpc.Server, error) {
-	return ttrpc.NewServer(opts...)
+func newServer() (*ttrpc.Server, error) {
+	return ttrpc.NewServer()
 }
 
 func subreaper() error {

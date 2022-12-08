@@ -9,5 +9,6 @@ Usage:
 	if selinux.EnforceMode() != selinux.Enforcing {
 		selinux.SetEnforceMode(selinux.Enforcing)
 	}
+
 */
 package selinux

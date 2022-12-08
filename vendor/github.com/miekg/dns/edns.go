@@ -22,46 +22,10 @@ const (
 	EDNS0COOKIE       = 0xa     // EDNS0 Cookie
 	EDNS0TCPKEEPALIVE = 0xb     // EDNS0 tcp keep alive (See RFC 7828)
 	EDNS0PADDING      = 0xc     // EDNS0 padding (See RFC 7830)
-	EDNS0EDE          = 0xf     // EDNS0 extended DNS errors (See RFC 8914)
 	EDNS0LOCALSTART   = 0xFDE9  // Beginning of range reserved for local/experimental use (See RFC 6891)
 	EDNS0LOCALEND     = 0xFFFE  // End of range reserved for local/experimental use (See RFC 6891)
 	_DO               = 1 << 15 // DNSSEC OK
 )
-
-// makeDataOpt is used to unpack the EDNS0 option(s) from a message.
-func makeDataOpt(code uint16) EDNS0 {
-	// All the EDNS0.* constants above need to be in this switch.
-	switch code {
-	case EDNS0LLQ:
-		return new(EDNS0_LLQ)
-	case EDNS0UL:
-		return new(EDNS0_UL)
-	case EDNS0NSID:
-		return new(EDNS0_NSID)
-	case EDNS0DAU:
-		return new(EDNS0_DAU)
-	case EDNS0DHU:
-		return new(EDNS0_DHU)
-	case EDNS0N3U:
-		return new(EDNS0_N3U)
-	case EDNS0SUBNET:
-		return new(EDNS0_SUBNET)
-	case EDNS0EXPIRE:
-		return new(EDNS0_EXPIRE)
-	case EDNS0COOKIE:
-		return new(EDNS0_COOKIE)
-	case EDNS0TCPKEEPALIVE:
-		return new(EDNS0_TCP_KEEPALIVE)
-	case EDNS0PADDING:
-		return new(EDNS0_PADDING)
-	case EDNS0EDE:
-		return new(EDNS0_EDE)
-	default:
-		e := new(EDNS0_LOCAL)
-		e.Code = code
-		return e
-	}
-}
 
 // OPT is the EDNS0 RR appended to messages to convey extra (meta) information.
 // See RFC 6891.
@@ -109,8 +73,6 @@ func (rr *OPT) String() string {
 			s += "\n; LOCAL OPT: " + o.String()
 		case *EDNS0_PADDING:
 			s += "\n; PADDING: " + o.String()
-		case *EDNS0_EDE:
-			s += "\n; EDE: " + o.String()
 		}
 	}
 	return s
@@ -126,11 +88,11 @@ func (rr *OPT) len(off int, compression map[string]struct{}) int {
 	return l
 }
 
-func (*OPT) parse(c *zlexer, origin string) *ParseError {
-	return &ParseError{err: "OPT records do not have a presentation format"}
+func (rr *OPT) parse(c *zlexer, origin string) *ParseError {
+	panic("dns: internal error: parse should never be called on OPT")
 }
 
-func (rr *OPT) isDuplicate(r2 RR) bool { return false }
+func (r1 *OPT) isDuplicate(r2 RR) bool { return false }
 
 // return the old value -> delete SetVersion?
 
@@ -184,16 +146,6 @@ func (rr *OPT) SetDo(do ...bool) {
 	} else {
 		rr.Hdr.Ttl |= _DO
 	}
-}
-
-// Z returns the Z part of the OPT RR as a uint16 with only the 15 least significant bits used.
-func (rr *OPT) Z() uint16 {
-	return uint16(rr.Hdr.Ttl & 0x7FFF)
-}
-
-// SetZ sets the Z part of the OPT RR, note only the 15 least significant bits of z are used.
-func (rr *OPT) SetZ(z uint16) {
-	rr.Hdr.Ttl = rr.Hdr.Ttl&^0x7FFF | uint32(z&0x7FFF)
 }
 
 // EDNS0 defines an EDNS0 Option. An OPT RR can have multiple options appended to it.
@@ -500,7 +452,7 @@ func (e *EDNS0_LLQ) copy() EDNS0 {
 	return &EDNS0_LLQ{e.Code, e.Version, e.Opcode, e.Error, e.Id, e.LeaseLife}
 }
 
-// EDNS0_DAU implements the EDNS0 "DNSSEC Algorithm Understood" option. See RFC 6975.
+// EDNS0_DUA implements the EDNS0 "DNSSEC Algorithm Understood" option. See RFC 6975.
 type EDNS0_DAU struct {
 	Code    uint16 // Always EDNS0DAU
 	AlgCode []uint8
@@ -573,7 +525,7 @@ func (e *EDNS0_N3U) String() string {
 }
 func (e *EDNS0_N3U) copy() EDNS0 { return &EDNS0_N3U{e.Code, e.AlgCode} }
 
-// EDNS0_EXPIRE implements the EDNS0 option as described in RFC 7314.
+// EDNS0_EXPIRE implementes the EDNS0 option as described in RFC 7314.
 type EDNS0_EXPIRE struct {
 	Code   uint16 // Always EDNS0EXPIRE
 	Expire uint32
@@ -720,102 +672,4 @@ func (e *EDNS0_PADDING) copy() EDNS0 {
 	b := make([]byte, len(e.Padding))
 	copy(b, e.Padding)
 	return &EDNS0_PADDING{b}
-}
-
-// Extended DNS Error Codes (RFC 8914).
-const (
-	ExtendedErrorCodeOther uint16 = iota
-	ExtendedErrorCodeUnsupportedDNSKEYAlgorithm
-	ExtendedErrorCodeUnsupportedDSDigestType
-	ExtendedErrorCodeStaleAnswer
-	ExtendedErrorCodeForgedAnswer
-	ExtendedErrorCodeDNSSECIndeterminate
-	ExtendedErrorCodeDNSBogus
-	ExtendedErrorCodeSignatureExpired
-	ExtendedErrorCodeSignatureNotYetValid
-	ExtendedErrorCodeDNSKEYMissing
-	ExtendedErrorCodeRRSIGsMissing
-	ExtendedErrorCodeNoZoneKeyBitSet
-	ExtendedErrorCodeNSECMissing
-	ExtendedErrorCodeCachedError
-	ExtendedErrorCodeNotReady
-	ExtendedErrorCodeBlocked
-	ExtendedErrorCodeCensored
-	ExtendedErrorCodeFiltered
-	ExtendedErrorCodeProhibited
-	ExtendedErrorCodeStaleNXDOMAINAnswer
-	ExtendedErrorCodeNotAuthoritative
-	ExtendedErrorCodeNotSupported
-	ExtendedErrorCodeNoReachableAuthority
-	ExtendedErrorCodeNetworkError
-	ExtendedErrorCodeInvalidData
-)
-
-// ExtendedErrorCodeToString maps extended error info codes to a human readable
-// description.
-var ExtendedErrorCodeToString = map[uint16]string{
-	ExtendedErrorCodeOther:                      "Other",
-	ExtendedErrorCodeUnsupportedDNSKEYAlgorithm: "Unsupported DNSKEY Algorithm",
-	ExtendedErrorCodeUnsupportedDSDigestType:    "Unsupported DS Digest Type",
-	ExtendedErrorCodeStaleAnswer:                "Stale Answer",
-	ExtendedErrorCodeForgedAnswer:               "Forged Answer",
-	ExtendedErrorCodeDNSSECIndeterminate:        "DNSSEC Indeterminate",
-	ExtendedErrorCodeDNSBogus:                   "DNSSEC Bogus",
-	ExtendedErrorCodeSignatureExpired:           "Signature Expired",
-	ExtendedErrorCodeSignatureNotYetValid:       "Signature Not Yet Valid",
-	ExtendedErrorCodeDNSKEYMissing:              "DNSKEY Missing",
-	ExtendedErrorCodeRRSIGsMissing:              "RRSIGs Missing",
-	ExtendedErrorCodeNoZoneKeyBitSet:            "No Zone Key Bit Set",
-	ExtendedErrorCodeNSECMissing:                "NSEC Missing",
-	ExtendedErrorCodeCachedError:                "Cached Error",
-	ExtendedErrorCodeNotReady:                   "Not Ready",
-	ExtendedErrorCodeBlocked:                    "Blocked",
-	ExtendedErrorCodeCensored:                   "Censored",
-	ExtendedErrorCodeFiltered:                   "Filtered",
-	ExtendedErrorCodeProhibited:                 "Prohibited",
-	ExtendedErrorCodeStaleNXDOMAINAnswer:        "Stale NXDOMAIN Answer",
-	ExtendedErrorCodeNotAuthoritative:           "Not Authoritative",
-	ExtendedErrorCodeNotSupported:               "Not Supported",
-	ExtendedErrorCodeNoReachableAuthority:       "No Reachable Authority",
-	ExtendedErrorCodeNetworkError:               "Network Error",
-	ExtendedErrorCodeInvalidData:                "Invalid Data",
-}
-
-// StringToExtendedErrorCode is a map from human readable descriptions to
-// extended error info codes.
-var StringToExtendedErrorCode = reverseInt16(ExtendedErrorCodeToString)
-
-// EDNS0_EDE option is used to return additional information about the cause of
-// DNS errors.
-type EDNS0_EDE struct {
-	InfoCode  uint16
-	ExtraText string
-}
-
-// Option implements the EDNS0 interface.
-func (e *EDNS0_EDE) Option() uint16 { return EDNS0EDE }
-func (e *EDNS0_EDE) copy() EDNS0    { return &EDNS0_EDE{e.InfoCode, e.ExtraText} }
-
-func (e *EDNS0_EDE) String() string {
-	info := strconv.FormatUint(uint64(e.InfoCode), 10)
-	if s, ok := ExtendedErrorCodeToString[e.InfoCode]; ok {
-		info += fmt.Sprintf(" (%s)", s)
-	}
-	return fmt.Sprintf("%s: (%s)", info, e.ExtraText)
-}
-
-func (e *EDNS0_EDE) pack() ([]byte, error) {
-	b := make([]byte, 2+len(e.ExtraText))
-	binary.BigEndian.PutUint16(b[0:], e.InfoCode)
-	copy(b[2:], []byte(e.ExtraText))
-	return b, nil
-}
-
-func (e *EDNS0_EDE) unpack(b []byte) error {
-	if len(b) < 2 {
-		return ErrBuf
-	}
-	e.InfoCode = binary.BigEndian.Uint16(b[0:])
-	e.ExtraText = string(b[2:])
-	return nil
 }

@@ -527,7 +527,7 @@ func (f *decFnInfo) kMap(rv reflect.Value) {
 			}
 		}
 		rvv := rv.MapIndex(rvk)
-		if !rvv.IsValid() || !rvv.CanSet() {
+		if !rvv.IsValid() {
 			rvv = reflect.New(vtype).Elem()
 		}
 

@@ -28,9 +28,7 @@ import (
 // magicString is used for the hacky label test in checkLabels. Remove once fixed.
 const magicString = "zZgWfBxLqvG8kc8IMv3POi2Bb0tZI3vAnBx+gBaFi9FyPzB/CzKUer1yufDa"
 
-// observeWithExemplar is a wrapper for [prometheus.ExemplarAdder.ExemplarObserver],
-// which falls back to [prometheus.Observer.Observe] if no labels are provided.
-func observeWithExemplar(obs prometheus.Observer, val float64, labels map[string]string) {
+func exemplarObserve(obs prometheus.Observer, val float64, labels map[string]string) {
 	if labels == nil {
 		obs.Observe(val)
 		return
@@ -38,9 +36,7 @@ func observeWithExemplar(obs prometheus.Observer, val float64, labels map[string
 	obs.(prometheus.ExemplarObserver).ObserveWithExemplar(val, labels)
 }
 
-// addWithExemplar is a wrapper for [prometheus.ExemplarAdder.AddWithExemplar],
-// which falls back to [prometheus.Counter.Add] if no labels are provided.
-func addWithExemplar(obs prometheus.Counter, val float64, labels map[string]string) {
+func exemplarAdd(obs prometheus.Counter, val float64, labels map[string]string) {
 	if labels == nil {
 		obs.Add(val)
 		return
@@ -95,7 +91,7 @@ func InstrumentHandlerDuration(obs prometheus.ObserverVec, next http.Handler, op
 			d := newDelegator(w, nil)
 			next.ServeHTTP(d, r)
 
-			observeWithExemplar(
+			exemplarObserve(
 				obs.With(labels(code, method, r.Method, d.Status(), hOpts.extraMethods...)),
 				time.Since(now).Seconds(),
 				hOpts.getExemplarFn(r.Context()),
@@ -107,7 +103,7 @@ func InstrumentHandlerDuration(obs prometheus.ObserverVec, next http.Handler, op
 		now := time.Now()
 		next.ServeHTTP(w, r)
 
-		observeWithExemplar(
+		exemplarObserve(
 			obs.With(labels(code, method, r.Method, 0, hOpts.extraMethods...)),
 			time.Since(now).Seconds(),
 			hOpts.getExemplarFn(r.Context()),
@@ -145,7 +141,7 @@ func InstrumentHandlerCounter(counter *prometheus.CounterVec, next http.Handler,
 			d := newDelegator(w, nil)
 			next.ServeHTTP(d, r)
 
-			addWithExemplar(
+			exemplarAdd(
 				counter.With(labels(code, method, r.Method, d.Status(), hOpts.extraMethods...)),
 				1,
 				hOpts.getExemplarFn(r.Context()),
@@ -155,7 +151,7 @@ func InstrumentHandlerCounter(counter *prometheus.CounterVec, next http.Handler,
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
-		addWithExemplar(
+		exemplarAdd(
 			counter.With(labels(code, method, r.Method, 0, hOpts.extraMethods...)),
 			1,
 			hOpts.getExemplarFn(r.Context()),
@@ -196,7 +192,7 @@ func InstrumentHandlerTimeToWriteHeader(obs prometheus.ObserverVec, next http.Ha
 	return func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		d := newDelegator(w, func(status int) {
-			observeWithExemplar(
+			exemplarObserve(
 				obs.With(labels(code, method, r.Method, status, hOpts.extraMethods...)),
 				time.Since(now).Seconds(),
 				hOpts.getExemplarFn(r.Context()),
@@ -237,7 +233,7 @@ func InstrumentHandlerRequestSize(obs prometheus.ObserverVec, next http.Handler,
 			d := newDelegator(w, nil)
 			next.ServeHTTP(d, r)
 			size := computeApproximateRequestSize(r)
-			observeWithExemplar(
+			exemplarObserve(
 				obs.With(labels(code, method, r.Method, d.Status(), hOpts.extraMethods...)),
 				float64(size),
 				hOpts.getExemplarFn(r.Context()),
@@ -248,7 +244,7 @@ func InstrumentHandlerRequestSize(obs prometheus.ObserverVec, next http.Handler,
 	return func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		size := computeApproximateRequestSize(r)
-		observeWithExemplar(
+		exemplarObserve(
 			obs.With(labels(code, method, r.Method, 0, hOpts.extraMethods...)),
 			float64(size),
 			hOpts.getExemplarFn(r.Context()),
@@ -286,7 +282,7 @@ func InstrumentHandlerResponseSize(obs prometheus.ObserverVec, next http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		d := newDelegator(w, nil)
 		next.ServeHTTP(d, r)
-		observeWithExemplar(
+		exemplarObserve(
 			obs.With(labels(code, method, r.Method, d.Status(), hOpts.extraMethods...)),
 			float64(d.Written()),
 			hOpts.getExemplarFn(r.Context()),

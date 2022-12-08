@@ -441,8 +441,8 @@ func (x *Distribution_Exemplar) GetAttachments() []*anypb.Any {
 // There are `num_finite_buckets + 2` (= N) buckets. Bucket `i` has the
 // following boundaries:
 //
-//    Upper bound (0 <= i < N-1):     offset + (width * i).
-//    Lower bound (1 <= i < N):       offset + (width * (i - 1)).
+//	Upper bound (0 <= i < N-1):     offset + (width * i).
+//	Lower bound (1 <= i < N):       offset + (width * (i - 1)).
 type Distribution_BucketOptions_Linear struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -516,8 +516,8 @@ func (x *Distribution_BucketOptions_Linear) GetOffset() float64 {
 // There are `num_finite_buckets + 2` (= N) buckets. Bucket `i` has the
 // following boundaries:
 //
-//    Upper bound (0 <= i < N-1):     scale * (growth_factor ^ i).
-//    Lower bound (1 <= i < N):       scale * (growth_factor ^ (i - 1)).
+//	Upper bound (0 <= i < N-1):     scale * (growth_factor ^ i).
+//	Lower bound (1 <= i < N):       scale * (growth_factor ^ (i - 1)).
 type Distribution_BucketOptions_Exponential struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -589,8 +589,8 @@ func (x *Distribution_BucketOptions_Exponential) GetScale() float64 {
 // There are `size(bounds) + 1` (= N) buckets. Bucket `i` has the following
 // boundaries:
 //
-//    Upper bound (0 <= i < N-1):     bounds[i]
-//    Lower bound (1 <= i < N);       bounds[i - 1]
+//	Upper bound (0 <= i < N-1):     bounds[i]
+//	Lower bound (1 <= i < N);       bounds[i - 1]
 //
 // The `bounds` field must contain at least one element. If `bounds` has
 // only one element, then there are no finite buckets, and that single

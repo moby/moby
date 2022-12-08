@@ -96,13 +96,13 @@ func pushPullScale(interval time.Duration, n int) time.Duration {
 	return time.Duration(multiplier) * interval
 }
 
-// moveDeadNodes moves dead and left nodes that that have not changed during the gossipToTheDeadTime interval
+// moveDeadNodes moves nodes that are dead and beyond the gossip to the dead interval
 // to the end of the slice and returns the index of the first moved node.
 func moveDeadNodes(nodes []*nodeState, gossipToTheDeadTime time.Duration) int {
 	numDead := 0
 	n := len(nodes)
 	for i := 0; i < n-numDead; i++ {
-		if !nodes[i].DeadOrLeft() {
+		if nodes[i].State != StateDead {
 			continue
 		}
 
@@ -150,23 +150,6 @@ OUTER:
 		kNodes = append(kNodes, state.Node)
 	}
 	return kNodes
-}
-
-// makeCompoundMessages takes a list of messages and packs
-// them into one or multiple messages based on the limitations
-// of compound messages (255 messages each).
-func makeCompoundMessages(msgs [][]byte) []*bytes.Buffer {
-	const maxMsgs = 255
-	bufs := make([]*bytes.Buffer, 0, (len(msgs)+(maxMsgs-1))/maxMsgs)
-
-	for ; len(msgs) > maxMsgs; msgs = msgs[maxMsgs:] {
-		bufs = append(bufs, makeCompoundMessage(msgs[:maxMsgs]))
-	}
-	if len(msgs) > 0 {
-		bufs = append(bufs, makeCompoundMessage(msgs))
-	}
-
-	return bufs
 }
 
 // makeCompoundMessage takes a list of messages and generates

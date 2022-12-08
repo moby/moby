@@ -21,9 +21,8 @@ import (
 	"github.com/containerd/ttrpc"
 )
 
-func newServer(opts ...ttrpc.ServerOpt) (*ttrpc.Server, error) {
-	opts = append(opts, ttrpc.WithServerHandshaker(ttrpc.UnixSocketRequireSameUser()))
-	return ttrpc.NewServer(opts...)
+func newServer() (*ttrpc.Server, error) {
+	return ttrpc.NewServer(ttrpc.WithServerHandshaker(ttrpc.UnixSocketRequireSameUser()))
 }
 
 func subreaper() error {

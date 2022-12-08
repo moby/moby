@@ -24,11 +24,7 @@ const (
 	NDA_MASTER
 	NDA_LINK_NETNSID
 	NDA_SRC_VNI
-	NDA_PROTOCOL
-	NDA_NH_ID
-	NDA_FDB_EXT_ATTRS
-	NDA_FLAGS_EXT
-	NDA_MAX = NDA_FLAGS_EXT
+	NDA_MAX = NDA_SRC_VNI
 )
 
 // Neighbor Cache Entry States.
@@ -46,19 +42,11 @@ const (
 
 // Neighbor Flags
 const (
-	NTF_USE         = 0x01
-	NTF_SELF        = 0x02
-	NTF_MASTER      = 0x04
-	NTF_PROXY       = 0x08
-	NTF_EXT_LEARNED = 0x10
-	NTF_OFFLOADED   = 0x20
-	NTF_STICKY      = 0x40
-	NTF_ROUTER      = 0x80
-)
-
-// Extended Neighbor Flags
-const (
-	NTF_EXT_MANAGED = 0x00000001
+	NTF_USE    = 0x01
+	NTF_SELF   = 0x02
+	NTF_MASTER = 0x04
+	NTF_PROXY  = 0x08
+	NTF_ROUTER = 0x80
 )
 
 // Ndmsg is for adding, removing or receiving information about a neighbor table entry
@@ -174,14 +162,9 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 	if neigh.LLIPAddr != nil {
 		llIPData := nl.NewRtAttr(NDA_LLADDR, neigh.LLIPAddr.To4())
 		req.AddData(llIPData)
-	} else if neigh.HardwareAddr != nil {
+	} else if neigh.Flags != NTF_PROXY || neigh.HardwareAddr != nil {
 		hwData := nl.NewRtAttr(NDA_LLADDR, []byte(neigh.HardwareAddr))
 		req.AddData(hwData)
-	}
-
-	if neigh.FlagsExt != 0 {
-		flagsExtData := nl.NewRtAttr(NDA_FLAGS_EXT, nl.Uint32Attr(uint32(neigh.FlagsExt)))
-		req.AddData(flagsExtData)
 	}
 
 	if neigh.Vlan != 0 {
@@ -322,8 +305,6 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 			} else {
 				neigh.HardwareAddr = net.HardwareAddr(attr.Value)
 			}
-		case NDA_FLAGS_EXT:
-			neigh.FlagsExt = int(native.Uint32(attr.Value[0:4]))
 		case NDA_VLAN:
 			neigh.Vlan = int(native.Uint16(attr.Value[0:2]))
 		case NDA_VNI:
@@ -427,6 +408,7 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
+					native := nl.NativeEndian()
 					error := int32(native.Uint32(m.Data[0:4]))
 					if error == 0 {
 						continue

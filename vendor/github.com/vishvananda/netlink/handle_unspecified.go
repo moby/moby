@@ -23,8 +23,6 @@ func NewHandleAtFrom(newNs, curNs netns.NsHandle) (*Handle, error) {
 	return nil, ErrNotImplemented
 }
 
-func (h *Handle) Close() {}
-
 func (h *Handle) Delete() {}
 
 func (h *Handle) SupportsNetlinkFamily(nlFamily int) bool {

@@ -23,10 +23,3 @@ _testmain.go
 *.test
 *.prof
 /s2/cmd/_s2sx/sfx-exe
-
-# Linux perf files
-perf.data
-perf.data.old
-
-# gdb history
-.gdb_history

@@ -31,7 +31,7 @@ func setupSignals(config Config) (chan os.Signal, error) {
 	return nil, errors.New("not supported")
 }
 
-func newServer(opts ...ttrpc.ServerOpt) (*ttrpc.Server, error) {
+func newServer() (*ttrpc.Server, error) {
 	return nil, errors.New("not supported")
 }
 

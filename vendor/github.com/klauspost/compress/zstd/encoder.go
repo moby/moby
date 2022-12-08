@@ -528,8 +528,8 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 		// If a non-single block is needed the encoder will reset again.
 		e.encoders <- enc
 	}()
-	// Use single segments when above minimum window and below window size.
-	single := len(src) <= e.o.windowSize && len(src) > MinWindowSize
+	// Use single segments when above minimum window and below 1MB.
+	single := len(src) < 1<<20 && len(src) > MinWindowSize
 	if e.o.single != nil {
 		single = *e.o.single
 	}
@@ -551,7 +551,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 	}
 
 	// If we can do everything in one block, prefer that.
-	if len(src) <= e.o.blockSize {
+	if len(src) <= maxCompressedBlockSize {
 		enc.Reset(e.o.dict, true)
 		// Slightly faster with no history and everything in one block.
 		if e.o.crc {

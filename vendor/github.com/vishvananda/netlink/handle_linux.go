@@ -15,7 +15,7 @@ var pkgHandle = &Handle{}
 // Handle is an handle for the netlink requests on a
 // specific network namespace. All the requests on the
 // same netlink family share the same netlink socket,
-// which gets released when the handle is Close'd.
+// which gets released when the handle is deleted.
 type Handle struct {
 	sockets      map[int]*nl.SocketHandle
 	lookupByDump bool
@@ -107,21 +107,6 @@ func (h *Handle) GetSocketReceiveBufferSize() ([]int, error) {
 	return results, nil
 }
 
-// SetStrictCheck sets the strict check socket option for each socket in the netlink handle. Returns early if any set operation fails
-func (h *Handle) SetStrictCheck(state bool) error {
-	for _, sh := range h.sockets {
-		var stateInt int = 0
-		if state {
-			stateInt = 1
-		}
-		err := unix.SetsockoptInt(sh.Socket.GetFd(), unix.SOL_NETLINK, unix.NETLINK_GET_STRICT_CHK, stateInt)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // NewHandleAt returns a netlink handle on the network namespace
 // specified by ns. If ns=netns.None(), current network namespace
 // will be assumed
@@ -151,20 +136,12 @@ func newHandle(newNs, curNs netns.NsHandle, nlFamilies ...int) (*Handle, error) 
 	return h, nil
 }
 
-// Close releases the resources allocated to this handle
-func (h *Handle) Close() {
+// Delete releases the resources allocated to this handle
+func (h *Handle) Delete() {
 	for _, sh := range h.sockets {
 		sh.Close()
 	}
 	h.sockets = nil
-}
-
-// Delete releases the resources allocated to this handle
-//
-// Deprecated: use Close instead which is in line with typical resource release
-// patterns for files and other resources.
-func (h *Handle) Delete() {
-	h.Close()
 }
 
 func (h *Handle) newNetlinkRequest(proto, flags int) *nl.NetlinkRequest {

@@ -283,7 +283,7 @@ func WithNoEntropyCompression(b bool) EOption {
 // a decoder is allowed to reject a compressed frame which requests a memory size beyond decoder's authorized range.
 // For broader compatibility, decoders are recommended to support memory sizes of at least 8 MB.
 // This is only a recommendation, each decoder is free to support higher or lower limits, depending on local limitations.
-// If this is not specified, block encodes will automatically choose this based on the input size and the window size.
+// If this is not specified, block encodes will automatically choose this based on the input size.
 // This setting has no effect on streamed encodes.
 func WithSingleSegment(b bool) EOption {
 	return func(o *encoderOptions) error {

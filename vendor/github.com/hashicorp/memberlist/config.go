@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
 )
 
@@ -21,17 +20,6 @@ type Config struct {
 	// other nodes. If this is left nil, then memberlist will by default
 	// make a NetTransport using BindAddr and BindPort from this structure.
 	Transport Transport
-
-	// Label is an optional set of bytes to include on the outside of each
-	// packet and stream.
-	//
-	// If gossip encryption is enabled and this is set it is treated as GCM
-	// authenticated data.
-	Label string
-
-	// SkipInboundLabelCheck skips the check that inbound packets and gossip
-	// streams need to be label prefixed.
-	SkipInboundLabelCheck bool
 
 	// Configuration related to what address to bind to and ports to
 	// listen on. The port is used for both UDP and TCP gossip. It is
@@ -245,14 +233,10 @@ type Config struct {
 	// RequireNodeNames controls if the name of a node is required when sending
 	// a message to that node.
 	RequireNodeNames bool
-
 	// CIDRsAllowed If nil, allow any connection (default), otherwise specify all networks
 	// allowed to connect (you must specify IPv6/IPv4 separately)
 	// Using [] will block all connections.
 	CIDRsAllowed []net.IPNet
-
-	// MetricLabels is a map of optional labels to apply to all metrics emitted.
-	MetricLabels []metrics.Label
 }
 
 // ParseCIDRs return a possible empty list of all Network that have been parsed

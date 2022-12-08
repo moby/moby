@@ -242,10 +242,6 @@ type Config struct {
 	// Merge can be optionally provided to intercept a cluster merge
 	// and conditionally abort the merge.
 	Merge MergeDelegate
-
-	// UserEventSizeLimit is maximum byte size limit of user event `name` + `payload` in bytes.
-	// It's optimal to be relatively small, since it's going to be gossiped through the cluster.
-	UserEventSizeLimit int
 }
 
 // Init allocates the subdata structures
@@ -286,6 +282,5 @@ func DefaultConfig() *Config {
 		QuerySizeLimit:               1024,
 		EnableNameConflictResolution: true,
 		DisableCoordinates:           false,
-		UserEventSizeLimit:           512,
 	}
 }

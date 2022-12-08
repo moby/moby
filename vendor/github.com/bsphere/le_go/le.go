@@ -127,22 +127,9 @@ func (logger *Logger) Flags() int {
 
 // Output does the actual writing to the TCP connection
 func (logger *Logger) Output(calldepth int, s string) error {
-	var (
-		err        error
-		waitPeriod = time.Millisecond
-	)
-	for {
-		_, err = logger.Write([]byte(s))
-		if err != nil {
-			if connectionErr := logger.openConnection(); connectionErr != nil {
-				return connectionErr
-			}
-			waitPeriod *= 2
-			time.Sleep(waitPeriod)
-			continue
-		}
-		return err
-	}
+	_, err := logger.Write([]byte(s))
+
+	return err
 }
 
 // Panic is same as Print() but calls to panic
@@ -172,18 +159,18 @@ func (logger *Logger) Prefix() string {
 }
 
 // Print logs a message
-func (logger *Logger) Print(v ...interface{}) error {
-	return logger.Output(2, fmt.Sprint(v...))
+func (logger *Logger) Print(v ...interface{}) {
+	logger.Output(2, fmt.Sprint(v...))
 }
 
 // Printf logs a formatted message
-func (logger *Logger) Printf(format string, v ...interface{}) error {
-	return logger.Output(2, fmt.Sprintf(format, v...))
+func (logger *Logger) Printf(format string, v ...interface{}) {
+	logger.Output(2, fmt.Sprintf(format, v...))
 }
 
 // Println logs a message with a linebreak
-func (logger *Logger) Println(v ...interface{}) error {
-	return logger.Output(2, fmt.Sprintln(v...))
+func (logger *Logger) Println(v ...interface{}) {
+	logger.Output(2, fmt.Sprintln(v...))
 }
 
 // SetFlags sets the logger flags
@@ -200,10 +187,11 @@ func (logger *Logger) SetPrefix(prefix string) {
 // it adds the access token and prefix and also replaces
 // line breaks with the unicode \u2028 character
 func (logger *Logger) Write(p []byte) (n int, err error) {
-	logger.mu.Lock()
 	if err := logger.ensureOpenConnection(); err != nil {
 		return 0, err
 	}
+
+	logger.mu.Lock()
 	defer logger.mu.Unlock()
 
 	logger.makeBuf(p)

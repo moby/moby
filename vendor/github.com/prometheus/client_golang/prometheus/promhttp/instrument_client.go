@@ -73,11 +73,12 @@ func InstrumentRoundTripperCounter(counter *prometheus.CounterVec, next http.Rou
 	return func(r *http.Request) (*http.Response, error) {
 		resp, err := next.RoundTrip(r)
 		if err == nil {
-			addWithExemplar(
+			exemplarAdd(
 				counter.With(labels(code, method, r.Method, resp.StatusCode, rtOpts.extraMethods...)),
 				1,
 				rtOpts.getExemplarFn(r.Context()),
 			)
+			counter.With(labels(code, method, r.Method, resp.StatusCode, rtOpts.extraMethods...)).Inc()
 		}
 		return resp, err
 	}
@@ -116,7 +117,7 @@ func InstrumentRoundTripperDuration(obs prometheus.ObserverVec, next http.RoundT
 		start := time.Now()
 		resp, err := next.RoundTrip(r)
 		if err == nil {
-			observeWithExemplar(
+			exemplarObserve(
 				obs.With(labels(code, method, r.Method, resp.StatusCode, rtOpts.extraMethods...)),
 				time.Since(start).Seconds(),
 				rtOpts.getExemplarFn(r.Context()),

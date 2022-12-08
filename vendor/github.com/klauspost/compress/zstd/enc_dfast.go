@@ -127,8 +127,8 @@ encodeLoop:
 				panic("offset0 was 0")
 			}
 
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -439,8 +439,8 @@ encodeLoop:
 		var t int32
 		for {
 
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -785,8 +785,8 @@ encodeLoop:
 				panic("offset0 was 0")
 			}
 
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -969,7 +969,7 @@ encodeLoop:
 		te0 := tableEntry{offset: index0 + e.cur, val: uint32(cv0)}
 		te1 := tableEntry{offset: index1 + e.cur, val: uint32(cv1)}
 		longHash1 := hashLen(cv0, dFastLongTableBits, dFastLongLen)
-		longHash2 := hashLen(cv1, dFastLongTableBits, dFastLongLen)
+		longHash2 := hashLen(cv0, dFastLongTableBits, dFastLongLen)
 		e.longTable[longHash1] = te0
 		e.longTable[longHash2] = te1
 		e.markLongShardDirty(longHash1)
@@ -1002,8 +1002,8 @@ encodeLoop:
 			}
 
 			// Store this, since we have it.
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
 
 			// We have at least 4 byte match.
 			// No need to check backwards. We come straight from a match
@@ -1103,8 +1103,7 @@ func (e *doubleFastEncoderDict) Reset(d *dict, singleBlock bool) {
 	}
 
 	if allDirty || dirtyShardCnt > dLongTableShardCnt/2 {
-		//copy(e.longTable[:], e.dictLongTable)
-		e.longTable = *(*[dFastLongTableSize]tableEntry)(e.dictLongTable)
+		copy(e.longTable[:], e.dictLongTable)
 		for i := range e.longTableShardDirty {
 			e.longTableShardDirty[i] = false
 		}
@@ -1115,9 +1114,7 @@ func (e *doubleFastEncoderDict) Reset(d *dict, singleBlock bool) {
 			continue
 		}
 
-		// copy(e.longTable[i*dLongTableShardSize:(i+1)*dLongTableShardSize], e.dictLongTable[i*dLongTableShardSize:(i+1)*dLongTableShardSize])
-		*(*[dLongTableShardSize]tableEntry)(e.longTable[i*dLongTableShardSize:]) = *(*[dLongTableShardSize]tableEntry)(e.dictLongTable[i*dLongTableShardSize:])
-
+		copy(e.longTable[i*dLongTableShardSize:(i+1)*dLongTableShardSize], e.dictLongTable[i*dLongTableShardSize:(i+1)*dLongTableShardSize])
 		e.longTableShardDirty[i] = false
 	}
 }

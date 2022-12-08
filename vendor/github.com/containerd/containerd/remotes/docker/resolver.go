@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -667,18 +666,4 @@ func responseFields(resp *http.Response) logrus.Fields {
 	}
 
 	return logrus.Fields(fields)
-}
-
-// IsLocalhost checks if the registry host is local.
-func IsLocalhost(host string) bool {
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-
-	if host == "localhost" {
-		return true
-	}
-
-	ip := net.ParseIP(host)
-	return ip.IsLoopback()
 }

@@ -105,7 +105,7 @@ func (dns *Msg) SetAxfr(z string) *Msg {
 
 // SetTsig appends a TSIG RR to the message.
 // This is only a skeleton TSIG RR that is added as the last RR in the
-// additional section. The TSIG is calculated when the message is being send.
+// additional section. The Tsig is calculated when the message is being send.
 func (dns *Msg) SetTsig(z, algo string, fudge uint16, timesigned int64) *Msg {
 	t := new(TSIG)
 	t.Hdr = RR_Header{z, TypeTSIG, ClassANY, 0, 0}
@@ -317,12 +317,6 @@ func Fqdn(s string) string {
 	return s + "."
 }
 
-// CanonicalName returns the domain name in canonical form. A name in canonical
-// form is lowercase and fully qualified. See Section 6.2 in RFC 4034.
-func CanonicalName(s string) string {
-	return strings.ToLower(Fqdn(s))
-}
-
 // Copied from the official Go code.
 
 // ReverseAddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
@@ -349,7 +343,10 @@ func ReverseAddr(addr string) (arpa string, err error) {
 	// Add it, in reverse, to the buffer
 	for i := len(ip) - 1; i >= 0; i-- {
 		v := ip[i]
-		buf = append(buf, hexDigit[v&0xF], '.', hexDigit[v>>4], '.')
+		buf = append(buf, hexDigit[v&0xF])
+		buf = append(buf, '.')
+		buf = append(buf, hexDigit[v>>4])
+		buf = append(buf, '.')
 	}
 	// Append "ip6.arpa." and return (buf already has the final .)
 	buf = append(buf, "ip6.arpa."...)
@@ -367,7 +364,7 @@ func (t Type) String() string {
 // String returns the string representation for the class c.
 func (c Class) String() string {
 	if s, ok := ClassToString[uint16(c)]; ok {
-		// Only emit mnemonics when they are unambiguous, specially ANY is in both.
+		// Only emit mnemonics when they are unambiguous, specically ANY is in both.
 		if _, ok := StringToType[s]; !ok {
 			return s
 		}

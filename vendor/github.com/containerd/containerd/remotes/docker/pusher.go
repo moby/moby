@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -262,20 +261,27 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 
 	// TODO: Support chunked upload
 
-	pushw := newPushWriter(p.dockerBase, ref, desc.Digest, p.tracker, isManifest)
+	pr, pw := io.Pipe()
+	respC := make(chan response, 1)
+	body := io.NopCloser(pr)
 
 	req.body = func() (io.ReadCloser, error) {
-		pr, pw := io.Pipe()
-		pushw.setPipe(pw)
-		return io.NopCloser(pr), nil
+		if body == nil {
+			return nil, errors.New("cannot reuse body, request must be retried")
+		}
+		// Only use the body once since pipe cannot be seeked
+		ob := body
+		body = nil
+		return ob, nil
 	}
 	req.size = desc.Size
 
 	go func() {
+		defer close(respC)
 		resp, err := req.doWithRetries(ctx, nil)
 		if err != nil {
-			pushw.setError(err)
-			pushw.Close()
+			respC <- response{err: err}
+			pr.CloseWithError(err)
 			return
 		}
 
@@ -284,13 +290,20 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 		default:
 			err := remoteserrors.NewUnexpectedStatusErr(resp)
 			log.G(ctx).WithField("resp", resp).WithField("body", string(err.(remoteserrors.ErrUnexpectedStatus).Body)).Debug("unexpected response")
-			pushw.setError(err)
-			pushw.Close()
+			pr.CloseWithError(err)
 		}
-		pushw.setResponse(resp)
+		respC <- response{Response: resp}
 	}()
 
-	return pushw, nil
+	return &pushWriter{
+		base:       p.dockerBase,
+		ref:        ref,
+		pipe:       pw,
+		responseC:  respC,
+		isManifest: isManifest,
+		expected:   desc.Digest,
+		tracker:    p.tracker,
+	}, nil
 }
 
 func getManifestPath(object string, dgst digest.Digest) []string {
@@ -312,46 +325,21 @@ func getManifestPath(object string, dgst digest.Digest) []string {
 	return []string{"manifests", object}
 }
 
+type response struct {
+	*http.Response
+	err error
+}
+
 type pushWriter struct {
 	base *dockerBase
 	ref  string
 
-	pipe *io.PipeWriter
-
-	pipeC     chan *io.PipeWriter
-	respC     chan *http.Response
-	closeOnce sync.Once
-	errC      chan error
-
+	pipe       *io.PipeWriter
+	responseC  <-chan response
 	isManifest bool
 
 	expected digest.Digest
 	tracker  StatusTracker
-}
-
-func newPushWriter(db *dockerBase, ref string, expected digest.Digest, tracker StatusTracker, isManifest bool) *pushWriter {
-	// Initialize and create response
-	return &pushWriter{
-		base:       db,
-		ref:        ref,
-		expected:   expected,
-		tracker:    tracker,
-		pipeC:      make(chan *io.PipeWriter, 1),
-		respC:      make(chan *http.Response, 1),
-		errC:       make(chan error, 1),
-		isManifest: isManifest,
-	}
-}
-
-func (pw *pushWriter) setPipe(p *io.PipeWriter) {
-	pw.pipeC <- p
-}
-
-func (pw *pushWriter) setError(err error) {
-	pw.errC <- err
-}
-func (pw *pushWriter) setResponse(resp *http.Response) {
-	pw.respC <- resp
 }
 
 func (pw *pushWriter) Write(p []byte) (n int, err error) {
@@ -359,34 +347,6 @@ func (pw *pushWriter) Write(p []byte) (n int, err error) {
 	if err != nil {
 		return n, err
 	}
-
-	if pw.pipe == nil {
-		p, ok := <-pw.pipeC
-		if !ok {
-			return 0, io.ErrClosedPipe
-		}
-		pw.pipe = p
-	} else {
-		select {
-		case p, ok := <-pw.pipeC:
-			if !ok {
-				return 0, io.ErrClosedPipe
-			}
-			pw.pipe.CloseWithError(content.ErrReset)
-			pw.pipe = p
-
-			// If content has already been written, the bytes
-			// cannot be written and the caller must reset
-			if status.Offset > 0 {
-				status.Offset = 0
-				status.UpdatedAt = time.Now()
-				pw.tracker.SetStatus(pw.ref, status)
-				return 0, content.ErrReset
-			}
-		default:
-		}
-	}
-
 	n, err = pw.pipe.Write(p)
 	status.Offset += int64(n)
 	status.UpdatedAt = time.Now()
@@ -395,21 +355,13 @@ func (pw *pushWriter) Write(p []byte) (n int, err error) {
 }
 
 func (pw *pushWriter) Close() error {
-	// Ensure pipeC is closed but handle `Close()` being
-	// called multiple times without panicking
-	pw.closeOnce.Do(func() {
-		close(pw.pipeC)
-	})
-	if pw.pipe != nil {
-		status, err := pw.tracker.GetStatus(pw.ref)
-		if err == nil && !status.Committed {
-			// Closing an incomplete writer. Record this as an error so that following write can retry it.
-			status.ErrClosed = errors.New("closed incomplete writer")
-			pw.tracker.SetStatus(pw.ref, status)
-		}
-		return pw.pipe.Close()
+	status, err := pw.tracker.GetStatus(pw.ref)
+	if err == nil && !status.Committed {
+		// Closing an incomplete writer. Record this as an error so that following write can retry it.
+		status.ErrClosed = errors.New("closed incomplete writer")
+		pw.tracker.SetStatus(pw.ref, status)
 	}
-	return nil
+	return pw.pipe.Close()
 }
 
 func (pw *pushWriter) Status() (content.Status, error) {
@@ -436,43 +388,18 @@ func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Di
 		return err
 	}
 	// TODO: timeout waiting for response
-	var resp *http.Response
-	select {
-	case err := <-pw.errC:
-		if err != nil {
-			return err
-		}
-	case resp = <-pw.respC:
-		defer resp.Body.Close()
-	case p, ok := <-pw.pipeC:
-		// check whether the pipe has changed in the commit, because sometimes Write
-		// can complete successfully, but the pipe may have changed. In that case, the
-		// content needs to be reset.
-		if !ok {
-			return io.ErrClosedPipe
-		}
-		pw.pipe.CloseWithError(content.ErrReset)
-		pw.pipe = p
-		status, err := pw.tracker.GetStatus(pw.ref)
-		if err != nil {
-			return err
-		}
-		// If content has already been written, the bytes
-		// cannot be written again and the caller must reset
-		if status.Offset > 0 {
-			status.Offset = 0
-			status.UpdatedAt = time.Now()
-			pw.tracker.SetStatus(pw.ref, status)
-			return content.ErrReset
-		}
+	resp := <-pw.responseC
+	if resp.err != nil {
+		return resp.err
 	}
+	defer resp.Response.Body.Close()
 
 	// 201 is specified return status, some registries return
 	// 200, 202 or 204.
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent, http.StatusAccepted:
 	default:
-		return remoteserrors.NewUnexpectedStatusErr(resp)
+		return remoteserrors.NewUnexpectedStatusErr(resp.Response)
 	}
 
 	status, err := pw.tracker.GetStatus(pw.ref)

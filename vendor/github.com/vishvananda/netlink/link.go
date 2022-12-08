@@ -35,13 +35,10 @@ type LinkAttrs struct {
 	Alias        string
 	Statistics   *LinkStatistics
 	Promisc      int
-	Allmulti     int
-	Multi        int
 	Xdp          *LinkXdp
 	EncapType    string
 	Protinfo     *Protinfo
 	OperState    LinkOperState
-	PhysSwitchID int
 	NetNsID      int
 	NumTxQueues  int
 	NumRxQueues  int
@@ -457,19 +454,6 @@ func (ipvlan *IPVlan) Attrs() *LinkAttrs {
 
 func (ipvlan *IPVlan) Type() string {
 	return "ipvlan"
-}
-
-// IPVtap - IPVtap is a virtual interfaces based on ipvlan
-type IPVtap struct {
-	IPVlan
-}
-
-func (ipvtap *IPVtap) Attrs() *LinkAttrs {
-	return &ipvtap.LinkAttrs
-}
-
-func (ipvtap IPVtap) Type() string {
-	return "ipvtap"
 }
 
 // VlanProtocol type
@@ -962,14 +946,6 @@ func (b *BondSlave) SlaveType() string {
 	return "bond"
 }
 
-type VrfSlave struct {
-	Table uint32
-}
-
-func (v *VrfSlave) SlaveType() string {
-	return "vrf"
-}
-
 // Geneve devices must specify RemoteIP and ID (VNI) on create
 // https://github.com/torvalds/linux/blob/47ec5303d73ea344e84f46660fff693c57641386/drivers/net/geneve.c#L1209-L1223
 type Geneve struct {
@@ -1038,7 +1014,6 @@ type Iptun struct {
 	EncapType  uint16
 	EncapFlags uint16
 	FlowBased  bool
-	Proto      uint8
 }
 
 func (iptun *Iptun) Attrs() *LinkAttrs {
@@ -1073,37 +1048,6 @@ func (ip6tnl *Ip6tnl) Attrs() *LinkAttrs {
 func (ip6tnl *Ip6tnl) Type() string {
 	return "ip6tnl"
 }
-
-// from https://elixir.bootlin.com/linux/v5.15.4/source/include/uapi/linux/if_tunnel.h#L84
-type TunnelEncapType uint16
-
-const (
-	None TunnelEncapType = iota
-	FOU
-	GUE
-)
-
-// from https://elixir.bootlin.com/linux/v5.15.4/source/include/uapi/linux/if_tunnel.h#L91
-type TunnelEncapFlag uint16
-
-const (
-	CSum    TunnelEncapFlag = 1 << 0
-	CSum6                   = 1 << 1
-	RemCSum                 = 1 << 2
-)
-
-// from https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/ip6_tunnel.h#L12
-type IP6TunnelFlag uint16
-
-const (
-	IP6_TNL_F_IGN_ENCAP_LIMIT    IP6TunnelFlag = 1  // don't add encapsulation limit if one isn't present in inner packet
-	IP6_TNL_F_USE_ORIG_TCLASS                  = 2  // copy the traffic class field from the inner packet
-	IP6_TNL_F_USE_ORIG_FLOWLABEL               = 4  // copy the flowlabel from the inner packet
-	IP6_TNL_F_MIP6_DEV                         = 8  // being used for Mobile IPv6
-	IP6_TNL_F_RCV_DSCP_COPY                    = 10 // copy DSCP from the outer packet
-	IP6_TNL_F_USE_ORIG_FWMARK                  = 20 // copy fwmark from inner packet
-	IP6_TNL_F_ALLOW_LOCAL_REMOTE               = 40 // allow remote endpoint on the local node
-)
 
 type Sittun struct {
 	LinkAttrs
@@ -1316,27 +1260,11 @@ func (ipoib *IPoIB) Type() string {
 	return "ipoib"
 }
 
-type BareUDP struct {
-	LinkAttrs
-	Port       uint16
-	EtherType  uint16
-	SrcPortMin uint16
-	MultiProto bool
-}
-
-func (bareudp *BareUDP) Attrs() *LinkAttrs {
-	return &bareudp.LinkAttrs
-}
-
-func (bareudp *BareUDP) Type() string {
-	return "bareudp"
-}
-
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |
 // gre | gretap | ip6gre | ip6gretap | vti | vti6 | nlmon |
-// bond_slave | ipvlan | xfrm | bareudp
+// bond_slave | ipvlan | xfrm
 
 // LinkNotFoundError wraps the various not found errors when
 // getting/reading links. This is intended for better error

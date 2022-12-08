@@ -82,6 +82,9 @@ func (w withEndpoint) Apply(o *internal.DialSettings) {
 
 // WithScopes returns a ClientOption that overrides the default OAuth2 scopes
 // to be used for a service.
+//
+// If both WithScopes and WithTokenSource are used, scope settings from the
+// token source will be used instead.
 func WithScopes(scope ...string) ClientOption {
 	return withScopes(scope)
 }
@@ -305,9 +308,9 @@ func (w withClientCertSource) Apply(o *internal.DialSettings) {
 //
 // This is an EXPERIMENTAL API and may be changed or removed in the future.
 //
-// This option has been replaced by `impersonate` package:
+// Deprecated: This option has been replaced by `impersonate` package:
 // `google.golang.org/api/impersonate`. Please use the `impersonate` package
-// instead.
+// instead with the WithTokenSource option.
 func ImpersonateCredentials(target string, delegates ...string) ClientOption {
 	return impersonateServiceAccount{
 		target:    target,

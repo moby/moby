@@ -71,10 +71,8 @@ type ExitStatus struct {
 
 // Result returns the exit code and time of the exit status.
 // An error may be returned here to which indicates there was an error
-//
-//	at some point while waiting for the exit status. It does not signify
-//	an error with the process itself.
-//
+//   at some point while waiting for the exit status. It does not signify
+//   an error with the process itself.
 // If an error is returned, the process may still be running.
 func (s ExitStatus) Result() (uint32, time.Time, error) {
 	return s.code, s.exitedAt, s.err

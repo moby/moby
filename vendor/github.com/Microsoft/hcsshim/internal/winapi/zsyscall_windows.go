@@ -50,6 +50,7 @@ var (
 	procSetJobCompartmentId                    = modiphlpapi.NewProc("SetJobCompartmentId")
 	procSearchPathW                            = modkernel32.NewProc("SearchPathW")
 	procCreateRemoteThread                     = modkernel32.NewProc("CreateRemoteThread")
+	procGetQueuedCompletionStatus              = modkernel32.NewProc("GetQueuedCompletionStatus")
 	procIsProcessInJob                         = modkernel32.NewProc("IsProcessInJob")
 	procQueryInformationJobObject              = modkernel32.NewProc("QueryInformationJobObject")
 	procOpenJobObjectW                         = modkernel32.NewProc("OpenJobObjectW")
@@ -60,7 +61,6 @@ var (
 	procLogonUserW                             = modadvapi32.NewProc("LogonUserW")
 	procLocalAlloc                             = modkernel32.NewProc("LocalAlloc")
 	procLocalFree                              = modkernel32.NewProc("LocalFree")
-	procNtQueryInformationProcess              = modntdll.NewProc("NtQueryInformationProcess")
 	procGetActiveProcessorCount                = modkernel32.NewProc("GetActiveProcessorCount")
 	procCM_Get_Device_ID_List_SizeA            = modcfgmgr32.NewProc("CM_Get_Device_ID_List_SizeA")
 	procCM_Get_Device_ID_ListA                 = modcfgmgr32.NewProc("CM_Get_Device_ID_ListA")
@@ -100,7 +100,7 @@ func resizePseudoConsole(hPc windows.Handle, size uint32) (hr error) {
 	return
 }
 
-func NtQuerySystemInformation(systemInfoClass int, systemInformation unsafe.Pointer, systemInfoLength uint32, returnLength *uint32) (status uint32) {
+func NtQuerySystemInformation(systemInfoClass int, systemInformation uintptr, systemInfoLength uint32, returnLength *uint32) (status uint32) {
 	r0, _, _ := syscall.Syscall6(procNtQuerySystemInformation.Addr(), 4, uintptr(systemInfoClass), uintptr(systemInformation), uintptr(systemInfoLength), uintptr(unsafe.Pointer(returnLength)), 0, 0)
 	status = uint32(r0)
 	return
@@ -140,7 +140,19 @@ func CreateRemoteThread(process windows.Handle, sa *windows.SecurityAttributes, 
 	return
 }
 
-func IsProcessInJob(procHandle windows.Handle, jobHandle windows.Handle, result *int32) (err error) {
+func GetQueuedCompletionStatus(cphandle windows.Handle, qty *uint32, key *uintptr, overlapped **windows.Overlapped, timeout uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetQueuedCompletionStatus.Addr(), 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func IsProcessInJob(procHandle windows.Handle, jobHandle windows.Handle, result *bool) (err error) {
 	r1, _, e1 := syscall.Syscall(procIsProcessInJob.Addr(), 3, uintptr(procHandle), uintptr(jobHandle), uintptr(unsafe.Pointer(result)))
 	if r1 == 0 {
 		if e1 != 0 {
@@ -152,7 +164,7 @@ func IsProcessInJob(procHandle windows.Handle, jobHandle windows.Handle, result 
 	return
 }
 
-func QueryInformationJobObject(jobHandle windows.Handle, infoClass uint32, jobObjectInfo unsafe.Pointer, jobObjectInformationLength uint32, lpReturnLength *uint32) (err error) {
+func QueryInformationJobObject(jobHandle windows.Handle, infoClass uint32, jobObjectInfo uintptr, jobObjectInformationLength uint32, lpReturnLength *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procQueryInformationJobObject.Addr(), 5, uintptr(jobHandle), uintptr(infoClass), uintptr(jobObjectInfo), uintptr(jobObjectInformationLength), uintptr(unsafe.Pointer(lpReturnLength)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
@@ -241,12 +253,6 @@ func LocalAlloc(flags uint32, size int) (ptr uintptr) {
 
 func LocalFree(ptr uintptr) {
 	syscall.Syscall(procLocalFree.Addr(), 1, uintptr(ptr), 0, 0)
-	return
-}
-
-func NtQueryInformationProcess(processHandle windows.Handle, processInfoClass uint32, processInfo unsafe.Pointer, processInfoLength uint32, returnLength *uint32) (status uint32) {
-	r0, _, _ := syscall.Syscall6(procNtQueryInformationProcess.Addr(), 5, uintptr(processHandle), uintptr(processInfoClass), uintptr(processInfo), uintptr(processInfoLength), uintptr(unsafe.Pointer(returnLength)), 0)
-	status = uint32(r0)
 	return
 }
 

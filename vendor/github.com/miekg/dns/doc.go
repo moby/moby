@@ -159,7 +159,7 @@ shows the options you have and what functions to call.
 TRANSACTION SIGNATURE
 
 An TSIG or transaction signature adds a HMAC TSIG record to each message sent.
-The supported algorithms include: HmacSHA1, HmacSHA256 and HmacSHA512.
+The supported algorithms include: HmacMD5, HmacSHA1, HmacSHA256 and HmacSHA512.
 
 Basic use pattern when querying with a TSIG name "axfr." (note that these key names
 must be fully qualified - as they are domain names) and the base64 secret
@@ -174,7 +174,7 @@ changes to the RRset after calling SetTsig() the signature will be incorrect.
 	c.TsigSecret = map[string]string{"axfr.": "so6ZGir4GPAqINNh9U5c3A=="}
 	m := new(dns.Msg)
 	m.SetQuestion("miek.nl.", dns.TypeMX)
-	m.SetTsig("axfr.", dns.HmacSHA256, 300, time.Now().Unix())
+	m.SetTsig("axfr.", dns.HmacMD5, 300, time.Now().Unix())
 	...
 	// When sending the TSIG RR is calculated and filled in before sending
 
@@ -187,36 +187,12 @@ request an AXFR for miek.nl. with TSIG key named "axfr." and secret
 	m := new(dns.Msg)
 	t.TsigSecret = map[string]string{"axfr.": "so6ZGir4GPAqINNh9U5c3A=="}
 	m.SetAxfr("miek.nl.")
-	m.SetTsig("axfr.", dns.HmacSHA256, 300, time.Now().Unix())
+	m.SetTsig("axfr.", dns.HmacMD5, 300, time.Now().Unix())
 	c, err := t.In(m, "176.58.119.54:53")
 	for r := range c { ... }
 
 You can now read the records from the transfer as they come in. Each envelope
 is checked with TSIG. If something is not correct an error is returned.
-
-A custom TSIG implementation can be used. This requires additional code to
-perform any session establishment and signature generation/verification. The
-client must be configured with an implementation of the TsigProvider interface:
-
-	type Provider struct{}
-
-	func (*Provider) Generate(msg []byte, tsig *dns.TSIG) ([]byte, error) {
-		// Use tsig.Hdr.Name and tsig.Algorithm in your code to
-		// generate the MAC using msg as the payload.
-	}
-
-	func (*Provider) Verify(msg []byte, tsig *dns.TSIG) error {
-		// Use tsig.Hdr.Name and tsig.Algorithm in your code to verify
-		// that msg matches the value in tsig.MAC.
-	}
-
-	c := new(dns.Client)
-	c.TsigProvider = new(Provider)
-	m := new(dns.Msg)
-	m.SetQuestion("miek.nl.", dns.TypeMX)
-	m.SetTsig(keyname, dns.HmacSHA256, 300, time.Now().Unix())
-	...
-	// TSIG RR is calculated by calling your Generate method
 
 Basic use pattern validating and replying to a message that has TSIG set.
 
@@ -231,9 +207,9 @@ Basic use pattern validating and replying to a message that has TSIG set.
 		if r.IsTsig() != nil {
 			if w.TsigStatus() == nil {
 				// *Msg r has an TSIG record and it was validated
-				m.SetTsig("axfr.", dns.HmacSHA256, 300, time.Now().Unix())
+				m.SetTsig("axfr.", dns.HmacMD5, 300, time.Now().Unix())
 			} else {
-				// *Msg r has an TSIG records and it was not validated
+				// *Msg r has an TSIG records and it was not valided
 			}
 		}
 		w.WriteMsg(m)
@@ -284,7 +260,7 @@ From RFC 2931:
     on requests and responses, and protection of the overall integrity of a response.
 
 It works like TSIG, except that SIG(0) uses public key cryptography, instead of
-the shared secret approach in TSIG. Supported algorithms: ECDSAP256SHA256,
+the shared secret approach in TSIG. Supported algorithms: DSA, ECDSAP256SHA256,
 ECDSAP384SHA384, RSASHA1, RSASHA256 and RSASHA512.
 
 Signing subsequent messages in multi-message sessions is not implemented.

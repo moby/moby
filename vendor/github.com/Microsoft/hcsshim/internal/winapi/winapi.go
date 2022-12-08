@@ -2,4 +2,4 @@
 // be thought of as an extension to golang.org/x/sys/windows.
 package winapi
 
-//go:generate go run ..\..\mksyscall_windows.go -output zsyscall_windows.go user.go console.go system.go net.go path.go thread.go jobobject.go logon.go memory.go process.go processor.go devices.go filesystem.go errors.go
+//go:generate go run ..\..\mksyscall_windows.go -output zsyscall_windows.go console.go system.go net.go path.go thread.go iocp.go jobobject.go logon.go memory.go process.go processor.go devices.go filesystem.go errors.go

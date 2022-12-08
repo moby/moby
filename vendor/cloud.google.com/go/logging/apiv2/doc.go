@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,54 @@
 // Package logging is an auto-generated package for the
 // Cloud Logging API.
 //
-// Writes log entries and manages your Cloud Logging configuration. The table
-// entries below are presented in alphabetical order, not in order of common
-// use. For explanations of the concepts found in the table entries, read the
-// documentation at https://cloud.google.com/logging/docs.
+// Writes log entries and manages your Cloud Logging configuration.
 //
-// Use of Context
+// # Example usage
+//
+// To get started with this package, create a client.
+//
+//	ctx := context.Background()
+//	// This snippet has been automatically generated and should be regarded as a code template only.
+//	// It will require modifications to work:
+//	// - It may require correct/in-range values for request initialization.
+//	// - It may require specifying regional endpoints when creating the service client as shown in:
+//	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+//	c, err := logging.NewClient(ctx)
+//	if err != nil {
+//		// TODO: Handle error.
+//	}
+//	defer c.Close()
+//
+// The client will use your default application credentials. Clients should be reused instead of created as needed.
+// The methods of Client are safe for concurrent use by multiple goroutines.
+// The returned client must be Closed when it is done being used.
+//
+// # Using the Client
+//
+// The following is an example of making an API call with the newly created client.
+//
+//	ctx := context.Background()
+//	// This snippet has been automatically generated and should be regarded as a code template only.
+//	// It will require modifications to work:
+//	// - It may require correct/in-range values for request initialization.
+//	// - It may require specifying regional endpoints when creating the service client as shown in:
+//	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+//	c, err := logging.NewClient(ctx)
+//	if err != nil {
+//		// TODO: Handle error.
+//	}
+//	defer c.Close()
+//
+//	req := &loggingpb.DeleteLogRequest{
+//		// TODO: Fill request struct fields.
+//		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/logging/v2#DeleteLogRequest.
+//	}
+//	err = c.DeleteLog(ctx, req)
+//	if err != nil {
+//		// TODO: Handle error.
+//	}
+//
+// # Use of Context
 //
 // The ctx passed to NewClient is used for authentication requests and
 // for creating the underlying connection, but is not used for subsequent calls.
@@ -31,7 +73,7 @@
 // To close the open connection, use the Close() method.
 //
 // For information about setting deadlines, reusing contexts, and more
-// please visit pkg.go.dev/cloud.google.com/go.
+// please visit https://pkg.go.dev/cloud.google.com/go.
 package logging // import "cloud.google.com/go/logging/apiv2"
 
 import (
@@ -51,7 +93,14 @@ import (
 type clientHookParams struct{}
 type clientHook func(context.Context, clientHookParams) ([]option.ClientOption, error)
 
-const versionClient = "20210518"
+var versionClient string
+
+func getVersionClient() string {
+	if versionClient == "" {
+		return "UNKNOWN"
+	}
+	return versionClient
+}
 
 func insertMetadata(ctx context.Context, mds ...metadata.MD) context.Context {
 	out, _ := metadata.FromOutgoingContext(ctx)

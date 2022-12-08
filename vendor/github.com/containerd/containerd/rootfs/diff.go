@@ -44,7 +44,7 @@ func CreateDiff(ctx context.Context, snapshotID string, sn snapshots.Snapshotter
 		return ocispec.Descriptor{}, err
 	}
 
-	lowerKey := fmt.Sprintf("%s-parent-view-%s", info.Parent, uniquePart())
+	lowerKey := fmt.Sprintf("%s-parent-view", info.Parent)
 	lower, err := sn.View(ctx, lowerKey, info.Parent)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -58,7 +58,7 @@ func CreateDiff(ctx context.Context, snapshotID string, sn snapshots.Snapshotter
 			return ocispec.Descriptor{}, err
 		}
 	} else {
-		upperKey := fmt.Sprintf("%s-view-%s", snapshotID, uniquePart())
+		upperKey := fmt.Sprintf("%s-view", snapshotID)
 		upper, err = sn.View(ctx, upperKey, snapshotID)
 		if err != nil {
 			return ocispec.Descriptor{}, err

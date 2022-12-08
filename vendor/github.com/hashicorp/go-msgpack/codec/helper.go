@@ -45,13 +45,6 @@ const (
 	// for debugging, set this to false, to catch panic traces.
 	// Note that this will always cause rpc tests to fail, since they need io.EOF sent via panic.
 	recoverPanicToErr = true
-
-	// if checkStructForEmptyValue, check structs fields to see if an empty value.
-	// This could be an expensive call, so possibly disable it.
-	checkStructForEmptyValue = false
-
-	// if derefForIsEmptyValue, deref pointers and interfaces when checking isEmptyValue
-	derefForIsEmptyValue = false
 )
 
 type charEncoding uint8

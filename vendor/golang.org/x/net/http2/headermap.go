@@ -27,14 +27,7 @@ func buildCommonHeaderMaps() {
 		"accept-language",
 		"accept-ranges",
 		"age",
-		"access-control-allow-credentials",
-		"access-control-allow-headers",
-		"access-control-allow-methods",
 		"access-control-allow-origin",
-		"access-control-expose-headers",
-		"access-control-max-age",
-		"access-control-request-headers",
-		"access-control-request-method",
 		"allow",
 		"authorization",
 		"cache-control",
@@ -60,7 +53,6 @@ func buildCommonHeaderMaps() {
 		"link",
 		"location",
 		"max-forwards",
-		"origin",
 		"proxy-authenticate",
 		"proxy-authorization",
 		"range",
@@ -76,8 +68,6 @@ func buildCommonHeaderMaps() {
 		"vary",
 		"via",
 		"www-authenticate",
-		"x-forwarded-for",
-		"x-forwarded-proto",
 	}
 	commonLowerHeader = make(map[string]string, len(common))
 	commonCanonHeader = make(map[string]string, len(common))
@@ -94,12 +84,4 @@ func lowerHeader(v string) (lower string, ascii bool) {
 		return s, true
 	}
 	return asciiToLower(v)
-}
-
-func canonicalHeader(v string) string {
-	buildCommonHeaderMapsOnce()
-	if s, ok := commonCanonHeader[v]; ok {
-		return s
-	}
-	return http.CanonicalHeaderKey(v)
 }

@@ -1,13 +1,15 @@
 // Copyright 2022 Google LLC.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Package client is a cross-platform client for the signer binary (a.k.a."EnterpriseCertSigner").
 //
-// Client is a cross-platform client for the signer binary (a.k.a."EnterpriseCertSigner").
 // The signer binary is OS-specific, but exposes a standard set of APIs for the client to use.
 package client
 
 import (
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/gob"
@@ -67,14 +69,16 @@ func (k *Key) CertificateChain() [][]byte {
 // Close closes the RPC connection and kills the signer subprocess.
 // Call this to free up resources when the Key object is no longer needed.
 func (k *Key) Close() error {
-	if err := k.client.Close(); err != nil {
-		return fmt.Errorf("failed to close RPC connection: %w", err)
-	}
 	if err := k.cmd.Process.Kill(); err != nil {
 		return fmt.Errorf("failed to kill signer process: %w", err)
 	}
 	if err := k.cmd.Wait(); err.Error() != "signal: killed" {
 		return fmt.Errorf("signer process was not killed: %w", err)
+	}
+	// The Pipes connecting the RPC client should have been closed when the signer subprocess was killed.
+	// Calling `k.client.Close()` before `k.cmd.Process.Kill()` or `k.cmd.Wait()` _will_ cause a segfault.
+	if err := k.client.Close(); err.Error() != "close |0: file already closed" {
+		return fmt.Errorf("failed to close RPC connection: %w", err)
 	}
 	return nil
 }
@@ -84,8 +88,11 @@ func (k *Key) Public() crypto.PublicKey {
 	return k.publicKey
 }
 
-// Sign signs a message by encrypting a message digest, using the specified signer options.
+// Sign signs a message digest, using the specified signer options.
 func (k *Key) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (signed []byte, err error) {
+	if opts != nil && opts.HashFunc() != 0 && len(digest) != opts.HashFunc().Size() {
+		return nil, fmt.Errorf("Digest length of %v bytes does not match Hash function size of %v bytes", len(digest), opts.HashFunc().Size())
+	}
 	err = k.client.Call(signAPI, SignArgs{Digest: digest, Opts: opts}, &signed)
 	return
 }
@@ -145,6 +152,16 @@ func Cred(configFilePath string) (*Key, error) {
 	k.publicKey, ok = publicKey.(crypto.PublicKey)
 	if !ok {
 		return nil, fmt.Errorf("invalid public key type: %T", publicKey)
+	}
+
+	switch pub := k.publicKey.(type) {
+	case *rsa.PublicKey:
+		if pub.Size() < 256 {
+			return nil, fmt.Errorf("RSA modulus size is less than 2048 bits: %v", pub.Size()*8)
+		}
+	case *ecdsa.PublicKey:
+	default:
+		return nil, fmt.Errorf("unsupported public key type: %v", pub)
 	}
 
 	return k, nil

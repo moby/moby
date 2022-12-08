@@ -11,24 +11,6 @@ type Scope uint8
 
 type NextHopFlag int
 
-const (
-	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
-	RT_FILTER_SCOPE
-	RT_FILTER_TYPE
-	RT_FILTER_TOS
-	RT_FILTER_IIF
-	RT_FILTER_OIF
-	RT_FILTER_DST
-	RT_FILTER_SRC
-	RT_FILTER_GW
-	RT_FILTER_TABLE
-	RT_FILTER_HOPLIMIT
-	RT_FILTER_PRIORITY
-	RT_FILTER_MARK
-	RT_FILTER_MASK
-	RT_FILTER_REALM
-)
-
 type Destination interface {
 	Family() int
 	Decode([]byte) error
@@ -59,7 +41,6 @@ type Route struct {
 	MultiPath        []*NexthopInfo
 	Protocol         RouteProtocol
 	Priority         int
-	Family           int
 	Table            int
 	Type             int
 	Tos              int
@@ -68,7 +49,6 @@ type Route struct {
 	NewDst           Destination
 	Encap            Encap
 	Via              Destination
-	Realm            int
 	MTU              int
 	Window           int
 	Rtt              int
@@ -114,7 +94,6 @@ func (r Route) String() string {
 	}
 	elems = append(elems, fmt.Sprintf("Flags: %s", r.ListFlags()))
 	elems = append(elems, fmt.Sprintf("Table: %d", r.Table))
-	elems = append(elems, fmt.Sprintf("Realm: %d", r.Realm))
 	return fmt.Sprintf("{%s}", strings.Join(elems, " "))
 }
 
@@ -128,7 +107,6 @@ func (r Route) Equal(x Route) bool {
 		nexthopInfoSlice(r.MultiPath).Equal(x.MultiPath) &&
 		r.Protocol == x.Protocol &&
 		r.Priority == x.Priority &&
-		r.Realm == x.Realm &&
 		r.Table == x.Table &&
 		r.Type == x.Type &&
 		r.Tos == x.Tos &&

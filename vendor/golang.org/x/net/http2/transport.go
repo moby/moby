@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"math"
 	mathrand "math/rand"
@@ -502,15 +501,6 @@ func authorityAddr(scheme string, authority string) (addr string) {
 	return net.JoinHostPort(host, port)
 }
 
-var retryBackoffHook func(time.Duration) *time.Timer
-
-func backoffNewTimer(d time.Duration) *time.Timer {
-	if retryBackoffHook != nil {
-		return retryBackoffHook(d)
-	}
-	return time.NewTimer(d)
-}
-
 // RoundTripOpt is like RoundTrip, but takes options.
 func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Response, error) {
 	if !(req.URL.Scheme == "https" || (req.URL.Scheme == "http" && t.AllowHTTP)) {
@@ -536,14 +526,11 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 				}
 				backoff := float64(uint(1) << (uint(retry) - 1))
 				backoff += backoff * (0.1 * mathrand.Float64())
-				d := time.Second * time.Duration(backoff)
-				timer := backoffNewTimer(d)
 				select {
-				case <-timer.C:
+				case <-time.After(time.Second * time.Duration(backoff)):
 					t.vlogf("RoundTrip retrying after failure: %v", err)
 					continue
 				case <-req.Context().Done():
-					timer.Stop()
 					err = req.Context().Err()
 				}
 			}
@@ -1088,7 +1075,7 @@ var errRequestCanceled = errors.New("net/http: request canceled")
 func commaSeparatedTrailers(req *http.Request) (string, error) {
 	keys := make([]string, 0, len(req.Trailer))
 	for k := range req.Trailer {
-		k = canonicalHeader(k)
+		k = http.CanonicalHeaderKey(k)
 		switch k {
 		case "Transfer-Encoding", "Trailer", "Content-Length":
 			return "", fmt.Errorf("invalid Trailer key %q", k)
@@ -1625,7 +1612,7 @@ func (cs *clientStream) writeRequestBody(req *http.Request) (err error) {
 
 	var sawEOF bool
 	for !sawEOF {
-		n, err := body.Read(buf)
+		n, err := body.Read(buf[:len(buf)])
 		if hasContentLen {
 			remainLen -= int64(n)
 			if remainLen == 0 && err == nil {
@@ -1928,7 +1915,7 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 
 	// Header list size is ok. Write the headers.
 	enumerateHeaders(func(name, value string) {
-		name, ascii := lowerHeader(name)
+		name, ascii := asciiToLower(name)
 		if !ascii {
 			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
 			// field names have to be ASCII characters (just as in HTTP/1.x).
@@ -1981,7 +1968,7 @@ func (cc *ClientConn) encodeTrailers(trailer http.Header) ([]byte, error) {
 	}
 
 	for k, vv := range trailer {
-		lowKey, ascii := lowerHeader(k)
+		lowKey, ascii := asciiToLower(k)
 		if !ascii {
 			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
 			// field names have to be ASCII characters (just as in HTTP/1.x).
@@ -2314,7 +2301,7 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 		Status:     status + " " + http.StatusText(statusCode),
 	}
 	for _, hf := range regularFields {
-		key := canonicalHeader(hf.Name)
+		key := http.CanonicalHeaderKey(hf.Name)
 		if key == "Trailer" {
 			t := res.Trailer
 			if t == nil {
@@ -2322,7 +2309,7 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 				res.Trailer = t
 			}
 			foreachHeaderElement(hf.Value, func(v string) {
-				t[canonicalHeader(v)] = nil
+				t[http.CanonicalHeaderKey(v)] = nil
 			})
 		} else {
 			vv := header[key]
@@ -2427,7 +2414,7 @@ func (rl *clientConnReadLoop) processTrailers(cs *clientStream, f *MetaHeadersFr
 
 	trailer := make(http.Header)
 	for _, hf := range f.RegularFields() {
-		key := canonicalHeader(hf.Name)
+		key := http.CanonicalHeaderKey(hf.Name)
 		trailer[key] = append(trailer[key], hf.Value)
 	}
 	cs.trailer = trailer
@@ -2998,11 +2985,7 @@ func (gz *gzipReader) Read(p []byte) (n int, err error) {
 }
 
 func (gz *gzipReader) Close() error {
-	if err := gz.body.Close(); err != nil {
-		return err
-	}
-	gz.zerr = fs.ErrClosed
-	return nil
+	return gz.body.Close()
 }
 
 type errorReader struct{ err error }

@@ -10,7 +10,7 @@ package dns
 // escaped dots (\.) for instance.
 // s must be a syntactically valid domain name, see IsDomainName.
 func SplitDomainName(s string) (labels []string) {
-	if s == "" {
+	if len(s) == 0 {
 		return nil
 	}
 	fqdnEnd := 0 // offset of the final '.' or the length of the name
@@ -83,7 +83,7 @@ func CompareDomainName(s1, s2 string) (n int) {
 	return
 }
 
-// CountLabel counts the number of labels in the string s.
+// CountLabel counts the the number of labels in the string s.
 // s must be a syntactically valid domain name.
 func CountLabel(s string) (labels int) {
 	if s == "." {

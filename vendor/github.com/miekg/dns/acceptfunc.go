@@ -25,7 +25,6 @@ var DefaultMsgAcceptFunc MsgAcceptFunc = defaultMsgAcceptFunc
 // MsgAcceptAction represents the action to be taken.
 type MsgAcceptAction int
 
-// Allowed returned values from a MsgAcceptFunc.
 const (
 	MsgAccept               MsgAcceptAction = iota // Accept the message
 	MsgReject                                      // Reject the message with a RcodeFormatError

@@ -257,8 +257,8 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, st
 // An example of this kind of content would be a Windows base layer, which is not supposed to be redistributed.
 //
 // This is based on the media type of the content:
-//   - application/vnd.oci.image.layer.nondistributable
-//   - application/vnd.docker.image.rootfs.foreign
+// 	- application/vnd.oci.image.layer.nondistributable
+// 	- application/vnd.docker.image.rootfs.foreign
 func SkipNonDistributableBlobs(f images.HandlerFunc) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if images.IsNonDistributable(desc.MediaType) {

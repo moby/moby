@@ -12,8 +12,7 @@ const STATUS_INFO_LENGTH_MISMATCH = 0xC0000004
 // 	ULONG                    SystemInformationLength,
 // 	PULONG                   ReturnLength
 // );
-//
-//sys NtQuerySystemInformation(systemInfoClass int, systemInformation unsafe.Pointer, systemInfoLength uint32, returnLength *uint32) (status uint32) = ntdll.NtQuerySystemInformation
+//sys NtQuerySystemInformation(systemInfoClass int, systemInformation uintptr, systemInfoLength uint32, returnLength *uint32) (status uint32) = ntdll.NtQuerySystemInformation
 
 type SYSTEM_PROCESS_INFORMATION struct {
 	NextEntryOffset              uint32         // ULONG

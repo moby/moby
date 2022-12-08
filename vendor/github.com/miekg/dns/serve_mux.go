@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -35,7 +36,7 @@ func (mux *ServeMux) match(q string, t uint16) Handler {
 		return nil
 	}
 
-	q = CanonicalName(q)
+	q = strings.ToLower(q)
 
 	var handler Handler
 	for off, end := 0, false; !end; off, end = NextLabel(q, off) {
@@ -65,7 +66,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if mux.z == nil {
 		mux.z = make(map[string]Handler)
 	}
-	mux.z[CanonicalName(pattern)] = handler
+	mux.z[Fqdn(pattern)] = handler
 	mux.m.Unlock()
 }
 
@@ -80,7 +81,7 @@ func (mux *ServeMux) HandleRemove(pattern string) {
 		panic("dns: invalid pattern " + pattern)
 	}
 	mux.m.Lock()
-	delete(mux.z, CanonicalName(pattern))
+	delete(mux.z, Fqdn(pattern))
 	mux.m.Unlock()
 }
 
@@ -91,7 +92,7 @@ func (mux *ServeMux) HandleRemove(pattern string) {
 // are redirected to the parent zone (if that is also registered),
 // otherwise the child gets the query.
 //
-// If no handler is found, or there is no question, a standard REFUSED
+// If no handler is found, or there is no question, a standard SERVFAIL
 // message is returned
 func (mux *ServeMux) ServeDNS(w ResponseWriter, req *Msg) {
 	var h Handler
@@ -102,7 +103,7 @@ func (mux *ServeMux) ServeDNS(w ResponseWriter, req *Msg) {
 	if h != nil {
 		h.ServeDNS(w, req)
 	} else {
-		handleRefused(w, req)
+		HandleFailed(w, req)
 	}
 }
 

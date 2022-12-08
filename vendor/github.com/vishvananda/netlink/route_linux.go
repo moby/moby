@@ -41,6 +41,22 @@ func (s Scope) String() string {
 	}
 }
 
+const (
+	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
+	RT_FILTER_SCOPE
+	RT_FILTER_TYPE
+	RT_FILTER_TOS
+	RT_FILTER_IIF
+	RT_FILTER_OIF
+	RT_FILTER_DST
+	RT_FILTER_SRC
+	RT_FILTER_GW
+	RT_FILTER_TABLE
+	RT_FILTER_HOPLIMIT
+	RT_FILTER_PRIORITY
+	RT_FILTER_MARK
+	RT_FILTER_MASK
+)
 
 const (
 	FLAG_ONLINK    NextHopFlag = unix.RTNH_F_ONLINK
@@ -135,6 +151,7 @@ func (e *MPLSEncap) Decode(buf []byte) error {
 	if len(buf) < 4 {
 		return fmt.Errorf("lack of bytes")
 	}
+	native := nl.NativeEndian()
 	l := native.Uint16(buf)
 	if len(buf) < int(l) {
 		return fmt.Errorf("lack of bytes")
@@ -150,6 +167,7 @@ func (e *MPLSEncap) Decode(buf []byte) error {
 
 func (e *MPLSEncap) Encode() ([]byte, error) {
 	s := nl.EncodeMPLSStack(e.Labels...)
+	native := nl.NativeEndian()
 	hdr := make([]byte, 4)
 	native.PutUint16(hdr, uint16(len(s)+4))
 	native.PutUint16(hdr[2:], nl.MPLS_IPTUNNEL_DST)
@@ -205,6 +223,7 @@ func (e *SEG6Encap) Decode(buf []byte) error {
 	if len(buf) < 4 {
 		return fmt.Errorf("lack of bytes")
 	}
+	native := nl.NativeEndian()
 	// Get Length(l) & Type(typ) : 2 + 2 bytes
 	l := native.Uint16(buf)
 	if len(buf) < int(l) {
@@ -224,6 +243,7 @@ func (e *SEG6Encap) Decode(buf []byte) error {
 }
 func (e *SEG6Encap) Encode() ([]byte, error) {
 	s, err := nl.EncodeSEG6Encap(e.Mode, e.Segments)
+	native := nl.NativeEndian()
 	hdr := make([]byte, 4)
 	native.PutUint16(hdr, uint16(len(s)+4))
 	native.PutUint16(hdr[2:], nl.SEG6_IPTUNNEL_SRH)
@@ -233,7 +253,7 @@ func (e *SEG6Encap) String() string {
 	segs := make([]string, 0, len(e.Segments))
 	// append segment backwards (from n to 0) since seg#0 is the last segment.
 	for i := len(e.Segments); i > 0; i-- {
-		segs = append(segs, e.Segments[i-1].String())
+		segs = append(segs, fmt.Sprintf("%s", e.Segments[i-1]))
 	}
 	str := fmt.Sprintf("mode %s segs %d [ %s ]", nl.SEG6EncapModeString(e.Mode),
 		len(e.Segments), strings.Join(segs, " "))
@@ -284,6 +304,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 	if err != nil {
 		return err
 	}
+	native := nl.NativeEndian()
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case nl.SEG6_LOCAL_ACTION:
@@ -313,6 +334,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 }
 func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 	var err error
+	native := nl.NativeEndian()
 	res := make([]byte, 8)
 	native.PutUint16(res, 8) // length
 	native.PutUint16(res[2:], nl.SEG6_LOCAL_ACTION)
@@ -403,7 +425,7 @@ func (e *SEG6LocalEncap) String() string {
 		segs := make([]string, 0, len(e.Segments))
 		//append segment backwards (from n to 0) since seg#0 is the last segment.
 		for i := len(e.Segments); i > 0; i-- {
-			segs = append(segs, e.Segments[i-1].String())
+			segs = append(segs, fmt.Sprintf("%s", e.Segments[i-1]))
 		}
 		strs = append(strs, fmt.Sprintf("segs %d [ %s ]", len(e.Segments), strings.Join(segs, " ")))
 	}
@@ -440,152 +462,6 @@ func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	}
 	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif {
 		return false
-	}
-	return true
-}
-
-// Encap BPF definitions
-type bpfObj struct {
-	progFd   int
-	progName string
-}
-type BpfEncap struct {
-	progs    [nl.LWT_BPF_MAX]bpfObj
-	headroom int
-}
-
-// SetProg adds a bpf function to the route via netlink RTA_ENCAP. The fd must be a bpf
-// program loaded with bpf(type=BPF_PROG_TYPE_LWT_*) matching the direction the program should
-// be applied to (LWT_BPF_IN, LWT_BPF_OUT, LWT_BPF_XMIT).
-func (e *BpfEncap) SetProg(mode, progFd int, progName string) error {
-	if progFd <= 0 {
-		return fmt.Errorf("lwt bpf SetProg: invalid fd")
-	}
-	if mode <= nl.LWT_BPF_UNSPEC || mode >= nl.LWT_BPF_XMIT_HEADROOM {
-		return fmt.Errorf("lwt bpf SetProg:invalid mode")
-	}
-	e.progs[mode].progFd = progFd
-	e.progs[mode].progName = fmt.Sprintf("%s[fd:%d]", progName, progFd)
-	return nil
-}
-
-// SetXmitHeadroom sets the xmit headroom (LWT_BPF_MAX_HEADROOM) via netlink RTA_ENCAP.
-// maximum headroom is LWT_BPF_MAX_HEADROOM
-func (e *BpfEncap) SetXmitHeadroom(headroom int) error {
-	if headroom > nl.LWT_BPF_MAX_HEADROOM || headroom < 0 {
-		return fmt.Errorf("invalid headroom size. range is 0 - %d", nl.LWT_BPF_MAX_HEADROOM)
-	}
-	e.headroom = headroom
-	return nil
-}
-
-func (e *BpfEncap) Type() int {
-	return nl.LWTUNNEL_ENCAP_BPF
-}
-func (e *BpfEncap) Decode(buf []byte) error {
-	if len(buf) < 4 {
-		return fmt.Errorf("lwt bpf decode: lack of bytes")
-	}
-	native := nl.NativeEndian()
-	attrs, err := nl.ParseRouteAttr(buf)
-	if err != nil {
-		return fmt.Errorf("lwt bpf decode: failed parsing attribute. err: %v", err)
-	}
-	for _, attr := range attrs {
-		if int(attr.Attr.Type) < 1 {
-			// nl.LWT_BPF_UNSPEC
-			continue
-		}
-		if int(attr.Attr.Type) > nl.LWT_BPF_MAX {
-			return fmt.Errorf("lwt bpf decode: received unknown attribute type: %d", attr.Attr.Type)
-		}
-		switch int(attr.Attr.Type) {
-		case nl.LWT_BPF_MAX_HEADROOM:
-			e.headroom = int(native.Uint32(attr.Value))
-		default:
-			bpfO := bpfObj{}
-			parsedAttrs, err := nl.ParseRouteAttr(attr.Value)
-			if err != nil {
-				return fmt.Errorf("lwt bpf decode: failed parsing route attribute")
-			}
-			for _, parsedAttr := range parsedAttrs {
-				switch int(parsedAttr.Attr.Type) {
-				case nl.LWT_BPF_PROG_FD:
-					bpfO.progFd = int(native.Uint32(parsedAttr.Value))
-				case nl.LWT_BPF_PROG_NAME:
-					bpfO.progName = string(parsedAttr.Value)
-				default:
-					return fmt.Errorf("lwt bpf decode: received unknown attribute: type: %d, len: %d", parsedAttr.Attr.Type, parsedAttr.Attr.Len)
-				}
-			}
-			e.progs[attr.Attr.Type] = bpfO
-		}
-	}
-	return nil
-}
-
-func (e *BpfEncap) Encode() ([]byte, error) {
-	buf := make([]byte, 0)
-	native = nl.NativeEndian()
-	for index, attr := range e.progs {
-		nlMsg := nl.NewRtAttr(index, []byte{})
-		if attr.progFd != 0 {
-			nlMsg.AddRtAttr(nl.LWT_BPF_PROG_FD, nl.Uint32Attr(uint32(attr.progFd)))
-		}
-		if attr.progName != "" {
-			nlMsg.AddRtAttr(nl.LWT_BPF_PROG_NAME, nl.ZeroTerminated(attr.progName))
-		}
-		if nlMsg.Len() > 4 {
-			buf = append(buf, nlMsg.Serialize()...)
-		}
-	}
-	if len(buf) <= 4 {
-		return nil, fmt.Errorf("lwt bpf encode: bpf obj definitions returned empty buffer")
-	}
-	if e.headroom > 0 {
-		hRoom := nl.NewRtAttr(nl.LWT_BPF_XMIT_HEADROOM, nl.Uint32Attr(uint32(e.headroom)))
-		buf = append(buf, hRoom.Serialize()...)
-	}
-	return buf, nil
-}
-
-func (e *BpfEncap) String() string {
-	progs := make([]string, 0)
-	for index, obj := range e.progs {
-		empty := bpfObj{}
-		switch index {
-		case nl.LWT_BPF_IN:
-			if obj != empty {
-				progs = append(progs, fmt.Sprintf("in: %s", obj.progName))
-			}
-		case nl.LWT_BPF_OUT:
-			if obj != empty {
-				progs = append(progs, fmt.Sprintf("out: %s", obj.progName))
-			}
-		case nl.LWT_BPF_XMIT:
-			if obj != empty {
-				progs = append(progs, fmt.Sprintf("xmit: %s", obj.progName))
-			}
-		}
-	}
-	if e.headroom > 0 {
-		progs = append(progs, fmt.Sprintf("xmit headroom: %d", e.headroom))
-	}
-	return strings.Join(progs, " ")
-}
-
-func (e *BpfEncap) Equal(x Encap) bool {
-	o, ok := x.(*BpfEncap)
-	if !ok {
-		return false
-	}
-	if e.headroom != o.headroom {
-		return false
-	}
-	for i := range o.progs {
-		if o.progs[i] != e.progs[i] {
-			return false
-		}
 	}
 	return true
 }
@@ -628,6 +504,7 @@ func (v *Via) Encode() ([]byte, error) {
 }
 
 func (v *Via) Decode(b []byte) error {
+	native := nl.NativeEndian()
 	if len(b) < 6 {
 		return fmt.Errorf("decoding failed: buffer too small (%d bytes)", len(b))
 	}
@@ -675,14 +552,14 @@ func (h *Handle) RouteAppend(route *Route) error {
 
 // RouteAddEcmp will add a route to the system.
 func RouteAddEcmp(route *Route) error {
-	return pkgHandle.RouteAddEcmp(route)
+        return pkgHandle.RouteAddEcmp(route)
 }
 
 // RouteAddEcmp will add a route to the system.
 func (h *Handle) RouteAddEcmp(route *Route) error {
-	flags := unix.NLM_F_CREATE | unix.NLM_F_ACK
-	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
-	return h.routeHandle(route, req, nl.NewRtMsg())
+        flags := unix.NLM_F_CREATE | unix.NLM_F_ACK
+        req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
+        return h.routeHandle(route, req, nl.NewRtMsg())
 }
 
 // RouteReplace will add a route to the system.
@@ -758,13 +635,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		if err != nil {
 			return err
 		}
-		switch route.Encap.Type() {
-		case nl.LWTUNNEL_ENCAP_BPF:
-			rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP|unix.NLA_F_NESTED, buf))
-		default:
-			rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP, buf))
-		}
-
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP, buf))
 	}
 
 	if route.Src != nil {
@@ -877,11 +748,6 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		native.PutUint32(b, uint32(route.Priority))
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_PRIORITY, b))
 	}
-	if route.Realm > 0 {
-		b := make([]byte, 4)
-		native.PutUint32(b, uint32(route.Realm))
-		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_FLOW, b))
-	}
 	if route.Tos > 0 {
 		msg.Tos = uint8(route.Tos)
 	}
@@ -974,7 +840,10 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		req.AddData(attr)
 	}
 
-	b := make([]byte, 4)
+	var (
+		b      = make([]byte, 4)
+		native = nl.NativeEndian()
+	)
 	native.PutUint32(b, uint32(route.LinkIndex))
 
 	req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
@@ -1013,9 +882,8 @@ func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, e
 // All rules must be defined in RouteFilter struct
 func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
-	rtmsg := nl.NewRtMsg()
-	rtmsg.Family = uint8(family)
-	req.AddData(rtmsg)
+	infmsg := nl.NewIfInfomsg(family)
+	req.AddData(infmsg)
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWROUTE)
 	if err != nil {
@@ -1050,8 +918,6 @@ func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64)
 			case filterMask&RT_FILTER_TYPE != 0 && route.Type != filter.Type:
 				continue
 			case filterMask&RT_FILTER_TOS != 0 && route.Tos != filter.Tos:
-				continue
-			case filterMask&RT_FILTER_REALM != 0 && route.Realm != filter.Realm:
 				continue
 			case filterMask&RT_FILTER_OIF != 0 && route.LinkIndex != filter.LinkIndex:
 				continue
@@ -1090,9 +956,9 @@ func deserializeRoute(m []byte) (Route, error) {
 		Type:     int(msg.Type),
 		Tos:      int(msg.Tos),
 		Flags:    int(msg.Flags),
-		Family:   int(msg.Family),
 	}
 
+	native := nl.NativeEndian()
 	var encap, encapType syscall.NetlinkRouteAttr
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
@@ -1119,8 +985,6 @@ func deserializeRoute(m []byte) (Route, error) {
 			route.ILinkIndex = int(native.Uint32(attr.Value[0:4]))
 		case unix.RTA_PRIORITY:
 			route.Priority = int(native.Uint32(attr.Value[0:4]))
-		case unix.RTA_FLOW:
-			route.Realm = int(native.Uint32(attr.Value[0:4]))
 		case unix.RTA_TABLE:
 			route.Table = int(native.Uint32(attr.Value[0:4]))
 		case unix.RTA_MULTIPATH:
@@ -1276,11 +1140,6 @@ func deserializeRoute(m []byte) (Route, error) {
 			if err := e.Decode(encap.Value); err != nil {
 				return route, err
 			}
-		case nl.LWTUNNEL_ENCAP_BPF:
-			e = &BpfEncap{}
-			if err := e.Decode(encap.Value); err != nil {
-				return route, err
-			}
 		}
 		route.Encap = e
 	}
@@ -1291,8 +1150,6 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGetOptions contains a set of options to use with
 // RouteGetWithOptions
 type RouteGetOptions struct {
-	Iif     string
-	Oif     string
 	VrfName string
 	SrcAddr net.IP
 }
@@ -1341,31 +1198,10 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			if err != nil {
 				return nil, err
 			}
-			b := make([]byte, 4)
-			native.PutUint32(b, uint32(link.Attrs().Index))
-
-			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
-		}
-
-		if len(options.Iif) > 0 {
-			link, err := LinkByName(options.Iif)
-			if err != nil {
-				return nil, err
-			}
-
-			b := make([]byte, 4)
-			native.PutUint32(b, uint32(link.Attrs().Index))
-
-			req.AddData(nl.NewRtAttr(unix.RTA_IIF, b))
-		}
-
-		if len(options.Oif) > 0 {
-			link, err := LinkByName(options.Oif)
-			if err != nil {
-				return nil, err
-			}
-
-			b := make([]byte, 4)
+			var (
+				b      = make([]byte, 4)
+				native = nl.NativeEndian()
+			)
 			native.PutUint32(b, uint32(link.Attrs().Index))
 
 			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
@@ -1462,8 +1298,7 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(fmt.Errorf("Receive failed: %v",
-						err))
+					cberr(err)
 				}
 				return
 			}
@@ -1478,22 +1313,22 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
+					native := nl.NativeEndian()
 					error := int32(native.Uint32(m.Data[0:4]))
 					if error == 0 {
 						continue
 					}
 					if cberr != nil {
-						cberr(fmt.Errorf("error message: %v",
-							syscall.Errno(-error)))
+						cberr(syscall.Errno(-error))
 					}
-					continue
+					return
 				}
 				route, err := deserializeRoute(m.Data)
 				if err != nil {
 					if cberr != nil {
 						cberr(err)
 					}
-					continue
+					return
 				}
 				ch <- RouteUpdate{Type: m.Header.Type, Route: route}
 			}

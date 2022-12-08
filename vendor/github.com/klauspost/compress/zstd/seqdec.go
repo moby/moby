@@ -73,7 +73,6 @@ type sequenceDecs struct {
 	seqSize      int
 	windowSize   int
 	maxBits      uint8
-	maxSyncLen   uint64
 }
 
 // initialize all 3 decoders from the stream input.
@@ -99,28 +98,153 @@ func (s *sequenceDecs) initialize(br *bitReader, hist *history, out []byte) erro
 	return nil
 }
 
-func (s *sequenceDecs) freeDecoders() {
-	if f := s.litLengths.fse; f != nil && !f.preDefined {
-		fseDecoderPool.Put(f)
-		s.litLengths.fse = nil
+// decode sequences from the stream with the provided history.
+func (s *sequenceDecs) decode(seqs []seqVals) error {
+	br := s.br
+
+	// Grab full sizes tables, to avoid bounds checks.
+	llTable, mlTable, ofTable := s.litLengths.fse.dt[:maxTablesize], s.matchLengths.fse.dt[:maxTablesize], s.offsets.fse.dt[:maxTablesize]
+	llState, mlState, ofState := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
+	s.seqSize = 0
+	litRemain := len(s.literals)
+	maxBlockSize := maxCompressedBlockSize
+	if s.windowSize < maxBlockSize {
+		maxBlockSize = s.windowSize
 	}
-	if f := s.offsets.fse; f != nil && !f.preDefined {
-		fseDecoderPool.Put(f)
-		s.offsets.fse = nil
+	for i := range seqs {
+		var ll, mo, ml int
+		if br.off > 4+((maxOffsetBits+16+16)>>3) {
+			// inlined function:
+			// ll, mo, ml = s.nextFast(br, llState, mlState, ofState)
+
+			// Final will not read from stream.
+			var llB, mlB, moB uint8
+			ll, llB = llState.final()
+			ml, mlB = mlState.final()
+			mo, moB = ofState.final()
+
+			// extra bits are stored in reverse order.
+			br.fillFast()
+			mo += br.getBits(moB)
+			if s.maxBits > 32 {
+				br.fillFast()
+			}
+			ml += br.getBits(mlB)
+			ll += br.getBits(llB)
+
+			if moB > 1 {
+				s.prevOffset[2] = s.prevOffset[1]
+				s.prevOffset[1] = s.prevOffset[0]
+				s.prevOffset[0] = mo
+			} else {
+				// mo = s.adjustOffset(mo, ll, moB)
+				// Inlined for rather big speedup
+				if ll == 0 {
+					// There is an exception though, when current sequence's literals_length = 0.
+					// In this case, repeated offsets are shifted by one, so an offset_value of 1 means Repeated_Offset2,
+					// an offset_value of 2 means Repeated_Offset3, and an offset_value of 3 means Repeated_Offset1 - 1_byte.
+					mo++
+				}
+
+				if mo == 0 {
+					mo = s.prevOffset[0]
+				} else {
+					var temp int
+					if mo == 3 {
+						temp = s.prevOffset[0] - 1
+					} else {
+						temp = s.prevOffset[mo]
+					}
+
+					if temp == 0 {
+						// 0 is not valid; input is corrupted; force offset to 1
+						println("WARNING: temp was 0")
+						temp = 1
+					}
+
+					if mo != 1 {
+						s.prevOffset[2] = s.prevOffset[1]
+					}
+					s.prevOffset[1] = s.prevOffset[0]
+					s.prevOffset[0] = temp
+					mo = temp
+				}
+			}
+			br.fillFast()
+		} else {
+			if br.overread() {
+				if debugDecoder {
+					printf("reading sequence %d, exceeded available data\n", i)
+				}
+				return io.ErrUnexpectedEOF
+			}
+			ll, mo, ml = s.next(br, llState, mlState, ofState)
+			br.fill()
+		}
+
+		if debugSequences {
+			println("Seq", i, "Litlen:", ll, "mo:", mo, "(abs) ml:", ml)
+		}
+		// Evaluate.
+		// We might be doing this async, so do it early.
+		if mo == 0 && ml > 0 {
+			return fmt.Errorf("zero matchoff and matchlen (%d) > 0", ml)
+		}
+		if ml > maxMatchLen {
+			return fmt.Errorf("match len (%d) bigger than max allowed length", ml)
+		}
+		s.seqSize += ll + ml
+		if s.seqSize > maxBlockSize {
+			return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
+		}
+		litRemain -= ll
+		if litRemain < 0 {
+			return fmt.Errorf("unexpected literal count, want %d bytes, but only %d is available", ll, litRemain+ll)
+		}
+		seqs[i] = seqVals{
+			ll: ll,
+			ml: ml,
+			mo: mo,
+		}
+		if i == len(seqs)-1 {
+			// This is the last sequence, so we shouldn't update state.
+			break
+		}
+
+		// Manually inlined, ~ 5-20% faster
+		// Update all 3 states at once. Approx 20% faster.
+		nBits := llState.nbBits() + mlState.nbBits() + ofState.nbBits()
+		if nBits == 0 {
+			llState = llTable[llState.newState()&maxTableMask]
+			mlState = mlTable[mlState.newState()&maxTableMask]
+			ofState = ofTable[ofState.newState()&maxTableMask]
+		} else {
+			bits := br.get32BitsFast(nBits)
+			lowBits := uint16(bits >> ((ofState.nbBits() + mlState.nbBits()) & 31))
+			llState = llTable[(llState.newState()+lowBits)&maxTableMask]
+
+			lowBits = uint16(bits >> (ofState.nbBits() & 31))
+			lowBits &= bitMask[mlState.nbBits()&15]
+			mlState = mlTable[(mlState.newState()+lowBits)&maxTableMask]
+
+			lowBits = uint16(bits) & bitMask[ofState.nbBits()&15]
+			ofState = ofTable[(ofState.newState()+lowBits)&maxTableMask]
+		}
 	}
-	if f := s.matchLengths.fse; f != nil && !f.preDefined {
-		fseDecoderPool.Put(f)
-		s.matchLengths.fse = nil
+	s.seqSize += litRemain
+	if s.seqSize > maxBlockSize {
+		return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
 	}
+	err := br.close()
+	if err != nil {
+		printf("Closing sequences: %v, %+v\n", err, *br)
+	}
+	return err
 }
 
 // execute will execute the decoded sequence with the provided history.
 // The sequence must be evaluated before being sent.
 func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error {
-	if len(s.dict) == 0 {
-		return s.executeSimple(seqs, hist)
-	}
-
 	// Ensure we have enough output size...
 	if len(s.out)+s.seqSize > cap(s.out) {
 		addBytes := s.seqSize + len(s.out)
@@ -203,7 +327,6 @@ func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error {
 			}
 		}
 	}
-
 	// Add final literals
 	copy(out[t:], s.literals)
 	if debugDecoder {
@@ -218,18 +341,14 @@ func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error {
 }
 
 // decode sequences from the stream with the provided history.
-func (s *sequenceDecs) decodeSync(hist []byte) error {
-	supported, err := s.decodeSyncSimple(hist)
-	if supported {
-		return err
-	}
-
+func (s *sequenceDecs) decodeSync(history *history) error {
 	br := s.br
 	seqs := s.nSeqs
 	startSize := len(s.out)
 	// Grab full sizes tables, to avoid bounds checks.
 	llTable, mlTable, ofTable := s.litLengths.fse.dt[:maxTablesize], s.matchLengths.fse.dt[:maxTablesize], s.offsets.fse.dt[:maxTablesize]
 	llState, mlState, ofState := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
+	hist := history.b[history.ignoreBuffer:]
 	out := s.out
 	maxBlockSize := maxCompressedBlockSize
 	if s.windowSize < maxBlockSize {
@@ -314,10 +433,7 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 		}
 		size := ll + ml + len(out)
 		if size-startSize > maxBlockSize {
-			if size-startSize == 424242 {
-				panic("here")
-			}
-			return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
+			return fmt.Errorf("output (%d) bigger than max block size (%d)", size, maxBlockSize)
 		}
 		if size > cap(out) {
 			// Not enough size, which can happen under high volume block streaming conditions
@@ -347,13 +463,13 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 
 		if mo > len(out)+len(hist) || mo > s.windowSize {
 			if len(s.dict) == 0 {
-				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist)-startSize)
+				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist))
 			}
 
 			// we may be in dictionary.
 			dictO := len(s.dict) - (mo - (len(out) + len(hist)))
 			if dictO < 0 || dictO >= len(s.dict) {
-				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist)-startSize)
+				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist))
 			}
 			end := dictO + ml
 			if end > len(s.dict) {
@@ -414,7 +530,6 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 			ofState = ofTable[ofState.newState()&maxTableMask]
 		} else {
 			bits := br.get32BitsFast(nBits)
-
 			lowBits := uint16(bits >> ((ofState.nbBits() + mlState.nbBits()) & 31))
 			llState = llTable[(llState.newState()+lowBits)&maxTableMask]
 
@@ -428,13 +543,23 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 	}
 
 	// Check if space for literals
-	if size := len(s.literals) + len(s.out) - startSize; size > maxBlockSize {
-		return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
+	if len(s.literals)+len(s.out)-startSize > maxBlockSize {
+		return fmt.Errorf("output (%d) bigger than max block size (%d)", len(s.out), maxBlockSize)
 	}
 
 	// Add final literals
 	s.out = append(out, s.literals...)
 	return br.close()
+}
+
+// update states, at least 27 bits must be available.
+func (s *sequenceDecs) update(br *bitReader) {
+	// Max 8 bits
+	s.litLengths.state.next(br)
+	// Max 9 bits
+	s.matchLengths.state.next(br)
+	// Max 8 bits
+	s.offsets.state.next(br)
 }
 
 var bitMask [16]uint16
@@ -443,6 +568,87 @@ func init() {
 	for i := range bitMask[:] {
 		bitMask[i] = uint16((1 << uint(i)) - 1)
 	}
+}
+
+// update states, at least 27 bits must be available.
+func (s *sequenceDecs) updateAlt(br *bitReader) {
+	// Update all 3 states at once. Approx 20% faster.
+	a, b, c := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
+
+	nBits := a.nbBits() + b.nbBits() + c.nbBits()
+	if nBits == 0 {
+		s.litLengths.state.state = s.litLengths.state.dt[a.newState()]
+		s.matchLengths.state.state = s.matchLengths.state.dt[b.newState()]
+		s.offsets.state.state = s.offsets.state.dt[c.newState()]
+		return
+	}
+	bits := br.get32BitsFast(nBits)
+	lowBits := uint16(bits >> ((c.nbBits() + b.nbBits()) & 31))
+	s.litLengths.state.state = s.litLengths.state.dt[a.newState()+lowBits]
+
+	lowBits = uint16(bits >> (c.nbBits() & 31))
+	lowBits &= bitMask[b.nbBits()&15]
+	s.matchLengths.state.state = s.matchLengths.state.dt[b.newState()+lowBits]
+
+	lowBits = uint16(bits) & bitMask[c.nbBits()&15]
+	s.offsets.state.state = s.offsets.state.dt[c.newState()+lowBits]
+}
+
+// nextFast will return new states when there are at least 4 unused bytes left on the stream when done.
+func (s *sequenceDecs) nextFast(br *bitReader, llState, mlState, ofState decSymbol) (ll, mo, ml int) {
+	// Final will not read from stream.
+	ll, llB := llState.final()
+	ml, mlB := mlState.final()
+	mo, moB := ofState.final()
+
+	// extra bits are stored in reverse order.
+	br.fillFast()
+	mo += br.getBits(moB)
+	if s.maxBits > 32 {
+		br.fillFast()
+	}
+	ml += br.getBits(mlB)
+	ll += br.getBits(llB)
+
+	if moB > 1 {
+		s.prevOffset[2] = s.prevOffset[1]
+		s.prevOffset[1] = s.prevOffset[0]
+		s.prevOffset[0] = mo
+		return
+	}
+	// mo = s.adjustOffset(mo, ll, moB)
+	// Inlined for rather big speedup
+	if ll == 0 {
+		// There is an exception though, when current sequence's literals_length = 0.
+		// In this case, repeated offsets are shifted by one, so an offset_value of 1 means Repeated_Offset2,
+		// an offset_value of 2 means Repeated_Offset3, and an offset_value of 3 means Repeated_Offset1 - 1_byte.
+		mo++
+	}
+
+	if mo == 0 {
+		mo = s.prevOffset[0]
+		return
+	}
+	var temp int
+	if mo == 3 {
+		temp = s.prevOffset[0] - 1
+	} else {
+		temp = s.prevOffset[mo]
+	}
+
+	if temp == 0 {
+		// 0 is not valid; input is corrupted; force offset to 1
+		println("temp was 0")
+		temp = 1
+	}
+
+	if mo != 1 {
+		s.prevOffset[2] = s.prevOffset[1]
+	}
+	s.prevOffset[1] = s.prevOffset[0]
+	s.prevOffset[0] = temp
+	mo = temp
+	return
 }
 
 func (s *sequenceDecs) next(br *bitReader, llState, mlState, ofState decSymbol) (ll, mo, ml int) {

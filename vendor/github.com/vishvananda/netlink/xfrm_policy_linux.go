@@ -93,10 +93,8 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 		req.AddData(out)
 	}
 
-	if policy.Ifid != 0 {
-		ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(policy.Ifid)))
-		req.AddData(ifId)
-	}
+	ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(policy.Ifid)))
+	req.AddData(ifId)
 
 	_, err := req.Execute(unix.NETLINK_XFRM, 0)
 	return err
@@ -191,10 +189,8 @@ func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPo
 		req.AddData(out)
 	}
 
-	if policy.Ifid != 0 {
-		ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(policy.Ifid)))
-		req.AddData(ifId)
-	}
+	ifId := nl.NewRtAttr(nl.XFRMA_IF_ID, nl.Uint32Attr(uint32(policy.Ifid)))
+	req.AddData(ifId)
 
 	resType := nl.XFRM_MSG_NEWPOLICY
 	if nlProto == nl.XFRM_MSG_DELPOLICY {

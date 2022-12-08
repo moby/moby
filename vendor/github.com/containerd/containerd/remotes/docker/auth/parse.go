@@ -134,6 +134,9 @@ func parseValueAndParams(header string) (value string, params map[string]string)
 		}
 		var pvalue string
 		pvalue, s = expectTokenOrQuoted(s[1:])
+		if pvalue == "" {
+			return
+		}
 		pkey = strings.ToLower(pkey)
 		params[pkey] = pvalue
 		s = skipSpace(s)

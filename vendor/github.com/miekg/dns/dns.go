@@ -1,9 +1,6 @@
 package dns
 
-import (
-	"encoding/hex"
-	"strconv"
-)
+import "strconv"
 
 const (
 	year68     = 1 << 31 // For RFC1982 (Serial Arithmetic) calculations in 32 bits.
@@ -114,7 +111,7 @@ func (h *RR_Header) parse(c *zlexer, origin string) *ParseError {
 
 // ToRFC3597 converts a known RR to the unknown RR representation from RFC 3597.
 func (rr *RFC3597) ToRFC3597(r RR) error {
-	buf := make([]byte, Len(r))
+	buf := make([]byte, Len(r)*2)
 	headerEnd, off, err := packRR(r, buf, 0, compressionMap{}, false)
 	if err != nil {
 		return err
@@ -129,30 +126,9 @@ func (rr *RFC3597) ToRFC3597(r RR) error {
 	}
 
 	_, err = rr.unpack(buf, headerEnd)
-	return err
-}
-
-// fromRFC3597 converts an unknown RR representation from RFC 3597 to the known RR type.
-func (rr *RFC3597) fromRFC3597(r RR) error {
-	hdr := r.Header()
-	*hdr = rr.Hdr
-
-	// Can't overflow uint16 as the length of Rdata is validated in (*RFC3597).parse.
-	// We can only get here when rr was constructed with that method.
-	hdr.Rdlength = uint16(hex.DecodedLen(len(rr.Rdata)))
-
-	if noRdata(*hdr) {
-		// Dynamic update.
-		return nil
-	}
-
-	// rr.pack requires an extra allocation and a copy so we just decode Rdata
-	// manually, it's simpler anyway.
-	msg, err := hex.DecodeString(rr.Rdata)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.unpack(msg, 0)
-	return err
+	return nil
 }

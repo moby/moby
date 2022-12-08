@@ -20,6 +20,11 @@ func (b *byteReader) init(in []byte) {
 	b.off = 0
 }
 
+// advance the stream b n bytes.
+func (b *byteReader) advance(n uint) {
+	b.off += int(n)
+}
+
 // Int32 returns a little endian int32 starting at current offset.
 func (b byteReader) Int32() int32 {
 	v3 := int32(b.b[b.off+3])
@@ -36,6 +41,11 @@ func (b byteReader) Uint32() uint32 {
 	v1 := uint32(b.b[b.off+1])
 	v0 := uint32(b.b[b.off])
 	return (v3 << 24) | (v2 << 16) | (v1 << 8) | v0
+}
+
+// unread returns the unread portion of the input.
+func (b byteReader) unread() []byte {
+	return b.b[b.off:]
 }
 
 // remain will return the number of bytes remaining.

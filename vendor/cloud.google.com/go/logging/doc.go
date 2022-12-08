@@ -20,8 +20,7 @@ see package cloud.google.com/go/logging/logadmin.
 This client uses Logging API v2.
 See https://cloud.google.com/logging/docs/api/v2/ for an introduction to the API.
 
-
-Creating a Client
+# Creating a Client
 
 Use a Client to interact with the Cloud Logging API.
 
@@ -32,8 +31,7 @@ Use a Client to interact with the Cloud Logging API.
 		// TODO: Handle error.
 	}
 
-
-Basic Usage
+# Basic Usage
 
 For most use cases, you'll want to add log entries to a buffer to be periodically
 flushed (automatically and asynchronously) to the Cloud Logging service.
@@ -44,8 +42,7 @@ flushed (automatically and asynchronously) to the Cloud Logging service.
 	// Add entry to log buffer
 	lg.Log(logging.Entry{Payload: "something happened!"})
 
-
-Closing your Client
+# Closing your Client
 
 You should call Client.Close before your program exits to flush any buffered log entries to the Cloud Logging service.
 
@@ -55,8 +52,7 @@ You should call Client.Close before your program exits to flush any buffered log
 		// TODO: Handle error.
 	}
 
-
-Synchronous Logging
+# Synchronous Logging
 
 For critical errors, you may want to send your log entries immediately.
 LogSync is slow and will block until the log entry has been sent, so it is
@@ -67,8 +63,20 @@ not recommended for normal use.
 		// TODO: Handle error.
 	}
 
+# Redirecting log ingestion
 
-Payloads
+For cases when runtime environment supports out-of-process log ingestion,
+like logging agent, you can opt-in to write log entries to io.Writer instead of
+ingesting them to Cloud Logging service. Usually, you will use os.Stdout or os.Stderr as
+writers because Google Cloud logging agents are configured to capture logs from standard output.
+The entries will be Jsonified and wrote as one line strings following the structured logging format.
+See https://cloud.google.com/logging/docs/structured-logging#special-payload-fields for the format description.
+To instruct Logger to redirect log entries add RedirectAsJSON() LoggerOption`s.
+
+	// Create a logger to print structured logs formatted as a single line Json to stdout
+	loggger := client.Logger("test-log", RedirectAsJSON(os.Stdout))
+
+# Payloads
 
 An entry payload can be a string, as in the examples above. It can also be any value
 that can be marshaled to a JSON object, like a map[string]interface{} or a struct:
@@ -84,8 +92,18 @@ If you have a []byte of JSON, wrap it in json.RawMessage:
 	j := []byte(`{"Name": "Bob", "Count": 3}`)
 	lg.Log(logging.Entry{Payload: json.RawMessage(j)})
 
+If you have proto.Message and want to send it as a protobuf payload, marshal it to anypb.Any:
 
-The Standard Logger
+		// import
+	    func logMessage (m proto.Message) {
+			var payload anypb.Any
+			err := anypb.MarshalFrom(&payload, m)
+			if err != nil {
+				lg.Log(logging.Entry{Payload: payload})
+			}
+		}
+
+# The Standard Logger
 
 You may want use a standard log.Logger in your program.
 
@@ -93,8 +111,7 @@ You may want use a standard log.Logger in your program.
 	stdlg := lg.StandardLogger(logging.Info)
 	stdlg.Println("some info")
 
-
-Log Levels
+# Log Levels
 
 An Entry may have one of a number of severity levels associated with it.
 
@@ -103,8 +120,7 @@ An Entry may have one of a number of severity levels associated with it.
 		Severity: logging.Critical,
 	}
 
-
-Viewing Logs
+# Viewing Logs
 
 You can view Cloud logs for projects at
 https://console.cloud.google.com/logs/viewer. Use the dropdown at the top left. When
@@ -112,15 +128,14 @@ running from a Google Cloud Platform VM, select "GCE VM Instance". Otherwise, se
 "Google Project" and then the project ID. Logs for organizations, folders and billing
 accounts can be viewed on the command line with the "gcloud logging read" command.
 
-
-Grouping Logs by Request
+# Grouping Logs by Request
 
 To group all the log entries written during a single HTTP request, create two
 Loggers, a "parent" and a "child," with different log IDs. Both should be in the same
 project, and have the same MonitoredResource type and labels.
 
-- Parent entries must have HTTPRequest.Request (strictly speaking, only Method and URL are necessary),
-  and HTTPRequest.Status populated.
+  - Parent entries must have HTTPRequest.Request (strictly speaking, only Method and URL are necessary),
+    and HTTPRequest.Status populated.
 
 - A child entry's timestamp must be within the time interval covered by the parent request. (i.e., before
 the parent.Timestamp and after the parent.Timestamp - parent.HTTPRequest.Latency. This assumes the
