@@ -371,9 +371,8 @@ func truncateResp(resp *dns.Msg, maxSize int, isTCP bool) {
 
 func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	var (
-		extConn net.Conn
-		resp    *dns.Msg
-		err     error
+		resp *dns.Msg
+		err  error
 	)
 
 	if query == nil || len(query.Question) == 0 {
@@ -446,119 +445,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			truncateResp(resp, maxSize, proto == "tcp")
 		}
 	} else {
-		for i := 0; i < maxExtDNS; i++ {
-			extDNS := &r.extDNSList[i]
-			if extDNS.IPStr == "" {
-				break
-			}
-			extConnect := func() {
-				port := extDNS.port
-				if port == 0 {
-					port = 53
-				}
-				addr := fmt.Sprintf("%s:%d", extDNS.IPStr, port)
-				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
-			}
-
-			if extDNS.HostLoopback {
-				extConnect()
-			} else {
-				execErr := r.backend.ExecFunc(extConnect)
-				if execErr != nil {
-					logrus.Warn(execErr)
-					continue
-				}
-			}
-			if err != nil {
-				logrus.WithField("retries", i).Warnf("[resolver] connect failed: %s", err)
-				continue
-			}
-			logrus.Debugf("[resolver] query %s (%s) from %s, forwarding to %s:%s", queryName, dns.TypeToString[queryType],
-				extConn.LocalAddr().String(), proto, extDNS.IPStr)
-
-			// Timeout has to be set for every IO operation.
-			if err := extConn.SetDeadline(time.Now().Add(extIOTimeout)); err != nil {
-				logrus.WithError(err).Error("[resolver] error setting conn deadline")
-			}
-			co := &dns.Conn{
-				Conn:    extConn,
-				UDPSize: uint16(maxSize),
-			}
-			defer co.Close()
-
-			// limits the number of outstanding concurrent queries.
-			if !r.forwardQueryStart() {
-				old := r.tStamp
-				r.tStamp = time.Now()
-				if r.tStamp.Sub(old) > logInterval {
-					logrus.Errorf("[resolver] more than %v concurrent queries from %s", maxConcurrent, extConn.LocalAddr().String())
-				}
-				continue
-			}
-
-			err = co.WriteMsg(query)
-			if err != nil {
-				r.forwardQueryEnd()
-				logrus.Debugf("[resolver] send to DNS server failed, %s", err)
-				continue
-			}
-
-			resp, err = co.ReadMsg()
-			// Truncated DNS replies should be sent to the client so that the
-			// client can retry over TCP
-			if err != nil && (resp == nil || !resp.Truncated) {
-				r.forwardQueryEnd()
-				logrus.WithError(err).Warnf("[resolver] failed to read from DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
-				continue
-			}
-			r.forwardQueryEnd()
-
-			if resp == nil {
-				logrus.Debugf("[resolver] external DNS %s:%s returned empty response for %q", proto, extDNS.IPStr, queryName)
-				break
-			}
-			switch resp.Rcode {
-			case dns.RcodeServerFailure, dns.RcodeRefused:
-				// Server returned FAILURE: continue with the next external DNS server
-				// Server returned REFUSED: this can be a transitional status, so continue with the next external DNS server
-				logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), queryName)
-				continue
-			case dns.RcodeNameError:
-				// Server returned NXDOMAIN. Stop resolution if it's an authoritative answer (see RFC 8020: https://tools.ietf.org/html/rfc8020#section-2)
-				logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), queryName)
-				if resp.Authoritative {
-					break
-				}
-				continue
-			case dns.RcodeSuccess:
-				// All is well
-			default:
-				// Server gave some error. Log the error, and continue with the next external DNS server
-				logrus.Debugf("[resolver] external DNS %s:%s responded with %s (code %d) for %q", proto, extDNS.IPStr, statusString(resp.Rcode), resp.Rcode, queryName)
-				continue
-			}
-			answers := 0
-			for _, rr := range resp.Answer {
-				h := rr.Header()
-				switch h.Rrtype {
-				case dns.TypeA:
-					answers++
-					ip := rr.(*dns.A).A
-					logrus.Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
-					r.backend.HandleQueryResp(h.Name, ip)
-				case dns.TypeAAAA:
-					answers++
-					ip := rr.(*dns.AAAA).AAAA
-					logrus.Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
-					r.backend.HandleQueryResp(h.Name, ip)
-				}
-			}
-			if resp.Answer == nil || answers == 0 {
-				logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, dns.TypeToString[queryType], queryName)
-			}
-			resp.Compress = true
-			break
-		}
+		resp = r.forwardExtDNS(proto, maxSize, query)
 		if resp == nil {
 			return
 		}
@@ -567,6 +454,129 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	if err = w.WriteMsg(resp); err != nil {
 		logrus.WithError(err).Errorf("[resolver] failed to write response")
 	}
+}
+
+func (r *resolver) forwardExtDNS(proto string, maxSize int, query *dns.Msg) *dns.Msg {
+	queryName, queryType := query.Question[0].Name, query.Question[0].Qtype
+	var resp *dns.Msg
+	for i := 0; i < maxExtDNS; i++ {
+		extDNS := &r.extDNSList[i]
+		if extDNS.IPStr == "" {
+			break
+		}
+		var (
+			extConn net.Conn
+			err     error
+		)
+		extConnect := func() {
+			port := extDNS.port
+			if port == 0 {
+				port = 53
+			}
+			addr := fmt.Sprintf("%s:%d", extDNS.IPStr, port)
+			extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
+		}
+
+		if extDNS.HostLoopback {
+			extConnect()
+		} else {
+			execErr := r.backend.ExecFunc(extConnect)
+			if execErr != nil {
+				logrus.Warn(execErr)
+				continue
+			}
+		}
+		if err != nil {
+			logrus.WithField("retries", i).Warnf("[resolver] connect failed: %s", err)
+			continue
+		}
+		logrus.Debugf("[resolver] query %s (%s) from %s, forwarding to %s:%s", queryName, dns.TypeToString[queryType],
+			extConn.LocalAddr().String(), proto, extDNS.IPStr)
+
+		// Timeout has to be set for every IO operation.
+		if err := extConn.SetDeadline(time.Now().Add(extIOTimeout)); err != nil {
+			logrus.WithError(err).Error("[resolver] error setting conn deadline")
+		}
+		co := &dns.Conn{
+			Conn:    extConn,
+			UDPSize: uint16(maxSize),
+		}
+		defer co.Close()
+
+		// limits the number of outstanding concurrent queries.
+		if !r.forwardQueryStart() {
+			old := r.tStamp
+			r.tStamp = time.Now()
+			if r.tStamp.Sub(old) > logInterval {
+				logrus.Errorf("[resolver] more than %v concurrent queries from %s", maxConcurrent, extConn.LocalAddr().String())
+			}
+			continue
+		}
+
+		err = co.WriteMsg(query)
+		if err != nil {
+			r.forwardQueryEnd()
+			logrus.Debugf("[resolver] send to DNS server failed, %s", err)
+			continue
+		}
+
+		resp, err = co.ReadMsg()
+		// Truncated DNS replies should be sent to the client so that the
+		// client can retry over TCP
+		if err != nil && (resp == nil || !resp.Truncated) {
+			r.forwardQueryEnd()
+			logrus.WithError(err).Warnf("[resolver] failed to read from DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
+			continue
+		}
+		r.forwardQueryEnd()
+
+		if resp == nil {
+			logrus.Debugf("[resolver] external DNS %s:%s returned empty response for %q", proto, extDNS.IPStr, queryName)
+			break
+		}
+		switch resp.Rcode {
+		case dns.RcodeServerFailure, dns.RcodeRefused:
+			// Server returned FAILURE: continue with the next external DNS server
+			// Server returned REFUSED: this can be a transitional status, so continue with the next external DNS server
+			logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), queryName)
+			continue
+		case dns.RcodeNameError:
+			// Server returned NXDOMAIN. Stop resolution if it's an authoritative answer (see RFC 8020: https://tools.ietf.org/html/rfc8020#section-2)
+			logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), queryName)
+			if resp.Authoritative {
+				break
+			}
+			continue
+		case dns.RcodeSuccess:
+			// All is well
+		default:
+			// Server gave some error. Log the error, and continue with the next external DNS server
+			logrus.Debugf("[resolver] external DNS %s:%s responded with %s (code %d) for %q", proto, extDNS.IPStr, statusString(resp.Rcode), resp.Rcode, queryName)
+			continue
+		}
+		answers := 0
+		for _, rr := range resp.Answer {
+			h := rr.Header()
+			switch h.Rrtype {
+			case dns.TypeA:
+				answers++
+				ip := rr.(*dns.A).A
+				logrus.Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+				r.backend.HandleQueryResp(h.Name, ip)
+			case dns.TypeAAAA:
+				answers++
+				ip := rr.(*dns.AAAA).AAAA
+				logrus.Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+				r.backend.HandleQueryResp(h.Name, ip)
+			}
+		}
+		if resp.Answer == nil || answers == 0 {
+			logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, dns.TypeToString[queryType], queryName)
+		}
+		resp.Compress = true
+		break
+	}
+	return resp
 }
 
 func statusString(responseCode int) string {
