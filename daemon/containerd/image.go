@@ -142,7 +142,13 @@ func (i *ImageService) resolveImageName2(ctx context.Context, refOrID string) (i
 		if !cerrdefs.IsNotFound(err) {
 			return img, err
 		}
-		return img, errdefs.NotFound(errors.New("id not found"))
+		// Some clients (such as the docker 17.03 CLI used in CI) still
+		// perform string-matching to detect that the *image* wasn't found.
+		// This requires the error to be prefixed with "No such image:".
+		// Without this prefix, the CLI prints the error message, and exits.
+		//
+		// FIXME(thaJeztah): we need to fix this; if needed, gated by API version (API < X add the prefix)
+		return img, errdefs.NotFound(errors.New("No such image: " + refOrID))
 	}
 
 	return img, nil
