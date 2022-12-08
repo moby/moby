@@ -29,25 +29,6 @@ const (
 	libtrustKeyID = "WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB"
 )
 
-func TestConfigDaemonLibtrustID(t *testing.T) {
-	skip.If(t, runtime.GOOS == "windows")
-
-	d := daemon.New(t)
-	defer d.Stop(t)
-
-	trustKey := filepath.Join(d.RootDir(), "key.json")
-	err := os.WriteFile(trustKey, []byte(libtrustKey), 0644)
-	assert.NilError(t, err)
-
-	cfg := filepath.Join(d.RootDir(), "daemon.json")
-	err = os.WriteFile(cfg, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
-	assert.NilError(t, err)
-
-	d.Start(t, "--config-file", cfg)
-	info := d.Info(t)
-	assert.Equal(t, info.ID, libtrustKeyID)
-}
-
 func TestConfigDaemonID(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 

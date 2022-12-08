@@ -24,7 +24,7 @@ func setDefaultUmask() error {
 }
 
 func getDaemonConfDir(root string) (string, error) {
-	return filepath.Join(root, `\config`), nil
+	return filepath.Join(root, "config"), nil
 }
 
 // preNotifyReady sends a message to the host when the API is active, but before the daemon is

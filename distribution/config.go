@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -47,8 +46,6 @@ type Config struct {
 	// ReferenceStore manages tags. This value is optional, when excluded
 	// content will not be tagged.
 	ReferenceStore refstore.Store
-	// RequireSchema2 ensures that only schema2 manifests are used.
-	RequireSchema2 bool
 }
 
 // ImagePullConfig stores pull configuration.
@@ -74,9 +71,6 @@ type ImagePushConfig struct {
 	ConfigMediaType string
 	// LayerStores manages layers.
 	LayerStores PushLayerProvider
-	// TrustKey is the private key for legacy signatures. This is typically
-	// an ephemeral key, since these signatures are no longer verified.
-	TrustKey libtrust.PrivateKey
 	// UploadManager dispatches uploads.
 	UploadManager *xfer.LayerUploadManager
 }

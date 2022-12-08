@@ -1053,19 +1053,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		ContentNamespace:          config.ContainerdNamespace,
 	}
 
-	// This is a temporary environment variables used in CI to allow pushing
-	// manifest v2 schema 1 images to test-registries used for testing *pulling*
-	// these images.
-	if os.Getenv("DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE") != "" {
-		imgSvcConfig.TrustKey, err = loadOrCreateTrustKey(config.TrustKeyPath)
-		if err != nil {
-			return nil, err
-		}
-		if err = system.MkdirAll(filepath.Join(config.Root, "trust"), 0700); err != nil {
-			return nil, err
-		}
-	}
-
 	// containerd is not currently supported with Windows.
 	// So sometimes d.containerdCli will be nil
 	// In that case we'll create a local content store... but otherwise we'll use containerd
