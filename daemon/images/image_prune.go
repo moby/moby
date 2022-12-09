@@ -127,7 +127,7 @@ deleteImagesLoop:
 				}
 			}
 		} else {
-			hex := id.Digest().Hex()
+			hex := id.Digest().Encoded()
 			imgDel, err := i.ImageDelete(hex, false, true)
 			if imageDeleteFailed(hex, err) {
 				continue
