@@ -321,7 +321,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 }
 
 func (ir *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	history, err := ir.backend.ImageHistory(vars["name"])
+	history, err := ir.backend.ImageHistory(ctx, vars["name"])
 	if err != nil {
 		return err
 	}

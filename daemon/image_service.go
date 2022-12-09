@@ -40,7 +40,7 @@ type ImageService interface {
 	TagImage(imageName, repository, tag string) (string, error)
 	TagImageWithReference(imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error)
-	ImageHistory(name string) ([]*imagetype.HistoryResponseItem, error)
+	ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(c backend.CommitConfig) (image.ID, error)
 	SquashImage(id, parent string) (string, error)
 

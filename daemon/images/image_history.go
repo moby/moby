@@ -12,8 +12,7 @@ import (
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
-	ctx := context.TODO()
+func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
 	img, err := i.GetImage(ctx, name, image.GetImageOpts{})
 	if err != nil {
