@@ -111,7 +111,7 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 		}
 		s.seqSize += ll + ml
 		if s.seqSize > maxBlockSize {
-			return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
+			return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 		}
 		litRemain -= ll
 		if litRemain < 0 {
@@ -149,7 +149,7 @@ func (s *sequenceDecs) decode(seqs []seqVals) error {
 	}
 	s.seqSize += litRemain
 	if s.seqSize > maxBlockSize {
-		return fmt.Errorf("output (%d) bigger than max block size (%d)", s.seqSize, maxBlockSize)
+		return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 	}
 	err := br.close()
 	if err != nil {

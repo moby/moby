@@ -32,6 +32,7 @@ type match struct {
 	length int32
 	rep    int32
 	est    int32
+	_      [12]byte // Aligned size to cache line: 4+4+4+4+4 bytes + 12 bytes padding = 32 bytes
 }
 
 const highScore = 25000
