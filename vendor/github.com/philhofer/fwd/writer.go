@@ -29,16 +29,28 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// NewWriterSize returns a new writer
-// that writes to 'w' and has a buffer
-// that is 'size' bytes.
-func NewWriterSize(w io.Writer, size int) *Writer {
-	if wr, ok := w.(*Writer); ok && cap(wr.buf) >= size {
+// NewWriterSize returns a new writer that
+// writes to 'w' and has a buffer size 'n'.
+func NewWriterSize(w io.Writer, n int) *Writer {
+	if wr, ok := w.(*Writer); ok && cap(wr.buf) >= n {
 		return wr
 	}
+	buf := make([]byte, 0, max(n, minWriterSize))
+	return NewWriterBuf(w, buf)
+}
+
+// NewWriterBuf returns a new writer
+// that writes to 'w' and has 'buf' as a buffer.
+// 'buf' is not used when has smaller capacity than 18,
+// custom buffer is allocated instead.
+func NewWriterBuf(w io.Writer, buf []byte) *Writer {
+	if cap(buf) < minWriterSize {
+		buf = make([]byte, 0, minWriterSize)
+	}
+	buf = buf[:0]
 	return &Writer{
 		w:   w,
-		buf: make([]byte, 0, max(size, minWriterSize)),
+		buf: buf,
 	}
 }
 
