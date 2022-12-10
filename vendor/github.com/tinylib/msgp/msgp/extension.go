@@ -474,8 +474,8 @@ func AppendExtension(b []byte, e Extension) ([]byte, error) {
 // and returns any remaining bytes.
 // Possible errors:
 // - ErrShortBytes ('b' not long enough)
-// - ExtensionTypeErorr{} (wire type not the same as e.Type())
-// - TypeErorr{} (next object not an extension)
+// - ExtensionTypeError{} (wire type not the same as e.Type())
+// - TypeError{} (next object not an extension)
 // - InvalidPrefixError
 // - An umarshal error returned from e.UnmarshalBinary
 func ReadExtensionBytes(b []byte, e Extension) ([]byte, error) {

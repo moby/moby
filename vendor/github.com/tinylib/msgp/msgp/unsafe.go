@@ -3,7 +3,6 @@
 package msgp
 
 import (
-	"reflect"
 	"unsafe"
 )
 
@@ -24,18 +23,14 @@ const (
 // THIS IS EVIL CODE.
 // YOU HAVE BEEN WARNED.
 func UnsafeString(b []byte) string {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{Data: sh.Data, Len: sh.Len}))
+	return *(*string)(unsafe.Pointer(&b))
 }
 
 // UnsafeBytes returns the string as a byte slice
-// THIS SHOULD ONLY BE USED BY THE CODE GENERATOR.
-// THIS IS EVIL CODE.
-// YOU HAVE BEEN WARNED.
+//
+// Deprecated:
+// Since this code is no longer used by the code generator,
+// UnsafeBytes(s) is precisely equivalent to []byte(s)
 func UnsafeBytes(s string) []byte {
-	return *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
-		Len:  len(s),
-		Cap:  len(s),
-		Data: (*(*reflect.StringHeader)(unsafe.Pointer(&s))).Data,
-	}))
+	return []byte(s)
 }
