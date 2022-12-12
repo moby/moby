@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
@@ -31,7 +32,7 @@ type imageBackend interface {
 
 type importExportBackend interface {
 	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
-	ImportImage(ctx context.Context, src string, repository string, platform *specs.Platform, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
+	ImportImage(ctx context.Context, ref reference.Named, platform *specs.Platform, msg string, layerReader io.Reader, changes []string) (dockerimage.ID, error)
 	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
 }
 
