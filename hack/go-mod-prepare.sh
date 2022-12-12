@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 
-ROOTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+set -e
 
-cat > "${ROOTDIR}/go.mod" << EOF
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOTDIR="$(git -C "$SCRIPTDIR" rev-parse --show-toplevel)"
+
+set -x
+
+tee "${ROOTDIR}/go.mod" << EOF
 module github.com/docker/docker
 
 go 1.18
