@@ -59,7 +59,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			LastUpdated: containerdImage.Metadata().UpdatedAt,
 		}
 	}
-	return img, err
+	return img, nil
 }
 
 func (i *ImageService) getImage(ctx context.Context, refOrID string, platform *ocispec.Platform) (containerd.Image, *image.Image, error) {
@@ -145,12 +145,10 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string, platfor
 		return imgs[0], nil
 	}
 
-	namedRef := parsed.(reference.Named)
-	namedRef = reference.TagNameOnly(namedRef)
+	ref := reference.TagNameOnly(parsed.(reference.Named)).String()
 
 	// If the identifier could be a short ID, attempt to match
 	if shortID.MatchString(refOrID) {
-		ref := namedRef.String()
 		filters := []string{
 			fmt.Sprintf("name==%q", ref),
 			fmt.Sprintf(`target.digest~=/sha256:%s[0-9a-fA-F]{%d}/`, refOrID, 64-len(refOrID)),
@@ -177,12 +175,9 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string, platfor
 			}
 		}
 
-		if imgs[0].Name != ref {
-			namedRef = nil
-		}
 		return imgs[0], nil
 	}
-	img, err = is.Get(ctx, namedRef.String())
+	img, err = is.Get(ctx, ref)
 	if err != nil {
 		// TODO(containerd): error translation can use common function
 		if !cerrdefs.IsNotFound(err) {
