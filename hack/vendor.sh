@@ -7,18 +7,15 @@
 set -e
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-"${SCRIPTDIR}"/go-mod-prepare.sh
-
-export GO111MODULE=on
 
 tidy() (
 		set -x
-		go mod tidy -modfile vendor.mod -compat 1.18
+		"${SCRIPTDIR}"/with-go-mod.sh go mod tidy -modfile vendor.mod -compat 1.18
 )
 
 vendor() (
 		set -x
-		go mod vendor -modfile vendor.mod
+		"${SCRIPTDIR}"/with-go-mod.sh go mod vendor -modfile vendor.mod
 )
 
 help() {
