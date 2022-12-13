@@ -2,12 +2,16 @@ package image // import "github.com/docker/docker/integration/image"
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/integration/internal/container"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -50,4 +54,42 @@ func TestImagesFilterMultiReference(t *testing.T) {
 			t.Errorf("list images doesn't match any repoTag we expected, repoTag: %s", repoTag)
 		}
 	}
+}
+
+func TestImagesFilterBeforeSince(t *testing.T) {
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	name := strings.ToLower(t.Name())
+	ctr := container.Create(ctx, t, client, container.WithName(name))
+
+	imgs := make([]string, 5)
+	for i := range imgs {
+		if i > 0 {
+			// Make really really sure each image has a distinct timestamp.
+			time.Sleep(time.Millisecond)
+		}
+		id, err := client.ContainerCommit(ctx, ctr, types.ContainerCommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+		assert.NilError(t, err)
+		imgs[i] = id.ID
+	}
+
+	filter := filters.NewArgs(
+		filters.Arg("since", imgs[0]),
+		filters.Arg("before", imgs[len(imgs)-1]),
+	)
+	list, err := client.ImageList(ctx, types.ImageListOptions{Filters: filter})
+	assert.NilError(t, err)
+
+	var listedIDs []string
+	for _, i := range list {
+		t.Logf("ImageList: ID=%v RepoTags=%v", i.ID, i.RepoTags)
+		listedIDs = append(listedIDs, i.ID)
+	}
+	// The ImageList API sorts the list by created timestamp... truncated to
+	// 1-second precision. Since all the images were created within
+	// milliseconds of each other, listedIDs is effectively unordered and
+	// the assertion must therefore be order-independent.
+	assert.DeepEqual(t, listedIDs, imgs[1:len(imgs)-1], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
 }
