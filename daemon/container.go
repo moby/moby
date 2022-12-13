@@ -56,7 +56,18 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 		}
 		return nil, errdefs.System(indexError)
 	}
-	return daemon.containers.Get(containerID), nil
+	ctr := daemon.containers.Get(containerID)
+	if ctr == nil {
+		// Updates to the daemon.containersReplica ViewDB are not atomic
+		// or consistent w.r.t. the live daemon.containers Store so
+		// while reaching this code path may be indicative of a bug,
+		// it is not _necessarily_ the case.
+		logrus.WithField("prefixOrName", prefixOrName).
+			WithField("id", containerID).
+			Debugf("daemon.GetContainer: container is known to daemon.containersReplica but not daemon.containers")
+		return nil, containerNotFound(prefixOrName)
+	}
+	return ctr, nil
 }
 
 // checkContainer make sure the specified container validates the specified conditions
@@ -222,7 +233,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 	runconfig.SetDefaultNetModeIfBlank(hostConfig)
 	container.HostConfig = hostConfig
-	return container.CheckpointTo(daemon.containersReplica)
+	return nil
 }
 
 // verifyContainerSettings performs validation of the hostconfig and config

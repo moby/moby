@@ -68,9 +68,9 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 				// if user has change the network mode on starting, clean up the
 				// old networks. It is a deprecated feature and has been removed in Docker 1.12
 				ctr.NetworkSettings.Networks = nil
-				if err := ctr.CheckpointTo(daemon.containersReplica); err != nil {
-					return errdefs.System(err)
-				}
+			}
+			if err := ctr.CheckpointTo(daemon.containersReplica); err != nil {
+				return errdefs.System(err)
 			}
 			ctr.InitDNSHostConfig()
 		}
