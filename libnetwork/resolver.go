@@ -399,7 +399,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 	if err != nil {
 		logrus.WithError(err).Errorf("[resolver] failed to handle query: %s (%s)", queryName, dns.TypeToString[queryType])
-		return
+		resp = new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)
 	}
 
 	if resp == nil {
