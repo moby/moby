@@ -509,9 +509,7 @@ func (r *resolver) forwardExtDNS(proto string, maxSize int, query *dns.Msg) *dns
 		}
 
 		resp, err = co.ReadMsg()
-		// Truncated DNS replies should be sent to the client so that the
-		// client can retry over TCP
-		if err != nil && (resp == nil || !resp.Truncated) {
+		if err != nil {
 			r.forwardQueryEnd()
 			logrus.WithError(err).Warnf("[resolver] failed to read from DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
 			continue
