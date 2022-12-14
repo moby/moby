@@ -1309,7 +1309,8 @@ func getUnmountOnShutdownPath(config *config.Config) string {
 	return filepath.Join(config.ExecRoot, "unmount-on-shutdown")
 }
 
-// registerLinks writes the links to a file.
+// registerLinks registers network links between container and other containers
+// with the daemon using the specification in hostConfig.
 func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	if hostConfig == nil || hostConfig.NetworkMode.IsUserDefined() {
 		return nil
@@ -1353,10 +1354,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		}
 	}
 
-	// After we load all the links into the daemon
-	// set them to nil on the hostconfig
-	_, err := container.WriteHostConfig()
-	return err
+	return nil
 }
 
 // conditionalMountOnStart is a platform specific helper function during the
