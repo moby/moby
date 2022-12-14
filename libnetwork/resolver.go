@@ -402,30 +402,6 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		resp = new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)
 	}
 
-	if resp == nil {
-		// If the backend doesn't support proxying dns request
-		// fail the response
-		if !r.proxyDNS {
-			resp = new(dns.Msg)
-			resp.SetRcode(query, dns.RcodeServerFailure)
-			if err := w.WriteMsg(resp); err != nil {
-				logrus.WithError(err).Error("[resolver] error writing dns response")
-			}
-			return
-		}
-
-		// If the user sets ndots > 0 explicitly and the query is
-		// in the root domain don't forward it out. We will return
-		// failure and let the client retry with the search domain
-		// attached
-		switch queryType {
-		case dns.TypeA, dns.TypeAAAA:
-			if r.backend.NdotsSet() && !strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
-				resp = createRespMsg(query)
-			}
-		}
-	}
-
 	proto := w.LocalAddr().Network()
 	maxSize := 0
 	if proto == "tcp" {
@@ -444,11 +420,23 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		if resp.Len() > maxSize {
 			truncateResp(resp, maxSize, proto == "tcp")
 		}
-	} else {
-		resp = r.forwardExtDNS(proto, maxSize, query)
-		if resp == nil {
-			return
+	} else if r.proxyDNS {
+		// If the user sets ndots > 0 explicitly and the query is
+		// in the root domain don't forward it out. We will return
+		// failure and let the client retry with the search domain
+		// attached.
+		if (queryType == dns.TypeA || queryType == dns.TypeAAAA) && r.backend.NdotsSet() &&
+			!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
+			resp = createRespMsg(query)
+		} else {
+			resp = r.forwardExtDNS(proto, maxSize, query)
+			if resp == nil {
+				return
+			}
 		}
+	} else {
+		// The backend doesn't support proxying DNS requests.
+		resp = new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)
 	}
 
 	if err = w.WriteMsg(resp); err != nil {
