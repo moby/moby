@@ -1,4 +1,4 @@
-package cli // import "github.com/docker/docker/cli"
+package main
 
 import (
 	"strings"
