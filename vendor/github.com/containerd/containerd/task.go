@@ -310,6 +310,11 @@ func (t *task) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitStat
 			// On windows Created is akin to Stopped
 			break
 		}
+		if t.pid == 0 {
+			// allow for deletion of created tasks with PID 0
+			// https://github.com/containerd/containerd/issues/7357
+			break
+		}
 		fallthrough
 	default:
 		return nil, fmt.Errorf("task must be stopped before deletion: %s: %w", status.Status, errdefs.ErrFailedPrecondition)
