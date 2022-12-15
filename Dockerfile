@@ -1,19 +1,37 @@
 # syntax=docker/dockerfile:1
 
-ARG CROSS="false"
-ARG SYSTEMD="false"
 ARG GO_VERSION=1.19.4
-ARG DEBIAN_FRONTEND=noninteractive
-ARG VPNKIT_VERSION=0.5.0
-
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
+ARG XX_VERSION=1.1.2
 
-FROM ${GOLANG_IMAGE} AS base
+ARG VPNKIT_VERSION=0.5.0
+ARG DOCKERCLI_VERSION=v17.06.2-ce
+
+ARG CROSS="false"
+ARG SYSTEMD="false"
+ARG DEBIAN_FRONTEND=noninteractive
+ARG DOCKER_STATIC=1
+
+# cross compilation helper
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
+
+# dummy stage to make sure the image is built for deps that don't support some
+# architectures
+FROM --platform=$BUILDPLATFORM busybox AS build-dummy
+RUN mkdir -p /build
+FROM scratch AS binary-dummy
+COPY --from=build-dummy /build /build
+
+# base
+FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
+COPY --from=xx / /
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
+ARG DEBIAN_FRONTEND
+RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
 
 FROM base AS criu
@@ -26,53 +44,67 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
         && apt-get install -y --no-install-recommends criu \
         && install -D /usr/sbin/criu /build/criu
 
+# registry
+FROM base AS registry-src
+WORKDIR /usr/src/registry
+RUN git init . && git remote add origin "https://github.com/distribution/distribution.git"
+
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
-
 # REGISTRY_VERSION specifies the version of the registry to build and install
 # from the https://github.com/docker/distribution repository. This version of
 # the registry is used to test both schema 1 and schema 2 manifests. Generally,
 # the version specified here should match a current release.
 ARG REGISTRY_VERSION=v2.3.0
-
 # REGISTRY_VERSION_SCHEMA1 specifies the version of the registry to build and
 # install from the https://github.com/docker/distribution repository. This is
 # an older (pre v2.3.0) version of the registry that only supports schema1
 # manifests. This version of the registry is not working on arm64, so installation
 # is skipped on that architecture.
 ARG REGISTRY_VERSION_SCHEMA1=v2.1.0
-RUN --mount=type=cache,target=/root/.cache/go-build \
+ARG TARGETPLATFORM
+RUN --mount=from=registry-src,src=/usr/src/registry,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=registry-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ \
-        set -x \
-        && git clone https://github.com/docker/distribution.git . \
-        && git checkout -q "$REGISTRY_VERSION" \
-        && GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-           go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
-        && case $(dpkg --print-architecture) in \
-               amd64|armhf|ppc64*|s390x) \
-               git checkout -q "$REGISTRY_VERSION_SCHEMA1"; \
-               GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
-                   go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
-                ;; \
-           esac
+    --mount=type=tmpfs,target=/go/src <<EOT
+  set -ex
+  git fetch -q --depth 1 origin "${REGISTRY_VERSION}" +refs/tags/*:refs/tags/*
+  git checkout -q FETCH_HEAD
+  export GOPATH="/go/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"
+  CGO_ENABLED=0 xx-go build -o /build/registry-v2 -v ./cmd/registry
+  xx-verify /build/registry-v2
+  case $TARGETPLATFORM in
+    linux/amd64|linux/arm/v7|linux/ppc64le|linux/s390x)
+      git fetch -q --depth 1 origin "${REGISTRY_VERSION_SCHEMA1}" +refs/tags/*:refs/tags/*
+      git checkout -q FETCH_HEAD
+      CGO_ENABLED=0 xx-go build -o /build/registry-v2-schema1 -v ./cmd/registry
+      xx-verify /build/registry-v2-schema1
+      ;;
+  esac
+EOT
 
-FROM base AS swagger
-WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
-
+# go-swagger
+FROM base AS swagger-src
+WORKDIR /usr/src/swagger
+# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
+# TODO: move to under moby/ or fix upstream go-swagger to work for us.
+RUN git init . && git remote add origin "https://github.com/kolyshkin/go-swagger.git"
 # GO_SWAGGER_COMMIT specifies the version of the go-swagger binary to build and
 # install. Go-swagger is used in CI for validating swagger.yaml in hack/validate/swagger-gen
-#
-# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix,
-# TODO: move to under moby/ or fix upstream go-swagger to work for us.
-ENV GO_SWAGGER_COMMIT c56166c036004ba7a3a321e5951ba472b9ae298c
-RUN --mount=type=cache,target=/root/.cache/go-build \
+ARG GO_SWAGGER_COMMIT=c56166c036004ba7a3a321e5951ba472b9ae298c
+RUN git fetch -q --depth 1 origin "${GO_SWAGGER_COMMIT}" && git checkout -q FETCH_HEAD
+
+FROM base AS swagger
+WORKDIR /go/src/github.com/go-swagger/go-swagger
+ARG TARGETPLATFORM
+RUN --mount=from=swagger-src,src=/usr/src/swagger,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ \
-        set -x \
-        && git clone https://github.com/kolyshkin/go-swagger.git . \
-        && git checkout -q "$GO_SWAGGER_COMMIT" \
-        && go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger
+    --mount=type=tmpfs,target=/go/src/ <<EOT
+  set -e
+  xx-go build -o /build/swagger ./cmd/swagger
+  xx-verify /build/swagger
+EOT
 
 # frozen-images
 # See also frozenImages in "testutil/environment/protect.go" (which needs to
@@ -150,26 +182,38 @@ RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/
 
 FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
-FROM base AS delve
+# delve
+FROM base AS delve-src
+WORKDIR /usr/src/delve
+RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # DELVE_VERSION specifies the version of the Delve debugger binary
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
-#
 ARG DELVE_VERSION=v1.8.1
-# Delve on Linux is currently only supported on amd64 and arm64;
+RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS delve-build
+WORKDIR /usr/src/delve
+ARG TARGETPLATFORM
+RUN --mount=from=delve-src,src=/usr/src/delve,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=delve-build-$TARGETPLATFORM \
+    --mount=type=cache,target=/go/pkg/mod <<EOT
+  set -e
+  GO111MODULE=on xx-go build -o /build/dlv ./cmd/dlv
+  xx-verify /build/dlv
+EOT
+
+# delve is currently only supported on linux/amd64 and linux/arm64;
 # https://github.com/go-delve/delve/blob/v1.8.1/pkg/proc/native/support_sentinel.go#L1-L6
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        case $(dpkg --print-architecture) in \
-            amd64|arm64) \
-                GOBIN=/build/ GO111MODULE=on go install "github.com/go-delve/delve/cmd/dlv@${DELVE_VERSION}" \
-                && /build/dlv --help \
-                ;; \
-            *) \
-                mkdir -p /build/ \
-                ;; \
-        esac
+FROM binary-dummy AS delve-windows
+FROM binary-dummy AS delve-linux-arm
+FROM binary-dummy AS delve-linux-ppc64le
+FROM binary-dummy AS delve-linux-s390x
+FROM delve-build AS delve-linux-amd64
+FROM delve-build AS delve-linux-arm64
+FROM delve-linux-${TARGETARCH} AS delve-linux
+FROM delve-${TARGETOS} AS delve
 
 FROM base AS tomll
 # GOTOML_VERSION specifies the version of the tomll binary to build and install
@@ -192,17 +236,46 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
      && /build/go-winres --help
 
-FROM dev-base AS containerd
+# containerd
+FROM base AS containerd-src
+WORKDIR /usr/src/containerd
+RUN git init . && git remote add origin "https://github.com/containerd/containerd.git"
+# CONTAINERD_VERSION is used to build containerd binaries, and used for the
+# integration tests. The distributed docker .deb and .rpm packages depend on a
+# separate (containerd.io) package, which may be a different version as is
+# specified here. The containerd golang package is also pinned in vendor.mod.
+# When updating the binary version you may also need to update the vendor
+# version to pick up bug fixes or new APIs, however, usually the Go packages
+# are built from a commit from the master branch.
+ARG CONTAINERD_VERSION=v1.6.13
+RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS containerd-build
+WORKDIR /go/src/github.com/containerd/containerd
 ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            libbtrfs-dev
-ARG CONTAINERD_VERSION
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/containerd.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh containerd
+        apt-get update && xx-apt-get install -y --no-install-recommends \
+            gcc libbtrfs-dev libsecret-1-dev
+ARG DOCKER_STATIC
+RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=containerd-build-$TARGETPLATFORM <<EOT
+  set -e
+  export CC=$(xx-info)-gcc
+  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
+  xx-go --wrap
+  make $([ "$DOCKER_STATIC" = "1" ] && echo "STATIC=1") binaries
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd-shim-runc-v2
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/ctr
+  mkdir /build
+  mv bin/containerd bin/containerd-shim-runc-v2 bin/ctr /build
+EOT
+
+FROM containerd-build AS containerd-linux
+FROM binary-dummy AS containerd-windows
+FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
 # FIXME: when updating golangci-lint, remove the temporary "nolint" in https://github.com/moby/moby/blob/7860686a8df15eea9def9e6189c6f9eca031bb6f/libnetwork/networkdb/cluster.go#L246
@@ -226,46 +299,137 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
      && /build/shfmt --version
 
-FROM dev-base AS dockercli
-ARG DOCKERCLI_CHANNEL
+# dockercli
+FROM base AS dockercli-src
+WORKDIR /tmp/dockercli
+RUN git init . && git remote add origin "https://github.com/docker/cli.git"
 ARG DOCKERCLI_VERSION
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/dockercli.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh dockercli
+RUN git fetch -q --depth 1 origin "${DOCKERCLI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+RUN [ -d ./components/cli ] && mv ./components/cli /usr/src/dockercli || mv /tmp/dockercli /usr/src/dockercli
+WORKDIR /usr/src/dockercli
 
-FROM runtime-dev AS runc
-ARG RUNC_VERSION
-ARG RUNC_BUILDTAGS
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/runc.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh runc
+FROM base AS dockercli
+WORKDIR /go/src/github.com/docker/cli
+ARG DOCKERCLI_VERSION
+ARG DOCKERCLI_CHANNEL=stable
+ARG TARGETPLATFORM
+RUN xx-apt-get install -y --no-install-recommends gcc libc6-dev
+RUN --mount=from=dockercli-src,src=/usr/src/dockercli,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM <<EOT
+  set -e
+  DOWNLOAD_URL="https://download.docker.com/linux/static/${DOCKERCLI_CHANNEL}/$(xx-info march)/docker-${DOCKERCLI_VERSION#v}.tgz"
+  if curl --head --silent --fail "${DOWNLOAD_URL}" 1>/dev/null 2>&1; then
+    mkdir /build
+    curl -Ls "${DOWNLOAD_URL}" | tar -xz docker/docker
+    mv docker/docker /build/docker
+  else
+    CGO_ENABLED=0 xx-go build -o /build/docker ./cmd/docker
+  fi
+  xx-verify /build/docker
+EOT
 
-FROM dev-base AS tini
+# runc
+FROM base AS runc-src
+WORKDIR /usr/src/runc
+RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
+# RUNC_VERSION should match the version that is used by the containerd version
+# that is used. If you need to update runc, open a pull request in the containerd
+# project first, and update both after that is merged. When updating RUNC_VERSION,
+# consider updating runc in vendor.mod accordingly.
+ARG RUNC_VERSION=v1.1.4
+RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS runc-build
+WORKDIR /go/src/github.com/opencontainers/runc
 ARG DEBIAN_FRONTEND
-ARG TINI_VERSION
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-runc-aptcache,target=/var/cache/apt \
+        apt-get update && xx-apt-get install -y --no-install-recommends \
+            dpkg-dev gcc libc6-dev libseccomp-dev
+ARG DOCKER_STATIC
+RUN --mount=from=runc-src,src=/usr/src/runc,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=runc-build-$TARGETPLATFORM <<EOT
+  set -e
+  xx-go --wrap
+  CGO_ENABLED=1 make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") runc
+  mkdir /build
+  mv runc /build/
+EOT
+
+FROM runc-build AS runc-linux
+FROM binary-dummy AS runc-windows
+FROM runc-${TARGETOS} AS runc
+
+# tini
+FROM base AS tini-src
+WORKDIR /usr/src/tini
+RUN git init . && git remote add origin "https://github.com/krallin/tini.git"
+# TINI_VERSION specifies the version of tini (docker-init) to build. This
+# binary is used when starting containers with the `--init` option.
+ARG TINI_VERSION=v0.19.0
+RUN git fetch -q --depth 1 origin "${TINI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS tini-build
+WORKDIR /go/src/github.com/krallin/tini
+ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            cmake \
-            vim-common
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/tini.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=cache,target=/go/pkg/mod \
-        PREFIX=/build /install.sh tini
+        apt-get update && apt-get install -y --no-install-recommends cmake
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
+        xx-apt-get install -y --no-install-recommends \
+            gcc libc6-dev
+RUN --mount=from=tini-src,src=/usr/src/tini,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=tini-build-$TARGETPLATFORM <<EOT
+  set -e
+  CC=$(xx-info)-gcc cmake .
+  make tini-static
+  xx-verify --static tini-static
+  mkdir /build
+  mv tini-static /build/docker-init
+EOT
 
-FROM dev-base AS rootlesskit
-ARG ROOTLESSKIT_VERSION
-ARG PREFIX=/build
-COPY /hack/dockerfile/install/install.sh /hack/dockerfile/install/rootlesskit.installer /
-RUN --mount=type=cache,target=/root/.cache/go-build \
+FROM tini-build AS tini-linux
+FROM binary-dummy AS tini-windows
+FROM tini-${TARGETOS} AS tini
+
+# rootlesskit
+FROM base AS rootlesskit-src
+WORKDIR /usr/src/rootlesskit
+RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
+# When updating, also update rootlesskit commit in vendor.mod accordingly.
+ARG ROOTLESSKIT_VERSION=v1.1.0
+RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS rootlesskit-build
+WORKDIR /go/src/github.com/rootless-containers/rootlesskit
+ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptcache,target=/var/cache/apt \
+        apt-get update && xx-apt-get install -y --no-install-recommends \
+            gcc libc6-dev
+ENV GO111MODULE=on
+ARG DOCKER_STATIC
+RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
     --mount=type=cache,target=/go/pkg/mod \
-        /install.sh rootlesskit \
-     && "${PREFIX}"/rootlesskit --version \
-     && "${PREFIX}"/rootlesskit-docker-proxy --help
-COPY ./contrib/dockerd-rootless.sh /build
-COPY ./contrib/dockerd-rootless-setuptool.sh /build
+    --mount=type=cache,target=/root/.cache/go-build,id=rootlesskit-build-$TARGETPLATFORM <<EOT
+  set -e
+  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
+  xx-go build -o /build/rootlesskit -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit
+  xx-go build -o /build/rootlesskit-docker-proxy -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit-docker-proxy
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit-docker-proxy
+EOT
+COPY ./contrib/dockerd-rootless.sh /build/
+COPY ./contrib/dockerd-rootless-setuptool.sh /build/
+
+FROM rootlesskit-build AS rootlesskit-linux
+FROM binary-dummy AS rootlesskit-windows
+FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
 ARG CRUN_VERSION=1.4.5
@@ -304,6 +468,31 @@ FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-amd64
 FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit-linux-arm64
 FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
 FROM vpnkit-${TARGETOS} AS vpnkit
+
+# containerutility
+FROM base AS containerutil-src
+WORKDIR /usr/src/containerutil
+RUN git init . && git remote add origin "https://github.com/docker-archive/windows-container-utility.git"
+ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
+RUN git fetch -q --depth 1 origin "${CONTAINERUTILITY_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+
+FROM base AS containerutil-build
+WORKDIR /usr/src/containerutil
+ARG TARGETPLATFORM
+RUN xx-apt-get install -y --no-install-recommends gcc g++ libc6-dev
+RUN --mount=from=containerutil-src,src=/usr/src/containerutil,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=containerutil-build-$TARGETPLATFORM <<EOT
+  set -e
+  CC="$(xx-info)-gcc" CXX="$(xx-info)-g++" make
+  xx-verify --static containerutility.exe
+  mkdir /build
+  mv containerutility.exe /build/
+EOT
+
+FROM binary-dummy AS containerutil-linux
+FROM containerutil-build AS containerutil-windows-amd64
+FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
+FROM containerutil-${TARGETOS} AS containerutil
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev-systemd-false
@@ -377,6 +566,7 @@ COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
+COPY --from=containerutil /build/ /usr/local/bin/
 COPY --from=crun          /build/ /usr/local/bin/
 COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
@@ -427,6 +617,7 @@ COPY --from=runc          /build/ /usr/local/bin/
 COPY --from=containerd    /build/ /usr/local/bin/
 COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
+COPY --from=containerutil /build/ /usr/local/bin/
 COPY --from=gowinres      /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
 
