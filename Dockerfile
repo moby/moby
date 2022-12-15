@@ -5,6 +5,7 @@ ARG SYSTEMD="false"
 ARG GO_VERSION=1.19.4
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.5.0
+ARG CRIU_VERSION=v3.16.1
 
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
@@ -16,15 +17,33 @@ RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
 ENV GO111MODULE=off
 
+# criu
 FROM base AS criu
+WORKDIR /usr/local/src/criu
+RUN git init . && git remote add origin "https://github.com/checkpoint-restore/criu.git"
+ARG CRIU_VERSION
+RUN git fetch --depth 1 origin "${CRIU_VERSION}" && git checkout -q FETCH_HEAD
 ARG DEBIAN_FRONTEND
-ADD --chmod=0644 https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_11/Release.key /etc/apt/trusted.gpg.d/criu.gpg.asc
 RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-criu-aptcache,target=/var/cache/apt \
-        echo 'deb https://download.opensuse.org/repositories/devel:/tools:/criu/Debian_11/ /' > /etc/apt/sources.list.d/criu.list \
-        && apt-get update \
-        && apt-get install -y --no-install-recommends criu \
-        && install -D /usr/sbin/criu /build/criu
+    apt-get update && apt-get install -y --no-install-recommends \
+      clang \
+      gcc \
+      libc6-dev \
+      libcap-dev \
+      libnet1-dev \
+      libnl-3-dev \
+      libprotobuf-dev \
+      libprotobuf-c-dev \
+      protobuf-c-compiler \
+      protobuf-compiler \
+      python3-protobuf
+RUN --mount=type=cache,target=/root/.cache <<EOT
+  set -e
+  make
+  mkdir /build
+  mv ./criu/criu /build/
+EOT
 
 FROM base AS registry
 WORKDIR /go/src/github.com/docker/distribution
