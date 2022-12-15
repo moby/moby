@@ -331,8 +331,6 @@ github.com/fernet/fernet-go
 # github.com/fluent/fluent-logger-golang v1.9.0
 ## explicit
 github.com/fluent/fluent-logger-golang/fluent
-# github.com/fsnotify/fsnotify v1.5.1
-## explicit; go 1.13
 # github.com/go-logr/logr v1.2.3
 ## explicit; go 1.16
 github.com/go-logr/logr
@@ -613,7 +611,7 @@ github.com/moby/patternmatcher
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.0.0-20221123162438-b17f02f0a054
+# github.com/moby/swarmkit/v2 v2.0.0-20221215132206-0da442b2780f
 ## explicit; go 1.18
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
@@ -731,8 +729,6 @@ github.com/opencontainers/selinux/pkg/pwalkdir
 # github.com/pelletier/go-toml v1.9.4
 ## explicit; go 1.12
 github.com/pelletier/go-toml
-# github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee
-## explicit
 # github.com/philhofer/fwd v1.1.2
 ## explicit; go 1.15
 github.com/philhofer/fwd
@@ -757,8 +753,6 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rexray/gocsi v1.2.2
-## explicit; go 1.12
 # github.com/rootless-containers/rootlesskit v1.1.0
 ## explicit; go 1.19
 github.com/rootless-containers/rootlesskit/pkg/api
