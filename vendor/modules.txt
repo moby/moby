@@ -734,8 +734,8 @@ github.com/opencontainers/selinux/pkg/pwalkdir
 github.com/pelletier/go-toml
 # github.com/phayes/permbits v0.0.0-20190612203442-39d7c581d2ee
 ## explicit
-# github.com/philhofer/fwd v1.0.0
-## explicit
+# github.com/philhofer/fwd v1.1.2
+## explicit; go 1.15
 github.com/philhofer/fwd
 # github.com/pkg/errors v0.9.1
 ## explicit
@@ -780,8 +780,8 @@ github.com/spf13/pflag
 # github.com/tchap/go-patricia v2.3.0+incompatible
 ## explicit
 github.com/tchap/go-patricia/patricia
-# github.com/tinylib/msgp v1.1.0
-## explicit
+# github.com/tinylib/msgp v1.1.6
+## explicit; go 1.14
 github.com/tinylib/msgp/msgp
 # github.com/tonistiigi/fsutil v0.0.0-20220315205639-9ed612626da3
 ## explicit; go 1.13
