@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: ${GOTESTSUM_VERSION:=v1.7.0}
+: ${GOTESTSUM_VERSION:=v1.8.2}
 
 install_gotestsum() (
 	set -e
