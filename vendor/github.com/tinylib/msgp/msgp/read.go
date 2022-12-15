@@ -126,6 +126,11 @@ func NewReaderSize(r io.Reader, sz int) *Reader {
 	return &Reader{R: fwd.NewReaderSize(r, sz)}
 }
 
+// NewReaderBuf returns a *Reader with a provided buffer.
+func NewReaderBuf(r io.Reader, buf []byte) *Reader {
+	return &Reader{R: fwd.NewReaderBuf(r, buf)}
+}
+
 // Reader wraps an io.Reader and provides
 // methods to read MessagePack-encoded values
 // from it. Readers are buffered.

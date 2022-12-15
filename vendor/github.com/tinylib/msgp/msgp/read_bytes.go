@@ -201,14 +201,14 @@ func ReadMapHeaderBytes(b []byte) (sz uint32, o []byte, err error) {
 // - ErrShortBytes (too few bytes)
 // - TypeError{} (not a str or bin)
 func ReadMapKeyZC(b []byte) ([]byte, []byte, error) {
-	o, b, err := ReadStringZC(b)
+	o, x, err := ReadStringZC(b)
 	if err != nil {
 		if tperr, ok := err.(TypeError); ok && tperr.Encoded == BinType {
 			return ReadBytesZC(b)
 		}
 		return nil, b, err
 	}
-	return o, b, nil
+	return o, x, nil
 }
 
 // ReadArrayHeaderBytes attempts to read
@@ -249,6 +249,46 @@ func ReadArrayHeaderBytes(b []byte) (sz uint32, o []byte, err error) {
 
 	default:
 		err = badPrefix(ArrayType, lead)
+		return
+	}
+}
+
+// ReadBytesHeader reads the 'bin' header size
+// off of 'b' and returns the size and remaining bytes.
+// Possible errors:
+// - ErrShortBytes (too few bytes)
+// - TypeError{} (not a bin object)
+func ReadBytesHeader(b []byte) (sz uint32, o []byte, err error) {
+	if len(b) < 1 {
+		return 0, nil, ErrShortBytes
+	}
+	switch b[0] {
+	case mbin8:
+		if len(b) < 2 {
+			err = ErrShortBytes
+			return
+		}
+		sz = uint32(b[1])
+		o = b[2:]
+		return
+	case mbin16:
+		if len(b) < 3 {
+			err = ErrShortBytes
+			return
+		}
+		sz = uint32(big.Uint16(b[1:]))
+		o = b[3:]
+		return
+	case mbin32:
+		if len(b) < 5 {
+			err = ErrShortBytes
+			return
+		}
+		sz = big.Uint32(b[1:])
+		o = b[5:]
+		return
+	default:
+		err = badPrefix(BinType, b[0])
 		return
 	}
 }

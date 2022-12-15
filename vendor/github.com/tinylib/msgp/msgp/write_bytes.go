@@ -193,6 +193,26 @@ func AppendBytes(b []byte, bts []byte) []byte {
 	return o[:n+copy(o[n:], bts)]
 }
 
+// AppendBytesHeader appends an 'bin' header with
+// the given size to the slice.
+func AppendBytesHeader(b []byte, sz uint32) []byte {
+	var o []byte
+	var n int
+	switch {
+	case sz <= math.MaxUint8:
+		o, n = ensure(b, 2)
+		prefixu8(o[n:], mbin8, uint8(sz))
+		return o
+	case sz <= math.MaxUint16:
+		o, n = ensure(b, 3)
+		prefixu16(o[n:], mbin16, uint16(sz))
+		return o
+	}
+	o, n = ensure(b, 5)
+	prefixu32(o[n:], mbin32, sz)
+	return o
+}
+
 // AppendBool appends a bool to the slice
 func AppendBool(b []byte, t bool) []byte {
 	if t {
