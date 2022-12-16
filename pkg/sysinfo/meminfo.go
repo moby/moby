@@ -1,7 +1,7 @@
-package system // import "github.com/docker/docker/pkg/system"
+package sysinfo
 
-// MemInfo contains memory statistics of the host system.
-type MemInfo struct {
+// Memory contains memory statistics of the host system.
+type Memory struct {
 	// Total usable RAM (i.e. physical RAM minus a few reserved bits and the
 	// kernel binary code).
 	MemTotal int64

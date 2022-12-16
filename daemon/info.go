@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	metrics "github.com/docker/go-metrics"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -252,11 +251,11 @@ func kernelVersion() string {
 	return kernelVersion
 }
 
-func memInfo() *system.MemInfo {
-	memInfo, err := system.ReadMemInfo()
+func memInfo() *sysinfo.Memory {
+	memInfo, err := sysinfo.ReadMemInfo()
 	if err != nil {
 		logrus.Errorf("Could not read system memory info: %v", err)
-		memInfo = &system.MemInfo{}
+		memInfo = &sysinfo.Memory{}
 	}
 	return memInfo
 }

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/stats"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/sysinfo"
 )
 
 // newStatsCollector returns a new statsCollector that collections
@@ -15,7 +15,7 @@ import (
 func (daemon *Daemon) newStatsCollector(interval time.Duration) *stats.Collector {
 	// FIXME(vdemeester) move this elsewhere
 	if runtime.GOOS == "linux" {
-		meminfo, err := system.ReadMemInfo()
+		meminfo, err := sysinfo.ReadMemInfo()
 		if err == nil && meminfo.MemTotal > 0 {
 			daemon.machineMemory = uint64(meminfo.MemTotal)
 		}

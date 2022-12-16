@@ -1,4 +1,4 @@
-package system // import "github.com/docker/docker/pkg/system"
+package sysinfo
 
 import (
 	"bufio"
@@ -9,8 +9,8 @@ import (
 )
 
 // ReadMemInfo retrieves memory statistics of the host system and returns a
-// MemInfo type.
-func ReadMemInfo() (*MemInfo, error) {
+// Memory type.
+func ReadMemInfo() (*Memory, error) {
 	file, err := os.Open("/proc/meminfo")
 	if err != nil {
 		return nil, err
@@ -20,10 +20,10 @@ func ReadMemInfo() (*MemInfo, error) {
 }
 
 // parseMemInfo parses the /proc/meminfo file into
-// a MemInfo object given an io.Reader to the file.
+// a Memory object given an io.Reader to the file.
 // Throws error if there are problems reading from the file
-func parseMemInfo(reader io.Reader) (*MemInfo, error) {
-	meminfo := &MemInfo{}
+func parseMemInfo(reader io.Reader) (*Memory, error) {
+	meminfo := &Memory{}
 	scanner := bufio.NewScanner(reader)
 	memAvailable := int64(-1)
 	for scanner.Scan() {
