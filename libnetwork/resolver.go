@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
+	"golang.org/x/time/rate"
 )
 
 // Resolver represents the embedded DNS server in Docker. It operates
@@ -85,12 +88,12 @@ type resolver struct {
 	tcpServer     *dns.Server
 	tcpListen     *net.TCPListener
 	err           error
-	count         int32
-	tStamp        time.Time
-	queryLock     sync.Mutex
 	listenAddress string
 	proxyDNS      bool
 	startCh       chan struct{}
+
+	fwdSem      *semaphore.Weighted // Limit the number of concurrent external DNS requests in-flight
+	logInverval rate.Sometimes      // Rate-limit logging about hitting the fwdSem limit
 }
 
 // NewResolver creates a new instance of the Resolver
@@ -101,6 +104,8 @@ func NewResolver(address string, proxyDNS bool, backend DNSBackend) Resolver {
 		listenAddress: address,
 		err:           fmt.Errorf("setup not done yet"),
 		startCh:       make(chan struct{}, 1),
+		fwdSem:        semaphore.NewWeighted(maxConcurrent),
+		logInverval:   rate.Sometimes{Interval: logInterval},
 	}
 }
 
@@ -179,9 +184,7 @@ func (r *resolver) Stop() {
 	r.conn = nil
 	r.tcpServer = nil
 	r.err = fmt.Errorf("setup not done yet")
-	r.tStamp = time.Time{}
-	r.count = 0
-	r.queryLock = sync.Mutex{}
+	r.fwdSem = semaphore.NewWeighted(maxConcurrent)
 }
 
 func (r *resolver) SetExtServers(extDNS []extDNSEntry) {
@@ -467,16 +470,19 @@ func (r *resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 		}
 
 		// limits the number of outstanding concurrent queries.
-		if !r.forwardQueryStart() {
-			old := r.tStamp
-			r.tStamp = time.Now()
-			if r.tStamp.Sub(old) > logInterval {
+		ctx, cancel := context.WithTimeout(context.Background(), extIOTimeout)
+		err := r.fwdSem.Acquire(ctx, 1)
+		cancel()
+		if err != nil {
+			r.logInverval.Do(func() {
 				logrus.Errorf("[resolver] more than %v concurrent queries", maxConcurrent)
-			}
-			continue
+			})
+			return new(dns.Msg).SetRcode(query, dns.RcodeRefused)
 		}
-		resp := r.exchange(proto, extDNS, query)
-		r.forwardQueryEnd()
+		resp := func() *dns.Msg {
+			defer r.fwdSem.Release(1)
+			return r.exchange(proto, extDNS, query)
+		}()
 		if resp == nil {
 			continue
 		}
@@ -572,27 +578,4 @@ func statusString(responseCode int) string {
 		return s
 	}
 	return "UNKNOWN"
-}
-
-func (r *resolver) forwardQueryStart() bool {
-	r.queryLock.Lock()
-	defer r.queryLock.Unlock()
-
-	if r.count == maxConcurrent {
-		return false
-	}
-	r.count++
-
-	return true
-}
-
-func (r *resolver) forwardQueryEnd() {
-	r.queryLock.Lock()
-	defer r.queryLock.Unlock()
-
-	if r.count == 0 {
-		logrus.Error("[resolver] invalid concurrent query count")
-	} else {
-		r.count--
-	}
 }
