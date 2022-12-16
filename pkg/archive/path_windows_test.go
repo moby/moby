@@ -1,7 +1,4 @@
-//go:build windows
-// +build windows
-
-package system // import "github.com/docker/docker/pkg/system"
+package archive
 
 import (
 	"testing"
@@ -11,7 +8,7 @@ import (
 func TestCheckSystemDriveAndRemoveDriveLetter(t *testing.T) {
 	// Fails if not C drive.
 	_, err := CheckSystemDriveAndRemoveDriveLetter(`d:\`)
-	if err == nil || err.Error() != "The specified path is not on the system drive (C:)" {
+	if err == nil || err.Error() != "the specified path is not on the system drive (C:)" {
 		t.Fatalf("Expected error for d:")
 	}
 
@@ -68,7 +65,7 @@ func TestCheckSystemDriveAndRemoveDriveLetter(t *testing.T) {
 	if path, err = CheckSystemDriveAndRemoveDriveLetter(`c:`); err == nil {
 		t.Fatalf("c: should fail")
 	}
-	if err.Error() != `No relative path specified in "c:"` {
+	if err.Error() != `no relative path specified in "c:"` {
 		t.Fatalf(path, err)
 	}
 
@@ -76,7 +73,7 @@ func TestCheckSystemDriveAndRemoveDriveLetter(t *testing.T) {
 	if path, err = CheckSystemDriveAndRemoveDriveLetter(`d:`); err == nil {
 		t.Fatalf("c: should fail")
 	}
-	if err.Error() != `No relative path specified in "d:"` {
+	if err.Error() != `no relative path specified in "d:"` {
 		t.Fatalf(path, err)
 	}
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig/opts"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
@@ -236,7 +237,8 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) error 
 // Add the default PATH to runConfig.ENV if one exists for the operating system and there
 // is no PATH set. Note that Windows containers on Windows won't have one as it's set by HCS
 func (s *dispatchState) setDefaultPath() {
-	defaultPath := system.DefaultPathEnv(s.operatingSystem)
+	// TODO(thaJeztah): use github.com/moby/buildkit/util/system.DefaultPathEnv() once https://github.com/moby/buildkit/pull/3158 is resolved.
+	defaultPath := oci.DefaultPathEnv(s.operatingSystem)
 	if defaultPath == "" {
 		return
 	}

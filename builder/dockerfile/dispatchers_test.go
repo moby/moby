@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/oci"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -128,7 +128,8 @@ func TestFromScratch(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, sb.state.hasFromImage())
 	assert.Check(t, is.Equal("", sb.state.imageID))
-	expected := "PATH=" + system.DefaultPathEnv(runtime.GOOS)
+	// TODO(thaJeztah): use github.com/moby/buildkit/util/system.DefaultPathEnv() once https://github.com/moby/buildkit/pull/3158 is resolved.
+	expected := "PATH=" + oci.DefaultPathEnv(runtime.GOOS)
 	assert.Check(t, is.DeepEqual([]string{expected}, sb.state.runConfig.Env))
 }
 

@@ -28,10 +28,10 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -737,7 +737,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 
 	env := make([]string, 0, envSize)
 	if runtime.GOOS != "windows" {
-		env = append(env, "PATH="+system.DefaultPathEnv(ctrOS))
+		env = append(env, "PATH="+oci.DefaultPathEnv(ctrOS))
 		env = append(env, "HOSTNAME="+container.Config.Hostname)
 		if tty {
 			env = append(env, "TERM=xterm")
