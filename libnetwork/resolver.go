@@ -408,15 +408,14 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			resp = createRespMsg(query)
 		} else {
 			resp = r.forwardExtDNS(proto, maxSize, query)
-			if resp == nil {
-				return
-			}
 		}
-	} else {
-		// The backend doesn't support proxying DNS requests.
-		resp = new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)
 	}
 
+	if resp == nil {
+		// We were unable to get an answer from any of the upstream DNS
+		// servers or the backend doesn't support proxying DNS requests.
+		resp = new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)
+	}
 	if err = w.WriteMsg(resp); err != nil {
 		logrus.WithError(err).Errorf("[resolver] failed to write response")
 	}

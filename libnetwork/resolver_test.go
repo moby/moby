@@ -417,17 +417,39 @@ func (noopDNSBackend) NdotsSet() bool { return false }
 
 func (noopDNSBackend) HandleQueryResp(name string, ip net.IP) {}
 
-func TestReplySERVFAILOnInternalError(t *testing.T) {
-	defer redirectLogrusTo(t)
+func TestReplySERVFAIL(t *testing.T) {
+	cases := []struct {
+		name     string
+		q        *dns.Msg
+		proxyDNS bool
+	}{
+		{
+			name: "InternalError",
+			q:    new(dns.Msg).SetQuestion("_sip._tcp.example.com.", dns.TypeSRV),
+		},
+		{
+			name: "ProxyDNS=false",
+			q:    new(dns.Msg).SetQuestion("example.com.", dns.TypeA),
+		},
+		{
+			name:     "ProxyDNS=true", // No extDNS servers configured -> no answer from any upstream
+			q:        new(dns.Msg).SetQuestion("example.com.", dns.TypeA),
+			proxyDNS: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			defer redirectLogrusTo(t)
 
-	rsv := NewResolver("", false, badSRVDNSBackend{}).(*resolver)
-	w := &tstwriter{}
-	q := new(dns.Msg).SetQuestion("_sip._tcp.example.com.", dns.TypeSRV)
-	rsv.ServeDNS(w, q)
-	resp := w.GetResponse()
-	checkNonNullResponse(t, resp)
-	t.Log("Response: ", resp.String())
-	checkDNSResponseCode(t, resp, dns.RcodeServerFailure)
+			rsv := NewResolver("", tt.proxyDNS, badSRVDNSBackend{}).(*resolver)
+			w := &tstwriter{}
+			rsv.ServeDNS(w, tt.q)
+			resp := w.GetResponse()
+			checkNonNullResponse(t, resp)
+			t.Log("Response: ", resp.String())
+			checkDNSResponseCode(t, resp, dns.RcodeServerFailure)
+		})
+	}
 }
 
 type badSRVDNSBackend struct{ noopDNSBackend }
