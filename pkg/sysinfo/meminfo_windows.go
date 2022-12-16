@@ -28,7 +28,7 @@ type memorystatusex struct {
 
 // ReadMemInfo retrieves memory statistics of the host system and returns a
 // Memory type.
-func ReadMemInfo() (*Memory, error) {
+func readMemInfo() (*Memory, error) {
 	msi := &memorystatusex{
 		dwLength: 64,
 	}
