@@ -60,15 +60,14 @@ type DNSBackend interface {
 }
 
 const (
-	dnsPort         = "53"
-	ptrIPv4domain   = ".in-addr.arpa."
-	ptrIPv6domain   = ".ip6.arpa."
-	respTTL         = 600
-	maxExtDNS       = 3 // max number of external servers to try
-	extIOTimeout    = 4 * time.Second
-	defaultRespSize = 512
-	maxConcurrent   = 1024
-	logInterval     = 2 * time.Second
+	dnsPort       = "53"
+	ptrIPv4domain = ".in-addr.arpa."
+	ptrIPv6domain = ".ip6.arpa."
+	respTTL       = 600
+	maxExtDNS     = 3 // max number of external servers to try
+	extIOTimeout  = 4 * time.Second
+	maxConcurrent = 1024
+	logInterval   = 2 * time.Second
 )
 
 type extDNSEntry struct {
@@ -352,23 +351,6 @@ func (r *resolver) handleSRVQuery(query *dns.Msg) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func truncateResp(resp *dns.Msg, maxSize int, isTCP bool) {
-	if !isTCP {
-		resp.Truncated = true
-	}
-
-	srv := resp.Question[0].Qtype == dns.TypeSRV
-	// trim the Answer RRs one by one till the whole message fits
-	// within the reply size
-	for resp.Len() > maxSize {
-		resp.Answer = resp.Answer[:len(resp.Answer)-1]
-
-		if srv && len(resp.Extra) > 0 {
-			resp.Extra = resp.Extra[:len(resp.Extra)-1]
-		}
-	}
-}
-
 func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	var (
 		resp *dns.Msg
@@ -403,23 +385,19 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 
 	proto := w.LocalAddr().Network()
-	maxSize := 0
+	maxSize := dns.MinMsgSize
 	if proto == "tcp" {
-		maxSize = dns.MaxMsgSize - 1
-	} else if proto == "udp" {
-		optRR := query.IsEdns0()
-		if optRR != nil {
-			maxSize = int(optRR.UDPSize())
-		}
-		if maxSize < defaultRespSize {
-			maxSize = defaultRespSize
+		maxSize = dns.MaxMsgSize
+	} else {
+		if optRR := query.IsEdns0(); optRR != nil {
+			if udpsize := int(optRR.UDPSize()); udpsize > maxSize {
+				maxSize = udpsize
+			}
 		}
 	}
 
 	if resp != nil {
-		if resp.Len() > maxSize {
-			truncateResp(resp, maxSize, proto == "tcp")
-		}
+		resp.Truncate(maxSize)
 	} else if r.proxyDNS {
 		// If the user sets ndots > 0 explicitly and the query is
 		// in the root domain don't forward it out. We will return
