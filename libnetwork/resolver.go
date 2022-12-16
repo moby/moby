@@ -422,38 +422,44 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 }
 
+func (r *resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error) {
+	var (
+		extConn net.Conn
+		dialErr error
+	)
+	extConnect := func() {
+		if server.port == 0 {
+			server.port = 53
+		}
+		addr := fmt.Sprintf("%s:%d", server.IPStr, server.port)
+		extConn, dialErr = net.DialTimeout(proto, addr, extIOTimeout)
+	}
+
+	if server.HostLoopback {
+		extConnect()
+	} else {
+		execErr := r.backend.ExecFunc(extConnect)
+		if execErr != nil {
+			return nil, execErr
+		}
+	}
+	if dialErr != nil {
+		return nil, dialErr
+	}
+
+	return extConn, nil
+}
+
 func (r *resolver) forwardExtDNS(proto string, maxSize int, query *dns.Msg) *dns.Msg {
 	queryName, queryType := query.Question[0].Name, query.Question[0].Qtype
 	var resp *dns.Msg
-	for i := 0; i < maxExtDNS; i++ {
-		extDNS := &r.extDNSList[i]
+	for i, extDNS := range r.extDNSList {
 		if extDNS.IPStr == "" {
 			break
 		}
-		var (
-			extConn net.Conn
-			err     error
-		)
-		extConnect := func() {
-			port := extDNS.port
-			if port == 0 {
-				port = 53
-			}
-			addr := fmt.Sprintf("%s:%d", extDNS.IPStr, port)
-			extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
-		}
-
-		if extDNS.HostLoopback {
-			extConnect()
-		} else {
-			execErr := r.backend.ExecFunc(extConnect)
-			if execErr != nil {
-				logrus.Warn(execErr)
-				continue
-			}
-		}
+		extConn, err := r.dialExtDNS(proto, extDNS)
 		if err != nil {
-			logrus.WithField("retries", i).Warnf("[resolver] connect failed: %s", err)
+			logrus.WithField("retries", i).WithError(err).Warn("[resolver] connect failed")
 			continue
 		}
 		logrus.Debugf("[resolver] query %s (%s) from %s, forwarding to %s:%s", queryName, dns.TypeToString[queryType],
