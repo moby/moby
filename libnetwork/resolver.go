@@ -379,26 +379,38 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		logrus.Debugf("[resolver] query type %s is not supported by the embedded DNS and will be forwarded to external DNS", dns.TypeToString[queryType])
 	}
 
-	if err != nil {
-		logrus.WithError(err).Errorf("[resolver] failed to handle query: %s (%s)", queryName, dns.TypeToString[queryType])
-		resp = new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)
-	}
-
-	proto := w.LocalAddr().Network()
-	maxSize := dns.MinMsgSize
-	if proto == "tcp" {
-		maxSize = dns.MaxMsgSize
-	} else {
-		if optRR := query.IsEdns0(); optRR != nil {
-			if udpsize := int(optRR.UDPSize()); udpsize > maxSize {
-				maxSize = udpsize
-			}
+	reply := func(msg *dns.Msg) {
+		if err = w.WriteMsg(msg); err != nil {
+			logrus.WithError(err).Errorf("[resolver] failed to write response")
 		}
 	}
 
+	if err != nil {
+		logrus.WithError(err).Errorf("[resolver] failed to handle query: %s (%s)", queryName, dns.TypeToString[queryType])
+		reply(new(dns.Msg).SetRcode(query, dns.RcodeServerFailure))
+		return
+	}
+
 	if resp != nil {
+		// We are the authoritative DNS server for this request so it's
+		// on us to truncate the response message to the size limit
+		// negotiated by the client.
+		maxSize := dns.MinMsgSize
+		if w.LocalAddr().Network() == "tcp" {
+			maxSize = dns.MaxMsgSize
+		} else {
+			if optRR := query.IsEdns0(); optRR != nil {
+				if udpsize := int(optRR.UDPSize()); udpsize > maxSize {
+					maxSize = udpsize
+				}
+			}
+		}
 		resp.Truncate(maxSize)
-	} else if r.proxyDNS {
+		reply(resp)
+		return
+	}
+
+	if r.proxyDNS {
 		// If the user sets ndots > 0 explicitly and the query is
 		// in the root domain don't forward it out. We will return
 		// failure and let the client retry with the search domain
@@ -407,7 +419,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
 			resp = createRespMsg(query)
 		} else {
-			resp = r.forwardExtDNS(proto, maxSize, query)
+			resp = r.forwardExtDNS(w.LocalAddr().Network(), query)
 		}
 	}
 
@@ -416,9 +428,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		// servers or the backend doesn't support proxying DNS requests.
 		resp = new(dns.Msg).SetRcode(query, dns.RcodeServerFailure)
 	}
-	if err = w.WriteMsg(resp); err != nil {
-		logrus.WithError(err).Errorf("[resolver] failed to write response")
-	}
+	reply(resp)
 }
 
 func (r *resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error) {
@@ -449,7 +459,7 @@ func (r *resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error
 	return extConn, nil
 }
 
-func (r *resolver) forwardExtDNS(proto string, maxSize int, query *dns.Msg) *dns.Msg {
+func (r *resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 	queryName, queryType := query.Question[0].Name, query.Question[0].Qtype
 	for _, extDNS := range r.extDNSList {
 		if extDNS.IPStr == "" {
@@ -465,7 +475,7 @@ func (r *resolver) forwardExtDNS(proto string, maxSize int, query *dns.Msg) *dns
 			}
 			continue
 		}
-		resp := r.exchange(proto, extDNS, maxSize, query)
+		resp := r.exchange(proto, extDNS, query)
 		r.forwardQueryEnd()
 		if resp == nil {
 			continue
@@ -517,40 +527,42 @@ func (r *resolver) forwardExtDNS(proto string, maxSize int, query *dns.Msg) *dns
 	return nil
 }
 
-func (r *resolver) exchange(proto string, extDNS extDNSEntry, maxSize int, query *dns.Msg) *dns.Msg {
-	queryName, queryType := query.Question[0].Name, query.Question[0].Qtype
+func (r *resolver) exchange(proto string, extDNS extDNSEntry, query *dns.Msg) *dns.Msg {
 	extConn, err := r.dialExtDNS(proto, extDNS)
 	if err != nil {
 		logrus.WithError(err).Warn("[resolver] connect failed")
 		return nil
 	}
-	logrus.Debugf("[resolver] query %s (%s) from %s, forwarding to %s:%s", queryName, dns.TypeToString[queryType],
-		extConn.LocalAddr().String(), proto, extDNS.IPStr)
+	defer extConn.Close()
 
-	// Timeout has to be set for every IO operation.
-	if err := extConn.SetDeadline(time.Now().Add(extIOTimeout)); err != nil {
-		logrus.WithError(err).Error("[resolver] error setting conn deadline")
-	}
-	co := &dns.Conn{
-		Conn:    extConn,
-		UDPSize: uint16(maxSize),
-	}
-	defer co.Close()
+	log := logrus.WithFields(logrus.Fields{
+		"dns-server":  extConn.RemoteAddr().Network() + ":" + extConn.RemoteAddr().String(),
+		"client-addr": extConn.LocalAddr().Network() + ":" + extConn.LocalAddr().String(),
+		"question":    query.Question[0].String(),
+	})
+	log.Debug("[resolver] forwarding query")
 
-	err = co.WriteMsg(query)
+	resp, _, err := (&dns.Client{
+		Timeout: extIOTimeout,
+		// Following the robustness principle, make a best-effort
+		// attempt to receive oversized response messages without
+		// truncating them on our end to forward verbatim to the client.
+		// Some DNS servers (e.g. Mikrotik RouterOS) don't support
+		// EDNS(0) and may send replies over UDP longer than 512 bytes
+		// regardless of what size limit, if any, was advertized in the
+		// query message. Note that ExchangeWithConn will override this
+		// value if it detects an EDNS OPT record in query so only
+		// oversized replies to non-EDNS queries will benefit.
+		UDPSize: dns.MaxMsgSize,
+	}).ExchangeWithConn(query, &dns.Conn{Conn: extConn})
 	if err != nil {
-		logrus.Debugf("[resolver] send to DNS server failed, %s", err)
-		return nil
-	}
-
-	resp, err := co.ReadMsg()
-	if err != nil {
-		logrus.WithError(err).Warnf("[resolver] failed to read from DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
+		logrus.WithError(err).Errorf("[resolver] failed to query DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
 		return nil
 	}
 
 	if resp == nil {
-		logrus.Debugf("[resolver] external DNS %s:%s returned empty response for %q", proto, extDNS.IPStr, queryName)
+		// Should be impossible, so make noise if it happens anyway.
+		log.Error("[resolver] external DNS returned empty response")
 	}
 	return resp
 }
