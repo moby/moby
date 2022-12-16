@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/skip"
@@ -76,6 +77,7 @@ func checkDNSRRType(t *testing.T, actual, expected uint16) {
 func TestDNSIPQuery(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
+	defer testutils.SetupTestOSContext(t)()
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -214,6 +216,9 @@ func waitForLocalDNSServer(t *testing.T) {
 func TestDNSProxyServFail(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
+	osctx := testutils.SetupTestOSContextEx(t)
+	defer osctx.Cleanup(t)
+
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -247,9 +252,9 @@ func TestDNSProxyServFail(t *testing.T) {
 	// use TCP for predictable results. Connection tests (to figure out DNS server initialization) don't work with UDP
 	server := &dns.Server{Addr: "127.0.0.1:53", Net: "tcp"}
 	srvErrCh := make(chan error, 1)
-	go func() {
+	osctx.Go(t, func() {
 		srvErrCh <- server.ListenAndServe()
-	}()
+	})
 	defer func() {
 		server.Shutdown() //nolint:errcheck
 		if err := <-srvErrCh; err != nil {

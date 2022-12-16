@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -180,9 +181,7 @@ func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 }
 
 func TestCreateFullOptions(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -236,9 +235,7 @@ func TestCreateFullOptions(t *testing.T) {
 }
 
 func TestCreateNoConfig(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
@@ -251,9 +248,7 @@ func TestCreateNoConfig(t *testing.T) {
 }
 
 func TestCreateFullOptionsLabels(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -359,9 +354,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -387,9 +380,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateFail(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -407,9 +398,7 @@ func TestCreateFail(t *testing.T) {
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -617,10 +606,9 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 }
 
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
+	d.portAllocator = portallocator.NewInstance()
 
 	config := &configuration{
 		EnableIPTables:      true,
@@ -720,9 +708,7 @@ func getPortMapping() []types.PortBinding {
 }
 
 func TestLinkContainers(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 	iptable := iptables.GetIptable(iptables.IPv4)
@@ -876,9 +862,7 @@ func TestLinkContainers(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	// Test mtu
 	c := networkConfiguration{Mtu: -2}
@@ -949,9 +933,7 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaultGw(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -1013,7 +995,7 @@ func TestCleanupIptableRules(t *testing.T) {
 	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
 
 	for _, version := range ipVersions {
-		if _, _, _, _, err := setupIPChains(&configuration{EnableIPTables: true}, version); err != nil {
+		if _, _, _, _, err := setupIPChains(configuration{EnableIPTables: true}, version); err != nil {
 			t.Fatalf("Error setting up ip chains for %s: %v", version, err)
 		}
 
@@ -1095,32 +1077,35 @@ func TestCreateWithExistingBridge(t *testing.T) {
 }
 
 func TestCreateParallel(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
+	c := testutils.SetupTestOSContextEx(t)
+	defer c.Cleanup(t)
 
 	d := newDriver()
+	d.portAllocator = portallocator.NewInstance()
 
 	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
+	ipV4Data := getIPv4Data(t, "docker0")
+
 	ch := make(chan error, 100)
 	for i := 0; i < 100; i++ {
-		go func(name string, ch chan<- error) {
+		name := "net" + strconv.Itoa(i)
+		c.Go(t, func() {
 			config := &networkConfiguration{BridgeName: name}
 			genericOption := make(map[string]interface{})
 			genericOption[netlabel.GenericData] = config
-			if err := d.CreateNetwork(name, genericOption, nil, getIPv4Data(t, "docker0"), nil); err != nil {
+			if err := d.CreateNetwork(name, genericOption, nil, ipV4Data, nil); err != nil {
 				ch <- fmt.Errorf("failed to create %s", name)
 				return
 			}
-			if err := d.CreateNetwork(name, genericOption, nil, getIPv4Data(t, "docker0"), nil); err == nil {
+			if err := d.CreateNetwork(name, genericOption, nil, ipV4Data, nil); err == nil {
 				ch <- fmt.Errorf("failed was able to create overlap %s", name)
 				return
 			}
 			ch <- nil
-		}("net"+strconv.Itoa(i), ch)
+		})
 	}
 	// wait for the go routines
 	var success int

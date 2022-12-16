@@ -56,7 +56,7 @@ func TestSetupIPChains(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driverconfig := &configuration{
+	driverconfig := configuration{
 		EnableIPTables: true,
 	}
 	d := &driver{

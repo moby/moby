@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/testutils"
 	"gotest.tools/v3/assert"
 )
 
@@ -18,9 +19,6 @@ const (
 
 func TestUserChain(t *testing.T) {
 	iptable := iptables.GetIptable(iptables.IPv4)
-
-	nc, err := New()
-	assert.NilError(t, err)
 
 	tests := []struct {
 		iptables  bool
@@ -47,10 +45,15 @@ func TestUserChain(t *testing.T) {
 		},
 	}
 
-	resetIptables(t)
 	for _, tc := range tests {
 		tc := tc
 		t.Run(fmt.Sprintf("iptables=%v,insert=%v", tc.iptables, tc.insert), func(t *testing.T) {
+			defer testutils.SetupTestOSContext(t)()
+			defer resetIptables(t)
+
+			nc, err := New()
+			assert.NilError(t, err)
+			defer nc.Stop()
 			c := nc.(*controller)
 			c.cfg.DriverCfg["bridge"] = map[string]interface{}{
 				netlabel.GenericData: options.Generic{
@@ -75,7 +78,6 @@ func TestUserChain(t *testing.T) {
 				assert.Assert(t, err != nil, "chain %v: created unexpectedly", usrChainName)
 			}
 		})
-		resetIptables(t)
 	}
 }
 

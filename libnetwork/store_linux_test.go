@@ -17,14 +17,11 @@ func TestBoltdbBackend(t *testing.T) {
 }
 
 func TestNoPersist(t *testing.T) {
-	cfgOptions, err := OptionBoltdbWithRandomDBFile()
-	if err != nil {
-		t.Fatalf("Error creating random boltdb file : %v", err)
-	}
-	ctrl, err := New(cfgOptions...)
+	ctrl, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
+	defer ctrl.Stop()
 	nw, err := ctrl.NewNetwork("host", "host", "", NetworkOptionPersist(false))
 	if err != nil {
 		t.Fatalf("Error creating default \"host\" network: %v", err)

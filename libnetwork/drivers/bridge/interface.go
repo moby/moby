@@ -57,6 +57,10 @@ func (i *bridgeInterface) exists() bool {
 
 // addresses returns all IPv4 addresses and all IPv6 addresses for the bridge interface.
 func (i *bridgeInterface) addresses() ([]netlink.Addr, []netlink.Addr, error) {
+	if !i.exists() {
+		// A nonexistent interface, by definition, cannot have any addresses.
+		return nil, nil, nil
+	}
 	v4addr, err := i.nlh.AddrList(i.Link, netlink.FAMILY_V4)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to retrieve V4 addresses: %v", err)

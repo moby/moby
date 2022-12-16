@@ -24,6 +24,7 @@ var (
 
 // CheckRouteOverlaps checks whether the passed network overlaps with any existing routes
 func CheckRouteOverlaps(toCheck *net.IPNet) error {
+	networkGetRoutesFct := networkGetRoutesFct
 	if networkGetRoutesFct == nil {
 		networkGetRoutesFct = ns.NlHandle().RouteList
 	}

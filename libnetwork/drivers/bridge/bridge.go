@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
@@ -142,7 +143,7 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config            *configuration
+	config            configuration
 	natChain          *iptables.ChainInfo
 	filterChain       *iptables.ChainInfo
 	isolationChain1   *iptables.ChainInfo
@@ -155,12 +156,16 @@ type driver struct {
 	store             datastore.DataStore
 	nlh               *netlink.Handle
 	configNetwork     sync.Mutex
+	portAllocator     *portallocator.PortAllocator // Overridable for tests.
 	sync.Mutex
 }
 
 // New constructs a new bridge driver
 func newDriver() *driver {
-	return &driver{networks: map[string]*bridgeNetwork{}, config: &configuration{}}
+	return &driver{
+		networks:      map[string]*bridgeNetwork{},
+		portAllocator: portallocator.Get(),
+	}
 }
 
 // Init registers a new instance of bridge driver
@@ -348,7 +353,7 @@ func (n *bridgeNetwork) isolateNetwork(enable bool) error {
 
 func (d *driver) configure(option map[string]interface{}) error {
 	var (
-		config            *configuration
+		config            configuration
 		err               error
 		natChain          *iptables.ChainInfo
 		filterChain       *iptables.ChainInfo
@@ -360,20 +365,17 @@ func (d *driver) configure(option map[string]interface{}) error {
 		isolationChain2V6 *iptables.ChainInfo
 	)
 
-	genericData, ok := option[netlabel.GenericData]
-	if !ok || genericData == nil {
-		return nil
-	}
-
-	switch opt := genericData.(type) {
+	switch opt := option[netlabel.GenericData].(type) {
 	case options.Generic:
 		opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
 		if err != nil {
 			return err
 		}
-		config = opaqueConfig.(*configuration)
+		config = *opaqueConfig.(*configuration)
 	case *configuration:
-		config = opt
+		config = *opt
+	case nil:
+		// No GenericData option set. Use defaults.
 	default:
 		return &ErrInvalidDriverConfig{}
 	}
@@ -688,8 +690,8 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		id:           config.ID,
 		endpoints:    make(map[string]*bridgeEndpoint),
 		config:       config,
-		portMapper:   portmapper.New(d.config.UserlandProxyPath),
-		portMapperV6: portmapper.New(d.config.UserlandProxyPath),
+		portMapper:   portmapper.NewWithPortAllocator(d.portAllocator, d.config.UserlandProxyPath),
+		portMapperV6: portmapper.NewWithPortAllocator(d.portAllocator, d.config.UserlandProxyPath),
 		bridge:       bridgeIface,
 		driver:       d,
 	}

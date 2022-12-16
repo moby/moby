@@ -83,12 +83,13 @@ func Get() *PortAllocator {
 	// When this happens singleton behavior will be removed. Clients do not
 	// need to worry about this, they will not see a change in behavior.
 	once.Do(func() {
-		instance = newInstance()
+		instance = NewInstance()
 	})
 	return instance
 }
 
-func newInstance() *PortAllocator {
+// NewInstance is meant for use by libnetwork tests. It is not meant to be called directly.
+func NewInstance() *PortAllocator {
 	start, end, err := getDynamicPortRange()
 	if err != nil {
 		logrus.WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)

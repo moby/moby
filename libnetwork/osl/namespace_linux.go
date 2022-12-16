@@ -420,12 +420,6 @@ func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
 }
 
 func (n *networkNamespace) InvokeFunc(f func()) error {
-	origNS, err := netns.Get()
-	if err != nil {
-		return fmt.Errorf("failed to get original network namespace: %w", err)
-	}
-	defer origNS.Close()
-
 	path := n.nsPath()
 	newNS, err := netns.GetFromPath(path)
 	if err != nil {
@@ -436,6 +430,18 @@ func (n *networkNamespace) InvokeFunc(f func()) error {
 	done := make(chan error, 1)
 	go func() {
 		runtime.LockOSThread()
+		// InvokeFunc() could have been called from a goroutine with
+		// tampered thread state, e.g. from another InvokeFunc()
+		// callback. The outer goroutine's thread state cannot be
+		// trusted.
+		origNS, err := netns.Get()
+		if err != nil {
+			runtime.UnlockOSThread()
+			done <- fmt.Errorf("failed to get original network namespace: %w", err)
+			return
+		}
+		defer origNS.Close()
+
 		if err := netns.Set(newNS); err != nil {
 			runtime.UnlockOSThread()
 			done <- err
