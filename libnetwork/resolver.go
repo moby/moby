@@ -502,7 +502,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			// client can retry over TCP
 			if err != nil && (resp == nil || !resp.Truncated) {
 				r.forwardQueryEnd()
-				logrus.WithError(err).Debugf("[resolver] failed to read from DNS server")
+				logrus.WithError(err).Warnf("[resolver] failed to read from DNS server: %s, query: %s", extConn.RemoteAddr().String(), query.Question[0].String())
 				continue
 			}
 			r.forwardQueryEnd()
