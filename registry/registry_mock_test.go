@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/registry"
-	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
@@ -21,14 +20,14 @@ var (
 )
 
 func init() {
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 
 	// /v1/
-	r.HandleFunc("/v1/_ping", handlerGetPing).Methods(http.MethodGet)
-	r.HandleFunc("/v1/search", handlerSearch).Methods(http.MethodGet)
+	r.HandleFunc("/v1/_ping", handlerGetPing)
+	r.HandleFunc("/v1/search", handlerSearch)
 
 	// /v2/
-	r.HandleFunc("/v2/version", handlerGetPing).Methods(http.MethodGet)
+	r.HandleFunc("/v2/version", handlerGetPing)
 
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
 	testHTTPSServer = httptest.NewTLSServer(handlerAccessLog(r))
@@ -123,17 +122,25 @@ func writeResponse(w http.ResponseWriter, message interface{}, code int) {
 	w.WriteHeader(code)
 	body, err := json.Marshal(message)
 	if err != nil {
-		io.WriteString(w, err.Error())
+		_, _ = io.WriteString(w, err.Error())
 		return
 	}
-	w.Write(body)
+	_, _ = w.Write(body)
 }
 
 func handlerGetPing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeResponse(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
 	writeResponse(w, true, http.StatusOK)
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeResponse(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
 	result := &registry.SearchResults{
 		Query:      "fakequery",
 		NumResults: 1,
