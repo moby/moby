@@ -222,12 +222,12 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 		}
 	}
 
-	store, err := libkv.NewStore(store.Backend(kv), addrs, config)
+	s, err := libkv.NewStore(store.Backend(kv), addrs, config)
 	if err != nil {
 		return nil, err
 	}
 
-	ds := &datastore{scope: scope, store: store, active: true, watchCh: make(chan struct{}), sequential: sequential}
+	ds := &datastore{scope: scope, store: s, active: true, watchCh: make(chan struct{}), sequential: sequential}
 	if cached {
 		ds.cache = newCache(ds)
 	}

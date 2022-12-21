@@ -1,7 +1,6 @@
 package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/docker/docker/daemon/graphdriver"
@@ -12,7 +11,7 @@ import (
 func checkRootdirFs(rootdir string) error {
 	var buf unix.Statfs_t
 	if err := unix.Statfs(rootdir, &buf); err != nil {
-		return fmt.Errorf("Failed to access '%s': %s", rootdir, err)
+		return err
 	}
 
 	// on FreeBSD buf.Fstypename contains ['z', 'f', 's', 0 ... ]
@@ -24,15 +23,14 @@ func checkRootdirFs(rootdir string) error {
 	return nil
 }
 
+const maxlen = 12
+
 func getMountpoint(id string) string {
-	maxlen := 12
-
-	// we need to preserve filesystem suffix
-	suffix := strings.SplitN(id, "-", 2)
-
-	if len(suffix) > 1 {
-		return id[:maxlen] + "-" + suffix[1]
+	id, suffix, _ := strings.Cut(id, "-")
+	id = id[:maxlen]
+	if suffix != "" {
+		// preserve filesystem suffix.
+		id += "-" + suffix
 	}
-
-	return id[:maxlen]
+	return id
 }

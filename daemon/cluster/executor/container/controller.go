@@ -637,18 +637,18 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 	exposedPorts := make([]*api.PortConfig, 0, len(portMap))
 
 	for portProtocol, mapping := range portMap {
-		parts := strings.SplitN(string(portProtocol), "/", 2)
-		if len(parts) != 2 {
+		p, proto, ok := strings.Cut(string(portProtocol), "/")
+		if !ok {
 			return nil, fmt.Errorf("invalid port mapping: %s", portProtocol)
 		}
 
-		port, err := strconv.ParseUint(parts[0], 10, 16)
+		port, err := strconv.ParseUint(p, 10, 16)
 		if err != nil {
 			return nil, err
 		}
 
 		var protocol api.PortConfig_Protocol
-		switch strings.ToLower(parts[1]) {
+		switch strings.ToLower(proto) {
 		case "tcp":
 			protocol = api.ProtocolTCP
 		case "udp":
@@ -656,7 +656,7 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 		case "sctp":
 			protocol = api.ProtocolSCTP
 		default:
-			return nil, fmt.Errorf("invalid protocol: %s", parts[1])
+			return nil, fmt.Errorf("invalid protocol: %s", proto)
 		}
 
 		for _, binding := range mapping {

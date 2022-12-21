@@ -114,11 +114,11 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	// parse []string labels into a map[string]string
 	labels := map[string]string{}
 	for _, l := range info.Labels {
-		stringSlice := strings.SplitN(l, "=", 2)
+		k, v, ok := strings.Cut(l, "=")
 		// this will take the last value in the list for a given key
 		// ideally, one shouldn't assign multiple values to the same key
-		if len(stringSlice) > 1 {
-			labels[stringSlice[0]] = stringSlice[1]
+		if ok {
+			labels[k] = v
 		}
 	}
 

@@ -69,16 +69,12 @@ func (tsv Version) String() string {
 
 // GetVersionFromTarsum returns the Version from the provided string.
 func GetVersionFromTarsum(tarsum string) (Version, error) {
-	tsv := tarsum
-	if strings.Contains(tarsum, "+") {
-		tsv = strings.SplitN(tarsum, "+", 2)[0]
+	versionName, _, _ := strings.Cut(tarsum, "+")
+	version, ok := tarSumVersionsByName[versionName]
+	if !ok {
+		return -1, ErrNotVersion
 	}
-	for v, s := range tarSumVersions {
-		if s == tsv {
-			return v, nil
-		}
-	}
-	return -1, ErrNotVersion
+	return version, nil
 }
 
 // Errors that may be returned by functions in this package

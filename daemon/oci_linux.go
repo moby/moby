@@ -241,8 +241,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// network
 		if !c.Config.NetworkDisabled {
 			ns := specs.LinuxNamespace{Type: "network"}
-			parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
-			if parts[0] == "container" {
+			if c.HostConfig.NetworkMode.IsContainer() {
 				nc, err := daemon.getNetworkedContainer(c.ID, c.HostConfig.NetworkMode.ConnectedContainer())
 				if err != nil {
 					return err

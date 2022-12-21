@@ -110,15 +110,16 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 		return nil, fmt.Errorf("windowsfilter failed to create '%s': %v", home, err)
 	}
 
-	storageOpt := make(map[string]string)
-	storageOpt["size"] = defaultSandboxSize
-
-	for _, v := range options {
-		opt := strings.SplitN(v, "=", 2)
-		storageOpt[strings.ToLower(opt[0])] = opt[1]
+	storageOpt := map[string]string{
+		"size": defaultSandboxSize,
 	}
 
-	storageOptions, err := parseStorageOpt(storageOpt)
+	for _, o := range options {
+		k, v, _ := strings.Cut(o, "=")
+		storageOpt[strings.ToLower(k)] = v
+	}
+
+	opts, err := parseStorageOpt(storageOpt)
 	if err != nil {
 		return nil, fmt.Errorf("windowsfilter failed to parse default storage options - %s", err)
 	}
@@ -130,7 +131,7 @@ func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graph
 		},
 		cache:              make(map[string]string),
 		ctr:                graphdriver.NewRefCounter(&checker{}),
-		defaultStorageOpts: storageOptions,
+		defaultStorageOpts: opts,
 	}
 	return d, nil
 }

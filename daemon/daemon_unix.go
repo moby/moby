@@ -215,26 +215,27 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 			continue
 		}
 
-		var con []string
+		var k, v string
+		var ok bool
 		if strings.Contains(opt, "=") {
-			con = strings.SplitN(opt, "=", 2)
+			k, v, ok = strings.Cut(opt, "=")
 		} else if strings.Contains(opt, ":") {
-			con = strings.SplitN(opt, ":", 2)
+			k, v, ok = strings.Cut(opt, ":")
 			logrus.Warn("Security options with `:` as a separator are deprecated and will be completely unsupported in 17.04, use `=` instead.")
 		}
-		if len(con) != 2 {
+		if !ok {
 			return fmt.Errorf("invalid --security-opt 1: %q", opt)
 		}
 
-		switch con[0] {
+		switch k {
 		case "label":
-			labelOpts = append(labelOpts, con[1])
+			labelOpts = append(labelOpts, v)
 		case "apparmor":
-			container.AppArmorProfile = con[1]
+			container.AppArmorProfile = v
 		case "seccomp":
-			container.SeccompProfile = con[1]
+			container.SeccompProfile = v
 		case "no-new-privileges":
-			noNewPrivileges, err := strconv.ParseBool(con[1])
+			noNewPrivileges, err := strconv.ParseBool(v)
 			if err != nil {
 				return fmt.Errorf("invalid --security-opt 2: %q", opt)
 			}
@@ -1360,8 +1361,8 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 			return errors.Wrapf(err, "could not get container for %s", name)
 		}
 		for child.HostConfig.NetworkMode.IsContainer() {
-			parts := strings.SplitN(string(child.HostConfig.NetworkMode), ":", 2)
-			child, err = daemon.GetContainer(parts[1])
+			cid := child.HostConfig.NetworkMode.ConnectedContainer()
+			child, err = daemon.GetContainer(cid)
 			if err != nil {
 				if errdefs.IsNotFound(err) {
 					// Trying to link to a non-existing container is not valid, and
@@ -1370,7 +1371,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 					// image could not be found (see moby/moby#39823)
 					err = errdefs.InvalidParameter(err)
 				}
-				return errors.Wrapf(err, "Could not get container for %s", parts[1])
+				return errors.Wrapf(err, "could not get container for %s", cid)
 			}
 		}
 		if child.HostConfig.NetworkMode.IsHost() {

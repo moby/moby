@@ -38,16 +38,16 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	} else {
 		for _, imageEnv := range imageConf.Env {
 			found := false
-			imageEnvKey := strings.Split(imageEnv, "=")[0]
+			imageEnvKey, _, _ := strings.Cut(imageEnv, "=")
 			for _, userEnv := range userConf.Env {
-				userEnvKey := strings.Split(userEnv, "=")[0]
+				userEnvKey, _, _ := strings.Cut(userEnv, "=")
 				if isWindows {
 					// Case insensitive environment variables on Windows
-					imageEnvKey = strings.ToUpper(imageEnvKey)
-					userEnvKey = strings.ToUpper(userEnvKey)
+					found = strings.EqualFold(imageEnvKey, userEnvKey)
+				} else {
+					found = imageEnvKey == userEnvKey
 				}
-				if imageEnvKey == userEnvKey {
-					found = true
+				if found {
 					break
 				}
 			}

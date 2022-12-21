@@ -97,15 +97,10 @@ func parseRemoteURL(remoteURL string) (gitRepo, error) {
 		remoteURL = "https://" + remoteURL
 	}
 
-	var fragment string
 	if strings.HasPrefix(remoteURL, "git@") {
 		// git@.. is not an URL, so cannot be parsed as URL
-		parts := strings.SplitN(remoteURL, "#", 2)
-
-		repo.remote = parts[0]
-		if len(parts) == 2 {
-			fragment = parts[1]
-		}
+		var fragment string
+		repo.remote, fragment, _ = strings.Cut(remoteURL, "#")
 		repo.ref, repo.subdir = getRefAndSubdir(fragment)
 	} else {
 		u, err := url.Parse(remoteURL)
@@ -126,15 +121,11 @@ func parseRemoteURL(remoteURL string) (gitRepo, error) {
 }
 
 func getRefAndSubdir(fragment string) (ref string, subdir string) {
-	refAndDir := strings.SplitN(fragment, ":", 2)
-	ref = "master"
-	if len(refAndDir[0]) != 0 {
-		ref = refAndDir[0]
+	ref, subdir, _ = strings.Cut(fragment, ":")
+	if ref == "" {
+		ref = "master"
 	}
-	if len(refAndDir) > 1 && len(refAndDir[1]) != 0 {
-		subdir = refAndDir[1]
-	}
-	return
+	return ref, subdir
 }
 
 func fetchArgs(remoteURL string, ref string) []string {

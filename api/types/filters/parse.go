@@ -166,13 +166,13 @@ func (args Args) MatchKVList(key string, sources map[string]string) bool {
 	}
 
 	for value := range fieldValues {
-		testKV := strings.SplitN(value, "=", 2)
+		testK, testV, hasValue := strings.Cut(value, "=")
 
-		v, ok := sources[testKV[0]]
+		v, ok := sources[testK]
 		if !ok {
 			return false
 		}
-		if len(testKV) == 2 && testKV[1] != v {
+		if hasValue && testV != v {
 			return false
 		}
 	}

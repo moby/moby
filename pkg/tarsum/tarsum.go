@@ -62,12 +62,10 @@ func NewTarSumHash(r io.Reader, dc bool, v Version, tHash THash) (TarSum, error)
 
 // NewTarSumForLabel creates a new TarSum using the provided TarSum version+hash label.
 func NewTarSumForLabel(r io.Reader, disableCompression bool, label string) (TarSum, error) {
-	parts := strings.SplitN(label, "+", 2)
-	if len(parts) != 2 {
+	versionName, hashName, ok := strings.Cut(label, "+")
+	if !ok {
 		return nil, errors.New("tarsum label string should be of the form: {tarsum_version}+{hash_name}")
 	}
-
-	versionName, hashName := parts[0], parts[1]
 
 	version, ok := tarSumVersionsByName[versionName]
 	if !ok {

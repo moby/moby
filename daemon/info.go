@@ -206,9 +206,7 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info) {
 	cfg := daemon.configStore
 	for _, host := range cfg.Hosts {
 		// cnf.Hosts is normalized during startup, so should always have a scheme/proto
-		h := strings.SplitN(host, "://", 2)
-		proto := h[0]
-		addr := h[1]
+		proto, addr, _ := strings.Cut(host, "://")
 		if proto != "tcp" {
 			continue
 		}

@@ -107,18 +107,18 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
 			return nil, err
 		}
-		parts := strings.SplitN(extraHost, ":", 2)
+		host, ip, _ := strings.Cut(extraHost, ":")
 		// If the IP Address is a string called "host-gateway", replace this
 		// value with the IP address stored in the daemon level HostGatewayIP
 		// config variable
-		if parts[1] == opts.HostGatewayName {
+		if ip == opts.HostGatewayName {
 			gateway := daemon.configStore.HostGatewayIP.String()
 			if gateway == "" {
 				return nil, fmt.Errorf("unable to derive the IP value for host-gateway")
 			}
-			parts[1] = gateway
+			ip = gateway
 		}
-		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(parts[0], parts[1]))
+		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, ip))
 	}
 
 	if container.HostConfig.PortBindings != nil {

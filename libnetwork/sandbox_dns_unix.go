@@ -110,19 +110,18 @@ func (sb *sandbox) updateHostsFile(ifaceIPs []string) error {
 	// User might have provided a FQDN in hostname or split it across hostname
 	// and domainname.  We want the FQDN and the bare hostname.
 	fqdn := sb.config.hostName
-	mhost := sb.config.hostName
 	if sb.config.domainName != "" {
-		fqdn = fmt.Sprintf("%s.%s", fqdn, sb.config.domainName)
+		fqdn += "." + sb.config.domainName
 	}
+	hosts := fqdn
 
-	parts := strings.SplitN(fqdn, ".", 2)
-	if len(parts) == 2 {
-		mhost = fmt.Sprintf("%s %s", fqdn, parts[0])
+	if hostName, _, ok := strings.Cut(fqdn, "."); ok {
+		hosts += " " + hostName
 	}
 
 	var extraContent []etchosts.Record
 	for _, ip := range ifaceIPs {
-		extraContent = append(extraContent, etchosts.Record{Hosts: mhost, IP: ip})
+		extraContent = append(extraContent, etchosts.Record{Hosts: hosts, IP: ip})
 	}
 
 	sb.addHostsEntries(extraContent)
