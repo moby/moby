@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
@@ -390,7 +390,7 @@ func downloadSource(output io.Writer, stdout io.Writer, srcURL string) (remote b
 	filename := getFilenameForDownload(u.Path, resp)
 
 	// Prepare file in a tmp dir
-	tmpDir, err := ioutils.TempDir("", "docker-remote")
+	tmpDir, err := longpath.MkdirTemp("", "docker-remote")
 	if err != nil {
 		return
 	}

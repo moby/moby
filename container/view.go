@@ -138,16 +138,12 @@ func (db *ViewDB) GetByPrefix(s string) (string, error) {
 	if s == "" {
 		return "", ErrEmptyPrefix
 	}
-	txn := db.store.Txn(false)
-	iter, err := txn.Get(memdbContainersTable, memdbIDIndexPrefix, s)
+	iter, err := db.store.Txn(false).Get(memdbContainersTable, memdbIDIndexPrefix, s)
 	if err != nil {
 		return "", err
 	}
 
-	var (
-		id string
-	)
-
+	var id string
 	for {
 		item := iter.Next()
 		if item == nil {

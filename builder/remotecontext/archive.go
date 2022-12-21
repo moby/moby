@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/pkg/errors"
 )
@@ -47,7 +47,7 @@ type modifiableContext interface {
 //
 // Closing tarStream has to be done by the caller.
 func FromArchive(tarStream io.Reader) (builder.Source, error) {
-	root, err := ioutils.TempDir("", "docker-builder")
+	root, err := longpath.MkdirTemp("", "docker-builder")
 	if err != nil {
 		return nil, err
 	}
