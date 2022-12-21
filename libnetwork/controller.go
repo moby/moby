@@ -283,9 +283,7 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		}
 	}
 
-	agent := c.getAgent()
-
-	if agent == nil {
+	if c.getAgent() == nil {
 		c.Lock()
 		c.keys = keys
 		c.Unlock()
@@ -406,20 +404,19 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 		return nil
 	}
 
-	config := make(map[string]interface{})
-
+	cfg := map[string]interface{}{}
 	for _, label := range c.cfg.Labels {
 		if !strings.HasPrefix(netlabel.Key(label), netlabel.DriverPrefix+"."+ntype) {
 			continue
 		}
 
-		config[netlabel.Key(label)] = netlabel.Value(label)
+		cfg[netlabel.Key(label)] = netlabel.Value(label)
 	}
 
 	drvCfg, ok := c.cfg.DriverCfg[ntype]
 	if ok {
 		for k, v := range drvCfg.(map[string]interface{}) {
-			config[k] = v
+			cfg[k] = v
 		}
 	}
 
@@ -427,7 +424,7 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 		if !v.IsValid() {
 			continue
 		}
-		config[netlabel.MakeKVClient(k)] = discoverapi.DatastoreConfigData{
+		cfg[netlabel.MakeKVClient(k)] = discoverapi.DatastoreConfigData{
 			Scope:    k,
 			Provider: v.Client.Provider,
 			Address:  v.Client.Address,
@@ -435,7 +432,7 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 		}
 	}
 
-	return config
+	return cfg
 }
 
 var procReloadConfig = make(chan (bool), 1)
@@ -615,7 +612,7 @@ const overlayDSROptionString = "dsr"
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
 	var (
-		cap            *driverapi.Capability
+		caps           *driverapi.Capability
 		err            error
 		t              *network
 		skipCfgEpCount bool
@@ -640,7 +637,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	defaultIpam := defaultIpamForNetworkType(networkType)
 	// Construct the network object
-	network := &network{
+	nw := &network{
 		name:             name,
 		networkType:      networkType,
 		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
@@ -653,8 +650,8 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		loadBalancerMode: loadBalancerModeDefault,
 	}
 
-	network.processOptions(options...)
-	if err = network.validateConfiguration(); err != nil {
+	nw.processOptions(options...)
+	if err = nw.validateConfiguration(); err != nil {
 		return nil, err
 	}
 
@@ -662,27 +659,27 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	// plumbing for configuration networks. Reset of the config-only
 	// network drivers is needed so that this special network is not
 	// usable by old engine versions.
-	if network.configOnly {
-		network.scope = datastore.LocalScope
-		network.networkType = "null"
+	if nw.configOnly {
+		nw.scope = datastore.LocalScope
+		nw.networkType = "null"
 		goto addToStore
 	}
 
-	_, cap, err = network.resolveDriver(network.networkType, true)
+	_, caps, err = nw.resolveDriver(nw.networkType, true)
 	if err != nil {
 		return nil, err
 	}
 
-	if network.scope == datastore.LocalScope && cap.DataScope == datastore.GlobalScope {
+	if nw.scope == datastore.LocalScope && caps.DataScope == datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("cannot downgrade network scope for %s networks", networkType)
 	}
-	if network.ingress && cap.DataScope != datastore.GlobalScope {
+	if nw.ingress && caps.DataScope != datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
 	}
 
 	// At this point the network scope is still unknown if not set by user
-	if (cap.DataScope == datastore.GlobalScope || network.scope == datastore.SwarmScope) &&
-		!c.isDistributedControl() && !network.dynamic {
+	if (caps.DataScope == datastore.GlobalScope || nw.scope == datastore.SwarmScope) &&
+		!c.isDistributedControl() && !nw.dynamic {
 		if c.isManager() {
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
 			return nil, ManagerRedirectError(name)
@@ -690,48 +687,48 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
 	}
 
-	if network.scope == datastore.SwarmScope && c.isDistributedControl() {
+	if nw.scope == datastore.SwarmScope && c.isDistributedControl() {
 		return nil, types.ForbiddenErrorf("cannot create a swarm scoped network when swarm is not active")
 	}
 
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
-	if _, err := network.driver(true); err != nil {
+	if _, err := nw.driver(true); err != nil {
 		return nil, err
 	}
 
 	// From this point on, we need the network specific configuration,
 	// which may come from a configuration-only network
-	if network.configFrom != "" {
-		t, err = c.getConfigNetwork(network.configFrom)
+	if nw.configFrom != "" {
+		t, err = c.getConfigNetwork(nw.configFrom)
 		if err != nil {
-			return nil, types.NotFoundErrorf("configuration network %q does not exist", network.configFrom)
+			return nil, types.NotFoundErrorf("configuration network %q does not exist", nw.configFrom)
 		}
-		if err = t.applyConfigurationTo(network); err != nil {
+		if err = t.applyConfigurationTo(nw); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
-		network.generic[netlabel.Internal] = network.internal
+		nw.generic[netlabel.Internal] = nw.internal
 		defer func() {
 			if err == nil && !skipCfgEpCount {
 				if err := t.getEpCnt().IncEndpointCnt(); err != nil {
 					logrus.Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v",
-						t.Name(), network.Name(), err)
+						t.Name(), nw.Name(), err)
 				}
 			}
 		}()
 	}
 
-	err = network.ipamAllocate()
+	err = nw.ipamAllocate()
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			network.ipamRelease()
+			nw.ipamRelease()
 		}
 	}()
 
-	err = c.addNetwork(network)
+	err = c.addNetwork(nw)
 	if err != nil {
 		if _, ok := err.(types.MaskableError); ok { //nolint:gosimple
 			// This error can be ignored and set this boolean
@@ -743,8 +740,8 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	}
 	defer func() {
 		if err != nil {
-			if e := network.deleteNetwork(); e != nil {
-				logrus.Warnf("couldn't roll back driver network on network %s creation failure: %v", network.name, err)
+			if e := nw.deleteNetwork(); e != nil {
+				logrus.Warnf("couldn't roll back driver network on network %s creation failure: %v", nw.name, err)
 			}
 		}
 	}()
@@ -757,10 +754,10 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	// option.  Unfortunately, drivers can't influence the core
 	// "libnetwork.network" data type.  Hence we need this hack code
 	// to implement in this manner.
-	if gval, ok := network.generic[netlabel.GenericData]; ok && network.networkType == "overlay" {
+	if gval, ok := nw.generic[netlabel.GenericData]; ok && nw.networkType == "overlay" {
 		optMap := gval.(map[string]string)
 		if _, ok := optMap[overlayDSROptionString]; ok {
-			network.loadBalancerMode = loadBalancerModeDSR
+			nw.loadBalancerMode = loadBalancerModeDSR
 		}
 	}
 
@@ -768,7 +765,7 @@ addToStore:
 	// First store the endpoint count, then the network. To avoid to
 	// end up with a datastore containing a network and not an epCnt,
 	// in case of an ungraceful shutdown during this function call.
-	epCnt := &endpointCnt{n: network}
+	epCnt := &endpointCnt{n: nw}
 	if err = c.updateToStore(epCnt); err != nil {
 		return nil, err
 	}
@@ -780,34 +777,34 @@ addToStore:
 		}
 	}()
 
-	network.epCnt = epCnt
-	if err = c.updateToStore(network); err != nil {
+	nw.epCnt = epCnt
+	if err = c.updateToStore(nw); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			if e := c.deleteFromStore(network); e != nil {
-				logrus.Warnf("could not rollback from store, network %v on failure (%v): %v", network, err, e)
+			if e := c.deleteFromStore(nw); e != nil {
+				logrus.Warnf("could not rollback from store, network %v on failure (%v): %v", nw, err, e)
 			}
 		}
 	}()
 
-	if network.configOnly {
-		return network, nil
+	if nw.configOnly {
+		return nw, nil
 	}
 
-	joinCluster(network)
+	joinCluster(nw)
 	defer func() {
 		if err != nil {
-			network.cancelDriverWatches()
-			if e := network.leaveCluster(); e != nil {
-				logrus.Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", network.name, err, e)
+			nw.cancelDriverWatches()
+			if e := nw.leaveCluster(); e != nil {
+				logrus.Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", nw.name, err, e)
 			}
 		}
 	}()
 
-	if network.hasLoadBalancerEndpoint() {
-		if err = network.createLoadBalancerSandbox(); err != nil {
+	if nw.hasLoadBalancerEndpoint() {
+		if err = nw.createLoadBalancerSandbox(); err != nil {
 			return nil, err
 		}
 	}
@@ -819,7 +816,7 @@ addToStore:
 	}
 	arrangeUserFilterRule()
 
-	return network, nil
+	return nw, nil
 }
 
 var joinCluster NetworkWalker = func(nw Network) bool {
@@ -858,15 +855,15 @@ func (c *controller) reservePools() {
 			n.ipamV6Config = []*IpamConf{{PreferredPool: n.ipamV6Info[0].Pool.String()}}
 		}
 		// Account current network gateways
-		for i, c := range n.ipamV4Config {
-			if c.Gateway == "" && n.ipamV4Info[i].Gateway != nil {
-				c.Gateway = n.ipamV4Info[i].Gateway.IP.String()
+		for i, cfg := range n.ipamV4Config {
+			if cfg.Gateway == "" && n.ipamV4Info[i].Gateway != nil {
+				cfg.Gateway = n.ipamV4Info[i].Gateway.IP.String()
 			}
 		}
 		if n.enableIPv6 {
-			for i, c := range n.ipamV6Config {
-				if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
-					c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+			for i, cfg := range n.ipamV6Config {
+				if cfg.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
+					cfg.Gateway = n.ipamV6Info[i].Gateway.IP.String()
 				}
 			}
 		}
