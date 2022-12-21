@@ -56,32 +56,30 @@ const (
 
 	// HostIP is the Source-IP Address used to SNAT container traffic
 	HostIP = Prefix + ".host_ipv4"
-)
 
-var (
 	// GlobalKVProvider constant represents the KV provider backend
-	GlobalKVProvider = MakeKVProvider("global")
+	GlobalKVProvider = DriverPrivatePrefix + "globalkv_provider"
 
 	// GlobalKVProviderURL constant represents the KV provider URL
-	GlobalKVProviderURL = MakeKVProviderURL("global")
+	GlobalKVProviderURL = DriverPrivatePrefix + "globalkv_provider_url"
 
 	// GlobalKVProviderConfig constant represents the KV provider Config
-	GlobalKVProviderConfig = MakeKVProviderConfig("global")
+	GlobalKVProviderConfig = DriverPrivatePrefix + "globalkv_provider_config"
 
 	// GlobalKVClient constants represents the global kv store client
-	GlobalKVClient = MakeKVClient("global")
+	GlobalKVClient = DriverPrivatePrefix + "globalkv_client"
 
 	// LocalKVProvider constant represents the KV provider backend
-	LocalKVProvider = MakeKVProvider("local")
+	LocalKVProvider = DriverPrivatePrefix + "localkv_provider"
 
 	// LocalKVProviderURL constant represents the KV provider URL
-	LocalKVProviderURL = MakeKVProviderURL("local")
+	LocalKVProviderURL = DriverPrivatePrefix + "localkv_provider_url"
 
 	// LocalKVProviderConfig constant represents the KV provider Config
-	LocalKVProviderConfig = MakeKVProviderConfig("local")
+	LocalKVProviderConfig = DriverPrivatePrefix + "localkv_provider_config"
 
 	// LocalKVClient constants represents the local kv store client
-	LocalKVClient = MakeKVClient("local")
+	LocalKVClient = DriverPrivatePrefix + "localkv_client"
 )
 
 // MakeKVProvider returns the kvprovider label for the scope
