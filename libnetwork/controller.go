@@ -406,11 +406,12 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 
 	cfg := map[string]interface{}{}
 	for _, label := range c.cfg.Labels {
-		if !strings.HasPrefix(netlabel.Key(label), netlabel.DriverPrefix+"."+ntype) {
+		key, val, _ := strings.Cut(label, "=")
+		if !strings.HasPrefix(key, netlabel.DriverPrefix+"."+ntype) {
 			continue
 		}
 
-		cfg[netlabel.Key(label)] = netlabel.Value(label)
+		cfg[key] = val
 	}
 
 	drvCfg, ok := c.cfg.DriverCfg[ntype]

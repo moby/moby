@@ -1,9 +1,5 @@
 package netlabel
 
-import (
-	"strings"
-)
-
 const (
 	// Prefix constant marks the reserved label space for libnetwork
 	Prefix = "com.docker.network"
@@ -100,22 +96,4 @@ func MakeKVProviderConfig(scope string) string {
 // MakeKVClient returns the kv client label for the scope
 func MakeKVClient(scope string) string {
 	return DriverPrivatePrefix + scope + "kv_client"
-}
-
-// Key extracts the key portion of the label
-func Key(label string) (key string) {
-	key, _, _ = strings.Cut(label, "=")
-	return key
-}
-
-// Value extracts the value portion of the label
-func Value(label string) (value string) {
-	_, value, _ = strings.Cut(label, "=")
-	return value
-}
-
-// KeyValue decomposes the label in the (key,value) pair
-func KeyValue(label string) (key string, value string) {
-	key, value, _ = strings.Cut(label, "=")
-	return key, value
 }
