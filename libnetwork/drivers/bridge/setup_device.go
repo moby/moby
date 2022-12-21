@@ -34,8 +34,8 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	logrus.Debugf("Setting bridge mac address to %s", hwAddr)
 
 	if err := i.nlh.LinkAdd(i.Link); err != nil {
-		logrus.Debugf("Failed to create bridge %s via netlink. Trying ioctl", config.BridgeName)
-		return ioctlCreateBridge(config.BridgeName, hwAddr.String())
+		logrus.WithError(err).Errorf("Failed to create bridge %s via netlink", config.BridgeName)
+		return err
 	}
 
 	return nil
