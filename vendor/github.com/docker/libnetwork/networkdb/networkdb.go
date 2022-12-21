@@ -283,7 +283,7 @@ func (nDB *NetworkDB) Close() {
 		logrus.Errorf("%v(%v) Could not close DB: %v", nDB.config.Hostname, nDB.config.NodeID, err)
 	}
 
-	//Avoid (*Broadcaster).run goroutine leak
+	// Avoid (*Broadcaster).run goroutine leak
 	nDB.broadcaster.Close()
 }
 
@@ -473,17 +473,18 @@ func (nDB *NetworkDB) deleteNodeFromNetworks(deletedNode string) {
 
 // deleteNodeNetworkEntries is called in 2 conditions with 2 different outcomes:
 // 1) when a notification is coming of a node leaving the network
-//		- Walk all the network entries and mark the leaving node's entries for deletion
-//			These will be garbage collected when the reap timer will expire
+//   - Walk all the network entries and mark the leaving node's entries for deletion
+//     These will be garbage collected when the reap timer will expire
+//
 // 2) when the local node is leaving the network
-//		- Walk all the network entries:
-//			A) if the entry is owned by the local node
-//		  then we will mark it for deletion. This will ensure that if a node did not
-//		  yet received the notification that the local node is leaving, will be aware
-//		  of the entries to be deleted.
-//			B) if the entry is owned by a remote node, then we can safely delete it. This
-//			ensures that if we join back this network as we receive the CREATE event for
-//		  entries owned by remote nodes, we will accept them and we notify the application
+//   - Walk all the network entries:
+//     A) if the entry is owned by the local node
+//     then we will mark it for deletion. This will ensure that if a node did not
+//     yet received the notification that the local node is leaving, will be aware
+//     of the entries to be deleted.
+//     B) if the entry is owned by a remote node, then we can safely delete it. This
+//     ensures that if we join back this network as we receive the CREATE event for
+//     entries owned by remote nodes, we will accept them and we notify the application
 func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 	// Indicates if the delete is triggered for the local node
 	isNodeLocal := node == nDB.config.NodeID
@@ -608,7 +609,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	nodeNetworks[nid] = &network{id: nid, ltime: ltime, entriesNumber: entries}
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			//TODO fcrisciani this can be optimized maybe avoiding the lock?
+			// TODO fcrisciani this can be optimized maybe avoiding the lock?
 			// this call is done each GetBroadcasts call to evaluate the number of
 			// replicas for the message
 			nDB.RLock()

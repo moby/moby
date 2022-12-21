@@ -781,8 +781,8 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// Setup IP6Tables.
 		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupIP6Tables},
 
-		//We want to track firewalld configuration so that
-		//if it is started/reloaded, the rules can be applied correctly
+		// We want to track firewalld configuration so that
+		// if it is started/reloaded, the rules can be applied correctly
 		{d.config.EnableIPTables, network.setupFirewalld},
 		// same for IPv6
 		{config.EnableIPv6 && d.config.EnableIP6Tables, network.setupFirewalld6},
@@ -796,7 +796,7 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 		// Add inter-network communication rules.
 		{d.config.EnableIPTables, setupNetworkIsolationRules},
 
-		//Configure bridge networking filtering if ICC is off and IP tables are enabled
+		// Configure bridge networking filtering if ICC is off and IP tables are enabled
 		{!config.EnableICC && d.config.EnableIPTables, setupBridgeNetFiltering},
 	} {
 		if step.Condition {

@@ -980,13 +980,13 @@ func (n *network) Delete(options ...NetworkDeleteOption) error {
 }
 
 // This function gets called in 3 ways:
-//  * Delete() -- (false, false)
-//      remove if endpoint count == 0 or endpoint count == 1 and
-//      there is a load balancer IP
-//  * Delete(libnetwork.NetworkDeleteOptionRemoveLB) -- (false, true)
-//      remove load balancer and network if endpoint count == 1
-//  * controller.networkCleanup() -- (true, true)
-//      remove the network no matter what
+//   - Delete() -- (false, false)
+//     remove if endpoint count == 0 or endpoint count == 1 and
+//     there is a load balancer IP
+//   - Delete(libnetwork.NetworkDeleteOptionRemoveLB) -- (false, true)
+//     remove load balancer and network if endpoint count == 1
+//   - controller.networkCleanup() -- (true, true)
+//     remove the network no matter what
 func (n *network) delete(force bool, rmLBEndpoint bool) error {
 	n.Lock()
 	c := n.ctrlr
