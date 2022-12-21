@@ -3,6 +3,7 @@ package contentutil
 import (
 	"context"
 	"io"
+	"strings"
 	"sync"
 
 	"github.com/containerd/containerd/content"
@@ -75,7 +76,7 @@ func CopyChain(ctx context.Context, ingester content.Ingester, provider content.
 		}
 	})
 	handlers := []images.Handler{
-		images.ChildrenHandler(provider),
+		annotateDistributionSourceHandler(images.ChildrenHandler(provider), desc.Annotations),
 		filterHandler,
 		retryhandler.New(limited.FetchHandler(ingester, &localFetcher{provider}, ""), func(_ []byte) {}),
 	}
@@ -91,4 +92,46 @@ func CopyChain(ctx context.Context, ingester content.Ingester, provider content.
 	}
 
 	return nil
+}
+
+func annotateDistributionSourceHandler(f images.HandlerFunc, basis map[string]string) images.HandlerFunc {
+	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
+		children, err := f(ctx, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		// only add distribution source for the config or blob data descriptor
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Manifest, ocispecs.MediaTypeImageManifest,
+			images.MediaTypeDockerSchema2ManifestList, ocispecs.MediaTypeImageIndex:
+		default:
+			return children, nil
+		}
+
+		for i := range children {
+			child := children[i]
+
+			for k, v := range basis {
+				if !strings.HasPrefix(k, "containerd.io/distribution.source.") {
+					continue
+				}
+				if child.Annotations != nil {
+					if _, ok := child.Annotations[k]; ok {
+						// don't override if already present
+						continue
+					}
+				}
+
+				if child.Annotations == nil {
+					child.Annotations = map[string]string{}
+				}
+				child.Annotations[k] = v
+			}
+
+			children[i] = child
+		}
+
+		return children, nil
+	}
 }

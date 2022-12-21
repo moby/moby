@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"os"
@@ -14,16 +15,19 @@ import (
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/ociindex"
+	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	sessioncontent "github.com/moby/buildkit/session/content"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/moby/buildkit/session/grpchijack"
 	"github.com/moby/buildkit/solver/pb"
+	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/entitlements"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil"
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -32,6 +36,7 @@ import (
 type SolveOpt struct {
 	Exports               []ExportEntry
 	LocalDirs             map[string]string
+	OCIStores             map[string]content.Store
 	SharedKey             string
 	Frontend              string
 	FrontendAttrs         map[string]string
@@ -42,6 +47,9 @@ type SolveOpt struct {
 	AllowedEntitlements   []entitlements.Entitlement
 	SharedSession         *session.Session // TODO: refactor to better session syncing
 	SessionPreInitialized bool             // TODO: refactor to better session syncing
+	Internal              bool
+	SourcePolicy          *spb.Policy
+	Ref                   string
 }
 
 type ExportEntry struct {
@@ -88,6 +96,9 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	}
 
 	ref := identity.NewID()
+	if opt.Ref != "" {
+		ref = opt.Ref
+	}
 	eg, ctx := errgroup.WithContext(ctx)
 
 	statusContext, cancelStatus := context.WithCancel(context.Background())
@@ -122,6 +133,8 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		ex = opt.Exports[0]
 	}
 
+	storesToUpdate := []string{}
+
 	if !opt.SessionPreInitialized {
 		if len(syncedDirs) > 0 {
 			s.Allow(filesync.NewFSSyncProvider(syncedDirs))
@@ -131,50 +144,85 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			s.Allow(a)
 		}
 
+		contentStores := map[string]content.Store{}
+		for key, store := range cacheOpt.contentStores {
+			contentStores[key] = store
+		}
+		for key, store := range opt.OCIStores {
+			key2 := "oci:" + key
+			if _, ok := contentStores[key2]; ok {
+				return nil, errors.Errorf("oci store key %q already exists", key)
+			}
+			contentStores[key2] = store
+		}
+
+		var supportFile bool
+		var supportDir bool
 		switch ex.Type {
 		case ExporterLocal:
-			if ex.Output != nil {
-				return nil, errors.New("output file writer is not supported by local exporter")
-			}
-			if ex.OutputDir == "" {
-				return nil, errors.New("output directory is required for local exporter")
-			}
-			s.Allow(filesync.NewFSSyncTargetDir(ex.OutputDir))
-		case ExporterOCI, ExporterDocker, ExporterTar:
-			if ex.OutputDir != "" {
-				return nil, errors.Errorf("output directory %s is not supported by %s exporter", ex.OutputDir, ex.Type)
-			}
+			supportDir = true
+		case ExporterTar:
+			supportFile = true
+		case ExporterOCI, ExporterDocker:
+			supportDir = ex.OutputDir != ""
+			supportFile = ex.Output != nil
+		}
+
+		if supportFile && supportDir {
+			return nil, errors.Errorf("both file and directory output is not support by %s exporter", ex.Type)
+		}
+		if !supportFile && ex.Output != nil {
+			return nil, errors.Errorf("output file writer is not supported by %s exporter", ex.Type)
+		}
+		if !supportDir && ex.OutputDir != "" {
+			return nil, errors.Errorf("output directory is not supported by %s exporter", ex.Type)
+		}
+
+		if supportFile {
 			if ex.Output == nil {
 				return nil, errors.Errorf("output file writer is required for %s exporter", ex.Type)
 			}
 			s.Allow(filesync.NewFSSyncTarget(ex.Output))
-		default:
-			if ex.Output != nil {
-				return nil, errors.Errorf("output file writer is not supported by %s exporter", ex.Type)
+		}
+		if supportDir {
+			if ex.OutputDir == "" {
+				return nil, errors.Errorf("output directory is required for %s exporter", ex.Type)
 			}
-			if ex.OutputDir != "" {
-				return nil, errors.Errorf("output directory %s is not supported by %s exporter", ex.OutputDir, ex.Type)
+			switch ex.Type {
+			case ExporterOCI, ExporterDocker:
+				if err := os.MkdirAll(ex.OutputDir, 0755); err != nil {
+					return nil, err
+				}
+				cs, err := contentlocal.NewStore(ex.OutputDir)
+				if err != nil {
+					return nil, err
+				}
+				contentStores["export"] = cs
+				storesToUpdate = append(storesToUpdate, ex.OutputDir)
+			default:
+				s.Allow(filesync.NewFSSyncTargetDir(ex.OutputDir))
 			}
 		}
 
-		if len(cacheOpt.contentStores) > 0 {
-			s.Allow(sessioncontent.NewAttachable(cacheOpt.contentStores))
+		if len(contentStores) > 0 {
+			s.Allow(sessioncontent.NewAttachable(contentStores))
 		}
 
 		eg.Go(func() error {
 			sd := c.sessionDialer
 			if sd == nil {
-				sd = grpchijack.Dialer(c.controlClient())
+				sd = grpchijack.Dialer(c.ControlClient())
 			}
 			return s.Run(statusContext, sd)
 		})
 	}
 
+	frontendAttrs := map[string]string{}
+	for k, v := range opt.FrontendAttrs {
+		frontendAttrs[k] = v
+	}
 	for k, v := range cacheOpt.frontendAttrs {
-		if opt.FrontendAttrs == nil {
-			opt.FrontendAttrs = map[string]string{}
-		}
-		opt.FrontendAttrs[k] = v
+		frontendAttrs[k] = v
 	}
 
 	solveCtx, cancelSolve := context.WithCancel(ctx)
@@ -188,8 +236,10 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 				<-time.After(3 * time.Second)
 				cancelStatus()
 			}()
-			bklog.G(ctx).Debugf("stopping session")
-			s.Close()
+			if !opt.SessionPreInitialized {
+				bklog.G(ctx).Debugf("stopping session")
+				s.Close()
+			}
 		}()
 		var pbd *pb.Definition
 		if def != nil {
@@ -205,17 +255,19 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			frontendInputs[key] = def.ToPB()
 		}
 
-		resp, err := c.controlClient().Solve(ctx, &controlapi.SolveRequest{
+		resp, err := c.ControlClient().Solve(ctx, &controlapi.SolveRequest{
 			Ref:            ref,
 			Definition:     pbd,
 			Exporter:       ex.Type,
 			ExporterAttrs:  ex.Attrs,
 			Session:        s.ID(),
 			Frontend:       opt.Frontend,
-			FrontendAttrs:  opt.FrontendAttrs,
+			FrontendAttrs:  frontendAttrs,
 			FrontendInputs: frontendInputs,
 			Cache:          cacheOpt.options,
 			Entitlements:   opt.AllowedEntitlements,
+			Internal:       opt.Internal,
+			SourcePolicy:   opt.SourcePolicy,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to solve")
@@ -228,7 +280,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 
 	if runGateway != nil {
 		eg.Go(func() error {
-			err := runGateway(ref, s, opt.FrontendAttrs)
+			err := runGateway(ref, s, frontendAttrs)
 			if err == nil {
 				return nil
 			}
@@ -249,7 +301,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	}
 
 	eg.Go(func() error {
-		stream, err := c.controlClient().Status(statusContext, &controlapi.StatusRequest{
+		stream, err := c.ControlClient().Status(statusContext, &controlapi.StatusRequest{
 			Ref: ref,
 		})
 		if err != nil {
@@ -263,52 +315,8 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 				}
 				return errors.Wrap(err, "failed to receive status")
 			}
-			s := SolveStatus{}
-			for _, v := range resp.Vertexes {
-				s.Vertexes = append(s.Vertexes, &Vertex{
-					Digest:        v.Digest,
-					Inputs:        v.Inputs,
-					Name:          v.Name,
-					Started:       v.Started,
-					Completed:     v.Completed,
-					Error:         v.Error,
-					Cached:        v.Cached,
-					ProgressGroup: v.ProgressGroup,
-				})
-			}
-			for _, v := range resp.Statuses {
-				s.Statuses = append(s.Statuses, &VertexStatus{
-					ID:        v.ID,
-					Vertex:    v.Vertex,
-					Name:      v.Name,
-					Total:     v.Total,
-					Current:   v.Current,
-					Timestamp: v.Timestamp,
-					Started:   v.Started,
-					Completed: v.Completed,
-				})
-			}
-			for _, v := range resp.Logs {
-				s.Logs = append(s.Logs, &VertexLog{
-					Vertex:    v.Vertex,
-					Stream:    int(v.Stream),
-					Data:      v.Msg,
-					Timestamp: v.Timestamp,
-				})
-			}
-			for _, v := range resp.Warnings {
-				s.Warnings = append(s.Warnings, &VertexWarning{
-					Vertex:     v.Vertex,
-					Level:      int(v.Level),
-					Short:      v.Short,
-					Detail:     v.Detail,
-					URL:        v.Url,
-					SourceInfo: v.Info,
-					Range:      v.Ranges,
-				})
-			}
 			if statusChan != nil {
-				statusChan <- &s
+				statusChan <- NewSolveStatus(resp)
 			}
 		}
 	})
@@ -323,8 +331,29 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		if err = json.Unmarshal([]byte(manifestDescJSON), &manifestDesc); err != nil {
 			return nil, err
 		}
-		for indexJSONPath, tag := range cacheOpt.indicesToUpdate {
-			if err = ociindex.PutDescToIndexJSONFileLocked(indexJSONPath, manifestDesc, tag); err != nil {
+		for storePath, tag := range cacheOpt.storesToUpdate {
+			idx := ociindex.NewStoreIndex(storePath)
+			if err := idx.Put(tag, manifestDesc); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if manifestDescDt := res.ExporterResponse[exptypes.ExporterImageDescriptorKey]; manifestDescDt != "" {
+		manifestDescDt, err := base64.StdEncoding.DecodeString(manifestDescDt)
+		if err != nil {
+			return nil, err
+		}
+		var manifestDesc ocispecs.Descriptor
+		if err = json.Unmarshal([]byte(manifestDescDt), &manifestDesc); err != nil {
+			return nil, err
+		}
+		for _, storePath := range storesToUpdate {
+			tag := "latest"
+			if t, ok := res.ExporterResponse["image.name"]; ok {
+				tag = t
+			}
+			idx := ociindex.NewStoreIndex(storePath)
+			if err := idx.Put(tag, manifestDesc); err != nil {
 				return nil, err
 			}
 		}
@@ -332,7 +361,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	return res, nil
 }
 
-func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]filesync.SyncedDir, error) {
+func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) (filesync.StaticDirSource, error) {
 	for _, d := range localDirs {
 		fi, err := os.Stat(d)
 		if err != nil {
@@ -342,16 +371,16 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 			return nil, errors.Errorf("%s not a directory", d)
 		}
 	}
-	resetUIDAndGID := func(p string, st *fstypes.Stat) bool {
+	resetUIDAndGID := func(p string, st *fstypes.Stat) fsutil.MapResult {
 		st.Uid = 0
 		st.Gid = 0
-		return true
+		return fsutil.MapResultKeep
 	}
 
-	dirs := make([]filesync.SyncedDir, 0, len(localDirs))
+	dirs := make(filesync.StaticDirSource, len(localDirs))
 	if def == nil {
 		for name, d := range localDirs {
-			dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID})
+			dirs[name] = filesync.SyncedDir{Dir: d, Map: resetUIDAndGID}
 		}
 	} else {
 		for _, dt := range def.Def {
@@ -366,7 +395,7 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 					if !ok {
 						return nil, errors.Errorf("local directory %s not enabled", name)
 					}
-					dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID})
+					dirs[name] = filesync.SyncedDir{Dir: d, Map: resetUIDAndGID}
 				}
 			}
 		}
@@ -383,24 +412,20 @@ func defaultSessionName() string {
 }
 
 type cacheOptions struct {
-	options         controlapi.CacheOptions
-	contentStores   map[string]content.Store // key: ID of content store ("local:" + csDir)
-	indicesToUpdate map[string]string        // key: index.JSON file name, value: tag
-	frontendAttrs   map[string]string
+	options        controlapi.CacheOptions
+	contentStores  map[string]content.Store // key: ID of content store ("local:" + csDir)
+	storesToUpdate map[string]string        // key: path to content store, value: tag
+	frontendAttrs  map[string]string
 }
 
 func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cacheOptions, error) {
 	var (
 		cacheExports []*controlapi.CacheOptionsEntry
 		cacheImports []*controlapi.CacheOptionsEntry
-		// legacy API is used for registry caches, because the daemon might not support the new API
-		legacyExportRef  string
-		legacyImportRefs []string
 	)
 	contentStores := make(map[string]content.Store)
-	indicesToUpdate := make(map[string]string) // key: index.JSON file name, value: tag
+	storesToUpdate := make(map[string]string)
 	frontendAttrs := make(map[string]string)
-	legacyExportAttrs := make(map[string]string)
 	for _, ex := range opt.CacheExports {
 		if ex.Type == "local" {
 			csDir := ex.Attrs["dest"]
@@ -415,26 +440,26 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 				return nil, err
 			}
 			contentStores["local:"+csDir] = cs
-			// TODO(AkihiroSuda): support custom index JSON path and tag
-			indexJSONPath := filepath.Join(csDir, "index.json")
-			indicesToUpdate[indexJSONPath] = "latest"
-		}
-		if ex.Type == "registry" && legacyExportRef == "" {
-			legacyExportRef = ex.Attrs["ref"]
-			for k, v := range ex.Attrs {
-				if k != "ref" {
-					legacyExportAttrs[k] = v
-				}
+
+			tag := "latest"
+			if t, ok := ex.Attrs["tag"]; ok {
+				tag = t
 			}
-		} else {
-			cacheExports = append(cacheExports, &controlapi.CacheOptionsEntry{
-				Type:  ex.Type,
-				Attrs: ex.Attrs,
-			})
+			// TODO(AkihiroSuda): support custom index JSON path and tag
+			storesToUpdate[csDir] = tag
 		}
+		if ex.Type == "registry" {
+			regRef := ex.Attrs["ref"]
+			if regRef == "" {
+				return nil, errors.New("registry cache exporter requires ref")
+			}
+		}
+		cacheExports = append(cacheExports, &controlapi.CacheOptionsEntry{
+			Type:  ex.Type,
+			Attrs: ex.Attrs,
+		})
 	}
 	for _, im := range opt.CacheImports {
-		attrs := im.Attrs
 		if im.Type == "local" {
 			csDir := im.Attrs["src"]
 			if csDir == "" {
@@ -445,41 +470,40 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 				bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 				continue
 			}
-			// if digest is not specified, load from "latest" tag
-			if attrs["digest"] == "" {
-				idx, err := ociindex.ReadIndexJSONFileLocked(filepath.Join(csDir, "index.json"))
+			// if digest is not specified, attempt to load from tag
+			if im.Attrs["digest"] == "" {
+				tag := "latest"
+				if t, ok := im.Attrs["tag"]; ok {
+					tag = t
+				}
+
+				idx := ociindex.NewStoreIndex(csDir)
+				desc, err := idx.Get(tag)
 				if err != nil {
 					bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 					continue
 				}
-				for _, m := range idx.Manifests {
-					if (m.Annotations[ocispecs.AnnotationRefName] == "latest" && attrs["tag"] == "") || (attrs["tag"] != "" && m.Annotations[ocispecs.AnnotationRefName] == attrs["tag"]) {
-						attrs["digest"] = string(m.Digest)
-						break
-					}
+				if desc != nil {
+					im.Attrs["digest"] = desc.Digest.String()
 				}
-				if attrs["digest"] == "" {
-					return nil, errors.New("local cache importer requires either explicit digest, \"latest\" tag or custom tag on index.json")
-				}
+			}
+			if im.Attrs["digest"] == "" {
+				return nil, errors.New("local cache importer requires either explicit digest, \"latest\" tag or custom tag on index.json")
 			}
 			contentStores["local:"+csDir] = cs
 		}
 		if im.Type == "registry" {
-			legacyImportRef := attrs["ref"]
-			legacyImportRefs = append(legacyImportRefs, legacyImportRef)
-		} else {
-			cacheImports = append(cacheImports, &controlapi.CacheOptionsEntry{
-				Type:  im.Type,
-				Attrs: attrs,
-			})
+			regRef := im.Attrs["ref"]
+			if regRef == "" {
+				return nil, errors.New("registry cache importer requires ref")
+			}
 		}
+		cacheImports = append(cacheImports, &controlapi.CacheOptionsEntry{
+			Type:  im.Type,
+			Attrs: im.Attrs,
+		})
 	}
 	if opt.Frontend != "" || isGateway {
-		// use legacy API for registry importers, because the frontend might not support the new API
-		if len(legacyImportRefs) > 0 {
-			frontendAttrs["cache-from"] = strings.Join(legacyImportRefs, ",")
-		}
-		// use new API for other importers
 		if len(cacheImports) > 0 {
 			s, err := json.Marshal(cacheImports)
 			if err != nil {
@@ -490,17 +514,12 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 	}
 	res := cacheOptions{
 		options: controlapi.CacheOptions{
-			// old API (for registry caches, planned to be removed in early 2019)
-			ExportRefDeprecated:   legacyExportRef,
-			ExportAttrsDeprecated: legacyExportAttrs,
-			ImportRefsDeprecated:  legacyImportRefs,
-			// new API
 			Exports: cacheExports,
 			Imports: cacheImports,
 		},
-		contentStores:   contentStores,
-		indicesToUpdate: indicesToUpdate,
-		frontendAttrs:   frontendAttrs,
+		contentStores:  contentStores,
+		storesToUpdate: storesToUpdate,
+		frontendAttrs:  frontendAttrs,
 	}
 	return &res, nil
 }

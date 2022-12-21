@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
-	"github.com/moby/buildkit/util/compression"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -103,22 +102,18 @@ func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
 }
 
-func (e *imageExporterInstance) Config() exporter.Config {
-	return exporter.Config{
-		Compression: compression.Config{
-			Type: compression.Default,
-		},
-	}
+func (e *imageExporterInstance) Config() *exporter.Config {
+	return exporter.NewConfig()
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source, sessionID string) (map[string]string, error) {
+func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
 	if len(inp.Refs) > 1 {
-		return nil, fmt.Errorf("exporting multiple references to image store is currently unsupported")
+		return nil, nil, fmt.Errorf("exporting multiple references to image store is currently unsupported")
 	}
 
 	ref := inp.Ref
 	if ref != nil && len(inp.Refs) == 1 {
-		return nil, fmt.Errorf("invalid exporter input: Ref and Refs are mutually exclusive")
+		return nil, nil, fmt.Errorf("invalid exporter input: Ref and Refs are mutually exclusive")
 	}
 
 	// only one loop
@@ -137,14 +132,14 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	case 1:
 		platformsBytes, ok := inp.Metadata[exptypes.ExporterPlatformsKey]
 		if !ok {
-			return nil, fmt.Errorf("cannot export image, missing platforms mapping")
+			return nil, nil, fmt.Errorf("cannot export image, missing platforms mapping")
 		}
 		var p exptypes.Platforms
 		if err := json.Unmarshal(platformsBytes, &p); err != nil {
-			return nil, errors.Wrapf(err, "failed to parse platforms passed to exporter")
+			return nil, nil, errors.Wrapf(err, "failed to parse platforms passed to exporter")
 		}
 		if len(p.Platforms) != len(inp.Refs) {
-			return nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
+			return nil, nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
 		}
 		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, p.Platforms[0].ID)]
 		if v, ok := inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, p.Platforms[0].ID)]; ok {
@@ -157,16 +152,16 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 		layersDone := oneOffProgress(ctx, "exporting layers")
 
 		if err := ref.Finalize(ctx); err != nil {
-			return nil, layersDone(err)
+			return nil, nil, layersDone(err)
 		}
 
 		if err := ref.Extract(ctx, nil); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		diffIDs, err := e.opt.Differ.EnsureLayer(ctx, ref.ID())
 		if err != nil {
-			return nil, layersDone(err)
+			return nil, nil, layersDone(err)
 		}
 
 		diffs = make([]digest.Digest, len(diffIDs))
@@ -181,20 +176,20 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 		var err error
 		config, err = emptyImageConfig()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	history, err := parseHistoryFromConfig(config)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	diffs, history = normalizeLayersAndHistory(diffs, history, ref)
 
 	config, err = patchImageConfig(config, diffs, history, inp.Metadata[exptypes.ExporterInlineCache], buildInfo)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	configDigest := digest.FromBytes(config)
@@ -202,7 +197,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	configDone := oneOffProgress(ctx, fmt.Sprintf("writing image %s", configDigest))
 	id, err := e.opt.ImageStore.Create(config)
 	if err != nil {
-		return nil, configDone(err)
+		return nil, nil, configDone(err)
 	}
 	_ = configDone(nil)
 
@@ -210,7 +205,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 		for _, targetName := range e.targetNames {
 			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
 			if err := e.opt.ReferenceStore.AddTag(targetName, digest.Digest(id), true); err != nil {
-				return nil, tagDone(err)
+				return nil, nil, tagDone(err)
 			}
 			_ = tagDone(nil)
 		}
@@ -219,5 +214,5 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	return map[string]string{
 		exptypes.ExporterImageConfigDigestKey: configDigest.String(),
 		exptypes.ExporterImageDigestKey:       id.String(),
-	}, nil
+	}, nil, nil
 }

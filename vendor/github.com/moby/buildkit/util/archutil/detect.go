@@ -48,6 +48,11 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 			arr = append(arr, linux(p))
 		}
 	}
+	if p := "ppc64"; def.Architecture != p {
+		if _, err := ppc64Supported(); err == nil {
+			arr = append(arr, linux(p))
+		}
+	}
 	if p := "ppc64le"; def.Architecture != p {
 		if _, err := ppc64leSupported(); err == nil {
 			arr = append(arr, linux(p))
@@ -87,9 +92,9 @@ func SupportedPlatforms(noCache bool) []ocispecs.Platform {
 	return arr
 }
 
-//WarnIfUnsupported validates the platforms and show warning message if there is,
-//the end user could fix the issue based on those warning, and thus no need to drop
-//the platform from the candidates.
+// WarnIfUnsupported validates the platforms and show warning message if there is,
+// the end user could fix the issue based on those warning, and thus no need to drop
+// the platform from the candidates.
 func WarnIfUnsupported(pfs []ocispecs.Platform) {
 	def := nativePlatform()
 	for _, p := range pfs {
@@ -106,6 +111,11 @@ func WarnIfUnsupported(pfs []ocispecs.Platform) {
 			}
 			if p.Architecture == "riscv64" {
 				if _, err := riscv64Supported(); err != nil {
+					printPlatformWarning(p, err)
+				}
+			}
+			if p.Architecture == "ppc64" {
+				if _, err := ppc64Supported(); err != nil {
 					printPlatformWarning(p, err)
 				}
 			}

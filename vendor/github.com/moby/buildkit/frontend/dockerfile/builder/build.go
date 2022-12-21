@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
@@ -19,15 +20,20 @@ import (
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	"github.com/moby/buildkit/frontend"
+	"github.com/moby/buildkit/frontend/attestations"
+	"github.com/moby/buildkit/frontend/attestations/sbom"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerignore"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
+	"github.com/moby/buildkit/frontend/subrequests/outline"
+	"github.com/moby/buildkit/frontend/subrequests/targets"
 	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/apicaps"
-	binfotypes "github.com/moby/buildkit/util/buildinfo/types"
+	"github.com/moby/buildkit/solver/result"
+	"github.com/moby/buildkit/util/gitutil"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -39,44 +45,58 @@ const (
 	defaultDockerfileName      = "Dockerfile"
 	dockerignoreFilename       = ".dockerignore"
 
-	buildArgPrefix = "build-arg:"
-	labelPrefix    = "label:"
+	buildArgPrefix      = "build-arg:"
+	labelPrefix         = "label:"
+	contextPrefix       = "context:"
+	inputMetadataPrefix = "input-metadata:"
 
-	keyTarget            = "target"
-	keyFilename          = "filename"
-	keyCacheFrom         = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
-	keyCacheImports      = "cache-imports" // JSON representation of []CacheOptionsEntry
-	keyCgroupParent      = "cgroup-parent"
-	keyContextSubDir     = "contextsubdir"
-	keyForceNetwork      = "force-network-mode"
-	keyGlobalAddHosts    = "add-hosts"
-	keyHostname          = "hostname"
-	keyImageResolveMode  = "image-resolve-mode"
-	keyMultiPlatform     = "multi-platform"
-	keyNameContext       = "contextkey"
-	keyNameDockerfile    = "dockerfilekey"
-	keyNoCache           = "no-cache"
-	keyOverrideCopyImage = "override-copy-image" // remove after CopyOp implemented
-	keyShmSize           = "shm-size"
-	keyTargetPlatform    = "platform"
-	keyUlimit            = "ulimit"
+	keyTarget           = "target"
+	keyFilename         = "filename"
+	keyCacheFrom        = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
+	keyCacheImports     = "cache-imports" // JSON representation of []CacheOptionsEntry
+	keyCgroupParent     = "cgroup-parent"
+	keyContextSubDir    = "contextsubdir"
+	keyForceNetwork     = "force-network-mode"
+	keyGlobalAddHosts   = "add-hosts"
+	keyHostname         = "hostname"
+	keyImageResolveMode = "image-resolve-mode"
+	keyMultiPlatform    = "multi-platform"
+	keyNameContext      = "contextkey"
+	keyNameDockerfile   = "dockerfilekey"
+	keyNoCache          = "no-cache"
+	keyShmSize          = "shm-size"
+	keyTargetPlatform   = "platform"
+	keyUlimit           = "ulimit"
+	keyRequestID        = "requestid"
 
 	// Don't forget to update frontend documentation if you add
-	// a new build-arg: frontend/dockerfile/docs/syntax.md
+	// a new build-arg: frontend/dockerfile/docs/reference.md
 	keyCacheNSArg           = "build-arg:BUILDKIT_CACHE_MOUNT_NS"
 	keyContextKeepGitDirArg = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
 	keyHostnameArg          = "build-arg:BUILDKIT_SANDBOX_HOSTNAME"
 	keyMultiPlatformArg     = "build-arg:BUILDKIT_MULTI_PLATFORM"
 	keySyntaxArg            = "build-arg:BUILDKIT_SYNTAX"
+	keySourceDateEpoch      = "build-arg:SOURCE_DATE_EPOCH"
 )
 
 var httpPrefix = regexp.MustCompile(`^https?://`)
-var gitURLPathWithFragmentSuffix = regexp.MustCompile(`\.git(?:#.+)?$`)
 
-func Build(ctx context.Context, c client.Client) (*client.Result, error) {
+func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 	opts := c.BuildOpts().Opts
 	caps := c.BuildOpts().LLBCaps
 	gwcaps := c.BuildOpts().Caps
+
+	if err := caps.Supports(pb.CapFileBase); err != nil {
+		return nil, errors.Wrap(err, "needs BuildKit 0.5 or later")
+	}
+	if opts["override-copy-image"] != "" {
+		return nil, errors.New("support for \"override-copy-image\" was removed in BuildKit 0.11")
+	}
+	if v, ok := opts["build-arg:BUILDKIT_DISABLE_FILEOP"]; ok {
+		if b, err := strconv.ParseBool(v); err == nil && b {
+			return nil, errors.New("support for \"build-arg:BUILDKIT_DISABLE_FILEOP\" was removed in BuildKit 0.11")
+		}
+	}
 
 	allowForward, capsError := validateCaps(opts["frontend.caps"])
 	if !allowForward && capsError != nil {
@@ -168,11 +188,13 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		llb.Differ(llb.DiffNone, false),
 	)
 
-	fileop := useFileOp(opts, &caps)
-
 	var buildContext *llb.State
 	isNotLocalContext := false
-	if st, ok := detectGitContext(opts[localNameContext], opts[keyContextKeepGitDirArg]); ok {
+	keepGit := false
+	if v, err := strconv.ParseBool(opts[keyContextKeepGitDirArg]); err == nil {
+		keepGit = v
+	}
+	if st, ok := detectGitContext(opts[localNameContext], keepGit); ok {
 		if !forceLocalDockerfile {
 			src = *st
 		}
@@ -205,28 +227,13 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Wrapf(err, "failed to read downloaded context")
 		}
 		if isArchive(dt) {
-			if fileop {
-				bc := llb.Scratch().File(llb.Copy(httpContext, "/context", "/", &llb.CopyInfo{
-					AttemptUnpack: true,
-				}))
-				if !forceLocalDockerfile {
-					src = bc
-				}
-				buildContext = &bc
-			} else {
-				copyImage := opts[keyOverrideCopyImage]
-				if copyImage == "" {
-					copyImage = dockerfile2llb.DefaultCopyImage
-				}
-				unpack := llb.Image(copyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
-					Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
-				unpack.AddMount("/src", httpContext, llb.Readonly)
-				bc := unpack.AddMount("/out", llb.Scratch())
-				if !forceLocalDockerfile {
-					src = bc
-				}
-				buildContext = &bc
+			bc := llb.Scratch().File(llb.Copy(httpContext, "/context", "/", &llb.CopyInfo{
+				AttemptUnpack: true,
+			}))
+			if !forceLocalDockerfile {
+				src = bc
 			}
+			buildContext = &bc
 		} else {
 			filename = "context"
 			if !forceLocalDockerfile {
@@ -257,7 +264,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	if buildContext != nil {
 		if sub, ok := opts[keyContextSubDir]; ok {
-			buildContext = scopeToSubDir(buildContext, fileop, sub)
+			buildContext = scopeToSubDir(buildContext, sub)
 		}
 	}
 
@@ -380,7 +387,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 				return nil, errors.Wrapf(err, "failed with %s = %s", keySyntaxArg, cmdline)
 			}
 			return res, err
-		} else if ref, cmdline, loc, ok := dockerfile2llb.DetectSyntax(bytes.NewBuffer(dtDockerfile)); ok {
+		} else if ref, cmdline, loc, ok := parser.DetectSyntax(dtDockerfile); ok {
 			res, err := forwardGateway(ctx, c, ref, cmdline)
 			if err != nil && len(errdefs.Sources(err)) == 0 {
 				return nil, wrapSource(err, sourceMap, loc)
@@ -408,7 +415,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Errorf("invalid boolean value %s", v)
 		}
 		if !b && exportMap {
-			return nil, errors.Errorf("returning multiple target plaforms is not allowed")
+			return nil, errors.Errorf("returning multiple target platforms is not allowed")
 		}
 		exportMap = b
 	}
@@ -422,55 +429,107 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		opts[keyHostname] = v
 	}
 
-	eg, ctx = errgroup.WithContext(ctx)
+	epoch, err := parseSourceDateEpoch(opts[keySourceDateEpoch])
+	if err != nil {
+		return nil, err
+	}
+
+	target := opts[keyTarget]
+	convertOpt := dockerfile2llb.ConvertOpt{
+		Target:           target,
+		MetaResolver:     c,
+		BuildArgs:        filter(opts, buildArgPrefix),
+		Labels:           filter(opts, labelPrefix),
+		CacheIDNamespace: opts[keyCacheNSArg],
+		SessionID:        c.BuildOpts().SessionID,
+		BuildContext:     buildContext,
+		Excludes:         excludes,
+		IgnoreCache:      ignoreCache,
+		TargetPlatform:   targetPlatforms[0],
+		BuildPlatforms:   buildPlatforms,
+		ImageResolveMode: resolveMode,
+		PrefixPlatform:   exportMap,
+		ExtraHosts:       extraHosts,
+		ShmSize:          shmSize,
+		Ulimit:           ulimit,
+		CgroupParent:     opts[keyCgroupParent],
+		ForceNetMode:     defaultNetMode,
+		LLBCaps:          &caps,
+		SourceMap:        sourceMap,
+		Hostname:         opts[keyHostname],
+		SourceDateEpoch:  epoch,
+		Warn: func(msg, url string, detail [][]byte, location *parser.Range) {
+			c.Warn(ctx, defVtx, msg, warnOpts(sourceMap, location, detail, url))
+		},
+		ContextByName: contextByNameFunc(c, c.BuildOpts().SessionID),
+	}
+
+	defer func() {
+		var el *parser.ErrorLocation
+		if errors.As(err, &el) {
+			err = wrapSource(err, sourceMap, el.Location)
+		}
+	}()
+
+	if req, ok := opts[keyRequestID]; ok {
+		switch req {
+		case outline.SubrequestsOutlineDefinition.Name:
+			o, err := dockerfile2llb.Dockefile2Outline(ctx, dtDockerfile, convertOpt)
+			if err != nil {
+				return nil, err
+			}
+			return o.ToResult()
+		case targets.SubrequestsTargetsDefinition.Name:
+			targets, err := dockerfile2llb.ListTargets(ctx, dtDockerfile)
+			if err != nil {
+				return nil, err
+			}
+			return targets.ToResult()
+		default:
+			return nil, errdefs.NewUnsupportedSubrequestError(req)
+		}
+	}
+
+	var scanner sbom.Scanner
+	attests, err := attestations.Parse(opts)
+	if err != nil {
+		return nil, err
+	}
+	if attrs, ok := attests[attestations.KeyTypeSbom]; ok {
+		src, ok := attrs["generator"]
+		if !ok {
+			return nil, errors.Errorf("sbom scanner cannot be empty")
+		}
+		ref, err := reference.ParseNormalizedNamed(src)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse sbom scanner %s", src)
+		}
+		ref = reference.TagNameOnly(ref)
+
+		scanner, err = sbom.CreateSBOMScanner(ctx, c, ref.String())
+		if err != nil {
+			return nil, err
+		}
+	}
+	scanTargets := make([]*dockerfile2llb.SBOMTargets, len(targetPlatforms))
+
+	eg, ctx2 = errgroup.WithContext(ctx)
 
 	for i, tp := range targetPlatforms {
 		func(i int, tp *ocispecs.Platform) {
 			eg.Go(func() (err error) {
-				defer func() {
-					var el *parser.ErrorLocation
-					if errors.As(err, &el) {
-						err = wrapSource(err, sourceMap, el.Location)
-					}
-				}()
-
-				st, img, bi, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
-					Target:            opts[keyTarget],
-					MetaResolver:      c,
-					BuildArgs:         filter(opts, buildArgPrefix),
-					Labels:            filter(opts, labelPrefix),
-					CacheIDNamespace:  opts[keyCacheNSArg],
-					SessionID:         c.BuildOpts().SessionID,
-					BuildContext:      buildContext,
-					Excludes:          excludes,
-					IgnoreCache:       ignoreCache,
-					TargetPlatform:    tp,
-					BuildPlatforms:    buildPlatforms,
-					ImageResolveMode:  resolveMode,
-					PrefixPlatform:    exportMap,
-					ExtraHosts:        extraHosts,
-					ShmSize:           shmSize,
-					Ulimit:            ulimit,
-					CgroupParent:      opts[keyCgroupParent],
-					ForceNetMode:      defaultNetMode,
-					OverrideCopyImage: opts[keyOverrideCopyImage],
-					LLBCaps:           &caps,
-					SourceMap:         sourceMap,
-					Hostname:          opts[keyHostname],
-					Warn: func(msg, url string, detail [][]byte, location *parser.Range) {
-						if i != 0 {
-							return
-						}
-						c.Warn(ctx, defVtx, msg, warnOpts(sourceMap, location, detail, url))
-					},
-					ContextByName: contextByNameFunc(c),
-				})
-
+				opt := convertOpt
+				opt.TargetPlatform = tp
+				if i != 0 {
+					opt.Warn = nil
+				}
+				opt.ContextByName = contextByNameFunc(c, c.BuildOpts().SessionID)
+				st, img, scanTarget, err := dockerfile2llb.Dockerfile2LLB(ctx2, dtDockerfile, opt)
 				if err != nil {
 					return err
 				}
 
-				def, err := st.Marshal(ctx)
+				def, err := st.Marshal(ctx2)
 				if err != nil {
 					return errors.Wrapf(err, "failed to marshal LLB definition")
 				}
@@ -506,7 +565,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					}
 				}
 
-				r, err := c.Solve(ctx, client.SolveRequest{
+				r, err := c.Solve(ctx2, client.SolveRequest{
 					Definition:   def.ToPB(),
 					CacheImports: cacheImports,
 				})
@@ -519,30 +578,30 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					return err
 				}
 
-				buildinfo, err := json.Marshal(bi)
-				if err != nil {
-					return errors.Wrapf(err, "failed to marshal build info")
+				p := platforms.DefaultSpec()
+				if tp != nil {
+					p = *tp
 				}
+				p = platforms.Normalize(p)
+				k := platforms.Format(p)
 
 				if !exportMap {
 					res.AddMeta(exptypes.ExporterImageConfigKey, config)
-					res.AddMeta(exptypes.ExporterBuildInfo, buildinfo)
 					res.SetRef(ref)
-				} else {
-					p := platforms.DefaultSpec()
-					if tp != nil {
-						p = *tp
-					}
 
-					k := platforms.Format(p)
+					expPlatforms.Platforms[i] = exptypes.Platform{
+						ID:       k,
+						Platform: p,
+					}
+				} else {
 					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, k), config)
-					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k), buildinfo)
 					res.AddRef(k, ref)
 					expPlatforms.Platforms[i] = exptypes.Platform{
 						ID:       k,
 						Platform: p,
 					}
 				}
+				scanTargets[i] = scanTarget
 				return nil
 			})
 		}(i, tp)
@@ -552,13 +611,44 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		return nil, err
 	}
 
-	if exportMap {
-		dt, err := json.Marshal(expPlatforms)
-		if err != nil {
-			return nil, err
+	if scanner != nil {
+		for i, p := range expPlatforms.Platforms {
+			target := scanTargets[i]
+
+			var opts []llb.ConstraintsOpt
+			if target.IgnoreCache {
+				opts = append(opts, llb.IgnoreCache)
+			}
+			att, err := scanner(ctx, p.ID, target.Core, target.Extras, opts...)
+			if err != nil {
+				return nil, err
+			}
+
+			attSolve, err := result.ConvertAttestation(&att, func(st llb.State) (client.Reference, error) {
+				def, err := st.Marshal(ctx)
+				if err != nil {
+					return nil, err
+				}
+				r, err := c.Solve(ctx, frontend.SolveRequest{
+					Definition: def.ToPB(),
+				})
+				if err != nil {
+					return nil, err
+				}
+				return r.Ref, nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			res.AddAttestation(p.ID, *attSolve)
 		}
-		res.AddMeta(exptypes.ExporterPlatformsKey, dt)
 	}
+
+	dt, err := json.Marshal(expPlatforms)
+	if err != nil {
+		return nil, err
+	}
+	res.AddMeta(exptypes.ExporterPlatformsKey, dt)
 
 	return res, nil
 }
@@ -606,40 +696,21 @@ func filter(opt map[string]string, key string) map[string]string {
 	return m
 }
 
-func detectGitContext(ref, gitContext string) (*llb.State, bool) {
-	found := false
-	if httpPrefix.MatchString(ref) && gitURLPathWithFragmentSuffix.MatchString(ref) {
-		found = true
-	}
-
-	keepGit := false
-	if gitContext != "" {
-		if v, err := strconv.ParseBool(gitContext); err == nil {
-			keepGit = v
-		}
-	}
-
-	for _, prefix := range []string{"git://", "github.com/", "git@"} {
-		if strings.HasPrefix(ref, prefix) {
-			found = true
-			break
-		}
-	}
-	if !found {
+func detectGitContext(ref string, keepGit bool) (*llb.State, bool) {
+	g, err := gitutil.ParseGitRef(ref)
+	if err != nil {
 		return nil, false
 	}
-
-	parts := strings.SplitN(ref, "#", 2)
-	branch := ""
-	if len(parts) > 1 {
-		branch = parts[1]
+	commit := g.Commit
+	if g.SubDir != "" {
+		commit += ":" + g.SubDir
 	}
 	gitOpts := []llb.GitOption{dockerfile2llb.WithInternalName("load git source " + ref)}
 	if keepGit {
 		gitOpts = append(gitOpts, llb.KeepGitDir())
 	}
 
-	st := llb.Git(parts[0], branch, gitOpts...)
+	st := llb.Git(g.Remote, commit, gitOpts...)
 	return &st, true
 }
 
@@ -765,27 +836,10 @@ func parseNetMode(v string) (pb.NetMode, error) {
 	}
 }
 
-func useFileOp(args map[string]string, caps *apicaps.CapSet) bool {
-	enabled := true
-	if v, ok := args["build-arg:BUILDKIT_DISABLE_FILEOP"]; ok {
-		if b, err := strconv.ParseBool(v); err == nil {
-			enabled = !b
-		}
-	}
-	return enabled && caps != nil && caps.Supports(pb.CapFileBase) == nil
-}
-
-func scopeToSubDir(c *llb.State, fileop bool, dir string) *llb.State {
-	if fileop {
-		bc := llb.Scratch().File(llb.Copy(*c, dir, "/", &llb.CopyInfo{
-			CopyDirContentsOnly: true,
-		}))
-		return &bc
-	}
-	unpack := llb.Image(dockerfile2llb.DefaultCopyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
-		Run(llb.Shlexf("copy %s/. /out/", path.Join("/src", dir)), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("filtering build context"))
-	unpack.AddMount("/src", *c, llb.Readonly)
-	bc := unpack.AddMount("/out", llb.Scratch())
+func scopeToSubDir(c *llb.State, dir string) *llb.State {
+	bc := llb.Scratch().File(llb.Copy(*c, dir, "/", &llb.CopyInfo{
+		CopyDirContentsOnly: true,
+	}))
 	return &bc
 }
 
@@ -812,11 +866,11 @@ func warnOpts(sm *llb.SourceMap, r *parser.Range, detail [][]byte, url string) c
 	return opts
 }
 
-func contextByNameFunc(c client.Client) func(context.Context, string, string, *ocispecs.Platform) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
-	return func(ctx context.Context, name, resolveMode string, p *ocispecs.Platform) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
+func contextByNameFunc(c client.Client, sessionID string) func(context.Context, string, string, *ocispecs.Platform) (*llb.State, *dockerfile2llb.Image, error) {
+	return func(ctx context.Context, name, resolveMode string, p *ocispecs.Platform) (*llb.State, *dockerfile2llb.Image, error) {
 		named, err := reference.ParseNormalizedNamed(name)
 		if err != nil {
-			return nil, nil, nil, errors.Wrapf(err, "invalid context name %s", name)
+			return nil, nil, errors.Wrapf(err, "invalid context name %s", name)
 		}
 		name = strings.TrimSuffix(reference.FamiliarString(named), ":latest")
 
@@ -825,35 +879,44 @@ func contextByNameFunc(c client.Client) func(context.Context, string, string, *o
 			p = &pp
 		}
 		if p != nil {
-			name := name + "::" + platforms.Format(platforms.Normalize(*p))
-			st, img, bi, err := contextByName(ctx, c, name, p, resolveMode)
+			pname := name + "::" + platforms.Format(platforms.Normalize(*p))
+			st, img, err := contextByName(ctx, c, sessionID, name, pname, p, resolveMode)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 			if st != nil {
-				return st, img, bi, nil
+				return st, img, nil
 			}
 		}
-		return contextByName(ctx, c, name, p, resolveMode)
+		return contextByName(ctx, c, sessionID, name, name, p, resolveMode)
 	}
 }
 
-func contextByName(ctx context.Context, c client.Client, name string, platform *ocispecs.Platform, resolveMode string) (*llb.State, *dockerfile2llb.Image, *binfotypes.BuildInfo, error) {
+func contextByName(ctx context.Context, c client.Client, sessionID, name string, pname string, platform *ocispecs.Platform, resolveMode string) (*llb.State, *dockerfile2llb.Image, error) {
 	opts := c.BuildOpts().Opts
-	v, ok := opts["context:"+name]
+	v, ok := opts[contextPrefix+pname]
 	if !ok {
-		return nil, nil, nil, nil
+		return nil, nil, nil
 	}
 
 	vv := strings.SplitN(v, ":", 2)
 	if len(vv) != 2 {
-		return nil, nil, nil, errors.Errorf("invalid context specifier %s for %s", v, name)
+		return nil, nil, errors.Errorf("invalid context specifier %s for %s", v, pname)
+	}
+	// allow git@ without protocol for SSH URLs for backwards compatibility
+	if strings.HasPrefix(vv[0], "git@") {
+		vv[0] = "git"
 	}
 	switch vv[0] {
 	case "docker-image":
 		ref := strings.TrimPrefix(vv[1], "//")
+		if ref == "scratch" {
+			st := llb.Scratch()
+			return &st, nil, nil
+		}
+
 		imgOpt := []llb.ImageOption{
-			llb.WithCustomName("[context " + name + "] " + ref),
+			llb.WithCustomName("[context " + pname + "] " + ref),
 		}
 		if platform != nil {
 			imgOpt = append(imgOpt, llb.Platform(*platform))
@@ -861,67 +924,129 @@ func contextByName(ctx context.Context, c client.Client, name string, platform *
 
 		named, err := reference.ParseNormalizedNamed(ref)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		named = reference.TagNameOnly(named)
 
 		_, data, err := c.ResolveImageConfig(ctx, named.String(), llb.ResolveImageConfigOpt{
-			Platform:    platform,
-			ResolveMode: resolveMode,
-			LogName:     fmt.Sprintf("[context %s] load metadata for %s", name, ref),
+			Platform:     platform,
+			ResolveMode:  resolveMode,
+			LogName:      fmt.Sprintf("[context %s] load metadata for %s", pname, ref),
+			ResolverType: llb.ResolverTypeRegistry,
 		})
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		var img dockerfile2llb.Image
 		if err := json.Unmarshal(data, &img); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		img.Created = nil
 
 		st := llb.Image(ref, imgOpt...)
 		st, err = st.WithImageConfig(data)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
-		return &st, &img, nil, nil
+		return &st, &img, nil
 	case "git":
-		st, ok := detectGitContext(v, "1")
+		st, ok := detectGitContext(v, true)
 		if !ok {
-			return nil, nil, nil, errors.Errorf("invalid git context %s", v)
+			return nil, nil, errors.Errorf("invalid git context %s", v)
 		}
-		return st, nil, nil, nil
+		return st, nil, nil
 	case "http", "https":
-		st, ok := detectGitContext(v, "1")
+		st, ok := detectGitContext(v, true)
 		if !ok {
-			httpst := llb.HTTP(v, llb.WithCustomName("[context "+name+"] "+v))
+			httpst := llb.HTTP(v, llb.WithCustomName("[context "+pname+"] "+v))
 			st = &httpst
 		}
-		return st, nil, nil, nil
+		return st, nil, nil
+	case "oci-layout":
+		refSpec := strings.TrimPrefix(vv[1], "//")
+		ref, err := reference.Parse(refSpec)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "could not parse oci-layout reference %q", refSpec)
+		}
+		named, ok := ref.(reference.Named)
+		if !ok {
+			return nil, nil, errors.Errorf("oci-layout reference %q has no name", ref.String())
+		}
+		dgstd, ok := named.(reference.Digested)
+		if !ok {
+			return nil, nil, errors.Errorf("oci-layout reference %q has no digest", named.String())
+		}
+
+		// for the dummy ref primarily used in log messages, we can use the
+		// original name, since the store key may not be significant
+		dummyRef, err := reference.ParseNormalizedNamed(name)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "could not parse oci-layout reference %q", name)
+		}
+		dummyRef, err = reference.WithDigest(dummyRef, dgstd.Digest())
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "could not wrap %q with digest", name)
+		}
+
+		_, data, err := c.ResolveImageConfig(ctx, dummyRef.String(), llb.ResolveImageConfigOpt{
+			Platform:     platform,
+			ResolveMode:  resolveMode,
+			LogName:      fmt.Sprintf("[context %s] load metadata for %s", pname, dummyRef.String()),
+			ResolverType: llb.ResolverTypeOCILayout,
+			Store: llb.ResolveImageConfigOptStore{
+				SessionID: sessionID,
+				StoreID:   named.Name(),
+			},
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		var img dockerfile2llb.Image
+		if err := json.Unmarshal(data, &img); err != nil {
+			return nil, nil, errors.Wrap(err, "could not parse oci-layout image config")
+		}
+
+		ociOpt := []llb.OCILayoutOption{
+			llb.WithCustomName("[context " + pname + "] OCI load from client"),
+			llb.OCIStore(c.BuildOpts().SessionID, named.Name()),
+		}
+		if platform != nil {
+			ociOpt = append(ociOpt, llb.Platform(*platform))
+		}
+		st := llb.OCILayout(
+			dummyRef.String(),
+			ociOpt...,
+		)
+		st, err = st.WithImageConfig(data)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &st, &img, nil
 	case "local":
 		st := llb.Local(vv[1],
 			llb.SessionID(c.BuildOpts().SessionID),
 			llb.FollowPaths([]string{dockerignoreFilename}),
-			llb.SharedKeyHint("context:"+name+"-"+dockerignoreFilename),
-			llb.WithCustomName("[context "+name+"] load "+dockerignoreFilename),
+			llb.SharedKeyHint("context:"+pname+"-"+dockerignoreFilename),
+			llb.WithCustomName("[context "+pname+"] load "+dockerignoreFilename),
 			llb.Differ(llb.DiffNone, false),
 		)
 		def, err := st.Marshal(ctx)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		res, err := c.Solve(ctx, client.SolveRequest{
 			Evaluate:   true,
 			Definition: def.ToPB(),
 		})
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		ref, err := res.SingleRef()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		dt, _ := ref.ReadFile(ctx, client.ReadRequest{
 			Filename: dockerignoreFilename,
@@ -930,58 +1055,46 @@ func contextByName(ctx context.Context, c client.Client, name string, platform *
 		if len(dt) != 0 {
 			excludes, err = dockerignore.ReadAll(bytes.NewBuffer(dt))
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, err
 			}
 		}
 		st = llb.Local(vv[1],
-			llb.WithCustomName("[context "+name+"] load from client"),
+			llb.WithCustomName("[context "+pname+"] load from client"),
 			llb.SessionID(c.BuildOpts().SessionID),
-			llb.SharedKeyHint("context:"+name),
+			llb.SharedKeyHint("context:"+pname),
 			llb.ExcludePatterns(excludes),
 		)
-		return &st, nil, nil, nil
+		return &st, nil, nil
 	case "input":
 		inputs, err := c.Inputs(ctx)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		st, ok := inputs[vv[1]]
 		if !ok {
-			return nil, nil, nil, errors.Errorf("invalid input %s for %s", vv[1], name)
+			return nil, nil, errors.Errorf("invalid input %s for %s", vv[1], pname)
 		}
-		md, ok := opts["input-metadata:"+vv[1]]
+		md, ok := opts[inputMetadataPrefix+vv[1]]
 		if ok {
 			m := make(map[string][]byte)
 			if err := json.Unmarshal([]byte(md), &m); err != nil {
-				return nil, nil, nil, errors.Wrapf(err, "failed to parse input metadata %s", md)
-			}
-			var bi *binfotypes.BuildInfo
-			if dtbi, ok := m[exptypes.ExporterBuildInfo]; ok {
-				var depbi binfotypes.BuildInfo
-				if err := json.Unmarshal(dtbi, &depbi); err != nil {
-					return nil, nil, nil, errors.Wrapf(err, "failed to parse buildinfo for %s", name)
-				}
-				bi = &binfotypes.BuildInfo{
-					Deps: map[string]binfotypes.BuildInfo{
-						strings.SplitN(vv[1], "::", 2)[0]: depbi,
-					},
-				}
+				return nil, nil, errors.Wrapf(err, "failed to parse input metadata %s", md)
 			}
 			var img *dockerfile2llb.Image
 			if dtic, ok := m[exptypes.ExporterImageConfigKey]; ok {
 				st, err = st.WithImageConfig(dtic)
 				if err != nil {
-					return nil, nil, nil, err
+					return nil, nil, err
 				}
 				if err := json.Unmarshal(dtic, &img); err != nil {
-					return nil, nil, nil, errors.Wrapf(err, "failed to parse image config for %s", name)
+					return nil, nil, errors.Wrapf(err, "failed to parse image config for %s", pname)
 				}
 			}
-			return &st, img, bi, nil
+			return &st, img, nil
 		}
-		return &st, nil, nil, nil
+		return &st, nil, nil
 	default:
-		return nil, nil, nil, errors.Errorf("unsupported context source %s for %s", vv[0], name)
+		return nil, nil, errors.Errorf("unsupported context source %s for %s", vv[0], pname)
 	}
 }
 
@@ -1010,4 +1123,16 @@ func wrapSource(err error, sm *llb.SourceMap, ranges []parser.Range) error {
 		})
 	}
 	return errdefs.WithSource(err, s)
+}
+
+func parseSourceDateEpoch(v string) (*time.Time, error) {
+	if v == "" {
+		return nil, nil
+	}
+	sde, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid SOURCE_DATE_EPOCH: %s", v)
+	}
+	tm := time.Unix(sde, 0)
+	return &tm, nil
 }

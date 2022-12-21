@@ -30,6 +30,10 @@ type exporter struct {
 	chains *v1.CacheChains
 }
 
+func (*exporter) Name() string {
+	return "exporting inline cache"
+}
+
 func (ce *exporter) Config() remotecache.Config {
 	return remotecache.Config{
 		Compression: compression.New(compression.Default),

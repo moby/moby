@@ -36,6 +36,10 @@ FROM base AS exit-s390x
 COPY fixtures/exit.s390x.s .
 RUN s390x-linux-gnu-as --noexecstack -o exit.o exit.s390x.s && s390x-linux-gnu-ld -o exit -s exit.o
 
+FROM base AS exit-ppc64
+COPY fixtures/exit.ppc64.s .
+RUN powerpc64le-linux-gnu-as -mbig --noexecstack -o exit.o exit.ppc64.s && powerpc64le-linux-gnu-ld -EB -o exit -s exit.o
+
 FROM base AS exit-ppc64le
 COPY fixtures/exit.ppc64le.s .
 RUN powerpc64le-linux-gnu-as --noexecstack -o exit.o exit.ppc64le.s && powerpc64le-linux-gnu-ld -o exit -s exit.o
@@ -48,7 +52,7 @@ FROM base AS exit-mips64
 COPY fixtures/exit.mips64.s .
 RUN mips64-linux-gnuabi64-as --noexecstack -o exit.o exit.mips64.s && mips64-linux-gnuabi64-ld -o exit -s exit.o
 
-FROM golang:1.17-alpine AS generate
+FROM golang:1.19-alpine AS generate
 WORKDIR /src
 COPY --from=exit-amd64 /src/exit amd64
 COPY --from=exit-386 /src/exit 386
@@ -56,12 +60,13 @@ COPY --from=exit-arm64 /src/exit arm64
 COPY --from=exit-arm /src/exit arm
 COPY --from=exit-riscv64 /src/exit riscv64
 COPY --from=exit-s390x /src/exit s390x
+COPY --from=exit-ppc64 /src/exit ppc64
 COPY --from=exit-ppc64le /src/exit ppc64le
 COPY --from=exit-mips64le /src/exit mips64le
 COPY --from=exit-mips64 /src/exit mips64
 COPY generate.go .
 
-RUN go run generate.go amd64 386 arm64 arm riscv64 s390x ppc64le mips64le mips64 && ls -l
+RUN go run generate.go amd64 386 arm64 arm riscv64 s390x ppc64 ppc64le mips64le mips64 && ls -l
 
 
 FROM scratch

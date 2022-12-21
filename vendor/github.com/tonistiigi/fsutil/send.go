@@ -135,7 +135,7 @@ func (s *sender) sendFile(h *sendHandle) error {
 		defer f.Close()
 		buf := bufPool.Get().(*[]byte)
 		defer bufPool.Put(buf)
-		if _, err := io.CopyBuffer(&fileSender{sender: s, id: h.id}, f, *buf); err != nil {
+		if _, err := io.CopyBuffer(&fileSender{sender: s, id: h.id}, struct{ io.Reader }{f}, *buf); err != nil {
 			return err
 		}
 	}

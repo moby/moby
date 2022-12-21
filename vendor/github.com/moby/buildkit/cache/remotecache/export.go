@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
@@ -24,24 +23,10 @@ import (
 
 type ResolveCacheExporterFunc func(ctx context.Context, g session.Group, attrs map[string]string) (Exporter, error)
 
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	now := time.Now()
-	st := progress.Status{
-		Started: &now,
-	}
-	pw.Write(id, st)
-	return func(err error) error {
-		now := time.Now()
-		st.Completed = &now
-		pw.Write(id, st)
-		pw.Close()
-		return err
-	}
-}
-
 type Exporter interface {
 	solver.CacheExporterTarget
+	// Name uniquely identifies the exporter
+	Name() string
 	// Finalize finalizes and return metadata that are returned to the client
 	// e.g. ExporterResponseManifestDesc
 	Finalize(ctx context.Context) (map[string]string, error)
@@ -70,6 +55,10 @@ type contentCacheExporter struct {
 func NewExporter(ingester content.Ingester, ref string, oci bool, compressionConfig compression.Config) Exporter {
 	cc := v1.NewCacheChains()
 	return &contentCacheExporter{CacheExporterTarget: cc, chains: cc, ingester: ingester, oci: oci, ref: ref, comp: compressionConfig}
+}
+
+func (ce *contentCacheExporter) Name() string {
+	return "exporting content cache"
 }
 
 func (ce *contentCacheExporter) Config() Config {
@@ -107,7 +96,7 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 		if !ok {
 			return nil, errors.Errorf("missing blob %s", l.Blob)
 		}
-		layerDone := oneOffProgress(ctx, fmt.Sprintf("writing layer %s", l.Blob))
+		layerDone := progress.OneOff(ctx, fmt.Sprintf("writing layer %s", l.Blob))
 		if err := contentutil.Copy(ctx, ce.ingester, dgstPair.Provider, dgstPair.Descriptor, ce.ref, logs.LoggerFromContext(ctx)); err != nil {
 			return nil, layerDone(errors.Wrap(err, "error writing layer blob"))
 		}
@@ -127,7 +116,7 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 		Size:      int64(len(dt)),
 		MediaType: v1.CacheConfigMediaTypeV0,
 	}
-	configDone := oneOffProgress(ctx, fmt.Sprintf("writing config %s", dgst))
+	configDone := progress.OneOff(ctx, fmt.Sprintf("writing config %s", dgst))
 	if err := content.WriteBlob(ctx, ce.ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
 		return nil, configDone(errors.Wrap(err, "error writing config blob"))
 	}
@@ -146,7 +135,7 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 		Size:      int64(len(dt)),
 		MediaType: mfst.MediaType,
 	}
-	mfstDone := oneOffProgress(ctx, fmt.Sprintf("writing manifest %s", dgst))
+	mfstDone := progress.OneOff(ctx, fmt.Sprintf("writing manifest %s", dgst))
 	if err := content.WriteBlob(ctx, ce.ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
 		return nil, mfstDone(errors.Wrap(err, "error writing manifest blob"))
 	}

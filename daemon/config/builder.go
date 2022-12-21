@@ -60,6 +60,12 @@ type BuilderGCConfig struct {
 	DefaultKeepStorage string          `json:",omitempty"`
 }
 
+// BuilderHistoryConfig contains history config for a buildkit builder
+type BuilderHistoryConfig struct {
+	MaxAge     int64 `json:",omitempty"`
+	MaxEntries int64 `json:",omitempty"`
+}
+
 // BuilderEntitlements contains settings to enable/disable entitlements
 type BuilderEntitlements struct {
 	NetworkHost      *bool `json:"network-host,omitempty"`
@@ -68,6 +74,7 @@ type BuilderEntitlements struct {
 
 // BuilderConfig contains config for the builder
 type BuilderConfig struct {
-	GC           BuilderGCConfig     `json:",omitempty"`
-	Entitlements BuilderEntitlements `json:",omitempty"`
+	GC           BuilderGCConfig       `json:",omitempty"`
+	Entitlements BuilderEntitlements   `json:",omitempty"`
+	History      *BuilderHistoryConfig `json:",omitempty"`
 }

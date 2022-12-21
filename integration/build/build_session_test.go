@@ -95,8 +95,8 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 	sess, err := session.NewSession(ctx, "foo1", "foo")
 	assert.Check(t, err)
 
-	fsProvider := filesync.NewFSSyncProvider([]filesync.SyncedDir{
-		{Dir: dir},
+	fsProvider := filesync.NewFSSyncProvider(filesync.StaticDirSource{
+		"": {Dir: dir},
 	})
 	sess.Allow(fsProvider)
 

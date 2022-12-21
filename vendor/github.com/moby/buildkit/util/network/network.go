@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"io"
 
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -8,7 +9,8 @@ import (
 
 // Provider interface for Network
 type Provider interface {
-	New() (Namespace, error)
+	io.Closer
+	New(ctx context.Context, hostname string) (Namespace, error)
 }
 
 // Namespace of network for workers

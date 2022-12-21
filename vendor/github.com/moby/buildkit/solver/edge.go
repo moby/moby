@@ -136,11 +136,11 @@ func (e *edge) release() {
 
 // commitOptions returns parameters for the op execution
 func (e *edge) commitOptions() ([]*CacheKey, []CachedResult) {
-	k := NewCacheKey(e.cacheMap.Digest, e.edge.Index)
+	k := NewCacheKey(e.cacheMap.Digest, e.edge.Vertex.Digest(), e.edge.Index)
 	if len(e.deps) == 0 {
 		keys := make([]*CacheKey, 0, len(e.cacheMapDigests))
 		for _, dgst := range e.cacheMapDigests {
-			keys = append(keys, NewCacheKey(dgst, e.edge.Index))
+			keys = append(keys, NewCacheKey(dgst, e.edge.Vertex.Digest(), e.edge.Index))
 		}
 		return keys, nil
 	}
@@ -201,6 +201,7 @@ func (e *edge) probeCache(d *dep, depKeys []CacheKeyWithSelector) bool {
 	}
 	found := false
 	for _, k := range keys {
+		k.vtx = e.edge.Vertex.Digest()
 		if _, ok := d.keyMap[k.ID]; !ok {
 			d.keyMap[k.ID] = k
 			found = true
@@ -275,7 +276,7 @@ func (e *edge) currentIndexKey() *CacheKey {
 		}
 	}
 
-	k := NewCacheKey(e.cacheMap.Digest, e.edge.Index)
+	k := NewCacheKey(e.cacheMap.Digest, e.edge.Vertex.Digest(), e.edge.Index)
 	k.deps = keys
 
 	return k
@@ -317,10 +318,10 @@ func (e *edge) skipPhase2FastCache(dep *dep) bool {
 // previous calls.
 // To avoid deadlocks and resource leaks this function needs to follow
 // following rules:
-// 1) this function needs to return unclosed outgoing requests if some incoming
-//    requests were not completed
-// 2) this function may not return outgoing requests if it has completed all
-//    incoming requests
+//  1. this function needs to return unclosed outgoing requests if some incoming
+//     requests were not completed
+//  2. this function may not return outgoing requests if it has completed all
+//     incoming requests
 func (e *edge) unpark(incoming []pipe.Sender, updates, allPipes []pipe.Receiver, f *pipeFactory) {
 	// process all incoming changes
 	depChanged := false
@@ -403,6 +404,7 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 						bklog.G(context.TODO()).Error(errors.Wrap(err, "invalid query response")) // make the build fail for this error
 					} else {
 						for _, k := range keys {
+							k.vtx = e.edge.Vertex.Digest()
 							records, err := e.op.Cache().Records(k)
 							if err != nil {
 								bklog.G(context.TODO()).Errorf("error receiving cache records: %v", err)
@@ -508,7 +510,7 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 			} else if !dep.slowCacheComplete {
 				dgst := upt.Status().Value.(digest.Digest)
 				if e.cacheMap.Deps[int(dep.index)].ComputeDigestFunc != nil && dgst != "" {
-					k := NewCacheKey(dgst, -1)
+					k := NewCacheKey(dgst, "", -1)
 					dep.slowCacheKey = &ExportableCacheKey{CacheKey: k, Exporter: &exporter{k: k}}
 					slowKeyExp := CacheKeyWithSelector{CacheKey: *dep.slowCacheKey}
 					defKeys := make([]CacheKeyWithSelector, 0, len(dep.result.CacheKeys()))

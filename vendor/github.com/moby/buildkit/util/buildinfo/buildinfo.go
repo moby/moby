@@ -10,11 +10,69 @@ import (
 	ctnref "github.com/containerd/containerd/reference"
 	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	"github.com/moby/buildkit/source"
 	binfotypes "github.com/moby/buildkit/util/buildinfo/types"
 	"github.com/moby/buildkit/util/urlutil"
 	"github.com/pkg/errors"
 )
+
+// BuildInfo format has been deprecated and will be removed in a future release.
+// Use provenance attestations instead.
+
+func FromProvenance(c *provenance.Capture) (*binfotypes.BuildInfo, error) {
+	var bi binfotypes.BuildInfo
+
+	bi.Frontend = c.Frontend
+	bi.Attrs = map[string]*string{}
+	for k, v := range c.Args {
+		v := v
+		bi.Attrs[k] = &v
+	}
+
+	for _, s := range c.Sources.Images {
+		bi.Sources = append(bi.Sources, binfotypes.Source{
+			Type: binfotypes.SourceTypeDockerImage,
+			Ref:  s.Ref,
+			Pin:  s.Digest.String(),
+		})
+	}
+
+	for _, s := range c.Sources.HTTP {
+		bi.Sources = append(bi.Sources, binfotypes.Source{
+			Type: binfotypes.SourceTypeHTTP,
+			Ref:  s.URL,
+			Pin:  s.Digest.String(),
+		})
+	}
+
+	for _, s := range c.Sources.Git {
+		bi.Sources = append(bi.Sources, binfotypes.Source{
+			Type: binfotypes.SourceTypeGit,
+			Ref:  s.URL,
+			Pin:  s.Commit,
+		})
+	}
+
+	sort.Slice(bi.Sources, func(i, j int) bool {
+		return bi.Sources[i].Ref < bi.Sources[j].Ref
+	})
+
+	return &bi, nil
+}
+
+func AddMetadata(metadata map[string][]byte, key string, c *provenance.Capture) error {
+	bi, err := FromProvenance(c)
+	if err != nil {
+		return err
+	}
+	dt, err := json.Marshal(bi)
+	if err != nil {
+		return err
+	}
+	metadata[key] = dt
+	return nil
+}
 
 // Decode decodes a base64 encoded build info.
 func Decode(enc string) (bi binfotypes.BuildInfo, _ error) {
@@ -323,7 +381,7 @@ func filterAttrs(key string, attrs map[string]*string) map[string]*string {
 			continue
 		}
 		// always include
-		if strings.HasPrefix(k, "build-arg:") || strings.HasPrefix(k, "label:") {
+		if strings.HasPrefix(k, "build-arg:") || strings.HasPrefix(k, "label:") || strings.HasPrefix(k, "vcs:") {
 			filtered[k] = v
 			continue
 		}
@@ -377,49 +435,6 @@ func isControlArg(attrKey string) bool {
 	return false
 }
 
-// GetMetadata returns buildinfo metadata for the specified key. If the key
-// is already there, result will be merged.
-func GetMetadata(metadata map[string][]byte, key string, reqFrontend string, reqAttrs map[string]string) ([]byte, error) {
-	if metadata == nil {
-		metadata = make(map[string][]byte)
-	}
-	var dtbi []byte
-	if v, ok := metadata[key]; ok && v != nil {
-		var mbi binfotypes.BuildInfo
-		if errm := json.Unmarshal(v, &mbi); errm != nil {
-			return nil, errors.Wrapf(errm, "failed to unmarshal build info for %q", key)
-		}
-		if reqFrontend != "" {
-			mbi.Frontend = reqFrontend
-		}
-		if deps, err := decodeDeps(key, convertMap(reduceMapString(reqAttrs, mbi.Attrs))); err == nil {
-			mbi.Deps = reduceMapBuildInfo(deps, mbi.Deps)
-		} else {
-			return nil, err
-		}
-		mbi.Attrs = filterAttrs(key, convertMap(reduceMapString(reqAttrs, mbi.Attrs)))
-		var err error
-		dtbi, err = json.Marshal(mbi)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to marshal build info for %q", key)
-		}
-	} else {
-		deps, err := decodeDeps(key, convertMap(reqAttrs))
-		if err != nil {
-			return nil, err
-		}
-		dtbi, err = json.Marshal(binfotypes.BuildInfo{
-			Frontend: reqFrontend,
-			Attrs:    filterAttrs(key, convertMap(reqAttrs)),
-			Deps:     deps,
-		})
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to marshal build info for %q", key)
-		}
-	}
-	return dtbi, nil
-}
-
 func reduceMapString(m1 map[string]string, m2 map[string]*string) map[string]string {
 	if m1 == nil && m2 == nil {
 		return nil
@@ -433,26 +448,4 @@ func reduceMapString(m1 map[string]string, m2 map[string]*string) map[string]str
 		}
 	}
 	return m1
-}
-
-func reduceMapBuildInfo(m1 map[string]binfotypes.BuildInfo, m2 map[string]binfotypes.BuildInfo) map[string]binfotypes.BuildInfo {
-	if m1 == nil && m2 == nil {
-		return nil
-	}
-	if m1 == nil {
-		m1 = map[string]binfotypes.BuildInfo{}
-	}
-	for k, v := range m2 {
-		m1[k] = v
-	}
-	return m1
-}
-
-func convertMap(m map[string]string) map[string]*string {
-	res := make(map[string]*string)
-	for k, v := range m {
-		value := v
-		res[k] = &value
-	}
-	return res
 }
