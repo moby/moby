@@ -152,7 +152,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (*image.Image, error) {
 	img, err := i.getImage(ctx, refOrID, options)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "no such image: %s", refOrID)
 	}
 	if options.Details {
 		var size int64
