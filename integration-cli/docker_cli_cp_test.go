@@ -331,8 +331,10 @@ func (s *DockerCLICpSuite) TestCpUnprivilegedUser(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	tmpdir := c.TempDir()
-	err := os.Mkdir(filepath.Join(tmpdir, "out"), 0o777)
-	assert.NilError(c, err)
+	err := os.Chmod(tmpdir, 0o777)
+	assert.Check(c, err)
+	err = os.Mkdir(filepath.Join(tmpdir, "out"), 0o777)
+	assert.Check(c, err)
 
 	result := icmd.RunCommand("su", "unprivilegeduser", "-c", fmt.Sprintf("%s cp %s:%s %s", dockerBinary, containerID, cpTestName, tmpdir))
 	result.Assert(c, icmd.Expected{})
