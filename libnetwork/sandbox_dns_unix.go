@@ -193,8 +193,6 @@ func isIPv4Loopback(ipAddress string) bool {
 }
 
 func (sb *sandbox) setupDNS() error {
-	var newRC *resolvconf.File
-
 	if sb.config.resolvConfPath == "" {
 		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
 	}
@@ -228,32 +226,30 @@ func (sb *sandbox) setupDNS() error {
 		// fallback if not specified
 		originResolvConfPath = resolvconf.Path()
 	}
-	currRC, err := resolvconf.GetSpecific(originResolvConfPath)
+	currRC, err := os.ReadFile(originResolvConfPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		// it's ok to continue if /etc/resolv.conf doesn't exist, default resolvers (Google's Public DNS)
-		// will be used
-		currRC = &resolvconf.File{}
-		logrus.Infof("/etc/resolv.conf does not exist")
+		// No /etc/resolv.conf found: we'll use the default resolvers (Google's Public DNS).
+		logrus.WithField("path", originResolvConfPath).Infof("no resolv.conf found, falling back to defaults")
 	}
 
+	var newRC *resolvconf.File
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
-			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content, resolvconf.IP)
-			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
-			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-		)
-		if len(sb.config.dnsList) > 0 {
-			dnsList = sb.config.dnsList
-		}
-		if len(sb.config.dnsSearchList) > 0 {
-			dnsSearchList = sb.config.dnsSearchList
-		}
-		if len(sb.config.dnsOptionsList) > 0 {
+			dnsList        = sb.config.dnsList
+			dnsSearchList  = sb.config.dnsSearchList
 			dnsOptionsList = sb.config.dnsOptionsList
+		)
+		if len(sb.config.dnsList) == 0 {
+			dnsList = resolvconf.GetNameservers(currRC, resolvconf.IP)
+		}
+		if len(sb.config.dnsSearchList) == 0 {
+			dnsSearchList = resolvconf.GetSearchDomains(currRC)
+		}
+		if len(sb.config.dnsOptionsList) == 0 {
+			dnsOptionsList = resolvconf.GetOptions(currRC)
 		}
 		newRC, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 		if err != nil {
@@ -268,14 +264,16 @@ func (sb *sandbox) setupDNS() error {
 		// use the host resolver for queries. This is supported by the
 		// docker embedded DNS server. Hence save the external resolvers
 		// before filtering it out.
-		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, true)
+		sb.setExternalResolvers(currRC, resolvconf.IPv4, true)
 
 		// Replace any localhost/127.* (at this point we have no info about ipv6, pass it as true)
-		if newRC, err = resolvconf.FilterResolvDNS(currRC.Content, true); err != nil {
+		newRC, err = resolvconf.FilterResolvDNS(currRC, true)
+		if err != nil {
 			return err
 		}
 		// No contention on container resolv.conf file at sandbox creation
-		if err := os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
+		err = os.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm)
+		if err != nil {
 			return types.InternalErrorf("failed to write unhaltered resolv.conf file content when setting up dns for sandbox %s: %v", sb.ID(), err)
 		}
 	}
@@ -361,27 +359,16 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 // - Add only the embedded server's IP to container's resolv.conf
 // - If the embedded server needs any resolv.conf options add it to the current list
 func (sb *sandbox) rebuildDNS() error {
-	currRC, err := resolvconf.GetSpecific(sb.config.resolvConfPath)
+	currRC, err := os.ReadFile(sb.config.resolvConfPath)
 	if err != nil {
 		return err
 	}
-
-	if len(sb.extDNS) == 0 {
-		sb.setExternalResolvers(currRC.Content, resolvconf.IPv4, false)
-	}
-	var (
-		dnsList        = []string{sb.resolver.NameServer()}
-		dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-		dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
-	)
-
-	// external v6 DNS servers has to be listed in resolv.conf
-	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, resolvconf.IPv6)...)
 
 	// If the user config and embedded DNS server both have ndots option set,
 	// remember the user's config so that unqualified names not in the docker
 	// domain can be dropped.
 	resOptions := sb.resolver.ResolverOptions()
+	dnsOptionsList := resolvconf.GetOptions(currRC)
 
 dnsOpt:
 	for _, resOpt := range resOptions {
@@ -411,6 +398,15 @@ dnsOpt:
 		// Ref: https://linux.die.net/man/5/resolv.conf
 		dnsOptionsList = append(dnsOptionsList, resOptions...)
 	}
+	if len(sb.extDNS) == 0 {
+		sb.setExternalResolvers(currRC, resolvconf.IPv4, false)
+	}
+
+	var (
+		// external v6 DNS servers have to be listed in resolv.conf
+		dnsList       = append([]string{sb.resolver.NameServer()}, resolvconf.GetNameservers(currRC, resolvconf.IPv6)...)
+		dnsSearchList = resolvconf.GetSearchDomains(currRC)
+	)
 
 	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	return err
