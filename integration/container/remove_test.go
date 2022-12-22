@@ -36,12 +36,14 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	tempDir := t.TempDir()
+	err := os.Chmod(tempDir, 0o777)
+	assert.Check(t, err)
 	hostPath := filepath.Join(tempDir, "hostPath")
 
 	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(hostPath, prefix+slash+"test"))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
-	err := os.RemoveAll(hostPath)
+	err = os.RemoveAll(hostPath)
 	assert.NilError(t, err)
 
 	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
