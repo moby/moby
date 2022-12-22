@@ -62,6 +62,61 @@ func TestContainerWait(t *testing.T) {
 	}
 }
 
+func TestContainerWaitProxyInterrupt(t *testing.T) {
+	expectedURL := "/v1.30/containers/container_id/wait"
+	msg := "copying response body from Docker: unexpected EOF"
+	client := &Client{
+		version: "1.30",
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(msg)),
+			}, nil
+		}),
+	}
+
+	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
+	select {
+	case err := <-errC:
+		if !strings.Contains(err.Error(), msg) {
+			t.Fatalf("Expected: %s, Actual: %s", msg, err.Error())
+		}
+	case result := <-resultC:
+		t.Fatalf("Unexpected result: %v", result)
+	}
+}
+
+func TestContainerWaitProxyInterruptLong(t *testing.T) {
+	expectedURL := "/v1.30/containers/container_id/wait"
+	msg := strings.Repeat("x", containerWaitErrorMsgLimit*5)
+	client := &Client{
+		version: "1.30",
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(msg)),
+			}, nil
+		}),
+	}
+
+	resultC, errC := client.ContainerWait(context.Background(), "container_id", "")
+	select {
+	case err := <-errC:
+		// LimitReader limiting isn't exact, because of how the Readers do chunking.
+		if len(err.Error()) > containerWaitErrorMsgLimit*2 {
+			t.Fatalf("Expected error to be limited around %d, actual length: %d", containerWaitErrorMsgLimit, len(err.Error()))
+		}
+	case result := <-resultC:
+		t.Fatalf("Unexpected result: %v", result)
+	}
+}
+
 func ExampleClient_ContainerWait_withTimeout() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
