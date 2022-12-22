@@ -397,16 +397,19 @@ func TestNewIDMappings(t *testing.T) {
 	assert.Check(t, err)
 	defer delUser(t, tempUser)
 
-	tempUser, err := user.Lookup(tempUser)
+	tmpUser, err := user.Lookup(tempUser)
 	assert.Check(t, err)
 
-	idMapping, err := LoadIdentityMapping(tempUser.Username)
+	idMapping, err := LoadIdentityMapping(tmpUser.Username)
 	assert.Check(t, err)
 
 	rootUID, rootGID, err := GetRootUIDGID(idMapping.UIDMaps, idMapping.GIDMaps)
 	assert.Check(t, err)
 
-	dirName := t.TempDir()
+	tmpDir := t.TempDir()
+	err = os.Chmod(tmpDir, 0o777)
+	assert.Check(t, err)
+	dirName := filepath.Join(tmpDir, "new-dir")
 	err = MkdirAllAndChown(dirName, 0o700, Identity{UID: rootUID, GID: rootGID})
 	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
 	cmd := exec.Command("ls", "-la", dirName)
