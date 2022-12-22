@@ -1,9 +1,5 @@
 package netlabel
 
-import (
-	"strings"
-)
-
 const (
 	// Prefix constant marks the reserved label space for libnetwork
 	Prefix = "com.docker.network"
@@ -56,32 +52,30 @@ const (
 
 	// HostIP is the Source-IP Address used to SNAT container traffic
 	HostIP = Prefix + ".host_ipv4"
-)
 
-var (
 	// GlobalKVProvider constant represents the KV provider backend
-	GlobalKVProvider = MakeKVProvider("global")
+	GlobalKVProvider = DriverPrivatePrefix + "globalkv_provider"
 
 	// GlobalKVProviderURL constant represents the KV provider URL
-	GlobalKVProviderURL = MakeKVProviderURL("global")
+	GlobalKVProviderURL = DriverPrivatePrefix + "globalkv_provider_url"
 
 	// GlobalKVProviderConfig constant represents the KV provider Config
-	GlobalKVProviderConfig = MakeKVProviderConfig("global")
+	GlobalKVProviderConfig = DriverPrivatePrefix + "globalkv_provider_config"
 
 	// GlobalKVClient constants represents the global kv store client
-	GlobalKVClient = MakeKVClient("global")
+	GlobalKVClient = DriverPrivatePrefix + "globalkv_client"
 
 	// LocalKVProvider constant represents the KV provider backend
-	LocalKVProvider = MakeKVProvider("local")
+	LocalKVProvider = DriverPrivatePrefix + "localkv_provider"
 
 	// LocalKVProviderURL constant represents the KV provider URL
-	LocalKVProviderURL = MakeKVProviderURL("local")
+	LocalKVProviderURL = DriverPrivatePrefix + "localkv_provider_url"
 
 	// LocalKVProviderConfig constant represents the KV provider Config
-	LocalKVProviderConfig = MakeKVProviderConfig("local")
+	LocalKVProviderConfig = DriverPrivatePrefix + "localkv_provider_config"
 
 	// LocalKVClient constants represents the local kv store client
-	LocalKVClient = MakeKVClient("local")
+	LocalKVClient = DriverPrivatePrefix + "localkv_client"
 )
 
 // MakeKVProvider returns the kvprovider label for the scope
@@ -102,22 +96,4 @@ func MakeKVProviderConfig(scope string) string {
 // MakeKVClient returns the kv client label for the scope
 func MakeKVClient(scope string) string {
 	return DriverPrivatePrefix + scope + "kv_client"
-}
-
-// Key extracts the key portion of the label
-func Key(label string) (key string) {
-	key, _, _ = strings.Cut(label, "=")
-	return key
-}
-
-// Value extracts the value portion of the label
-func Value(label string) (value string) {
-	_, value, _ = strings.Cut(label, "=")
-	return value
-}
-
-// KeyValue decomposes the label in the (key,value) pair
-func KeyValue(label string) (key string, value string) {
-	key, value, _ = strings.Cut(label, "=")
-	return key, value
 }
