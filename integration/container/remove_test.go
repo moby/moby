@@ -34,6 +34,8 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	apiClient := testEnv.APIClient()
 
 	tempDir := t.TempDir()
+	err := os.Chmod(tempDir, 0o777)
+	assert.Check(t, err)
 	hostPath := filepath.Join(tempDir, "hostPath")
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(hostPath, dPath("/test")))
@@ -43,7 +45,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	}
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited), pollOps...)
 
-	err := os.RemoveAll(hostPath)
+	err = os.RemoveAll(hostPath)
 	assert.NilError(t, err)
 
 	_, err = apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
