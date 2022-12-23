@@ -283,11 +283,7 @@ func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequ
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
-	resp, err := daemon.createNetwork(create, "", false)
-	if err != nil {
-		return nil, err
-	}
-	return resp, err
+	return daemon.createNetwork(create, "", false)
 }
 
 func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
