@@ -682,6 +682,11 @@ definitions:
           (Windows only).
         type: "integer"
         format: "int64"
+      Devices:
+        description: "A list of devices to add to the container."
+        type: "array"
+        items:
+          $ref: "#/definitions/DeviceMapping"
 
   Limit:
     description: |

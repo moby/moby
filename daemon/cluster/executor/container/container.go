@@ -479,6 +479,15 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 		}
 	}
 
+	resources.Devices = make([]enginecontainer.DeviceMapping, len(c.spec().Devices))
+	for i, device := range c.spec().Devices {
+		resources.Devices[i] = enginecontainer.DeviceMapping{
+			PathOnHost:        device.PathOnHost,
+			PathInContainer:   device.PathInContainer,
+			CgroupPermissions: device.CgroupPermissions,
+		}
+	}
+
 	// If no limits are specified let the engine use its defaults.
 	//
 	// TODO(aluzzardi): We might want to set some limits anyway otherwise
