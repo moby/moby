@@ -15,7 +15,7 @@ on:
   pull_request:
 
 env:
-  BUNDLES_OUTPUT: ./bundles
+  DESTDIR: ./build
 
 jobs:
   validate-dco:
@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.target }}
-          path: ${{ env.BUNDLES_OUTPUT }}
+          path: ${{ env.DESTDIR }}
           if-no-files-found: error
           retention-days: 7
 
@@ -110,6 +110,6 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: cross-${{ env.PLATFORM_PAIR }}
-          path: ${{ env.BUNDLES_OUTPUT }}
+          path: ${{ env.DESTDIR }}
           if-no-files-found: error
           retention-days: 7
