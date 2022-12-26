@@ -214,6 +214,11 @@ test-unit: build ## run the unit tests
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
 	$(DOCKER_RUN_DOCKER) hack/validate/all
 
+validate-generate-files:
+	$(BUILD_CMD) --target "validate" \
+		--output "type=cacheonly" \
+		--file "./hack/dockerfiles/generate-files.Dockerfile" .
+
 validate-%: build ## validate specific check
 	$(DOCKER_RUN_DOCKER) hack/validate/$*
 
@@ -235,3 +240,12 @@ swagger-docs: ## preview the API documentation
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.14.0
+
+.PHONY: generate-files
+generate-files:
+	$(eval $@_TMP_OUT := $(shell mktemp -d -t moby-output.XXXXXXXXXX))
+	$(BUILD_CMD) --target "update" \
+		--output "type=local,dest=$($@_TMP_OUT)" \
+		--file "./hack/dockerfiles/generate-files.Dockerfile" .
+	cp -R "$($@_TMP_OUT)"/. .
+	rm -rf "$($@_TMP_OUT)"/*
