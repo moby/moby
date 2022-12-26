@@ -1,8 +1,14 @@
-variable "BUNDLES_OUTPUT" {
-  default = "./bundles"
-}
 variable "DOCKER_STATIC" {
   default = "1"
+}
+
+# Defines the output folder
+variable "DESTDIR" {
+  default = ""
+}
+function "bindir" {
+  params = [defaultdir]
+  result = DESTDIR != "" ? DESTDIR : "./bundles/${defaultdir}"
 }
 
 target "_common" {
@@ -37,11 +43,12 @@ target "_platforms" {
 target "binary" {
   inherits = ["_common"]
   target = "binary"
-  output = [BUNDLES_OUTPUT]
+  output = [bindir(DOCKER_STATIC == "1" ? "binary" : "dynbinary")]
 }
 
 target "dynbinary" {
   inherits = ["binary"]
+  output = [bindir("dynbinary")]
   args = {
     DOCKER_STATIC = "0"
   }
