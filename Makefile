@@ -178,9 +178,9 @@ run: build ## run the docker daemon in a container
  
 .PHONY: build
 ifeq ($(BIND_DIR), .)
-build: shell_target := --target=dev
+build: shell_target := --target=dev-base
 else
-build: shell_target := --target=final
+build: shell_target := --target=dev
 endif
 build: bundles
 	$(BUILD_CMD) $(BUILD_OPTS) $(shell_target) --load -t "$(DOCKER_IMAGE)" .
