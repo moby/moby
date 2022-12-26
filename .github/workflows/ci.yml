@@ -46,6 +46,14 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       -
+        name: List artifacts
+        run: |
+          tree -nh ${{ env.DESTDIR }}
+      -
+        name: Check artifacts
+        run: |
+          find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
+      -
         name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -105,6 +113,14 @@ jobs:
           targets: binary
           set: |
             *.platform=${{ matrix.platform }}
+      -
+        name: List artifacts
+        run: |
+          tree -nh ${{ env.DESTDIR }}
+      -
+        name: Check artifacts
+        run: |
+          find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
       -
         name: Upload artifacts
         uses: actions/upload-artifact@v3
