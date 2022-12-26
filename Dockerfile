@@ -476,7 +476,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             systemd-sysv
 ENTRYPOINT ["hack/dind-systemd"]
 
-FROM dev-systemd-${SYSTEMD} AS dev
+FROM dev-systemd-${SYSTEMD} AS dev-base
 ARG DEBIAN_FRONTEND
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser \
@@ -600,5 +600,5 @@ COPY --from=build /build/ /
 # usage:
 # > make shell
 # > SYSTEMD=true make shell
-FROM dev AS final
+FROM dev-base AS dev
 COPY . .

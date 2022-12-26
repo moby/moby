@@ -128,19 +128,16 @@ target "binary-cross" {
 # dev
 #
 
-variable "DEV_IMAGE" {
-  default = "docker-dev"
-}
 variable "SYSTEMD" {
   default = "false"
 }
 
 target "dev" {
   inherits = ["_common"]
-  target = "final"
+  target = "dev"
   args = {
     SYSTEMD = SYSTEMD
   }
-  tags = [DEV_IMAGE]
+  tags = ["docker-dev"]
   output = ["type=docker"]
 }
