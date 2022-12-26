@@ -47,6 +47,18 @@ variable "PACKAGER_NAME" {
   default = ""
 }
 
+# GITHUB_REF is the actual ref that triggers the workflow and used as version
+# when tag is pushed: https://docs.github.com/en/actions/learn-github-actions/environment-variables#default-environment-variables
+variable "GITHUB_REF" {
+  default = ""
+}
+
+# GITHUB_SHA is the commit SHA that triggered the workflow and used as commit.
+# https://docs.github.com/en/actions/learn-github-actions/environment-variables#default-environment-variables
+variable "GITHUB_SHA" {
+  default = ""
+}
+
 # Defines the output folder
 variable "DESTDIR" {
   default = ""
@@ -64,8 +76,8 @@ target "_common" {
     DOCKER_STATIC = DOCKER_STATIC
     DOCKER_LDFLAGS = DOCKER_LDFLAGS
     DOCKER_BUILDTAGS = DOCKER_BUILDTAGS
-    DOCKER_GITCOMMIT = DOCKER_GITCOMMIT
-    VERSION = VERSION
+    DOCKER_GITCOMMIT = DOCKER_GITCOMMIT != "" ? DOCKER_GITCOMMIT : GITHUB_SHA
+    VERSION = VERSION != "" ? VERSION : GITHUB_REF
     PLATFORM = PLATFORM
     PRODUCT = PRODUCT
     DEFAULT_PRODUCT_LICENSE = DEFAULT_PRODUCT_LICENSE
