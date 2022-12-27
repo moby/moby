@@ -100,7 +100,6 @@ fi
 
 # Use these flags when compiling the tests and final binary
 
-IAMSTATIC='true'
 if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
