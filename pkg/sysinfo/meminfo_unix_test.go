@@ -1,13 +1,11 @@
 //go:build linux || freebsd
 // +build linux freebsd
 
-package system // import "github.com/docker/docker/pkg/system"
+package sysinfo
 
 import (
 	"strings"
 	"testing"
-
-	units "github.com/docker/go-units"
 )
 
 // TestMemInfo tests parseMemInfo with a static meminfo string
@@ -23,20 +21,23 @@ func TestMemInfo(t *testing.T) {
 	Malformed3:    2 MB
 	Malformed4:    X kB
 	`
+
+	const KiB = 1024
+
 	meminfo, err := parseMemInfo(strings.NewReader(input))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if meminfo.MemTotal != 1*units.KiB {
+	if meminfo.MemTotal != 1*KiB {
 		t.Fatalf("Unexpected MemTotal: %d", meminfo.MemTotal)
 	}
-	if meminfo.MemFree != 3*units.KiB {
+	if meminfo.MemFree != 3*KiB {
 		t.Fatalf("Unexpected MemFree: %d", meminfo.MemFree)
 	}
-	if meminfo.SwapTotal != 4*units.KiB {
+	if meminfo.SwapTotal != 4*KiB {
 		t.Fatalf("Unexpected SwapTotal: %d", meminfo.SwapTotal)
 	}
-	if meminfo.SwapFree != 5*units.KiB {
+	if meminfo.SwapFree != 5*KiB {
 		t.Fatalf("Unexpected SwapFree: %d", meminfo.SwapFree)
 	}
 }
