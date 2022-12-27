@@ -4,6 +4,7 @@ set -e
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
 
 (
+	DOCKER_STATIC=1
 	GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
 	BINARY_NAME='dockerd'
 	source "${MAKEDIR}/.binary"
