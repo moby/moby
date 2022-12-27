@@ -4,7 +4,6 @@ LDFLAGS="${LDFLAGS} \
 	-X \"github.com/docker/docker/dockerversion.Version=${VERSION}\" \
 	-X \"github.com/docker/docker/dockerversion.GitCommit=${GITCOMMIT}\" \
 	-X \"github.com/docker/docker/dockerversion.BuildTime=${BUILDTIME}\" \
-	-X \"github.com/docker/docker/dockerversion.IAmStatic=${IAMSTATIC:-true}\" \
 	-X \"github.com/docker/docker/dockerversion.PlatformName=${PLATFORM}\" \
 	-X \"github.com/docker/docker/dockerversion.ProductName=${PRODUCT}\" \
 	-X \"github.com/docker/docker/dockerversion.DefaultProductLicense=${DEFAULT_PRODUCT_LICENSE}\" \

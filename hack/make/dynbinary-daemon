@@ -4,7 +4,6 @@ set -e
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
 
 (
-	export IAMSTATIC='false'
 	export LDFLAGS_STATIC_DOCKER=''
 	export BUILDFLAGS=("${BUILDFLAGS[@]/netgo /}")        # disable netgo, since we don't need it for a dynamic binary
 	export BUILDFLAGS=("${BUILDFLAGS[@]/osusergo /}")     # ditto for osusergo
