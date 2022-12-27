@@ -73,15 +73,17 @@ source "${MAKEDIR}/.go-autogen"
 
 	# -buildmode=pie is not supported on Windows and Linux on mips, riscv64 and ppc64be.
 	# https://github.com/golang/go/blob/77aa209b386a184e7f4b44938f2a05a1b5c5a3cf/src/cmd/internal/sys/supported.go#L89-L99
-	case "$(go env GOOS)/$(go env GOARCH)" in
-		windows/* | linux/mips* | linux/riscv* | linux/ppc64) ;;
-		# TODO remove windows in Go 1.15+: https://github.com/golang/go/commit/95f382139043059a2a0780ba577b53893408f7e4
-		# TODO remove riscv64 in Go 1.16+: https://github.com/golang/go/commit/8eb846fd37eb7bded8a1cf6932be2c59069863e5
-
-		*)
-			BUILDFLAGS+=("-buildmode=pie")
-			;;
-	esac
+	if ! [ "$DOCKER_STATIC" = "1" ]; then
+		case "$(go env GOOS)/$(go env GOARCH)" in
+			windows/* | linux/mips* | linux/riscv* | linux/ppc64) ;;
+			# TODO remove windows in Go 1.15+: https://github.com/golang/go/commit/95f382139043059a2a0780ba577b53893408f7e4
+			# TODO remove riscv64 in Go 1.16+: https://github.com/golang/go/commit/8eb846fd37eb7bded8a1cf6932be2c59069863e5
+	
+			*)
+				BUILDFLAGS+=("-buildmode=pie")
+				;;
+		esac
+	fi
 
 	# only necessary for non-sandboxed invocation where TARGETPLATFORM is empty
 	PLATFORM_NAME=$TARGETPLATFORM
@@ -94,7 +96,7 @@ source "${MAKEDIR}/.go-autogen"
 		fi
 	fi
 
-	echo "Building $DEST/$BINARY_FULLNAME ($PLATFORM_NAME)..."
+	echo "Building $([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "dynamic") $DEST/$BINARY_FULLNAME ($PLATFORM_NAME)..."
 	go build \
 		-o "$DEST/$BINARY_FULLNAME" \
 		"${BUILDFLAGS[@]}" \
