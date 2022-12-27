@@ -405,13 +405,13 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	}
 
 	if opts.TLSOptions != nil {
-		conf.CommonTLSOptions = config.CommonTLSOptions{
+		conf.TLSOptions = config.TLSOptions{
 			CAFile:   opts.TLSOptions.CAFile,
 			CertFile: opts.TLSOptions.CertFile,
 			KeyFile:  opts.TLSOptions.KeyFile,
 		}
 	} else {
-		conf.CommonTLSOptions = config.CommonTLSOptions{}
+		conf.TLSOptions = config.TLSOptions{}
 	}
 
 	if opts.configFile != "" {
@@ -609,9 +609,9 @@ func newAPIServerConfig(config *config.Config) (*apiserver.Config, error) {
 			clientAuth = tls.RequireAndVerifyClientCert
 		}
 		tlsConfig, err = tlsconfig.Server(tlsconfig.Options{
-			CAFile:             config.CommonTLSOptions.CAFile,
-			CertFile:           config.CommonTLSOptions.CertFile,
-			KeyFile:            config.CommonTLSOptions.KeyFile,
+			CAFile:             config.TLSOptions.CAFile,
+			CertFile:           config.TLSOptions.CertFile,
+			KeyFile:            config.TLSOptions.KeyFile,
 			ExclusiveRootPools: true,
 			ClientAuth:         clientAuth,
 		})

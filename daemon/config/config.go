@@ -71,7 +71,7 @@ var builtinRuntimes = map[string]bool{
 // flatOptions contains configuration keys
 // that MUST NOT be parsed as deep structures.
 // Use this to differentiate these options
-// with others like the ones in CommonTLSOptions.
+// with others like the ones in TLSOptions.
 var flatOptions = map[string]bool{
 	"cluster-store-opts": true,
 	"log-opts":           true,
@@ -124,10 +124,10 @@ type NetworkConfig struct {
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 }
 
-// CommonTLSOptions defines TLS configuration for the daemon server.
+// TLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
-type CommonTLSOptions struct {
+type TLSOptions struct {
 	CAFile   string `json:"tlscacert,omitempty"`
 	CertFile string `json:"tlscert,omitempty"`
 	KeyFile  string `json:"tlskey,omitempty"`
@@ -159,7 +159,6 @@ type CommonConfig struct {
 	NetworkDiagnosticPort int                       `json:"network-diagnostic-port,omitempty"`
 	Pidfile               string                    `json:"pidfile,omitempty"`
 	RawLogs               bool                      `json:"raw-logs,omitempty"`
-	RootDeprecated        string                    `json:"graph,omitempty"` // Deprecated: use Root instead. TODO(thaJeztah): remove in next release.
 	Root                  string                    `json:"data-root,omitempty"`
 	ExecRoot              string                    `json:"exec-root,omitempty"`
 	SocketGroup           string                    `json:"group,omitempty"`
@@ -196,7 +195,7 @@ type CommonConfig struct {
 
 	// Embedded structs that allow config
 	// deserialization without the full struct.
-	CommonTLSOptions
+	TLSOptions
 
 	// SwarmDefaultAdvertiseAddr is the default host/IP or network interface
 	// to use if a wildcard address is specified in the ListenAddr value
@@ -558,11 +557,6 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
-	//nolint:staticcheck // TODO(thaJeztah): remove in next release.
-	if config.RootDeprecated != "" {
-		return errors.New(`the "graph" config file option is deprecated; use "data-root" instead`)
-	}
-
 	// validate log-level
 	if config.LogLevel != "" {
 		if _, err := logrus.ParseLevel(config.LogLevel); err != nil {
