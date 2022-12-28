@@ -17,7 +17,8 @@ const (
 )
 
 func TestUserChain(t *testing.T) {
-	iptable := iptables.GetIptable(iptables.IPv4)
+	iptable4 := iptables.GetIptable(iptables.IPv4)
+	iptable6 := iptables.GetIptable(iptables.IPv6)
 
 	nc, err := New()
 	assert.NilError(t, err)
@@ -54,33 +55,41 @@ func TestUserChain(t *testing.T) {
 			c := nc.(*controller)
 			c.cfg.DriverCfg["bridge"] = map[string]interface{}{
 				netlabel.GenericData: options.Generic{
-					"EnableIPTables": tc.iptables,
+					"EnableIPTables":  tc.iptables,
+					"EnableIP6Tables": tc.iptables,
 				},
 			}
 
 			// init. condition, FORWARD chain empty DOCKER-USER not exist
-			assert.DeepEqual(t, getRules(t, fwdChainName), []string{"-P FORWARD ACCEPT"})
+			assert.DeepEqual(t, getRules(t, iptables.IPv4, fwdChainName), []string{"-P FORWARD ACCEPT"})
+			assert.DeepEqual(t, getRules(t, iptables.IPv6, fwdChainName), []string{"-P FORWARD ACCEPT"})
 
 			if tc.insert {
-				_, err = iptable.Raw("-A", fwdChainName, "-j", "DROP")
+				_, err = iptable4.Raw("-A", fwdChainName, "-j", "DROP")
+				assert.NilError(t, err)
+				_, err = iptable6.Raw("-A", fwdChainName, "-j", "DROP")
 				assert.NilError(t, err)
 			}
 			arrangeUserFilterRule()
 
-			assert.DeepEqual(t, getRules(t, fwdChainName), tc.fwdChain)
+			assert.DeepEqual(t, getRules(t, iptables.IPv4, fwdChainName), tc.fwdChain)
+			assert.DeepEqual(t, getRules(t, iptables.IPv6, fwdChainName), tc.fwdChain)
 			if tc.userChain != nil {
-				assert.DeepEqual(t, getRules(t, usrChainName), tc.userChain)
+				assert.DeepEqual(t, getRules(t, iptables.IPv4, usrChainName), tc.userChain)
+				assert.DeepEqual(t, getRules(t, iptables.IPv6, usrChainName), tc.userChain)
 			} else {
-				_, err := iptable.Raw("-S", usrChainName)
-				assert.Assert(t, err != nil, "chain %v: created unexpectedly", usrChainName)
+				_, err := iptable4.Raw("-S", usrChainName)
+				assert.Assert(t, err != nil, "ipv4 chain %v: created unexpectedly", usrChainName)
+				_, err = iptable6.Raw("-S", usrChainName)
+				assert.Assert(t, err != nil, "ipv6 chain %v: created unexpectedly", usrChainName)
 			}
 		})
 		resetIptables(t)
 	}
 }
 
-func getRules(t *testing.T, chain string) []string {
-	iptable := iptables.GetIptable(iptables.IPv4)
+func getRules(t *testing.T, ipVer iptables.IPVersion, chain string) []string {
+	iptable := iptables.GetIptable(ipVer)
 
 	t.Helper()
 	output, err := iptable.Raw("-S", chain)
@@ -94,10 +103,13 @@ func getRules(t *testing.T, chain string) []string {
 }
 
 func resetIptables(t *testing.T) {
-	iptable := iptables.GetIptable(iptables.IPv4)
-
 	t.Helper()
-	_, err := iptable.Raw("-F", fwdChainName)
-	assert.NilError(t, err)
-	_ = iptable.RemoveExistingChain(usrChainName, "")
+
+	for _, ipVer := range []iptables.IPVersion{iptables.IPv4, iptables.IPv6} {
+		iptable := iptables.GetIptable(ipVer)
+
+		_, err := iptable.Raw("-F", fwdChainName)
+		assert.Check(t, err)
+		_ = iptable.RemoveExistingChain(usrChainName, "")
+	}
 }
