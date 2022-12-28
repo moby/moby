@@ -46,10 +46,10 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	}
 
 	apiNetworks := make(map[string]*networktypes.EndpointSettings)
-	for name, epConf := range ctr.NetworkSettings.Networks {
+	for nwName, epConf := range ctr.NetworkSettings.Networks {
 		if epConf.EndpointSettings != nil {
 			// We must make a copy of this pointer object otherwise it can race with other operations
-			apiNetworks[name] = epConf.EndpointSettings.Copy()
+			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
 		}
 	}
 
@@ -93,28 +93,28 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 
 // containerInspect120 serializes the master version of a container into a json type.
 func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, error) {
-	container, err := daemon.GetContainer(name)
+	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
-	container.Lock()
-	defer container.Unlock()
+	ctr.Lock()
+	defer ctr.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(ctr)
 	if err != nil {
 		return nil, err
 	}
 
-	mountPoints := container.GetMountPoints()
+	mountPoints := ctr.GetMountPoints()
 	config := &v1p20.ContainerConfig{
-		Config:          container.Config,
-		MacAddress:      container.Config.MacAddress,
-		NetworkDisabled: container.Config.NetworkDisabled,
-		ExposedPorts:    container.Config.ExposedPorts,
-		VolumeDriver:    container.HostConfig.VolumeDriver,
+		Config:          ctr.Config,
+		MacAddress:      ctr.Config.MacAddress,
+		NetworkDisabled: ctr.Config.NetworkDisabled,
+		ExposedPorts:    ctr.Config.ExposedPorts,
+		VolumeDriver:    ctr.HostConfig.VolumeDriver,
 	}
-	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
+	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(ctr.NetworkSettings)
 
 	return &v1p20.ContainerJSON{
 		ContainerJSONBase: base,
