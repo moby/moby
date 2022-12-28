@@ -39,25 +39,22 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 		volumesRW[m.Destination] = m.RW
 	}
 
-	config := &v1p19.ContainerConfig{
-		Config:          ctr.Config,
-		MacAddress:      ctr.Config.MacAddress,
-		NetworkDisabled: ctr.Config.NetworkDisabled,
-		ExposedPorts:    ctr.Config.ExposedPorts,
-		VolumeDriver:    ctr.HostConfig.VolumeDriver,
-		Memory:          ctr.HostConfig.Memory,
-		MemorySwap:      ctr.HostConfig.MemorySwap,
-		CPUShares:       ctr.HostConfig.CPUShares,
-		CPUSet:          ctr.HostConfig.CpusetCpus,
-	}
-	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(ctr.NetworkSettings)
-
 	return &v1p19.ContainerJSON{
 		ContainerJSONBase: base,
 		Volumes:           volumes,
 		VolumesRW:         volumesRW,
-		Config:            config,
-		NetworkSettings:   networkSettings,
+		Config: &v1p19.ContainerConfig{
+			Config:          ctr.Config,
+			MacAddress:      ctr.Config.MacAddress,
+			NetworkDisabled: ctr.Config.NetworkDisabled,
+			ExposedPorts:    ctr.Config.ExposedPorts,
+			VolumeDriver:    ctr.HostConfig.VolumeDriver,
+			Memory:          ctr.HostConfig.Memory,
+			MemorySwap:      ctr.HostConfig.MemorySwap,
+			CPUShares:       ctr.HostConfig.CPUShares,
+			CPUSet:          ctr.HostConfig.CpusetCpus,
+		},
+		NetworkSettings: daemon.getBackwardsCompatibleNetworkSettings(ctr.NetworkSettings),
 	}, nil
 }
 

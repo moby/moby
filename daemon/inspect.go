@@ -106,21 +106,17 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 		return nil, err
 	}
 
-	mountPoints := ctr.GetMountPoints()
-	config := &v1p20.ContainerConfig{
-		Config:          ctr.Config,
-		MacAddress:      ctr.Config.MacAddress,
-		NetworkDisabled: ctr.Config.NetworkDisabled,
-		ExposedPorts:    ctr.Config.ExposedPorts,
-		VolumeDriver:    ctr.HostConfig.VolumeDriver,
-	}
-	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(ctr.NetworkSettings)
-
 	return &v1p20.ContainerJSON{
 		ContainerJSONBase: base,
-		Mounts:            mountPoints,
-		Config:            config,
-		NetworkSettings:   networkSettings,
+		Mounts:            ctr.GetMountPoints(),
+		Config: &v1p20.ContainerConfig{
+			Config:          ctr.Config,
+			MacAddress:      ctr.Config.MacAddress,
+			NetworkDisabled: ctr.Config.NetworkDisabled,
+			ExposedPorts:    ctr.Config.ExposedPorts,
+			VolumeDriver:    ctr.HostConfig.VolumeDriver,
+		},
+		NetworkSettings: daemon.getBackwardsCompatibleNetworkSettings(ctr.NetworkSettings),
 	}, nil
 }
 
