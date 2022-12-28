@@ -24,7 +24,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 		container.Run(ctx, t, apiClient,
 			container.WithName(name),
 			container.WithCmd("false"),
-			container.WithRestartPolicy("always"),
+			container.WithRestartPolicy(containertypes.RestartPolicyAlways),
 		)
 	}
 

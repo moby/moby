@@ -169,7 +169,7 @@ func WithPidsLimit(limit *int64) func(*TestContainerConfig) {
 }
 
 // WithRestartPolicy sets container's restart policy
-func WithRestartPolicy(policy string) func(c *TestContainerConfig) {
+func WithRestartPolicy(policy container.RestartPolicyMode) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.HostConfig.RestartPolicy.Name = policy
 	}

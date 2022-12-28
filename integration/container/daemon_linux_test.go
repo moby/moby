@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	containerapi "github.com/docker/docker/api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 	realcontainer "github.com/docker/docker/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
@@ -101,7 +101,7 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	// check the container is created with private ipc mode as per daemon default
 	cID := container.Run(ctx, t, c,
 		container.WithCmd("top"),
-		container.WithRestartPolicy("always"),
+		container.WithRestartPolicy(containertypes.RestartPolicyAlways),
 	)
 	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
 
@@ -199,7 +199,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	// Just create the container, no need to start it to be started.
 	// We really want to make sure there is no process running when docker starts back up.
 	// We will manipulate the on disk state later
-	id := container.Create(ctx, t, apiClient, container.WithRestartPolicy("always"), container.WithCmd("/bin/sh", "-c", "exit 1"))
+	id := container.Create(ctx, t, apiClient, container.WithRestartPolicy(containertypes.RestartPolicyAlways), container.WithCmd("/bin/sh", "-c", "exit 1"))
 
 	d.Stop(t)
 
@@ -212,7 +212,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	chOk, chErr := apiClient.ContainerWait(ctxTimeout, id, containerapi.WaitConditionNextExit)
+	chOk, chErr := apiClient.ContainerWait(ctxTimeout, id, containertypes.WaitConditionNextExit)
 	select {
 	case <-chOk:
 	case err := <-chErr:
@@ -284,6 +284,6 @@ func TestHardRestartWhenContainerIsRunning(t *testing.T) {
 		}
 
 		stopTimeout := 0
-		assert.Assert(t, apiClient.ContainerStop(ctx, onFailure, containerapi.StopOptions{Timeout: &stopTimeout}))
+		assert.Assert(t, apiClient.ContainerStop(ctx, onFailure, containertypes.StopOptions{Timeout: &stopTimeout}))
 	})
 }
