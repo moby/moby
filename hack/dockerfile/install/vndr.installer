@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: "${VNDR_VERSION:=v0.1.2}"
+: "${VNDR_VERSION:=v0.1.3-0.20221229102223-87603e47e8ea}"
 
 install_vndr() {
 	echo "Install vndr version $VNDR_VERSION"
