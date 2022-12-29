@@ -1,4 +1,6 @@
+//go:build linux
 // +build linux
+
 // Network utility functions.
 
 package netutils

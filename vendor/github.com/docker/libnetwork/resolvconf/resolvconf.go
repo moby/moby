@@ -139,12 +139,11 @@ func GetLastModified() *File {
 }
 
 // FilterResolvDNS cleans up the config in resolvConf.  It has two main jobs:
-// 1. It looks for localhost (127.*|::1) entries in the provided
-//    resolv.conf, removing local nameserver entries, and, if the resulting
-//    cleaned config has no defined nameservers left, adds default DNS entries
-// 2. Given the caller provides the enable/disable state of IPv6, the filter
-//    code will remove all IPv6 nameservers if it is not enabled for containers
-//
+//  1. It looks for localhost (127.*|::1) entries in the provided
+//     resolv.conf, removing local nameserver entries, and, if the resulting
+//     cleaned config has no defined nameservers left, adds default DNS entries
+//  2. Given the caller provides the enable/disable state of IPv6, the filter
+//     code will remove all IPv6 nameservers if it is not enabled for containers
 func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 	cleanedResolvConf := localhostNSRegexp.ReplaceAll(resolvConf, []byte{})
 	// if IPv6 is not enabled, also clean out any IPv6 address nameserver

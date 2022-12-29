@@ -22,6 +22,7 @@ const (
 	// bridge. A positive match identifies a packet originated from one bridge
 	// network's bridge destined to another bridge network's bridge and will
 	// result in the packet being dropped. No match returns to the parent chain.
+
 	IsolationChain1 = "DOCKER-ISOLATION-STAGE-1"
 	IsolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )

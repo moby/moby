@@ -145,7 +145,9 @@ var NetworkEvent_Type_value = map[string]int32{
 func (x NetworkEvent_Type) String() string {
 	return proto.EnumName(NetworkEvent_Type_name, int32(x))
 }
-func (NetworkEvent_Type) EnumDescriptor() ([]byte, []int) { return fileDescriptorNetworkdb, []int{2, 0} }
+func (NetworkEvent_Type) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptorNetworkdb, []int{2, 0}
+}
 
 type TableEvent_Type int32
 
