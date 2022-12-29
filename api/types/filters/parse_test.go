@@ -1,12 +1,33 @@
 package filters // import "github.com/docker/docker/api/types/filters"
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func TestMarshalJSON(t *testing.T) {
+	fields := map[string]map[string]bool{
+		"created":    {"today": true},
+		"image.name": {"ubuntu*": true, "*untu": true},
+	}
+	a := Args{fields: fields}
+
+	_, err := a.MarshalJSON()
+	if err != nil {
+		t.Errorf("failed to marshal the filters: %s", err)
+	}
+}
+
+func TestMarshalJSONWithEmpty(t *testing.T) {
+	_, err := json.Marshal(NewArgs())
+	if err != nil {
+		t.Errorf("failed to marshal the filters: %s", err)
+	}
+}
 
 func TestToJSON(t *testing.T) {
 	fields := map[string]map[string]bool{
