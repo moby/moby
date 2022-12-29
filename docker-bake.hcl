@@ -125,6 +125,20 @@ target "binary-cross" {
 }
 
 #
+# same as binary but with extra tools as well (containerd, runc, ...)
+#
+
+target "all" {
+  inherits = ["_common"]
+  target = "all"
+  output = [bindir(DOCKER_STATIC == "1" ? "binary" : "dynbinary")]
+}
+
+target "all-cross" {
+  inherits = ["all", "_platforms"]
+}
+
+#
 # dev
 #
 

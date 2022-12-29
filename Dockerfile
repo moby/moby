@@ -598,6 +598,17 @@ FROM scratch AS binary
 COPY --from=build /build/ /
 
 # usage:
+# > docker buildx bake all
+FROM scratch AS all
+COPY --from=tini          /build/ /
+COPY --from=runc          /build/ /
+COPY --from=containerd    /build/ /
+COPY --from=rootlesskit   /build/ /
+COPY --from=containerutil /build/ /
+COPY --from=vpnkit        /       /
+COPY --from=build         /build  /
+
+# usage:
 # > make shell
 # > SYSTEMD=true make shell
 FROM dev-base AS dev
