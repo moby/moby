@@ -32,32 +32,27 @@ func DockerCmd(t testing.TB, args ...string) *icmd.Result {
 
 // BuildCmd executes the specified docker build command and expect a success
 func BuildCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
-	return Docker(Build(name), cmdOperators...).Assert(t, icmd.Success)
+	return Docker(Args("build", "-t", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // InspectCmd executes the specified docker inspect command and expect a success
 func InspectCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
-	return Docker(Inspect(name), cmdOperators...).Assert(t, icmd.Success)
+	return Docker(Args("inspect", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // WaitRun will wait for the specified container to be running, maximum 5 seconds.
 func WaitRun(t testing.TB, name string, cmdOperators ...CmdOperator) {
-	WaitForInspectResult(t, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
+	waitForInspectResult(t, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
 }
 
 // WaitExited will wait for the specified container to state exit, subject
 // to a maximum time limit in seconds supplied by the caller
 func WaitExited(t testing.TB, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
-	WaitForInspectResult(t, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
+	waitForInspectResult(t, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
 }
 
-// WaitRestart will wait for the specified container to restart once
-func WaitRestart(t testing.TB, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
-	WaitForInspectResult(t, name, "{{.RestartCount}}", "1", timeout, cmdOperators...)
-}
-
-// WaitForInspectResult waits for the specified expression to be equals to the specified expected string in the given time.
-func WaitForInspectResult(t testing.TB, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
+// waitForInspectResult waits for the specified expression to be equals to the specified expected string in the given time.
+func waitForInspectResult(t testing.TB, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
 	after := time.After(timeout)
 
 	args := []string{"inspect", "-f", expr, name}
@@ -100,7 +95,7 @@ func Docker(cmd icmd.Cmd, cmdOperators ...CmdOperator) *icmd.Result {
 			defer deferFn()
 		}
 	}
-	appendDocker(&cmd)
+	cmd.Command = append([]string{testEnv.DockerBinary()}, cmd.Command...)
 	if err := validateArgs(cmd.Command...); err != nil {
 		return &icmd.Result{
 			Error: err,
@@ -127,16 +122,6 @@ func validateArgs(args ...string) error {
 	return nil
 }
 
-// Build executes the specified docker build command
-func Build(name string) icmd.Cmd {
-	return icmd.Command("build", "-t", name)
-}
-
-// Inspect executes the specified docker inspect command
-func Inspect(name string) icmd.Cmd {
-	return icmd.Command("inspect", name)
-}
-
 // Format sets the specified format with --format flag
 func Format(format string) func(*icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
@@ -148,20 +133,9 @@ func Format(format string) func(*icmd.Cmd) func() {
 	}
 }
 
-func appendDocker(cmd *icmd.Cmd) {
-	cmd.Command = append([]string{testEnv.DockerBinary()}, cmd.Command...)
-}
-
-// Args build an icmd.Cmd struct from the specified arguments
-func Args(args ...string) icmd.Cmd {
-	switch len(args) {
-	case 0:
-		return icmd.Cmd{}
-	case 1:
-		return icmd.Command(args[0])
-	default:
-		return icmd.Command(args[0], args[1:]...)
-	}
+// Args build an icmd.Cmd struct from the specified (command and) arguments.
+func Args(commandAndArgs ...string) icmd.Cmd {
+	return icmd.Cmd{Command: commandAndArgs}
 }
 
 // Daemon points to the specified daemon

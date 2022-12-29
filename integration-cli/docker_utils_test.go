@@ -84,7 +84,7 @@ func inspectFieldAndUnmarshall(c *testing.T, name, field string, output interfac
 	assert.Assert(c, err == nil, "failed to unmarshal: %v", err)
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFilter(name, filter string) (string, error) {
 	format := fmt.Sprintf("{{%s}}", filter)
 	result := icmd.RunCommand(dockerBinary, "inspect", "-f", format, name)
@@ -94,12 +94,12 @@ func inspectFilter(name, filter string) (string, error) {
 	return strings.TrimSpace(result.Combined()), nil
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFieldWithError(name, field string) (string, error) {
 	return inspectFilter(name, "."+field)
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectField(c *testing.T, name, field string) string {
 	c.Helper()
 	out, err := inspectFilter(name, "."+field)
@@ -107,7 +107,7 @@ func inspectField(c *testing.T, name, field string) string {
 	return out
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFieldJSON(c *testing.T, name, field string) string {
 	c.Helper()
 	out, err := inspectFilter(name, "json ."+field)
@@ -115,7 +115,7 @@ func inspectFieldJSON(c *testing.T, name, field string) string {
 	return out
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectFieldMap(c *testing.T, name, path, field string) string {
 	c.Helper()
 	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
@@ -123,7 +123,7 @@ func inspectFieldMap(c *testing.T, name, path, field string) string {
 	return out
 }
 
-// Deprecated: use cli.Inspect
+// Deprecated: use cli.Docker
 func inspectMountSourceField(name, destination string) (string, error) {
 	m, err := inspectMountPoint(name, destination)
 	if err != nil {
@@ -132,22 +132,17 @@ func inspectMountSourceField(name, destination string) (string, error) {
 	return m.Source, nil
 }
 
-// Deprecated: use cli.Inspect
+var errMountNotFound = errors.New("mount point not found")
+
+// Deprecated: use cli.Docker
 func inspectMountPoint(name, destination string) (types.MountPoint, error) {
 	out, err := inspectFilter(name, "json .Mounts")
 	if err != nil {
 		return types.MountPoint{}, err
 	}
 
-	return inspectMountPointJSON(out, destination)
-}
-
-var errMountNotFound = errors.New("mount point not found")
-
-// Deprecated: use cli.Inspect
-func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 	var mp []types.MountPoint
-	if err := json.Unmarshal([]byte(j), &mp); err != nil {
+	if err := json.Unmarshal([]byte(out), &mp); err != nil {
 		return types.MountPoint{}, err
 	}
 
@@ -173,15 +168,15 @@ func getIDByName(c *testing.T, name string) string {
 	return id
 }
 
-// Deprecated: use cli.Build
+// Deprecated: use cli.Docker
 func buildImageSuccessfully(c *testing.T, name string, cmdOperators ...cli.CmdOperator) {
 	c.Helper()
 	buildImage(name, cmdOperators...).Assert(c, icmd.Success)
 }
 
-// Deprecated: use cli.Build
+// Deprecated: use cli.Docker
 func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
-	return cli.Docker(cli.Build(name), cmdOperators...)
+	return cli.Docker(cli.Args("build", "-t", name), cmdOperators...)
 }
 
 // Write `content` to the file at path `dst`, creating it if necessary,
@@ -316,7 +311,7 @@ func createTmpFile(c *testing.T, content string) string {
 // waitRun will wait for the specified container to be running, maximum 5 seconds.
 // Deprecated: use cli.WaitFor
 func waitRun(contID string) error {
-	return waitInspect(contID, "{{.State.Running}}", "true", 5*time.Second)
+	return daemon.WaitInspectWithArgs(dockerBinary, contID, "{{.State.Running}}", "true", 5*time.Second)
 }
 
 // waitInspect will wait for the specified container to have the specified string
@@ -324,12 +319,7 @@ func waitRun(contID string) error {
 // is reached.
 // Deprecated: use cli.WaitFor
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
-	return waitInspectWithArgs(name, expr, expected, timeout)
-}
-
-// Deprecated: use cli.WaitFor
-func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
-	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout, arg...)
+	return daemon.WaitInspectWithArgs(dockerBinary, name, expr, expected, timeout)
 }
 
 func getInspectBody(c *testing.T, version, id string) []byte {

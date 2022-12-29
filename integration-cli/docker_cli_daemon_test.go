@@ -106,12 +106,9 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *testing.T) {
 		c.Fatal(err, out)
 	}
 
-	out, err := s.d.Cmd("inspect", "-f", "{{json .Mounts}}", "volrestarttest1")
-	assert.NilError(c, err, out)
-
-	if _, err := inspectMountPointJSON(out, "/foo"); err != nil {
-		c.Fatalf("Expected volume to exist: /foo, error: %v\n", err)
-	}
+	out, err := s.d.Cmd("inspect", "-f", `{{range .Mounts}}{{.Destination}}{{"\n"}}{{end}}`, "volrestarttest1")
+	assert.Check(c, err)
+	assert.Check(c, is.Contains(strings.Split(out, "\n"), "/foo"))
 }
 
 // #11008
@@ -181,7 +178,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartOnFailure(c *testing.T) {
 
 	// wait test1 to stop
 	hostArgs := []string{"--host", s.d.Sock()}
-	err = waitInspectWithArgs("test1", "{{.State.Running}} {{.State.Restarting}}", "false false", 10*time.Second, hostArgs...)
+	err = daemon.WaitInspectWithArgs(dockerBinary, "test1", "{{.State.Running}} {{.State.Restarting}}", "false false", 10*time.Second, hostArgs...)
 	assert.NilError(c, err, "test1 should exit but not")
 
 	// record last start time
@@ -192,7 +189,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartOnFailure(c *testing.T) {
 	s.d.Restart(c)
 
 	// test1 shouldn't restart at all
-	err = waitInspectWithArgs("test1", "{{.State.Running}} {{.State.Restarting}}", "false false", 0, hostArgs...)
+	err = daemon.WaitInspectWithArgs(dockerBinary, "test1", "{{.State.Running}} {{.State.Restarting}}", "false false", 0, hostArgs...)
 	assert.NilError(c, err, "test1 should exit but not")
 
 	// make sure test1 isn't restarted when daemon restart
