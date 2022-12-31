@@ -117,15 +117,6 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, fmt.Errorf("No project was specified and couldn't read project from the metadata server. Please specify a project")
 	}
 
-	// Issue #29344: gcplogs segfaults (static binary)
-	// If HOME is not set, logging.NewClient() will call os/user.Current() via oauth2/google.
-	// However, in static binary, os/user.Current() leads to segfault due to a glibc issue that won't be fixed
-	// in a short term. (golang/go#13470, https://sourceware.org/bugzilla/show_bug.cgi?id=19341)
-	// So we forcibly set HOME so as to avoid call to os/user/Current()
-	if err := ensureHomeIfIAmStatic(); err != nil {
-		return nil, err
-	}
-
 	c, err := logging.NewClient(context.Background(), project)
 	if err != nil {
 		return nil, err
