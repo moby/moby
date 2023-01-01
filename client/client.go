@@ -167,7 +167,10 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 
 func defaultHTTPClient(hostURL *url.URL) (*http.Client, error) {
 	transport := &http.Transport{}
-	_ = sockets.ConfigureTransport(transport, hostURL.Scheme, hostURL.Host)
+	err := sockets.ConfigureTransport(transport, hostURL.Scheme, hostURL.Host)
+	if err != nil {
+		return nil, err
+	}
 	return &http.Client{
 		Transport:     transport,
 		CheckRedirect: CheckRedirect,
