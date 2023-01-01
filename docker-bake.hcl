@@ -4,9 +4,6 @@ variable "BUNDLES_OUTPUT" {
 variable "DOCKER_STATIC" {
   default = "1"
 }
-variable "DOCKER_CROSSPLATFORMS" {
-  default = ""
-}
 
 target "_common" {
   args = {
@@ -20,6 +17,23 @@ group "default" {
   targets = ["binary"]
 }
 
+target "_platforms" {
+  platforms = [
+    "linux/amd64",
+    "linux/arm/v5",
+    "linux/arm/v6",
+    "linux/arm/v7",
+    "linux/arm64",
+    "linux/ppc64le",
+    "linux/s390x",
+    "windows/amd64"
+  ]
+}
+
+#
+# build dockerd and docker-proxy
+#
+
 target "binary" {
   inherits = ["_common"]
   target = "binary"
@@ -28,16 +42,13 @@ target "binary" {
 
 target "dynbinary" {
   inherits = ["binary"]
-  target = "dynbinary"
+  args = {
+    DOCKER_STATIC = "0"
+  }
 }
 
-target "cross" {
-  inherits = ["binary"]
-  args = {
-    CROSS = "true"
-    DOCKER_CROSSPLATFORMS = DOCKER_CROSSPLATFORMS
-  }
-  target = "cross"
+target "binary-cross" {
+  inherits = ["binary", "_platforms"]
 }
 
 #

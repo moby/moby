@@ -1,35 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-copy_binaries() {
-	local dir="$1"
-
-	# Add nested executables to bundle dir so we have complete set of
-	# them available, but only if the native OS/ARCH is the same as the
-	# OS/ARCH of the build target
-	if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-		return
-	fi
-	if [ ! -x /usr/local/bin/runc ]; then
-		return
-	fi
-	echo "Copying nested executables into $dir"
-	for file in containerd containerd-shim-runc-v2 ctr runc docker-init rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh dockerd-rootless-setuptool.sh; do
-		cp -f "$(command -v "$file")" "$dir/"
-	done
-	# vpnkit might not be available for the target platform, see vpnkit stage in
-	# the Dockerfile for more information.
-	if command -v vpnkit > /dev/null 2>&1; then
-		cp -f "$(command -v vpnkit)" "$dir/"
-	fi
-}
-
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
 
 (
 	GO_PACKAGE='github.com/docker/docker/cmd/dockerd'
 	BINARY_NAME='dockerd'
-
 	source "${MAKEDIR}/.binary"
-	copy_binaries "$DEST"
 )
