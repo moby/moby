@@ -36,7 +36,6 @@ DEFAULT_BUNDLES=(
 	dynbinary
 	test-integration
 	test-docker-py
-	cross
 )
 
 VERSION=${VERSION:-dev}

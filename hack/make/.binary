@@ -16,56 +16,59 @@ source "${MAKEDIR}/.go-autogen"
 (
 	export GOGC=${DOCKER_BUILD_GOGC:-1000}
 
-	if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-		# must be cross-compiling!
-		case "$(go env GOOS)/$(go env GOARCH)" in
-			windows/amd64)
-				export CC="${CC:-x86_64-w64-mingw32-gcc}"
-				export CGO_ENABLED=1
-				;;
-			linux/arm)
-				case "${GOARM}" in
-					5)
-						export CC="${CC:-arm-linux-gnueabi-gcc}"
-						export CGO_ENABLED=1
-						export CGO_CFLAGS="-march=armv5t"
-						export CGO_CXXFLAGS="-march=armv5t"
-						;;
-					6)
-						export CC="${CC:-arm-linux-gnueabi-gcc}"
-						export CGO_ENABLED=1
-						export CGO_CFLAGS="-march=armv6"
-						export CGO_CXXFLAGS="-march=armv6"
-						;;
-					7)
-						export CC="${CC:-arm-linux-gnueabihf-gcc}"
-						export CGO_ENABLED=1
-						export CGO_CFLAGS="-march=armv7-a"
-						export CGO_CXXFLAGS="-march=armv7-a"
-						;;
-					*)
-						export CC="${CC:-arm-linux-gnueabihf-gcc}"
-						export CGO_ENABLED=1
-						;;
-				esac
-				;;
-			linux/arm64)
-				export CC="${CC:-aarch64-linux-gnu-gcc}"
-				export CGO_ENABLED=1
-				;;
-			linux/amd64)
-				export CC="${CC:-x86_64-linux-gnu-gcc}"
-				export CGO_ENABLED=1
-				;;
-			linux/ppc64le)
-				export CC="${CC:-powerpc64le-linux-gnu-gcc}"
-				export CGO_ENABLED=1
-				;;
-			linux/s390x)
-				export CC="${CC:-s390x-linux-gnu-gcc}"
-				export CGO_ENABLED=1
-				;;
-		esac
+	# for non-sandboxed invocation
+	if ! command -v xx-go > /dev/null 2>&1; then
+		if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+			# must be cross-compiling!
+			case "$(go env GOOS)/$(go env GOARCH)" in
+				windows/amd64)
+					export CC="${CC:-x86_64-w64-mingw32-gcc}"
+					export CGO_ENABLED=1
+					;;
+				linux/arm)
+					case "${GOARM}" in
+						5)
+							export CC="${CC:-arm-linux-gnueabi-gcc}"
+							export CGO_ENABLED=1
+							export CGO_CFLAGS="-march=armv5t"
+							export CGO_CXXFLAGS="-march=armv5t"
+							;;
+						6)
+							export CC="${CC:-arm-linux-gnueabi-gcc}"
+							export CGO_ENABLED=1
+							export CGO_CFLAGS="-march=armv6"
+							export CGO_CXXFLAGS="-march=armv6"
+							;;
+						7)
+							export CC="${CC:-arm-linux-gnueabihf-gcc}"
+							export CGO_ENABLED=1
+							export CGO_CFLAGS="-march=armv7-a"
+							export CGO_CXXFLAGS="-march=armv7-a"
+							;;
+						*)
+							export CC="${CC:-arm-linux-gnueabihf-gcc}"
+							export CGO_ENABLED=1
+							;;
+					esac
+					;;
+				linux/arm64)
+					export CC="${CC:-aarch64-linux-gnu-gcc}"
+					export CGO_ENABLED=1
+					;;
+				linux/amd64)
+					export CC="${CC:-x86_64-linux-gnu-gcc}"
+					export CGO_ENABLED=1
+					;;
+				linux/ppc64le)
+					export CC="${CC:-powerpc64le-linux-gnu-gcc}"
+					export CGO_ENABLED=1
+					;;
+				linux/s390x)
+					export CC="${CC:-s390x-linux-gnu-gcc}"
+					export CGO_ENABLED=1
+					;;
+			esac
+		fi
 	fi
 
 	# -buildmode=pie is not supported on Windows and Linux on mips, riscv64 and ppc64be.
@@ -80,8 +83,18 @@ source "${MAKEDIR}/.go-autogen"
 			;;
 	esac
 
-	echo "Building: $DEST/$BINARY_FULLNAME"
-	echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
+	# only necessary for non-sandboxed invocation where TARGETPLATFORM is empty
+	PLATFORM_NAME=$TARGETPLATFORM
+	if [ -z "$PLATFORM_NAME" ]; then
+		PLATFORM_NAME="$(go env GOOS)/$(go env GOARCH)"
+		if [ -n "$(go env GOARM)" ]; then
+			PLATFORM_NAME+="/$(go env GOARM)"
+		elif [ -n "$(go env GOAMD64)" ] && [ "$(go env GOAMD64)" != "v1" ]; then
+			PLATFORM_NAME+="/$(go env GOAMD64)"
+		fi
+	fi
+
+	echo "Building $DEST/$BINARY_FULLNAME ($PLATFORM_NAME)..."
 	go build \
 		-o "$DEST/$BINARY_FULLNAME" \
 		"${BUILDFLAGS[@]}" \
