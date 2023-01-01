@@ -1,5 +1,50 @@
+variable "APT_MIRROR" {
+  default = "cdn-fastly.deb.debian.org"
+}
+variable "DOCKER_DEBUG" {
+  default = ""
+}
 variable "DOCKER_STATIC" {
   default = "1"
+}
+variable "DOCKER_LDFLAGS" {
+  default = ""
+}
+variable "DOCKER_BUILDTAGS" {
+  default = ""
+}
+variable "DOCKER_GITCOMMIT" {
+  default = "HEAD"
+}
+
+# Docker version such as 23.0.0-dev. Automatically generated through Git ref.
+variable "VERSION" {
+  default = ""
+}
+
+# The platform name, such as "Docker Engine - Community".
+variable "PLATFORM" {
+  default = ""
+}
+
+# The product name, used to set version.ProductName, which is used to set
+# BuildKit's ExportedProduct variable in order to show useful error messages
+# to users when a certain version of the product doesn't support a BuildKit feature.
+variable "PRODUCT" {
+  default = ""
+}
+
+# Sets the version.DefaultProductLicense string, such as "Community Engine".
+# This field can contain a summary of the product license of the daemon if a
+# commercial license has been applied to the daemon.
+variable "DEFAULT_PRODUCT_LICENSE" {
+  default = ""
+}
+
+# The name of the packager (e.g. "Docker, Inc."). This used to set CompanyName
+# in the manifest.
+variable "PACKAGER_NAME" {
+  default = ""
 }
 
 # Defines the output folder
@@ -14,8 +59,17 @@ function "bindir" {
 target "_common" {
   args = {
     BUILDKIT_CONTEXT_KEEP_GIT_DIR = 1
-    APT_MIRROR = "cdn-fastly.deb.debian.org"
+    APT_MIRROR = APT_MIRROR
+    DOCKER_DEBUG = DOCKER_DEBUG
     DOCKER_STATIC = DOCKER_STATIC
+    DOCKER_LDFLAGS = DOCKER_LDFLAGS
+    DOCKER_BUILDTAGS = DOCKER_BUILDTAGS
+    DOCKER_GITCOMMIT = DOCKER_GITCOMMIT
+    VERSION = VERSION
+    PLATFORM = PLATFORM
+    PRODUCT = PRODUCT
+    DEFAULT_PRODUCT_LICENSE = DEFAULT_PRODUCT_LICENSE
+    PACKAGER_NAME = PACKAGER_NAME
   }
 }
 
