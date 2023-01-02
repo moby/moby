@@ -70,7 +70,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 	}
 
 	imgID := img.ID()
-	repoRefs := i.referenceStore.References(imgID.Digest())
+	repoRefs := i.referenceStore.References(imgID)
 
 	using := func(c *container.Container) bool {
 		return c.ImageID == imgID
@@ -108,7 +108,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		records = append(records, untaggedRecord)
 
-		repoRefs = i.referenceStore.References(imgID.Digest())
+		repoRefs = i.referenceStore.References(imgID)
 
 		// If a tag reference was removed and the only remaining
 		// references to the same repository are digest references,
@@ -243,7 +243,7 @@ func (i *ImageService) removeImageRef(ref reference.Named) (reference.Named, err
 // daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
 // given list of records.
 func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
-	imageRefs := i.referenceStore.References(imgID.Digest())
+	imageRefs := i.referenceStore.References(imgID)
 
 	for _, imageRef := range imageRefs {
 		parsedRef, err := i.removeImageRef(imageRef)
@@ -378,7 +378,7 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 	}
 
 	// Check if any repository tags/digest reference this image.
-	if mask&conflictActiveReference != 0 && len(i.referenceStore.References(imgID.Digest())) > 0 {
+	if mask&conflictActiveReference != 0 && len(i.referenceStore.References(imgID)) > 0 {
 		return &imageDeleteConflict{
 			imgID:   imgID,
 			message: "image is referenced in multiple repositories",
@@ -406,5 +406,5 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 // that there are no repository references to the given image and it has no
 // child images.
 func (i *ImageService) imageIsDangling(imgID image.ID) bool {
-	return !(len(i.referenceStore.References(imgID.Digest())) > 0 || len(i.imageStore.Children(imgID)) > 0)
+	return !(len(i.referenceStore.References(imgID)) > 0 || len(i.imageStore.Children(imgID)) > 0)
 }

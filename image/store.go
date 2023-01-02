@@ -75,7 +75,7 @@ func (is *store) restore() error {
 	// https://github.com/moby/moby/pull/44426#discussion_r1059519071
 	type f = logrus.Fields
 	err := is.fs.Walk(func(dgst digest.Digest) error {
-		img, err := is.Get(ID(dgst))
+		img, err := is.Get(dgst)
 		if err != nil {
 			logrus.WithFields(f{"digest": dgst, "err": err}).Error("invalid image")
 			return nil
@@ -99,7 +99,7 @@ func (is *store) restore() error {
 			return err
 		}
 
-		is.images[ID(dgst)] = &imageMeta{
+		is.images[dgst] = &imageMeta{
 			layer:    l,
 			children: make(map[ID]struct{}),
 		}
@@ -146,7 +146,7 @@ func (is *store) Create(config []byte) (ID, error) {
 		return "", errdefs.InvalidParameter(errors.New("too many non-empty layers in History section"))
 	}
 
-	imageDigest, err := is.fs.Set(config)
+	imageID, err := is.fs.Set(config)
 	if err != nil {
 		return "", errdefs.InvalidParameter(err)
 	}
@@ -154,7 +154,6 @@ func (is *store) Create(config []byte) (ID, error) {
 	is.Lock()
 	defer is.Unlock()
 
-	imageID := ID(imageDigest)
 	if _, exists := is.images[imageID]; exists {
 		return imageID, nil
 	}
@@ -177,7 +176,7 @@ func (is *store) Create(config []byte) (ID, error) {
 		children: make(map[ID]struct{}),
 	}
 
-	if err = is.digestSet.Add(imageDigest); err != nil {
+	if err = is.digestSet.Add(imageID); err != nil {
 		delete(is.images, imageID)
 		return "", errdefs.InvalidParameter(err)
 	}
@@ -201,13 +200,13 @@ func (is *store) Search(term string) (ID, error) {
 		}
 		return "", errors.WithStack(err)
 	}
-	return ID(dgst), nil
+	return dgst, nil
 }
 
 func (is *store) Get(id ID) (*Image, error) {
 	// todo: Check if image is in images
 	// todo: Detect manual insertions and start using them
-	config, err := is.fs.Get(id.Digest())
+	config, err := is.fs.Get(id)
 	if err != nil {
 		return nil, errdefs.NotFound(err)
 	}
@@ -239,17 +238,17 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 		return nil, errdefs.NotFound(fmt.Errorf("unrecognized image %s, %v", id.String(), err))
 	}
 	for cID := range imgMeta.children {
-		is.fs.DeleteMetadata(cID.Digest(), "parent")
+		is.fs.DeleteMetadata(cID, "parent")
 	}
 	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
 		delete(is.images[parent].children, id)
 	}
 
-	if err := is.digestSet.Remove(id.Digest()); err != nil {
+	if err := is.digestSet.Remove(id); err != nil {
 		logrus.Errorf("error removing %s from digest set: %q", id, err)
 	}
 	delete(is.images, id)
-	is.fs.Delete(id.Digest())
+	is.fs.Delete(id)
 
 	if imgMeta.layer != nil {
 		return is.lss.Release(imgMeta.layer)
@@ -268,11 +267,11 @@ func (is *store) SetParent(id, parentID ID) error {
 		delete(is.images[parent].children, id)
 	}
 	parentMeta.children[id] = struct{}{}
-	return is.fs.SetMetadata(id.Digest(), "parent", []byte(parentID))
+	return is.fs.SetMetadata(id, "parent", []byte(parentID))
 }
 
 func (is *store) GetParent(id ID) (ID, error) {
-	d, err := is.fs.GetMetadata(id.Digest(), "parent")
+	d, err := is.fs.GetMetadata(id, "parent")
 	if err != nil {
 		return "", errdefs.NotFound(err)
 	}
@@ -282,12 +281,12 @@ func (is *store) GetParent(id ID) (ID, error) {
 // SetLastUpdated time for the image ID to the current time
 func (is *store) SetLastUpdated(id ID) error {
 	lastUpdated := []byte(time.Now().Format(time.RFC3339Nano))
-	return is.fs.SetMetadata(id.Digest(), "lastUpdated", lastUpdated)
+	return is.fs.SetMetadata(id, "lastUpdated", lastUpdated)
 }
 
 // GetLastUpdated time for the image ID
 func (is *store) GetLastUpdated(id ID) (time.Time, error) {
-	bytes, err := is.fs.GetMetadata(id.Digest(), "lastUpdated")
+	bytes, err := is.fs.GetMetadata(id, "lastUpdated")
 	if err != nil || len(bytes) == 0 {
 		// No lastUpdated time
 		return time.Time{}, nil

@@ -94,7 +94,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if !ok {
 			// Check if digest ID reference
 			if digested, ok := ref.(reference.Digested); ok {
-				if err := addAssoc(image.ID(digested.Digest()), nil); err != nil {
+				if err := addAssoc(digested.Digest(), nil); err != nil {
 					return nil, err
 				}
 				continue
@@ -115,7 +115,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if reference.IsNameOnly(namedRef) {
 			assocs := l.rs.ReferencesByName(namedRef)
 			for _, assoc := range assocs {
-				if err := addAssoc(image.ID(assoc.ID), assoc.Ref); err != nil {
+				if err := addAssoc(assoc.ID, assoc.Ref); err != nil {
 					return nil, err
 				}
 			}
@@ -134,7 +134,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if err != nil {
 			return nil, err
 		}
-		if err := addAssoc(image.ID(id), namedRef); err != nil {
+		if err := addAssoc(id, namedRef); err != nil {
 			return nil, err
 		}
 	}
@@ -215,7 +215,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 		}
 
 		manifest = append(manifest, manifestItem{
-			Config:       id.Digest().Encoded() + ".json",
+			Config:       id.Encoded() + ".json",
 			RepoTags:     repoTags,
 			Layers:       layers,
 			LayerSources: foreignSrcs,
@@ -323,7 +323,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 		}
 	}
 
-	configFile := filepath.Join(s.outDir, id.Digest().Encoded()+".json")
+	configFile := filepath.Join(s.outDir, id.Encoded()+".json")
 	if err := os.WriteFile(configFile, img.RawJSON(), 0o644); err != nil {
 		return nil, err
 	}
