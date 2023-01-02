@@ -68,7 +68,7 @@ func TestImageDelete(t *testing.T) {
 		assert.NilError(t, err)
 		defer images.Delete(id)
 
-		leaseID := imageKey(digest.Digest(id))
+		leaseID := imageKey(id.String())
 		_, err = images.leases.Create(ctx, leases.WithID(leaseID))
 		assert.NilError(t, err)
 		defer images.leases.Delete(ctx, leases.Lease{ID: leaseID})

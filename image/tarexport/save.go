@@ -94,8 +94,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if !ok {
 			// Check if digest ID reference
 			if digested, ok := ref.(reference.Digested); ok {
-				id := image.IDFromDigest(digested.Digest())
-				if err := addAssoc(id, nil); err != nil {
+				if err := addAssoc(image.ID(digested.Digest()), nil); err != nil {
 					return nil, err
 				}
 				continue
@@ -116,7 +115,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if reference.IsNameOnly(namedRef) {
 			assocs := l.rs.ReferencesByName(namedRef)
 			for _, assoc := range assocs {
-				if err := addAssoc(image.IDFromDigest(assoc.ID), assoc.Ref); err != nil {
+				if err := addAssoc(image.ID(assoc.ID), assoc.Ref); err != nil {
 					return nil, err
 				}
 			}
@@ -135,7 +134,7 @@ func (l *tarexporter) parseNames(names []string) (desc map[image.ID]*imageDescri
 		if err != nil {
 			return nil, err
 		}
-		if err := addAssoc(image.IDFromDigest(id), namedRef); err != nil {
+		if err := addAssoc(image.ID(id), namedRef); err != nil {
 			return nil, err
 		}
 	}

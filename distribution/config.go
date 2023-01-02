@@ -118,7 +118,7 @@ func (s *imageConfigStore) Put(_ context.Context, c []byte) (digest.Digest, erro
 }
 
 func (s *imageConfigStore) Get(_ context.Context, d digest.Digest) ([]byte, error) {
-	img, err := s.Store.Get(image.IDFromDigest(d))
+	img, err := s.Store.Get(image.ID(d))
 	if err != nil {
 		return nil, err
 	}

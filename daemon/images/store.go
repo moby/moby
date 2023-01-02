@@ -17,8 +17,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func imageKey(dgst digest.Digest) string {
-	return "moby-image-" + dgst.String()
+const imageKeyPrefix = "moby-image-"
+
+func imageKey(dgst string) string {
+	return imageKeyPrefix + dgst
 }
 
 // imageStoreWithLease wraps the configured image store with one that deletes the lease
@@ -36,7 +38,7 @@ type imageStoreWithLease struct {
 
 func (s *imageStoreWithLease) Delete(id image.ID) ([]layer.Metadata, error) {
 	ctx := namespaces.WithNamespace(context.TODO(), s.ns)
-	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(digest.Digest(id))}); err != nil && !c8derrdefs.IsNotFound(err) {
+	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(id.String())}); err != nil && !c8derrdefs.IsNotFound(err) {
 		return nil, errors.Wrap(err, "error deleting lease")
 	}
 	return s.Store.Delete(id)
@@ -67,7 +69,7 @@ func (s *imageStoreForPull) Get(ctx context.Context, dgst digest.Digest) ([]byte
 }
 
 func (s *imageStoreForPull) updateLease(ctx context.Context, dgst digest.Digest) error {
-	leaseID := imageKey(dgst)
+	leaseID := imageKey(dgst.String())
 	lease, err := s.leases.Create(ctx, leases.WithID(leaseID))
 	if err != nil {
 		if !c8derrdefs.IsAlreadyExists(err) {
