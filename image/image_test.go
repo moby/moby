@@ -57,7 +57,7 @@ func TestMarshalKeyOrder(t *testing.T) {
 }
 
 func TestImage(t *testing.T) {
-	cid := "50a16564e727"
+	const cid = "50a16564e727"
 	config := &container.Config{
 		Hostname:   "hostname",
 		Domainname: "domain",
@@ -69,7 +69,7 @@ func TestImage(t *testing.T) {
 		V1Image: V1Image{
 			Config: config,
 		},
-		computedID: ID(cid),
+		computedID: cid,
 	}
 
 	assert.Check(t, is.Equal(cid, img.ImageID()))

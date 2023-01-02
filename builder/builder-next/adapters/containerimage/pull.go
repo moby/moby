@@ -164,7 +164,7 @@ func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	img, err := is.ImageStore.Get(image.ID(dgst))
+	img, err := is.ImageStore.Get(dgst)
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +465,7 @@ func (p *puller) Snapshot(ctx context.Context, g session.Group) (cache.Immutable
 	}
 
 	if p.config != nil {
-		img, err := p.is.ImageStore.Get(image.ID(digest.FromBytes(p.config)))
+		img, err := p.is.ImageStore.Get(digest.FromBytes(p.config))
 		if err == nil {
 			if len(img.RootFS.DiffIDs) == 0 {
 				return nil, nil

@@ -149,7 +149,7 @@ func filterImagesUsedByContainers(ctx context.Context,
 	// Exclude images used by existing containers
 	for _, ctr := range allContainers {
 		// If the original image was force deleted, make sure we don't delete the dangling image
-		delete(imagesToPrune, danglingImageName(ctr.ImageID.Digest()))
+		delete(imagesToPrune, danglingImageName(ctr.ImageID))
 
 		// Config.Image is the image reference passed by user.
 		// Config.ImageID is the resolved content digest based on the user's Config.Image.
@@ -157,7 +157,7 @@ func filterImagesUsedByContainers(ctx context.Context,
 		//           `docker run alpine` will have Config.Image="alpine"
 		//           `docker run 82d1e9d` will have Config.Image="82d1e9d"
 		// but both will have ImageID="sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1"
-		imageDgst := ctr.ImageID.Digest()
+		imageDgst := ctr.ImageID
 
 		// If user used an full or truncated ID instead of an explicit image name, mark the digest as used.
 		normalizedImageID := "sha256:" + strings.TrimPrefix(ctr.Config.Image, "sha256:")

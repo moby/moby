@@ -137,7 +137,7 @@ func (c cacheAdaptor) SetParent(target, parent image.ID) error {
 
 func (c cacheAdaptor) GetParent(target image.ID) (image.ID, error) {
 	ctx := context.TODO()
-	value, err := c.is.getImageLabelByDigest(ctx, target.Digest(), imageLabelClassicBuilderParent)
+	value, err := c.is.getImageLabelByDigest(ctx, target, imageLabelClassicBuilderParent)
 	if err != nil {
 		return "", fmt.Errorf("failed to read parent image: %w", err)
 	}
@@ -180,7 +180,7 @@ func (c cacheAdaptor) Create(parent *image.Image, target image.Image, extraLayer
 
 func (c cacheAdaptor) IsBuiltLocally(target image.ID) (bool, error) {
 	ctx := context.TODO()
-	value, err := c.is.getImageLabelByDigest(ctx, target.Digest(), imageLabelClassicBuilderContainerConfig)
+	value, err := c.is.getImageLabelByDigest(ctx, target, imageLabelClassicBuilderContainerConfig)
 	if err != nil {
 		return false, fmt.Errorf("failed to read container config label: %w", err)
 	}

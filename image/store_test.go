@@ -39,36 +39,36 @@ func TestRestore(t *testing.T) {
 
 	assert.Check(t, is.Len(imgStore.Map(), 2))
 
-	img1, err := imgStore.Get(ID(id1))
+	img1, err := imgStore.Get(id1)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(ID(id1), img1.computedID))
+	assert.Check(t, is.Equal(id1, img1.computedID))
 	assert.Check(t, is.Equal(string(id1), img1.computedID.String()))
 
-	img2, err := imgStore.Get(ID(id2))
+	img2, err := imgStore.Get(id2)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("abc", img1.Comment))
 	assert.Check(t, is.Equal("def", img2.Comment))
 
-	_, err = imgStore.GetParent(ID(id1))
+	_, err = imgStore.GetParent(id1)
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.ErrorContains(t, err, "failed to read metadata")
 
-	p, err := imgStore.GetParent(ID(id2))
+	p, err := imgStore.GetParent(id2)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(ID(id1), p))
+	assert.Check(t, is.Equal(id1, p))
 
-	children := imgStore.Children(ID(id1))
+	children := imgStore.Children(id1)
 	assert.Check(t, is.Len(children, 1))
-	assert.Check(t, is.Equal(ID(id2), children[0]))
+	assert.Check(t, is.Equal(id2, children[0]))
 	assert.Check(t, is.Len(imgStore.Heads(), 1))
 
 	sid1, err := imgStore.Search(string(id1)[:10])
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(ID(id1), sid1))
+	assert.Check(t, is.Equal(id1, sid1))
 
 	sid1, err = imgStore.Search(id1.Encoded()[:6])
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(ID(id1), sid1))
+	assert.Check(t, is.Equal(id1, sid1))
 
 	invalidPattern := id1.Encoded()[1:6]
 	_, err = imgStore.Search(invalidPattern)
@@ -136,7 +136,7 @@ func TestDeleteNotExisting(t *testing.T) {
 	imgStore, cleanup := defaultImageStore(t)
 	defer cleanup()
 
-	_, err := imgStore.Delete(ID("i_dont_exists"))
+	_, err := imgStore.Delete("i_dont_exists")
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
