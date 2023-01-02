@@ -8,7 +8,6 @@ ARG XX_VERSION=1.1.2
 ARG VPNKIT_VERSION=0.5.0
 ARG DOCKERCLI_VERSION=v17.06.2-ce
 
-ARG CROSS="false"
 ARG SYSTEMD="false"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DOCKER_STATIC=1
@@ -127,60 +126,6 @@ RUN /download-frozen-image-v2.sh /build \
         debian:bullseye-slim@sha256:dacf278785a4daa9de07596ec739dbc07131e189942772210709c5c0777e8437 \
         hello-world:latest@sha256:d58e752213a51785838f9eed2b7a498ffa1cb3aa7f946dda11af39286c3db9a9 \
         arm32v7/hello-world:latest@sha256:50b8560ad574c779908da71f7ce370c0a2471c098d44d1c8f6b513c5a55eeeb1
-
-FROM base AS cross-false
-
-FROM --platform=linux/amd64 base AS cross-true
-ARG DEBIAN_FRONTEND
-RUN dpkg --add-architecture arm64
-RUN dpkg --add-architecture armel
-RUN dpkg --add-architecture armhf
-RUN dpkg --add-architecture ppc64el
-RUN dpkg --add-architecture s390x
-RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
-    --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            crossbuild-essential-arm64 \
-            crossbuild-essential-armel \
-            crossbuild-essential-armhf \
-            crossbuild-essential-ppc64el \
-            crossbuild-essential-s390x
-
-FROM cross-${CROSS} AS dev-base
-
-FROM dev-base AS runtime-dev-cross-false
-ARG DEBIAN_FRONTEND
-RUN --mount=type=cache,sharing=locked,id=moby-cross-false-aptlib,target=/var/lib/apt \
-    --mount=type=cache,sharing=locked,id=moby-cross-false-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            binutils-mingw-w64 \
-            g++-mingw-w64-x86-64 \
-            libapparmor-dev \
-            libbtrfs-dev \
-            libdevmapper-dev \
-            libseccomp-dev \
-            libsystemd-dev \
-            libudev-dev
-
-FROM --platform=linux/amd64 runtime-dev-cross-false AS runtime-dev-cross-true
-ARG DEBIAN_FRONTEND
-# These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
-# on non-amd64 systems, so other architectures cannot crossbuild amd64.
-RUN --mount=type=cache,sharing=locked,id=moby-cross-true-aptlib,target=/var/lib/apt \
-    --mount=type=cache,sharing=locked,id=moby-cross-true-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            libapparmor-dev:arm64 \
-            libapparmor-dev:armel \
-            libapparmor-dev:armhf \
-            libapparmor-dev:ppc64el \
-            libapparmor-dev:s390x \
-            libseccomp-dev:arm64 \
-            libseccomp-dev:armel \
-            libseccomp-dev:armhf \
-            libseccomp-dev:ppc64el \
-            libseccomp-dev:s390x
-
-FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
 # delve
 FROM base AS delve-src
@@ -494,8 +439,44 @@ FROM containerutil-build AS containerutil-windows-amd64
 FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
 
-# TODO: Some of this is only really needed for testing, it would be nice to split this up
-FROM runtime-dev AS dev-systemd-false
+FROM base AS dev-systemd-false
+COPY --from=dockercli     /build/ /usr/local/cli
+COPY --from=frozen-images /build/ /docker-frozen-images
+COPY --from=swagger       /build/ /usr/local/bin/
+COPY --from=delve         /build/ /usr/local/bin/
+COPY --from=tomll         /build/ /usr/local/bin/
+COPY --from=gowinres      /build/ /usr/local/bin/
+COPY --from=tini          /build/ /usr/local/bin/
+COPY --from=registry      /build/ /usr/local/bin/
+COPY --from=criu          /build/ /usr/local/bin/
+COPY --from=gotestsum     /build/ /usr/local/bin/
+COPY --from=golangci_lint /build/ /usr/local/bin/
+COPY --from=shfmt         /build/ /usr/local/bin/
+COPY --from=runc          /build/ /usr/local/bin/
+COPY --from=containerd    /build/ /usr/local/bin/
+COPY --from=rootlesskit   /build/ /usr/local/bin/
+COPY --from=vpnkit        /       /usr/local/bin/
+COPY --from=containerutil /build/ /usr/local/bin/
+COPY --from=crun          /build/ /usr/local/bin/
+COPY hack/dockerfile/etc/docker/  /etc/docker/
+ENV PATH=/usr/local/cli:$PATH
+WORKDIR /go/src/github.com/docker/docker
+VOLUME /var/lib/docker
+VOLUME /home/unprivilegeduser/.local/share/docker
+# Wrap all commands in the "docker-in-docker" script to allow nested containers
+ENTRYPOINT ["hack/dind"]
+
+FROM dev-systemd-false AS dev-systemd-true
+RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
+        apt-get update && apt-get install -y --no-install-recommends \
+            dbus \
+            dbus-user-session \
+            systemd \
+            systemd-sysv
+ENTRYPOINT ["hack/dind-systemd"]
+
+FROM dev-systemd-${SYSTEMD} AS dev-base
 ARG DEBIAN_FRONTEND
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser \
@@ -540,115 +521,95 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             xz-utils \
             zip \
             zstd
-
-
 # Switch to use iptables instead of nftables (to match the CI hosts)
 # TODO use some kind of runtime auto-detection instead if/when nftables is supported (https://github.com/moby/moby/issues/26824)
 RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
  && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
  && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
-
 ARG YAMLLINT_VERSION=1.27.1
 RUN pip3 install yamllint==${YAMLLINT_VERSION}
-
-COPY --from=dockercli     /build/ /usr/local/cli
-COPY --from=frozen-images /build/ /docker-frozen-images
-COPY --from=swagger       /build/ /usr/local/bin/
-COPY --from=delve         /build/ /usr/local/bin/
-COPY --from=tomll         /build/ /usr/local/bin/
-COPY --from=gowinres      /build/ /usr/local/bin/
-COPY --from=tini          /build/ /usr/local/bin/
-COPY --from=registry      /build/ /usr/local/bin/
-COPY --from=criu          /build/ /usr/local/bin/
-COPY --from=gotestsum     /build/ /usr/local/bin/
-COPY --from=golangci_lint /build/ /usr/local/bin/
-COPY --from=shfmt         /build/ /usr/local/bin/
-COPY --from=runc          /build/ /usr/local/bin/
-COPY --from=containerd    /build/ /usr/local/bin/
-COPY --from=rootlesskit   /build/ /usr/local/bin/
-COPY --from=vpnkit        /       /usr/local/bin/
-COPY --from=containerutil /build/ /usr/local/bin/
-COPY --from=crun          /build/ /usr/local/bin/
-COPY hack/dockerfile/etc/docker/  /etc/docker/
-ENV PATH=/usr/local/cli:$PATH
-ARG DOCKER_BUILDTAGS
-ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
-WORKDIR /go/src/github.com/docker/docker
-VOLUME /var/lib/docker
-VOLUME /home/unprivilegeduser/.local/share/docker
-# Wrap all commands in the "docker-in-docker" script to allow nested containers
-ENTRYPOINT ["hack/dind"]
-
-FROM dev-systemd-false AS dev-systemd-true
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
-        apt-get update && apt-get install -y --no-install-recommends \
-            dbus \
-            dbus-user-session \
-            systemd \
-            systemd-sysv
-ENTRYPOINT ["hack/dind-systemd"]
+        apt-get update && apt-get install --no-install-recommends -y \
+            gcc \
+            pkg-config \
+            dpkg-dev \
+            libapparmor-dev \
+            libbtrfs-dev \
+            libdevmapper-dev \
+            libseccomp-dev \
+            libsecret-1-dev \
+            libsystemd-dev \
+            libudev-dev
 
-FROM dev-systemd-${SYSTEMD} AS dev
-
-FROM runtime-dev AS binary-base
-ARG DOCKER_GITCOMMIT=HEAD
-ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
-ARG VERSION
-ENV VERSION=${VERSION}
-ARG PLATFORM
-ENV PLATFORM=${PLATFORM}
-ARG PRODUCT
-ENV PRODUCT=${PRODUCT}
-ARG DEFAULT_PRODUCT_LICENSE
-ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
-ARG PACKAGER_NAME
-ENV PACKAGER_NAME=${PACKAGER_NAME}
-ARG DOCKER_BUILDTAGS
-ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
-ENV PREFIX=/build
-# TODO: This is here because hack/make.sh binary copies these extras binaries
-# from $PATH into the bundles dir.
-# It would be nice to handle this in a different way.
-COPY --from=tini          /build/ /usr/local/bin/
-COPY --from=runc          /build/ /usr/local/bin/
-COPY --from=containerd    /build/ /usr/local/bin/
-COPY --from=rootlesskit   /build/ /usr/local/bin/
-COPY --from=vpnkit        /       /usr/local/bin/
-COPY --from=containerutil /build/ /usr/local/bin/
-COPY --from=gowinres      /build/ /usr/local/bin/
+FROM base AS build
+COPY --from=gowinres /build/ /usr/local/bin/
 WORKDIR /go/src/github.com/docker/docker
-
-FROM binary-base AS build-binary
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=bind,target=.,ro \
+ENV GO111MODULE=off
+ENV CGO_ENABLED=1
+ARG DEBIAN_FRONTEND
+ARG TARGETPLATFORM
+RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
+        xx-apt-get install --no-install-recommends -y \
+            gcc \
+            libapparmor-dev \
+            libbtrfs-dev \
+            libc6-dev \
+            libdevmapper-dev \
+            libseccomp-dev \
+            libsecret-1-dev \
+            libsystemd-dev \
+            libudev-dev
+ARG DOCKER_BUILDTAGS
+ARG DOCKER_DEBUG
+ARG DOCKER_GITCOMMIT=HEAD
+ARG DOCKER_LDFLAGS
+ARG DOCKER_STATIC
+ARG VERSION
+ARG PLATFORM
+ARG PRODUCT
+ARG DEFAULT_PRODUCT_LICENSE
+ARG PACKAGER_NAME
+# PREFIX overrides DEST dir in make.sh script otherwise it fails because of
+# read only mount in current work dir
+ENV PREFIX=/tmp
+RUN --mount=type=bind,target=. \
     --mount=type=tmpfs,target=cli/winresources/dockerd \
     --mount=type=tmpfs,target=cli/winresources/docker-proxy \
-        hack/make.sh binary
+    --mount=type=cache,target=/root/.cache/go-build,id=moby-build-$TARGETPLATFORM <<EOT
+  set -e
+  target=$([ "$DOCKER_STATIC" = "1" ] && echo "binary" || echo "dynbinary")
+  xx-go --wrap
+  ./hack/make.sh $target
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/dockerd$([ "$(xx-info os)" = "windows" ] && echo ".exe")
+  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/docker-proxy$([ "$(xx-info os)" = "windows" ] && echo ".exe")
+  mkdir /build
+  mv /tmp/bundles/${target}-daemon/* /build/
+EOT
 
-FROM binary-base AS build-dynbinary
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=bind,target=.,ro \
-    --mount=type=tmpfs,target=cli/winresources/dockerd \
-    --mount=type=tmpfs,target=cli/winresources/docker-proxy \
-        hack/make.sh dynbinary
-
-FROM binary-base AS build-cross
-ARG DOCKER_CROSSPLATFORMS
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=bind,target=.,ro \
-    --mount=type=tmpfs,target=cli/winresources/dockerd \
-    --mount=type=tmpfs,target=cli/winresources/docker-proxy \
-        hack/make.sh cross
-
+# usage:
+# > docker buildx bake binary
+# > DOCKER_STATIC=0 docker buildx bake binary
+# or
+# > make binary
+# > make dynbinary
 FROM scratch AS binary
-COPY --from=build-binary /build/bundles/ /
+COPY --from=build /build/ /
 
-FROM scratch AS dynbinary
-COPY --from=build-dynbinary /build/bundles/ /
+# usage:
+# > docker buildx bake all
+FROM scratch AS all
+COPY --from=tini          /build/ /
+COPY --from=runc          /build/ /
+COPY --from=containerd    /build/ /
+COPY --from=rootlesskit   /build/ /
+COPY --from=containerutil /build/ /
+COPY --from=vpnkit        /       /
+COPY --from=build         /build  /
 
-FROM scratch AS cross
-COPY --from=build-cross /build/bundles/ /
-
-FROM dev AS final
-COPY . /go/src/github.com/docker/docker
+# usage:
+# > make shell
+# > SYSTEMD=true make shell
+FROM dev-base AS dev
+COPY . .
