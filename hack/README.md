@@ -44,7 +44,7 @@ all of the tests.
 - When running inside a Docker development container, `hack/make.sh` does
 not have a single target that runs all the tests. You need to provide a
 single command line with multiple targets that performs the same thing.
-An example referenced from [Run targets inside a development container](https://docs.docker.com/opensource/project/test-and-docs/#run-targets-inside-a-development-container): `root@5f8630b873fe:/go/src/github.com/moby/moby# hack/make.sh dynbinary binary cross test-unit test-integration test-docker-py`
+An example referenced from [Run targets inside a development container](https://docs.docker.com/opensource/project/test-and-docs/#run-targets-inside-a-development-container): `root@5f8630b873fe:/go/src/github.com/moby/moby# hack/make.sh dynbinary binary test-unit test-integration test-docker-py`
 - For more information related to testing outside the scope of this README,
 refer to
 [Run tests and test documentation](https://docs.docker.com/opensource/project/test-and-docs/)

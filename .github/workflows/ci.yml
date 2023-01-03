@@ -15,7 +15,7 @@ on:
   pull_request:
 
 env:
-  BUNDLES_OUTPUT: ./bundles
+  DESTDIR: ./build
 
 jobs:
   validate-dco:
@@ -46,31 +46,52 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       -
+        name: List artifacts
+        run: |
+          tree -nh ${{ env.DESTDIR }}
+      -
+        name: Check artifacts
+        run: |
+          find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
+      -
         name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.target }}
-          path: ${{ env.BUNDLES_OUTPUT }}
+          path: ${{ env.DESTDIR }}
           if-no-files-found: error
           retention-days: 7
+
+  prepare-cross:
+    runs-on: ubuntu-latest
+    needs:
+      - validate-dco
+    outputs:
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Create matrix
+        id: platforms
+        run: |
+          matrix="$(docker buildx bake binary-cross --print | jq -cr '.target."binary-cross".platforms')"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.platforms.outputs.matrix }}
 
   cross:
     runs-on: ubuntu-20.04
     needs:
       - validate-dco
+      - prepare-cross
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm/v5
-          - linux/arm/v6
-          - linux/arm/v7
-          - linux/arm64
-          - linux/ppc64le
-          - linux/s390x
-          - windows/amd64
-          - windows/arm64
+        platform: ${{ fromJson(needs.prepare-cross.outputs.matrix) }}
     steps:
       -
         name: Checkout
@@ -89,14 +110,22 @@ jobs:
         name: Build
         uses: docker/bake-action@v2
         with:
-          targets: cross
-        env:
-          DOCKER_CROSSPLATFORMS: ${{ matrix.platform }}
+          targets: all
+          set: |
+            *.platform=${{ matrix.platform }}
+      -
+        name: List artifacts
+        run: |
+          tree -nh ${{ env.DESTDIR }}
+      -
+        name: Check artifacts
+        run: |
+          find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
       -
         name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: cross-${{ env.PLATFORM_PAIR }}
-          path: ${{ env.BUNDLES_OUTPUT }}
+          path: ${{ env.DESTDIR }}
           if-no-files-found: error
           retention-days: 7

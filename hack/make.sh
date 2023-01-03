@@ -36,10 +36,17 @@ DEFAULT_BUNDLES=(
 	dynbinary
 	test-integration
 	test-docker-py
-	cross
 )
 
 VERSION=${VERSION:-dev}
+if [[ $VERSION == refs/tags/* ]]; then
+	VERSION=${VERSION#refs/tags/}
+elif [[ $VERSION == refs/heads/* ]]; then
+	VERSION=$(sed <<< "${VERSION#refs/heads/}" -r 's#/+#-#g')
+elif [[ $VERSION == refs/pull/* ]]; then
+	VERSION=pr-$(grep <<< "$VERSION" -o '[0-9]\+')
+fi
+
 ! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
@@ -93,17 +100,12 @@ fi
 # functionality. We favour libdm_dlsym_deferred_remove over
 # libdm_no_deferred_remove in dynamic cases because the binary could be shipped
 # with a newer libdevmapper than the one it was built with.
-if
-	command -v gcc &> /dev/null \
-		&& ! (echo -e '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }' | gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null) \
-		;
-then
+if command -v gcc &> /dev/null && ! (echo -e '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }' | gcc -xc - -o /dev/null $(${PKG_CONFIG} --libs devmapper 2> /dev/null) &> /dev/null); then
 	add_buildtag libdm dlsym_deferred_remove
 fi
 
 # Use these flags when compiling the tests and final binary
 
-IAMSTATIC='true'
 if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
