@@ -13,8 +13,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 FROM ${GOLANG_IMAGE} AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
-RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
- && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
+RUN test -n "$APT_MIRROR" && sed -ri "s/(httpredir|deb|security).debian.org/${APT_MIRROR}/g" /etc/apt/sources.list || true
 ENV GO111MODULE=off
 
 FROM base AS criu
