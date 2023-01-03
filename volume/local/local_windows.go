@@ -44,7 +44,7 @@ func (v *localVolume) postMount() error {
 }
 
 func (v *localVolume) CreatedAt() (time.Time, error) {
-	fileInfo, err := os.Stat(v.path)
+	fileInfo, err := os.Stat(v.rootPath)
 	if err != nil {
 		return time.Time{}, err
 	}
