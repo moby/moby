@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/rootless"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/term"
 	"github.com/sirupsen/logrus"

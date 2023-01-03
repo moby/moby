@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
+	"github.com/docker/docker/pkg/rootless"
 )
 
 const globalConfigPluginsPath = "/etc/docker/plugins"
