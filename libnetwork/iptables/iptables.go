@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/rootless"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/sirupsen/logrus"
 )
 
