@@ -17,7 +17,6 @@ pipeline {
         DOCKER_BUILDKIT     = '1'
         DOCKER_EXPERIMENTAL = '1'
         DOCKER_GRAPHDRIVER  = 'overlay2'
-        APT_MIRROR          = 'cdn-fastly.deb.debian.org'
         CHECK_CONFIG_COMMIT = '33a3680e08d1007e72c3b3f1454f823d8e9948ee'
         TESTDEBUG           = '0'
         TIMEOUT             = '120m'
@@ -78,7 +77,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker build --force-rm -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -191,7 +190,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker build --force-rm -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -278,7 +277,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker buildx build --load --force-rm -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -391,7 +390,7 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                docker buildx build --load --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                docker buildx build --load --force-rm -t docker:${GIT_COMMIT} .
                                 '''
                             }
                         }
@@ -476,7 +475,7 @@ pipeline {
                         }
                         stage("Build dev image") {
                             steps {
-                                sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
+                                sh 'docker build --force-rm -t docker:${GIT_COMMIT} .'
                             }
                         }
                         stage("Unit tests") {
