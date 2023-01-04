@@ -9,6 +9,7 @@ import (
 	"net"
 
 	"github.com/docker/docker/libnetwork/iptables"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -418,14 +419,35 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 	return setIcc(version, bridgeIface, icc, insert)
 }
 
-func clearEndpointConnections(nlh *netlink.Handle, ep *bridgeEndpoint) {
+// clearConntrackEntries flushes conntrack entries matching endpoint IP address
+// or matching one of the exposed UDP port.
+// In the first case, this could happen if packets were received by the host
+// between userland proxy startup and iptables setup.
+// In the latter case, this could happen if packets were received whereas there
+// were nowhere to route them, as netfilter creates entries in such case.
+// This is required because iptables NAT rules are evaluated by netfilter only
+// when creating a new conntrack entry. When Docker latter adds NAT rules,
+// netfilter ignore them for any packet matching a pre-existing conntrack entry.
+// As such, we need to flush all those conntrack entries to make sure NAT rules
+// are correctly applied to all packets.
+// See: #8795, #44688 & #44742.
+func clearConntrackEntries(nlh *netlink.Handle, ep *bridgeEndpoint) {
 	var ipv4List []net.IP
 	var ipv6List []net.IP
+	var udpPorts []uint16
+
 	if ep.addr != nil {
 		ipv4List = append(ipv4List, ep.addr.IP)
 	}
 	if ep.addrv6 != nil {
 		ipv6List = append(ipv6List, ep.addrv6.IP)
 	}
+	for _, pb := range ep.portMapping {
+		if pb.Proto == types.UDP {
+			udpPorts = append(udpPorts, pb.HostPort)
+		}
+	}
+
 	iptables.DeleteConntrackEntries(nlh, ipv4List, ipv6List)
+	iptables.DeleteConntrackEntriesByPort(nlh, types.UDP, udpPorts)
 }
