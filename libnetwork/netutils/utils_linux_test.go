@@ -203,13 +203,10 @@ func TestGenerateRandomName(t *testing.T) {
 		t.Fatalf("Expected differing values but received %s and %s", name1, name2)
 	}
 
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("A panic should occur with size greater than 64")
-		}
-	}()
-	GenerateRandomName("veth", 65)
+	_, err = GenerateRandomName("veth", 65)
+	if err == nil {
+		t.Fatal("A panic should occur with size greater than 64")
+	}
 }
 
 // Test mac generation.

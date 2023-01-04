@@ -125,7 +125,7 @@ func GenerateMACFromIP(ip net.IP) net.HardwareAddr {
 // specified is used to truncate the randomly generated value
 func GenerateRandomName(prefix string, size int) (string, error) {
 	if size > 64 {
-		panic("size cannot be greater than 64")
+		return "", fmt.Errorf("name: size should be less or equal to 64 but was %d", size)
 	}
 	id := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, id); err != nil {
