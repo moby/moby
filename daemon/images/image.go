@@ -136,7 +136,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 				continue
 			}
 
-			if m.Config.Digest == img.ID().Digest() {
+			if m.Config.Digest == img.ID() {
 				logger.WithField("manifestDigest", md.Digest).Debug("Found matching manifest for image")
 				return true, nil
 			}
@@ -230,7 +230,7 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 		if !ok {
 			return nil, ErrImageDoesNotExist{ref}
 		}
-		if img, err := i.imageStore.Get(image.ID(digested.Digest())); err == nil {
+		if img, err := i.imageStore.Get(digested.Digest()); err == nil {
 			return img, nil
 		}
 		return nil, ErrImageDoesNotExist{ref}
@@ -238,7 +238,7 @@ func (i *ImageService) getImage(ctx context.Context, refOrID string, options ima
 
 	if dgst, err := i.referenceStore.Get(namedRef); err == nil {
 		// Search the image stores to get the operating system, defaulting to host OS.
-		if img, err := i.imageStore.Get(image.ID(dgst)); err == nil {
+		if img, err := i.imageStore.Get(dgst); err == nil {
 			return img, nil
 		}
 	}

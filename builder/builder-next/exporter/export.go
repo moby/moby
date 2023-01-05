@@ -209,7 +209,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source,
 	if e.opt.ReferenceStore != nil {
 		for _, targetName := range e.targetNames {
 			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
-			if err := e.opt.ReferenceStore.AddTag(targetName, digest.Digest(id), true); err != nil {
+			if err := e.opt.ReferenceStore.AddTag(targetName, id, true); err != nil {
 				return nil, tagDone(err)
 			}
 			_ = tagDone(nil)

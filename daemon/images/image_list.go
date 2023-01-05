@@ -145,7 +145,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 		summary := newImageSummary(img, size)
 
-		for _, ref := range i.referenceStore.References(id.Digest()) {
+		for _, ref := range i.referenceStore.References(id) {
 			if opts.Filters.Contains("reference") {
 				var found bool
 				var matchErr error

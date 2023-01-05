@@ -16,22 +16,13 @@ import (
 )
 
 // ID is the content-addressable ID of an image.
-type ID digest.Digest
-
-func (id ID) String() string {
-	return id.Digest().String()
-}
-
-// Digest converts ID into a digest
-func (id ID) Digest() digest.Digest {
-	return digest.Digest(id)
-}
+type ID = digest.Digest
 
 // IDFromDigest creates an ID from a digest
 //
 // Deprecated: cast to an ID using ID(digest).
 func IDFromDigest(digest digest.Digest) ID {
-	return ID(digest)
+	return digest
 }
 
 // V1Image stores the V1 image configuration.
@@ -91,7 +82,7 @@ type V1Image struct {
 type Image struct {
 	V1Image
 
-	// Parent is the ID of the parent image.
+	// Parent is the digest (ID)  of the parent image.
 	//
 	// Depending on how the image was created, this field may be empty and
 	// is only set for images that were built/created locally. This field
