@@ -1328,10 +1328,9 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 		}
 	}()
 
-	// Clean the connection tracker state of the host for the
-	// specific endpoint. This is needed because some flows may be
-	// bound to the local proxy and won't bre redirect to the new endpoints.
-	clearEndpointConnections(d.nlh, endpoint)
+	// Clean the connection tracker state of the host for the specific endpoint. This is needed because some flows may
+	// be bound to the local proxy, or to the host (for UDP packets), and won't be redirected to the new endpoints.
+	clearConntrackEntries(d.nlh, endpoint)
 
 	if err = d.storeUpdate(endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
@@ -1366,12 +1365,10 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 
 	endpoint.portMapping = nil
 
-	// Clean the connection tracker state of the host for the specific endpoint
-	// The host kernel keeps track of the connections (TCP and UDP), so if a new endpoint gets the same IP of
-	// this one (that is going down), is possible that some of the packets would not be routed correctly inside
-	// the new endpoint
-	// Deeper details: https://github.com/docker/docker/issues/8795
-	clearEndpointConnections(d.nlh, endpoint)
+	// Clean the connection tracker state of the host for the specific endpoint. This is a precautionary measure to
+	// avoid new endpoints getting the same IP address to receive unexpected packets due to bad conntrack state leading
+	// to bad NATing.
+	clearConntrackEntries(d.nlh, endpoint)
 
 	if err = d.storeUpdate(endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
