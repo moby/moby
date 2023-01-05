@@ -204,7 +204,7 @@ func TestGenerateRandomName(t *testing.T) {
 	}
 
 	_, err = GenerateRandomName("veth", 65)
-	if err != nil {
+	if err == nil {
 		t.Fatal("An error should be returned with size greater than 64")
 	}
 }
