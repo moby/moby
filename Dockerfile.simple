@@ -24,10 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		build-essential \
 		curl \
 		cmake \
-		gcc \
 		git \
 		libapparmor-dev \
-		libbtrfs-dev \
 		libdevmapper-dev \
 		libseccomp-dev \
 		ca-certificates \
