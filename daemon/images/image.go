@@ -24,11 +24,11 @@ import (
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
 type ErrImageDoesNotExist struct {
-	ref reference.Reference
+	Ref reference.Reference
 }
 
 func (e ErrImageDoesNotExist) Error() string {
-	ref := e.ref
+	ref := e.Ref
 	if named, ok := ref.(reference.Named); ok {
 		ref = reference.TagNameOnly(named)
 	}
@@ -176,6 +176,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			return nil, err
 		}
 		img.Details = &image.Details{
+			References:  i.referenceStore.References(img.ID().Digest()),
 			Size:        size,
 			Metadata:    layerMetadata,
 			Driver:      i.layerStore.DriverName(),
