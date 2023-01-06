@@ -233,7 +233,7 @@ func subvolSnapshot(src, dest, name string) error {
 
 	var cs = C.CString(name)
 	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
-	C.free(unsafe.Pointer(cs))
+	free(cs)
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
 		uintptr(unsafe.Pointer(&args)))
