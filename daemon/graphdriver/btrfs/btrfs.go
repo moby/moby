@@ -150,18 +150,11 @@ func (d *Driver) String() string {
 	return "btrfs"
 }
 
-// Status returns current driver information in a two dimensional string array.
-// Output contains "Build Version" and "Library Version" of the btrfs libraries used.
-// Version information can be used to check compatibility with your kernel.
+// Status returns the status of the driver.
 func (d *Driver) Status() [][2]string {
-	status := [][2]string{}
-	if bv := btrfsBuildVersion(); bv != "-" {
-		status = append(status, [2]string{"Build Version", bv})
+	return [][2]string{
+		{"Btrfs", ""},
 	}
-	if lv := btrfsLibVersion(); lv != -1 {
-		status = append(status, [2]string{"Library Version", strconv.Itoa(lv)})
-	}
-	return status
 }
 
 // GetMetadata returns empty metadata for this driver.
