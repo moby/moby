@@ -73,6 +73,7 @@ const (
 
 type extDNSEntry struct {
 	IPStr        string
+	port         uint16 // for testing
 	HostLoopback bool
 }
 
@@ -451,7 +452,11 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				break
 			}
 			extConnect := func() {
-				addr := fmt.Sprintf("%s:%d", extDNS.IPStr, 53)
+				port := extDNS.port
+				if port == 0 {
+					port = 53
+				}
+				addr := fmt.Sprintf("%s:%d", extDNS.IPStr, port)
 				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
 			}
 
