@@ -5,12 +5,11 @@ package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 
 /*
 #include <stdlib.h>
+#include <stdio.h>
 #include <dirent.h>
 
-// keep struct field name compatible with btrfs-progs < 6.1.
-#define max_referenced max_rfer
-#include <btrfs/ioctl.h>
-#include <btrfs/ctree.h>
+#include <linux/btrfs.h>
+#include <linux/btrfs_tree.h>
 
 static void set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, const char* value) {
     snprintf(btrfs_struct->name, BTRFS_SUBVOL_NAME_MAX, "%s", value);
