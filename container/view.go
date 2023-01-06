@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/sirupsen/logrus"
@@ -27,24 +29,6 @@ var (
 	// ErrNameNotReserved is an error which is returned when trying to find a name that is not reserved
 	ErrNameNotReserved = errors.New("name is not reserved")
 )
-
-var (
-	// ErrEmptyPrefix is an error returned if the prefix was empty.
-	ErrEmptyPrefix = errors.New("Prefix can't be empty")
-
-	// ErrNotExist is returned when ID or its prefix not found in index.
-	ErrNotExist = errors.New("ID does not exist")
-)
-
-// ErrAmbiguousPrefix is returned if the prefix was ambiguous
-// (multiple ids for the prefix).
-type ErrAmbiguousPrefix struct {
-	prefix string
-}
-
-func (e ErrAmbiguousPrefix) Error() string {
-	return fmt.Sprintf("Multiple IDs found with provided prefix: %s", e.prefix)
-}
 
 // Snapshot is a read only view for Containers. It holds all information necessary to serve container queries in a
 // versioned ACID in-memory store.
@@ -112,22 +96,11 @@ type ViewDB struct {
 	store *memdb.MemDB
 }
 
-// NoSuchContainerError indicates that the container wasn't found in the
-// database.
-type NoSuchContainerError struct {
-	id string
-}
-
-// Error satisfies the error interface.
-func (e NoSuchContainerError) Error() string {
-	return "no such container " + e.id
-}
-
 // NewViewDB provides the default implementation, with the default schema
 func NewViewDB() (*ViewDB, error) {
 	store, err := memdb.NewMemDB(schema)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	return &ViewDB{store: store}, nil
 }
@@ -136,11 +109,11 @@ func NewViewDB() (*ViewDB, error) {
 // error if an empty prefix was given or if multiple containers match the prefix.
 func (db *ViewDB) GetByPrefix(s string) (string, error) {
 	if s == "" {
-		return "", ErrEmptyPrefix
+		return "", errdefs.InvalidParameter(errors.New("prefix can't be empty"))
 	}
 	iter, err := db.store.Txn(false).Get(memdbContainersTable, memdbIDIndexPrefix, s)
 	if err != nil {
-		return "", err
+		return "", errdefs.System(err)
 	}
 
 	var id string
@@ -150,7 +123,7 @@ func (db *ViewDB) GetByPrefix(s string) (string, error) {
 			break
 		}
 		if id != "" {
-			return "", ErrAmbiguousPrefix{prefix: s}
+			return "", errdefs.InvalidParameter(errors.New("multiple IDs found with provided prefix: " + s))
 		}
 		id = item.(*Container).ID
 	}
@@ -159,7 +132,7 @@ func (db *ViewDB) GetByPrefix(s string) (string, error) {
 		return id, nil
 	}
 
-	return "", ErrNotExist
+	return "", errdefs.NotFound(errors.New("No such container: " + s))
 }
 
 // Snapshot provides a consistent read-only view of the database.
@@ -174,7 +147,7 @@ func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 	err := cb(txn)
 	if err != nil {
 		txn.Abort()
-		return err
+		return errdefs.System(err)
 	}
 	txn.Commit()
 	return nil
@@ -213,7 +186,7 @@ func (db *ViewDB) ReserveName(name, containerID string) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		s, err := txn.First(memdbNamesTable, memdbIDIndex, name)
 		if err != nil {
-			return err
+			return errdefs.System(err)
 		}
 		if s != nil {
 			if s.(nameAssociation).containerID != containerID {
@@ -243,7 +216,7 @@ func (v *View) All() ([]Snapshot, error) {
 	var all []Snapshot
 	iter, err := v.txn.Get(memdbContainersTable, memdbIDIndex)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	for {
 		item := iter.Next()
@@ -260,10 +233,10 @@ func (v *View) All() ([]Snapshot, error) {
 func (v *View) Get(id string) (*Snapshot, error) {
 	s, err := v.txn.First(memdbContainersTable, memdbIDIndex, id)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	if s == nil {
-		return nil, NoSuchContainerError{id: id}
+		return nil, errdefs.NotFound(errors.New("No such container: " + id))
 	}
 	return v.transform(s.(*Container)), nil
 }
@@ -291,7 +264,7 @@ func (v *View) getNames(containerID string) []string {
 func (v *View) GetID(name string) (string, error) {
 	s, err := v.txn.First(memdbNamesTable, memdbIDIndex, name)
 	if err != nil {
-		return "", err
+		return "", errdefs.System(err)
 	}
 	if s == nil {
 		return "", ErrNameNotReserved
@@ -414,7 +387,7 @@ func (v *View) transform(container *Container) *Snapshot {
 		for port, bindings := range container.NetworkSettings.Ports {
 			p, err := nat.ParsePort(port.Port())
 			if err != nil {
-				logrus.Warnf("invalid port map %+v", err)
+				logrus.WithError(err).Warn("invalid port map")
 				continue
 			}
 			if len(bindings) == 0 {
@@ -427,7 +400,7 @@ func (v *View) transform(container *Container) *Snapshot {
 			for _, binding := range bindings {
 				h, err := nat.ParsePort(binding.HostPort)
 				if err != nil {
-					logrus.Warnf("invalid host port map %+v", err)
+					logrus.WithError(err).Warn("invalid host port map")
 					continue
 				}
 				snapshot.Ports = append(snapshot.Ports, types.Port{
@@ -448,6 +421,9 @@ func (v *View) transform(container *Container) *Snapshot {
 // memdb.StringFieldIndex can not be used since ID is a field from an embedded struct.
 type containerByIDIndexer struct{}
 
+// terminator is the null character, used as a terminator.
+const terminator = "\x00"
+
 // FromObject implements the memdb.SingleIndexer interface for Container objects
 func (e *containerByIDIndexer) FromObject(obj interface{}) (bool, []byte, error) {
 	c, ok := obj.(*Container)
@@ -455,8 +431,7 @@ func (e *containerByIDIndexer) FromObject(obj interface{}) (bool, []byte, error)
 		return false, nil, fmt.Errorf("%T is not a Container", obj)
 	}
 	// Add the null character as a terminator
-	v := c.ID + "\x00"
-	return true, []byte(v), nil
+	return true, []byte(c.ID + terminator), nil
 }
 
 // FromArgs implements the memdb.Indexer interface
@@ -469,8 +444,7 @@ func (e *containerByIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
 	}
 	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+	return []byte(arg + terminator), nil
 }
 
 func (e *containerByIDIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
@@ -480,11 +454,7 @@ func (e *containerByIDIndexer) PrefixFromArgs(args ...interface{}) ([]byte, erro
 	}
 
 	// Strip the null terminator, the rest is a prefix
-	n := len(val)
-	if n > 0 {
-		return val[:n-1], nil
-	}
-	return val, nil
+	return bytes.TrimSuffix(val, []byte(terminator)), nil
 }
 
 // namesByNameIndexer is used to index container name associations by name.
@@ -497,7 +467,7 @@ func (e *namesByNameIndexer) FromObject(obj interface{}) (bool, []byte, error) {
 	}
 
 	// Add the null character as a terminator
-	return true, []byte(n.name + "\x00"), nil
+	return true, []byte(n.name + terminator), nil
 }
 
 func (e *namesByNameIndexer) FromArgs(args ...interface{}) ([]byte, error) {
@@ -509,8 +479,7 @@ func (e *namesByNameIndexer) FromArgs(args ...interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
 	}
 	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+	return []byte(arg + terminator), nil
 }
 
 // namesByContainerIDIndexer is used to index container names by container ID.
@@ -523,7 +492,7 @@ func (e *namesByContainerIDIndexer) FromObject(obj interface{}) (bool, []byte, e
 	}
 
 	// Add the null character as a terminator
-	return true, []byte(n.containerID + "\x00"), nil
+	return true, []byte(n.containerID + terminator), nil
 }
 
 func (e *namesByContainerIDIndexer) FromArgs(args ...interface{}) ([]byte, error) {
@@ -535,6 +504,5 @@ func (e *namesByContainerIDIndexer) FromArgs(args ...interface{}) ([]byte, error
 		return nil, fmt.Errorf("argument must be a string: %#v", args[0])
 	}
 	// Add the null character as a terminator
-	arg += "\x00"
-	return []byte(arg), nil
+	return []byte(arg + terminator), nil
 }
