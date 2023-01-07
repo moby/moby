@@ -293,26 +293,23 @@ func (r *resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
 }
 
 func (r *resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
-	var (
-		parts []string
-		ptr   = query.Question[0].Name
-	)
-
-	if strings.HasSuffix(ptr, ptrIPv4domain) {
-		parts = strings.Split(ptr, ptrIPv4domain)
-	} else if strings.HasSuffix(ptr, ptrIPv6domain) {
-		parts = strings.Split(ptr, ptrIPv6domain)
-	} else {
-		return nil, fmt.Errorf("invalid PTR query, %v", ptr)
+	ptr := query.Question[0].Name
+	name, after, found := strings.Cut(ptr, ptrIPv4domain)
+	if !found || after != "" {
+		name, after, found = strings.Cut(ptr, ptrIPv6domain)
 	}
-
-	host := r.backend.ResolveIP(parts[0])
-
-	if len(host) == 0 {
+	if !found || after != "" {
+		// Not a known IPv4 or IPv6 PTR domain.
+		// Maybe the external DNS servers know what to do with the query?
 		return nil, nil
 	}
 
-	logrus.Debugf("[resolver] lookup for IP %s: name %s", parts[0], host)
+	host := r.backend.ResolveIP(name)
+	if host == "" {
+		return nil, nil
+	}
+
+	logrus.Debugf("[resolver] lookup for IP %s: name %s", name, host)
 	fqdn := dns.Fqdn(host)
 
 	resp := new(dns.Msg)
