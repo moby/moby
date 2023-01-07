@@ -9,7 +9,7 @@ package tools
 
 import (
 	_ "github.com/gogo/protobuf/protoc-gen-gogo"
-	_ "github.com/gogo/protobuf/protoc-gen-gogofast"
+	_ "github.com/gogo/protobuf/protoc-gen-gogofaster"
 	_ "github.com/gogo/protobuf/protoc-gen-gogoslick"
 	_ "github.com/golang/protobuf/protoc-gen-go"
 )

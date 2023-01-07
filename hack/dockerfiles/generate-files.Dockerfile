@@ -36,7 +36,7 @@ RUN --mount=from=src,source=/out,target=.,rw \
   set -ex
   ./hack/with-go-mod.sh go install -v -mod=vendor -modfile=vendor.mod \
     github.com/gogo/protobuf/protoc-gen-gogo \
-    github.com/gogo/protobuf/protoc-gen-gogofast \
+    github.com/gogo/protobuf/protoc-gen-gogofaster \
     github.com/gogo/protobuf/protoc-gen-gogoslick \
     github.com/golang/protobuf/protoc-gen-go
   ./hack/with-go-mod.sh go build -v -mod=vendor -modfile=vendor.mod \

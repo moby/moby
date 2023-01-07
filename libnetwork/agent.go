@@ -1,6 +1,6 @@
 package libnetwork
 
-//go:generate protoc -I=. -I=../vendor/ --gogo_out=import_path=github.com/docker/docker/libnetwork:. agent.proto
+//go:generate protoc -I=. -I=../vendor/ --gogofaster_out=import_path=github.com/docker/docker/libnetwork:. agent.proto
 
 import (
 	"encoding/json"
