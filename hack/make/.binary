@@ -70,14 +70,17 @@ hash_files() {
 		esac
 	fi
 
-	# -buildmode=pie is not supported on Windows and Linux on mips and riscv64.
-	case "$(go env GOOS)/$(go env GOARCH)" in
-		windows/* | linux/mips* | linux/riscv*) ;;
+	# -buildmode=pie not supported when -race is enabled
+	if [[ " $BUILDFLAGS " != *" -race "* ]]; then
+		# -buildmode=pie is not supported on Windows and Linux on mips and riscv64.
+		case "$(go env GOOS)/$(go env GOARCH)" in
+			windows/* | linux/mips* | linux/riscv*) ;;
 
-		*)
-			BUILDFLAGS+=("-buildmode=pie")
-			;;
-	esac
+			*)
+				BUILDFLAGS+=("-buildmode=pie")
+				;;
+		esac
+	fi
 
 	echo "Building: $DEST/$BINARY_FULLNAME"
 	echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
