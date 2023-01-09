@@ -412,10 +412,14 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 
 	var config Config
 
+	// Strip the UTF-8 BOM if present ([RFC 8259] allows JSON implementations to optionally strip the BOM for
+	// interoperability; do so here as Notepad on older versions of Windows Server insists on a BOM).
+	// [RFC 8259]: https://tools.ietf.org/html/rfc8259#section-8.1
+	b = bytes.TrimPrefix(b, []byte("\xef\xbb\xbf"))
+
 	b = bytes.TrimSpace(b)
 	if len(b) == 0 {
-		// empty config file
-		return &config, nil
+		return &config, nil // early return on empty config
 	}
 
 	if flags != nil {

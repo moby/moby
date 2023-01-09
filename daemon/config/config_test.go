@@ -2,6 +2,7 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -33,6 +34,20 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
+}
+
+// TestDaemonConfigurationWithBOM ensures that the UTF-8 byte order mark is ignored when reading the configuration file.
+func TestDaemonConfigurationWithBOM(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "daemon.json")
+
+	f, err := os.Create(configFile)
+	assert.NilError(t, err)
+
+	f.Write([]byte("\xef\xbb\xbf{\"debug\": true}"))
+	f.Close()
+
+	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	assert.NilError(t, err)
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
