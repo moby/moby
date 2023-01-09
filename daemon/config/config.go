@@ -401,21 +401,26 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 	return fileConfig, nil
 }
 
-// getConflictFreeConfiguration loads the configuration from a JSON file.
-// It compares that configuration with the one provided by the flags,
-// and returns an error if there are conflicts.
+// getConflictFreeConfiguration loads the configuration from a JSON file and
+// applies it to the default configuration. It compares that configuration with
+// the one provided by the flags, and returns an error if there are conflicts.
 func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Config, error) {
 	b, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}
 
-	var config Config
+	// Initialize config with the defaults, and apply changes from the JSON file.
+	// TODO(thaJeztah) ideally, this would be a copy of the current config, instead of the default (see Reload() for more details)
+	config, err := New()
+	if err != nil {
+		return nil, err
+	}
 
 	b = bytes.TrimSpace(b)
 	if len(b) == 0 {
-		// empty config file
-		return &config, nil
+		// no changes to apply
+		return config, nil
 	}
 
 	if flags != nil {
@@ -463,11 +468,12 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		config.ValuesSet = configSet
 	}
 
+	// Apply changes from the JSON file now that we verified there's no conflicts.
 	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 // configValuesSet returns the configuration values explicitly set in the file.
@@ -585,17 +591,16 @@ func Validate(config *Config) error {
 		}
 	}
 
-	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.Mtu < 0 {
+	if config.Mtu <= 0 {
 		return errors.Errorf("invalid default MTU: %d", config.Mtu)
 	}
-	if config.MaxConcurrentDownloads < 0 {
+	if config.MaxConcurrentDownloads <= 0 {
 		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)
 	}
-	if config.MaxConcurrentUploads < 0 {
+	if config.MaxConcurrentUploads <= 0 {
 		return errors.Errorf("invalid max concurrent uploads: %d", config.MaxConcurrentUploads)
 	}
-	if config.MaxDownloadAttempts < 0 {
+	if config.MaxDownloadAttempts <= 0 {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
 	}
 

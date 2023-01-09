@@ -89,7 +89,7 @@ func main() {
 	initLogging(stdout, stderr)
 
 	onError := func(err error) {
-		fmt.Fprintf(stderr, "%s\n", err)
+		_, _ = fmt.Fprintln(stderr, err)
 		os.Exit(1)
 	}
 
