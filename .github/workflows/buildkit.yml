@@ -71,7 +71,7 @@ jobs:
         run: |
           # FIXME(thaJeztah) temporarily overriding version to use for tests; remove with the next release of buildkit
           # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
-          echo "BUILDKIT_REF=d77361423c88cc2a0d19e285ec3599022e92571f" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=3a391492c9d0b7428b6dcaa18c5aa3b5951fdacd" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
