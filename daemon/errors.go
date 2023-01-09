@@ -132,35 +132,70 @@ func (e startInvalidConfigError) Error() string {
 
 func (e startInvalidConfigError) InvalidParameter() {} // Is this right???
 
-func translateContainerdStartErr(cmd string, setExitCode func(int), err error) error {
+// exitStatus is the exit-code as set by setExitCodeFromError
+type exitStatus = int
+
+const (
+	exitEaccess     exitStatus = 126 // container cmd can't be invoked (permission denied)
+	exitCmdNotFound exitStatus = 127 // container cmd not found/does not exist or invalid bind-mount
+	exitUnknown     exitStatus = 128 // unknown error
+)
+
+// setExitCodeFromError converts the error returned by containerd
+// when starting a container, and applies the corresponding exitStatus to the
+// container. It returns an errdefs error (either errdefs.ErrInvalidParameter
+// or errdefs.ErrUnknown).
+func setExitCodeFromError(setExitCode func(exitStatus), err error) error {
+	if err == nil {
+		return nil
+	}
 	errDesc := status.Convert(err).Message()
 	contains := func(s1, s2 string) bool {
 		return strings.Contains(strings.ToLower(s1), s2)
 	}
-	var retErr = errdefs.Unknown(errors.New(errDesc))
-	// if we receive an internal error from the initial start of a container then lets
-	// return it instead of entering the restart loop
-	// set to 127 for container cmd not found/does not exist)
-	if contains(errDesc, "executable file not found") ||
-		contains(errDesc, "no such file or directory") ||
-		contains(errDesc, "system cannot find the file specified") ||
-		contains(errDesc, "failed to run runc create/exec call") {
-		setExitCode(127)
-		retErr = startInvalidConfigError(errDesc)
-	}
+
 	// set to 126 for container cmd can't be invoked errors
 	if contains(errDesc, syscall.EACCES.Error()) {
-		setExitCode(126)
-		retErr = startInvalidConfigError(errDesc)
+		setExitCode(exitEaccess)
+		return startInvalidConfigError(errDesc)
 	}
 
 	// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
 	if contains(errDesc, syscall.ENOTDIR.Error()) {
 		errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
-		setExitCode(127)
-		retErr = startInvalidConfigError(errDesc)
+		setExitCode(exitCmdNotFound)
+		return startInvalidConfigError(errDesc)
+	}
+
+	// if we receive an internal error from the initial start of a container then lets
+	// return it instead of entering the restart loop
+	// set to 127 for container cmd not found/does not exist.
+	if isInvalidCommand(errDesc) {
+		setExitCode(exitCmdNotFound)
+		return startInvalidConfigError(errDesc)
 	}
 
 	// TODO: it would be nice to get some better errors from containerd so we can return better errors here
-	return retErr
+	setExitCode(exitUnknown)
+	return errdefs.Unknown(errors.New(errDesc))
+}
+
+// isInvalidCommand tries to detect if the reason the container failed to start
+// was due to an invalid command for the container (command not found, or not
+// a valid executable).
+func isInvalidCommand(errMessage string) bool {
+	errMessage = strings.ToLower(errMessage)
+	errMessages := []string{
+		"executable file not found",
+		"no such file or directory",
+		"system cannot find the file specified",
+		"failed to run runc create/exec call",
+	}
+
+	for _, msg := range errMessages {
+		if strings.Contains(errMessage, msg) {
+			return true
+		}
+	}
+	return false
 }
