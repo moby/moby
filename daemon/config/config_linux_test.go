@@ -10,11 +10,10 @@ import (
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 )
 
 func TestGetConflictFreeConfiguration(t *testing.T) {
-	configFileData := `
+	configFile := makeConfigFile(t, `
 		{
 			"debug": true,
 			"default-ulimits": {
@@ -27,10 +26,7 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 			"log-opts": {
 				"tag": "test_tag"
 			}
-		}`
-
-	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
-	defer file.Remove()
+		}`)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	var debug bool
@@ -38,7 +34,7 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", nil), "default-ulimit", "")
 	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
 
-	cc, err := getConflictFreeConfiguration(file.Path(), flags)
+	cc, err := getConflictFreeConfiguration(configFile, flags)
 	assert.NilError(t, err)
 
 	assert.Check(t, cc.Debug)
@@ -55,7 +51,7 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 }
 
 func TestDaemonConfigurationMerge(t *testing.T) {
-	configFileData := `
+	configFile := makeConfigFile(t, `
 		{
 			"debug": true,
 			"default-ulimits": {
@@ -65,10 +61,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 					"Soft": 1024
 				}
 			}
-		}`
-
-	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
-	defer file.Remove()
+		}`)
 
 	conf, err := New()
 	assert.NilError(t, err)
@@ -83,7 +76,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 	assert.Check(t, flags.Set("log-driver", "syslog"))
 	assert.Check(t, flags.Set("log-opt", "tag=from_flag"))
 
-	cc, err := MergeDaemonConfigurations(conf, flags, file.Path())
+	cc, err := MergeDaemonConfigurations(conf, flags, configFile)
 	assert.NilError(t, err)
 
 	assert.Check(t, cc.Debug)
@@ -108,10 +101,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeShmSize(t *testing.T) {
-	data := `{"default-shm-size": "1g"}`
-
-	file := fs.NewFile(t, "docker-config", fs.WithContent(data))
-	defer file.Remove()
+	configFile := makeConfigFile(t, `{"default-shm-size": "1g"}`)
 
 	c, err := New()
 	assert.NilError(t, err)
@@ -120,7 +110,7 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 	shmSize := opts.MemBytes(DefaultShmSize)
 	flags.Var(&shmSize, "default-shm-size", "")
 
-	cc, err := MergeDaemonConfigurations(c, flags, file.Path())
+	cc, err := MergeDaemonConfigurations(c, flags, configFile)
 	assert.NilError(t, err)
 
 	expectedValue := 1 * 1024 * 1024 * 1024
