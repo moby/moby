@@ -11,6 +11,9 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
+
 	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
@@ -434,10 +437,36 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return nil, err
 	}
 
-	// Strip the UTF-8 BOM if present ([RFC 8259] allows JSON implementations to optionally strip the BOM for
-	// interoperability; do so here as Notepad on older versions of Windows Server insists on a BOM).
-	// [RFC 8259]: https://tools.ietf.org/html/rfc8259#section-8.1
-	b = bytes.TrimPrefix(b, []byte("\xef\xbb\xbf"))
+	// Decode the contents of the JSON file using a [byte order mark] if present, instead of assuming UTF-8 without BOM.
+	// The BOM, if present, will be used to determine the encoding. If no BOM is present, we will assume the default
+	// and preferred encoding for JSON as defined by [RFC 8259], UTF-8 without BOM.
+	//
+	// While JSON is normatively UTF-8 with no BOM, there are a couple of reasons to decode here:
+	//   * UTF-8 with BOM is something that new implementations should avoid producing; however, [RFC 8259 Section 8.1]
+	//     allows implementations to ignore the UTF-8 BOM when present for interoperability. Older versions of Notepad,
+	//     the only text editor available out of the box on Windows Server, writes UTF-8 with a BOM by default.
+	//   * The default encoding for [Windows PowerShell] is UTF-16 LE with BOM. While encodings in PowerShell can be a
+	//     bit idiosyncratic, BOMs are still generally written. There is no support for selecting UTF-8 without a BOM as
+	//     the encoding in Windows PowerShell, though some Cmdlets only write UTF-8 with no BOM. PowerShell Core
+	//     introduces `utf8NoBOM` and makes it the default, but PowerShell Core is unlikely to be the implementation for
+	//     a majority of Windows Server + PowerShell users.
+	//   * While [RFC 8259 Section 8.1] asserts that software that is not part of a closed ecosystem or that crosses a
+	//     network boundary should only support UTF-8, and should never write a BOM, it does acknowledge older versions
+	//     of the standard, such as [RFC 7159 Section 8.1]. In the interest of pragmatism and easing pain for Windows
+	//     users, we consider Windows tools such as Windows PowerShell and Notepad part of our ecosystem, and support
+	//     the two most common encodings: UTF-16 LE with BOM, and UTF-8 with BOM, in addition to the standard UTF-8
+	//     without BOM.
+	//
+	// [byte order mark]: https://www.unicode.org/faq/utf_bom.html#BOM
+	// [RFC 8259]: https://www.rfc-editor.org/rfc/rfc8259
+	// [RFC 8259 Section 8.1]: https://www.rfc-editor.org/rfc/rfc8259#section-8.1
+	// [RFC 7159 Section 8.1]: https://www.rfc-editor.org/rfc/rfc7159#section-8.1
+	// [Windows PowerShell]: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-5.1
+	decoder := unicode.BOMOverride(unicode.UTF8.NewDecoder())
+	b, _, err = transform.Bytes(decoder, b)
+	if err != nil {
+		return nil, err
+	}
 	// Trim whitespace so that an empty config can be detected for an early return.
 	b = bytes.TrimSpace(b)
 
