@@ -87,7 +87,7 @@ func TestDispatch(t *testing.T) {
 		{
 			name: "COPY url",
 			cmd: &instructions.CopyCommand{SourcesAndDest: instructions.SourcesAndDest{
-				SourcePaths: []string{"https://index.docker.io/robots.txt"},
+				SourcePaths: []string{"https://example.com/index.html"},
 				DestPath:    "/",
 			}},
 			expectedError: "source can't be a URL for COPY",

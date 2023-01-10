@@ -48,7 +48,7 @@ func main() {
 	// NewSandbox accepts Variadic optional arguments which libnetwork can use.
 	sbx, err := controller.NewSandbox("container1",
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"))
+		libnetwork.OptionDomainname("example.com"))
 	if err != nil {
 		log.Fatalf("controller.NewSandbox: %s", err)
 	}
