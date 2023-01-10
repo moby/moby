@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 
@@ -462,10 +463,9 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	// [RFC 8259 Section 8.1]: https://www.rfc-editor.org/rfc/rfc8259#section-8.1
 	// [RFC 7159 Section 8.1]: https://www.rfc-editor.org/rfc/rfc7159#section-8.1
 	// [Windows PowerShell]: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-5.1
-	decoder := unicode.BOMOverride(unicode.UTF8.NewDecoder())
-	b, _, err = transform.Bytes(decoder, b)
+	b, n, err := transform.Bytes(transform.Chain(unicode.BOMOverride(transform.Nop), encoding.UTF8Validator), b)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to decode configuration JSON at offset %d", n)
 	}
 	// Trim whitespace so that an empty config can be detected for an early return.
 	b = bytes.TrimSpace(b)
