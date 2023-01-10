@@ -1,24 +1,9 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/docker/docker/daemon/config"
 	"github.com/spf13/pflag"
 )
-
-func getDefaultPidFile() (string, error) {
-	return "", nil
-}
-
-func getDefaultDataRoot() (string, error) {
-	return filepath.Join(os.Getenv("programdata"), "docker"), nil
-}
-
-func getDefaultExecRoot() (string, error) {
-	return filepath.Join(os.Getenv("programdata"), "docker", "exec-root"), nil
-}
 
 // installConfigFlags adds flags to the pflag.FlagSet to configure the daemon
 func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {

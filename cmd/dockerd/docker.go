@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/rootless"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/term"
 	"github.com/sirupsen/logrus"
@@ -21,7 +21,11 @@ var (
 )
 
 func newDaemonCommand() (*cobra.Command, error) {
-	opts := newDaemonOptions(config.New())
+	cfg, err := config.New()
+	if err != nil {
+		return nil, err
+	}
+	opts := newDaemonOptions(cfg)
 
 	cmd := &cobra.Command{
 		Use:           "dockerd [OPTIONS]",

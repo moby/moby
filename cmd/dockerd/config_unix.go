@@ -5,18 +5,13 @@ package main
 
 import (
 	"net"
-	"os/exec"
 	"path/filepath"
 
-	"github.com/containerd/cgroups"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/rootless"
-	units "github.com/docker/go-units"
-	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -26,12 +21,6 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	if err := installCommonConfigFlags(conf, flags); err != nil {
 		return err
 	}
-
-	conf.Ulimits = make(map[string]*units.Ulimit)
-
-	// Set default value for `--default-shm-size`
-	conf.ShmSize = opts.MemBytes(config.DefaultShmSize)
-	conf.Runtimes = make(map[string]types.Runtime)
 
 	// Then platform-specific install flags
 	flags.Var(opts.NewNamedRuntimeOpt("runtimes", &conf.Runtimes, config.StockRuntimeName), "add-runtime", "Register an additional OCI compatible runtime")
@@ -53,16 +42,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.BoolVar(&conf.BridgeConfig.InterContainerCommunication, "icc", true, "Enable inter-container communication")
 	flags.IPVar(&conf.BridgeConfig.DefaultIP, "ip", net.IPv4zero, "Default IP when binding container ports")
 	flags.BoolVar(&conf.BridgeConfig.EnableUserlandProxy, "userland-proxy", true, "Use userland proxy for loopback traffic")
-	defaultUserlandProxyPath := ""
-	if rootless.RunningWithRootlessKit() {
-		var err error
-		// use rootlesskit-docker-proxy for exposing the ports in RootlessKit netns to the initial namespace.
-		defaultUserlandProxyPath, err = exec.LookPath(rootless.RootlessKitDockerProxyBinary)
-		if err != nil {
-			return errors.Wrapf(err, "running with RootlessKit, but %s not installed", rootless.RootlessKitDockerProxyBinary)
-		}
-	}
-	flags.StringVar(&conf.BridgeConfig.UserlandProxyPath, "userland-proxy-path", defaultUserlandProxyPath, "Path to the userland proxy binary")
+	flags.StringVar(&conf.BridgeConfig.UserlandProxyPath, "userland-proxy-path", conf.BridgeConfig.UserlandProxyPath, "Path to the userland proxy binary")
 	flags.StringVar(&conf.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
 	flags.StringVar(&conf.RemappedRoot, "userns-remap", "", "User/Group setting for user namespaces")
 	flags.BoolVar(&conf.LiveRestoreEnabled, "live-restore", false, "Enable live restore of docker when containers are still running")
@@ -71,19 +51,15 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVar(&conf.InitPath, "init-path", "", "Path to the docker-init binary")
 	flags.Int64Var(&conf.CPURealtimePeriod, "cpu-rt-period", 0, "Limit the CPU real-time period in microseconds for the parent cgroup for all containers (not supported with cgroups v2)")
 	flags.Int64Var(&conf.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds for the parent cgroup for all containers (not supported with cgroups v2)")
-	flags.StringVar(&conf.SeccompProfile, "seccomp-profile", config.SeccompProfileDefault, `Path to seccomp profile. Use "unconfined" to disable the default seccomp profile`)
+	flags.StringVar(&conf.SeccompProfile, "seccomp-profile", conf.SeccompProfile, `Path to seccomp profile. Use "unconfined" to disable the default seccomp profile`)
 	flags.Var(&conf.ShmSize, "default-shm-size", "Default shm size for containers")
 	flags.BoolVar(&conf.NoNewPrivileges, "no-new-privileges", false, "Set no-new-privileges by default for new containers")
-	flags.StringVar(&conf.IpcMode, "default-ipc-mode", string(config.DefaultIpcMode), `Default mode for containers ipc ("shareable" | "private")`)
+	flags.StringVar(&conf.IpcMode, "default-ipc-mode", conf.IpcMode, `Default mode for containers ipc ("shareable" | "private")`)
 	flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "Default address pools for node specific local networks")
 	// rootless needs to be explicitly specified for running "rootful" dockerd in rootless dockerd (#38702)
-	// Note that defaultUserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
-	flags.BoolVar(&conf.Rootless, "rootless", rootless.RunningWithRootlessKit(), "Enable rootless mode; typically used with RootlessKit")
-	defaultCgroupNamespaceMode := config.DefaultCgroupNamespaceMode
-	if cgroups.Mode() != cgroups.Unified {
-		defaultCgroupNamespaceMode = config.DefaultCgroupV1NamespaceMode
-	}
-	flags.StringVar(&conf.CgroupNamespaceMode, "default-cgroupns-mode", string(defaultCgroupNamespaceMode), `Default mode for containers cgroup namespace ("host" | "private")`)
+	// Note that conf.BridgeConfig.UserlandProxyPath and honorXDG are configured according to the value of rootless.RunningWithRootlessKit, not the value of --rootless.
+	flags.BoolVar(&conf.Rootless, "rootless", conf.Rootless, "Enable rootless mode; typically used with RootlessKit")
+	flags.StringVar(&conf.CgroupNamespaceMode, "default-cgroupns-mode", conf.CgroupNamespaceMode, `Default mode for containers cgroup namespace ("host" | "private")`)
 	return nil
 }
 
@@ -96,37 +72,4 @@ func configureCertsDir() {
 			registry.SetCertsDir(filepath.Join(configHome, "docker/certs.d"))
 		}
 	}
-}
-
-func getDefaultPidFile() (string, error) {
-	if !honorXDG {
-		return "/var/run/docker.pid", nil
-	}
-	runtimeDir, err := homedir.GetRuntimeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(runtimeDir, "docker.pid"), nil
-}
-
-func getDefaultDataRoot() (string, error) {
-	if !honorXDG {
-		return "/var/lib/docker", nil
-	}
-	dataHome, err := homedir.GetDataHome()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataHome, "docker"), nil
-}
-
-func getDefaultExecRoot() (string, error) {
-	if !honorXDG {
-		return "/var/run/docker", nil
-	}
-	runtimeDir, err := homedir.GetRuntimeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(runtimeDir, "docker"), nil
 }
