@@ -15,8 +15,8 @@ thumbs.db
 
 # build artifacts
 bundles/
-cli/winresources/*/*.syso
-cli/winresources/*/winres.json
+cmd/*/winresources/*.syso
+cmd/*/winresources/winres.json
 contrib/builder/rpm/*/changelog
 
 # ci artifacts
