@@ -192,7 +192,8 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 
 	// Lookup with legacy model
 	if allowV1PluginsFallback {
-		pl, err := plugins.GetAll(capability)
+		l := plugins.NewLocalRegistry()
+		pl, err := l.GetAll(capability)
 		if err != nil {
 			return nil, errors.Wrap(errdefs.System(err), "legacy plugin")
 		}
