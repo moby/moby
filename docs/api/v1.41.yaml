@@ -823,13 +823,13 @@ definitions:
         description: |
           Log contains the last few results (oldest first)
         items:
-          x-nullable: true
           $ref: "#/definitions/HealthcheckResult"
 
   HealthcheckResult:
     description: |
       HealthcheckResult stores information about a single run of a healthcheck probe
     type: "object"
+    x-nullable: true
     properties:
       Start:
         description: |
@@ -2325,6 +2325,8 @@ definitions:
         type: "string"
       error:
         type: "string"
+      errorDetail:
+        $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
       progress:
@@ -4599,6 +4601,7 @@ definitions:
       ContainerState stores container's running state. It's part of ContainerJSONBase
       and will be returned by the "inspect" command.
     type: "object"
+    x-nullable: true
     properties:
       Status:
         description: |
@@ -4656,7 +4659,6 @@ definitions:
         type: "string"
         example: "2020-01-06T09:07:59.461876391Z"
       Health:
-        x-nullable: true
         $ref: "#/definitions/Health"
 
   ContainerWaitResponse:
@@ -6224,7 +6226,6 @@ paths:
                 items:
                   type: "string"
               State:
-                x-nullable: true
                 $ref: "#/definitions/ContainerState"
               Image:
                 description: "The container's image ID"
@@ -7036,7 +7037,8 @@ paths:
           type: "string"
         - name: "signal"
           in: "query"
-          description: "Signal to send to the container as an integer or string (e.g. `SIGINT`)"
+          description: |
+            Signal to send to the container as an integer or string (e.g. `SIGINT`).
           type: "string"
           default: "SIGKILL"
       tags: ["Container"]
@@ -8431,6 +8433,10 @@ paths:
               IdentityToken: "9cbaf023786cd7..."
         204:
           description: "No error"
+        401:
+          description: "Auth error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "Server error"
           schema:
@@ -9278,6 +9284,7 @@ paths:
           type: "boolean"
           default: false
       tags: ["Volume"]
+
   /volumes/prune:
     post:
       summary: "Delete unused volumes"
