@@ -95,7 +95,7 @@ func TestNull(t *testing.T) {
 
 	cnt, err := controller.NewSandbox("null_container",
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	if err != nil {
 		t.Fatal(err)
@@ -937,7 +937,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 
 	cnt, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	defer func() {
 		if err := cnt.Delete(); err != nil {
@@ -996,7 +996,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 
 	sbx1, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"),
 	)
 	if err != nil {
@@ -1133,7 +1133,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 
 	cnt, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	if err != nil {
 		t.Fatal(err)
@@ -1198,7 +1198,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 
 	sbx1, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	if err != nil {
 		t.Fatal(err)
@@ -1211,7 +1211,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 
 	sbx2, err := controller.NewSandbox("c2",
 		libnetwork.OptionHostname("test2"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionHostsPath("/var/lib/docker/test_network/container2/hosts"),
 		libnetwork.OptionExtraHost("web", "192.168.0.2"))
 	if err != nil {

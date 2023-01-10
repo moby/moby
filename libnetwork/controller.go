@@ -33,7 +33,7 @@ create network namespaces and allocate interfaces for containers to use.
 	// NewSandbox accepts Variadic optional arguments which libnetwork can use.
 	sbx, err := controller.NewSandbox("container1",
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"))
+		libnetwork.OptionDomainname("example.com"))
 
 	// A sandbox can join the endpoint via the join api.
 	err = ep.Join(sbx)

@@ -45,7 +45,7 @@ func TestHost(t *testing.T) {
 
 	sbx1, err := controller.NewSandbox("host_c1",
 		libnetwork.OptionHostname("test1"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"),
 		libnetwork.OptionUseDefaultSandbox())
 	if err != nil {
@@ -59,7 +59,7 @@ func TestHost(t *testing.T) {
 
 	sbx2, err := controller.NewSandbox("host_c2",
 		libnetwork.OptionHostname("test2"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"),
 		libnetwork.OptionUseDefaultSandbox())
 	if err != nil {
@@ -109,7 +109,7 @@ func TestHost(t *testing.T) {
 	// Try to create another host endpoint and join/leave that.
 	cnt3, err := controller.NewSandbox("host_c3",
 		libnetwork.OptionHostname("test3"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"),
 		libnetwork.OptionUseDefaultSandbox())
 	if err != nil {
@@ -292,7 +292,7 @@ func TestEndpointJoin(t *testing.T) {
 
 	sb, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	if err != nil {
 		t.Fatal(err)
@@ -446,7 +446,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 
 	cnt, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
-		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionDomainname("example.com"),
 		libnetwork.OptionUseExternalKey(),
 		libnetwork.OptionExtraHost("web", "192.168.0.1"))
 	defer func() {
