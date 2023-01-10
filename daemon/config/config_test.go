@@ -13,6 +13,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/imdario/mergo"
 	"github.com/spf13/pflag"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/unicode"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -38,12 +40,41 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
 }
 
-// TestDaemonConfigurationWithBOM ensures that the UTF-8 byte order mark is ignored when reading the configuration file.
-func TestDaemonConfigurationWithBOM(t *testing.T) {
-	configFile := makeConfigFile(t, "\xef\xbb\xbf{\"debug\": true}")
+// TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
+// respect a BOM and otherwise default to UTF-8.
+func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
+	jsonData := `{"debug": true}`
 
-	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
-	assert.NilError(t, err)
+	testCases := []struct {
+		name     string
+		encoding encoding.Encoding
+	}{
+		{
+			name:     "UTF-8",
+			encoding: unicode.UTF8,
+		},
+		{
+			name:     "UTF-8 (with BOM)",
+			encoding: unicode.UTF8BOM,
+		},
+		{
+			name:     "UTF-16 (BE with BOM)",
+			encoding: unicode.UTF16(unicode.BigEndian, unicode.UseBOM),
+		},
+		{
+			name:     "UTF-16 (LE with BOM)",
+			encoding: unicode.UTF16(unicode.LittleEndian, unicode.UseBOM),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			encodedJson, err := tc.encoding.NewEncoder().String(jsonData)
+			assert.NilError(t, err)
+			configFile := makeConfigFile(t, encodedJson)
+			_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+			assert.NilError(t, err)
+		})
+	}
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
