@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -174,4 +175,59 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists
 	icmd.RunCommand("iptables", "-t", "nat", "-C", "POSTROUTING", "-s", out.IPAM.Config[0].Subnet, "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
+}
+
+func TestRunContainerWithUniqueNetworkIDAndMatchingNetworkNames(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, IsUserNamespace())
+	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
+
+	d := daemon.New(t)
+	d.StartWithBusybox(t, "-b", "none")
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	ctx := context.Background()
+
+	withNoCheckDuplicates := func(n *types.NetworkCreate) {
+		n.CheckDuplicate = false
+	}
+
+	// Create two networks with the same name.
+	netName := "clashingnetwork"
+	id1 := network.CreateNoError(ctx, t, c, netName,
+		network.WithDriver("bridge"),
+		withNoCheckDuplicates,
+	)
+	id2 := network.CreateNoError(ctx, t, c, netName,
+		network.WithDriver("bridge"),
+		withNoCheckDuplicates,
+	)
+
+	// Run in a subtest so we clean up after all the tests are done running.
+	t.Run("SpawnContainers", func(t *testing.T) {
+		// Be reasonably sure that a container started with the network ID A
+		// explicitly won't be started as part of network B by trying it a bunch of
+		// times.
+		for i := 0; i < 50; i++ {
+			t.Run(fmt.Sprintf("Spawn%d", i), func(t *testing.T) {
+				t.Parallel()
+
+				netId := id1
+				if i%2 == 0 {
+					netId = id2
+				}
+
+				ctrId := container.Run(ctx, t, c, container.WithNetworkMode(netId))
+				defer c.ContainerRemove(ctx, ctrId, types.ContainerRemoveOptions{Force: true})
+
+				ctr, err := c.ContainerInspect(ctx, ctrId)
+				assert.NilError(t, err)
+
+				// Make sure the network is the one we wanted.
+				assert.Equal(t, ctr.NetworkSettings.Networks[netName].NetworkID, netId)
+			})
+		}
+	})
 }
