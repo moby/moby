@@ -4,7 +4,6 @@ FROM golang:${GO_VERSION}-alpine AS base
 ENV GO111MODULE=off
 RUN apk --no-cache add \
     bash \
-    btrfs-progs-dev \
     build-base \
     curl \
     lvm2-dev \

@@ -139,7 +139,7 @@ by having support for them in the kernel or userspace. A few examples include:
 
 * AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
   least the "auplink" utility from aufs-tools)
-* BTRFS graph driver (requires BTRFS support enabled in the kernel)
+* BTRFS graph driver (requires suitable kernel headers: `linux/btrfs.h` and `linux/btrfs_tree.h`, present in 4.12+; and BTRFS support enabled in the kernel)
 * ZFS graph driver (requires userspace zfs-utils and a corresponding kernel module)
 * Libseccomp to allow running seccomp profiles with containers
 

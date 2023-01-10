@@ -232,7 +232,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 }
 
 func (d *Driver) cloneFilesystem(name, parentName string) error {
-	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
+	snapshotName := strconv.Itoa(time.Now().Nanosecond())
 	parentDataset := zfs.Dataset{Name: parentName}
 	snapshot, err := parentDataset.Snapshot(snapshotName /*recursive */, false)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -659,8 +660,8 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 	for i := 1; i < 127; i++ {
 		expected++
 		var (
-			parent  = fmt.Sprintf("%d", i-1)
-			current = fmt.Sprintf("%d", i)
+			parent  = strconv.Itoa(i - 1)
+			current = strconv.Itoa(i)
 		)
 
 		if parent == "0" {
