@@ -91,3 +91,12 @@ func GetConfigHome() (string, error) {
 	}
 	return filepath.Join(home, ".config"), nil
 }
+
+// GetLibHome returns $HOME/.local/lib
+func GetLibHome() (string, error) {
+	home := os.Getenv("HOME")
+	if home == "" {
+		return "", errors.New("could not get HOME")
+	}
+	return filepath.Join(home, ".local/lib"), nil
+}

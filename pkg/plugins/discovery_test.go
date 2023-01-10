@@ -13,7 +13,7 @@ func Setup(t *testing.T) (string, func()) {
 	}
 	backup := socketsPath
 	socketsPath = tmpdir
-	specsPaths = []string{tmpdir}
+	globalSpecsPaths = []string{tmpdir}
 
 	return tmpdir, func() {
 		socketsPath = backup

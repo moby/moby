@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
+	"github.com/docker/docker/pkg/rootless"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 )
