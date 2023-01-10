@@ -127,13 +127,13 @@ try {
 }'
 
     # Write the file
-    $outputFile="$(Get-Location)\cli\winresources\dockerd\winres.json"
+    $outputFile="$(Get-Location)\cmd\dockerd\winresources\winres.json"
     if (Test-Path $outputFile) { Remove-Item $outputFile }
     [System.IO.File]::WriteAllText($outputFile, $mkwinresContents)
     Get-Content $outputFile | Out-Host
 
     # Create winresources package stub if removed while using tmpfs in Dockerfile
-    $stubPackage="$(Get-Location)\cli\winresources\dockerd\winresources.go"
+    $stubPackage="$(Get-Location)\cmd\dockerd\winresources.go"
     if(![System.IO.File]::Exists($stubPackage)){
         Set-Content -NoNewline -Path $stubPackage -Value 'package winresources'
     }
