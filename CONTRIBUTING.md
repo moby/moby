@@ -309,36 +309,6 @@ Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
 
-### Manage issues and pull requests using the Derek bot
-
-If you want to help label, assign, close or reopen issues or pull requests
-without commit rights, ask a maintainer to add your Github handle to the 
-`.DEREK.yml` file. [Derek](https://github.com/alexellis/derek) is a bot that extends
-Github's user permissions to help non-committers to manage issues and pull requests simply by commenting.
-
-For example:
-
-* Labels
-
-```
-Derek add label: kind/question
-Derek remove label: status/claimed
-```
-
-* Assign work
-
-```
-Derek assign: username
-Derek unassign: me
-```
-
-* Manage issues and PRs
-
-```
-Derek close
-Derek reopen
-```
-
 ## Moby community guidelines
 
 We want to keep the Moby community awesome, growing and collaborative. We need
