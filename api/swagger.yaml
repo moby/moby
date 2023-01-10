@@ -2343,6 +2343,8 @@ definitions:
         type: "string"
       error:
         type: "string"
+      errorDetail:
+        $ref: "#/definitions/ErrorDetail"
       status:
         type: "string"
       progress:
