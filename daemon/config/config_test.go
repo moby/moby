@@ -77,6 +77,18 @@ func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
 	}
 }
 
+// TestDaemonConfigurationInvalidUnicode ensures that the JSON parser returns a useful error message if malformed UTF-8
+// is provided.
+func TestDaemonConfigurationInvalidUnicode(t *testing.T) {
+	configFileBOM := makeConfigFile(t, "\xef\xbb\xbf{\"debug\": true}\xff")
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFileBOM)
+	assert.ErrorIs(t, err, encoding.ErrInvalidUTF8)
+
+	configFileNoBOM := makeConfigFile(t, "{\"debug\": true}\xff")
+	_, err = MergeDaemonConfigurations(&Config{}, nil, configFileNoBOM)
+	assert.ErrorIs(t, err, encoding.ErrInvalidUTF8)
+}
+
 func TestFindConfigurationConflicts(t *testing.T) {
 	config := map[string]interface{}{"authorization-plugins": "foobar"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
