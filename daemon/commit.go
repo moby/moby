@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
@@ -119,6 +120,26 @@ func merge(userConf, imageConf *containertypes.Config) error {
 // applying that config over the existing container config.
 func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string, c *backend.CreateImageConfig) (string, error) {
 	start := time.Now()
+
+	var newRef reference.Named
+	if c.Repo != "" {
+		ref, err := reference.ParseNormalizedNamed(c.Repo)
+		if err != nil {
+			return "", errdefs.InvalidParameter(err)
+		}
+
+		if c.Tag != "" {
+			ref, err = reference.WithTag(ref, c.Tag)
+			if err != nil {
+				return "", errdefs.InvalidParameter(err)
+			}
+		} else {
+			ref = reference.TagNameOnly(ref)
+		}
+
+		newRef = ref
+	}
+
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return "", err
@@ -169,12 +190,13 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		return "", err
 	}
 
-	var imageRef string
-	if c.Repo != "" {
-		imageRef, err = daemon.imageService.TagImage(ctx, string(id), c.Repo, c.Tag)
+	imageRef := ""
+	if newRef != nil {
+		err = daemon.imageService.TagImage(ctx, id, newRef)
 		if err != nil {
 			return "", err
 		}
+		imageRef = reference.FamiliarString(newRef)
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", map[string]string{
 		"comment":  c.Comment,
