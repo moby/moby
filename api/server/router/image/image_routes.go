@@ -93,10 +93,6 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			}
 		}
 
-		if len(comment) == 0 {
-			comment = "Imported from " + src
-		}
-
 		var layerReader io.ReadCloser
 		defer r.Body.Close()
 		if src == "-" {
