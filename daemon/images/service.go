@@ -39,7 +39,7 @@ type ImageServiceConfig struct {
 	MaxConcurrentUploads      int
 	MaxDownloadAttempts       int
 	ReferenceStore            dockerreference.Store
-	RegistryService           registry.Service
+	RegistryService           *registry.Service
 	ContentStore              content.Store
 	Leases                    leases.Manager
 	ContentNamespace          string
@@ -73,7 +73,7 @@ type ImageService struct {
 	layerStore                layer.Store
 	pruneRunning              int32
 	referenceStore            dockerreference.Store
-	registryService           registry.Service
+	registryService           *registry.Service
 	uploadManager             *xfer.LayerUploadManager
 	leases                    leases.Manager
 	content                   content.Store

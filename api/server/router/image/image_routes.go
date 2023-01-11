@@ -346,7 +346,12 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
 	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
-	query, err := ir.backend.SearchRegistryForImages(ctx, searchFilters, r.Form.Get("term"), limit, authConfig, headers)
+	query, err := ir.searchBackend.SearchImages(ctx, r.Form.Get("term"), registry.SearchOpts{
+		Filters:    searchFilters,
+		Limit:      limit,
+		AuthConfig: authConfig,
+		Headers:    headers,
+	})
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 
+	"github.com/docker/docker/api/types/filters"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -82,6 +83,21 @@ type IndexInfo struct {
 	Secure bool
 	// Official indicates whether this is an official registry
 	Official bool
+}
+
+// SearchOpts holds parameters to search a registry for images.
+type SearchOpts struct {
+	// Filters to apply to the search results.
+	Filters filters.Args
+	// Limit limits the number of images to return. If not set, a default
+	// limit is set by the search service.
+	Limit int
+	// AuthConfig holds authentication credentials for authenticating with
+	// the registry.
+	AuthConfig *AuthConfig
+	// Headers contains custom "X-Meta-" prefixed meta-headers to include
+	// in registry requests.
+	Headers map[string][]string
 }
 
 // SearchResult describes a search result returned from a registry

@@ -3,55 +3,41 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"context"
 	"crypto/tls"
-	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 )
 
-// Service is the interface defining what a registry service should implement.
-type Service interface {
-	Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error)
-	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
-	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
-	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error)
-	ServiceConfig() *registry.ServiceConfig
-	LoadAllowNondistributableArtifacts([]string) error
-	LoadMirrors([]string) error
-	LoadInsecureRegistries([]string) error
-}
-
-// defaultService is a registry service. It tracks configuration data such as a list
+// Service is a registry service. It tracks configuration data such as a list
 // of mirrors.
-type defaultService struct {
+type Service struct {
 	config *serviceConfig
 	mu     sync.RWMutex
 }
 
-// NewService returns a new instance of defaultService ready to be
+// NewService returns a new instance of Service ready to be
 // installed into an engine.
-func NewService(options ServiceOptions) (Service, error) {
+func NewService(options ServiceOptions) (*Service, error) {
 	config, err := newServiceConfig(options)
 
-	return &defaultService{config: config}, err
+	return &Service{config: config}, err
 }
 
 // ServiceConfig returns a copy of the public registry service's configuration.
-func (s *defaultService) ServiceConfig() *registry.ServiceConfig {
+func (s *Service) ServiceConfig() *registry.ServiceConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.config.copy()
 }
 
-// LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.
-func (s *defaultService) LoadAllowNondistributableArtifacts(registries []string) error {
+// LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts
+// registries for Service.
+func (s *Service) LoadAllowNondistributableArtifacts(registries []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -59,7 +45,7 @@ func (s *defaultService) LoadAllowNondistributableArtifacts(registries []string)
 }
 
 // LoadMirrors loads registry mirrors for Service
-func (s *defaultService) LoadMirrors(mirrors []string) error {
+func (s *Service) LoadMirrors(mirrors []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -67,7 +53,7 @@ func (s *defaultService) LoadMirrors(mirrors []string) error {
 }
 
 // LoadInsecureRegistries loads insecure registries for Service
-func (s *defaultService) LoadInsecureRegistries(registries []string) error {
+func (s *Service) LoadInsecureRegistries(registries []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -77,7 +63,7 @@ func (s *defaultService) LoadInsecureRegistries(registries []string) error {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *defaultService) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
+func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
 	var registryHostName = IndexHostname
 
@@ -116,81 +102,9 @@ func (s *defaultService) Auth(ctx context.Context, authConfig *registry.AuthConf
 	return "", "", err
 }
 
-// splitReposSearchTerm breaks a search term into an index name and remote name
-func splitReposSearchTerm(reposName string) (string, string) {
-	nameParts := strings.SplitN(reposName, "/", 2)
-	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
-		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
-		// This is a Docker Hub repository (ex: samalba/hipache or ubuntu),
-		// use the default Docker Hub registry (docker.io)
-		return IndexName, reposName
-	}
-	return nameParts[0], nameParts[1]
-}
-
-// Search queries the public registry for images matching the specified
-// search terms, and returns the results.
-func (s *defaultService) Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
-	// TODO Use ctx when searching for repositories
-	if hasScheme(term) {
-		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
-	}
-
-	indexName, remoteName := splitReposSearchTerm(term)
-
-	// Search is a long-running operation, just lock s.config to avoid block others.
-	s.mu.RLock()
-	index, err := newIndexInfo(s.config, indexName)
-	s.mu.RUnlock()
-
-	if err != nil {
-		return nil, err
-	}
-	if index.Official {
-		// If pull "library/foo", it's stored locally under "foo"
-		remoteName = strings.TrimPrefix(remoteName, "library/")
-	}
-
-	endpoint, err := newV1Endpoint(index, userAgent, headers)
-	if err != nil {
-		return nil, err
-	}
-
-	var client *http.Client
-	if authConfig != nil && authConfig.IdentityToken != "" && authConfig.Username != "" {
-		creds := NewStaticCredentialStore(authConfig)
-		scopes := []auth.Scope{
-			auth.RegistryScope{
-				Name:    "catalog",
-				Actions: []string{"search"},
-			},
-		}
-
-		modifiers := Headers(userAgent, nil)
-		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
-		if err != nil {
-			return nil, err
-		}
-		// Copy non transport http client features
-		v2Client.Timeout = endpoint.client.Timeout
-		v2Client.CheckRedirect = endpoint.client.CheckRedirect
-		v2Client.Jar = endpoint.client.Jar
-
-		logrus.Debugf("using v2 client for search to %s", endpoint.URL)
-		client = v2Client
-	} else {
-		client = endpoint.client
-		if err := authorizeClient(client, authConfig, endpoint); err != nil {
-			return nil, err
-		}
-	}
-
-	return newSession(client, endpoint).searchRepositories(remoteName, limit)
-}
-
 // ResolveRepository splits a repository name into its components
 // and configuration of the associated registry.
-func (s *defaultService) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
+func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return newRepositoryInfo(s.config, name)
@@ -209,7 +123,7 @@ type APIEndpoint struct {
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
 // It gives preference to mirrors over the actual registry, and HTTPS over plain HTTP.
-func (s *defaultService) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -218,7 +132,7 @@ func (s *defaultService) LookupPullEndpoints(hostname string) (endpoints []APIEn
 
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
 // It gives preference to HTTPS over plain HTTP. Mirrors are not included.
-func (s *defaultService) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

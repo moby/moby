@@ -4,138 +4,14 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
-
-func spawnTestRegistrySession(t *testing.T) *session {
-	authConfig := &registry.AuthConfig{}
-	endpoint, err := newV1Endpoint(makeIndex("/v1/"), "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	userAgent := "docker test client"
-	var tr http.RoundTripper = debugTransport{newTransport(nil), t.Log}
-	tr = transport.NewTransport(newAuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
-	client := httpClient(tr)
-
-	if err := authorizeClient(client, authConfig, endpoint); err != nil {
-		t.Fatal(err)
-	}
-	r := newSession(client, endpoint)
-
-	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
-	// header while authenticating, in order to retrieve a token that can be later used to
-	// perform authenticated actions.
-	//
-	// The mock v1 registry does not support that, (TODO(tiborvass): support it), instead,
-	// it will consider authenticated any request with the header `X-Docker-Token: fake-token`.
-	//
-	// Because we know that the client's transport is an `*authTransport` we simply cast it,
-	// in order to set the internal cached token to the fake token, and thus send that fake token
-	// upon every subsequent requests.
-	r.client.Transport.(*authTransport).token = []string{"fake-token"}
-	return r
-}
-
-func TestPingRegistryEndpoint(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	testPing := func(index *registry.IndexInfo, expectedStandalone bool, assertMessage string) {
-		ep, err := newV1Endpoint(index, "", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		regInfo, err := ep.ping()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		assert.Equal(t, regInfo.Standalone, expectedStandalone, assertMessage)
-	}
-
-	testPing(makeIndex("/v1/"), true, "Expected standalone to be true (default)")
-	testPing(makeHTTPSIndex("/v1/"), true, "Expected standalone to be true (default)")
-	testPing(makePublicIndex(), false, "Expected standalone to be false for public index")
-}
-
-func TestEndpoint(t *testing.T) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	// Simple wrapper to fail test if err != nil
-	expandEndpoint := func(index *registry.IndexInfo) *v1Endpoint {
-		endpoint, err := newV1Endpoint(index, "", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return endpoint
-	}
-
-	assertInsecureIndex := func(index *registry.IndexInfo) {
-		index.Secure = true
-		_, err := newV1Endpoint(index, "", nil)
-		assert.ErrorContains(t, err, "insecure-registry", index.Name+": Expected insecure-registry  error for insecure index")
-		index.Secure = false
-	}
-
-	assertSecureIndex := func(index *registry.IndexInfo) {
-		index.Secure = true
-		_, err := newV1Endpoint(index, "", nil)
-		assert.ErrorContains(t, err, "certificate signed by unknown authority", index.Name+": Expected cert error for secure index")
-		index.Secure = false
-	}
-
-	index := &registry.IndexInfo{}
-	index.Name = makeURL("/v1/")
-	endpoint := expandEndpoint(index)
-	assert.Equal(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
-	assertInsecureIndex(index)
-
-	index.Name = makeURL("")
-	endpoint = expandEndpoint(index)
-	assert.Equal(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
-	assertInsecureIndex(index)
-
-	httpURL := makeURL("")
-	index.Name = strings.SplitN(httpURL, "://", 2)[1]
-	endpoint = expandEndpoint(index)
-	assert.Equal(t, endpoint.String(), httpURL+"/v1/", index.Name+": Expected endpoint to be "+httpURL+"/v1/")
-	assertInsecureIndex(index)
-
-	index.Name = makeHTTPSURL("/v1/")
-	endpoint = expandEndpoint(index)
-	assert.Equal(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
-	assertSecureIndex(index)
-
-	index.Name = makeHTTPSURL("")
-	endpoint = expandEndpoint(index)
-	assert.Equal(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
-	assertSecureIndex(index)
-
-	httpsURL := makeHTTPSURL("")
-	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
-	endpoint = expandEndpoint(index)
-	assert.Equal(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
-	assertSecureIndex(index)
-
-	badEndpoints := []string{
-		"http://127.0.0.1/v1/",
-		"https://127.0.0.1/v1/",
-		"http://127.0.0.1",
-		"https://127.0.0.1",
-		"127.0.0.1",
-	}
-	for _, address := range badEndpoints {
-		index.Name = address
-		_, err := newV1Endpoint(index, "", nil)
-		assert.Check(t, err != nil, "Expected error while expanding bad endpoint: %s", address)
-	}
-}
 
 func TestParseRepositoryInfo(t *testing.T) {
 	type staticRepositoryInfo struct {
@@ -520,7 +396,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := defaultService{config: cfg}
+	s := Service{config: cfg}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {
@@ -541,20 +417,6 @@ func TestMirrorEndpointLookup(t *testing.T) {
 	if !containsMirror(pullAPIEndpoints) {
 		t.Fatal("Pull endpoint should contain mirror")
 	}
-}
-
-func TestSearchRepositories(t *testing.T) {
-	r := spawnTestRegistrySession(t)
-	results, err := r.searchRepositories("fakequery", 25)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if results == nil {
-		t.Fatal("Expected non-nil SearchResults object")
-	}
-	assert.Equal(t, results.NumResults, 1, "Expected 1 search results")
-	assert.Equal(t, results.Query, "fakequery", "Expected 'fakequery' as query")
-	assert.Equal(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
 }
 
 func TestTrustedLocation(t *testing.T) {

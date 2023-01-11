@@ -511,6 +511,7 @@ func initRouter(opts routerOptions) {
 		container.NewRouter(opts.daemon, decoder, opts.daemon.RawSysInfo().CgroupUnified),
 		image.NewRouter(
 			opts.daemon.ImageService(),
+			opts.daemon.SearchService(),
 			opts.daemon.ReferenceStore,
 			opts.daemon.ImageService().DistributionServices().ImageStore,
 			opts.daemon.ImageService().DistributionServices().LayerStore,
