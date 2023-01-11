@@ -1122,6 +1122,7 @@ definitions:
               remapping option is enabled.
           ShmSize:
             type: "integer"
+            format: "int64"
             description: |
               Size of `/dev/shm` in bytes. If omitted, the system uses 64MB.
             minimum: 0
@@ -8727,6 +8728,10 @@ paths:
               IdentityToken: "9cbaf023786cd7..."
         204:
           description: "No error"
+        401:
+          description: "Auth error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         500:
           description: "Server error"
           schema:
