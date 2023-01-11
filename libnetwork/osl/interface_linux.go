@@ -3,7 +3,6 @@ package osl
 import (
 	"fmt"
 	"net"
-	"regexp"
 	"sync"
 	"syscall"
 	"time"
@@ -416,30 +415,6 @@ func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 		}
 	}
 	return nil
-}
-
-// In older kernels (like the one in Centos 6.6 distro) sysctl does not have netns support. Therefore
-// we cannot gather the statistics from /sys/class/net/<dev>/statistics/<counter> files. Per-netns stats
-// are naturally found in /proc/net/dev in kernels which support netns (ifconfig relies on that).
-const (
-	base = "[ ]*%s:([ ]+[0-9]+){16}"
-)
-
-func scanInterfaceStats(data, ifName string, i *types.InterfaceStatistics) error {
-	var (
-		bktStr string
-		bkt    uint64
-	)
-
-	regex := fmt.Sprintf(base, ifName)
-	re := regexp.MustCompile(regex)
-	line := re.FindString(data)
-
-	_, err := fmt.Sscanf(line, "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
-		&bktStr, &i.RxBytes, &i.RxPackets, &i.RxErrors, &i.RxDropped, &bkt, &bkt, &bkt,
-		&bkt, &i.TxBytes, &i.TxPackets, &i.TxErrors, &i.TxDropped, &bkt, &bkt, &bkt, &bkt)
-
-	return err
 }
 
 func checkRouteConflict(nlh *netlink.Handle, address *net.IPNet, family int) error {

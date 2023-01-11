@@ -158,32 +158,6 @@ func verifyCleanup(t *testing.T, s Sandbox, wait bool) {
 	}
 }
 
-func TestScanStatistics(t *testing.T) {
-	data :=
-		"Inter-|   Receive                                                |  Transmit\n" +
-			"	face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed\n" +
-			"  eth0:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0\n" +
-			" wlan0: 7787685   11141    0    0    0     0          0         0  1681390    7220    0    0    0     0       0          0\n" +
-			"    lo:  783782    1853    0    0    0     0          0         0   783782    1853    0    0    0     0       0          0\n" +
-			"lxcbr0:       0       0    0    0    0     0          0         0     9006      61    0    0    0     0       0          0\n"
-
-	i := &types.InterfaceStatistics{}
-
-	if err := scanInterfaceStats(data, "wlan0", i); err != nil {
-		t.Fatal(err)
-	}
-	if i.TxBytes != 1681390 || i.TxPackets != 7220 || i.RxBytes != 7787685 || i.RxPackets != 11141 {
-		t.Fatalf("Error scanning the statistics")
-	}
-
-	if err := scanInterfaceStats(data, "lxcbr0", i); err != nil {
-		t.Fatal(err)
-	}
-	if i.TxBytes != 9006 || i.TxPackets != 61 || i.RxBytes != 0 || i.RxPackets != 0 {
-		t.Fatalf("Error scanning the statistics")
-	}
-}
-
 func TestDisableIPv6DAD(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 

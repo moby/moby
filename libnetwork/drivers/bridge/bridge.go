@@ -9,10 +9,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"sync"
-	"syscall"
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
@@ -891,32 +889,10 @@ func addToBridge(nlh *netlink.Handle, ifaceName, bridgeName string) error {
 
 func setHairpinMode(nlh *netlink.Handle, link netlink.Link, enable bool) error {
 	err := nlh.LinkSetHairpin(link, enable)
-	if err != nil && err != syscall.EINVAL {
-		// If error is not EINVAL something else went wrong, bail out right away
+	if err != nil {
 		return fmt.Errorf("unable to set hairpin mode on %s via netlink: %v",
 			link.Attrs().Name, err)
 	}
-
-	// Hairpin mode successfully set up
-	if err == nil {
-		return nil
-	}
-
-	// The netlink method failed with EINVAL which is probably because of an older
-	// kernel. Try one more time via the sysfs method.
-	path := filepath.Join("/sys/class/net", link.Attrs().Name, "brport/hairpin_mode")
-
-	var val []byte
-	if enable {
-		val = []byte{'1', '\n'}
-	} else {
-		val = []byte{'0', '\n'}
-	}
-
-	if err := os.WriteFile(path, val, 0644); err != nil {
-		return fmt.Errorf("unable to set hairpin mode on %s via sysfs: %v", link.Attrs().Name, err)
-	}
-
 	return nil
 }
 

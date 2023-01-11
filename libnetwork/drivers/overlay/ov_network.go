@@ -124,6 +124,8 @@ func setDefaultVlan() {
 	}
 
 	brName := os.Args[2]
+	// IFLA_BR_VLAN_DEFAULT_PVID was added in Linux v4.4 (see torvalds/linux@0f963b7), so we can't use netlink for
+	// setting this until Docker drops support for CentOS/RHEL 7 (kernel 3.10, eol date: 2024-06-30).
 	path := filepath.Join("/sys/class/net", brName, "bridge/default_pvid")
 	data := []byte{'0', '\n'}
 
