@@ -153,9 +153,9 @@ func (c *controller) getLBIndex(sid, nid string, ingressPorts []*PortConfig) int
 		id:    sid,
 		ports: portConfigs(ingressPorts).String(),
 	}
-	c.Lock()
+	c.mu.Lock()
 	s, ok := c.serviceBindings[skey]
-	c.Unlock()
+	c.mu.Unlock()
 
 	if !ok {
 		return 0
@@ -170,8 +170,8 @@ func (c *controller) getLBIndex(sid, nid string, ingressPorts []*PortConfig) int
 
 // cleanupServiceDiscovery when the network is being deleted, erase all the associated service discovery records
 func (c *controller) cleanupServiceDiscovery(cleanupNID string) {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if cleanupNID == "" {
 		logrus.Debugf("cleanupServiceDiscovery for all networks")
 		c.svcRecords = make(map[string]svcInfo)
@@ -185,12 +185,12 @@ func (c *controller) cleanupServiceBindings(cleanupNID string) {
 	var cleanupFuncs []func()
 
 	logrus.Debugf("cleanupServiceBindings for %s", cleanupNID)
-	c.Lock()
+	c.mu.Lock()
 	services := make([]*service, 0, len(c.serviceBindings))
 	for _, s := range c.serviceBindings {
 		services = append(services, s)
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	for _, s := range services {
 		s.Lock()
@@ -248,7 +248,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 
 	var s *service
 	for {
-		c.Lock()
+		c.mu.Lock()
 		var ok bool
 		s, ok = c.serviceBindings[skey]
 		if !ok {
@@ -257,7 +257,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 			s = newService(svcName, svcID, ingressPorts, serviceAliases)
 			c.serviceBindings[skey] = s
 		}
-		c.Unlock()
+		c.mu.Unlock()
 		s.Lock()
 		if !s.deleted {
 			// ok the object is good to be used
@@ -321,9 +321,9 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 		ports: portConfigs(ingressPorts).String(),
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	s, ok := c.serviceBindings[skey]
-	c.Unlock()
+	c.mu.Unlock()
 	if !ok {
 		logrus.Warnf("rmServiceBinding %s %s %s aborted c.serviceBindings[skey] !ok", method, svcName, eID)
 		return nil
@@ -398,14 +398,14 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 	if len(s.loadBalancers) == 0 {
 		// All loadbalancers for the service removed. Time to
 		// remove the service itself.
-		c.Lock()
+		c.mu.Lock()
 
 		// Mark the object as deleted so that the add won't use it wrongly
 		s.deleted = true
 		// NOTE The delete from the serviceBindings map has to be the last operation else we are allowing a race between this service
 		// that is getting deleted and a new service that will be created if the entry is not anymore there
 		delete(c.serviceBindings, skey)
-		c.Unlock()
+		c.mu.Unlock()
 	}
 
 	logrus.Debugf("rmServiceBinding from %s END for %s %s", method, svcName, eID)

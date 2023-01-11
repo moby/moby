@@ -253,12 +253,12 @@ func (sb *sandbox) delete(force bool) error {
 		logrus.Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	if sb.ingress {
 		c.ingressSandbox = nil
 	}
 	delete(c.sandboxes, sb.ID())
-	c.Unlock()
+	c.mu.Unlock()
 
 	return nil
 }

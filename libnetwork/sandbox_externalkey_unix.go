@@ -131,9 +131,9 @@ func (c *controller) startExternalKeyListener() error {
 		l.Close()
 		return err
 	}
-	c.Lock()
+	c.mu.Lock()
 	c.extKeyListener = l
-	c.Unlock()
+	c.mu.Unlock()
 
 	go c.acceptClientConnections(uds, l)
 	return nil

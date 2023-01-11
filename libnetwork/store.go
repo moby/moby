@@ -18,9 +18,9 @@ func (c *controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) err
 	if err != nil {
 		return err
 	}
-	c.Lock()
+	c.mu.Lock()
 	c.stores = append(c.stores, store)
-	c.Unlock()
+	c.mu.Unlock()
 
 	return nil
 }
@@ -28,14 +28,14 @@ func (c *controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) err
 func (c *controller) initStores() error {
 	registerKVStores()
 
-	c.Lock()
+	c.mu.Lock()
 	if c.cfg == nil {
-		c.Unlock()
+		c.mu.Unlock()
 		return nil
 	}
 	scopeConfigs := c.cfg.Scopes
 	c.stores = nil
-	c.Unlock()
+	c.mu.Unlock()
 
 	for scope, scfg := range scopeConfigs {
 		if err := c.initScopedStore(scope, scfg); err != nil {
@@ -54,8 +54,8 @@ func (c *controller) closeStores() {
 }
 
 func (c *controller) getStore(scope string) datastore.DataStore {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	for _, store := range c.stores {
 		if store.Scope() == scope {
@@ -67,8 +67,8 @@ func (c *controller) getStore(scope string) datastore.DataStore {
 }
 
 func (c *controller) getStores() []datastore.DataStore {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	return c.stores
 }
@@ -244,8 +244,8 @@ type netWatch struct {
 }
 
 func (c *controller) getLocalEps(nw *netWatch) []*endpoint {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	var epl []*endpoint
 	for _, ep := range nw.localEps {
@@ -276,7 +276,7 @@ func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 				break
 			}
 
-			c.Lock()
+			c.mu.Lock()
 			var addEp []*endpoint
 
 			delEpMap := make(map[string]*endpoint)
@@ -315,7 +315,7 @@ func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 					delete(nw.remoteEps, lEp.ID())
 				}
 			}
-			c.Unlock()
+			c.mu.Unlock()
 
 			for _, lEp := range delEpMap {
 				ep.getNetwork().updateSvcRecord(lEp, c.getLocalEps(nw), false)
@@ -336,22 +336,22 @@ func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 	networkID := n.ID()
 	endpointID := ep.ID()
 
-	c.Lock()
+	c.mu.Lock()
 	nw, ok := nmap[networkID]
-	c.Unlock()
+	c.mu.Unlock()
 
 	if ok {
 		// Update the svc db for the local endpoint join right away
 		n.updateSvcRecord(ep, c.getLocalEps(nw), true)
 
-		c.Lock()
+		c.mu.Lock()
 		nw.localEps[endpointID] = ep
 
 		// If we had learned that from the kv store remove it
 		// from remote ep list now that we know that this is
 		// indeed a local endpoint
 		delete(nw.remoteEps, endpointID)
-		c.Unlock()
+		c.mu.Unlock()
 		return
 	}
 
@@ -365,11 +365,11 @@ func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 	// try to update this ep's container's svc records
 	n.updateSvcRecord(ep, c.getLocalEps(nw), true)
 
-	c.Lock()
+	c.mu.Lock()
 	nw.localEps[endpointID] = ep
 	nmap[networkID] = nw
 	nw.stopCh = make(chan struct{})
-	c.Unlock()
+	c.mu.Unlock()
 
 	store := c.getStore(n.DataScope())
 	if store == nil {
@@ -398,19 +398,19 @@ func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoi
 	networkID := n.ID()
 	endpointID := ep.ID()
 
-	c.Lock()
+	c.mu.Lock()
 	nw, ok := nmap[networkID]
 
 	if ok {
 		delete(nw.localEps, endpointID)
-		c.Unlock()
+		c.mu.Unlock()
 
 		// Update the svc db about local endpoint leave right away
 		// Do this after we remove this ep from localEps so that we
 		// don't try to remove this svc record from this ep's container.
 		n.updateSvcRecord(ep, c.getLocalEps(nw), false)
 
-		c.Lock()
+		c.mu.Lock()
 		if len(nw.localEps) == 0 {
 			close(nw.stopCh)
 
@@ -421,7 +421,7 @@ func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoi
 			delete(nmap, networkID)
 		}
 	}
-	c.Unlock()
+	c.mu.Unlock()
 }
 
 func (c *controller) watchLoop() {

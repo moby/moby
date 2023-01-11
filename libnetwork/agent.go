@@ -108,7 +108,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 
 	// Find the deleted key. If the deleted key was the primary key,
 	// a new primary key should be set before removing if from keyring.
-	c.Lock()
+	c.mu.Lock()
 	added := []byte{}
 	deleted := []byte{}
 	j := len(c.keys)
@@ -157,7 +157,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			}
 		}
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	if len(added) > 0 {
 		a.networkDB.SetKey(added)
@@ -249,8 +249,8 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 // For a given subsystem getKeys sorts the keys by lamport time and returns
 // slice of keys and lamport time which can used as a unique tag for the keys
 func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	sort.Sort(ByTime(c.keys))
 
@@ -271,8 +271,8 @@ func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
 // getPrimaryKeyTag returns the primary key for a given subsystem from the
 // list of sorted key and the associated tag
 func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	sort.Sort(ByTime(c.keys))
 	keys := []*types.EncryptionKey{}
 	for _, key := range c.keys {
@@ -316,7 +316,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "", "")
 	cancelList = append(cancelList, cancel)
 
-	c.Lock()
+	c.mu.Lock()
 	c.agent = &agent{
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
@@ -325,7 +325,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 		coreCancelFuncs:   cancelList,
 		driverCancelFuncs: make(map[string][]func()),
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
@@ -383,10 +383,10 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 func (c *controller) agentClose() {
 	// Acquire current agent instance and reset its pointer
 	// then run closing functions
-	c.Lock()
+	c.mu.Lock()
 	agent := c.agent
 	c.agent = nil
-	c.Unlock()
+	c.mu.Unlock()
 
 	// when the agent is closed the cluster provider should be cleaned up
 	c.SetClusterProvider(nil)

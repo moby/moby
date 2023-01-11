@@ -174,7 +174,7 @@ type controller struct {
 	agentStopDone    chan struct{}
 	keys             []*types.EncryptionKey
 	DiagnosticServer *diagnostic.Server
-	sync.Mutex
+	mu               sync.Mutex
 }
 
 type initializer struct {
@@ -247,7 +247,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 
 func (c *controller) SetClusterProvider(provider cluster.Provider) {
 	var sameProvider bool
-	c.Lock()
+	c.mu.Lock()
 	// Avoids to spawn multiple goroutine for the same cluster provider
 	if c.cfg.ClusterProvider == provider {
 		// If the cluster provider is already set, there is already a go routine spawned
@@ -256,7 +256,7 @@ func (c *controller) SetClusterProvider(provider cluster.Provider) {
 	} else {
 		c.cfg.ClusterProvider = provider
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	if provider == nil || sameProvider {
 		return
@@ -284,17 +284,17 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 	}
 
 	if c.getAgent() == nil {
-		c.Lock()
+		c.mu.Lock()
 		c.keys = keys
-		c.Unlock()
+		c.mu.Unlock()
 		return nil
 	}
 	return c.handleKeyChange(keys)
 }
 
 func (c *controller) getAgent() *agent {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.agent
 }
 
@@ -309,9 +309,9 @@ func (c *controller) clusterAgentInit() {
 		case cluster.EventNetworkKeysAvailable:
 			// Validates that the keys are actually available before starting the initialization
 			// This will handle old spurious messages left on the channel
-			c.Lock()
+			c.mu.Lock()
 			keysAvailable = c.keys != nil
-			c.Unlock()
+			c.mu.Unlock()
 			fallthrough
 		case cluster.EventSocketChange, cluster.EventNodeReady:
 			if keysAvailable && !c.isDistributedControl() {
@@ -324,9 +324,9 @@ func (c *controller) clusterAgentInit() {
 			}
 		case cluster.EventNodeLeave:
 			c.agentOperationStart()
-			c.Lock()
+			c.mu.Lock()
 			c.keys = nil
-			c.Unlock()
+			c.mu.Unlock()
 
 			// We are leaving the cluster. Make sure we
 			// close the gossip so that we stop all
@@ -348,9 +348,9 @@ func (c *controller) clusterAgentInit() {
 
 // AgentInitWait waits for agent initialization to be completed in the controller.
 func (c *controller) AgentInitWait() {
-	c.Lock()
+	c.mu.Lock()
 	agentInitDone := c.agentInitDone
-	c.Unlock()
+	c.mu.Unlock()
 
 	if agentInitDone != nil {
 		<-agentInitDone
@@ -359,9 +359,9 @@ func (c *controller) AgentInitWait() {
 
 // AgentStopWait waits for the Agent stop to be completed in the controller
 func (c *controller) AgentStopWait() {
-	c.Lock()
+	c.mu.Lock()
 	agentStopDone := c.agentStopDone
-	c.Unlock()
+	c.mu.Unlock()
 	if agentStopDone != nil {
 		<-agentStopDone
 	}
@@ -369,34 +369,34 @@ func (c *controller) AgentStopWait() {
 
 // agentOperationStart marks the start of an Agent Init or Agent Stop
 func (c *controller) agentOperationStart() {
-	c.Lock()
+	c.mu.Lock()
 	if c.agentInitDone == nil {
 		c.agentInitDone = make(chan struct{})
 	}
 	if c.agentStopDone == nil {
 		c.agentStopDone = make(chan struct{})
 	}
-	c.Unlock()
+	c.mu.Unlock()
 }
 
 // agentInitComplete notifies the successful completion of the Agent initialization
 func (c *controller) agentInitComplete() {
-	c.Lock()
+	c.mu.Lock()
 	if c.agentInitDone != nil {
 		close(c.agentInitDone)
 		c.agentInitDone = nil
 	}
-	c.Unlock()
+	c.mu.Unlock()
 }
 
 // agentStopComplete notifies the successful completion of the Agent stop
 func (c *controller) agentStopComplete() {
-	c.Lock()
+	c.mu.Lock()
 	if c.agentStopDone != nil {
 		close(c.agentStopDone)
 		c.agentStopDone = nil
 	}
-	c.Unlock()
+	c.mu.Unlock()
 }
 
 func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
@@ -469,9 +469,9 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		return nil
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	c.cfg = cfg
-	c.Unlock()
+	c.mu.Unlock()
 
 	var dsConfig *discoverapi.DatastoreConfigData
 	for scope, sCfg := range cfg.Scopes {
@@ -567,8 +567,8 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 }
 
 func (c *controller) Config() config.Config {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.cfg == nil {
 		return config.Config{}
 	}
@@ -576,8 +576,8 @@ func (c *controller) Config() config.Config {
 }
 
 func (c *controller) isManager() bool {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.cfg == nil || c.cfg.ClusterProvider == nil {
 		return false
 	}
@@ -585,8 +585,8 @@ func (c *controller) isManager() bool {
 }
 
 func (c *controller) isAgent() bool {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.cfg == nil || c.cfg.ClusterProvider == nil {
 		return false
 	}
@@ -811,9 +811,9 @@ addToStore:
 	}
 
 	if !c.isDistributedControl() {
-		c.Lock()
+		c.mu.Lock()
 		arrangeIngressFilterRule()
-		c.Unlock()
+		c.mu.Unlock()
 	}
 	arrangeUserFilterRule()
 
@@ -985,13 +985,13 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	}
 
 	var sb *sandbox
-	c.Lock()
+	c.mu.Lock()
 	for _, s := range c.sandboxes {
 		if s.containerID == containerID {
 			// If not a stub, then we already have a complete sandbox.
 			if !s.isStub {
 				sbID := s.ID()
-				c.Unlock()
+				c.mu.Unlock()
 				return nil, types.ForbiddenErrorf("container %s is already present in sandbox %s", containerID, sbID)
 			}
 
@@ -1004,7 +1004,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 			break
 		}
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	sandboxID := stringid.GenerateRandomID()
 	if runtime.GOOS == "windows" {
@@ -1027,9 +1027,9 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	sb.processOptions(options...)
 
-	c.Lock()
+	c.mu.Lock()
 	if sb.ingress && c.ingressSandbox != nil {
-		c.Unlock()
+		c.mu.Unlock()
 		return nil, types.ForbiddenErrorf("ingress sandbox already present")
 	}
 
@@ -1041,16 +1041,16 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	} else if sb.loadBalancerNID != "" {
 		sb.id = "lb_" + sb.loadBalancerNID
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	var err error
 	defer func() {
 		if err != nil {
-			c.Lock()
+			c.mu.Lock()
 			if sb.ingress {
 				c.ingressSandbox = nil
 			}
-			c.Unlock()
+			c.mu.Unlock()
 		}
 	}()
 
@@ -1090,14 +1090,14 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		sb.osSbox.ApplyOSTweaks(sb.oslTypes)
 	}
 
-	c.Lock()
+	c.mu.Lock()
 	c.sandboxes[sb.id] = sb
-	c.Unlock()
+	c.mu.Unlock()
 	defer func() {
 		if err != nil {
-			c.Lock()
+			c.mu.Lock()
 			delete(c.sandboxes, sb.id)
-			c.Unlock()
+			c.mu.Unlock()
 		}
 	}()
 
@@ -1110,8 +1110,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 }
 
 func (c *controller) Sandboxes() []Sandbox {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	list := make([]Sandbox, 0, len(c.sandboxes))
 	for _, s := range c.sandboxes {
@@ -1138,9 +1138,9 @@ func (c *controller) SandboxByID(id string) (Sandbox, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}
-	c.Lock()
+	c.mu.Lock()
 	s, ok := c.sandboxes[id]
-	c.Unlock()
+	c.mu.Unlock()
 	if !ok {
 		return nil, types.NotFoundErrorf("sandbox %s not found", id)
 	}
@@ -1150,14 +1150,14 @@ func (c *controller) SandboxByID(id string) (Sandbox, error) {
 // SandboxDestroy destroys a sandbox given a container ID
 func (c *controller) SandboxDestroy(id string) error {
 	var sb *sandbox
-	c.Lock()
+	c.mu.Lock()
 	for _, s := range c.sandboxes {
 		if s.containerID == id {
 			sb = s
 			break
 		}
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	// It is not an error if sandbox is not available
 	if sb == nil {
@@ -1253,32 +1253,32 @@ func (c *controller) Stop() {
 
 // StartDiagnostic start the network dias mode
 func (c *controller) StartDiagnostic(port int) {
-	c.Lock()
+	c.mu.Lock()
 	if !c.DiagnosticServer.IsDiagnosticEnabled() {
 		c.DiagnosticServer.EnableDiagnostic("127.0.0.1", port)
 	}
-	c.Unlock()
+	c.mu.Unlock()
 }
 
 // StopDiagnostic start the network dias mode
 func (c *controller) StopDiagnostic() {
-	c.Lock()
+	c.mu.Lock()
 	if c.DiagnosticServer.IsDiagnosticEnabled() {
 		c.DiagnosticServer.DisableDiagnostic()
 	}
-	c.Unlock()
+	c.mu.Unlock()
 }
 
 // IsDiagnosticEnabled returns true if the dias is enabled
 func (c *controller) IsDiagnosticEnabled() bool {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.DiagnosticServer.IsDiagnosticEnabled()
 }
 
 func (c *controller) iptablesEnabled() bool {
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if c.cfg == nil {
 		return false

@@ -616,9 +616,9 @@ func (ep *endpoint) rename(name string) error {
 			return types.InternalErrorf("Could not delete service state for endpoint %s from cluster on rename: %v", ep.Name(), err)
 		}
 	} else {
-		c.Lock()
+		c.mu.Lock()
 		netWatch, ok = c.nmap[n.ID()]
-		c.Unlock()
+		c.mu.Unlock()
 		if !ok {
 			return fmt.Errorf("watch null for network %q", n.Name())
 		}
@@ -898,9 +898,9 @@ func (ep *endpoint) getSandbox() (*sandbox, bool) {
 	sid := ep.sandboxID
 	ep.Unlock()
 
-	c.Lock()
+	c.mu.Lock()
 	ps, ok := c.sandboxes[sid]
-	c.Unlock()
+	c.mu.Unlock()
 
 	return ps, ok
 }
@@ -1049,9 +1049,9 @@ func JoinOptionPriority(prio int) EndpointOption {
 	return func(ep *endpoint) {
 		// ep lock already acquired
 		c := ep.network.getController()
-		c.Lock()
+		c.mu.Lock()
 		sb, ok := c.sandboxes[ep.sandboxID]
-		c.Unlock()
+		c.mu.Unlock()
 		if !ok {
 			logrus.Errorf("Could not set endpoint priority value during Join to endpoint %s: No sandbox id present in endpoint", ep.id)
 			return

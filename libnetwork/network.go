@@ -1413,8 +1413,8 @@ func (n *network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP
 	logrus.Debugf("%s (%.7s).addSvcRecords(%s, %s, %s, %t) %s sid:%s", eID, networkID, name, epIP, epIPv6, ipMapUpdate, method, serviceID)
 
 	c := n.getController()
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	sr, ok := c.svcRecords[networkID]
 	if !ok {
@@ -1449,8 +1449,8 @@ func (n *network) deleteSvcRecords(eID, name, serviceID string, epIP net.IP, epI
 	logrus.Debugf("%s (%.7s).deleteSvcRecords(%s, %s, %s, %t) %s sid:%s ", eID, networkID, name, epIP, epIPv6, ipMapUpdate, method, serviceID)
 
 	c := n.getController()
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	sr, ok := c.svcRecords[networkID]
 	if !ok {
@@ -1484,8 +1484,8 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 
 	epName := ep.Name()
 
-	n.ctrlr.Lock()
-	defer n.ctrlr.Unlock()
+	n.ctrlr.mu.Lock()
+	defer n.ctrlr.mu.Unlock()
 	sr, ok := n.ctrlr.svcRecords[n.id]
 	if !ok || sr.svcMap == nil {
 		return nil
@@ -1980,8 +1980,8 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 
 	c := n.getController()
 	networkID := n.ID()
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
 
 	if !ok {
@@ -2022,8 +2022,8 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 func (n *network) HandleQueryResp(name string, ip net.IP) {
 	networkID := n.ID()
 	c := n.getController()
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
 
 	if !ok {
@@ -2042,8 +2042,8 @@ func (n *network) HandleQueryResp(name string, ip net.IP) {
 func (n *network) ResolveIP(ip string) string {
 	networkID := n.ID()
 	c := n.getController()
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
 
 	if !ok {
@@ -2096,8 +2096,8 @@ func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	svcName := strings.Join(parts[2:], ".")
 
 	networkID := n.ID()
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
 
 	if !ok {

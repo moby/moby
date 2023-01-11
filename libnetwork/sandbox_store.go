@@ -248,9 +248,9 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			continue
 		}
 
-		c.Lock()
+		c.mu.Lock()
 		c.sandboxes[sb.id] = sb
-		c.Unlock()
+		c.mu.Unlock()
 
 		for _, eps := range sbs.Eps {
 			n, err := c.getNetworkFromStore(eps.Nid)
