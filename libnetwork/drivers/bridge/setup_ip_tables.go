@@ -244,11 +244,10 @@ func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, i
 		}
 	}
 
-	// In hairpin mode, masquerade traffic from localhost
-	if hairpin {
-		if err := programChainRule(ipVersion, hpNatRule, "MASQ LOCAL HOST", enable); err != nil {
-			return err
-		}
+	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
+	// that bridge, make sure the iptables rule isn't lying around.
+	if err := programChainRule(ipVersion, hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
+		return err
 	}
 
 	// Set Inter Container Communication.
