@@ -112,7 +112,7 @@ func processReturn(r io.Reader) error {
 	return nil
 }
 
-func (c *controller) startExternalKeyListener() error {
+func (c *Controller) startExternalKeyListener() error {
 	execRoot := defaultExecRoot
 	if v := c.Config().ExecRoot; v != "" {
 		execRoot = v
@@ -139,7 +139,7 @@ func (c *controller) startExternalKeyListener() error {
 	return nil
 }
 
-func (c *controller) acceptClientConnections(sock string, l net.Listener) {
+func (c *Controller) acceptClientConnections(sock string, l net.Listener) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -167,7 +167,7 @@ func (c *controller) acceptClientConnections(sock string, l net.Listener) {
 	}
 }
 
-func (c *controller) processExternalKey(conn net.Conn) error {
+func (c *Controller) processExternalKey(conn net.Conn) error {
 	buf := make([]byte, 1280)
 	nr, err := conn.Read(buf)
 	if err != nil {
@@ -188,6 +188,6 @@ func (c *controller) processExternalKey(conn net.Conn) error {
 	return sandbox.SetKey(s.Key)
 }
 
-func (c *controller) stopExternalKeyListener() {
+func (c *Controller) stopExternalKeyListener() {
 	c.extKeyListener.Close()
 }

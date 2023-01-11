@@ -39,21 +39,21 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 	n2.(*network).addSvcRecords("N2ep1", "service_test", "serviceID1", net.ParseIP("192.168.1.1"), net.IP{}, true, "test")
 	n2.(*network).addSvcRecords("N2ep2", "service_test", "serviceID2", net.ParseIP("192.168.1.2"), net.IP{}, true, "test")
 
-	if len(c.(*controller).svcRecords) != 2 {
-		t.Fatalf("Service record not added correctly:%v", c.(*controller).svcRecords)
+	if len(c.svcRecords) != 2 {
+		t.Fatalf("Service record not added correctly:%v", c.svcRecords)
 	}
 
 	// cleanup net1
-	c.(*controller).cleanupServiceDiscovery(n1.ID())
+	c.cleanupServiceDiscovery(n1.ID())
 
-	if len(c.(*controller).svcRecords) != 1 {
-		t.Fatalf("Service record not cleaned correctly:%v", c.(*controller).svcRecords)
+	if len(c.svcRecords) != 1 {
+		t.Fatalf("Service record not cleaned correctly:%v", c.svcRecords)
 	}
 
-	c.(*controller).cleanupServiceDiscovery("")
+	c.cleanupServiceDiscovery("")
 
-	if len(c.(*controller).svcRecords) != 0 {
-		t.Fatalf("Service record not cleaned correctly:%v", c.(*controller).svcRecords)
+	if len(c.svcRecords) != 0 {
+		t.Fatalf("Service record not cleaned correctly:%v", c.svcRecords)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestDNSOptions(t *testing.T) {
 	c, err := New()
 	assert.NilError(t, err)
 
-	sb, err := c.(*controller).NewSandbox("cnt1", nil)
+	sb, err := c.NewSandbox("cnt1", nil)
 	assert.NilError(t, err)
 
 	cleanup := func(s Sandbox) {
@@ -102,7 +102,7 @@ func TestDNSOptions(t *testing.T) {
 	assert.Check(t, is.Len(dnsOptionsList, 1))
 	assert.Check(t, is.Equal("ndots:5", dnsOptionsList[0]))
 
-	sb2, err := c.(*controller).NewSandbox("cnt2", nil)
+	sb2, err := c.NewSandbox("cnt2", nil)
 	assert.NilError(t, err)
 	defer cleanup(sb2)
 	sb2.(*sandbox).startResolver(false)

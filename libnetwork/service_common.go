@@ -12,7 +12,7 @@ import (
 
 const maxSetStringLen = 350
 
-func (c *controller) addEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, addService bool, method string) error {
+func (c *Controller) addEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, addService bool, method string) error {
 	n, err := c.NetworkByID(nID)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (c *controller) addEndpointNameResolution(svcName, svcID, nID, eID, contain
 	return nil
 }
 
-func (c *controller) addContainerNameResolution(nID, eID, containerName string, taskAliases []string, ip net.IP, method string) error {
+func (c *Controller) addContainerNameResolution(nID, eID, containerName string, taskAliases []string, ip net.IP, method string) error {
 	n, err := c.NetworkByID(nID)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (c *controller) addContainerNameResolution(nID, eID, containerName string, 
 	return nil
 }
 
-func (c *controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, rmService, multipleEntries bool, method string) error {
+func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, rmService, multipleEntries bool, method string) error {
 	n, err := c.NetworkByID(nID)
 	if err != nil {
 		return err
@@ -119,7 +119,7 @@ func (c *controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, cont
 	return nil
 }
 
-func (c *controller) delContainerNameResolution(nID, eID, containerName string, taskAliases []string, ip net.IP, method string) error {
+func (c *Controller) delContainerNameResolution(nID, eID, containerName string, taskAliases []string, ip net.IP, method string) error {
 	n, err := c.NetworkByID(nID)
 	if err != nil {
 		return err
@@ -148,7 +148,7 @@ func newService(name string, id string, ingressPorts []*PortConfig, serviceAlias
 	}
 }
 
-func (c *controller) getLBIndex(sid, nid string, ingressPorts []*PortConfig) int {
+func (c *Controller) getLBIndex(sid, nid string, ingressPorts []*PortConfig) int {
 	skey := serviceKey{
 		id:    sid,
 		ports: portConfigs(ingressPorts).String(),
@@ -169,7 +169,7 @@ func (c *controller) getLBIndex(sid, nid string, ingressPorts []*PortConfig) int
 }
 
 // cleanupServiceDiscovery when the network is being deleted, erase all the associated service discovery records
-func (c *controller) cleanupServiceDiscovery(cleanupNID string) {
+func (c *Controller) cleanupServiceDiscovery(cleanupNID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if cleanupNID == "" {
@@ -181,7 +181,7 @@ func (c *controller) cleanupServiceDiscovery(cleanupNID string) {
 	delete(c.svcRecords, cleanupNID)
 }
 
-func (c *controller) cleanupServiceBindings(cleanupNID string) {
+func (c *Controller) cleanupServiceBindings(cleanupNID string) {
 	var cleanupFuncs []func()
 
 	logrus.Debugf("cleanupServiceBindings for %s", cleanupNID)
@@ -215,7 +215,7 @@ func (c *controller) cleanupServiceBindings(cleanupNID string) {
 	}
 }
 
-func makeServiceCleanupFunc(c *controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
+func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
 	// ContainerName and taskAliases are not available here, this is still fine because the Service discovery
 	// cleanup already happened before. The only thing that rmServiceBinding is still doing here a part from the Load
 	// Balancer bookeeping, is to keep consistent the mapping of endpoint to IP.
@@ -226,7 +226,7 @@ func makeServiceCleanupFunc(c *controller, s *service, nID, eID string, vip net.
 	}
 }
 
-func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) error {
+func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) error {
 	var addService bool
 
 	// Failure to lock the network ID on add can result in racing
@@ -313,7 +313,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 	return nil
 }
 
-func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
+func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
 	var rmService bool
 
 	skey := serviceKey{

@@ -13,7 +13,7 @@ func registerKVStores() {
 	boltdb.Register()
 }
 
-func (c *controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) error {
+func (c *Controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) error {
 	store, err := datastore.NewDataStore(scope, scfg)
 	if err != nil {
 		return err
@@ -25,7 +25,7 @@ func (c *controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) err
 	return nil
 }
 
-func (c *controller) initStores() error {
+func (c *Controller) initStores() error {
 	registerKVStores()
 
 	c.mu.Lock()
@@ -47,13 +47,13 @@ func (c *controller) initStores() error {
 	return nil
 }
 
-func (c *controller) closeStores() {
+func (c *Controller) closeStores() {
 	for _, store := range c.getStores() {
 		store.Close()
 	}
 }
 
-func (c *controller) getStore(scope string) datastore.DataStore {
+func (c *Controller) getStore(scope string) datastore.DataStore {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -66,14 +66,14 @@ func (c *controller) getStore(scope string) datastore.DataStore {
 	return nil
 }
 
-func (c *controller) getStores() []datastore.DataStore {
+func (c *Controller) getStores() []datastore.DataStore {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	return c.stores
 }
 
-func (c *controller) getNetworkFromStore(nid string) (*network, error) {
+func (c *Controller) getNetworkFromStore(nid string) (*network, error) {
 	for _, n := range c.getNetworksFromStore() {
 		if n.id == nid {
 			return n, nil
@@ -82,7 +82,7 @@ func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 	return nil, ErrNoSuchNetwork(nid)
 }
 
-func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
+func (c *Controller) getNetworksForScope(scope string) ([]*network, error) {
 	var nl []*network
 
 	store := c.getStore(scope)
@@ -118,7 +118,7 @@ func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
 	return nl, nil
 }
 
-func (c *controller) getNetworksFromStore() []*network {
+func (c *Controller) getNetworksFromStore() []*network {
 	var nl []*network
 
 	for _, store := range c.getStores() {
@@ -200,7 +200,7 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 	return epl, nil
 }
 
-func (c *controller) updateToStore(kvObject datastore.KVObject) error {
+func (c *Controller) updateToStore(kvObject datastore.KVObject) error {
 	cs := c.getStore(kvObject.DataScope())
 	if cs == nil {
 		return ErrDataStoreNotInitialized(kvObject.DataScope())
@@ -216,7 +216,7 @@ func (c *controller) updateToStore(kvObject datastore.KVObject) error {
 	return nil
 }
 
-func (c *controller) deleteFromStore(kvObject datastore.KVObject) error {
+func (c *Controller) deleteFromStore(kvObject datastore.KVObject) error {
 	cs := c.getStore(kvObject.DataScope())
 	if cs == nil {
 		return ErrDataStoreNotInitialized(kvObject.DataScope())
@@ -243,7 +243,7 @@ type netWatch struct {
 	stopCh    chan struct{}
 }
 
-func (c *controller) getLocalEps(nw *netWatch) []*endpoint {
+func (c *Controller) getLocalEps(nw *netWatch) []*endpoint {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -255,15 +255,15 @@ func (c *controller) getLocalEps(nw *netWatch) []*endpoint {
 	return epl
 }
 
-func (c *controller) watchSvcRecord(ep *endpoint) {
+func (c *Controller) watchSvcRecord(ep *endpoint) {
 	c.watchCh <- ep
 }
 
-func (c *controller) unWatchSvcRecord(ep *endpoint) {
+func (c *Controller) unWatchSvcRecord(ep *endpoint) {
 	c.unWatchCh <- ep
 }
 
-func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan datastore.KVObject) {
+func (c *Controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan datastore.KVObject) {
 	for {
 		select {
 		case <-nw.stopCh:
@@ -327,7 +327,7 @@ func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 	}
 }
 
-func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoint) {
+func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == datastore.SwarmScope && n.driverIsMultihost() {
 		return
@@ -389,7 +389,7 @@ func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 	go c.networkWatchLoop(nw, ep, ch)
 }
 
-func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoint) {
+func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == datastore.SwarmScope && n.driverIsMultihost() {
 		return
@@ -424,7 +424,7 @@ func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoi
 	c.mu.Unlock()
 }
 
-func (c *controller) watchLoop() {
+func (c *Controller) watchLoop() {
 	for {
 		select {
 		case ep := <-c.watchCh:
@@ -435,7 +435,7 @@ func (c *controller) watchLoop() {
 	}
 }
 
-func (c *controller) startWatch() {
+func (c *Controller) startWatch() {
 	if c.watchCh != nil {
 		return
 	}
@@ -446,7 +446,7 @@ func (c *controller) startWatch() {
 	go c.watchLoop()
 }
 
-func (c *controller) networkCleanup() {
+func (c *Controller) networkCleanup() {
 	for _, n := range c.getNetworksFromStore() {
 		if n.inDelete {
 			logrus.Infof("Removing stale network %s (%s)", n.Name(), n.ID())

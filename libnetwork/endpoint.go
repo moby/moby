@@ -1173,7 +1173,7 @@ func (ep *endpoint) releaseAddress() {
 	}
 }
 
-func (c *controller) cleanupLocalEndpoints() {
+func (c *Controller) cleanupLocalEndpoints() {
 	// Get used endpoints
 	eps := make(map[string]interface{})
 	for _, sb := range c.sandboxes {

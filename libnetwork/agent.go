@@ -97,7 +97,7 @@ func resolveAddr(addrOrInterface string) (string, error) {
 	return addr.String(), nil
 }
 
-func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
+func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc := discoverapi.DriverEncryptionUpdate{}
 
 	a := c.getAgent()
@@ -201,7 +201,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	return nil
 }
 
-func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
+func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 	agent := c.getAgent()
 
 	// If the agent is already present there is no need to try to initialize it again
@@ -248,7 +248,7 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 
 // For a given subsystem getKeys sorts the keys by lamport time and returns
 // slice of keys and lamport time which can used as a unique tag for the keys
-func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
+func (c *Controller) getKeys(subsys string) ([][]byte, []uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -270,7 +270,7 @@ func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
 
 // getPrimaryKeyTag returns the primary key for a given subsystem from the
 // list of sorted key and the associated tag
-func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
+func (c *Controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	sort.Sort(ByTime(c.keys))
@@ -283,7 +283,7 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 	return keys[1].Key, keys[1].LamportTime, nil
 }
 
-func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
+func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
 	if err != nil {
 		return err
@@ -348,7 +348,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	return nil
 }
 
-func (c *controller) agentJoin(remoteAddrList []string) error {
+func (c *Controller) agentJoin(remoteAddrList []string) error {
 	agent := c.getAgent()
 	if agent == nil {
 		return nil
@@ -356,7 +356,7 @@ func (c *controller) agentJoin(remoteAddrList []string) error {
 	return agent.networkDB.Join(remoteAddrList)
 }
 
-func (c *controller) agentDriverNotify(d driverapi.Driver) {
+func (c *Controller) agentDriverNotify(d driverapi.Driver) {
 	agent := c.getAgent()
 	if agent == nil {
 		return
@@ -380,7 +380,7 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 	}
 }
 
-func (c *controller) agentClose() {
+func (c *Controller) agentClose() {
 	// Acquire current agent instance and reset its pointer
 	// then run closing functions
 	c.mu.Lock()
@@ -827,7 +827,7 @@ func (n *network) cancelDriverWatches() {
 	}
 }
 
-func (c *controller) handleTableEvents(ch *events.Channel, fn func(events.Event)) {
+func (c *Controller) handleTableEvents(ch *events.Channel, fn func(events.Event)) {
 	for {
 		select {
 		case ev := <-ch.C:
@@ -873,7 +873,7 @@ func (n *network) handleDriverTableEvent(ev events.Event) {
 	d.EventNotify(etype, n.ID(), tname, key, value)
 }
 
-func (c *controller) handleNodeTableEvent(ev events.Event) {
+func (c *Controller) handleNodeTableEvent(ev events.Event) {
 	var (
 		value    []byte
 		isAdd    bool
@@ -897,7 +897,7 @@ func (c *controller) handleNodeTableEvent(ev events.Event) {
 	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
 }
 
-func (c *controller) handleEpTableEvent(ev events.Event) {
+func (c *Controller) handleEpTableEvent(ev events.Event) {
 	var (
 		nid   string
 		eid   string

@@ -83,7 +83,7 @@ type Daemon struct {
 	defaultLogConfig      containertypes.LogConfig
 	registryService       registry.Service
 	EventsService         *events.Events
-	netController         libnetwork.NetworkController
+	netController         *libnetwork.Controller
 	volumes               *volumesservice.VolumesService
 	root                  string
 	sysInfoOnce           sync.Once

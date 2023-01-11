@@ -69,7 +69,7 @@ type Opt struct {
 	SessionManager      *session.Manager
 	Root                string
 	Dist                images.DistributionServices
-	NetworkController   libnetwork.NetworkController
+	NetworkController   *libnetwork.Controller
 	DefaultCgroupParent string
 	RegistryHosts       docker.RegistryHosts
 	BuilderConfig       config.BuilderConfig

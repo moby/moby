@@ -200,7 +200,7 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 }
 
 type network struct {
-	ctrlr            *controller
+	ctrlr            *Controller
 	name             string
 	networkType      string
 	id               string
@@ -1517,7 +1517,7 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	return recs
 }
 
-func (n *network) getController() *controller {
+func (n *network) getController() *Controller {
 	n.Lock()
 	defer n.Unlock()
 	return n.ctrlr
@@ -2139,7 +2139,7 @@ func (n *network) NdotsSet() bool {
 }
 
 // config-only network is looked up by name
-func (c *controller) getConfigNetwork(name string) (*network, error) {
+func (c *Controller) getConfigNetwork(name string) (*network, error) {
 	var n Network
 
 	s := func(current Network) bool {

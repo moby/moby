@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func newController(t *testing.T) libnetwork.NetworkController {
+func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	genericOption := map[string]interface{}{
 		netlabel.GenericData: options.Generic{
@@ -62,7 +62,7 @@ func newController(t *testing.T) libnetwork.NetworkController {
 	return c
 }
 
-func createTestNetwork(c libnetwork.NetworkController, networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (libnetwork.Network, error) {
+func createTestNetwork(c *libnetwork.Controller, networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (libnetwork.Network, error) {
 	return c.NewNetwork(networkType, networkName, "",
 		libnetwork.NetworkOptionGeneric(netOption),
 		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", ipamV4Configs, ipamV6Configs, nil))

@@ -7,9 +7,9 @@ import (
 
 const userChain = "DOCKER-USER"
 
-var ctrl *controller
+var ctrl *Controller
 
-func setupArrangeUserFilterRule(c *controller) {
+func setupArrangeUserFilterRule(c *Controller) {
 	ctrl = c
 	iptables.OnReloaded(arrangeUserFilterRule)
 }

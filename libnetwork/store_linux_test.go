@@ -30,7 +30,7 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.(*controller).getStore(datastore.LocalScope).KVStore()
+	store := ctrl.getStore(datastore.LocalScope).KVStore()
 	if exists, _ := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); exists {
 		t.Fatalf("Network with persist=false should not be stored in KV Store")
 	}

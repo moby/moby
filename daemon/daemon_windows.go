@@ -409,7 +409,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 	return nil
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
+func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) error {
 	if _, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
 		return nil
 	}

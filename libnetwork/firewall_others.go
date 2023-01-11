@@ -3,5 +3,5 @@
 
 package libnetwork
 
-func setupArrangeUserFilterRule(c *controller) {}
+func setupArrangeUserFilterRule(c *Controller) {}
 func arrangeUserFilterRule()                   {}

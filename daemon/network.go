@@ -50,7 +50,7 @@ func (daemon *Daemon) NetworkControllerEnabled() bool {
 }
 
 // NetworkController returns the network controller created by the daemon.
-func (daemon *Daemon) NetworkController() libnetwork.NetworkController {
+func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 	return daemon.netController
 }
 

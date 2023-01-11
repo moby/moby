@@ -69,7 +69,7 @@ type sandbox struct {
 	config             containerConfig
 	extDNS             []extDNSEntry
 	osSbox             osl.Sandbox
-	controller         *controller
+	controller         *Controller
 	resolver           Resolver
 	resolverOnce       sync.Once
 	endpoints          []*endpoint

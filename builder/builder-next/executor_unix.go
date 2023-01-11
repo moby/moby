@@ -25,10 +25,10 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dnsConfig *oci.DNSConfig, rootless bool, idmap idtools.IdentityMapping, apparmorProfile string) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap idtools.IdentityMapping, apparmorProfile string) (executor.Executor, error) {
 	netRoot := filepath.Join(root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
-		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, Root: netRoot},
+		pb.NetMode_UNSET: &bridgeProvider{Controller: net, Root: netRoot},
 		pb.NetMode_HOST:  network.NewHostProvider(),
 		pb.NetMode_NONE:  network.NewNoneProvider(),
 	}
@@ -64,7 +64,7 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, dn
 }
 
 type bridgeProvider struct {
-	libnetwork.NetworkController
+	*libnetwork.Controller
 	Root string
 }
 
@@ -76,7 +76,7 @@ func (p *bridgeProvider) New() (network.Namespace, error) {
 
 	iface := &lnInterface{ready: make(chan struct{}), provider: p}
 	iface.Once.Do(func() {
-		go iface.init(p.NetworkController, n)
+		go iface.init(p.Controller, n)
 	})
 
 	return iface, nil
@@ -91,7 +91,7 @@ type lnInterface struct {
 	provider *bridgeProvider
 }
 
-func (iface *lnInterface) init(c libnetwork.NetworkController, n libnetwork.Network) {
+func (iface *lnInterface) init(c *libnetwork.Controller, n libnetwork.Network) {
 	defer close(iface.ready)
 	id := identity.NewID()
 
@@ -123,7 +123,7 @@ func (iface *lnInterface) Set(s *specs.Spec) error {
 		logrus.WithError(iface.err).Error("failed to set networking spec")
 		return iface.err
 	}
-	shortNetCtlrID := stringid.TruncateID(iface.provider.NetworkController.ID())
+	shortNetCtlrID := stringid.TruncateID(iface.provider.Controller.ID())
 	// attach netns to bridge within the container namespace, using reexec in a prestart hook
 	s.Hooks = &specs.Hooks{
 		Prestart: []specs.Hook{{

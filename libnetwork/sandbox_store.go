@@ -21,7 +21,7 @@ type epState struct {
 type sbState struct {
 	ID         string
 	Cid        string
-	c          *controller
+	c          *Controller
 	dbIndex    uint64
 	dbExists   bool
 	Eps        []epState
@@ -189,7 +189,7 @@ func (sb *sandbox) storeDelete() error {
 	return sb.controller.deleteFromStore(sbs)
 }
 
-func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
+func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 	store := c.getStore(datastore.LocalScope)
 	if store == nil {
 		logrus.Error("Could not find local scope store while trying to cleanup sandboxes")

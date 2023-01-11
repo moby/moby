@@ -864,7 +864,7 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 	return nil
 }
 
-func configureNetworking(controller libnetwork.NetworkController, conf *config.Config) error {
+func configureNetworking(controller *libnetwork.Controller, conf *config.Config) error {
 	// Initialize default network on "null"
 	if n, _ := controller.NetworkByName("none"); n == nil {
 		if _, err := controller.NewNetwork("null", "none", "", libnetwork.NetworkOptionPersist(true)); err != nil {
@@ -902,7 +902,7 @@ func configureNetworking(controller libnetwork.NetworkController, conf *config.C
 }
 
 // setHostGatewayIP sets cfg.HostGatewayIP to the default bridge's IP if it is empty.
-func setHostGatewayIP(controller libnetwork.NetworkController, config *config.Config) {
+func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) {
 	if config.HostGatewayIP != nil {
 		return
 	}
@@ -930,7 +930,7 @@ func driverOptions(config *config.Config) nwconfig.Option {
 	})
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *config.Config) error {
+func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) error {
 	bridgeName := bridge.DefaultBridgeName
 	if config.BridgeConfig.Iface != "" {
 		bridgeName = config.BridgeConfig.Iface
