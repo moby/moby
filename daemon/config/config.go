@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/docker/docker/opts"
@@ -62,6 +63,9 @@ const (
 	// "unconfined" seccomp profile.
 	SeccompProfileUnconfined = "unconfined"
 )
+
+// Sentinel error value for UTF-8 validation of the JSON configuration file.
+var utf8Error = errors.New("file configuration is not valid UTF-8")
 
 var builtinRuntimes = map[string]bool{
 	StockRuntimeName:   true,
@@ -414,6 +418,10 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	// interoperability; do so here as Notepad on older versions of Windows Server insists on a BOM).
 	// [RFC 8259]: https://tools.ietf.org/html/rfc8259#section-8.1
 	b = bytes.TrimPrefix(b, []byte("\xef\xbb\xbf"))
+	// Ensure that the JSON input is valid UTF-8, and warn the user with a descriptive message if it is not.
+	if !utf8.Valid(b) {
+		return nil, utf8Error
+	}
 	// Trim whitespace so that an empty config can be detected for an early return.
 	b = bytes.TrimSpace(b)
 

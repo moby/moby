@@ -38,12 +38,56 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
 }
 
-// TestDaemonConfigurationWithBOM ensures that the UTF-8 byte order mark is ignored when reading the configuration file.
-func TestDaemonConfigurationWithBOM(t *testing.T) {
-	configFile := makeConfigFile(t, "\xef\xbb\xbf{\"debug\": true}")
-
-	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
-	assert.NilError(t, err)
+// TestDaemonConfigurationUnicode ensures that the UTF-8 BOM is stripped, and invalid UTF-8 (including UTF-16 BOMs)
+// triggers an informative error message.
+func TestDaemonConfigurationUnicode(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input string
+		error bool
+	}{
+		{
+			name:  "Valid without BOM",
+			input: "{\"debug\": true}",
+			error: false,
+		},
+		{
+			name:  "Valid with BOM",
+			input: "\xef\xbb\xbf{\"debug\": true}",
+			error: false,
+		},
+		{
+			name:  "Invalid without BOM",
+			input: "{\"debug\": true}\xff",
+			error: true,
+		},
+		{
+			name:  "Invalid with BOM",
+			input: "\xef\xbb\xbf{\"debug\": true}\xff",
+			error: true,
+		},
+		{
+			name:  "UTF-16LE BOM",
+			input: "\xff\xfe",
+			error: true,
+		},
+		{
+			name:  "UTF-16BE BOM",
+			input: "\xfe\xff",
+			error: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			configFile := makeConfigFile(t, tc.input)
+			_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+			if tc.error {
+				assert.ErrorIs(t, err, utf8Error)
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
