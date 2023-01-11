@@ -79,7 +79,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			if err != nil {
 				return errdefs.InvalidParameter(err)
 			}
-			if _, isCanonical := ref.(reference.Canonical); isCanonical {
+			if _, isDigested := ref.(reference.Digested); isDigested {
 				return errdefs.InvalidParameter(errors.New("cannot import digest reference"))
 			}
 
