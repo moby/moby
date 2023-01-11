@@ -395,9 +395,9 @@ func (sb *Sandbox) updateGateway(ep *endpoint) error {
 		return nil
 	}
 
-	ep.Lock()
+	ep.mu.Lock()
 	joinInfo := ep.joinInfo
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	if err := osSbox.SetGateway(joinInfo.gw); err != nil {
 		return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
@@ -585,21 +585,21 @@ func (sb *Sandbox) resolveName(req string, networkName string, epList []*endpoin
 			}
 
 			var ok bool
-			ep.Lock()
+			ep.mu.Lock()
 			name, ok = ep.aliases[req]
-			ep.Unlock()
+			ep.mu.Unlock()
 			if !ok {
 				continue
 			}
 		} else {
 			// If it is a regular lookup and if the requested name is an alias
 			// don't perform a svc lookup for this endpoint.
-			ep.Lock()
+			ep.mu.Lock()
 			if _, ok := ep.aliases[req]; ok {
-				ep.Unlock()
+				ep.mu.Unlock()
 				continue
 			}
-			ep.Unlock()
+			ep.mu.Unlock()
 		}
 
 		ip, miss := n.ResolveName(name, ipType)
@@ -728,11 +728,11 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 		}
 	}
 
-	ep.Lock()
+	ep.mu.Lock()
 	joinInfo := ep.joinInfo
 	vip := ep.virtualIP
 	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	if len(vip) > 0 && lbModeIsDSR {
 		ipNet := &net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}
@@ -778,10 +778,10 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	// restore osl sandbox
 	Ifaces := make(map[string][]osl.IfaceOption)
 	for _, ep := range sb.endpoints {
-		ep.Lock()
+		ep.mu.Lock()
 		joinInfo := ep.joinInfo
 		i := ep.iface
-		ep.Unlock()
+		ep.mu.Unlock()
 
 		if i == nil {
 			logrus.Errorf("error restoring endpoint %s for container %s", ep.Name(), sb.ContainerID())
@@ -828,11 +828,11 @@ func (sb *Sandbox) populateNetworkResources(ep *endpoint) error {
 	inDelete := sb.inDelete
 	sb.mu.Unlock()
 
-	ep.Lock()
+	ep.mu.Lock()
 	joinInfo := ep.joinInfo
 	i := ep.iface
 	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	if ep.needResolver() {
 		sb.startResolver(false)

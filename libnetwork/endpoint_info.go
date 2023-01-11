@@ -212,8 +212,8 @@ func (ep *endpoint) Info() EndpointInfo {
 }
 
 func (ep *endpoint) Iface() InterfaceInfo {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.iface != nil {
 		return ep.iface
@@ -223,8 +223,8 @@ func (ep *endpoint) Iface() InterfaceInfo {
 }
 
 func (ep *endpoint) Interface() driverapi.InterfaceInfo {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.iface != nil {
 		return ep.iface
@@ -289,8 +289,8 @@ func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {
 }
 
 func (ep *endpoint) InterfaceName() driverapi.InterfaceNameInfo {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.iface != nil {
 		return ep.iface
@@ -300,8 +300,8 @@ func (ep *endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 }
 
 func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	r := types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop}
 
@@ -316,8 +316,8 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 }
 
 func (ep *endpoint) AddTableEntry(tableName, key string, value []byte) error {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	ep.joinInfo.driverTableEntries = append(ep.joinInfo.driverTableEntries, &tableEntry{
 		tableName: tableName,
@@ -337,14 +337,14 @@ func (ep *endpoint) Sandbox() *Sandbox {
 }
 
 func (ep *endpoint) LoadBalancer() bool {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	return ep.loadBalancer
 }
 
 func (ep *endpoint) StaticRoutes() []*types.StaticRoute {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.joinInfo == nil {
 		return nil
@@ -354,8 +354,8 @@ func (ep *endpoint) StaticRoutes() []*types.StaticRoute {
 }
 
 func (ep *endpoint) Gateway() net.IP {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.joinInfo == nil {
 		return net.IP{}
@@ -365,8 +365,8 @@ func (ep *endpoint) Gateway() net.IP {
 }
 
 func (ep *endpoint) GatewayIPv6() net.IP {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.joinInfo == nil {
 		return net.IP{}
@@ -376,16 +376,16 @@ func (ep *endpoint) GatewayIPv6() net.IP {
 }
 
 func (ep *endpoint) SetGateway(gw net.IP) error {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	ep.joinInfo.gw = types.GetIPCopy(gw)
 	return nil
 }
 
 func (ep *endpoint) SetGatewayIPv6(gw6 net.IP) error {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	ep.joinInfo.gw6 = types.GetIPCopy(gw6)
 	return nil
@@ -400,8 +400,8 @@ func (ep *endpoint) retrieveFromStore() (*endpoint, error) {
 }
 
 func (ep *endpoint) DisableGatewayService() {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	ep.joinInfo.disableGatewayService = true
 }

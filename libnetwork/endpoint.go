@@ -72,12 +72,12 @@ type endpoint struct {
 	dbExists          bool
 	serviceEnabled    bool
 	loadBalancer      bool
-	sync.Mutex
+	mu                sync.Mutex
 }
 
 func (ep *endpoint) MarshalJSON() ([]byte, error) {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	epMap := make(map[string]interface{})
 	epMap["name"] = ep.name
@@ -103,8 +103,8 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 }
 
 func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	var epMap map[string]interface{}
 	if err := json.Unmarshal(b, &epMap); err != nil {
@@ -226,8 +226,8 @@ func (ep *endpoint) New() datastore.KVObject {
 }
 
 func (ep *endpoint) CopyTo(o datastore.KVObject) error {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	dstEp := o.(*endpoint)
 	dstEp.name = ep.name
@@ -277,22 +277,22 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 }
 
 func (ep *endpoint) ID() string {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	return ep.id
 }
 
 func (ep *endpoint) Name() string {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	return ep.name
 }
 
 func (ep *endpoint) MyAliases() []string {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	return ep.myAliases
 }
@@ -306,35 +306,35 @@ func (ep *endpoint) Network() string {
 }
 
 func (ep *endpoint) isAnonymous() bool {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	return ep.anonymous
 }
 
 // isServiceEnabled check if service is enabled on the endpoint
 func (ep *endpoint) isServiceEnabled() bool {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	return ep.serviceEnabled
 }
 
 // enableService sets service enabled on the endpoint
 func (ep *endpoint) enableService() {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	ep.serviceEnabled = true
 }
 
 // disableService disables service on the endpoint
 func (ep *endpoint) disableService() {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	ep.serviceEnabled = false
 }
 
 func (ep *endpoint) needResolver() bool {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	return !ep.disableResolution
 }
 
@@ -368,21 +368,21 @@ func (ep *endpoint) SetValue(value []byte) error {
 }
 
 func (ep *endpoint) Index() uint64 {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	return ep.dbIndex
 }
 
 func (ep *endpoint) SetIndex(index uint64) {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	ep.dbIndex = index
 	ep.dbExists = true
 }
 
 func (ep *endpoint) Exists() bool {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 	return ep.dbExists
 }
 
@@ -391,8 +391,8 @@ func (ep *endpoint) Skip() bool {
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	for _, opt := range options {
 		if opt != nil {
@@ -402,8 +402,8 @@ func (ep *endpoint) processOptions(options ...EndpointOption) {
 }
 
 func (ep *endpoint) getNetwork() *network {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	return ep.network
 }
@@ -438,21 +438,21 @@ func (ep *endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 		return fmt.Errorf("failed to get endpoint from store during join: %v", err)
 	}
 
-	ep.Lock()
+	ep.mu.Lock()
 	if ep.sandboxID != "" {
-		ep.Unlock()
+		ep.mu.Unlock()
 		return types.ForbiddenErrorf("another container is attached to the same network endpoint")
 	}
 	ep.network = n
 	ep.sandboxID = sb.ID()
 	ep.joinInfo = &endpointJoinInfo{}
 	epid := ep.id
-	ep.Unlock()
+	ep.mu.Unlock()
 	defer func() {
 		if err != nil {
-			ep.Lock()
+			ep.mu.Lock()
 			ep.sandboxID = ""
-			ep.Unlock()
+			ep.mu.Unlock()
 		}
 	}()
 
@@ -670,8 +670,8 @@ func (ep *endpoint) rename(name string) error {
 }
 
 func (ep *endpoint) hasInterface(iName string) bool {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	return ep.iface != nil && ep.iface.srcName == iName
 }
@@ -698,9 +698,9 @@ func (ep *endpoint) sbLeave(sb *Sandbox, force bool, options ...EndpointOption) 
 		return fmt.Errorf("failed to get endpoint from store during leave: %v", err)
 	}
 
-	ep.Lock()
+	ep.mu.Lock()
 	sid := ep.sandboxID
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	if sid == "" {
 		return types.ForbiddenErrorf("cannot leave endpoint with no attached sandbox")
@@ -716,10 +716,10 @@ func (ep *endpoint) sbLeave(sb *Sandbox, force bool, options ...EndpointOption) 
 		return fmt.Errorf("failed to get driver during endpoint leave: %v", err)
 	}
 
-	ep.Lock()
+	ep.mu.Lock()
 	ep.sandboxID = ""
 	ep.network = n
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	// Current endpoint providing external connectivity to the sandbox
 	extEp := sb.getGatewayEndpoint()
@@ -807,11 +807,11 @@ func (ep *endpoint) Delete(force bool) error {
 		return fmt.Errorf("failed to get endpoint from store during Delete: %v", err)
 	}
 
-	ep.Lock()
+	ep.mu.Lock()
 	epid := ep.id
 	name := ep.name
 	sbid := ep.sandboxID
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	sb, _ := n.getController().SandboxByID(sbid)
 	if sb != nil && !force {
@@ -854,11 +854,11 @@ func (ep *endpoint) Delete(force bool) error {
 }
 
 func (ep *endpoint) deleteEndpoint(force bool) error {
-	ep.Lock()
+	ep.mu.Lock()
 	n := ep.network
 	name := ep.name
 	epid := ep.id
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	driver, err := n.driver(!force)
 	if err != nil {
@@ -884,9 +884,9 @@ func (ep *endpoint) deleteEndpoint(force bool) error {
 
 func (ep *endpoint) getSandbox() (*Sandbox, bool) {
 	c := ep.network.getController()
-	ep.Lock()
+	ep.mu.Lock()
 	sid := ep.sandboxID
-	ep.Unlock()
+	ep.mu.Unlock()
 
 	c.mu.Lock()
 	ps, ok := c.sandboxes[sid]
@@ -896,8 +896,8 @@ func (ep *endpoint) getSandbox() (*Sandbox, bool) {
 }
 
 func (ep *endpoint) getFirstInterfaceIPv4Address() net.IP {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.iface.addr != nil {
 		return ep.iface.addr.IP
@@ -907,8 +907,8 @@ func (ep *endpoint) getFirstInterfaceIPv4Address() net.IP {
 }
 
 func (ep *endpoint) getFirstInterfaceIPv6Address() net.IP {
-	ep.Lock()
-	defer ep.Unlock()
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
 
 	if ep.iface.addrv6 != nil {
 		return ep.iface.addrv6.IP
@@ -1120,10 +1120,10 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		}
 		addr, _, err := ipam.RequestAddress(d.PoolID, progAdd, ep.ipamOptions)
 		if err == nil {
-			ep.Lock()
+			ep.mu.Lock()
 			*address = addr
 			*poolID = d.PoolID
-			ep.Unlock()
+			ep.mu.Unlock()
 			return nil
 		}
 		if err != ipamapi.ErrNoAvailableIPs || progAdd != nil {
