@@ -26,6 +26,8 @@ import (
 // If the platform is nil, the default host platform is used.
 // Message is used as the image's history comment.
 // Image configuration is derived from the dockerfile instructions in changes.
+// Function can return both an error and valid image ID if the image was
+// imported successfully but tagging it to a newRef reference failed.
 func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, platform *specs.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error) {
 	if platform == nil {
 		def := platforms.DefaultSpec()
@@ -78,13 +80,13 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 	if err != nil {
 		return "", err
 	}
+	defer i.LogImageEvent(id.String(), id.String(), "import")
 
 	if newRef != nil {
 		if err := i.TagImageWithReference(id, newRef); err != nil {
-			return "", err
+			return id, err
 		}
 	}
 
-	i.LogImageEvent(id.String(), id.String(), "import")
 	return id, nil
 }

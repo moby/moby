@@ -123,7 +123,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		var id image.ID
 		id, progressErr = ir.backend.ImportImage(ctx, ref, platform, comment, layerReader, r.Form["changes"])
 
-		if progressErr == nil {
+		if id != "" {
 			output.Write(streamformatter.FormatStatus("", id.String()))
 		}
 	}
