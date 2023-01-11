@@ -234,7 +234,7 @@ type network struct {
 	configFrom       string
 	loadBalancerIP   net.IP
 	loadBalancerMode string
-	sync.Mutex
+	mu               sync.Mutex
 }
 
 const (
@@ -244,36 +244,36 @@ const (
 )
 
 func (n *network) Name() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.name
 }
 
 func (n *network) ID() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.id
 }
 
 func (n *network) Created() time.Time {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.created
 }
 
 func (n *network) Type() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.networkType
 }
 
 func (n *network) Key() []string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return []string{datastore.NetworkKeyPrefix, n.id}
 }
 
@@ -282,8 +282,8 @@ func (n *network) KeyPrefix() []string {
 }
 
 func (n *network) Value() []byte {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	b, err := json.Marshal(n)
 	if err != nil {
 		return nil
@@ -296,33 +296,33 @@ func (n *network) SetValue(value []byte) error {
 }
 
 func (n *network) Index() uint64 {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.dbIndex
 }
 
 func (n *network) SetIndex(index uint64) {
-	n.Lock()
+	n.mu.Lock()
 	n.dbIndex = index
 	n.dbExists = true
-	n.Unlock()
+	n.mu.Unlock()
 }
 
 func (n *network) Exists() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.dbExists
 }
 
 func (n *network) Skip() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return !n.persist
 }
 
 func (n *network) New() datastore.KVObject {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return &network{
 		ctrlr:   n.ctrlr,
@@ -456,8 +456,8 @@ func (n *network) applyConfigurationTo(to *network) error {
 }
 
 func (n *network) CopyTo(o datastore.KVObject) error {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	dstN := o.(*network)
 	dstN.name = n.name
@@ -547,8 +547,8 @@ func (n *network) DataScope() string {
 }
 
 func (n *network) getEpCnt() *endpointCnt {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.epCnt
 }
@@ -955,7 +955,7 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 		return nil, err
 	}
 
-	n.Lock()
+	n.mu.Lock()
 	// If load is not required, driver, cap and err may all be nil
 	if n.scope == "" && cap != nil {
 		n.scope = cap.DataScope
@@ -965,7 +965,7 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 		// scoped regardless of the backing driver.
 		n.scope = datastore.SwarmScope
 	}
-	n.Unlock()
+	n.mu.Unlock()
 	return d, nil
 }
 
@@ -986,11 +986,11 @@ func (n *network) Delete(options ...NetworkDeleteOption) error {
 //   - controller.networkCleanup() -- (true, true)
 //     remove the network no matter what
 func (n *network) delete(force bool, rmLBEndpoint bool) error {
-	n.Lock()
+	n.mu.Lock()
 	c := n.ctrlr
 	name := n.name
 	id := n.id
-	n.Unlock()
+	n.mu.Unlock()
 
 	c.networkLocker.Lock(id)
 	defer c.networkLocker.Unlock(id) //nolint:errcheck
@@ -1466,8 +1466,8 @@ func (n *network) deleteSvcRecords(eID, name, serviceID string, epIP net.IP, epI
 }
 
 func (n *network) getSvcRecords(ep *Endpoint) []etchosts.Record {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	if ep == nil {
 		return nil
@@ -1511,8 +1511,8 @@ func (n *network) getSvcRecords(ep *Endpoint) []etchosts.Record {
 }
 
 func (n *network) getController() *Controller {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.ctrlr
 }
 
@@ -1746,9 +1746,9 @@ func (n *network) getIPInfo(ipVer int) []*IpamInfo {
 		return nil
 	}
 	l := make([]*IpamInfo, 0, len(info))
-	n.Lock()
+	n.mu.Lock()
 	l = append(l, info...)
-	n.Unlock()
+	n.mu.Unlock()
 	return l
 }
 
@@ -1763,11 +1763,11 @@ func (n *network) getIPData(ipVer int) []driverapi.IPAMData {
 		return nil
 	}
 	l := make([]driverapi.IPAMData, 0, len(info))
-	n.Lock()
+	n.mu.Lock()
 	for _, d := range info {
 		l = append(l, d.IPAMData)
 	}
-	n.Unlock()
+	n.mu.Unlock()
 	return l
 }
 
@@ -1800,8 +1800,8 @@ func (n *network) Peers() []networkdb.PeerInfo {
 }
 
 func (n *network) DriverOptions() map[string]string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	if n.generic != nil {
 		if m, ok := n.generic[netlabel.GenericData]; ok {
 			return m.(map[string]string)
@@ -1811,14 +1811,14 @@ func (n *network) DriverOptions() map[string]string {
 }
 
 func (n *network) Scope() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.scope
 }
 
 func (n *network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf) {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	v4L := make([]*IpamConf, len(n.ipamV4Config))
 	v6L := make([]*IpamConf, len(n.ipamV6Config))
@@ -1843,8 +1843,8 @@ func (n *network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamC
 }
 
 func (n *network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	v4Info := make([]*IpamInfo, len(n.ipamV4Info))
 	v6Info := make([]*IpamInfo, len(n.ipamV6Info))
@@ -1869,57 +1869,57 @@ func (n *network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
 }
 
 func (n *network) Internal() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.internal
 }
 
 func (n *network) Attachable() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.attachable
 }
 
 func (n *network) Ingress() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.ingress
 }
 
 func (n *network) Dynamic() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.dynamic
 }
 
 func (n *network) IPv6Enabled() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.enableIPv6
 }
 
 func (n *network) ConfigFrom() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.configFrom
 }
 
 func (n *network) ConfigOnly() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return n.configOnly
 }
 
 func (n *network) Labels() map[string]string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	var lbls = make(map[string]string, len(n.labels))
 	for k, v := range n.labels {
@@ -1938,8 +1938,8 @@ func (n *network) TableEventRegister(tableName string, objType driverapi.ObjectT
 		name:    tableName,
 		objType: objType,
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.driverTables = append(n.driverTables, t)
 	return nil
 }
@@ -1954,8 +1954,8 @@ func (n *network) UpdateIpamConfig(ipV4Data []driverapi.IPAMData) {
 		ipamV4Config[i] = ic
 	}
 
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.ipamV4Config = ipamV4Config
 }
 
@@ -2212,10 +2212,10 @@ func (n *network) createLoadBalancerSandbox() (retErr error) {
 }
 
 func (n *network) deleteLoadBalancerSandbox() error {
-	n.Lock()
+	n.mu.Lock()
 	c := n.ctrlr
 	name := n.name
-	n.Unlock()
+	n.mu.Unlock()
 
 	sandboxName := n.lbSandboxName()
 	endpointName := n.lbEndpointName()

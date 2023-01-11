@@ -138,7 +138,7 @@ func (c *Controller) getNetworksFromStore() []*network {
 
 		for _, kvo := range kvol {
 			n := kvo.(*network)
-			n.Lock()
+			n.mu.Lock()
 			n.ctrlr = c
 			ec := &endpointCnt{n: n}
 			// Trim the leading & trailing "/" to make it consistent across all stores
@@ -150,7 +150,7 @@ func (c *Controller) getNetworksFromStore() []*network {
 			if n.scope == "" {
 				n.scope = store.Scope()
 			}
-			n.Unlock()
+			n.mu.Unlock()
 			nl = append(nl, n)
 		}
 	}
