@@ -1,6 +1,9 @@
 package containerd
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	registrytypes "github.com/docker/docker/api/types/registry"
@@ -8,28 +11,74 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func newResolverFromAuthConfig(authConfig *registrytypes.AuthConfig) remotes.Resolver {
-	opts := []docker.RegistryOpt{}
-	if authConfig != nil {
-		cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
-		if cfgHost == registry.IndexHostname {
-			cfgHost = registry.DefaultRegistryHost
-		}
-		authorizer := docker.NewDockerAuthorizer(docker.WithAuthCreds(func(host string) (string, string, error) {
-			if cfgHost != host {
-				logrus.WithField("host", host).WithField("cfgHost", cfgHost).Warn("Host doesn't match")
-				return "", "", nil
-			}
-			if authConfig.IdentityToken != "" {
-				return "", authConfig.IdentityToken, nil
-			}
-			return authConfig.Username, authConfig.Password, nil
-		}))
+func (i *ImageService) newResolverFromAuthConfig(authConfig *registrytypes.AuthConfig) (remotes.Resolver, docker.StatusTracker) {
+	tracker := docker.NewInMemoryTracker()
+	hostsFn := i.registryHosts.RegistryHosts()
 
-		opts = append(opts, docker.WithAuthorizer(authorizer))
-	}
+	hosts := hostsWrapper(hostsFn, authConfig, i.registryService)
 
 	return docker.NewResolver(docker.ResolverOptions{
-		Hosts: docker.ConfigureDefaultRegistries(opts...),
+		Hosts:   hosts,
+		Tracker: tracker,
+	}), tracker
+}
+
+func hostsWrapper(hostsFn docker.RegistryHosts, authConfig *registrytypes.AuthConfig, regService registry.Service) docker.RegistryHosts {
+	return func(n string) ([]docker.RegistryHost, error) {
+		hosts, err := hostsFn(n)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range hosts {
+			if hosts[i].Authorizer == nil {
+				var opts []docker.AuthorizerOpt
+				if authConfig != nil {
+					opts = append(opts, authorizationCredsFromAuthConfig(*authConfig))
+				}
+				hosts[i].Authorizer = docker.NewDockerAuthorizer(opts...)
+
+				isInsecure := regService.IsInsecureRegistry(hosts[i].Host)
+				if hosts[i].Client.Transport != nil && isInsecure {
+					hosts[i].Client.Transport = httpFallback{super: hosts[i].Client.Transport}
+				}
+			}
+		}
+		return hosts, nil
+	}
+}
+
+func authorizationCredsFromAuthConfig(authConfig registrytypes.AuthConfig) docker.AuthorizerOpt {
+	cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
+	if cfgHost == registry.IndexHostname {
+		cfgHost = registry.DefaultRegistryHost
+	}
+
+	return docker.WithAuthCreds(func(host string) (string, string, error) {
+		if cfgHost != host {
+			logrus.WithField("host", host).WithField("cfgHost", cfgHost).Warn("Host doesn't match")
+			return "", "", nil
+		}
+		if authConfig.IdentityToken != "" {
+			return "", authConfig.IdentityToken, nil
+		}
+		return authConfig.Username, authConfig.Password, nil
 	})
+}
+
+type httpFallback struct {
+	super http.RoundTripper
+}
+
+func (f httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
+	resp, err := f.super.RoundTrip(r)
+	if err != nil {
+		if strings.Contains(err.Error(), "http: server gave HTTP response to HTTPS client") {
+			plain := r.Clone(r.Context())
+			plain.URL.Scheme = "http"
+			return http.DefaultTransport.RoundTrip(plain)
+		}
+	}
+
+	return resp, err
 }

@@ -5,26 +5,36 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/plugin"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/registry"
 	"github.com/pkg/errors"
 )
 
 // ImageService implements daemon.ImageService
 type ImageService struct {
-	client      *containerd.Client
-	snapshotter string
+	client          *containerd.Client
+	snapshotter     string
+	registryHosts   RegistryHostsProvider
+	registryService registry.Service
+}
+
+type RegistryHostsProvider interface {
+	RegistryHosts() docker.RegistryHosts
 }
 
 // NewService creates a new ImageService.
-func NewService(c *containerd.Client, snapshotter string) *ImageService {
+func NewService(c *containerd.Client, snapshotter string, hostsProvider RegistryHostsProvider, registry registry.Service) *ImageService {
 	return &ImageService{
-		client:      c,
-		snapshotter: snapshotter,
+		client:          c,
+		snapshotter:     snapshotter,
+		registryHosts:   hostsProvider,
+		registryService: registry,
 	}
 }
 

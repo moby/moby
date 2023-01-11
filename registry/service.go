@@ -26,6 +26,7 @@ type Service interface {
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
 	LoadInsecureRegistries([]string) error
+	IsInsecureRegistry(string) bool
 }
 
 // defaultService is a registry service. It tracks configuration data such as a list
@@ -231,4 +232,10 @@ func (s *defaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 		}
 	}
 	return endpoints, err
+}
+
+// IsInsecureRegistry returns true if the registry at given host is configured as
+// insecure registry.
+func (s *defaultService) IsInsecureRegistry(host string) bool {
+	return !s.config.isSecureIndex(host)
 }
