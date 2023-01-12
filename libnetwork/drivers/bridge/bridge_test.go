@@ -170,7 +170,10 @@ func compareBindings(a, b []types.PortBinding) bool {
 
 func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
-	nw, err := netutils.FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
+	nw, err := netutils.FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks(), func(nw *net.IPNet) bool {
+		_, maskSize := nw.Mask.Size()
+		return maskSize == 32
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

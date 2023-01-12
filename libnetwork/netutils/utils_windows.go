@@ -20,6 +20,6 @@ func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
 // overlap with existing interfaces in the system
 //
 // TODO : Use appropriate windows APIs to identify non-overlapping subnets
-func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
+func FindAvailableNetwork(list []*net.IPNet, filter func(*net.IPNet) bool) (*net.IPNet, error) {
 	return nil, nil
 }

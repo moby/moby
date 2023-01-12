@@ -18,6 +18,6 @@ func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
 
 // FindAvailableNetwork returns a network from the passed list which does not
 // overlap with existing interfaces in the system
-func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
+func FindAvailableNetwork(list []*net.IPNet, filter func(*net.IPNet) bool) (*net.IPNet, error) {
 	return nil, types.NotImplementedErrorf("not supported on freebsd")
 }

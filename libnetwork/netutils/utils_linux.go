@@ -62,7 +62,7 @@ func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, err
 
 // FindAvailableNetwork returns a network from the passed list which does not
 // overlap with existing interfaces in the system
-func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
+func FindAvailableNetwork(list []*net.IPNet, filter func(*net.IPNet) bool) (*net.IPNet, error) {
 	// We don't check for an error here, because we don't really care if we
 	// can't read /etc/resolv.conf. So instead we skip the append if resolvConf
 	// is nil. It either doesn't exist, or we can't read it for some reason.
@@ -71,6 +71,9 @@ func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
 		nameservers = resolvconf.GetNameserversAsCIDR(rc)
 	}
 	for _, nw := range list {
+		if !filter(nw) {
+			continue
+		}
 		if err := CheckNameserverOverlaps(nameservers, nw); err == nil {
 			if err := CheckRouteOverlaps(nw); err == nil {
 				return nw, nil

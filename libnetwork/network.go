@@ -1552,6 +1552,11 @@ func (n *network) ipamAllocate() error {
 }
 
 func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+	expectedMaskSize := 32
+	if v6 {
+		expectedMaskSize = 128
+	}
+
 	for {
 		poolID, pool, meta, err := ipam.RequestPool(addressSpace, preferredPool, subPool, options, v6)
 		if err != nil {
@@ -1565,7 +1570,10 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}
 
 		// Check for overlap and if none found, we have found the right pool.
-		if _, err := netutils.FindAvailableNetwork([]*net.IPNet{pool}); err == nil {
+		if _, err := netutils.FindAvailableNetwork([]*net.IPNet{pool}, func(nw *net.IPNet) bool {
+			_, maskSize := nw.Mask.Size()
+			return maskSize == expectedMaskSize
+		}); err == nil {
 			return poolID, pool, meta, nil
 		}
 
