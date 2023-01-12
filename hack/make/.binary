@@ -90,7 +90,7 @@ source "${MAKEDIR}/.go-autogen"
 	if [ -z "$PLATFORM_NAME" ]; then
 		PLATFORM_NAME="$(go env GOOS)/$(go env GOARCH)"
 		if [ -n "$(go env GOARM)" ]; then
-			PLATFORM_NAME+="/$(go env GOARM)"
+			PLATFORM_NAME+="/v$(go env GOARM)"
 		elif [ -n "$(go env GOAMD64)" ] && [ "$(go env GOAMD64)" != "v1" ]; then
 			PLATFORM_NAME+="/$(go env GOAMD64)"
 		fi
