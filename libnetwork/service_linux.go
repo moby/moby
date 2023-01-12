@@ -21,7 +21,7 @@ import (
 
 // Populate all loadbalancers on the network that the passed endpoint
 // belongs to, into this sandbox.
-func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
+func (sb *Sandbox) populateLoadBalancers(ep *endpoint) {
 	// This is an interface less endpoint. Nothing to do.
 	if ep.Iface() == nil {
 		return
@@ -37,7 +37,7 @@ func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
 	}
 }
 
-func (n *network) findLBEndpointSandbox() (*endpoint, *sandbox, error) {
+func (n *network) findLBEndpointSandbox() (*endpoint, *Sandbox, error) {
 	// TODO: get endpoint from store?  See EndpointInfo()
 	var ep *endpoint
 	// Find this node's LB sandbox endpoint:  there should be exactly one
@@ -66,7 +66,7 @@ func (n *network) findLBEndpointSandbox() (*endpoint, *sandbox, error) {
 // Searches the OS sandbox for the name of the endpoint interface
 // within the sandbox.   This is required for adding/removing IP
 // aliases to the interface.
-func findIfaceDstName(sb *sandbox, ep *endpoint) string {
+func findIfaceDstName(sb *Sandbox, ep *endpoint) string {
 	srcName := ep.Iface().SrcName()
 	for _, i := range sb.osSbox.Info().Interfaces() {
 		if i.SrcName() == srcName {
@@ -532,7 +532,7 @@ func plumbProxy(iPort *PortConfig, isDelete bool) error {
 
 // configureFWMark configures the sandbox firewall to mark vip destined packets
 // with the firewall mark fwMark.
-func (sb *sandbox) configureFWMark(vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, isDelete bool, lbMode string) error {
+func (sb *Sandbox) configureFWMark(vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, isDelete bool, lbMode string) error {
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
@@ -585,7 +585,7 @@ func (sb *sandbox) configureFWMark(vip net.IP, fwMark uint32, ingressPorts []*Po
 	return innerErr
 }
 
-func (sb *sandbox) addRedirectRules(eIP *net.IPNet, ingressPorts []*PortConfig) error {
+func (sb *Sandbox) addRedirectRules(eIP *net.IPNet, ingressPorts []*PortConfig) error {
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 	ipAddr := eIP.IP.String()

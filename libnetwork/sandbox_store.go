@@ -55,12 +55,11 @@ func (sbs *sbState) SetValue(value []byte) error {
 }
 
 func (sbs *sbState) Index() uint64 {
-	sbi, err := sbs.c.SandboxByID(sbs.ID)
+	sb, err := sbs.c.SandboxByID(sbs.ID)
 	if err != nil {
 		return sbs.dbIndex
 	}
 
-	sb := sbi.(*sandbox)
 	maxIndex := sb.dbIndex
 	if sbs.dbIndex > maxIndex {
 		maxIndex = sbs.dbIndex
@@ -73,12 +72,11 @@ func (sbs *sbState) SetIndex(index uint64) {
 	sbs.dbIndex = index
 	sbs.dbExists = true
 
-	sbi, err := sbs.c.SandboxByID(sbs.ID)
+	sb, err := sbs.c.SandboxByID(sbs.ID)
 	if err != nil {
 		return
 	}
 
-	sb := sbi.(*sandbox)
 	sb.dbIndex = index
 	sb.dbExists = true
 }
@@ -88,12 +86,11 @@ func (sbs *sbState) Exists() bool {
 		return sbs.dbExists
 	}
 
-	sbi, err := sbs.c.SandboxByID(sbs.ID)
+	sb, err := sbs.c.SandboxByID(sbs.ID)
 	if err != nil {
 		return false
 	}
 
-	sb := sbi.(*sandbox)
 	return sb.dbExists
 }
 
@@ -135,7 +132,7 @@ func (sbs *sbState) DataScope() string {
 	return datastore.LocalScope
 }
 
-func (sb *sandbox) storeUpdate() error {
+func (sb *Sandbox) storeUpdate() error {
 	sbs := &sbState{
 		c:          sb.controller,
 		ID:         sb.id,
@@ -177,7 +174,7 @@ retry:
 	return err
 }
 
-func (sb *sandbox) storeDelete() error {
+func (sb *Sandbox) storeDelete() error {
 	sbs := &sbState{
 		c:        sb.controller,
 		ID:       sb.id,
@@ -210,7 +207,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 	for _, kvo := range kvol {
 		sbs := kvo.(*sbState)
 
-		sb := &sandbox{
+		sb := &Sandbox{
 			id:                 sbs.ID,
 			controller:         sbs.c,
 			containerID:        sbs.Cid,

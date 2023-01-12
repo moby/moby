@@ -27,10 +27,10 @@ type Endpoint interface {
 
 	// Join joins the sandbox to the endpoint and populates into the sandbox
 	// the network resources allocated for the endpoint.
-	Join(sandbox Sandbox, options ...EndpointOption) error
+	Join(sandbox *Sandbox, options ...EndpointOption) error
 
 	// Leave detaches the network resources populated in the sandbox.
-	Leave(sandbox Sandbox, options ...EndpointOption) error
+	Leave(sandbox *Sandbox, options ...EndpointOption) error
 
 	// Return certain operational data belonging to this endpoint
 	Info() EndpointInfo
@@ -416,14 +416,9 @@ func (ep *endpoint) getNetworkFromStore() (*network, error) {
 	return ep.network.getController().getNetworkFromStore(ep.network.id)
 }
 
-func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
-	if sbox == nil {
-		return types.BadRequestErrorf("endpoint cannot be joined by nil container")
-	}
-
-	sb, ok := sbox.(*sandbox)
-	if !ok {
-		return types.BadRequestErrorf("not a valid Sandbox interface")
+func (ep *endpoint) Join(sb *Sandbox, options ...EndpointOption) error {
+	if sb == nil || sb.ID() == "" || sb.Key() == "" {
+		return types.BadRequestErrorf("invalid Sandbox passed to endpoint join: %v", sb)
 	}
 
 	sb.joinLeaveStart()
@@ -432,7 +427,7 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 	return ep.sbJoin(sb, options...)
 }
 
-func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
+func (ep *endpoint) sbJoin(sb *Sandbox, options ...EndpointOption) (err error) {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during join: %v", err)
@@ -681,14 +676,9 @@ func (ep *endpoint) hasInterface(iName string) bool {
 	return ep.iface != nil && ep.iface.srcName == iName
 }
 
-func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
-	if sbox == nil || sbox.ID() == "" || sbox.Key() == "" {
-		return types.BadRequestErrorf("invalid Sandbox passed to endpoint leave: %v", sbox)
-	}
-
-	sb, ok := sbox.(*sandbox)
-	if !ok {
-		return types.BadRequestErrorf("not a valid Sandbox interface")
+func (ep *endpoint) Leave(sb *Sandbox, options ...EndpointOption) error {
+	if sb == nil || sb.ID() == "" || sb.Key() == "" {
+		return types.BadRequestErrorf("invalid Sandbox passed to endpoint leave: %v", sb)
 	}
 
 	sb.joinLeaveStart()
@@ -697,7 +687,7 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 	return ep.sbLeave(sb, false, options...)
 }
 
-func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) error {
+func (ep *endpoint) sbLeave(sb *Sandbox, force bool, options ...EndpointOption) error {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return fmt.Errorf("failed to get network from store during leave: %v", err)
@@ -829,7 +819,7 @@ func (ep *endpoint) Delete(force bool) error {
 	}
 
 	if sb != nil {
-		if e := ep.sbLeave(sb.(*sandbox), force); e != nil {
+		if e := ep.sbLeave(sb, force); e != nil {
 			logrus.Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
 		}
 	}
@@ -892,7 +882,7 @@ func (ep *endpoint) deleteEndpoint(force bool) error {
 	return nil
 }
 
-func (ep *endpoint) getSandbox() (*sandbox, bool) {
+func (ep *endpoint) getSandbox() (*Sandbox, bool) {
 	c := ep.network.getController()
 	ep.Lock()
 	sid := ep.sandboxID

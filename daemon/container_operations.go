@@ -602,9 +602,9 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 	return nil
 }
 
-func (daemon *Daemon) getNetworkSandbox(container *container.Container) libnetwork.Sandbox {
-	var sb libnetwork.Sandbox
-	daemon.netController.WalkSandboxes(func(s libnetwork.Sandbox) bool {
+func (daemon *Daemon) getNetworkSandbox(container *container.Container) *libnetwork.Sandbox {
+	var sb *libnetwork.Sandbox
+	daemon.netController.WalkSandboxes(func(s *libnetwork.Sandbox) bool {
 		if s.ContainerID() == container.ID {
 			sb = s
 			return true
@@ -882,7 +882,7 @@ func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error
 func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
 	var (
 		ep   libnetwork.Endpoint
-		sbox libnetwork.Sandbox
+		sbox *libnetwork.Sandbox
 	)
 
 	s := func(current libnetwork.Endpoint) bool {
@@ -1164,7 +1164,7 @@ func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) 
 }
 
 // updateSandboxNetworkSettings updates the sandbox ID and Key.
-func updateSandboxNetworkSettings(c *container.Container, sb libnetwork.Sandbox) error {
+func updateSandboxNetworkSettings(c *container.Container, sb *libnetwork.Sandbox) error {
 	c.NetworkSettings.SandboxID = sb.ID()
 	c.NetworkSettings.SandboxKey = sb.Key()
 	return nil

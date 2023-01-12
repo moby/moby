@@ -30,7 +30,7 @@ type EndpointInfo interface {
 	StaticRoutes() []*types.StaticRoute
 
 	// Sandbox returns the attached sandbox if there, nil otherwise.
-	Sandbox() Sandbox
+	Sandbox() *Sandbox
 
 	// LoadBalancer returns whether the endpoint is the load balancer endpoint for the network.
 	LoadBalancer() bool
@@ -328,7 +328,7 @@ func (ep *endpoint) AddTableEntry(tableName, key string, value []byte) error {
 	return nil
 }
 
-func (ep *endpoint) Sandbox() Sandbox {
+func (ep *endpoint) Sandbox() *Sandbox {
 	cnt, ok := ep.getSandbox()
 	if !ok {
 		return nil

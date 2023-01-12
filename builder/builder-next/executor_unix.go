@@ -84,7 +84,7 @@ func (p *bridgeProvider) New() (network.Namespace, error) {
 
 type lnInterface struct {
 	ep  libnetwork.Endpoint
-	sbx libnetwork.Sandbox
+	sbx *libnetwork.Sandbox
 	sync.Once
 	err      error
 	ready    chan struct{}

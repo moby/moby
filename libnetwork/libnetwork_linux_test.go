@@ -282,7 +282,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Unexpected error type returned: %T", err)
 	}
 
-	fsbx := &fakeSandbox{}
+	fsbx := &libnetwork.Sandbox{}
 	if err = ep1.Join(fsbx); err == nil {
 		t.Fatalf("Expected to fail join with invalid Sandbox")
 	}
@@ -853,7 +853,7 @@ type parallelTester struct {
 func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 	var (
 		ep  libnetwork.Endpoint
-		sb  libnetwork.Sandbox
+		sb  *libnetwork.Sandbox
 		err error
 	)
 
@@ -944,7 +944,7 @@ func TestParallel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sboxes := make([]libnetwork.Sandbox, numThreads)
+	sboxes := make([]*libnetwork.Sandbox, numThreads)
 	if sboxes[first-1], err = controller.NewSandbox(fmt.Sprintf("%drace", first), libnetwork.OptionUseDefaultSandbox()); err != nil {
 		t.Fatal(err)
 	}

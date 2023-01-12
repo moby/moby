@@ -6,7 +6,6 @@ package libnetwork_test
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -830,68 +829,6 @@ func TestNetworkQuery(t *testing.T) {
 
 const containerID = "valid_c"
 
-type fakeSandbox struct{}
-
-func (f *fakeSandbox) ID() string {
-	return "fake sandbox"
-}
-
-func (f *fakeSandbox) ContainerID() string {
-	return ""
-}
-
-func (f *fakeSandbox) Key() string {
-	return "fake key"
-}
-
-func (f *fakeSandbox) Labels() map[string]interface{} {
-	return nil
-}
-
-func (f *fakeSandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
-	return nil, nil
-}
-
-func (f *fakeSandbox) Refresh(opts ...libnetwork.SandboxOption) error {
-	return nil
-}
-
-func (f *fakeSandbox) Delete() error {
-	return nil
-}
-
-func (f *fakeSandbox) Rename(name string) error {
-	return nil
-}
-
-func (f *fakeSandbox) SetKey(key string) error {
-	return nil
-}
-
-func (f *fakeSandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
-	return nil, false
-}
-
-func (f *fakeSandbox) ResolveIP(ip string) string {
-	return ""
-}
-
-func (f *fakeSandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
-	return nil, nil
-}
-
-func (f *fakeSandbox) Endpoints() []libnetwork.Endpoint {
-	return nil
-}
-
-func (f *fakeSandbox) EnableService() error {
-	return nil
-}
-
-func (f *fakeSandbox) DisableService() error {
-	return nil
-}
-
 func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	controller := newController(t)
@@ -1159,7 +1096,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 		t.Fatalf("Unexpected error type returned: %T. Desc: %s", err, err.Error())
 	}
 
-	fsbx := &fakeSandbox{}
+	fsbx := &libnetwork.Sandbox{}
 	if err = ep.Leave(fsbx); err == nil {
 		t.Fatalf("Expected to fail leave with invalid Sandbox")
 	}

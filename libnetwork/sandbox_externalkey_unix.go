@@ -178,7 +178,7 @@ func (c *Controller) processExternalKey(conn net.Conn) error {
 		return err
 	}
 
-	var sandbox Sandbox
+	var sandbox *Sandbox
 	search := SandboxContainerWalker(&sandbox, s.ContainerID)
 	c.WalkSandboxes(search)
 	if sandbox == nil {

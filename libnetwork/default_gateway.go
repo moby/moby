@@ -29,7 +29,7 @@ var procGwNetwork = make(chan (bool), 1)
    - its deleted when an endpoint with GW joins the container
 */
 
-func (sb *sandbox) setupDefaultGW() error {
+func (sb *Sandbox) setupDefaultGW() error {
 	// check if the container already has a GW endpoint
 	if ep := sb.getEndpointInGWNetwork(); ep != nil {
 		return nil
@@ -94,7 +94,7 @@ func (sb *sandbox) setupDefaultGW() error {
 }
 
 // If present, detach and remove the endpoint connecting the sandbox to the default gw network.
-func (sb *sandbox) clearDefaultGW() error {
+func (sb *Sandbox) clearDefaultGW() error {
 	var ep *endpoint
 
 	if ep = sb.getEndpointInGWNetwork(); ep == nil {
@@ -113,7 +113,7 @@ func (sb *sandbox) clearDefaultGW() error {
 // on the endpoints to which it is connected. It does not account
 // for the default gateway network endpoint.
 
-func (sb *sandbox) needDefaultGW() bool {
+func (sb *Sandbox) needDefaultGW() bool {
 	var needGW bool
 
 	for _, ep := range sb.getConnectedEndpoints() {
@@ -145,7 +145,7 @@ func (sb *sandbox) needDefaultGW() bool {
 	return needGW
 }
 
-func (sb *sandbox) getEndpointInGWNetwork() *endpoint {
+func (sb *Sandbox) getEndpointInGWNetwork() *endpoint {
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.getNetwork().name == libnGWNetwork && strings.HasPrefix(ep.Name(), "gateway_") {
 			return ep
@@ -175,7 +175,7 @@ func (c *Controller) defaultGwNetwork() (Network, error) {
 }
 
 // Returns the endpoint which is providing external connectivity to the sandbox
-func (sb *sandbox) getGatewayEndpoint() *endpoint {
+func (sb *Sandbox) getGatewayEndpoint() *endpoint {
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue

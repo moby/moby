@@ -782,7 +782,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 }
 
 // buildCreateEndpointOptions builds endpoint options from a given network.
-func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
+func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var (
 		bindings      = make(nat.PortMap)
 		pbList        []networktypes.PortBinding
@@ -954,7 +954,7 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 }
 
 // getPortMapInfo retrieves the current port-mapping programmed for the given sandbox
-func getPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
+func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	pm := nat.PortMap{}
 	if sb == nil {
 		return pm

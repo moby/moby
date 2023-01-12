@@ -78,9 +78,9 @@ type NetworkWalker func(nw Network) bool
 
 // SandboxWalker is a client provided function which will be used to walk the Sandboxes.
 // When the function returns true, the walk will stop.
-type SandboxWalker func(sb Sandbox) bool
+type SandboxWalker func(sb *Sandbox) bool
 
-type sandboxTable map[string]*sandbox
+type sandboxTable map[string]*Sandbox
 
 // Controller manages networks.
 type Controller struct {
@@ -96,7 +96,7 @@ type Controller struct {
 	nmap             map[string]*netWatch
 	serviceBindings  map[serviceKey]*service
 	defOsSbox        osl.Sandbox
-	ingressSandbox   *sandbox
+	ingressSandbox   *Sandbox
 	sboxOnce         sync.Once
 	agent            *agent
 	networkLocker    *locker.Locker
@@ -922,12 +922,12 @@ func (c *Controller) NetworkByID(id string) (Network, error) {
 }
 
 // NewSandbox creates a new sandbox for containerID.
-func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error) {
+func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*Sandbox, error) {
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
 
-	var sb *sandbox
+	var sb *Sandbox
 	c.mu.Lock()
 	for _, s := range c.sandboxes {
 		if s.containerID == containerID {
@@ -956,7 +956,7 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	// Create sandbox and process options first. Key generation depends on an option
 	if sb == nil {
-		sb = &sandbox{
+		sb = &Sandbox{
 			id:                 sandboxID,
 			containerID:        containerID,
 			endpoints:          []*endpoint{},
@@ -1053,11 +1053,11 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (S
 }
 
 // Sandboxes returns the list of Sandbox(s) managed by this controller.
-func (c *Controller) Sandboxes() []Sandbox {
+func (c *Controller) Sandboxes() []*Sandbox {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	list := make([]Sandbox, 0, len(c.sandboxes))
+	list := make([]*Sandbox, 0, len(c.sandboxes))
 	for _, s := range c.sandboxes {
 		// Hide stub sandboxes from libnetwork users
 		if s.isStub {
@@ -1081,7 +1081,7 @@ func (c *Controller) WalkSandboxes(walker SandboxWalker) {
 
 // SandboxByID returns the Sandbox which has the passed id.
 // If not found, a [types.NotFoundError] is returned.
-func (c *Controller) SandboxByID(id string) (Sandbox, error) {
+func (c *Controller) SandboxByID(id string) (*Sandbox, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}
@@ -1096,7 +1096,7 @@ func (c *Controller) SandboxByID(id string) (Sandbox, error) {
 
 // SandboxDestroy destroys a sandbox given a container ID.
 func (c *Controller) SandboxDestroy(id string) error {
-	var sb *sandbox
+	var sb *Sandbox
 	c.mu.Lock()
 	for _, s := range c.sandboxes {
 		if s.containerID == id {
@@ -1115,8 +1115,8 @@ func (c *Controller) SandboxDestroy(id string) error {
 }
 
 // SandboxContainerWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed containerID
-func SandboxContainerWalker(out *Sandbox, containerID string) SandboxWalker {
-	return func(sb Sandbox) bool {
+func SandboxContainerWalker(out **Sandbox, containerID string) SandboxWalker {
+	return func(sb *Sandbox) bool {
 		if sb.ContainerID() == containerID {
 			*out = sb
 			return true
@@ -1126,8 +1126,8 @@ func SandboxContainerWalker(out *Sandbox, containerID string) SandboxWalker {
 }
 
 // SandboxKeyWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed key
-func SandboxKeyWalker(out *Sandbox, key string) SandboxWalker {
-	return func(sb Sandbox) bool {
+func SandboxKeyWalker(out **Sandbox, key string) SandboxWalker {
+	return func(sb *Sandbox) bool {
 		if sb.Key() == key {
 			*out = sb
 			return true
