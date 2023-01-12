@@ -21,7 +21,7 @@ import (
 
 // Populate all loadbalancers on the network that the passed endpoint
 // belongs to, into this sandbox.
-func (sb *Sandbox) populateLoadBalancers(ep *endpoint) {
+func (sb *Sandbox) populateLoadBalancers(ep *Endpoint) {
 	// This is an interface less endpoint. Nothing to do.
 	if ep.Iface() == nil {
 		return
@@ -37,14 +37,14 @@ func (sb *Sandbox) populateLoadBalancers(ep *endpoint) {
 	}
 }
 
-func (n *network) findLBEndpointSandbox() (*endpoint, *Sandbox, error) {
+func (n *network) findLBEndpointSandbox() (*Endpoint, *Sandbox, error) {
 	// TODO: get endpoint from store?  See EndpointInfo()
-	var ep *endpoint
+	var ep *Endpoint
 	// Find this node's LB sandbox endpoint:  there should be exactly one
 	for _, e := range n.Endpoints() {
 		epi := e.Info()
 		if epi != nil && epi.LoadBalancer() {
-			ep = e.(*endpoint)
+			ep = e
 			break
 		}
 	}
@@ -66,7 +66,7 @@ func (n *network) findLBEndpointSandbox() (*endpoint, *Sandbox, error) {
 // Searches the OS sandbox for the name of the endpoint interface
 // within the sandbox.   This is required for adding/removing IP
 // aliases to the interface.
-func findIfaceDstName(sb *Sandbox, ep *endpoint) string {
+func findIfaceDstName(sb *Sandbox, ep *Endpoint) string {
 	srcName := ep.Iface().SrcName()
 	for _, i := range sb.osSbox.Info().Interfaces() {
 		if i.SrcName() == srcName {

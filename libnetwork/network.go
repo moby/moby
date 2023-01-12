@@ -38,22 +38,22 @@ type Network interface {
 
 	// CreateEndpoint creates a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carries driver specific options.
-	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
+	CreateEndpoint(name string, options ...EndpointOption) (*Endpoint, error)
 
 	// Delete the network.
 	Delete(options ...NetworkDeleteOption) error
 
 	// Endpoints returns the list of Endpoint(s) in this network.
-	Endpoints() []Endpoint
+	Endpoints() []*Endpoint
 
 	// WalkEndpoints uses the provided function to walk the Endpoints.
 	WalkEndpoints(walker EndpointWalker)
 
 	// EndpointByName returns the Endpoint which has the passed name. If not found, the error ErrNoSuchEndpoint is returned.
-	EndpointByName(name string) (Endpoint, error)
+	EndpointByName(name string) (*Endpoint, error)
 
 	// EndpointByID returns the Endpoint which has the passed id. If not found, the error ErrNoSuchEndpoint is returned.
-	EndpointByID(id string) (Endpoint, error)
+	EndpointByID(id string) (*Endpoint, error)
 
 	// Info returns certain operational data belonging to this network.
 	Info() NetworkInfo
@@ -86,7 +86,7 @@ type NetworkInfo interface {
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
 // When the function returns true, the walk will stop.
-type EndpointWalker func(ep Endpoint) bool
+type EndpointWalker func(ep *Endpoint) bool
 
 // ipInfo is the reverse mapping from IP to service name to serve the PTR query.
 // extResolver is set if an external server resolves a service name to this IP.
@@ -1135,7 +1135,7 @@ func (n *network) deleteNetwork() error {
 	return nil
 }
 
-func (n *network) addEndpoint(ep *endpoint) error {
+func (n *network) addEndpoint(ep *Endpoint) error {
 	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed to add endpoint: %v", err)
@@ -1150,7 +1150,7 @@ func (n *network) addEndpoint(ep *endpoint) error {
 	return nil
 }
 
-func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
+func (n *network) CreateEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
@@ -1170,10 +1170,10 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	return n.createEndpoint(name, options...)
 }
 
-func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
+func (n *network) createEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
 
-	ep := &endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
+	ep := &Endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
 	ep.id = stringid.GenerateRandomID()
 
 	// Initialize ep.network with a possibly stale copy of n. We need this to get network from
@@ -1268,19 +1268,12 @@ func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoi
 	return ep, nil
 }
 
-func (n *network) Endpoints() []Endpoint {
-	var list []Endpoint
-
+func (n *network) Endpoints() []*Endpoint {
 	endpoints, err := n.getEndpointsFromStore()
 	if err != nil {
 		logrus.Error(err)
 	}
-
-	for _, ep := range endpoints {
-		list = append(list, ep)
-	}
-
-	return list
+	return endpoints
 }
 
 func (n *network) WalkEndpoints(walker EndpointWalker) {
@@ -1291,13 +1284,13 @@ func (n *network) WalkEndpoints(walker EndpointWalker) {
 	}
 }
 
-func (n *network) EndpointByName(name string) (Endpoint, error) {
+func (n *network) EndpointByName(name string) (*Endpoint, error) {
 	if name == "" {
 		return nil, ErrInvalidName(name)
 	}
-	var e Endpoint
+	var e *Endpoint
 
-	s := func(current Endpoint) bool {
+	s := func(current *Endpoint) bool {
 		if current.Name() == name {
 			e = current
 			return true
@@ -1314,7 +1307,7 @@ func (n *network) EndpointByName(name string) (Endpoint, error) {
 	return e, nil
 }
 
-func (n *network) EndpointByID(id string) (Endpoint, error) {
+func (n *network) EndpointByID(id string) (*Endpoint, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}
@@ -1327,7 +1320,7 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	return ep, nil
 }
 
-func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
+func (n *network) updateSvcRecord(ep *Endpoint, localEps []*Endpoint, isAdd bool) {
 	var ipv6 net.IP
 	epName := ep.Name()
 	if iface := ep.Iface(); iface != nil && iface.Address() != nil {
@@ -1472,7 +1465,7 @@ func (n *network) deleteSvcRecords(eID, name, serviceID string, epIP net.IP, epI
 	}
 }
 
-func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
+func (n *network) getSvcRecords(ep *Endpoint) []etchosts.Record {
 	n.Lock()
 	defer n.Unlock()
 

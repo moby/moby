@@ -969,7 +969,7 @@ func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	return pm
 }
 
-func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
+func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 	pm := nat.PortMap{}
 	driverInfo, err := ep.DriverInfo()
 	if err != nil {
@@ -1013,7 +1013,7 @@ func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
 }
 
 // buildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
-func buildEndpointInfo(networkSettings *internalnetwork.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error {
+func buildEndpointInfo(networkSettings *internalnetwork.Settings, n libnetwork.Network, ep *libnetwork.Endpoint) error {
 	if ep == nil {
 		return errors.New("endpoint cannot be nil")
 	}

@@ -147,7 +147,7 @@ func (sb *Sandbox) storeUpdate() error {
 
 retry:
 	sbs.Eps = nil
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		// If the endpoint is not persisted then do not add it to
 		// the sandbox checkpoint
 		if ep.Skip() {
@@ -211,7 +211,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			id:                 sbs.ID,
 			controller:         sbs.c,
 			containerID:        sbs.Cid,
-			endpoints:          []*endpoint{},
+			endpoints:          []*Endpoint{},
 			populatedEndpoints: map[string]struct{}{},
 			dbIndex:            sbs.dbIndex,
 			isStub:             true,
@@ -251,16 +251,16 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 
 		for _, eps := range sbs.Eps {
 			n, err := c.getNetworkFromStore(eps.Nid)
-			var ep *endpoint
+			var ep *Endpoint
 			if err != nil {
 				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
 				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}, persist: true}
-				ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+				ep = &Endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
 				if err != nil {
 					logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
-					ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+					ep = &Endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 				}
 			}
 			if _, ok := activeSandboxes[sb.ID()]; ok && err != nil {

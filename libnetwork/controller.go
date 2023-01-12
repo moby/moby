@@ -90,8 +90,8 @@ type Controller struct {
 	cfg              *config.Config
 	stores           []datastore.DataStore
 	extKeyListener   net.Listener
-	watchCh          chan *endpoint
-	unWatchCh        chan *endpoint
+	watchCh          chan *Endpoint
+	unWatchCh        chan *Endpoint
 	svcRecords       map[string]svcInfo
 	nmap             map[string]*netWatch
 	serviceBindings  map[serviceKey]*service
@@ -959,7 +959,7 @@ func (c *Controller) NewSandbox(containerID string, options ...SandboxOption) (*
 		sb = &Sandbox{
 			id:                 sandboxID,
 			containerID:        containerID,
-			endpoints:          []*endpoint{},
+			endpoints:          []*Endpoint{},
 			epPriority:         map[string]int{},
 			populatedEndpoints: map[string]struct{}{},
 			config:             containerConfig{},

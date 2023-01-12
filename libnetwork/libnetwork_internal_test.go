@@ -188,7 +188,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		lla = append(lla, ll)
 	}
 
-	e := &endpoint{
+	e := &Endpoint{
 		name:      "Bau",
 		id:        "efghijklmno",
 		sandboxID: "ambarabaciccicocco",
@@ -213,7 +213,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ee := &endpoint{}
+	ee := &Endpoint{}
 	err = json.Unmarshal(b, ee)
 	if err != nil {
 		t.Fatal(err)

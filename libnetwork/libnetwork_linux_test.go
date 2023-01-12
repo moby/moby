@@ -852,7 +852,7 @@ type parallelTester struct {
 
 func (pt parallelTester) Do(t *testing.T, thrNumber int) error {
 	var (
-		ep  libnetwork.Endpoint
+		ep  *libnetwork.Endpoint
 		sb  *libnetwork.Sandbox
 		err error
 	)

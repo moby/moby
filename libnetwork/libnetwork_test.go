@@ -520,8 +520,8 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 
 	// Test Endpoint Walk method
 	var epName string
-	var epWanted libnetwork.Endpoint
-	wlk := func(ep libnetwork.Endpoint) bool {
+	var epWanted *libnetwork.Endpoint
+	wlk := func(ep *libnetwork.Endpoint) bool {
 		if ep.Name() == epName {
 			epWanted = ep
 			return true

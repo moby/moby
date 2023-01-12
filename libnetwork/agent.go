@@ -551,7 +551,7 @@ func (n *network) leaveCluster() error {
 	return agent.networkDB.LeaveNetwork(n.ID())
 }
 
-func (ep *endpoint) addDriverInfoToCluster() error {
+func (ep *Endpoint) addDriverInfoToCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -573,7 +573,7 @@ func (ep *endpoint) addDriverInfoToCluster() error {
 	return nil
 }
 
-func (ep *endpoint) deleteDriverInfoFromCluster() error {
+func (ep *Endpoint) deleteDriverInfoFromCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -595,7 +595,7 @@ func (ep *endpoint) deleteDriverInfoFromCluster() error {
 	return nil
 }
 
-func (ep *endpoint) addServiceInfoToCluster(sb *Sandbox) error {
+func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
 		return nil
 	}
@@ -677,7 +677,7 @@ func (ep *endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	return nil
 }
 
-func (ep *endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, method string) error {
+func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, method string) error {
 	if ep.isAnonymous() && len(ep.myAliases) == 0 {
 		return nil
 	}
@@ -742,7 +742,7 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	return nil
 }
 
-func disableServiceInNetworkDB(a *agent, n *network, ep *endpoint) {
+func disableServiceInNetworkDB(a *agent, n *network, ep *Endpoint) {
 	var epRec EndpointRecord
 
 	logrus.Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())

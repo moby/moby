@@ -40,7 +40,7 @@ type Sandbox struct {
 	controller         *Controller
 	resolver           Resolver
 	resolverOnce       sync.Once
-	endpoints          []*endpoint
+	endpoints          []*Endpoint
 	epPriority         map[string]int
 	populatedEndpoints map[string]struct{}
 	joinLeaveDone      chan struct{}
@@ -178,7 +178,7 @@ func (sb *Sandbox) delete(force bool) error {
 
 	// Detach from all endpoints
 	retain := false
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		// gw network endpoint detach and removal are automatic
 		if ep.endpointInGWNetwork() && !force {
 			continue
@@ -241,7 +241,7 @@ func (sb *Sandbox) delete(force bool) error {
 func (sb *Sandbox) Rename(name string) error {
 	var err error
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		if ep.endpointInGWNetwork() {
 			continue
 		}
@@ -268,7 +268,7 @@ func (sb *Sandbox) Rename(name string) error {
 // re-joins all the endpoints without destroying the osl sandbox
 func (sb *Sandbox) Refresh(options ...SandboxOption) error {
 	// Store connected endpoints
-	epList := sb.getConnectedEndpoints()
+	epList := sb.Endpoints()
 
 	// Detach from all endpoints
 	for _, ep := range epList {
@@ -317,28 +317,17 @@ func (sb *Sandbox) UnmarshalJSON(b []byte) (err error) {
 }
 
 // Endpoints returns all the endpoints connected to the sandbox.
-func (sb *Sandbox) Endpoints() []Endpoint {
+func (sb *Sandbox) Endpoints() []*Endpoint {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
-	endpoints := make([]Endpoint, len(sb.endpoints))
-	for i, ep := range sb.endpoints {
-		endpoints[i] = ep
-	}
-	return endpoints
-}
-
-func (sb *Sandbox) getConnectedEndpoints() []*endpoint {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
-
-	eps := make([]*endpoint, len(sb.endpoints))
+	eps := make([]*Endpoint, len(sb.endpoints))
 	copy(eps, sb.endpoints)
 
 	return eps
 }
 
-func (sb *Sandbox) addEndpoint(ep *endpoint) {
+func (sb *Sandbox) addEndpoint(ep *Endpoint) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
@@ -352,14 +341,14 @@ func (sb *Sandbox) addEndpoint(ep *endpoint) {
 	sb.endpoints[i] = ep
 }
 
-func (sb *Sandbox) removeEndpoint(ep *endpoint) {
+func (sb *Sandbox) removeEndpoint(ep *Endpoint) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
 	sb.removeEndpointRaw(ep)
 }
 
-func (sb *Sandbox) removeEndpointRaw(ep *endpoint) {
+func (sb *Sandbox) removeEndpointRaw(ep *Endpoint) {
 	for i, e := range sb.endpoints {
 		if e == ep {
 			sb.endpoints = append(sb.endpoints[:i], sb.endpoints[i+1:]...)
@@ -368,7 +357,7 @@ func (sb *Sandbox) removeEndpointRaw(ep *endpoint) {
 	}
 }
 
-func (sb *Sandbox) getEndpoint(id string) *endpoint {
+func (sb *Sandbox) getEndpoint(id string) *Endpoint {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
@@ -381,7 +370,7 @@ func (sb *Sandbox) getEndpoint(id string) *endpoint {
 	return nil
 }
 
-func (sb *Sandbox) updateGateway(ep *endpoint) error {
+func (sb *Sandbox) updateGateway(ep *Endpoint) error {
 	sb.mu.Lock()
 	osSbox := sb.osSbox
 	sb.mu.Unlock()
@@ -411,7 +400,7 @@ func (sb *Sandbox) updateGateway(ep *endpoint) error {
 }
 
 func (sb *Sandbox) HandleQueryResp(name string, ip net.IP) {
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
 		n.HandleQueryResp(name, ip)
 	}
@@ -421,7 +410,7 @@ func (sb *Sandbox) ResolveIP(ip string) string {
 	var svc string
 	logrus.Debugf("IP To resolve %v", ip)
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
 		svc = n.ResolveIP(ip)
 		if len(svc) != 0 {
@@ -458,7 +447,7 @@ func (sb *Sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
 		return nil, nil
 	}
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		n := ep.getNetwork()
 
 		srv, ip = n.ResolveService(name)
@@ -469,8 +458,8 @@ func (sb *Sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	return srv, ip
 }
 
-func getDynamicNwEndpoints(epList []*endpoint) []*endpoint {
-	eps := []*endpoint{}
+func getDynamicNwEndpoints(epList []*Endpoint) []*Endpoint {
+	eps := []*Endpoint{}
 	for _, ep := range epList {
 		n := ep.getNetwork()
 		if n.dynamic && !n.ingress {
@@ -480,7 +469,7 @@ func getDynamicNwEndpoints(epList []*endpoint) []*endpoint {
 	return eps
 }
 
-func getIngressNwEndpoint(epList []*endpoint) *endpoint {
+func getIngressNwEndpoint(epList []*Endpoint) *Endpoint {
 	for _, ep := range epList {
 		n := ep.getNetwork()
 		if n.ingress {
@@ -490,8 +479,8 @@ func getIngressNwEndpoint(epList []*endpoint) *endpoint {
 	return nil
 }
 
-func getLocalNwEndpoints(epList []*endpoint) []*endpoint {
-	eps := []*endpoint{}
+func getLocalNwEndpoints(epList []*Endpoint) []*Endpoint {
+	eps := []*Endpoint{}
 	for _, ep := range epList {
 		n := ep.getNetwork()
 		if !n.dynamic && !n.ingress {
@@ -530,12 +519,12 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 		}
 	}
 
-	epList := sb.getConnectedEndpoints()
+	epList := sb.Endpoints()
 
 	// In swarm mode services with exposed ports are connected to user overlay
 	// network, ingress network and docker_gwbridge network. Name resolution
 	// should prioritize returning the VIP/IPs on user overlay network.
-	newList := []*endpoint{}
+	newList := []*Endpoint{}
 	if !sb.controller.isDistributedControl() {
 		newList = append(newList, getDynamicNwEndpoints(epList)...)
 		ingressEP := getIngressNwEndpoint(epList)
@@ -568,7 +557,7 @@ func (sb *Sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	return nil, false
 }
 
-func (sb *Sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool, ipType int) ([]net.IP, bool) {
+func (sb *Sandbox) resolveName(req string, networkName string, epList []*Endpoint, alias bool, ipType int) ([]net.IP, bool) {
 	var ipv6Miss bool
 
 	for _, ep := range epList {
@@ -664,7 +653,7 @@ func (sb *Sandbox) SetKey(basePath string) error {
 		}
 	}
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		if err = sb.populateNetworkResources(ep); err != nil {
 			return err
 		}
@@ -683,7 +672,7 @@ func (sb *Sandbox) EnableService() (err error) {
 			}
 		}
 	}()
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		if !ep.isServiceEnabled() {
 			if err := ep.addServiceInfoToCluster(sb); err != nil {
 				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
@@ -705,7 +694,7 @@ func (sb *Sandbox) DisableService() (err error) {
 			err = fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
 		}
 	}()
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		if ep.isServiceEnabled() {
 			if err := ep.deleteServiceInfoFromCluster(sb, false, "DisableService"); err != nil {
 				failedEps = append(failedEps, ep.Name())
@@ -718,7 +707,7 @@ func (sb *Sandbox) DisableService() (err error) {
 	return nil
 }
 
-func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
+func releaseOSSboxResources(osSbox osl.Sandbox, ep *Endpoint) {
 	for _, i := range osSbox.Info().Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
@@ -763,7 +752,7 @@ func (sb *Sandbox) releaseOSSbox() {
 		return
 	}
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		releaseOSSboxResources(osSbox, ep)
 	}
 
@@ -819,7 +808,7 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	return sb.osSbox.Restore(Ifaces, routes, gwep.joinInfo.gw, gwep.joinInfo.gw6)
 }
 
-func (sb *Sandbox) populateNetworkResources(ep *endpoint) error {
+func (sb *Sandbox) populateNetworkResources(ep *Endpoint) error {
 	sb.mu.Lock()
 	if sb.osSbox == nil {
 		sb.mu.Unlock()
@@ -907,7 +896,7 @@ func (sb *Sandbox) populateNetworkResources(ep *endpoint) error {
 	return nil
 }
 
-func (sb *Sandbox) clearNetworkResources(origEp *endpoint) error {
+func (sb *Sandbox) clearNetworkResources(origEp *Endpoint) error {
 	ep := sb.getEndpoint(origEp.id)
 	if ep == nil {
 		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
@@ -934,7 +923,7 @@ func (sb *Sandbox) clearNetworkResources(origEp *endpoint) error {
 	}
 
 	var (
-		gwepBefore, gwepAfter *endpoint
+		gwepBefore, gwepAfter *Endpoint
 		index                 = -1
 	)
 	for i, e := range sb.endpoints {
@@ -1184,7 +1173,7 @@ func OptionLoadBalancer(nid string) SandboxOption {
 // epi.internal <=> epj.internal   # non-internal < internal
 // epi.joininfo <=> epj.joininfo   # ipv6 < ipv4
 // epi.name <=> epj.name           # bar < foo
-func (epi *endpoint) Less(epj *endpoint) bool {
+func (epi *Endpoint) Less(epj *Endpoint) bool {
 	var (
 		prioi, prioj int
 	)

@@ -158,10 +158,10 @@ func (c *Controller) getNetworksFromStore() []*network {
 	return nl
 }
 
-func (n *network) getEndpointFromStore(eid string) (*endpoint, error) {
+func (n *network) getEndpointFromStore(eid string) (*Endpoint, error) {
 	var errors []string
 	for _, store := range n.ctrlr.getStores() {
-		ep := &endpoint{id: eid, network: n}
+		ep := &Endpoint{id: eid, network: n}
 		err := store.GetObject(datastore.Key(ep.Key()...), ep)
 		// Continue searching in the next store if the key is not found in this store
 		if err != nil {
@@ -176,12 +176,12 @@ func (n *network) getEndpointFromStore(eid string) (*endpoint, error) {
 	return nil, fmt.Errorf("could not find endpoint %s: %v", eid, errors)
 }
 
-func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
-	var epl []*endpoint
+func (n *network) getEndpointsFromStore() ([]*Endpoint, error) {
+	var epl []*Endpoint
 
-	tmp := endpoint{network: n}
+	tmp := Endpoint{network: n}
 	for _, store := range n.getController().getStores() {
-		kvol, err := store.List(datastore.Key(tmp.KeyPrefix()...), &endpoint{network: n})
+		kvol, err := store.List(datastore.Key(tmp.KeyPrefix()...), &Endpoint{network: n})
 		// Continue searching in the next store if no keys found in this store
 		if err != nil {
 			if err != datastore.ErrKeyNotFound {
@@ -192,7 +192,7 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 		}
 
 		for _, kvo := range kvol {
-			ep := kvo.(*endpoint)
+			ep := kvo.(*Endpoint)
 			epl = append(epl, ep)
 		}
 	}
@@ -238,16 +238,16 @@ retry:
 }
 
 type netWatch struct {
-	localEps  map[string]*endpoint
-	remoteEps map[string]*endpoint
+	localEps  map[string]*Endpoint
+	remoteEps map[string]*Endpoint
 	stopCh    chan struct{}
 }
 
-func (c *Controller) getLocalEps(nw *netWatch) []*endpoint {
+func (c *Controller) getLocalEps(nw *netWatch) []*Endpoint {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var epl []*endpoint
+	var epl []*Endpoint
 	for _, ep := range nw.localEps {
 		epl = append(epl, ep)
 	}
@@ -255,15 +255,15 @@ func (c *Controller) getLocalEps(nw *netWatch) []*endpoint {
 	return epl
 }
 
-func (c *Controller) watchSvcRecord(ep *endpoint) {
+func (c *Controller) watchSvcRecord(ep *Endpoint) {
 	c.watchCh <- ep
 }
 
-func (c *Controller) unWatchSvcRecord(ep *endpoint) {
+func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
 	c.unWatchCh <- ep
 }
 
-func (c *Controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan datastore.KVObject) {
+func (c *Controller) networkWatchLoop(nw *netWatch, ep *Endpoint, ecCh <-chan datastore.KVObject) {
 	for {
 		select {
 		case <-nw.stopCh:
@@ -277,9 +277,9 @@ func (c *Controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 			}
 
 			c.mu.Lock()
-			var addEp []*endpoint
+			var addEp []*Endpoint
 
-			delEpMap := make(map[string]*endpoint)
+			delEpMap := make(map[string]*Endpoint)
 			renameEpMap := make(map[string]bool)
 			for k, v := range nw.remoteEps {
 				delEpMap[k] = v
@@ -327,7 +327,7 @@ func (c *Controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 	}
 }
 
-func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoint) {
+func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == datastore.SwarmScope && n.driverIsMultihost() {
 		return
@@ -356,8 +356,8 @@ func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 	}
 
 	nw = &netWatch{
-		localEps:  make(map[string]*endpoint),
-		remoteEps: make(map[string]*endpoint),
+		localEps:  make(map[string]*Endpoint),
+		remoteEps: make(map[string]*Endpoint),
 	}
 
 	// Update the svc db for the local endpoint join right away
@@ -389,7 +389,7 @@ func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 	go c.networkWatchLoop(nw, ep, ch)
 }
 
-func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoint) {
+func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoint) {
 	n := ep.getNetwork()
 	if !c.isDistributedControl() && n.Scope() == datastore.SwarmScope && n.driverIsMultihost() {
 		return
@@ -439,8 +439,8 @@ func (c *Controller) startWatch() {
 	if c.watchCh != nil {
 		return
 	}
-	c.watchCh = make(chan *endpoint)
-	c.unWatchCh = make(chan *endpoint)
+	c.watchCh = make(chan *Endpoint)
+	c.unWatchCh = make(chan *Endpoint)
 	c.nmap = make(map[string]*netWatch)
 
 	go c.watchLoop()

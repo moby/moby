@@ -187,7 +187,8 @@ type tableEntry struct {
 	value     []byte
 }
 
-func (ep *endpoint) Info() EndpointInfo {
+// Info returns certain operational data belonging to this endpoint.
+func (ep *Endpoint) Info() EndpointInfo {
 	if ep.sandboxID != "" {
 		return ep
 	}
@@ -211,7 +212,7 @@ func (ep *endpoint) Info() EndpointInfo {
 	return sb.getEndpoint(ep.ID())
 }
 
-func (ep *endpoint) Iface() InterfaceInfo {
+func (ep *Endpoint) Iface() InterfaceInfo {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -222,7 +223,7 @@ func (ep *endpoint) Iface() InterfaceInfo {
 	return nil
 }
 
-func (ep *endpoint) Interface() driverapi.InterfaceInfo {
+func (ep *Endpoint) Interface() driverapi.InterfaceInfo {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -288,7 +289,7 @@ func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {
 	return nil
 }
 
-func (ep *endpoint) InterfaceName() driverapi.InterfaceNameInfo {
+func (ep *Endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -299,7 +300,7 @@ func (ep *endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 	return nil
 }
 
-func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
+func (ep *Endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -315,7 +316,7 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 	return nil
 }
 
-func (ep *endpoint) AddTableEntry(tableName, key string, value []byte) error {
+func (ep *Endpoint) AddTableEntry(tableName, key string, value []byte) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -328,7 +329,7 @@ func (ep *endpoint) AddTableEntry(tableName, key string, value []byte) error {
 	return nil
 }
 
-func (ep *endpoint) Sandbox() *Sandbox {
+func (ep *Endpoint) Sandbox() *Sandbox {
 	cnt, ok := ep.getSandbox()
 	if !ok {
 		return nil
@@ -336,13 +337,13 @@ func (ep *endpoint) Sandbox() *Sandbox {
 	return cnt
 }
 
-func (ep *endpoint) LoadBalancer() bool {
+func (ep *Endpoint) LoadBalancer() bool {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 	return ep.loadBalancer
 }
 
-func (ep *endpoint) StaticRoutes() []*types.StaticRoute {
+func (ep *Endpoint) StaticRoutes() []*types.StaticRoute {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -353,7 +354,7 @@ func (ep *endpoint) StaticRoutes() []*types.StaticRoute {
 	return ep.joinInfo.StaticRoutes
 }
 
-func (ep *endpoint) Gateway() net.IP {
+func (ep *Endpoint) Gateway() net.IP {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -364,7 +365,7 @@ func (ep *endpoint) Gateway() net.IP {
 	return types.GetIPCopy(ep.joinInfo.gw)
 }
 
-func (ep *endpoint) GatewayIPv6() net.IP {
+func (ep *Endpoint) GatewayIPv6() net.IP {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -375,7 +376,7 @@ func (ep *endpoint) GatewayIPv6() net.IP {
 	return types.GetIPCopy(ep.joinInfo.gw6)
 }
 
-func (ep *endpoint) SetGateway(gw net.IP) error {
+func (ep *Endpoint) SetGateway(gw net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -383,7 +384,7 @@ func (ep *endpoint) SetGateway(gw net.IP) error {
 	return nil
 }
 
-func (ep *endpoint) SetGatewayIPv6(gw6 net.IP) error {
+func (ep *Endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
@@ -391,7 +392,7 @@ func (ep *endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	return nil
 }
 
-func (ep *endpoint) retrieveFromStore() (*endpoint, error) {
+func (ep *Endpoint) retrieveFromStore() (*Endpoint, error) {
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return nil, fmt.Errorf("could not find network in store to get latest endpoint %s: %v", ep.Name(), err)
@@ -399,7 +400,7 @@ func (ep *endpoint) retrieveFromStore() (*endpoint, error) {
 	return n.getEndpointFromStore(ep.ID())
 }
 
-func (ep *endpoint) DisableGatewayService() {
+func (ep *Endpoint) DisableGatewayService() {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 

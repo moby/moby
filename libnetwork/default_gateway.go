@@ -84,9 +84,7 @@ func (sb *Sandbox) setupDefaultGW() error {
 		}
 	}()
 
-	epLocal := newEp.(*endpoint)
-
-	if err = epLocal.sbJoin(sb); err != nil {
+	if err = newEp.sbJoin(sb); err != nil {
 		return fmt.Errorf("container %s: endpoint join on GW Network failed: %v", sb.containerID, err)
 	}
 
@@ -95,7 +93,7 @@ func (sb *Sandbox) setupDefaultGW() error {
 
 // If present, detach and remove the endpoint connecting the sandbox to the default gw network.
 func (sb *Sandbox) clearDefaultGW() error {
-	var ep *endpoint
+	var ep *Endpoint
 
 	if ep = sb.getEndpointInGWNetwork(); ep == nil {
 		return nil
@@ -116,7 +114,7 @@ func (sb *Sandbox) clearDefaultGW() error {
 func (sb *Sandbox) needDefaultGW() bool {
 	var needGW bool
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		if ep.endpointInGWNetwork() {
 			continue
 		}
@@ -145,8 +143,8 @@ func (sb *Sandbox) needDefaultGW() bool {
 	return needGW
 }
 
-func (sb *Sandbox) getEndpointInGWNetwork() *endpoint {
-	for _, ep := range sb.getConnectedEndpoints() {
+func (sb *Sandbox) getEndpointInGWNetwork() *Endpoint {
+	for _, ep := range sb.Endpoints() {
 		if ep.getNetwork().name == libnGWNetwork && strings.HasPrefix(ep.Name(), "gateway_") {
 			return ep
 		}
@@ -154,7 +152,7 @@ func (sb *Sandbox) getEndpointInGWNetwork() *endpoint {
 	return nil
 }
 
-func (ep *endpoint) endpointInGWNetwork() bool {
+func (ep *Endpoint) endpointInGWNetwork() bool {
 	if ep.getNetwork().name == libnGWNetwork && strings.HasPrefix(ep.Name(), "gateway_") {
 		return true
 	}
@@ -175,8 +173,8 @@ func (c *Controller) defaultGwNetwork() (Network, error) {
 }
 
 // Returns the endpoint which is providing external connectivity to the sandbox
-func (sb *Sandbox) getGatewayEndpoint() *endpoint {
-	for _, ep := range sb.getConnectedEndpoints() {
+func (sb *Sandbox) getGatewayEndpoint() *Endpoint {
+	for _, ep := range sb.Endpoints() {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
