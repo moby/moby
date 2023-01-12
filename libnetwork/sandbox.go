@@ -84,7 +84,7 @@ type sandbox struct {
 	ndotsSet           bool
 	oslTypes           []osl.SandboxType // slice of properties of this sandbox
 	loadBalancerNID    string            // NID that this SB is a load balancer for
-	sync.Mutex
+	mu                 sync.Mutex
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
 	Service sync.Mutex
@@ -150,8 +150,8 @@ func (sb *sandbox) Key() string {
 }
 
 func (sb *sandbox) Labels() map[string]interface{} {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 	opts := make(map[string]interface{}, len(sb.config.generic))
 	for k, v := range sb.config.generic {
 		opts[k] = v
@@ -162,9 +162,9 @@ func (sb *sandbox) Labels() map[string]interface{} {
 func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 	m := make(map[string]*types.InterfaceStatistics)
 
-	sb.Lock()
+	sb.mu.Lock()
 	osb := sb.osSbox
-	sb.Unlock()
+	sb.mu.Unlock()
 	if osb == nil {
 		return m, nil
 	}
@@ -184,9 +184,9 @@ func (sb *sandbox) Delete() error {
 }
 
 func (sb *sandbox) delete(force bool) error {
-	sb.Lock()
+	sb.mu.Lock()
 	if sb.inDelete {
-		sb.Unlock()
+		sb.mu.Unlock()
 		return types.ForbiddenErrorf("another sandbox delete in progress")
 	}
 	// Set the inDelete flag. This will ensure that we don't
@@ -198,7 +198,7 @@ func (sb *sandbox) delete(force bool) error {
 	// will have all the references to the endpoints in the
 	// sandbox so that we can clean them up when we restart
 	sb.inDelete = true
-	sb.Unlock()
+	sb.mu.Unlock()
 
 	c := sb.controller
 
@@ -230,9 +230,9 @@ func (sb *sandbox) delete(force bool) error {
 	}
 
 	if retain {
-		sb.Lock()
+		sb.mu.Lock()
 		sb.inDelete = false
-		sb.Unlock()
+		sb.mu.Unlock()
 		return fmt.Errorf("could not cleanup all the endpoints in container %s / sandbox %s", sb.containerID, sb.id)
 	}
 	// Container is going away. Path cache in etchosts is most
@@ -320,16 +320,16 @@ func (sb *sandbox) Refresh(options ...SandboxOption) error {
 }
 
 func (sb *sandbox) MarshalJSON() ([]byte, error) {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	// We are just interested in the container ID. This can be expanded to include all of containerInfo if there is a need
 	return json.Marshal(sb.id)
 }
 
 func (sb *sandbox) UnmarshalJSON(b []byte) (err error) {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	var id string
 	if err := json.Unmarshal(b, &id); err != nil {
@@ -340,8 +340,8 @@ func (sb *sandbox) UnmarshalJSON(b []byte) (err error) {
 }
 
 func (sb *sandbox) Endpoints() []Endpoint {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	endpoints := make([]Endpoint, len(sb.endpoints))
 	for i, ep := range sb.endpoints {
@@ -351,8 +351,8 @@ func (sb *sandbox) Endpoints() []Endpoint {
 }
 
 func (sb *sandbox) getConnectedEndpoints() []*endpoint {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	eps := make([]*endpoint, len(sb.endpoints))
 	copy(eps, sb.endpoints)
@@ -361,8 +361,8 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 }
 
 func (sb *sandbox) addEndpoint(ep *endpoint) {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	l := len(sb.endpoints)
 	i := sort.Search(l, func(j int) bool {
@@ -375,8 +375,8 @@ func (sb *sandbox) addEndpoint(ep *endpoint) {
 }
 
 func (sb *sandbox) removeEndpoint(ep *endpoint) {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	sb.removeEndpointRaw(ep)
 }
@@ -391,8 +391,8 @@ func (sb *sandbox) removeEndpointRaw(ep *endpoint) {
 }
 
 func (sb *sandbox) getEndpoint(id string) *endpoint {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	for _, ep := range sb.endpoints {
 		if ep.id == id {
@@ -404,9 +404,9 @@ func (sb *sandbox) getEndpoint(id string) *endpoint {
 }
 
 func (sb *sandbox) updateGateway(ep *endpoint) error {
-	sb.Lock()
+	sb.mu.Lock()
 	osSbox := sb.osSbox
-	sb.Unlock()
+	sb.mu.Unlock()
 	if osSbox == nil {
 		return nil
 	}
@@ -455,9 +455,9 @@ func (sb *sandbox) ResolveIP(ip string) string {
 }
 
 func (sb *sandbox) ExecFunc(f func()) error {
-	sb.Lock()
+	sb.mu.Lock()
 	osSbox := sb.osSbox
-	sb.Unlock()
+	sb.mu.Unlock()
 	if osSbox != nil {
 		return osSbox.InvokeFunc(f)
 	}
@@ -645,13 +645,13 @@ func (sb *sandbox) SetKey(basePath string) error {
 		return types.BadRequestErrorf("invalid sandbox key")
 	}
 
-	sb.Lock()
+	sb.mu.Lock()
 	if sb.inDelete {
-		sb.Unlock()
+		sb.mu.Unlock()
 		return types.ForbiddenErrorf("failed to SetKey: sandbox %q delete in progress", sb.id)
 	}
 	oldosSbox := sb.osSbox
-	sb.Unlock()
+	sb.mu.Unlock()
 
 	if oldosSbox != nil {
 		// If we already have an OS sandbox, release the network resources from that
@@ -665,9 +665,9 @@ func (sb *sandbox) SetKey(basePath string) error {
 		return err
 	}
 
-	sb.Lock()
+	sb.mu.Lock()
 	sb.osSbox = osSbox
-	sb.Unlock()
+	sb.mu.Unlock()
 
 	// If the resolver was setup before stop it and set it up in the
 	// new osl sandbox.
@@ -769,10 +769,10 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 }
 
 func (sb *sandbox) releaseOSSbox() {
-	sb.Lock()
+	sb.mu.Lock()
 	osSbox := sb.osSbox
 	sb.osSbox = nil
-	sb.Unlock()
+	sb.mu.Unlock()
 
 	if osSbox == nil {
 		return
@@ -835,13 +835,13 @@ func (sb *sandbox) restoreOslSandbox() error {
 }
 
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
-	sb.Lock()
+	sb.mu.Lock()
 	if sb.osSbox == nil {
-		sb.Unlock()
+		sb.mu.Unlock()
 		return nil
 	}
 	inDelete := sb.inDelete
-	sb.Unlock()
+	sb.mu.Unlock()
 
 	ep.Lock()
 	joinInfo := ep.joinInfo
@@ -901,9 +901,9 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 
 	// Make sure to add the endpoint to the populated endpoint set
 	// before populating loadbalancers.
-	sb.Lock()
+	sb.mu.Lock()
 	sb.populatedEndpoints[ep.ID()] = struct{}{}
-	sb.Unlock()
+	sb.mu.Unlock()
 
 	// Populate load balancer only after updating all the other
 	// information including gateway and other routes so that
@@ -929,22 +929,22 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 			origEp.id)
 	}
 
-	sb.Lock()
+	sb.mu.Lock()
 	osSbox := sb.osSbox
 	inDelete := sb.inDelete
-	sb.Unlock()
+	sb.mu.Unlock()
 	if osSbox != nil {
 		releaseOSSboxResources(osSbox, ep)
 	}
 
-	sb.Lock()
+	sb.mu.Lock()
 	delete(sb.populatedEndpoints, ep.ID())
 
 	if len(sb.endpoints) == 0 {
 		// sb.endpoints should never be empty and this is unexpected error condition
 		// We log an error message to note this down for debugging purposes.
 		logrus.Errorf("No endpoints in sandbox while trying to remove endpoint %s", ep.Name())
-		sb.Unlock()
+		sb.mu.Unlock()
 		return nil
 	}
 
@@ -966,7 +966,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 
 	if index == -1 {
 		logrus.Warnf("Endpoint %s has already been deleted", ep.Name())
-		sb.Unlock()
+		sb.mu.Unlock()
 		return nil
 	}
 
@@ -978,7 +978,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		}
 	}
 	delete(sb.epPriority, ep.ID())
-	sb.Unlock()
+	sb.mu.Unlock()
 
 	if gwepAfter != nil && gwepBefore != gwepAfter {
 		if err := sb.updateGateway(gwepAfter); err != nil {
@@ -1000,16 +1000,16 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 // joinLeaveStart waits to ensure there are no joins or leaves in progress and
 // marks this join/leave in progress without race
 func (sb *sandbox) joinLeaveStart() {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	for sb.joinLeaveDone != nil {
 		joinLeaveDone := sb.joinLeaveDone
-		sb.Unlock()
+		sb.mu.Unlock()
 
 		<-joinLeaveDone
 
-		sb.Lock()
+		sb.mu.Lock()
 	}
 
 	sb.joinLeaveDone = make(chan struct{})
@@ -1018,8 +1018,8 @@ func (sb *sandbox) joinLeaveStart() {
 // joinLeaveEnd marks the end of this join/leave operation and
 // signals the same without race to other join and leave waiters
 func (sb *sandbox) joinLeaveEnd() {
-	sb.Lock()
-	defer sb.Unlock()
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 
 	if sb.joinLeaveDone != nil {
 		close(sb.joinLeaveDone)
