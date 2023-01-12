@@ -2,7 +2,9 @@ package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
 	"context"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -15,9 +17,11 @@ import (
 	opts "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -33,7 +37,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		img         = r.Form.Get("fromImage")
 		repo        = r.Form.Get("repo")
 		tag         = r.Form.Get("tag")
-		message     = r.Form.Get("message")
+		comment     = r.Form.Get("message")
 		progressErr error
 		output      = ioutils.NewWriteFlusher(w)
 		platform    *specs.Platform
@@ -67,7 +71,61 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		progressErr = ir.backend.PullImage(ctx, img, tag, platform, metaHeaders, authConfig, output)
 	} else { // import
 		src := r.Form.Get("fromSrc")
-		progressErr = ir.backend.ImportImage(ctx, src, repo, platform, tag, message, r.Body, output, r.Form["changes"])
+
+		var ref reference.Named
+		if repo != "" {
+			var err error
+			ref, err = reference.ParseNormalizedNamed(repo)
+			if err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+			if _, isDigested := ref.(reference.Digested); isDigested {
+				return errdefs.InvalidParameter(errors.New("cannot import digest reference"))
+			}
+
+			if tag != "" {
+				ref, err = reference.WithTag(ref, tag)
+				if err != nil {
+					return errdefs.InvalidParameter(err)
+				}
+			} else {
+				ref = reference.TagNameOnly(ref)
+			}
+		}
+
+		if len(comment) == 0 {
+			comment = "Imported from " + src
+		}
+
+		var layerReader io.ReadCloser
+		defer r.Body.Close()
+		if src == "-" {
+			layerReader = r.Body
+		} else {
+			if len(strings.Split(src, "://")) == 1 {
+				src = "http://" + src
+			}
+			u, err := url.Parse(src)
+			if err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+
+			resp, err := remotecontext.GetWithStatusError(u.String())
+			if err != nil {
+				return err
+			}
+			output.Write(streamformatter.FormatStatus("", "Downloading from %s", u))
+			progressOutput := streamformatter.NewJSONProgressOutput(output, true)
+			layerReader = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
+			defer layerReader.Close()
+		}
+
+		var id image.ID
+		id, progressErr = ir.backend.ImportImage(ctx, ref, platform, comment, layerReader, r.Form["changes"])
+
+		if progressErr == nil {
+			output.Write(streamformatter.FormatStatus("", id.String()))
+		}
 	}
 	if progressErr != nil {
 		if !output.Flushed() {
