@@ -9,7 +9,7 @@ import (
 )
 
 func TestBoltdbBackend(t *testing.T) {
-	defer os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+	defer os.Remove(datastore.DefaultScope("").Client.Address)
 	testLocalBackend(t, "", "", nil)
 	defer os.Remove("/tmp/boltdb.db")
 	config := &store.Config{Bucket: "testBackend"}

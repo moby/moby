@@ -13,35 +13,20 @@ func registerKVStores() {
 	boltdb.Register()
 }
 
-func (c *Controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) error {
-	store, err := datastore.NewDataStore(scope, scfg)
-	if err != nil {
-		return err
-	}
-	c.mu.Lock()
-	c.stores = append(c.stores, store)
-	c.mu.Unlock()
-
-	return nil
-}
-
 func (c *Controller) initStores() error {
 	registerKVStores()
 
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.cfg == nil {
-		c.mu.Unlock()
 		return nil
 	}
-	scopeConfigs := c.cfg.Scopes
-	c.stores = nil
-	c.mu.Unlock()
-
-	for scope, scfg := range scopeConfigs {
-		if err := c.initScopedStore(scope, scfg); err != nil {
-			return err
-		}
+	store, err := datastore.NewDataStore(c.cfg.Scope)
+	if err != nil {
+		return err
 	}
+	c.stores = []datastore.DataStore{store}
 
 	c.startWatch()
 	return nil

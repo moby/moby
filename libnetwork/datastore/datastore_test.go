@@ -36,10 +36,13 @@ func TestParseKey(t *testing.T) {
 }
 
 func TestInvalidDataStore(t *testing.T) {
-	config := &ScopeCfg{}
-	config.Client.Provider = "invalid"
-	config.Client.Address = "localhost:8500"
-	_, err := NewDataStore(GlobalScope, config)
+	config := ScopeCfg{
+		Client: ScopeClientCfg{
+			Provider: "invalid",
+			Address:  "localhost:8500",
+		},
+	}
+	_, err := NewDataStore(config)
 	if err == nil {
 		t.Fatal("Invalid Datastore connection configuration must result in a failure")
 	}

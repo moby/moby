@@ -45,7 +45,7 @@ func randomLocalStore(needStore bool) (datastore.DataStore, error) {
 	if err := tmp.Close(); err != nil {
 		return nil, fmt.Errorf("Error closing temp file: %v", err)
 	}
-	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
+	return datastore.NewDataStore(datastore.ScopeCfg{
 		Client: datastore.ScopeClientCfg{
 			Provider: "boltdb",
 			Address:  filepath.Join(defaultPrefix, filepath.Base(tmp.Name())),

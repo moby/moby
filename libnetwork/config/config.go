@@ -29,7 +29,7 @@ type Config struct {
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
-	Scopes                 map[string]*datastore.ScopeCfg
+	Scope                  datastore.ScopeCfg
 	ActiveSandboxes        map[string]interface{}
 	PluginGetter           plugingetter.PluginGetter
 }
@@ -38,7 +38,6 @@ type Config struct {
 func New(opts ...Option) *Config {
 	cfg := &Config{
 		DriverCfg: make(map[string]interface{}),
-		Scopes:    make(map[string]*datastore.ScopeCfg),
 	}
 
 	for _, opt := range opts {
@@ -48,10 +47,8 @@ func New(opts ...Option) *Config {
 	}
 
 	// load default scope configs which don't have explicit user specified configs.
-	for k, v := range datastore.DefaultScopes(cfg.DataDir) {
-		if _, ok := cfg.Scopes[k]; !ok {
-			cfg.Scopes[k] = v
-		}
+	if cfg.Scope == (datastore.ScopeCfg{}) {
+		cfg.Scope = datastore.DefaultScope(cfg.DataDir)
 	}
 	return cfg
 }
@@ -147,10 +144,7 @@ func IsValidName(name string) bool {
 func OptionLocalKVProvider(provider string) Option {
 	return func(c *Config) {
 		logrus.Debugf("Option OptionLocalKVProvider: %s", provider)
-		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
-			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
-		}
-		c.Scopes[datastore.LocalScope].Client.Provider = strings.TrimSpace(provider)
+		c.Scope.Client.Provider = strings.TrimSpace(provider)
 	}
 }
 
@@ -158,10 +152,7 @@ func OptionLocalKVProvider(provider string) Option {
 func OptionLocalKVProviderURL(url string) Option {
 	return func(c *Config) {
 		logrus.Debugf("Option OptionLocalKVProviderURL: %s", url)
-		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
-			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
-		}
-		c.Scopes[datastore.LocalScope].Client.Address = strings.TrimSpace(url)
+		c.Scope.Client.Address = strings.TrimSpace(url)
 	}
 }
 
@@ -169,10 +160,7 @@ func OptionLocalKVProviderURL(url string) Option {
 func OptionLocalKVProviderConfig(config *store.Config) Option {
 	return func(c *Config) {
 		logrus.Debugf("Option OptionLocalKVProviderConfig: %v", config)
-		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
-			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
-		}
-		c.Scopes[datastore.LocalScope].Client.Config = config
+		c.Scope.Client.Config = config
 	}
 }
 
