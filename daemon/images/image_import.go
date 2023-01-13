@@ -19,14 +19,14 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// ImportImage imports an image, getting the archived layer data from layerReader.
+// ImportImageRootFS imports an image, getting the archived layer data from layerReader.
 // Uncompressed layer archive is passed to the layerStore and handled by the
 // underlying graph driver.
 // Image is tagged with the given reference.
 // If the platform is nil, the default host platform is used.
 // Message is used as the image's history comment.
 // Image configuration is derived from the dockerfile instructions in changes.
-func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, platform *specs.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error) {
+func (i *ImageService) ImportImageRootFS(ctx context.Context, newRef reference.Named, platform *specs.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error) {
 	if platform == nil {
 		def := platforms.DefaultSpec()
 		platform = &def

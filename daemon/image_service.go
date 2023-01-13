@@ -36,7 +36,7 @@ type ImageService interface {
 	LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string)
 	CountImages() int
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
-	ImportImage(ctx context.Context, ref reference.Named, platform *v1.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
+	ImportImageRootFS(ctx context.Context, ref reference.Named, platform *v1.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
 	TagImage(imageName, repository, tag string) (string, error)
 	TagImageWithReference(imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error)

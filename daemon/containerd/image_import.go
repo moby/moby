@@ -28,14 +28,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ImportImage imports an image, getting the archived layer data from layerReader.
+// ImportImageRootFS imports an image, getting the archived layer data from layerReader.
 // Layer archive is imported as-is if the compression is gzip or zstd.
 // Uncompressed, xz and bzip2 archives are recompressed into gzip.
 // The image is tagged with the given reference.
 // If the platform is nil, the default host platform is used.
 // The message is used as the history comment.
 // Image configuration is derived from the dockerfile instructions in changes.
-func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error) {
+func (i *ImageService) ImportImageRootFS(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error) {
 	refString := ""
 	if ref != nil {
 		refString = ref.String()

@@ -32,7 +32,7 @@ type imageBackend interface {
 
 type importExportBackend interface {
 	LoadImages(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
-	ImportImage(ctx context.Context, ref reference.Named, platform *specs.Platform, msg string, layerReader io.Reader, changes []string) (dockerimage.ID, error)
+	ImportImageRootFS(ctx context.Context, ref reference.Named, platform *specs.Platform, msg string, layerReader io.Reader, changes []string) (dockerimage.ID, error)
 	SaveImages(ctx context.Context, names []string, outStream io.Writer) error
 }
 
