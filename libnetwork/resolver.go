@@ -90,7 +90,6 @@ type resolver struct {
 	queryLock     sync.Mutex
 	listenAddress string
 	proxyDNS      bool
-	resolverKey   string
 	startCh       chan struct{}
 }
 
@@ -99,12 +98,11 @@ func init() {
 }
 
 // NewResolver creates a new instance of the Resolver
-func NewResolver(address string, proxyDNS bool, resolverKey string, backend DNSBackend) Resolver {
+func NewResolver(address string, proxyDNS bool, backend DNSBackend) Resolver {
 	return &resolver{
 		backend:       backend,
 		proxyDNS:      proxyDNS,
 		listenAddress: address,
-		resolverKey:   resolverKey,
 		err:           fmt.Errorf("setup not done yet"),
 		startCh:       make(chan struct{}, 1),
 	}

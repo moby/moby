@@ -122,7 +122,7 @@ func TestDNSIPQuery(t *testing.T) {
 
 	w := new(tstwriter)
 	// the unit tests right now will focus on non-proxyed DNS requests
-	r := NewResolver(resolverIPSandbox, false, sb.Key(), sb.(*sandbox))
+	r := NewResolver(resolverIPSandbox, false, sb.(*sandbox))
 
 	// test name1's IP is resolved correctly with the default A type query
 	// Also make sure DNS lookups are case insensitive
@@ -266,7 +266,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	t.Log("DNS Server can be reached")
 
 	w := new(tstwriter)
-	r := NewResolver(resolverIPSandbox, true, sb.Key(), sb.(*sandbox))
+	r := NewResolver(resolverIPSandbox, true, sb.(*sandbox))
 	q := new(dns.Msg)
 	q.SetQuestion("name1.", dns.TypeA)
 

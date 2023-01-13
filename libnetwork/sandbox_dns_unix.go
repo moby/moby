@@ -27,7 +27,7 @@ const (
 func (sb *sandbox) startResolver(restore bool) {
 	sb.resolverOnce.Do(func() {
 		var err error
-		sb.resolver = NewResolver(resolverIPSandbox, true, sb.Key(), sb)
+		sb.resolver = NewResolver(resolverIPSandbox, true, sb)
 		defer func() {
 			if err != nil {
 				sb.resolver = nil
