@@ -97,7 +97,7 @@ func resolveAddr(addrOrInterface string) (string, error) {
 	return addr.String(), nil
 }
 
-func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
+func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc := discoverapi.DriverEncryptionUpdate{}
 
 	a := c.getAgent()
@@ -108,7 +108,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 
 	// Find the deleted key. If the deleted key was the primary key,
 	// a new primary key should be set before removing if from keyring.
-	c.Lock()
+	c.mu.Lock()
 	added := []byte{}
 	deleted := []byte{}
 	j := len(c.keys)
@@ -157,7 +157,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			}
 		}
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	if len(added) > 0 {
 		a.networkDB.SetKey(added)
@@ -201,7 +201,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	return nil
 }
 
-func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
+func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 	agent := c.getAgent()
 
 	// If the agent is already present there is no need to try to initialize it again
@@ -248,9 +248,9 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 
 // For a given subsystem getKeys sorts the keys by lamport time and returns
 // slice of keys and lamport time which can used as a unique tag for the keys
-func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
-	c.Lock()
-	defer c.Unlock()
+func (c *Controller) getKeys(subsys string) ([][]byte, []uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	sort.Sort(ByTime(c.keys))
 
@@ -270,9 +270,9 @@ func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
 
 // getPrimaryKeyTag returns the primary key for a given subsystem from the
 // list of sorted key and the associated tag
-func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
-	c.Lock()
-	defer c.Unlock()
+func (c *Controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	sort.Sort(ByTime(c.keys))
 	keys := []*types.EncryptionKey{}
 	for _, key := range c.keys {
@@ -283,7 +283,7 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 	return keys[1].Key, keys[1].LamportTime, nil
 }
 
-func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
+func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, dataPathAddr string) error {
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
 	if err != nil {
 		return err
@@ -316,7 +316,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "", "")
 	cancelList = append(cancelList, cancel)
 
-	c.Lock()
+	c.mu.Lock()
 	c.agent = &agent{
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
@@ -325,7 +325,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 		coreCancelFuncs:   cancelList,
 		driverCancelFuncs: make(map[string][]func()),
 	}
-	c.Unlock()
+	c.mu.Unlock()
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
@@ -348,7 +348,7 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	return nil
 }
 
-func (c *controller) agentJoin(remoteAddrList []string) error {
+func (c *Controller) agentJoin(remoteAddrList []string) error {
 	agent := c.getAgent()
 	if agent == nil {
 		return nil
@@ -356,7 +356,7 @@ func (c *controller) agentJoin(remoteAddrList []string) error {
 	return agent.networkDB.Join(remoteAddrList)
 }
 
-func (c *controller) agentDriverNotify(d driverapi.Driver) {
+func (c *Controller) agentDriverNotify(d driverapi.Driver) {
 	agent := c.getAgent()
 	if agent == nil {
 		return
@@ -380,13 +380,13 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 	}
 }
 
-func (c *controller) agentClose() {
+func (c *Controller) agentClose() {
 	// Acquire current agent instance and reset its pointer
 	// then run closing functions
-	c.Lock()
+	c.mu.Lock()
 	agent := c.agent
 	c.agent = nil
-	c.Unlock()
+	c.mu.Unlock()
 
 	// when the agent is closed the cluster provider should be cleaned up
 	c.SetClusterProvider(nil)
@@ -551,7 +551,7 @@ func (n *network) leaveCluster() error {
 	return agent.networkDB.LeaveNetwork(n.ID())
 }
 
-func (ep *endpoint) addDriverInfoToCluster() error {
+func (ep *Endpoint) addDriverInfoToCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -573,7 +573,7 @@ func (ep *endpoint) addDriverInfoToCluster() error {
 	return nil
 }
 
-func (ep *endpoint) deleteDriverInfoFromCluster() error {
+func (ep *Endpoint) deleteDriverInfoFromCluster() error {
 	n := ep.getNetwork()
 	if !n.isClusterEligible() {
 		return nil
@@ -595,7 +595,7 @@ func (ep *endpoint) deleteDriverInfoFromCluster() error {
 	return nil
 }
 
-func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
+func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	if ep.isAnonymous() && len(ep.myAliases) == 0 || ep.Iface() == nil || ep.Iface().Address() == nil {
 		return nil
 	}
@@ -605,8 +605,8 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 		return nil
 	}
 
-	sb.Service.Lock()
-	defer sb.Service.Unlock()
+	sb.service.Lock()
+	defer sb.service.Unlock()
 	logrus.Debugf("addServiceInfoToCluster START for %s %s", ep.svcName, ep.ID())
 
 	// Check that the endpoint is still present on the sandbox before adding it to the service discovery.
@@ -677,7 +677,7 @@ func (ep *endpoint) addServiceInfoToCluster(sb *sandbox) error {
 	return nil
 }
 
-func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, fullRemove bool, method string) error {
+func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, method string) error {
 	if ep.isAnonymous() && len(ep.myAliases) == 0 {
 		return nil
 	}
@@ -687,8 +687,8 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, fullRemove bool, m
 		return nil
 	}
 
-	sb.Service.Lock()
-	defer sb.Service.Unlock()
+	sb.service.Lock()
+	defer sb.service.Unlock()
 	logrus.Debugf("deleteServiceInfoFromCluster from %s START for %s %s", method, ep.svcName, ep.ID())
 
 	// Avoid a race w/ with a container that aborts preemptively.  This would
@@ -742,7 +742,7 @@ func (ep *endpoint) deleteServiceInfoFromCluster(sb *sandbox, fullRemove bool, m
 	return nil
 }
 
-func disableServiceInNetworkDB(a *agent, n *network, ep *endpoint) {
+func disableServiceInNetworkDB(a *agent, n *network, ep *Endpoint) {
 	var epRec EndpointRecord
 
 	logrus.Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())
@@ -827,7 +827,7 @@ func (n *network) cancelDriverWatches() {
 	}
 }
 
-func (c *controller) handleTableEvents(ch *events.Channel, fn func(events.Event)) {
+func (c *Controller) handleTableEvents(ch *events.Channel, fn func(events.Event)) {
 	for {
 		select {
 		case ev := <-ch.C:
@@ -873,7 +873,7 @@ func (n *network) handleDriverTableEvent(ev events.Event) {
 	d.EventNotify(etype, n.ID(), tname, key, value)
 }
 
-func (c *controller) handleNodeTableEvent(ev events.Event) {
+func (c *Controller) handleNodeTableEvent(ev events.Event) {
 	var (
 		value    []byte
 		isAdd    bool
@@ -897,7 +897,7 @@ func (c *controller) handleNodeTableEvent(ev events.Event) {
 	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
 }
 
-func (c *controller) handleEpTableEvent(ev events.Event) {
+func (c *Controller) handleEpTableEvent(ev events.Event) {
 	var (
 		nid   string
 		eid   string

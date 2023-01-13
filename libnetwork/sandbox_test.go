@@ -14,7 +14,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func getTestEnv(t *testing.T, opts ...[]NetworkOption) (NetworkController, []Network) {
+func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []Network) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
 	netType := "bridge"
@@ -61,8 +61,7 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (NetworkController, []Net
 }
 
 func TestSandboxAddEmpty(t *testing.T) {
-	c, _ := getTestEnv(t)
-	ctrlr := c.(*controller)
+	ctrlr, _ := getTestEnv(t)
 
 	sbx, err := ctrlr.NewSandbox("sandbox0")
 	if err != nil {
@@ -90,8 +89,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		{},
 	}
 
-	c, nws := getTestEnv(t, opts...)
-	ctrlr := c.(*controller)
+	ctrlr, nws := getTestEnv(t, opts...)
 
 	sbx, err := ctrlr.NewSandbox("sandbox1")
 	if err != nil {
@@ -176,9 +174,7 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		{NetworkOptionInternalNetwork()},
 	}
 
-	c, nws := getTestEnv(t, opts...)
-
-	ctrlr := c.(*controller)
+	ctrlr, nws := getTestEnv(t, opts...)
 
 	sbx, err := ctrlr.NewSandbox("sandbox1")
 	if err != nil {

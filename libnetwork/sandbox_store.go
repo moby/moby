@@ -21,7 +21,7 @@ type epState struct {
 type sbState struct {
 	ID         string
 	Cid        string
-	c          *controller
+	c          *Controller
 	dbIndex    uint64
 	dbExists   bool
 	Eps        []epState
@@ -55,12 +55,11 @@ func (sbs *sbState) SetValue(value []byte) error {
 }
 
 func (sbs *sbState) Index() uint64 {
-	sbi, err := sbs.c.SandboxByID(sbs.ID)
+	sb, err := sbs.c.SandboxByID(sbs.ID)
 	if err != nil {
 		return sbs.dbIndex
 	}
 
-	sb := sbi.(*sandbox)
 	maxIndex := sb.dbIndex
 	if sbs.dbIndex > maxIndex {
 		maxIndex = sbs.dbIndex
@@ -73,12 +72,11 @@ func (sbs *sbState) SetIndex(index uint64) {
 	sbs.dbIndex = index
 	sbs.dbExists = true
 
-	sbi, err := sbs.c.SandboxByID(sbs.ID)
+	sb, err := sbs.c.SandboxByID(sbs.ID)
 	if err != nil {
 		return
 	}
 
-	sb := sbi.(*sandbox)
 	sb.dbIndex = index
 	sb.dbExists = true
 }
@@ -88,12 +86,11 @@ func (sbs *sbState) Exists() bool {
 		return sbs.dbExists
 	}
 
-	sbi, err := sbs.c.SandboxByID(sbs.ID)
+	sb, err := sbs.c.SandboxByID(sbs.ID)
 	if err != nil {
 		return false
 	}
 
-	sb := sbi.(*sandbox)
 	return sb.dbExists
 }
 
@@ -135,7 +132,7 @@ func (sbs *sbState) DataScope() string {
 	return datastore.LocalScope
 }
 
-func (sb *sandbox) storeUpdate() error {
+func (sb *Sandbox) storeUpdate() error {
 	sbs := &sbState{
 		c:          sb.controller,
 		ID:         sb.id,
@@ -150,7 +147,7 @@ func (sb *sandbox) storeUpdate() error {
 
 retry:
 	sbs.Eps = nil
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		// If the endpoint is not persisted then do not add it to
 		// the sandbox checkpoint
 		if ep.Skip() {
@@ -177,7 +174,7 @@ retry:
 	return err
 }
 
-func (sb *sandbox) storeDelete() error {
+func (sb *Sandbox) storeDelete() error {
 	sbs := &sbState{
 		c:        sb.controller,
 		ID:       sb.id,
@@ -189,7 +186,7 @@ func (sb *sandbox) storeDelete() error {
 	return sb.controller.deleteFromStore(sbs)
 }
 
-func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
+func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 	store := c.getStore(datastore.LocalScope)
 	if store == nil {
 		logrus.Error("Could not find local scope store while trying to cleanup sandboxes")
@@ -210,11 +207,11 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 	for _, kvo := range kvol {
 		sbs := kvo.(*sbState)
 
-		sb := &sandbox{
+		sb := &Sandbox{
 			id:                 sbs.ID,
 			controller:         sbs.c,
 			containerID:        sbs.Cid,
-			endpoints:          []*endpoint{},
+			endpoints:          []*Endpoint{},
 			populatedEndpoints: map[string]struct{}{},
 			dbIndex:            sbs.dbIndex,
 			isStub:             true,
@@ -248,22 +245,22 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			continue
 		}
 
-		c.Lock()
+		c.mu.Lock()
 		c.sandboxes[sb.id] = sb
-		c.Unlock()
+		c.mu.Unlock()
 
 		for _, eps := range sbs.Eps {
 			n, err := c.getNetworkFromStore(eps.Nid)
-			var ep *endpoint
+			var ep *Endpoint
 			if err != nil {
 				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
 				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}, persist: true}
-				ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+				ep = &Endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
 				if err != nil {
 					logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
-					ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+					ep = &Endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 				}
 			}
 			if _, ok := activeSandboxes[sb.ID()]; ok && err != nil {

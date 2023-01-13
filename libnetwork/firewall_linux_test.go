@@ -51,10 +51,9 @@ func TestUserChain(t *testing.T) {
 			defer testutils.SetupTestOSContext(t)()
 			defer resetIptables(t)
 
-			nc, err := New()
+			c, err := New()
 			assert.NilError(t, err)
-			defer nc.Stop()
-			c := nc.(*controller)
+			defer c.Stop()
 			c.cfg.DriverCfg["bridge"] = map[string]interface{}{
 				netlabel.GenericData: options.Generic{
 					"EnableIPTables": tc.iptables,

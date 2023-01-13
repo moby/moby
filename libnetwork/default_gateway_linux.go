@@ -13,7 +13,7 @@ func getPlatformOption() EndpointOption {
 	return nil
 }
 
-func (c *controller) createGWNetwork() (Network, error) {
+func (c *Controller) createGWNetwork() (Network, error) {
 	netOption := map[string]string{
 		bridge.BridgeName:         libnGWNetwork,
 		bridge.EnableICC:          strconv.FormatBool(false),

@@ -24,7 +24,7 @@ const (
 	filePerm      = 0o644
 )
 
-func (sb *sandbox) startResolver(restore bool) {
+func (sb *Sandbox) startResolver(restore bool) {
 	sb.resolverOnce.Do(func() {
 		var err error
 		sb.resolver = NewResolver(resolverIPSandbox, true, sb)
@@ -58,7 +58,7 @@ func (sb *sandbox) startResolver(restore bool) {
 	})
 }
 
-func (sb *sandbox) setupResolutionFiles() error {
+func (sb *Sandbox) setupResolutionFiles() error {
 	if err := sb.buildHostsFile(); err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (sb *sandbox) setupResolutionFiles() error {
 	return sb.setupDNS()
 }
 
-func (sb *sandbox) buildHostsFile() error {
+func (sb *Sandbox) buildHostsFile() error {
 	if sb.config.hostsPath == "" {
 		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
 	}
@@ -98,7 +98,7 @@ func (sb *sandbox) buildHostsFile() error {
 	return etchosts.Build(sb.config.hostsPath, "", sb.config.hostName, sb.config.domainName, extraContent)
 }
 
-func (sb *sandbox) updateHostsFile(ifaceIPs []string) error {
+func (sb *Sandbox) updateHostsFile(ifaceIPs []string) error {
 	if len(ifaceIPs) == 0 {
 		return nil
 	}
@@ -128,27 +128,27 @@ func (sb *sandbox) updateHostsFile(ifaceIPs []string) error {
 	return nil
 }
 
-func (sb *sandbox) addHostsEntries(recs []etchosts.Record) {
+func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Add(sb.config.hostsPath, recs); err != nil {
 		logrus.Warnf("Failed adding service host entries to the running container: %v", err)
 	}
 }
 
-func (sb *sandbox) deleteHostsEntries(recs []etchosts.Record) {
+func (sb *Sandbox) deleteHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Delete(sb.config.hostsPath, recs); err != nil {
 		logrus.Warnf("Failed deleting service host entries to the running container: %v", err)
 	}
 }
 
-func (sb *sandbox) updateParentHosts() error {
-	var pSb Sandbox
+func (sb *Sandbox) updateParentHosts() error {
+	var pSb *Sandbox
 
 	for _, update := range sb.config.parentUpdates {
 		sb.controller.WalkSandboxes(SandboxContainerWalker(&pSb, update.cid))
 		if pSb == nil {
 			continue
 		}
-		if err := etchosts.Update(pSb.(*sandbox).config.hostsPath, update.ip, update.name); err != nil {
+		if err := etchosts.Update(pSb.config.hostsPath, update.ip, update.name); err != nil {
 			return err
 		}
 	}
@@ -156,7 +156,7 @@ func (sb *sandbox) updateParentHosts() error {
 	return nil
 }
 
-func (sb *sandbox) restorePath() {
+func (sb *Sandbox) restorePath() {
 	if sb.config.resolvConfPath == "" {
 		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
 	}
@@ -166,7 +166,7 @@ func (sb *sandbox) restorePath() {
 	}
 }
 
-func (sb *sandbox) setExternalResolvers(content []byte, addrType int, checkLoopback bool) {
+func (sb *Sandbox) setExternalResolvers(content []byte, addrType int, checkLoopback bool) {
 	servers := resolvconf.GetNameservers(content, addrType)
 	for _, ip := range servers {
 		hostLoopback := false
@@ -192,7 +192,7 @@ func isIPv4Loopback(ipAddress string) bool {
 	return false
 }
 
-func (sb *sandbox) setupDNS() error {
+func (sb *Sandbox) setupDNS() error {
 	if sb.config.resolvConfPath == "" {
 		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
 	}
@@ -286,7 +286,7 @@ func (sb *sandbox) setupDNS() error {
 	return nil
 }
 
-func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
+func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
 	var (
 		currHash string
 		hashFile = sb.config.resolvConfHashFile
@@ -358,7 +358,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 // resolv.conf by doing the following
 // - Add only the embedded server's IP to container's resolv.conf
 // - If the embedded server needs any resolv.conf options add it to the current list
-func (sb *sandbox) rebuildDNS() error {
+func (sb *Sandbox) rebuildDNS() error {
 	currRC, err := os.ReadFile(sb.config.resolvConfPath)
 	if err != nil {
 		return err

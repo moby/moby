@@ -291,7 +291,7 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 	return nil
 }
 
-func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Container, n libnetwork.Network, ep libnetwork.Endpoint) error {
+func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Container, n libnetwork.Network, ep *libnetwork.Endpoint) error {
 	if err := buildEndpointInfo(container.NetworkSettings, n, ep); err != nil {
 		return err
 	}
@@ -602,9 +602,9 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 	return nil
 }
 
-func (daemon *Daemon) getNetworkSandbox(container *container.Container) libnetwork.Sandbox {
-	var sb libnetwork.Sandbox
-	daemon.netController.WalkSandboxes(func(s libnetwork.Sandbox) bool {
+func (daemon *Daemon) getNetworkSandbox(container *container.Container) *libnetwork.Sandbox {
+	var sb *libnetwork.Sandbox
+	daemon.netController.WalkSandboxes(func(s *libnetwork.Sandbox) bool {
 		if s.ContainerID() == container.ID {
 			sb = s
 			return true
@@ -834,7 +834,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
-func updateJoinInfo(networkSettings *network.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error {
+func updateJoinInfo(networkSettings *network.Settings, n libnetwork.Network, ep *libnetwork.Endpoint) error {
 	if ep == nil {
 		return errors.New("invalid enppoint whhile building portmap info")
 	}
@@ -881,11 +881,11 @@ func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error
 
 func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
 	var (
-		ep   libnetwork.Endpoint
-		sbox libnetwork.Sandbox
+		ep   *libnetwork.Endpoint
+		sbox *libnetwork.Sandbox
 	)
 
-	s := func(current libnetwork.Endpoint) bool {
+	s := func(current *libnetwork.Endpoint) bool {
 		epInfo := current.Info()
 		if epInfo == nil {
 			return false
@@ -1164,7 +1164,7 @@ func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) 
 }
 
 // updateSandboxNetworkSettings updates the sandbox ID and Key.
-func updateSandboxNetworkSettings(c *container.Container, sb libnetwork.Sandbox) error {
+func updateSandboxNetworkSettings(c *container.Container, sb *libnetwork.Sandbox) error {
 	c.NetworkSettings.SandboxID = sb.ID()
 	c.NetworkSettings.SandboxKey = sb.Key()
 	return nil

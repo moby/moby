@@ -188,7 +188,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		lla = append(lla, ll)
 	}
 
-	e := &endpoint{
+	e := &Endpoint{
 		name:      "Bau",
 		id:        "efghijklmno",
 		sandboxID: "ambarabaciccicocco",
@@ -213,7 +213,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ee := &endpoint{}
+	ee := &Endpoint{}
 	err = json.Unmarshal(b, ee)
 	if err != nil {
 		t.Fatal(err)
@@ -320,7 +320,7 @@ func TestAuxAddresses(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n := &network{ipamType: ipamapi.DefaultIPAM, networkType: "bridge", ctrlr: c.(*controller)}
+	n := &network{ipamType: ipamapi.DefaultIPAM, networkType: "bridge", ctrlr: c}
 
 	input := []struct {
 		masterPool   string
@@ -421,7 +421,7 @@ func TestSRVServiceQuery(t *testing.T) {
 	sr.service["web.swarm"] = append(sr.service["web.swarm"], httpPort)
 	sr.service["web.swarm"] = append(sr.service["web.swarm"], extHTTPPort)
 
-	c.(*controller).svcRecords[n.ID()] = sr
+	c.svcRecords[n.ID()] = sr
 
 	_, ip := ep.Info().Sandbox().ResolveService("_http._tcp.web.swarm")
 
@@ -576,9 +576,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	}
 	defer c.Stop()
 
-	cc := c.(*controller)
-
-	if err := cc.drvRegistry.AddDriver(badDriverName, badDriverInit, nil); err != nil {
+	if err := c.drvRegistry.AddDriver(badDriverName, badDriverInit, nil); err != nil {
 		t.Fatal(err)
 	}
 

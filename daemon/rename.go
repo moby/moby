@@ -16,7 +16,7 @@ import (
 func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	var (
 		sid string
-		sb  libnetwork.Sandbox
+		sb  *libnetwork.Sandbox
 	)
 
 	if oldName == "" || newName == "" {

@@ -30,8 +30,7 @@ fe90::2	somehost.example.com somehost
 		[]*IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::1"}},
 		nil)}
 
-	c, nws := getTestEnv(t, opts)
-	ctrlr := c.(*controller)
+	ctrlr, nws := getTestEnv(t, opts)
 
 	hostsFile, err := os.CreateTemp("", "")
 	if err != nil {

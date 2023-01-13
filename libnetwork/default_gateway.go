@@ -29,7 +29,7 @@ var procGwNetwork = make(chan (bool), 1)
    - its deleted when an endpoint with GW joins the container
 */
 
-func (sb *sandbox) setupDefaultGW() error {
+func (sb *Sandbox) setupDefaultGW() error {
 	// check if the container already has a GW endpoint
 	if ep := sb.getEndpointInGWNetwork(); ep != nil {
 		return nil
@@ -84,9 +84,7 @@ func (sb *sandbox) setupDefaultGW() error {
 		}
 	}()
 
-	epLocal := newEp.(*endpoint)
-
-	if err = epLocal.sbJoin(sb); err != nil {
+	if err = newEp.sbJoin(sb); err != nil {
 		return fmt.Errorf("container %s: endpoint join on GW Network failed: %v", sb.containerID, err)
 	}
 
@@ -94,8 +92,8 @@ func (sb *sandbox) setupDefaultGW() error {
 }
 
 // If present, detach and remove the endpoint connecting the sandbox to the default gw network.
-func (sb *sandbox) clearDefaultGW() error {
-	var ep *endpoint
+func (sb *Sandbox) clearDefaultGW() error {
+	var ep *Endpoint
 
 	if ep = sb.getEndpointInGWNetwork(); ep == nil {
 		return nil
@@ -113,10 +111,10 @@ func (sb *sandbox) clearDefaultGW() error {
 // on the endpoints to which it is connected. It does not account
 // for the default gateway network endpoint.
 
-func (sb *sandbox) needDefaultGW() bool {
+func (sb *Sandbox) needDefaultGW() bool {
 	var needGW bool
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	for _, ep := range sb.Endpoints() {
 		if ep.endpointInGWNetwork() {
 			continue
 		}
@@ -145,8 +143,8 @@ func (sb *sandbox) needDefaultGW() bool {
 	return needGW
 }
 
-func (sb *sandbox) getEndpointInGWNetwork() *endpoint {
-	for _, ep := range sb.getConnectedEndpoints() {
+func (sb *Sandbox) getEndpointInGWNetwork() *Endpoint {
+	for _, ep := range sb.Endpoints() {
 		if ep.getNetwork().name == libnGWNetwork && strings.HasPrefix(ep.Name(), "gateway_") {
 			return ep
 		}
@@ -154,7 +152,7 @@ func (sb *sandbox) getEndpointInGWNetwork() *endpoint {
 	return nil
 }
 
-func (ep *endpoint) endpointInGWNetwork() bool {
+func (ep *Endpoint) endpointInGWNetwork() bool {
 	if ep.getNetwork().name == libnGWNetwork && strings.HasPrefix(ep.Name(), "gateway_") {
 		return true
 	}
@@ -163,7 +161,7 @@ func (ep *endpoint) endpointInGWNetwork() bool {
 
 // Looks for the default gw network and creates it if not there.
 // Parallel executions are serialized.
-func (c *controller) defaultGwNetwork() (Network, error) {
+func (c *Controller) defaultGwNetwork() (Network, error) {
 	procGwNetwork <- true
 	defer func() { <-procGwNetwork }()
 
@@ -175,8 +173,8 @@ func (c *controller) defaultGwNetwork() (Network, error) {
 }
 
 // Returns the endpoint which is providing external connectivity to the sandbox
-func (sb *sandbox) getGatewayEndpoint() *endpoint {
-	for _, ep := range sb.getConnectedEndpoints() {
+func (sb *Sandbox) getGatewayEndpoint() *Endpoint {
+	for _, ep := range sb.Endpoints() {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}

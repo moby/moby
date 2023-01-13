@@ -50,7 +50,7 @@ func (daemon *Daemon) NetworkControllerEnabled() bool {
 }
 
 // NetworkController returns the network controller created by the daemon.
-func (daemon *Daemon) NetworkController() libnetwork.NetworkController {
+func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 	return daemon.netController
 }
 
@@ -782,7 +782,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 }
 
 // buildCreateEndpointOptions builds endpoint options from a given network.
-func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
+func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var (
 		bindings      = make(nat.PortMap)
 		pbList        []networktypes.PortBinding
@@ -954,7 +954,7 @@ func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, ep
 }
 
 // getPortMapInfo retrieves the current port-mapping programmed for the given sandbox
-func getPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
+func getPortMapInfo(sb *libnetwork.Sandbox) nat.PortMap {
 	pm := nat.PortMap{}
 	if sb == nil {
 		return pm
@@ -969,7 +969,7 @@ func getPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
 	return pm
 }
 
-func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
+func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 	pm := nat.PortMap{}
 	driverInfo, err := ep.DriverInfo()
 	if err != nil {
@@ -1013,7 +1013,7 @@ func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
 }
 
 // buildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
-func buildEndpointInfo(networkSettings *internalnetwork.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error {
+func buildEndpointInfo(networkSettings *internalnetwork.Settings, n libnetwork.Network, ep *libnetwork.Endpoint) error {
 	if ep == nil {
 		return errors.New("endpoint cannot be nil")
 	}

@@ -161,7 +161,7 @@ func numEnabledBackends(lb *loadBalancer) int {
 	return nEnabled
 }
 
-func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
+func (sb *Sandbox) populateLoadBalancers(ep *Endpoint) {
 }
 
 func arrangeIngressFilterRule() {
