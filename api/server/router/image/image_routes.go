@@ -194,7 +194,7 @@ func (ir *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, 
 		names = r.Form["names"]
 	}
 
-	if err := ir.backend.ExportImage(ctx, names, output); err != nil {
+	if err := ir.backend.SaveImage(ctx, names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}

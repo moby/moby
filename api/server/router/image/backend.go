@@ -33,7 +33,7 @@ type imageBackend interface {
 type importExportBackend interface {
 	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	ImportImage(ctx context.Context, ref reference.Named, platform *specs.Platform, msg string, layerReader io.Reader, changes []string) (dockerimage.ID, error)
-	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
+	SaveImage(ctx context.Context, names []string, outStream io.Writer) error
 }
 
 type registryBackend interface {

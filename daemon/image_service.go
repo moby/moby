@@ -29,7 +29,7 @@ type ImageService interface {
 	PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	CreateImage(config []byte, parent string) (builder.Image, error)
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
-	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
+	SaveImage(ctx context.Context, names []string, outStream io.Writer) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error)
 	LogImageEvent(imageID, refName, action string)

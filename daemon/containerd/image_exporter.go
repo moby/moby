@@ -12,14 +12,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ExportImage exports a list of images to the given output stream. The
+// SaveImage exports a list of images to the given output stream. The
 // exported images are archived into a tar when written to the output
 // stream. All images with the given tag and all versions containing
 // the same tag are exported. names is the set of tags to export, and
 // outStream is the writer which the images are written to.
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
-func (i *ImageService) ExportImage(ctx context.Context, names []string, outStream io.Writer) error {
+func (i *ImageService) SaveImage(ctx context.Context, names []string, outStream io.Writer) error {
 	opts := []archive.ExportOpt{
 		archive.WithPlatform(platforms.Ordered(platforms.DefaultSpec())),
 		archive.WithSkipNonDistributableBlobs(),
@@ -36,7 +36,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 }
 
 // LoadImage uploads a set of images into the repository. This is the
-// complement of ExportImage.  The input stream is an uncompressed tar
+// complement of SaveImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 //
 // TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
