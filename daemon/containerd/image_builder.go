@@ -17,7 +17,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 }
 
 // CreateImage creates a new image by adding a config and ID to the image store.
-// This is similar to LoadImage() except that it receives JSON encoded bytes of
+// This is similar to LoadImages() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
 func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
 	return nil, errdefs.NotImplemented(errors.New("not implemented"))
