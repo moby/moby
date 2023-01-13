@@ -13,5 +13,5 @@ import (
 // image with the diff of all the specified image's layers merged into a new
 // layer that has no parents.
 func (i *ImageService) SquashImage(id, parent string) (string, error) {
-	return "", errdefs.NotImplemented(errors.New("not implemented"))
+	return "", errdefs.NotImplemented(errors.New("SquashImage not implemented"))
 }

@@ -65,7 +65,7 @@ func (i *ImageService) Children(id image.ID) []image.ID {
 // called from create.go
 // TODO: accept an opt struct instead of container?
 func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("not implemented")))
+	return nil, errdefs.NotImplemented(errdefs.NotImplemented(errors.New("CreateLayer not implemented")))
 }
 
 // GetLayerByID returns a layer by ID
@@ -87,7 +87,7 @@ func (i *ImageService) LayerStoreStatus() [][2]string {
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually continerCleanup)
 // TODO: needs to be refactored to Unmount (see callers), or removed and replaced with GetLayerByID
 func (i *ImageService) GetLayerMountID(cid string) (string, error) {
-	return "", errdefs.NotImplemented(errors.New("not implemented"))
+	return "", errdefs.NotImplemented(errors.New("GetLayerMountID not implemented"))
 }
 
 // Cleanup resources before the process is shutdown.
@@ -105,7 +105,7 @@ func (i *ImageService) StorageDriver() string {
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
-	return errdefs.NotImplemented(errors.New("not implemented"))
+	return errdefs.NotImplemented(errors.New("ReleaseLayer not implemented"))
 }
 
 // LayerDiskUsage returns the number of bytes used by layer stores
@@ -128,12 +128,12 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 //
 // called from reload.go
 func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
-	panic("not implemented")
+	panic("UpdateConfig not implemented")
 }
 
 // GetLayerFolders returns the layer folders from an image RootFS.
 func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
-	return nil, errdefs.NotImplemented(errors.New("not implemented"))
+	return nil, errdefs.NotImplemented(errors.New("GetLayerFolders not implemented"))
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.

@@ -69,5 +69,5 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 
 // GetRepository returns a repository from the registry.
 func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (distribution.Repository, error) {
-	return nil, errdefs.NotImplemented(errors.New("not implemented"))
+	return nil, errdefs.NotImplemented(errors.New("GetRepository not implemented"))
 }
