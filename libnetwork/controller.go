@@ -1247,3 +1247,23 @@ func (c *Controller) iptablesEnabled() bool {
 	}
 	return enabled
 }
+
+func (c *controller) ip6tablesEnabled() bool {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.cfg == nil {
+		return false
+	}
+	// parse map cfg["bridge"]["generic"]["EnableIP6Table"]
+	cfgBridge, ok := c.cfg.DriverCfg["bridge"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	cfgGeneric, ok := cfgBridge[netlabel.GenericData].(options.Generic)
+	if !ok {
+		return false
+	}
+	enabled, _ := cfgGeneric["EnableIP6Tables"].(bool)
+	return enabled
+}
