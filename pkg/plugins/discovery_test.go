@@ -6,23 +6,26 @@ import (
 	"testing"
 )
 
-func Setup(t *testing.T) (string, func()) {
+func Setup(t *testing.T) (string, func(), LocalRegistry) {
 	tmpdir, err := os.MkdirTemp("", "docker-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	backup := socketsPath
 	socketsPath = tmpdir
-	globalSpecsPaths = []string{tmpdir}
 
 	return tmpdir, func() {
-		socketsPath = backup
-		os.RemoveAll(tmpdir)
-	}
+			socketsPath = backup
+			os.RemoveAll(tmpdir)
+		}, LocalRegistry{
+			func() []string {
+				return []string{tmpdir}
+			},
+		}
 }
 
 func TestFileSpecPlugin(t *testing.T) {
-	tmpdir, unregister := Setup(t)
+	tmpdir, unregister, r := Setup(t)
 	defer unregister()
 
 	cases := []struct {
@@ -47,7 +50,6 @@ func TestFileSpecPlugin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		r := newLocalRegistry()
 		p, err := r.Plugin(c.name)
 		if c.fail && err == nil {
 			continue
@@ -72,7 +74,7 @@ func TestFileSpecPlugin(t *testing.T) {
 }
 
 func TestFileJSONSpecPlugin(t *testing.T) {
-	tmpdir, unregister := Setup(t)
+	tmpdir, unregister, r := Setup(t)
 	defer unregister()
 
 	p := filepath.Join(tmpdir, "example.json")
@@ -90,7 +92,6 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := newLocalRegistry()
 	plugin, err := r.Plugin("example")
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +119,7 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 }
 
 func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
-	tmpdir, unregister := Setup(t)
+	tmpdir, unregister, r := Setup(t)
 	defer unregister()
 
 	p := filepath.Join(tmpdir, "example.json")
@@ -131,7 +132,6 @@ func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := newLocalRegistry()
 	plugin, err := r.Plugin("example")
 	if err != nil {
 		t.Fatal(err)
