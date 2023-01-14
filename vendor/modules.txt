@@ -797,7 +797,7 @@ github.com/vbatts/tar-split/tar/storage
 ## explicit; go 1.12
 github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
-# github.com/vishvananda/netns v0.0.1
+# github.com/vishvananda/netns v0.0.2
 ## explicit; go 1.12
 github.com/vishvananda/netns
 # go.etcd.io/bbolt v1.3.6

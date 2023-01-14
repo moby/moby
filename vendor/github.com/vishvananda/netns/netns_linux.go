@@ -1,6 +1,3 @@
-//go:build linux && go1.10
-// +build linux,go1.10
-
 package netns
 
 import (
@@ -17,14 +14,15 @@ import (
 
 // Deprecated: use golang.org/x/sys/unix pkg instead.
 const (
-	CLONE_NEWUTS  = 0x04000000   /* New utsname group? */
-	CLONE_NEWIPC  = 0x08000000   /* New ipcs */
-	CLONE_NEWUSER = 0x10000000   /* New user namespace */
-	CLONE_NEWPID  = 0x20000000   /* New pid namespace */
-	CLONE_NEWNET  = 0x40000000   /* New network namespace */
-	CLONE_IO      = 0x80000000   /* Get io context */
-	bindMountPath = "/run/netns" /* Bind mount path for named netns */
+	CLONE_NEWUTS  = unix.CLONE_NEWUTS  /* New utsname group? */
+	CLONE_NEWIPC  = unix.CLONE_NEWIPC  /* New ipcs */
+	CLONE_NEWUSER = unix.CLONE_NEWUSER /* New user namespace */
+	CLONE_NEWPID  = unix.CLONE_NEWPID  /* New pid namespace */
+	CLONE_NEWNET  = unix.CLONE_NEWNET  /* New network namespace */
+	CLONE_IO      = unix.CLONE_IO      /* Get io context */
 )
+
+const bindMountPath = "/run/netns" /* Bind mount path for named netns */
 
 // Setns sets namespace using golang.org/x/sys/unix.Setns.
 //
@@ -36,13 +34,13 @@ func Setns(ns NsHandle, nstype int) (err error) {
 // Set sets the current network namespace to the namespace represented
 // by NsHandle.
 func Set(ns NsHandle) (err error) {
-	return Setns(ns, CLONE_NEWNET)
+	return unix.Setns(int(ns), unix.CLONE_NEWNET)
 }
 
 // New creates a new network namespace, sets it as current and returns
 // a handle to it.
 func New() (ns NsHandle, err error) {
-	if err := unix.Unshare(CLONE_NEWNET); err != nil {
+	if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
 		return -1, err
 	}
 	return Get()
@@ -67,6 +65,7 @@ func NewNamed(name string) (NsHandle, error) {
 
 	f, err := os.OpenFile(namedPath, os.O_CREATE|os.O_EXCL, 0444)
 	if err != nil {
+		newNs.Close()
 		return None(), err
 	}
 	f.Close()
@@ -74,6 +73,7 @@ func NewNamed(name string) (NsHandle, error) {
 	nsPath := fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), unix.Gettid())
 	err = unix.Mount(nsPath, namedPath, "bind", unix.MS_BIND, "")
 	if err != nil {
+		newNs.Close()
 		return None(), err
 	}
 
@@ -110,7 +110,7 @@ func GetFromPath(path string) (NsHandle, error) {
 // GetFromName gets a handle to a named network namespace such as one
 // created by `ip netns add`.
 func GetFromName(name string) (NsHandle, error) {
-	return GetFromPath(fmt.Sprintf("/var/run/netns/%s", name))
+	return GetFromPath(filepath.Join(bindMountPath, name))
 }
 
 // GetFromPid gets a handle to the network namespace of a given pid.
