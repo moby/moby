@@ -1151,7 +1151,7 @@ func (c *Controller) cleanupLocalEndpoints() {
 			eps[ep.id] = true
 		}
 	}
-	nl, err := c.getNetworksForScope(datastore.LocalScope)
+	nl, err := c.getNetworks()
 	if err != nil {
 		logrus.Warnf("Could not get list of networks during endpoint cleanup: %v", err)
 		return

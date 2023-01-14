@@ -88,7 +88,7 @@ type Controller struct {
 	drvRegistry      *drvregistry.DrvRegistry
 	sandboxes        sandboxTable
 	cfg              *config.Config
-	stores           []datastore.DataStore
+	store            datastore.DataStore
 	extKeyListener   net.Listener
 	watchCh          chan *Endpoint
 	unWatchCh        chan *Endpoint
@@ -130,7 +130,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	drvRegistry, err := drvregistry.New(c.getStore(datastore.LocalScope), c.getStore(datastore.GlobalScope), c.RegisterDriver, nil, c.cfg.PluginGetter)
+	drvRegistry, err := drvregistry.New(c.getStore(), nil, c.RegisterDriver, nil, c.cfg.PluginGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		}
 	}
 
-	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope), c.cfg.DefaultAddressPool); err != nil {
+	if err = initIPAMDrivers(drvRegistry, nil, nil, c.cfg.DefaultAddressPool); err != nil {
 		return nil, err
 	}
 
@@ -696,7 +696,7 @@ var joinCluster NetworkWalker = func(nw Network) bool {
 }
 
 func (c *Controller) reservePools() {
-	networks, err := c.getNetworksForScope(datastore.LocalScope)
+	networks, err := c.getNetworks()
 	if err != nil {
 		logrus.Warnf("Could not retrieve networks from local store during ipam allocation for existing networks: %v", err)
 		return
