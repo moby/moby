@@ -600,8 +600,8 @@ github.com/moby/buildkit/util/urlutil
 github.com/moby/buildkit/util/winlayers
 github.com/moby/buildkit/version
 github.com/moby/buildkit/worker
-# github.com/moby/ipvs v1.0.2
-## explicit; go 1.13
+# github.com/moby/ipvs v1.1.0
+## explicit; go 1.17
 github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
