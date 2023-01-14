@@ -663,7 +663,7 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 	for i := 0; i < len(serverConfig.Hosts); i++ {
 		protoAddr := serverConfig.Hosts[i]
 		proto, addr, ok := strings.Cut(protoAddr, "://")
-		if !ok || addr == "" {
+		if !ok || (proto != "fd" && addr == "") {
 			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
 
