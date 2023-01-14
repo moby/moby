@@ -79,7 +79,7 @@ require (
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.11.2
 	github.com/vishvananda/netlink v1.2.1-beta.2
-	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
+	github.com/vishvananda/netns v0.0.1
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/net v0.4.0
 	golang.org/x/sync v0.1.0
