@@ -21,40 +21,24 @@ func setupArrangeUserFilterRule(c *Controller) {
 // IPTableForwarding is disabled, because it contains rules configured by user that
 // are beyond docker engine's control.
 func arrangeUserFilterRule() {
-	if ctrl == nil {
+	if ctrl == nil || !ctrl.iptablesEnabled() {
+		return
+	}
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
+	_, err := iptable.NewChain(userChain, iptables.Filter, false)
+	if err != nil {
+		logrus.Warnf("Failed to create %s chain: %v", userChain, err)
 		return
 	}
 
-	conds := []struct {
-		ipVer iptables.IPVersion
-		cond  bool
-	}{
-		{ipVer: iptables.IPv4, cond: ctrl.iptablesEnabled()},
-		{ipVer: iptables.IPv6, cond: ctrl.ip6tablesEnabled()},
+	if err = iptable.AddReturnRule(userChain); err != nil {
+		logrus.Warnf("Failed to add the RETURN rule for %s: %v", userChain, err)
+		return
 	}
 
-	for _, ipVerCond := range conds {
-		cond := ipVerCond.cond
-		if !cond {
-			continue
-		}
-
-		ipVer := ipVerCond.ipVer
-		iptable := iptables.GetIptable(ipVer)
-		_, err := iptable.NewChain(userChain, iptables.Filter, false)
-		if err != nil {
-			logrus.WithError(err).Warnf("Failed to create %s %v chain", userChain, ipVer)
-			return
-		}
-
-		if err = iptable.AddReturnRule(userChain); err != nil {
-			logrus.WithError(err).Warnf("Failed to add the RETURN rule for %s %v", userChain, ipVer)
-			return
-		}
-
-		err = iptable.EnsureJumpRule("FORWARD", userChain)
-		if err != nil {
-			logrus.WithError(err).Warnf("Failed to ensure the jump rule for %s %v", userChain, ipVer)
-		}
+	err = iptable.EnsureJumpRule("FORWARD", userChain)
+	if err != nil {
+		logrus.Warnf("Failed to ensure the jump rule for %s: %v", userChain, err)
 	}
 }
