@@ -4,6 +4,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,8 +12,12 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libnetwork/testutils"
+	"github.com/docker/docker/libnetwork/types"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
+	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -342,4 +347,67 @@ func TestRootMountCleanup(t *testing.T) {
 		checkMounted(t, cfg.Root, false)
 		assert.Assert(t, d.cleanupMounts())
 	})
+}
+
+func TestIfaceAddrs(t *testing.T) {
+	CIDR := func(cidr string) *net.IPNet {
+		t.Helper()
+		nw, err := types.ParseCIDR(cidr)
+		assert.NilError(t, err)
+		return nw
+	}
+
+	for _, tt := range []struct {
+		name string
+		nws  []*net.IPNet
+	}{
+		{
+			name: "Single",
+			nws:  []*net.IPNet{CIDR("172.101.202.254/16")},
+		},
+		{
+			name: "Multiple",
+			nws: []*net.IPNet{
+				CIDR("172.101.202.254/16"),
+				CIDR("172.102.202.254/16"),
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			defer testutils.SetupTestOSContext(t)()
+
+			createBridge(t, "test", tt.nws...)
+
+			ipv4Nw, ipv6Nw, err := ifaceAddrs("test")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Check(t, is.DeepEqual(tt.nws, ipv4Nw,
+				cmpopts.SortSlices(func(a, b *net.IPNet) bool { return a.String() < b.String() })))
+			// IPv6 link-local address
+			assert.Check(t, is.Len(ipv6Nw, 1))
+		})
+	}
+}
+
+func createBridge(t *testing.T, name string, bips ...*net.IPNet) {
+	t.Helper()
+
+	link := &netlink.Bridge{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: name,
+		},
+	}
+	if err := netlink.LinkAdd(link); err != nil {
+		t.Fatalf("Failed to create interface via netlink: %v", err)
+	}
+	for _, bip := range bips {
+		if err := netlink.AddrAdd(link, &netlink.Addr{IPNet: bip}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := netlink.LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
 }
