@@ -4,16 +4,19 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"regexp"
 	"strings"
 
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 // On Linux, plugins use a static path for storing execution state,
@@ -140,4 +143,42 @@ func setupResolvConf(config *config.Config) {
 		return
 	}
 	config.ResolvConf = resolvconf.Path()
+}
+
+// ifaceAddrs returns the IPv4 and IPv6 addresses assigned to the network
+// interface with name linkName.
+//
+// No error is returned if the named interface does not exist.
+func ifaceAddrs(linkName string) (v4, v6 []*net.IPNet, err error) {
+	nl := ns.NlHandle()
+	link, err := nl.LinkByName(linkName)
+	if err != nil {
+		if !errors.As(err, new(netlink.LinkNotFoundError)) {
+			return nil, nil, err
+		}
+		return nil, nil, nil
+	}
+
+	get := func(family int) ([]*net.IPNet, error) {
+		addrs, err := nl.AddrList(link, family)
+		if err != nil {
+			return nil, err
+		}
+
+		ipnets := make([]*net.IPNet, len(addrs))
+		for i := range addrs {
+			ipnets[i] = addrs[i].IPNet
+		}
+		return ipnets, nil
+	}
+
+	v4, err = get(netlink.FAMILY_V4)
+	if err != nil {
+		return nil, nil, err
+	}
+	v6, err = get(netlink.FAMILY_V6)
+	if err != nil {
+		return nil, nil, err
+	}
+	return v4, v6, nil
 }
