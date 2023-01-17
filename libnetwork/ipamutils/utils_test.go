@@ -44,13 +44,13 @@ func initGlobalScopeNetworks() []*net.IPNet {
 }
 
 func TestDefaultNetwork(t *testing.T) {
-	for _, nw := range PredefinedGlobalScopeDefaultNetworks {
+	for _, nw := range GetGlobalScopeDefaultNetworks() {
 		if ones, bits := nw.Mask.Size(); bits != 32 || ones != 24 {
 			t.Fatalf("Unexpected size for network in granular list: %v", nw)
 		}
 	}
 
-	for _, nw := range PredefinedLocalScopeDefaultNetworks {
+	for _, nw := range GetLocalScopeDefaultNetworks() {
 		if ones, bits := nw.Mask.Size(); bits != 32 || (ones != 20 && ones != 16) {
 			t.Fatalf("Unexpected size for network in broad list: %v", nw)
 		}
@@ -61,7 +61,7 @@ func TestDefaultNetwork(t *testing.T) {
 	for _, v := range originalBroadNets {
 		m[v.String()] = true
 	}
-	for _, nw := range PredefinedLocalScopeDefaultNetworks {
+	for _, nw := range GetLocalScopeDefaultNetworks() {
 		_, ok := m[nw.String()]
 		assert.Check(t, ok)
 		delete(m, nw.String())
@@ -75,7 +75,7 @@ func TestDefaultNetwork(t *testing.T) {
 	for _, v := range originalGranularNets {
 		m[v.String()] = true
 	}
-	for _, nw := range PredefinedGlobalScopeDefaultNetworks {
+	for _, nw := range GetGlobalScopeDefaultNetworks() {
 		_, ok := m[nw.String()]
 		assert.Check(t, ok)
 		delete(m, nw.String())
@@ -93,25 +93,11 @@ func TestConfigGlobalScopeDefaultNetworks(t *testing.T) {
 	for _, v := range originalGlobalScopeNetworks {
 		m[v.String()] = true
 	}
-	for _, nw := range PredefinedGlobalScopeDefaultNetworks {
+	for _, nw := range GetGlobalScopeDefaultNetworks() {
 		_, ok := m[nw.String()]
 		assert.Check(t, ok)
 		delete(m, nw.String())
 	}
 
 	assert.Check(t, is.Len(m, 0))
-}
-
-func TestInitAddressPools(t *testing.T) {
-	err := ConfigLocalScopeDefaultNetworks([]*NetworkToSplit{{"172.80.0.0/16", 24}, {"172.90.0.0/16", 24}})
-	assert.NilError(t, err)
-
-	// Check for Random IPAddresses in PredefinedLocalScopeDefaultNetworks  ex: first , last and middle
-	assert.Check(t, is.Len(PredefinedLocalScopeDefaultNetworks, 512), "Failed to find PredefinedLocalScopeDefaultNetworks")
-	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[0].String(), "172.80.0.0/24"))
-	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[127].String(), "172.80.127.0/24"))
-	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[255].String(), "172.80.255.0/24"))
-	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[256].String(), "172.90.0.0/24"))
-	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[383].String(), "172.90.127.0/24"))
-	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[511].String(), "172.90.255.0/24"))
 }

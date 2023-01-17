@@ -249,13 +249,13 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 func TestNetworkRequest(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
-	nw, err := FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
+	nw, err := FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var found bool
-	for _, exp := range ipamutils.PredefinedLocalScopeDefaultNetworks {
+	for _, exp := range ipamutils.GetLocalScopeDefaultNetworks() {
 		if types.CompareIPNet(exp, nw) {
 			found = true
 			break
@@ -266,13 +266,13 @@ func TestNetworkRequest(t *testing.T) {
 		t.Fatalf("Found unexpected broad network %s", nw)
 	}
 
-	nw, err = FindAvailableNetwork(ipamutils.PredefinedGlobalScopeDefaultNetworks)
+	nw, err = FindAvailableNetwork(ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	found = false
-	for _, exp := range ipamutils.PredefinedGlobalScopeDefaultNetworks {
+	for _, exp := range ipamutils.GetGlobalScopeDefaultNetworks() {
 		if types.CompareIPNet(exp, nw) {
 			found = true
 			break
@@ -290,7 +290,7 @@ func TestNetworkRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nw, err = FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
+	nw, err = FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}

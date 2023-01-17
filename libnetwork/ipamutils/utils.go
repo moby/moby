@@ -8,12 +8,12 @@ import (
 )
 
 var (
-	// PredefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private networks with host size 16 and 12
+	// predefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private networks with host size 16 and 12
 	// (172.17-31.x.x/16, 192.168.x.x/20) which do not overlap with the networks in `PredefinedGlobalScopeDefaultNetworks`
-	PredefinedLocalScopeDefaultNetworks []*net.IPNet
-	// PredefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private networks with host size 8
+	predefinedLocalScopeDefaultNetworks []*net.IPNet
+	// predefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private networks with host size 8
 	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedLocalScopeDefaultNetworks`
-	PredefinedGlobalScopeDefaultNetworks []*net.IPNet
+	predefinedGlobalScopeDefaultNetworks []*net.IPNet
 	mutex                                sync.Mutex
 	localScopeDefaultNetworks            = []*NetworkToSplit{{"172.17.0.0/16", 16}, {"172.18.0.0/16", 16}, {"172.19.0.0/16", 16},
 		{"172.20.0.0/14", 16}, {"172.24.0.0/14", 16}, {"172.28.0.0/14", 16},
@@ -33,57 +33,41 @@ type NetworkToSplit struct {
 
 func init() {
 	var err error
-	if PredefinedGlobalScopeDefaultNetworks, err = SplitNetworks(globalScopeDefaultNetworks); err != nil {
+	if predefinedGlobalScopeDefaultNetworks, err = SplitNetworks(globalScopeDefaultNetworks); err != nil {
 		panic("failed to initialize the global scope default address pool: " + err.Error())
 	}
 
-	if PredefinedLocalScopeDefaultNetworks, err = SplitNetworks(localScopeDefaultNetworks); err != nil {
+	if predefinedLocalScopeDefaultNetworks, err = SplitNetworks(localScopeDefaultNetworks); err != nil {
 		panic("failed to initialize the local scope default address pool: " + err.Error())
 	}
-}
-
-// configDefaultNetworks configures local as well global default pool based on input
-func configDefaultNetworks(defaultAddressPool []*NetworkToSplit, result *[]*net.IPNet) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-	defaultNetworks, err := SplitNetworks(defaultAddressPool)
-	if err != nil {
-		return err
-	}
-	*result = defaultNetworks
-	return nil
-}
-
-// GetGlobalScopeDefaultNetworks returns PredefinedGlobalScopeDefaultNetworks
-func GetGlobalScopeDefaultNetworks() []*net.IPNet {
-	mutex.Lock()
-	defer mutex.Unlock()
-	return PredefinedGlobalScopeDefaultNetworks
-}
-
-// GetLocalScopeDefaultNetworks returns PredefinedLocalScopeDefaultNetworks
-func GetLocalScopeDefaultNetworks() []*net.IPNet {
-	mutex.Lock()
-	defer mutex.Unlock()
-	return PredefinedLocalScopeDefaultNetworks
 }
 
 // ConfigGlobalScopeDefaultNetworks configures global default pool.
 // Ideally this will be called from SwarmKit as part of swarm init
 func ConfigGlobalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error {
 	if defaultAddressPool == nil {
-		defaultAddressPool = globalScopeDefaultNetworks
-	}
-	return configDefaultNetworks(defaultAddressPool, &PredefinedGlobalScopeDefaultNetworks)
-}
-
-// ConfigLocalScopeDefaultNetworks configures local default pool.
-// Ideally this will be called during libnetwork init
-func ConfigLocalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error {
-	if defaultAddressPool == nil {
 		return nil
 	}
-	return configDefaultNetworks(defaultAddressPool, &PredefinedLocalScopeDefaultNetworks)
+	mutex.Lock()
+	defer mutex.Unlock()
+	defaultNetworks, err := SplitNetworks(defaultAddressPool)
+	if err != nil {
+		return err
+	}
+	predefinedGlobalScopeDefaultNetworks = defaultNetworks
+	return nil
+}
+
+// GetGlobalScopeDefaultNetworks returns a copy of the global-sopce network list.
+func GetGlobalScopeDefaultNetworks() []*net.IPNet {
+	mutex.Lock()
+	defer mutex.Unlock()
+	return append([]*net.IPNet(nil), predefinedGlobalScopeDefaultNetworks...)
+}
+
+// GetLocalScopeDefaultNetworks returns a copy of the default local-scope network list.
+func GetLocalScopeDefaultNetworks() []*net.IPNet {
+	return append([]*net.IPNet(nil), predefinedLocalScopeDefaultNetworks...)
 }
 
 // SplitNetworks takes a slice of networks, split them accordingly and returns them
