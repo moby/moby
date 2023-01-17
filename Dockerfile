@@ -551,6 +551,7 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
         xx-apt-get install --no-install-recommends -y \
+            dpkg-dev \
             gcc \
             libapparmor-dev \
             libc6-dev \
@@ -579,7 +580,7 @@ RUN --mount=type=bind,target=. \
   set -e
   target=$([ "$DOCKER_STATIC" = "1" ] && echo "binary" || echo "dynbinary")
   xx-go --wrap
-  ./hack/make.sh $target
+  PKG_CONFIG=$(xx-go env PKG_CONFIG) ./hack/make.sh $target
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/dockerd$([ "$(xx-info os)" = "windows" ] && echo ".exe")
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/docker-proxy$([ "$(xx-info os)" = "windows" ] && echo ".exe")
   mkdir /build
