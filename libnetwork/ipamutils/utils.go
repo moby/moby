@@ -33,11 +33,11 @@ type NetworkToSplit struct {
 
 func init() {
 	var err error
-	if PredefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks); err != nil {
+	if PredefinedGlobalScopeDefaultNetworks, err = SplitNetworks(globalScopeDefaultNetworks); err != nil {
 		panic("failed to initialize the global scope default address pool: " + err.Error())
 	}
 
-	if PredefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks); err != nil {
+	if PredefinedLocalScopeDefaultNetworks, err = SplitNetworks(localScopeDefaultNetworks); err != nil {
 		panic("failed to initialize the local scope default address pool: " + err.Error())
 	}
 }
@@ -46,7 +46,7 @@ func init() {
 func configDefaultNetworks(defaultAddressPool []*NetworkToSplit, result *[]*net.IPNet) error {
 	mutex.Lock()
 	defer mutex.Unlock()
-	defaultNetworks, err := splitNetworks(defaultAddressPool)
+	defaultNetworks, err := SplitNetworks(defaultAddressPool)
 	if err != nil {
 		return err
 	}
@@ -86,8 +86,8 @@ func ConfigLocalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error
 	return configDefaultNetworks(defaultAddressPool, &PredefinedLocalScopeDefaultNetworks)
 }
 
-// splitNetworks takes a slice of networks, split them accordingly and returns them
-func splitNetworks(list []*NetworkToSplit) ([]*net.IPNet, error) {
+// SplitNetworks takes a slice of networks, split them accordingly and returns them
+func SplitNetworks(list []*NetworkToSplit) ([]*net.IPNet, error) {
 	localPools := make([]*net.IPNet, 0, len(list))
 
 	for _, p := range list {
