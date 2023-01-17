@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
@@ -169,13 +170,13 @@ func compareBindings(a, b []types.PortBinding) bool {
 
 func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
-	nws, _, err := netutils.ElectInterfaceAddresses(iface)
+	nw, err := netutils.FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
-	ipd.Pool = nws[0]
+	ipd.Pool = nw
 	// Set network gateway to X.X.X.1
-	ipd.Gateway = types.GetIPNetCopy(nws[0])
+	ipd.Gateway = types.GetIPNetCopy(nw)
 	ipd.Gateway.IP[len(ipd.Gateway.IP)-1] = 1
 	return []driverapi.IPAMData{ipd}
 }
@@ -1049,7 +1050,15 @@ func TestCreateWithExistingBridge(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
-	if err := d.CreateNetwork(brName, genericOption, nil, getIPv4Data(t, brName), nil); err != nil {
+	ipv4Data := []driverapi.IPAMData{{
+		AddressSpace: "full",
+		Pool:         types.GetIPNetCopy(addr.IPNet),
+		Gateway:      types.GetIPNetCopy(addr.IPNet),
+	}}
+	// Set network gateway to X.X.X.1
+	ipv4Data[0].Gateway.IP[len(ipv4Data[0].Gateway.IP)-1] = 1
+
+	if err := d.CreateNetwork(brName, genericOption, nil, ipv4Data, nil); err != nil {
 		t.Fatalf("Failed to create bridge network: %v", err)
 	}
 
