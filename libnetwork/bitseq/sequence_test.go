@@ -1359,3 +1359,67 @@ func TestGetFirstAvailableFromCurrent(t *testing.T) {
 		}
 	}
 }
+
+func TestMarshalJSON(t *testing.T) {
+	const expectedID = "my-bitseq"
+	expected := []byte("hello libnetwork")
+	hnd, err := NewHandle("", nil, expectedID, uint64(len(expected)*8))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, c := range expected {
+		for j := 0; j < 8; j++ {
+			if c&(1<<j) == 0 {
+				continue
+			}
+			if err := hnd.Set(uint64(i*8 + j)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	hstr := hnd.String()
+	t.Log(hstr)
+	marshaled, err := hnd.MarshalJSON()
+	if err != nil {
+		t.Fatalf("MarshalJSON() err = %v", err)
+	}
+	t.Logf("%s", marshaled)
+
+	// Serializations of hnd as would be marshaled by versions of the code
+	// found in the wild. We need to support unmarshaling old versions to
+	// maintain backwards compatibility with sequences persisted on disk.
+	const (
+		goldenV0 = `{"id":"my-bitseq","sequence":"AAAAAAAAAIAAAAAAAAAAPRamNjYAAAAAAAAAAfYENpYAAAAAAAAAAUZ2pi4AAAAAAAAAAe72TtYAAAAAAAAAAQ=="}`
+	)
+
+	if string(marshaled) != goldenV0 {
+		t.Errorf("MarshalJSON() output differs from golden. Please add a new golden case to this test.")
+	}
+
+	for _, tt := range []struct {
+		name string
+		data []byte
+	}{
+		{name: "Live", data: marshaled},
+		{name: "Golden-v0", data: []byte(goldenV0)},
+	} {
+		tt := tt
+		t.Run("UnmarshalJSON="+tt.name, func(t *testing.T) {
+			hnd2, err := NewHandle("", nil, "", 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := hnd2.UnmarshalJSON(tt.data); err != nil {
+				t.Errorf("UnmarshalJSON() err = %v", err)
+			}
+
+			h2str := hnd2.String()
+			t.Log(h2str)
+			if hstr != h2str {
+				t.Errorf("Unmarshaled a different bitseq: want %q, got %q", hstr, h2str)
+			}
+		})
+	}
+}
