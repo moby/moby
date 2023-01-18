@@ -549,6 +549,12 @@ WORKDIR /go/src/github.com/docker/docker
 ENV GO111MODULE=off
 ENV CGO_ENABLED=1
 ARG DEBIAN_FRONTEND
+RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
+    --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
+        apt-get update && apt-get install --no-install-recommends -y \
+            clang \
+            lld \
+            llvm
 ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \
@@ -575,6 +581,12 @@ ARG PACKAGER_NAME
 # PREFIX overrides DEST dir in make.sh script otherwise it fails because of
 # read only mount in current work dir
 ENV PREFIX=/tmp
+RUN <<EOT
+  # in bullseye arm64 target does not link with lld so configure it to use ld instead
+  if xx-info is-cross && [ "$(xx-info arch)" = "arm64" ]; then
+    XX_CC_PREFER_LINKER=ld xx-clang --setup-target-triple
+  fi
+EOT
 RUN --mount=type=bind,target=. \
     --mount=type=tmpfs,target=cli/winresources/dockerd \
     --mount=type=tmpfs,target=cli/winresources/docker-proxy \
@@ -608,6 +620,20 @@ COPY --from=rootlesskit   /build/ /
 COPY --from=containerutil /build/ /
 COPY --from=vpnkit        /       /
 COPY --from=build         /build  /
+
+# smoke tests
+# usage:
+# > docker buildx bake binary-smoketest
+FROM --platform=$TARGETPLATFORM base AS smoketest
+WORKDIR /usr/local/bin
+COPY --from=build /build .
+RUN <<EOT
+  set -ex
+  file dockerd
+  dockerd --version
+  file docker-proxy
+  docker-proxy --version
+EOT
 
 # usage:
 # > make shell
