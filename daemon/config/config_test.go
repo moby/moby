@@ -13,11 +13,20 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/imdario/mergo"
 	"github.com/spf13/pflag"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/unicode"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 	"gotest.tools/v3/skip"
 )
+
+func makeConfigFile(t *testing.T, content string) string {
+	t.Helper()
+	name := filepath.Join(t.TempDir(), "daemon.json")
+	err := os.WriteFile(name, []byte(content), 0666)
+	assert.NilError(t, err)
+	return name
+}
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
 	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
@@ -25,29 +34,59 @@ func TestDaemonConfigurationNotFound(t *testing.T) {
 }
 
 func TestDaemonBrokenConfiguration(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
+	configFile := makeConfigFile(t, `{"Debug": tru`)
 
-	configFile := f.Name()
-	f.Write([]byte(`{"Debug": tru`))
-	f.Close()
-
-	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
 }
 
-// TestDaemonConfigurationWithBOM ensures that the UTF-8 byte order mark is ignored when reading the configuration file.
-func TestDaemonConfigurationWithBOM(t *testing.T) {
-	configFile := filepath.Join(t.TempDir(), "daemon.json")
+// TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
+// respect a BOM and otherwise default to UTF-8.
+func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
+	jsonData := `{"debug": true}`
 
-	f, err := os.Create(configFile)
-	assert.NilError(t, err)
+	testCases := []struct {
+		name     string
+		encoding encoding.Encoding
+	}{
+		{
+			name:     "UTF-8",
+			encoding: unicode.UTF8,
+		},
+		{
+			name:     "UTF-8 (with BOM)",
+			encoding: unicode.UTF8BOM,
+		},
+		{
+			name:     "UTF-16 (BE with BOM)",
+			encoding: unicode.UTF16(unicode.BigEndian, unicode.UseBOM),
+		},
+		{
+			name:     "UTF-16 (LE with BOM)",
+			encoding: unicode.UTF16(unicode.LittleEndian, unicode.UseBOM),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			encodedJson, err := tc.encoding.NewEncoder().String(jsonData)
+			assert.NilError(t, err)
+			configFile := makeConfigFile(t, encodedJson)
+			_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+			assert.NilError(t, err)
+		})
+	}
+}
 
-	f.Write([]byte("\xef\xbb\xbf{\"debug\": true}"))
-	f.Close()
+// TestDaemonConfigurationInvalidUnicode ensures that the JSON parser returns a useful error message if malformed UTF-8
+// is provided.
+func TestDaemonConfigurationInvalidUnicode(t *testing.T) {
+	configFileBOM := makeConfigFile(t, "\xef\xbb\xbf{\"debug\": true}\xff")
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFileBOM)
+	assert.ErrorIs(t, err, encoding.ErrInvalidUTF8)
 
-	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
-	assert.NilError(t, err)
+	configFileNoBOM := makeConfigFile(t, "{\"debug\": true}\xff")
+	_, err = MergeDaemonConfigurations(&Config{}, nil, configFileNoBOM)
+	assert.ErrorIs(t, err, encoding.ErrInvalidUTF8)
 }
 
 func TestFindConfigurationConflicts(t *testing.T) {
@@ -71,18 +110,13 @@ func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeConflicts(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
-
-	configFile := f.Name()
-	f.Write([]byte(`{"debug": true}`))
-	f.Close()
+	configFile := makeConfigFile(t, `{"debug": true}`)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.Bool("debug", false, "")
 	assert.Check(t, flags.Set("debug", "false"))
 
-	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -92,51 +126,34 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 }
 
 func TestDaemonConfigurationMergeConcurrent(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
+	configFile := makeConfigFile(t, `{"max-concurrent-downloads": 1}`)
 
-	configFile := f.Name()
-	f.Write([]byte(`{"max-concurrent-downloads": 1}`))
-	f.Close()
-
-	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.NilError(t, err)
 }
 
 func TestDaemonConfigurationMergeConcurrentError(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
+	configFile := makeConfigFile(t, `{"max-concurrent-downloads": -1}`)
 
-	configFile := f.Name()
-	f.Write([]byte(`{"max-concurrent-downloads": -1}`))
-	f.Close()
-
-	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.ErrorContains(t, err, `invalid max concurrent downloads: -1`)
 }
 
 func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
-
-	configFile := f.Name()
-	f.Write([]byte(`{"tlscacert": "/etc/certificates/ca.pem"}`))
-	f.Close()
+	configFile := makeConfigFile(t, `{"tlscacert": "/etc/certificates/ca.pem"}`)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("tlscacert", "", "")
 	assert.Check(t, flags.Set("tlscacert", "~/.docker/ca.pem"))
 
-	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
+	_, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
 	assert.ErrorContains(t, err, `the following directives are specified both as a flag and in the configuration file: tlscacert`)
 }
 
-// Test for #40711
+// TestDaemonConfigurationMergeDefaultAddressPools is a regression test for #40711.
 func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
-	emptyConfigFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
-	defer emptyConfigFile.Remove()
-	configFile := fs.NewFile(t, "config", fs.WithContent(`{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`))
-	defer configFile.Remove()
+	emptyConfigFile := makeConfigFile(t, `{}`)
+	configFile := makeConfigFile(t, `{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`)
 
 	expected := []*ipamutils.NetworkToSplit{{Base: "10.123.0.0/16", Size: 24}}
 
@@ -146,7 +163,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
-		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile.Path())
+		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
 	})
@@ -156,7 +173,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 
-		config, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		config, err := MergeDaemonConfigurations(&conf, flags, configFile)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
 	})
@@ -167,7 +184,7 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
 		assert.Check(t, flags.Set("default-address-pool", "base=10.123.0.0/16,size=24"))
 
-		_, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		_, err := MergeDaemonConfigurations(&conf, flags, configFile)
 		assert.ErrorContains(t, err, "the following directives are specified both as a flag and in the configuration file")
 		assert.ErrorContains(t, err, "default-address-pools")
 	})
@@ -520,8 +537,8 @@ func field(field string) cmp.Option {
 	return cmpopts.IgnoreFields(Config{}, ignoreFields...)
 }
 
-// TestReloadSetConfigFileNotExist tests that when `--config-file` is set
-// and it doesn't exist the `Reload` function returns an error.
+// TestReloadSetConfigFileNotExist tests that when `--config-file` is set, and it doesn't exist the `Reload` function
+// returns an error.
 func TestReloadSetConfigFileNotExist(t *testing.T) {
 	configFile := "/tmp/blabla/not/exists/config.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -532,8 +549,8 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
 }
 
-// TestReloadDefaultConfigNotExist tests that if the default configuration file
-// doesn't exist the daemon still will be reloaded.
+// TestReloadDefaultConfigNotExist tests that if the default configuration file doesn't exist the daemon still will
+// still be reloaded.
 func TestReloadDefaultConfigNotExist(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	defaultConfigFile := "/tmp/blabla/not/exists/daemon.json"
@@ -547,20 +564,15 @@ func TestReloadDefaultConfigNotExist(t *testing.T) {
 	assert.Check(t, reloaded)
 }
 
-// TestReloadBadDefaultConfig tests that when `--config-file` is not set
-// and the default configuration file exists and is bad return an error
+// TestReloadBadDefaultConfig tests that when `--config-file` is not set and the default configuration file exists and
+// is bad, an error is returned.
 func TestReloadBadDefaultConfig(t *testing.T) {
-	f, err := os.CreateTemp("", "docker-config-")
-	assert.NilError(t, err)
-
-	configFile := f.Name()
-	f.Write([]byte(`{wrong: "configuration"}`))
-	f.Close()
+	configFile := makeConfigFile(t, `{wrong: "configuration"}`)
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	reloaded := false
-	err = Reload(configFile, flags, func(c *Config) {
+	err := Reload(configFile, flags, func(c *Config) {
 		reloaded = true
 	})
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
@@ -568,9 +580,7 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 }
 
 func TestReloadWithConflictingLabels(t *testing.T) {
-	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=bar","foo=baz"]}`))
-	defer tempFile.Remove()
-	configFile := tempFile.Path()
+	configFile := makeConfigFile(t, `{"labels": ["foo=bar", "foo=baz"]}`)
 
 	var lbls []string
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -585,9 +595,7 @@ func TestReloadWithConflictingLabels(t *testing.T) {
 }
 
 func TestReloadWithDuplicateLabels(t *testing.T) {
-	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=the-same","foo=the-same"]}`))
-	defer tempFile.Remove()
-	configFile := tempFile.Path()
+	configFile := makeConfigFile(t, `{"labels": ["foo=the-same", "foo=the-same"]}`)
 
 	var lbls []string
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
