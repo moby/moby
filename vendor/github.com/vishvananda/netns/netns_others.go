@@ -1,3 +1,4 @@
+//go:build !linux
 // +build !linux
 
 package netns
@@ -10,6 +11,10 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 )
 
+// Setns sets namespace using golang.org/x/sys/unix.Setns on Linux. It
+// is not implemented on other platforms.
+//
+// Deprecated: Use golang.org/x/sys/unix.Setns instead.
 func Setns(ns NsHandle, nstype int) (err error) {
 	return ErrNotImplemented
 }
