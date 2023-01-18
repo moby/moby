@@ -124,6 +124,20 @@ target "binary-cross" {
   inherits = ["binary", "_platforms"]
 }
 
+target "binary-smoketest" {
+  inherits = ["_common"]
+  target = "smoketest"
+  output = ["type=cacheonly"]
+  platforms = [
+    "linux/amd64",
+    "linux/arm/v6",
+    "linux/arm/v7",
+    "linux/arm64",
+    "linux/ppc64le",
+    "linux/s390x"
+  ]
+}
+
 #
 # same as binary but with extra tools as well (containerd, runc, ...)
 #

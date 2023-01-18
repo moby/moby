@@ -502,3 +502,55 @@ jobs:
         name: Create summary
         run: |
           teststat -markdown $(find /tmp/reports -type f -name '*.json' -print0 | xargs -0) >> $GITHUB_STEP_SUMMARY
+
+  prepare-smoke:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+    outputs:
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Create matrix
+        id: platforms
+        run: |
+          matrix="$(docker buildx bake binary-smoketest --print | jq -cr '.target."binary-smoketest".platforms')"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.platforms.outputs.matrix }}
+
+  smoke:
+    runs-on: ubuntu-20.04
+    needs:
+      - prepare-smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare-smoke.outputs.matrix) }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Test
+        uses: docker/bake-action@v2
+        with:
+          targets: binary-smoketest
+          set: |
+            *.platform=${{ matrix.platform }}

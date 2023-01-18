@@ -621,6 +621,20 @@ COPY --from=containerutil /build/ /
 COPY --from=vpnkit        /       /
 COPY --from=build         /build  /
 
+# smoke tests
+# usage:
+# > docker buildx bake binary-smoketest
+FROM --platform=$TARGETPLATFORM base AS smoketest
+WORKDIR /usr/local/bin
+COPY --from=build /build .
+RUN <<EOT
+  set -ex
+  file dockerd
+  dockerd --version
+  file docker-proxy
+  docker-proxy --version
+EOT
+
 # usage:
 # > make shell
 # > SYSTEMD=true make shell
