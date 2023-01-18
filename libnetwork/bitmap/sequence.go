@@ -142,8 +142,8 @@ func (s *sequence) toByteArray() ([]byte, error) {
 	var bb []byte
 
 	p := s
+	b := make([]byte, 12)
 	for p != nil {
-		b := make([]byte, 12)
 		binary.BigEndian.PutUint32(b[0:], p.block)
 		binary.BigEndian.PutUint64(b[4:], p.count)
 		bb = append(bb, b...)
