@@ -1,6 +1,7 @@
 package containerd
 
 import (
+	"context"
 	"errors"
 
 	"github.com/docker/docker/api/types/backend"
@@ -9,7 +10,7 @@ import (
 )
 
 // CommitImage creates a new image from a commit config.
-func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	return "", errdefs.NotImplemented(errors.New("not implemented"))
 }
 
@@ -22,6 +23,6 @@ func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 //   - it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	return "", errdefs.NotImplemented(errors.New("not implemented"))
 }

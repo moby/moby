@@ -38,7 +38,7 @@ func (m *MockBackend) ContainerRm(name string, config *types.ContainerRmConfig) 
 	return nil
 }
 
-func (m *MockBackend) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (m *MockBackend) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	if m.commitFunc != nil {
 		return m.commitFunc(c)
 	}
