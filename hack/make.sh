@@ -108,14 +108,8 @@ if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
 
-LDFLAGS_STATIC=''
-EXTLDFLAGS_STATIC='-static'
 BUILDFLAGS=(${BUILDFLAGS} -tags "netgo osusergo static_build $DOCKER_BUILDTAGS")
-
-LDFLAGS_STATIC_DOCKER="
-	$LDFLAGS_STATIC
-	-extldflags \"$EXTLDFLAGS_STATIC\"
-"
+LDFLAGS_STATIC="-extldflags -static"
 
 if [ "$(uname -s)" = 'FreeBSD' ]; then
 	# Tell cgo the compiler is Clang, not GCC

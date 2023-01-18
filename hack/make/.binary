@@ -65,7 +65,7 @@ source "${MAKEDIR}/.go-autogen"
 		"${BUILDFLAGS[@]}" \
 		-ldflags "
 		$LDFLAGS
-		$LDFLAGS_STATIC_DOCKER
+		$LDFLAGS_STATIC
 		$DOCKER_LDFLAGS
 	" \
 		${GO_PACKAGE}
