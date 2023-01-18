@@ -26,3 +26,8 @@ func GetDataHome() (string, error) {
 func GetConfigHome() (string, error) {
 	return "", errors.New("homedir.GetConfigHome() is not supported on this system")
 }
+
+// GetLibHome is unsupported on non-linux system.
+func GetLibHome() (string, error) {
+	return "", errors.New("homedir.GetLibHome() is not supported on this system")
+}
