@@ -115,7 +115,7 @@ func TestIpcModePrivate(t *testing.T) {
 // also exists on the host.
 func TestIpcModeShareable(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.IsRootless, "cannot test /dev/shm in rootless")
+	skip.If(t, testEnv.IsRootless, "no support for --ipc=shareable in rootless")
 
 	testIpcNonePrivateShareable(t, "shareable", true, true)
 }
@@ -191,7 +191,6 @@ func TestAPIIpcModeShareableAndContainer(t *testing.T) {
 func TestAPIIpcModeHost(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsUserNamespace)
-	skip.If(t, testEnv.IsRootless, "cannot test /dev/shm in rootless")
 
 	cfg := containertypes.Config{
 		Image: "busybox",
@@ -263,7 +262,7 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 // TestDaemonIpcModeShareable checks that --default-ipc-mode shareable works as intended.
 func TestDaemonIpcModeShareable(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.IsRootless, "cannot test /dev/shm in rootless")
+	skip.If(t, testEnv.IsRootless, "no support for --ipc=shareable in rootless")
 
 	testDaemonIpcPrivateShareable(t, true, "--default-ipc-mode", "shareable")
 }
@@ -277,9 +276,9 @@ func TestDaemonIpcModePrivate(t *testing.T) {
 
 // used to check if an IpcMode given in config works as intended
 func testDaemonIpcFromConfig(t *testing.T, mode string, mustExist bool) {
-	skip.If(t, testEnv.IsRootless, "cannot test /dev/shm in rootless")
 	config := `{"default-ipc-mode": "` + mode + `"}`
-	file := fs.NewFile(t, "test-daemon-ipc-config", fs.WithContent(config))
+	// WithMode is needed for rootless
+	file := fs.NewFile(t, "test-daemon-ipc-config", fs.WithContent(config), fs.WithMode(0o644))
 	defer file.Remove()
 
 	testDaemonIpcPrivateShareable(t, mustExist, "--config-file", file.Path())
@@ -295,6 +294,7 @@ func TestDaemonIpcModePrivateFromConfig(t *testing.T) {
 // TestDaemonIpcModeShareableFromConfig checks that "default-ipc-mode: shareable" config works as intended.
 func TestDaemonIpcModeShareableFromConfig(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "no support for --ipc=shareable in rootless")
 
 	testDaemonIpcFromConfig(t, "shareable", true)
 }

@@ -1,8 +1,10 @@
 package specconv // import "github.com/docker/docker/pkg/rootless/specconv"
 
 import (
+	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -14,6 +16,7 @@ import (
 // * Remove non-supported cgroups
 // * Fix up OOMScoreAdj
 // * Fix up /proc if --pid=host
+// * Fix up /dev/shm and /dev/mqueue if --ipc=host
 //
 // v2Controllers should be non-nil only if running with v2 and systemd.
 func ToRootless(spec *specs.Spec, v2Controllers []string) error {
@@ -79,31 +82,48 @@ func toRootless(spec *specs.Spec, v2Controllers []string, currentOOMScoreAdj int
 	}
 
 	// Fix up /proc if --pid=host
-	pidHost, err := isPidHost(spec)
+	pidHost, err := isHostNS(spec, specs.PIDNamespace)
 	if err != nil {
 		return err
 	}
-	if !pidHost {
-		return nil
+	if pidHost {
+		if err := bindMountHostProcfs(spec); err != nil {
+			return err
+		}
 	}
-	return bindMountHostProcfs(spec)
+
+	// Fix up /dev/shm and /dev/mqueue if --ipc=host
+	ipcHost, err := isHostNS(spec, specs.IPCNamespace)
+	if err != nil {
+		return err
+	}
+	if ipcHost {
+		if err := bindMountHostIPC(spec); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func isPidHost(spec *specs.Spec) (bool, error) {
+func isHostNS(spec *specs.Spec, nsType specs.LinuxNamespaceType) (bool, error) {
+	if strings.Contains(string(nsType), string(os.PathSeparator)) {
+		return false, fmt.Errorf("unexpected namespace type %q", nsType)
+	}
 	for _, ns := range spec.Linux.Namespaces {
-		if ns.Type == specs.PIDNamespace {
+		if ns.Type == nsType {
 			if ns.Path == "" {
 				return false, nil
 			}
-			pidNS, err := os.Readlink(ns.Path)
+			ns, err := os.Readlink(ns.Path)
 			if err != nil {
 				return false, err
 			}
-			selfPidNS, err := os.Readlink("/proc/self/ns/pid")
+			selfNS, err := os.Readlink(filepath.Join("/proc/self/ns", string(nsType)))
 			if err != nil {
 				return false, err
 			}
-			return pidNS == selfPidNS, nil
+			return ns == selfNS, nil
 		}
 	}
 	return true, nil
@@ -134,5 +154,24 @@ func bindMountHostProcfs(spec *specs.Spec) error {
 	}
 	spec.Linux.ReadonlyPaths = newROP
 
+	return nil
+}
+
+// withBindMountHostIPC replaces /dev/shm and /dev/mqueue mount with rbind.
+// Required for --ipc=host on rootless.
+//
+// Based on https://github.com/containerd/nerdctl/blob/v1.1.0/cmd/nerdctl/run.go#L836-L860
+func bindMountHostIPC(s *specs.Spec) error {
+	for i, m := range s.Mounts {
+		switch p := path.Clean(m.Destination); p {
+		case "/dev/shm", "/dev/mqueue":
+			s.Mounts[i] = specs.Mount{
+				Destination: p,
+				Type:        "bind",
+				Source:      p,
+				Options:     []string{"rbind", "nosuid", "noexec", "nodev"},
+			}
+		}
+	}
 	return nil
 }
