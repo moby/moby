@@ -60,6 +60,65 @@ func TestBytesPipeWrite(t *testing.T) {
 	}
 }
 
+// Regression test for #41941.
+func TestBytesPipeDeadlock(t *testing.T) {
+	bp := NewBytesPipe()
+	bp.buf = []*fixedBuffer{getBuffer(blockThreshold)}
+
+	rd := make(chan error)
+	go func() {
+		n, err := bp.Read(make([]byte, 1))
+		t.Logf("Read n=%d, err=%v", n, err)
+		if n != 1 {
+			t.Errorf("short read: got %d, want 1", n)
+		}
+		rd <- err
+	}()
+
+	wr := make(chan error)
+	go func() {
+		const writeLen int = blockThreshold + 1
+		time.Sleep(time.Millisecond)
+		n, err := bp.Write(make([]byte, writeLen))
+		t.Logf("Write n=%d, err=%v", n, err)
+		if n != writeLen {
+			t.Errorf("short write: got %d, want %d", n, writeLen)
+		}
+		wr <- err
+	}()
+
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		t.Fatal("deadlock! Neither Read() nor Write() returned.")
+	case rerr := <-rd:
+		if rerr != nil {
+			t.Fatal(rerr)
+		}
+		select {
+		case <-timer.C:
+			t.Fatal("deadlock! Write() did not return.")
+		case werr := <-wr:
+			if werr != nil {
+				t.Fatal(werr)
+			}
+		}
+	case werr := <-wr:
+		if werr != nil {
+			t.Fatal(werr)
+		}
+		select {
+		case <-timer.C:
+			t.Fatal("deadlock! Read() did not return.")
+		case rerr := <-rd:
+			if rerr != nil {
+				t.Fatal(rerr)
+			}
+		}
+	}
+}
+
 // Write and read in different speeds/chunk sizes and check valid data is read.
 func TestBytesPipeWriteRandomChunks(t *testing.T) {
 	cases := []struct{ iterations, writesPerLoop, readsPerLoop int }{
