@@ -66,7 +66,6 @@ func (d *driver) initStore(option map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil

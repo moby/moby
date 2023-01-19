@@ -7,20 +7,6 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 )
 
-func TestInvalidConfig(t *testing.T) {
-	_, err := ParseConfig("invalid.toml")
-	if err == nil {
-		t.Fatal("Invalid Configuration file must fail")
-	}
-}
-
-func TestConfig(t *testing.T) {
-	_, err := ParseConfig("libnetwork.toml")
-	if err != nil {
-		t.Fatal("Error parsing a valid configuration file :", err)
-	}
-}
-
 func TestOptionsLabels(t *testing.T) {
 	c := &Config{}
 	l := []string{
@@ -31,10 +17,10 @@ func TestOptionsLabels(t *testing.T) {
 	}
 	f := OptionLabels(l)
 	f(c)
-	if len(c.Daemon.Labels) != 3 {
-		t.Fatalf("Expecting 3 labels, seen %d", len(c.Daemon.Labels))
+	if len(c.Labels) != 3 {
+		t.Fatalf("Expecting 3 labels, seen %d", len(c.Labels))
 	}
-	for _, l := range c.Daemon.Labels {
+	for _, l := range c.Labels {
 		if !strings.HasPrefix(l, netlabel.Prefix) {
 			t.Fatalf("config must accept only libnetwork labels. Not : %s", l)
 		}

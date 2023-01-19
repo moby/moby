@@ -569,7 +569,6 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	}
 
 	for i := 0; i < len(reqName); i++ {
-
 		// First check for local container alias
 		ip, ipv6Miss := sb.resolveName(reqName[i], networkName[i], epList, true, ipType)
 		if ip != nil {

@@ -223,7 +223,7 @@ func (c *controller) agentSetup(clusterProvider cluster.Provider) error {
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
 	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v MTU=%d",
-		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList, c.Config().Daemon.NetworkControlPlaneMTU)
+		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList, c.Config().NetworkControlPlaneMTU)
 	if advAddr != "" && agent == nil {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
 			logrus.Errorf("error in agentInit: %v", err)
@@ -295,12 +295,12 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	netDBConf.BindAddr = listenAddr
 	netDBConf.AdvertiseAddr = advertiseAddr
 	netDBConf.Keys = keys
-	if c.Config().Daemon.NetworkControlPlaneMTU != 0 {
+	if c.Config().NetworkControlPlaneMTU != 0 {
 		// Consider the MTU remove the IP hdr (IPv4 or IPv6) and the TCP/UDP hdr.
 		// To be on the safe side let's cut 100 bytes
-		netDBConf.PacketBufferSize = (c.Config().Daemon.NetworkControlPlaneMTU - 100)
+		netDBConf.PacketBufferSize = (c.Config().NetworkControlPlaneMTU - 100)
 		logrus.Debugf("Control plane MTU: %d will initialize NetworkDB with: %d",
-			c.Config().Daemon.NetworkControlPlaneMTU, netDBConf.PacketBufferSize)
+			c.Config().NetworkControlPlaneMTU, netDBConf.PacketBufferSize)
 	}
 	nDB, err := networkdb.New(netDBConf)
 	if err != nil {
@@ -895,7 +895,6 @@ func (c *controller) handleNodeTableEvent(ev events.Event) {
 		return
 	}
 	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
-
 }
 
 func (c *controller) handleEpTableEvent(ev events.Event) {

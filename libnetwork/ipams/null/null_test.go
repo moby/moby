@@ -56,5 +56,4 @@ func TestOtherRequests(t *testing.T) {
 	if err == nil {
 		t.Fatal("Unexpected success")
 	}
-
 }

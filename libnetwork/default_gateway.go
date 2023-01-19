@@ -30,7 +30,6 @@ var procGwNetwork = make(chan (bool), 1)
 */
 
 func (sb *sandbox) setupDefaultGW() error {
-
 	// check if the container already has a GW endpoint
 	if ep := sb.getEndpointInGWNetwork(); ep != nil {
 		return nil

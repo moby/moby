@@ -410,7 +410,6 @@ func (h *Handle) Destroy() error {
 
 // ToByteArray converts this handle's data into a byte array
 func (h *Handle) ToByteArray() ([]byte, error) {
-
 	h.Lock()
 	defer h.Unlock()
 	ba := make([]byte, 16)

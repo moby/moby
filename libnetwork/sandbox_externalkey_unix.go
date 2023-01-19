@@ -114,7 +114,7 @@ func processReturn(r io.Reader) error {
 
 func (c *controller) startExternalKeyListener() error {
 	execRoot := defaultExecRoot
-	if v := c.Config().Daemon.ExecRoot; v != "" {
+	if v := c.Config().ExecRoot; v != "" {
 		execRoot = v
 	}
 	udsBase := filepath.Join(execRoot, execSubdir)

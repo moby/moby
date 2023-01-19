@@ -90,5 +90,4 @@ func TestPassthrough(t *testing.T) {
 			t.Fatal("rule1 does not exist")
 		}
 	}
-
 }

@@ -166,7 +166,6 @@ func TestDNSIPQuery(t *testing.T) {
 	t.Log("Response: ", resp.String())
 	checkDNSResponseCode(t, resp, dns.RcodeServerFailure)
 	w.ClearResponse()
-
 }
 
 func newDNSHandlerServFailOnce(requests *int) func(w dns.ResponseWriter, r *dns.Msg) {

@@ -106,7 +106,6 @@ func deleteInterfaceBySubnet(brPrefix string, s *subnet) error {
 		}
 	}
 	return nil
-
 }
 
 func deleteInterface(name string) error {

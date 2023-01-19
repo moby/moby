@@ -178,7 +178,6 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 				tplist = append(tplist, tp)
 			}
 			ep.generic[netlabel.ExposedPorts] = tplist
-
 		}
 	}
 
@@ -580,7 +579,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 					ep.Name(), ep.ID(), err)
 			}
 		}
-
 	}
 
 	if !sb.needDefaultGW() {

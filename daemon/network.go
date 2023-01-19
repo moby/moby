@@ -108,7 +108,7 @@ func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) 
 		return nil, libnetwork.ErrNoSuchNetwork(name)
 	}
 	if name == "" {
-		name = c.Config().Daemon.DefaultNetwork
+		name = c.Config().DefaultNetwork
 	}
 	return c.NetworkByName(name)
 }
@@ -316,7 +316,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	c := daemon.netController
 	driver := create.Driver
 	if driver == "" {
-		driver = c.Config().Daemon.DefaultDriver
+		driver = c.Config().DefaultDriver
 	}
 
 	nwOptions := []libnetwork.NetworkOption{

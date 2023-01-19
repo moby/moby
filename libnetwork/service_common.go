@@ -213,7 +213,6 @@ func (c *controller) cleanupServiceBindings(cleanupNID string) {
 	for _, f := range cleanupFuncs {
 		f()
 	}
-
 }
 
 func makeServiceCleanupFunc(c *controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
@@ -315,7 +314,6 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 }
 
 func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
-
 	var rmService bool
 
 	skey := serviceKey{
