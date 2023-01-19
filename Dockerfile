@@ -581,7 +581,7 @@ ARG PACKAGER_NAME
 ENV PREFIX=/tmp
 RUN <<EOT
   # in bullseye arm64 target does not link with lld so configure it to use ld instead
-  if xx-info is-cross && [ "$(xx-info arch)" = "arm64" ]; then
+  if [ "$(xx-info arch)" = "arm64" ]; then
     XX_CC_PREFER_LINKER=ld xx-clang --setup-target-triple
   fi
 EOT
