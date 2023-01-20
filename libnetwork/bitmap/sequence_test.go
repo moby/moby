@@ -1,45 +1,10 @@
-package bitseq
+package bitmap
 
 import (
-	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/boltdb"
 )
-
-var (
-	defaultPrefix = filepath.Join(os.TempDir(), "libnetwork", "test", "bitseq")
-)
-
-func init() {
-	boltdb.Register()
-}
-
-func randomLocalStore() (datastore.DataStore, error) {
-	tmp, err := os.CreateTemp("", "libnetwork-")
-	if err != nil {
-		return nil, fmt.Errorf("Error creating temp file: %v", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return nil, fmt.Errorf("Error closing temp file: %v", err)
-	}
-	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
-		Client: datastore.ScopeClientCfg{
-			Provider: "boltdb",
-			Address:  filepath.Join(defaultPrefix, filepath.Base(tmp.Name())),
-			Config: &store.Config{
-				Bucket:            "libnetwork",
-				ConnectionTimeout: 3 * time.Second,
-			},
-		},
-	})
-}
 
 func TestSequenceGetAvailableBit(t *testing.T) {
 	input := []struct {
@@ -538,10 +503,7 @@ func getTestSequence() *sequence {
 }
 
 func TestSet(t *testing.T) {
-	hnd, err := NewHandle("", nil, "", 1024*32)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(1024 * 32)
 	hnd.head = getTestSequence()
 
 	firstAv := uint64(32*100 + 31)
@@ -597,10 +559,7 @@ func TestSet(t *testing.T) {
 
 func TestSetUnset(t *testing.T) {
 	numBits := uint64(32 * blockLen)
-	hnd, err := NewHandle("", nil, "", numBits)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(numBits)
 
 	if err := hnd.Set(uint64(32 * blockLen)); err == nil {
 		t.Fatal("Expected failure, but succeeded")
@@ -635,11 +594,7 @@ func TestSetUnset(t *testing.T) {
 
 func TestOffsetSetUnset(t *testing.T) {
 	numBits := uint64(32 * blockLen)
-	var o uint64
-	hnd, err := NewHandle("", nil, "", numBits)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(numBits)
 
 	// set and unset all one by one
 	for hnd.Unselected() > 0 {
@@ -661,7 +616,8 @@ func TestOffsetSetUnset(t *testing.T) {
 	}
 
 	//At this point sequence is (0xffffffff, 9)->(0x7fffffff, 1)->(0xffffffff, 22)->end
-	if o, err = hnd.SetAnyInRange(32, 500, false); err != nil {
+	o, err := hnd.SetAnyInRange(32, 500, false)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -672,10 +628,7 @@ func TestOffsetSetUnset(t *testing.T) {
 
 func TestSetInRange(t *testing.T) {
 	numBits := uint64(1024 * blockLen)
-	hnd, err := NewHandle("", nil, "", numBits)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(numBits)
 	hnd.head = getTestSequence()
 
 	firstAv := uint64(100*blockLen + blockLen - 1)
@@ -739,10 +692,7 @@ func TestSetInRange(t *testing.T) {
 	}
 
 	// create a non multiple of 32 mask
-	hnd, err = NewHandle("", nil, "", 30)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd = New(30)
 
 	// set all bit in the first range
 	for hnd.Unselected() > 22 {
@@ -798,10 +748,7 @@ func TestSetInRange(t *testing.T) {
 // in the first or last sequence block.
 func TestSetAnyInRange(t *testing.T) {
 	numBits := uint64(8 * blockLen)
-	hnd, err := NewHandle("", nil, "", numBits)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(numBits)
 
 	if err := hnd.Set(0); err != nil {
 		t.Fatal(err)
@@ -847,10 +794,7 @@ func TestSetAnyInRange(t *testing.T) {
 
 func TestMethods(t *testing.T) {
 	numBits := uint64(256 * blockLen)
-	hnd, err := NewHandle("path/to/data", nil, "sequence1", numBits)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(numBits)
 
 	if hnd.Bits() != numBits {
 		t.Fatalf("Unexpected bit number: %d", hnd.Bits())
@@ -879,16 +823,8 @@ func TestMethods(t *testing.T) {
 }
 
 func TestRandomAllocateDeallocate(t *testing.T) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	numBits := int(16 * blockLen)
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(uint64(numBits))
 
 	seed := time.Now().Unix()
 	rand.Seed(seed)
@@ -922,25 +858,12 @@ func TestRandomAllocateDeallocate(t *testing.T) {
 	if hnd.head.toString() != "(0x0, 16)->end" {
 		t.Fatalf("Unexpected db: %s", hnd.head.toString())
 	}
-
-	err = hnd.Destroy()
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestAllocateRandomDeallocate(t *testing.T) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	numBlocks := uint32(8)
 	numBits := int(numBlocks * blockLen)
-	hnd, err := NewHandle(filepath.Join("bitseq", "test", "data"), ds, "test1", uint64(numBits))
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(uint64(numBits))
 
 	expected := &sequence{block: 0xffffffff, count: uint64(numBlocks / 2), next: &sequence{block: 0x0, count: uint64(numBlocks / 2)}}
 
@@ -986,26 +909,14 @@ func TestAllocateRandomDeallocate(t *testing.T) {
 	}
 	if !hnd.head.equal(expected) {
 		t.Fatalf("Unexpected sequence. Got:\n%s", hnd)
-	}
-
-	err = hnd.Destroy()
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
 func TestAllocateRandomDeallocateSerialize(t *testing.T) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	numBlocks := uint32(8)
 	numBits := int(numBlocks * blockLen)
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(uint64(numBits))
 
 	expected := &sequence{block: 0xffffffff, count: uint64(numBlocks / 2), next: &sequence{block: 0x0, count: uint64(numBlocks / 2)}}
 
@@ -1050,82 +961,24 @@ func TestAllocateRandomDeallocateSerialize(t *testing.T) {
 	if hnd.Unselected() != uint64(numBits/2) {
 		t.Fatalf("Expected half sequence. Instead found %d free bits.\nSeed: %d\n%s", hnd.unselected, seed, hnd)
 	}
-
-	err = hnd.Destroy()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestRetrieveFromStore(t *testing.T) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	numBits := int(8 * blockLen)
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Allocate first half of the bits
-	for i := 0; i < numBits/2; i++ {
-		_, err := hnd.SetAny(false)
-		if err != nil {
-			t.Fatalf("Unexpected failure on allocation %d: %v\n%s", i, err, hnd)
-		}
-	}
-	hnd0 := hnd.String()
-
-	// Retrieve same handle
-	hnd, err = NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
-	if err != nil {
-		t.Fatal(err)
-	}
-	hnd1 := hnd.String()
-
-	if hnd1 != hnd0 {
-		t.Fatalf("%v\n%v", hnd0, hnd1)
-	}
-
-	err = hnd.Destroy()
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestIsCorrupted(t *testing.T) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
 	// Negative test
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test_corrupted", 1024)
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(1024)
 
-	if hnd.runConsistencyCheck() {
+	if hnd.CheckConsistency() {
 		t.Fatalf("Unexpected corrupted for %s", hnd)
 	}
 
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-
 	hnd.Set(0)
-	if hnd.runConsistencyCheck() {
+	if hnd.CheckConsistency() {
 		t.Fatalf("Unexpected corrupted for %s", hnd)
 	}
 
 	hnd.Set(1023)
-	if hnd.runConsistencyCheck() {
+	if hnd.CheckConsistency() {
 		t.Fatalf("Unexpected corrupted for %s", hnd)
-	}
-
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
 	}
 
 	// Try real corrupted ipam handles found in the local store files reported by three docker users,
@@ -1133,9 +986,8 @@ func TestIsCorrupted(t *testing.T) {
 	// last node in the sequence is expressed (This is true for IPAM handle only, because of the broadcast
 	// address reservation: last bit). This will allow an application using bitseq that runs a consistency
 	// check to detect and replace the 1.9.0/1 old vulnerable handle with the new one.
-	input := []*Handle{
+	input := []*Bitmap{
 		{
-			id:         "LocalDefault/172.17.0.0/16",
 			bits:       65536,
 			unselected: 65412,
 			head: &sequence{
@@ -1170,7 +1022,6 @@ func TestIsCorrupted(t *testing.T) {
 			},
 		},
 		{
-			id:         "LocalDefault/172.17.0.0/16",
 			bits:       65536,
 			unselected: 65319,
 			head: &sequence{
@@ -1203,7 +1054,6 @@ func TestIsCorrupted(t *testing.T) {
 			},
 		},
 		{
-			id:         "LocalDefault/172.17.0.0/16",
 			bits:       65536,
 			unselected: 65456,
 			head: &sequence{
@@ -1234,27 +1084,19 @@ func TestIsCorrupted(t *testing.T) {
 	}
 
 	for idx, hnd := range input {
-		if !hnd.runConsistencyCheck() {
+		if !hnd.CheckConsistency() {
 			t.Fatalf("Expected corrupted for (%d): %s", idx, hnd)
 		}
-		if hnd.runConsistencyCheck() {
+		if hnd.CheckConsistency() {
 			t.Fatalf("Sequence still marked corrupted (%d): %s", idx, hnd)
 		}
 	}
 }
 
 func testSetRollover(t *testing.T, serial bool) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	numBlocks := uint32(8)
 	numBits := int(numBlocks * blockLen)
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(uint64(numBits))
 
 	// Allocate first half of the bits
 	for i := 0; i < numBits/2; i++ {
@@ -1309,11 +1151,6 @@ func testSetRollover(t *testing.T, serial bool) {
 	if hnd.Unselected() != 0 {
 		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), 0)
 	}
-
-	err = hnd.Destroy()
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestSetRollover(t *testing.T) {
@@ -1361,12 +1198,8 @@ func TestGetFirstAvailableFromCurrent(t *testing.T) {
 }
 
 func TestMarshalJSON(t *testing.T) {
-	const expectedID = "my-bitseq"
 	expected := []byte("hello libnetwork")
-	hnd, err := NewHandle("", nil, expectedID, uint64(len(expected)*8))
-	if err != nil {
-		t.Fatal(err)
-	}
+	hnd := New(uint64(len(expected) * 8))
 
 	for i, c := range expected {
 		for j := 0; j < 8; j++ {
@@ -1391,7 +1224,7 @@ func TestMarshalJSON(t *testing.T) {
 	// found in the wild. We need to support unmarshaling old versions to
 	// maintain backwards compatibility with sequences persisted on disk.
 	const (
-		goldenV0 = `{"id":"my-bitseq","sequence":"AAAAAAAAAIAAAAAAAAAAPRamNjYAAAAAAAAAAfYENpYAAAAAAAAAAUZ2pi4AAAAAAAAAAe72TtYAAAAAAAAAAQ=="}`
+		goldenV0 = `"AAAAAAAAAIAAAAAAAAAAPRamNjYAAAAAAAAAAfYENpYAAAAAAAAAAUZ2pi4AAAAAAAAAAe72TtYAAAAAAAAAAQ=="`
 	)
 
 	if string(marshaled) != goldenV0 {
@@ -1407,10 +1240,7 @@ func TestMarshalJSON(t *testing.T) {
 	} {
 		tt := tt
 		t.Run("UnmarshalJSON="+tt.name, func(t *testing.T) {
-			hnd2, err := NewHandle("", nil, "", 0)
-			if err != nil {
-				t.Fatal(err)
-			}
+			hnd2 := New(0)
 			if err := hnd2.UnmarshalJSON(tt.data); err != nil {
 				t.Errorf("UnmarshalJSON() err = %v", err)
 			}
@@ -1418,7 +1248,7 @@ func TestMarshalJSON(t *testing.T) {
 			h2str := hnd2.String()
 			t.Log(h2str)
 			if hstr != h2str {
-				t.Errorf("Unmarshaled a different bitseq: want %q, got %q", hstr, h2str)
+				t.Errorf("Unmarshaled a different bitmap: want %q, got %q", hstr, h2str)
 			}
 		})
 	}

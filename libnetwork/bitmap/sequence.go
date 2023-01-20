@@ -1,18 +1,11 @@
-// Package bitseq provides a structure and utilities for representing long bitmask
-// as sequence of run-length encoded blocks. It operates directly on the encoded
-// representation, it does not decode/encode.
-package bitseq
+// Package bitmap provides a datatype for long vectors of bits.
+package bitmap
 
 import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
-
-	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 // block sequence constants
@@ -32,51 +25,48 @@ var (
 	ErrBitAllocated = errors.New("requested bit is already allocated")
 )
 
-// Handle contains the sequence representing the bitmask and its identifier
-type Handle struct {
+// https://github.com/golang/go/issues/8005#issuecomment-190753527
+type noCopy struct{}
+
+func (noCopy) Lock() {}
+
+// Bitmap is a fixed-length bit vector. It is not safe for concurrent use.
+//
+// The data is stored as a list of run-length encoded blocks. It operates
+// directly on the encoded representation, without decompressing.
+type Bitmap struct {
 	bits       uint64
 	unselected uint64
 	head       *sequence
-	app        string
-	id         string
-	dbIndex    uint64
-	dbExists   bool
 	curr       uint64
-	store      datastore.DataStore
-	sync.Mutex
+
+	// Shallow copies would share the same head pointer but a copy of the
+	// unselected count. Mutating the sequence through one would change the
+	// bits for all copies but only update that one copy's unselected count,
+	// which would result in subtle bugs.
+	noCopy noCopy
 }
 
-// NewHandle returns a thread-safe instance of the bitmask handler
-func NewHandle(app string, ds datastore.DataStore, id string, numElements uint64) (*Handle, error) {
-	h := &Handle{
-		app:        app,
-		id:         id,
-		store:      ds,
-		bits:       numElements,
-		unselected: numElements,
+// NewHandle returns a new Bitmap n bits long.
+func New(n uint64) *Bitmap {
+	return &Bitmap{
+		bits:       n,
+		unselected: n,
 		head: &sequence{
 			block: 0x0,
-			count: getNumBlocks(numElements),
+			count: getNumBlocks(n),
 		},
 	}
+}
 
-	if h.store == nil {
-		return h, nil
+// Copy returns a deep copy of b.
+func Copy(b *Bitmap) *Bitmap {
+	return &Bitmap{
+		bits:       b.bits,
+		unselected: b.unselected,
+		head:       b.head.getCopy(),
+		curr:       b.curr,
 	}
-
-	// Get the initial status from the ds if present.
-	if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
-		return nil, err
-	}
-
-	// If the handle is not in store, write it.
-	if !h.Exists() {
-		if err := h.writeToStore(); err != nil {
-			return nil, fmt.Errorf("failed to write bitsequence to store: %v", err)
-		}
-	}
-
-	return h, nil
 }
 
 // sequence represents a recurring sequence of 32 bits long bitmasks
@@ -186,24 +176,14 @@ func (s *sequence) fromByteArray(data []byte) error {
 	return nil
 }
 
-func (h *Handle) getCopy() *Handle {
-	return &Handle{
-		bits:       h.bits,
-		unselected: h.unselected,
-		head:       h.head.getCopy(),
-		app:        h.app,
-		id:         h.id,
-		dbIndex:    h.dbIndex,
-		dbExists:   h.dbExists,
-		store:      h.store,
-		curr:       h.curr,
-	}
-}
-
-// SetAnyInRange atomically sets the first unset bit in the specified range in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAnyInRange(start, end uint64, serial bool) (uint64, error) {
+// SetAnyInRange sets the first unset bit in the range [start, end) and returns
+// the ordinal of the set bit.
+//
+// When serial=true, the bitmap is scanned starting from the ordinal following
+// the bit most recently set by [Bitmap.SetAny] or [Bitmap.SetAnyInRange].
+func (h *Bitmap) SetAnyInRange(start, end uint64, serial bool) (uint64, error) {
 	if end < start || end >= h.bits {
-		return invalidPos, fmt.Errorf("invalid bit range [%d, %d]", start, end)
+		return invalidPos, fmt.Errorf("invalid bit range [%d, %d)", start, end)
 	}
 	if h.Unselected() == 0 {
 		return invalidPos, ErrNoBitAvailable
@@ -211,8 +191,12 @@ func (h *Handle) SetAnyInRange(start, end uint64, serial bool) (uint64, error) {
 	return h.set(0, start, end, true, false, serial)
 }
 
-// SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAny(serial bool) (uint64, error) {
+// SetAny sets the first unset bit in the sequence and returns the ordinal of
+// the set bit.
+//
+// When serial=true, the bitmap is scanned starting from the ordinal following
+// the bit most recently set by [Bitmap.SetAny] or [Bitmap.SetAnyInRange].
+func (h *Bitmap) SetAny(serial bool) (uint64, error) {
 	if h.Unselected() == 0 {
 		return invalidPos, ErrNoBitAvailable
 	}
@@ -220,7 +204,7 @@ func (h *Handle) SetAny(serial bool) (uint64, error) {
 }
 
 // Set atomically sets the corresponding bit in the sequence
-func (h *Handle) Set(ordinal uint64) error {
+func (h *Bitmap) Set(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
@@ -229,7 +213,7 @@ func (h *Handle) Set(ordinal uint64) error {
 }
 
 // Unset atomically unsets the corresponding bit in the sequence
-func (h *Handle) Unset(ordinal uint64) error {
+func (h *Bitmap) Unset(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
@@ -239,17 +223,17 @@ func (h *Handle) Unset(ordinal uint64) error {
 
 // IsSet atomically checks if the ordinal bit is set. In case ordinal
 // is outside of the bit sequence limits, false is returned.
-func (h *Handle) IsSet(ordinal uint64) bool {
+func (h *Bitmap) IsSet(ordinal uint64) bool {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return false
 	}
-	h.Lock()
 	_, _, err := checkIfAvailable(h.head, ordinal)
-	h.Unlock()
 	return err != nil
 }
 
-func (h *Handle) runConsistencyCheck() bool {
+// CheckConsistency checks if the bit sequence is in an inconsistent state and attempts to fix it.
+// It looks for a corruption signature that may happen in docker 1.9.0 and 1.9.1.
+func (h *Bitmap) CheckConsistency() bool {
 	corrupted := false
 	for p, c := h.head, h.head.next; c != nil; c = c.next {
 		if c.count == 0 {
@@ -262,47 +246,8 @@ func (h *Handle) runConsistencyCheck() bool {
 	return corrupted
 }
 
-// CheckConsistency checks if the bit sequence is in an inconsistent state and attempts to fix it.
-// It looks for a corruption signature that may happen in docker 1.9.0 and 1.9.1.
-func (h *Handle) CheckConsistency() error {
-	for {
-		h.Lock()
-		store := h.store
-		h.Unlock()
-
-		if store != nil {
-			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
-				return err
-			}
-		}
-
-		h.Lock()
-		nh := h.getCopy()
-		h.Unlock()
-
-		if !nh.runConsistencyCheck() {
-			return nil
-		}
-
-		if err := nh.writeToStore(); err != nil {
-			if _, ok := err.(types.RetryError); !ok {
-				return fmt.Errorf("internal failure while fixing inconsistent bitsequence: %v", err)
-			}
-			continue
-		}
-
-		logrus.Infof("Fixed inconsistent bit sequence in datastore:\n%s\n%s", h, nh)
-
-		h.Lock()
-		h.head = nh.head
-		h.Unlock()
-
-		return nil
-	}
-}
-
 // set/reset the bit
-func (h *Handle) set(ordinal, start, end uint64, any bool, release bool, serial bool) (uint64, error) {
+func (h *Bitmap) set(ordinal, start, end uint64, any bool, release bool, serial bool) (uint64, error) {
 	var (
 		bitPos  uint64
 		bytePos uint64
@@ -310,122 +255,67 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool, serial 
 		err     error
 	)
 
-	for {
-		var store datastore.DataStore
-		curr := uint64(0)
-		h.Lock()
-		store = h.store
-		if store != nil {
-			h.Unlock() // The lock is acquired in the GetObject
-			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
-				return ret, err
-			}
-			h.Lock() // Acquire the lock back
-		}
-		if serial {
-			curr = h.curr
-		}
-		// Get position if available
-		if release {
-			bytePos, bitPos = ordinalToPos(ordinal)
-		} else {
-			if any {
-				bytePos, bitPos, err = getAvailableFromCurrent(h.head, start, curr, end)
-				ret = posToOrdinal(bytePos, bitPos)
-				if err == nil {
-					h.curr = ret + 1
-				}
-			} else {
-				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
-				ret = ordinal
-			}
-		}
-		if err != nil {
-			h.Unlock()
-			return ret, err
-		}
-
-		// Create a private copy of h and work on it
-		nh := h.getCopy()
-
-		nh.head = pushReservation(bytePos, bitPos, nh.head, release)
-		if release {
-			nh.unselected++
-		} else {
-			nh.unselected--
-		}
-
-		if h.store != nil {
-			h.Unlock()
-			// Attempt to write private copy to store
-			if err := nh.writeToStore(); err != nil {
-				if _, ok := err.(types.RetryError); !ok {
-					return ret, fmt.Errorf("internal failure while setting the bit: %v", err)
-				}
-				// Retry
-				continue
-			}
-			h.Lock()
-		}
-
-		// Previous atomic push was successful. Save private copy to local copy
-		h.unselected = nh.unselected
-		h.head = nh.head
-		h.dbExists = nh.dbExists
-		h.dbIndex = nh.dbIndex
-		h.Unlock()
-		return ret, nil
+	curr := uint64(0)
+	if serial {
+		curr = h.curr
 	}
+	// Get position if available
+	if release {
+		bytePos, bitPos = ordinalToPos(ordinal)
+	} else {
+		if any {
+			bytePos, bitPos, err = getAvailableFromCurrent(h.head, start, curr, end)
+			ret = posToOrdinal(bytePos, bitPos)
+			if err == nil {
+				h.curr = ret + 1
+			}
+		} else {
+			bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
+			ret = ordinal
+		}
+	}
+	if err != nil {
+		return ret, err
+	}
+
+	h.head = pushReservation(bytePos, bitPos, h.head, release)
+	if release {
+		h.unselected++
+	} else {
+		h.unselected--
+	}
+
+	return ret, nil
 }
 
 // checks is needed because to cover the case where the number of bits is not a multiple of blockLen
-func (h *Handle) validateOrdinal(ordinal uint64) error {
-	h.Lock()
-	defer h.Unlock()
+func (h *Bitmap) validateOrdinal(ordinal uint64) error {
 	if ordinal >= h.bits {
 		return errors.New("bit does not belong to the sequence")
 	}
 	return nil
 }
 
-// Destroy removes from the datastore the data belonging to this handle
-func (h *Handle) Destroy() error {
-	for {
-		if err := h.deleteFromStore(); err != nil {
-			if _, ok := err.(types.RetryError); !ok {
-				return fmt.Errorf("internal failure while destroying the sequence: %v", err)
-			}
-			// Fetch latest
-			if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil {
-				if err == datastore.ErrKeyNotFound { // already removed
-					return nil
-				}
-				return fmt.Errorf("failed to fetch from store when destroying the sequence: %v", err)
-			}
-			continue
-		}
-		return nil
-	}
-}
-
-// ToByteArray converts this handle's data into a byte array
-func (h *Handle) ToByteArray() ([]byte, error) {
-	h.Lock()
-	defer h.Unlock()
+// MarshalBinary encodes h into a binary representation.
+func (h *Bitmap) MarshalBinary() ([]byte, error) {
 	ba := make([]byte, 16)
 	binary.BigEndian.PutUint64(ba[0:], h.bits)
 	binary.BigEndian.PutUint64(ba[8:], h.unselected)
 	bm, err := h.head.toByteArray()
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize head: %s", err.Error())
+		return nil, fmt.Errorf("failed to serialize head: %v", err)
 	}
 	ba = append(ba, bm...)
 
 	return ba, nil
 }
 
-// FromByteArray reads his handle's data from a byte array
-func (h *Handle) FromByteArray(ba []byte) error {
+// UnmarshalBinary decodes a binary representation of a Bitmap value which was
+// generated using [Bitmap.MarshalBinary].
+//
+// The scan position for serial [Bitmap.SetAny] and [Bitmap.SetAnyInRange]
+// operations is neither unmarshaled nor reset.
+func (h *Bitmap) UnmarshalBinary(ba []byte) error {
 	if ba == nil {
 		return errors.New("nil byte array")
 	}
@@ -433,67 +323,46 @@ func (h *Handle) FromByteArray(ba []byte) error {
 	nh := &sequence{}
 	err := nh.fromByteArray(ba[16:])
 	if err != nil {
-		return fmt.Errorf("failed to deserialize head: %s", err.Error())
+		return fmt.Errorf("failed to deserialize head: %v", err)
 	}
 
-	h.Lock()
 	h.head = nh
 	h.bits = binary.BigEndian.Uint64(ba[0:8])
 	h.unselected = binary.BigEndian.Uint64(ba[8:16])
-	h.Unlock()
-
 	return nil
 }
 
 // Bits returns the length of the bit sequence
-func (h *Handle) Bits() uint64 {
+func (h *Bitmap) Bits() uint64 {
 	return h.bits
 }
 
 // Unselected returns the number of bits which are not selected
-func (h *Handle) Unselected() uint64 {
-	h.Lock()
-	defer h.Unlock()
+func (h *Bitmap) Unselected() uint64 {
 	return h.unselected
 }
 
-func (h *Handle) String() string {
-	h.Lock()
-	defer h.Unlock()
-	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, Bits: %d, Unselected: %d, Sequence: %s Curr:%d",
-		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString(), h.curr)
+func (h *Bitmap) String() string {
+	return fmt.Sprintf("Bits: %d, Unselected: %d, Sequence: %s Curr:%d",
+		h.bits, h.unselected, h.head.toString(), h.curr)
 }
 
-// MarshalJSON encodes Handle into json message
-func (h *Handle) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
-		"id": h.id,
-	}
-
-	b, err := h.ToByteArray()
+// MarshalJSON encodes h into a JSON message
+func (h *Bitmap) MarshalJSON() ([]byte, error) {
+	b, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	m["sequence"] = b
-	return json.Marshal(m)
+	return json.Marshal(b)
 }
 
-// UnmarshalJSON decodes json message into Handle
-func (h *Handle) UnmarshalJSON(data []byte) error {
-	var (
-		m   map[string]interface{}
-		b   []byte
-		err error
-	)
-	if err = json.Unmarshal(data, &m); err != nil {
+// UnmarshalJSON decodes JSON message into h
+func (h *Bitmap) UnmarshalJSON(data []byte) error {
+	var b []byte
+	if err := json.Unmarshal(data, &b); err != nil {
 		return err
 	}
-	h.id = m["id"].(string)
-	bi, _ := json.Marshal(m["sequence"])
-	if err := json.Unmarshal(bi, &b); err != nil {
-		return err
-	}
-	return h.FromByteArray(b)
+	return h.UnmarshalBinary(b)
 }
 
 // getFirstAvailable looks for the first unset bit in passed mask starting from start
