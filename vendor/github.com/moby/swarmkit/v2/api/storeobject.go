@@ -43,7 +43,7 @@ type EventCreate interface {
 	IsEventCreate() bool
 }
 
-// EventUpdate is an interface impelemented by every update event type
+// EventUpdate is an interface implemented by every update event type
 type EventUpdate interface {
 	IsEventUpdate() bool
 }
