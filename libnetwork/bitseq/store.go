@@ -3,6 +3,7 @@ package bitseq
 import (
 	"encoding/json"
 
+	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -78,16 +79,13 @@ func (h *Handle) CopyTo(o datastore.KVObject) error {
 		return nil
 	}
 	dstH.Lock()
-	dstH.bits = h.bits
-	dstH.unselected = h.unselected
-	dstH.head = h.head.getCopy()
+	defer dstH.Unlock()
+	dstH.bm = bitmap.Copy(h.bm)
 	dstH.app = h.app
 	dstH.id = h.id
 	dstH.dbIndex = h.dbIndex
 	dstH.dbExists = h.dbExists
 	dstH.store = h.store
-	dstH.curr = h.curr
-	dstH.Unlock()
 
 	return nil
 }
