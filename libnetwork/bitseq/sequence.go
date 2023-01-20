@@ -226,44 +226,28 @@ func (h *Handle) String() string {
 		h.app, h.id, h.dbIndex, h.bm)
 }
 
+type jsonMessage struct {
+	ID       string         `json:"id"`
+	Sequence *bitmap.Bitmap `json:"sequence"`
+}
+
 // MarshalJSON encodes h into a JSON message.
 func (h *Handle) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
-		"id": h.id,
-	}
-
-	b, err := func() ([]byte, error) {
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		return h.bm.MarshalBinary()
-	}()
-	if err != nil {
-		return nil, err
-	}
-	m["sequence"] = b
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	m := jsonMessage{ID: h.id, Sequence: h.bm}
 	return json.Marshal(m)
 }
 
 // UnmarshalJSON decodes a JSON message into h.
 func (h *Handle) UnmarshalJSON(data []byte) error {
-	var (
-		m   map[string]interface{}
-		b   []byte
-		err error
-	)
-	if err = json.Unmarshal(data, &m); err != nil {
-		return err
-	}
-	h.id = m["id"].(string)
-	bi, _ := json.Marshal(m["sequence"])
-	if err := json.Unmarshal(bi, &b); err != nil {
+	var m jsonMessage
+	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if err := h.bm.UnmarshalBinary(b); err != nil {
-		return err
-	}
+	h.id, h.bm = m.ID, m.Sequence
 	return nil
 }
