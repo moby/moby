@@ -3,7 +3,7 @@
 set -e
 
 (
-	export LDFLAGS_STATIC_DOCKER=''
+	export LDFLAGS_STATIC=''
 	export BUILDFLAGS=("${BUILDFLAGS[@]/netgo /}")        # disable netgo, since we don't need it for a dynamic binary
 	export BUILDFLAGS=("${BUILDFLAGS[@]/osusergo /}")     # ditto for osusergo
 	export BUILDFLAGS=("${BUILDFLAGS[@]/static_build /}") # we're not building a "static" binary here
