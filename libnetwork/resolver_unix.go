@@ -17,7 +17,7 @@ const (
 	postroutingChain = "DOCKER_POSTROUTING"
 )
 
-func (r *resolver) setupIPTable() error {
+func (r *Resolver) setupIPTable() error {
 	if r.err != nil {
 		return r.err
 	}

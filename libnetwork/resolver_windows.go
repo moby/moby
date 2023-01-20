@@ -3,6 +3,6 @@
 
 package libnetwork
 
-func (r *resolver) setupIPTable() error {
+func (r *Resolver) setupIPTable() error {
 	return nil
 }

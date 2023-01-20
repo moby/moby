@@ -16,27 +16,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Resolver represents the embedded DNS server in Docker. It operates
-// by listening on container's loopback interface for DNS queries.
-type Resolver interface {
-	// Start starts the name server for the container
-	Start() error
-	// Stop stops the name server for the container. Stopped resolver
-	// can be reused after running the SetupFunc again.
-	Stop()
-	// SetupFunc provides the setup function that should be run
-	// in the container's network namespace.
-	SetupFunc(int) func()
-	// NameServer returns the IP of the DNS resolver for the
-	// containers.
-	NameServer() string
-	// SetExtServers configures the external nameservers the resolver
-	// should use to forward queries
-	SetExtServers([]extDNSEntry)
-	// ResolverOptions returns resolv.conf options that should be set
-	ResolverOptions() []string
-}
-
 // DNSBackend represents a backend DNS resolver used for DNS name
 // resolution. All the queries to the resolver are forwarded to the
 // backend resolver.
@@ -79,8 +58,9 @@ type extDNSEntry struct {
 	HostLoopback bool
 }
 
-// resolver implements the Resolver interface
-type resolver struct {
+// Resolver is the embedded DNS server in Docker. It operates by listening on
+// the container's loopback interface for DNS queries.
+type Resolver struct {
 	backend       DNSBackend
 	extDNSList    [maxExtDNS]extDNSEntry
 	server        *dns.Server
@@ -97,8 +77,8 @@ type resolver struct {
 }
 
 // NewResolver creates a new instance of the Resolver
-func NewResolver(address string, proxyDNS bool, backend DNSBackend) Resolver {
-	return &resolver{
+func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
+	return &Resolver{
 		backend:       backend,
 		proxyDNS:      proxyDNS,
 		listenAddress: address,
@@ -109,7 +89,9 @@ func NewResolver(address string, proxyDNS bool, backend DNSBackend) Resolver {
 	}
 }
 
-func (r *resolver) SetupFunc(port int) func() {
+// SetupFunc returns the setup function that should be run in the container's
+// network namespace.
+func (r *Resolver) SetupFunc(port int) func() {
 	return func() {
 		var err error
 
@@ -140,7 +122,8 @@ func (r *resolver) SetupFunc(port int) func() {
 	}
 }
 
-func (r *resolver) Start() error {
+// Start starts the name server for the container.
+func (r *Resolver) Start() error {
 	r.startCh <- struct{}{}
 	defer func() { <-r.startCh }()
 
@@ -153,7 +136,7 @@ func (r *resolver) Start() error {
 		return fmt.Errorf("setting up IP table rules failed: %v", err)
 	}
 
-	s := &dns.Server{Handler: r, PacketConn: r.conn}
+	s := &dns.Server{Handler: dns.HandlerFunc(r.serveDNS), PacketConn: r.conn}
 	r.server = s
 	go func() {
 		if err := s.ActivateAndServe(); err != nil {
@@ -161,7 +144,7 @@ func (r *resolver) Start() error {
 		}
 	}()
 
-	tcpServer := &dns.Server{Handler: r, Listener: r.tcpListen}
+	tcpServer := &dns.Server{Handler: dns.HandlerFunc(r.serveDNS), Listener: r.tcpListen}
 	r.tcpServer = tcpServer
 	go func() {
 		if err := tcpServer.ActivateAndServe(); err != nil {
@@ -171,7 +154,9 @@ func (r *resolver) Start() error {
 	return nil
 }
 
-func (r *resolver) Stop() {
+// Stop stops the name server for the container. A stopped resolver can be
+// reused after running the SetupFunc again.
+func (r *Resolver) Stop() {
 	r.startCh <- struct{}{}
 	defer func() { <-r.startCh }()
 
@@ -187,7 +172,9 @@ func (r *resolver) Stop() {
 	r.fwdSem = semaphore.NewWeighted(maxConcurrent)
 }
 
-func (r *resolver) SetExtServers(extDNS []extDNSEntry) {
+// SetExtServers configures the external nameservers the resolver should use
+// when forwarding queries.
+func (r *Resolver) SetExtServers(extDNS []extDNSEntry) {
 	l := len(extDNS)
 	if l > maxExtDNS {
 		l = maxExtDNS
@@ -197,11 +184,13 @@ func (r *resolver) SetExtServers(extDNS []extDNSEntry) {
 	}
 }
 
-func (r *resolver) NameServer() string {
+// NameServer returns the IP of the DNS resolver for the containers.
+func (r *Resolver) NameServer() string {
 	return r.listenAddress
 }
 
-func (r *resolver) ResolverOptions() []string {
+// ResolverOptions returns resolv.conf options that should be set.
+func (r *Resolver) ResolverOptions() []string {
 	return []string{"ndots:0"}
 }
 
@@ -233,7 +222,7 @@ func createRespMsg(query *dns.Msg) *dns.Msg {
 	return resp
 }
 
-func (r *resolver) handleMXQuery(query *dns.Msg) (*dns.Msg, error) {
+func (r *Resolver) handleMXQuery(query *dns.Msg) (*dns.Msg, error) {
 	name := query.Question[0].Name
 	addrv4, _ := r.backend.ResolveName(name, types.IPv4)
 	addrv6, _ := r.backend.ResolveName(name, types.IPv6)
@@ -250,7 +239,7 @@ func (r *resolver) handleMXQuery(query *dns.Msg) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (r *resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
+func (r *Resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
 	var (
 		addr     []net.IP
 		ipv6Miss bool
@@ -292,7 +281,7 @@ func (r *resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (r *resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
+func (r *Resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
 	ptr := query.Question[0].Name
 	name, after, found := strings.Cut(ptr, ptrIPv4domain)
 	if !found || after != "" {
@@ -323,7 +312,7 @@ func (r *resolver) handlePTRQuery(query *dns.Msg) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (r *resolver) handleSRVQuery(query *dns.Msg) (*dns.Msg, error) {
+func (r *Resolver) handleSRVQuery(query *dns.Msg) (*dns.Msg, error) {
 	svc := query.Question[0].Name
 	srv, ip := r.backend.ResolveService(svc)
 
@@ -351,7 +340,7 @@ func (r *resolver) handleSRVQuery(query *dns.Msg) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
+func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 	var (
 		resp *dns.Msg
 		err  error
@@ -431,7 +420,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	reply(resp)
 }
 
-func (r *resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error) {
+func (r *Resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error) {
 	var (
 		extConn net.Conn
 		dialErr error
@@ -459,7 +448,7 @@ func (r *resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error
 	return extConn, nil
 }
 
-func (r *resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
+func (r *Resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 	queryName, queryType := query.Question[0].Name, query.Question[0].Qtype
 	for _, extDNS := range r.extDNSList {
 		if extDNS.IPStr == "" {
@@ -530,7 +519,7 @@ func (r *resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 	return nil
 }
 
-func (r *resolver) exchange(proto string, extDNS extDNSEntry, query *dns.Msg) *dns.Msg {
+func (r *Resolver) exchange(proto string, extDNS extDNSEntry, query *dns.Msg) *dns.Msg {
 	extConn, err := r.dialExtDNS(proto, extDNS)
 	if err != nil {
 		logrus.WithError(err).Warn("[resolver] connect failed")

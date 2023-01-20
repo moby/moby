@@ -143,7 +143,7 @@ func TestDNSIPQuery(t *testing.T) {
 	for _, name := range names {
 		q := new(dns.Msg)
 		q.SetQuestion(name, dns.TypeA)
-		r.(*resolver).ServeDNS(w, q)
+		r.serveDNS(w, q)
 		resp := w.GetResponse()
 		checkNonNullResponse(t, resp)
 		t.Log("Response: ", resp.String())
@@ -163,7 +163,7 @@ func TestDNSIPQuery(t *testing.T) {
 	// test MX query with name1 results in Success response with 0 answer records
 	q := new(dns.Msg)
 	q.SetQuestion("name1", dns.TypeMX)
-	r.(*resolver).ServeDNS(w, q)
+	r.serveDNS(w, q)
 	resp := w.GetResponse()
 	checkNonNullResponse(t, resp)
 	t.Log("Response: ", resp.String())
@@ -175,7 +175,7 @@ func TestDNSIPQuery(t *testing.T) {
 	// since this is a unit test env, we disable proxying DNS above which results in ServFail rather than NXDOMAIN
 	q = new(dns.Msg)
 	q.SetQuestion("nonexistent", dns.TypeMX)
-	r.(*resolver).ServeDNS(w, q)
+	r.serveDNS(w, q)
 	resp = w.GetResponse()
 	checkNonNullResponse(t, resp)
 	t.Log("Response: ", resp.String())
@@ -291,8 +291,8 @@ func TestDNSProxyServFail(t *testing.T) {
 	localDNSEntries = append(localDNSEntries, extTestDNSEntry)
 
 	// this should generate two requests: the first will fail leading to a retry
-	r.(*resolver).SetExtServers(localDNSEntries)
-	r.(*resolver).ServeDNS(w, q)
+	r.SetExtServers(localDNSEntries)
+	r.serveDNS(w, q)
 	if nRequests != 2 {
 		t.Fatalf("Expected 2 DNS querries. Found: %d", nRequests)
 	}
@@ -370,7 +370,7 @@ func TestOversizedDNSReply(t *testing.T) {
 	}()
 
 	srvAddr := srv.LocalAddr().(*net.UDPAddr)
-	rsv := NewResolver("", true, noopDNSBackend{}).(*resolver)
+	rsv := NewResolver("", true, noopDNSBackend{})
 	rsv.SetExtServers([]extDNSEntry{
 		{IPStr: srvAddr.IP.String(), port: uint16(srvAddr.Port), HostLoopback: true},
 	})
@@ -381,7 +381,7 @@ func TestOversizedDNSReply(t *testing.T) {
 
 	w := &tstwriter{localAddr: srv.LocalAddr()}
 	q := new(dns.Msg).SetQuestion("s3.amazonaws.com.", dns.TypeA)
-	rsv.ServeDNS(w, q)
+	rsv.serveDNS(w, q)
 	resp := w.GetResponse()
 	checkNonNullResponse(t, resp)
 	t.Log("Response: ", resp.String())
@@ -441,9 +441,9 @@ func TestReplySERVFAIL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			defer redirectLogrusTo(t)
 
-			rsv := NewResolver("", tt.proxyDNS, badSRVDNSBackend{}).(*resolver)
+			rsv := NewResolver("", tt.proxyDNS, badSRVDNSBackend{})
 			w := &tstwriter{}
-			rsv.ServeDNS(w, tt.q)
+			rsv.serveDNS(w, tt.q)
 			resp := w.GetResponse()
 			checkNonNullResponse(t, resp)
 			t.Log("Response: ", resp.String())
