@@ -10,15 +10,15 @@ import (
 
 // Key provides the Key to be used in KV Store
 func (h *Handle) Key() []string {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return []string{h.app, h.id}
 }
 
 // KeyPrefix returns the immediate parent key that can be used for tree walk
 func (h *Handle) KeyPrefix() []string {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return []string{h.app}
 }
 
@@ -38,30 +38,30 @@ func (h *Handle) SetValue(value []byte) error {
 
 // Index returns the latest DB Index as seen by this object
 func (h *Handle) Index() uint64 {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.dbIndex
 }
 
 // SetIndex method allows the datastore to store the latest DB Index into this object
 func (h *Handle) SetIndex(index uint64) {
-	h.Lock()
+	h.mu.Lock()
 	h.dbIndex = index
 	h.dbExists = true
-	h.Unlock()
+	h.mu.Unlock()
 }
 
 // Exists method is true if this object has been stored in the DB.
 func (h *Handle) Exists() bool {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.dbExists
 }
 
 // New method returns a handle based on the receiver handle
 func (h *Handle) New() datastore.KVObject {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	return &Handle{
 		app:   h.app,
@@ -71,15 +71,15 @@ func (h *Handle) New() datastore.KVObject {
 
 // CopyTo deep copies the handle into the passed destination object
 func (h *Handle) CopyTo(o datastore.KVObject) error {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	dstH := o.(*Handle)
 	if h == dstH {
 		return nil
 	}
-	dstH.Lock()
-	defer dstH.Unlock()
+	dstH.mu.Lock()
+	defer dstH.mu.Unlock()
 	dstH.bm = bitmap.Copy(h.bm)
 	dstH.app = h.app
 	dstH.id = h.id
@@ -97,16 +97,16 @@ func (h *Handle) Skip() bool {
 
 // DataScope method returns the storage scope of the datastore
 func (h *Handle) DataScope() string {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	return h.store.Scope()
 }
 
 func (h *Handle) writeToStore() error {
-	h.Lock()
+	h.mu.Lock()
 	store := h.store
-	h.Unlock()
+	h.mu.Unlock()
 	if store == nil {
 		return nil
 	}
@@ -118,9 +118,9 @@ func (h *Handle) writeToStore() error {
 }
 
 func (h *Handle) deleteFromStore() error {
-	h.Lock()
+	h.mu.Lock()
 	store := h.store
-	h.Unlock()
+	h.mu.Unlock()
 	if store == nil {
 		return nil
 	}

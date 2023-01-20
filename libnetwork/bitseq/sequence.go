@@ -29,7 +29,7 @@ type Handle struct {
 	dbExists bool
 	store    datastore.DataStore
 	bm       *bitmap.Bitmap
-	sync.Mutex
+	mu       sync.Mutex
 }
 
 // NewHandle returns a thread-safe instance of the bitmask handler
@@ -96,8 +96,8 @@ func (h *Handle) Unset(ordinal uint64) error {
 // IsSet atomically checks if the ordinal bit is set. In case ordinal
 // is outside of the bit sequence limits, false is returned.
 func (h *Handle) IsSet(ordinal uint64) bool {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.bm.IsSet(ordinal)
 }
 
@@ -105,9 +105,9 @@ func (h *Handle) IsSet(ordinal uint64) bool {
 // It looks for a corruption signature that may happen in docker 1.9.0 and 1.9.1.
 func (h *Handle) CheckConsistency() error {
 	for {
-		h.Lock()
+		h.mu.Lock()
 		store := h.store
-		h.Unlock()
+		h.mu.Unlock()
 
 		if store != nil {
 			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
@@ -115,9 +115,9 @@ func (h *Handle) CheckConsistency() error {
 			}
 		}
 
-		h.Lock()
+		h.mu.Lock()
 		nh := h.getCopy()
-		h.Unlock()
+		h.mu.Unlock()
 
 		if !nh.bm.CheckConsistency() {
 			return nil
@@ -132,9 +132,9 @@ func (h *Handle) CheckConsistency() error {
 
 		logrus.Infof("Fixed inconsistent bit sequence in datastore:\n%s\n%s", h, nh)
 
-		h.Lock()
+		h.mu.Lock()
 		h.bm = nh.bm
-		h.Unlock()
+		h.mu.Unlock()
 
 		return nil
 	}
@@ -144,14 +144,14 @@ func (h *Handle) CheckConsistency() error {
 func (h *Handle) apply(op func(*bitmap.Bitmap) (uint64, error)) (uint64, error) {
 	for {
 		var store datastore.DataStore
-		h.Lock()
+		h.mu.Lock()
 		store = h.store
 		if store != nil {
-			h.Unlock() // The lock is acquired in the GetObject
+			h.mu.Unlock() // The lock is acquired in the GetObject
 			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
 				return 0, err
 			}
-			h.Lock() // Acquire the lock back
+			h.mu.Lock() // Acquire the lock back
 		}
 
 		// Create a private copy of h and work on it
@@ -159,12 +159,12 @@ func (h *Handle) apply(op func(*bitmap.Bitmap) (uint64, error)) (uint64, error) 
 
 		ret, err := op(nh.bm)
 		if err != nil {
-			h.Unlock()
+			h.mu.Unlock()
 			return ret, err
 		}
 
 		if h.store != nil {
-			h.Unlock()
+			h.mu.Unlock()
 			// Attempt to write private copy to store
 			if err := nh.writeToStore(); err != nil {
 				if _, ok := err.(types.RetryError); !ok {
@@ -173,14 +173,14 @@ func (h *Handle) apply(op func(*bitmap.Bitmap) (uint64, error)) (uint64, error) 
 				// Retry
 				continue
 			}
-			h.Lock()
+			h.mu.Lock()
 		}
 
 		// Previous atomic push was successful. Save private copy to local copy
 		h.bm = nh.bm
 		h.dbExists = nh.dbExists
 		h.dbIndex = nh.dbIndex
-		h.Unlock()
+		h.mu.Unlock()
 		return ret, nil
 	}
 }
@@ -207,21 +207,21 @@ func (h *Handle) Destroy() error {
 
 // Bits returns the length of the bit sequence
 func (h *Handle) Bits() uint64 {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.bm.Bits()
 }
 
 // Unselected returns the number of bits which are not selected
 func (h *Handle) Unselected() uint64 {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.bm.Unselected()
 }
 
 func (h *Handle) String() string {
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, %s",
 		h.app, h.id, h.dbIndex, h.bm)
 }
@@ -233,8 +233,8 @@ func (h *Handle) MarshalJSON() ([]byte, error) {
 	}
 
 	b, err := func() ([]byte, error) {
-		h.Lock()
-		defer h.Unlock()
+		h.mu.Lock()
+		defer h.mu.Unlock()
 		return h.bm.MarshalBinary()
 	}()
 	if err != nil {
@@ -260,8 +260,8 @@ func (h *Handle) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	h.Lock()
-	defer h.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if err := h.bm.UnmarshalBinary(b); err != nil {
 		return err
 	}
