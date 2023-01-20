@@ -495,7 +495,7 @@ func (na *cnmNetworkAllocator) IsAttachmentAllocated(node *api.Node, networkAtta
 		return false
 	}
 
-	// If the nework is not found in the allocated set, then it is
+	// If the network is not found in the allocated set, then it is
 	// not allocated.
 	if _, ok := na.nodes[node.ID][networkAttachment.Network.ID]; !ok {
 		return false
