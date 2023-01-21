@@ -121,14 +121,21 @@ func GenerateMACFromIP(ip net.IP) net.HardwareAddr {
 	return genMAC(ip)
 }
 
-// GenerateRandomName returns a new name joined with a prefix.  This size
-// specified is used to truncate the randomly generated value
-func GenerateRandomName(prefix string, size int) (string, error) {
-	id := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, id); err != nil {
+// GenerateRandomName returns a string of the specified length, created by joining the prefix to random hex characters.
+// The length must be strictly larger than len(prefix), or an error will be returned.
+func GenerateRandomName(prefix string, length int) (string, error) {
+	if length <= len(prefix) {
+		return "", fmt.Errorf("invalid length %d for prefix %s", length, prefix)
+	}
+
+	// We add 1 here as integer division will round down, and we want to round up.
+	b := make([]byte, (length-len(prefix)+1)/2)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
 		return "", err
 	}
-	return prefix + hex.EncodeToString(id)[:size], nil
+
+	// By taking a slice here, we ensure that the string is always the correct length.
+	return (prefix + hex.EncodeToString(b))[:length], nil
 }
 
 // ReverseIP accepts a V4 or V6 IP string in the canonical form and returns a reversed IP in

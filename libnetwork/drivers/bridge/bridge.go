@@ -30,7 +30,7 @@ import (
 const (
 	networkType                = "bridge"
 	vethPrefix                 = "veth"
-	vethLen                    = 7
+	vethLen                    = len(vethPrefix) + 7
 	defaultContainerVethPrefix = "eth"
 	maxAllocatePortAttempts    = 10
 )

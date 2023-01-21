@@ -2,14 +2,18 @@ package netutils
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNonOverlappingNameservers(t *testing.T) {
@@ -186,21 +190,46 @@ func TestNetworkRange(t *testing.T) {
 
 // Test veth name generation "veth"+rand (e.g.veth0f60e2c)
 func TestGenerateRandomName(t *testing.T) {
-	name1, err := GenerateRandomName("veth", 7)
-	if err != nil {
-		t.Fatal(err)
+	const vethPrefix = "veth"
+	const vethLen = len(vethPrefix) + 7
+
+	testCases := []struct {
+		prefix string
+		length int
+		error  bool
+	}{
+		{vethPrefix, -1, true},
+		{vethPrefix, 0, true},
+		{vethPrefix, len(vethPrefix) - 1, true},
+		{vethPrefix, len(vethPrefix), true},
+		{vethPrefix, len(vethPrefix) + 1, false},
+		{vethPrefix, 255, false},
 	}
-	// veth plus generated append equals a len of 11
-	if len(name1) != 11 {
-		t.Fatalf("Expected 11 characters, instead received %d characters", len(name1))
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("prefix=%s/length=%d", tc.prefix, tc.length), func(t *testing.T) {
+			name, err := GenerateRandomName(tc.prefix, tc.length)
+			if tc.error {
+				assert.Check(t, is.ErrorContains(err, "invalid length"))
+			} else {
+				assert.NilError(t, err)
+				assert.Check(t, strings.HasPrefix(name, tc.prefix), "Expected name to start with %s", tc.prefix)
+				assert.Check(t, is.Equal(len(name), tc.length), "Expected %d characters, instead received %d characters", tc.length, len(name))
+			}
+		})
 	}
-	name2, err := GenerateRandomName("veth", 7)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Fail if the random generated names equal one another
-	if name1 == name2 {
-		t.Fatalf("Expected differing values but received %s and %s", name1, name2)
+
+	var randomNames [16]string
+	for i := range randomNames {
+		randomName, err := GenerateRandomName(vethPrefix, vethLen)
+		assert.NilError(t, err)
+
+		for _, oldName := range randomNames {
+			if randomName == oldName {
+				t.Fatalf("Duplicate random name generated: %s", randomName)
+			}
+		}
+
+		randomNames[i] = randomName
 	}
 }
 

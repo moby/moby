@@ -25,7 +25,7 @@ import (
 const (
 	networkType  = "overlay"
 	vethPrefix   = "veth"
-	vethLen      = 7
+	vethLen      = len(vethPrefix) + 7
 	vxlanIDStart = 256
 	vxlanIDEnd   = (1 << 24) - 1
 	vxlanEncap   = 50
