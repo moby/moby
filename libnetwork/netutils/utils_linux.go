@@ -8,7 +8,6 @@ package netutils
 import (
 	"net"
 	"os"
-	"strings"
 
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/ns"
@@ -49,11 +48,11 @@ func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, err
 	for i := 0; i < 3; i++ {
 		name, err := GenerateRandomName(prefix, len)
 		if err != nil {
-			continue
+			return "", err
 		}
 		_, err = linkByName(name)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if errors.As(err, &netlink.LinkNotFoundError{}) {
 				return name, nil
 			}
 			return "", err
