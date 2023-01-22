@@ -180,7 +180,7 @@ func (i *ImageService) resolveDescriptor(ctx context.Context, refOrID string) (o
 	if truncatedID.MatchString(refOrID) {
 		filters := []string{
 			fmt.Sprintf("name==%q", ref), // Or it could just look like one.
-			"target.digest~=" + strconv.Quote(fmt.Sprintf(`sha256:^%s[0-9a-fA-F]{%d}$`, regexp.QuoteMeta(refOrID), 64-len(refOrID))),
+			"target.digest~=" + strconv.Quote(fmt.Sprintf(`^sha256:%s[0-9a-fA-F]{%d}$`, regexp.QuoteMeta(refOrID), 64-len(refOrID))),
 		}
 		imgs, err := is.List(ctx, filters...)
 		if err != nil {
