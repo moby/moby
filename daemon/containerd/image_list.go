@@ -18,7 +18,7 @@ import (
 )
 
 var acceptedImageFilterTags = map[string]bool{
-	"dangling":  false, // TODO(thaJeztah): implement "dangling" filter: see https://github.com/moby/moby/issues/43846
+	"dangling":  true,
 	"label":     true,
 	"before":    true,
 	"since":     true,
@@ -256,6 +256,17 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 			return imageFilters.MatchKVList("label", image.Labels)
 		})
 	}
+
+	if imageFilters.Contains("dangling") {
+		danglingValue, err := imageFilters.GetBoolOrDefault("dangling", false)
+		if err != nil {
+			return nil, err
+		}
+		fltrs = append(fltrs, func(image images.Image) bool {
+			return danglingValue == isDanglingImage(image)
+		})
+	}
+
 	return func(image images.Image) bool {
 		for _, filter := range fltrs {
 			if !filter(image) {
