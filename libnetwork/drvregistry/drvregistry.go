@@ -33,7 +33,6 @@ type DrvRegistry struct {
 	drivers      driverTable
 	ipamDrivers  ipamTable
 	dfn          DriverNotifyFunc
-	ifn          IPAMNotifyFunc
 	pluginGetter plugingetter.PluginGetter
 }
 
@@ -48,19 +47,19 @@ type IPAMWalkFunc func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability
 // DriverWalkFunc defines the network driver table walker function signature.
 type DriverWalkFunc func(name string, driver driverapi.Driver, capability driverapi.Capability) bool
 
-// IPAMNotifyFunc defines the notify function signature when a new IPAM driver gets registered.
-type IPAMNotifyFunc func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) error
-
 // DriverNotifyFunc defines the notify function signature when a new network driver gets registered.
 type DriverNotifyFunc func(name string, driver driverapi.Driver, capability driverapi.Capability) error
 
+// Placeholder is a type for function arguments which need to be present for Swarmkit
+// to compile, but for which the only acceptable value is nil.
+type Placeholder *struct{}
+
 // New returns a new driver registry handle.
-func New(lDs, gDs interface{}, dfn DriverNotifyFunc, ifn IPAMNotifyFunc, pg plugingetter.PluginGetter) (*DrvRegistry, error) {
+func New(lDs, gDs Placeholder, dfn DriverNotifyFunc, ifn Placeholder, pg plugingetter.PluginGetter) (*DrvRegistry, error) {
 	r := &DrvRegistry{
 		drivers:      make(driverTable),
 		ipamDrivers:  make(ipamTable),
 		dfn:          dfn,
-		ifn:          ifn,
 		pluginGetter: pg,
 	}
 
@@ -202,12 +201,6 @@ func (r *DrvRegistry) registerIpamDriver(name string, driver ipamapi.Ipam, caps 
 	locAS, glbAS, err := driver.GetDefaultAddressSpaces()
 	if err != nil {
 		return types.InternalErrorf("ipam driver %q failed to return default address spaces: %v", name, err)
-	}
-
-	if r.ifn != nil {
-		if err := r.ifn(name, driver, caps); err != nil {
-			return err
-		}
 	}
 
 	r.Lock()

@@ -130,7 +130,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	drvRegistry, err := drvregistry.New(c.getStore(), nil, c.RegisterDriver, nil, c.cfg.PluginGetter)
+	drvRegistry, err := drvregistry.New(nil, nil, c.RegisterDriver, nil, c.cfg.PluginGetter)
 	if err != nil {
 		return nil, err
 	}
