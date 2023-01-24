@@ -44,8 +44,15 @@ type network struct {
 	sync.Mutex
 }
 
-// Init registers a new instance of overlay driver
+// Init registers a new instance of the overlay driver.
+//
+// Deprecated: use [Register].
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+	return Register(dc, config)
+}
+
+// Register registers a new instance of the overlay driver.
+func Register(r driverapi.DriverCallback, config map[string]interface{}) error {
 	var err error
 	c := driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
@@ -62,7 +69,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
 	}
 
-	return dc.RegisterDriver(networkType, d, c)
+	return r.RegisterDriver(networkType, d, c)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {

@@ -58,6 +58,7 @@ import (
 	"github.com/docker/docker/libnetwork/diagnostic"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
+	remotedriver "github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -85,7 +86,8 @@ type sandboxTable map[string]*Sandbox
 // Controller manages networks.
 type Controller struct {
 	id               string
-	drvRegistry      *drvregistry.DrvRegistry
+	drvRegistry      drvregistry.Networks
+	ipamRegistry     drvregistry.IPAMs
 	sandboxes        sandboxTable
 	cfg              *config.Config
 	store            datastore.DataStore
@@ -108,7 +110,7 @@ type Controller struct {
 }
 
 type initializer struct {
-	fn    drvregistry.InitFunc
+	fn    func(driverapi.Registerer, map[string]interface{}) error
 	ntype string
 }
 
@@ -130,30 +132,23 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	drvRegistry, err := drvregistry.New(nil, nil, c.RegisterDriver, nil, c.cfg.PluginGetter)
-	if err != nil {
+	c.drvRegistry.Notify = c.RegisterDriver
+
+	// External plugins don't need config passed through daemon. They can
+	// bootstrap themselves.
+	if err := remotedriver.Register(&c.drvRegistry, c.cfg.PluginGetter); err != nil {
 		return nil, err
 	}
 
 	for _, i := range getInitializers() {
-		var dcfg map[string]interface{}
-
-		// External plugins don't need config passed through daemon. They can
-		// bootstrap themselves
-		if i.ntype != "remote" {
-			dcfg = c.makeDriverConfig(i.ntype)
-		}
-
-		if err := drvRegistry.AddDriver(i.ntype, i.fn, dcfg); err != nil {
+		if err := i.fn(&c.drvRegistry, c.makeDriverConfig(i.ntype)); err != nil {
 			return nil, err
 		}
 	}
 
-	if err = initIPAMDrivers(drvRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {
+	if err := initIPAMDrivers(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {
 		return nil, err
 	}
-
-	c.drvRegistry = drvRegistry
 
 	c.WalkNetworks(populateSpecial)
 
@@ -387,7 +382,7 @@ func (c *Controller) BuiltinDrivers() []string {
 // BuiltinIPAMDrivers returns the list of builtin ipam drivers.
 func (c *Controller) BuiltinIPAMDrivers() []string {
 	drivers := []string{}
-	c.drvRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
+	c.ipamRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
 		if driver.IsBuiltIn() {
 			drivers = append(drivers, name)
 		}
@@ -461,7 +456,7 @@ func (c *Controller) isDistributedControl() bool {
 }
 
 func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
-	return c.drvRegistry.GetPluginGetter()
+	return c.cfg.PluginGetter
 }
 
 func (c *Controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
@@ -476,7 +471,7 @@ const overlayDSROptionString = "dsr"
 // are network specific and modeled in a generic way.
 func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
 	var (
-		caps           *driverapi.Capability
+		caps           driverapi.Capability
 		err            error
 		t              *network
 		skipCfgEpCount bool
@@ -1101,7 +1096,7 @@ func (c *Controller) loadIPAMDriver(name string) error {
 }
 
 func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capability, error) {
-	id, cap := c.drvRegistry.IPAM(name)
+	id, cap := c.ipamRegistry.IPAM(name)
 	if id == nil {
 		// Might be a plugin name. Try loading it
 		if err := c.loadIPAMDriver(name); err != nil {
@@ -1109,7 +1104,7 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 		}
 
 		// Now that we resolved the plugin, try again looking up the registry
-		id, cap = c.drvRegistry.IPAM(name)
+		id, cap = c.ipamRegistry.IPAM(name)
 		if id == nil {
 			return nil, nil, types.BadRequestErrorf("invalid ipam driver: %q", name)
 		}

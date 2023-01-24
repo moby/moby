@@ -30,7 +30,15 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 
 // Init makes sure a remote driver is registered when a network driver
 // plugin is activated.
+//
+// Deprecated: use [Register].
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+	return Register(dc, dc.GetPluginGetter())
+}
+
+// Register makes sure a remote driver is registered with r when a network
+// driver plugin is activated.
+func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {
 	newPluginHandler := func(name string, client *plugins.Client) {
 		// negotiate driver capability with client
 		d := newDriver(name, client)
@@ -39,14 +47,14 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 			logrus.Errorf("error getting capability for %s due to %v", name, err)
 			return
 		}
-		if err = dc.RegisterDriver(name, d, *c); err != nil {
+		if err = r.RegisterDriver(name, d, *c); err != nil {
 			logrus.Errorf("error registering driver for %s due to %v", name, err)
 		}
 	}
 
 	// Unit test code is unaware of a true PluginStore. So we fall back to v1 plugins.
 	handleFunc := plugins.Handle
-	if pg := dc.GetPluginGetter(); pg != nil {
+	if pg != nil {
 		handleFunc = pg.Handle
 		activePlugins := pg.GetAllManagedPluginsByCap(driverapi.NetworkPluginEndpointType)
 		for _, ap := range activePlugins {

@@ -127,8 +127,8 @@ func newDriver(networkType string) *driver {
 }
 
 // GetInit returns an initializer for the given network type
-func GetInit(networkType string) func(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	return func(dc driverapi.DriverCallback, config map[string]interface{}) error {
+func GetInit(networkType string) func(dc driverapi.Registerer, config map[string]interface{}) error {
+	return func(dc driverapi.Registerer, config map[string]interface{}) error {
 		if !IsBuiltinLocalDriver(networkType) {
 			return types.BadRequestErrorf("Network type not supported: %s", networkType)
 		}

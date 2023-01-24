@@ -166,8 +166,8 @@ func newDriver() *driver {
 	}
 }
 
-// Init registers a new instance of bridge driver
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+// Register registers a new instance of bridge driver.
+func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	d := newDriver()
 	if err := d.configure(config); err != nil {
 		return err
@@ -177,7 +177,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.LocalScope,
 	}
-	return dc.RegisterDriver(networkType, d, c)
+	return r.RegisterDriver(networkType, d, c)
 }
 
 // Validate performs a static validation on the network configuration parameters.

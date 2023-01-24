@@ -59,7 +59,7 @@ func setupDriver(t *testing.T) *driverTester {
 		},
 	}
 
-	if err := Init(dt, config); err != nil {
+	if err := Register(dt, config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,14 +114,14 @@ func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver,
 }
 
 func TestOverlayInit(t *testing.T) {
-	if err := Init(&driverTester{t: t}, nil); err != nil {
+	if err := Register(&driverTester{t: t}, nil); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestOverlayFiniWithoutConfig(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Init(dt, nil); err != nil {
+	if err := Register(dt, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -151,7 +151,7 @@ func TestOverlayConfig(t *testing.T) {
 
 func TestOverlayType(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Init(dt, nil); err != nil {
+	if err := Register(dt, nil); err != nil {
 		t.Fatal(err)
 	}
 
