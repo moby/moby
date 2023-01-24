@@ -231,21 +231,6 @@ func (h *Bitmap) IsSet(ordinal uint64) bool {
 	return err != nil
 }
 
-// CheckConsistency checks if the bit sequence is in an inconsistent state and attempts to fix it.
-// It looks for a corruption signature that may happen in docker 1.9.0 and 1.9.1.
-func (h *Bitmap) CheckConsistency() bool {
-	corrupted := false
-	for p, c := h.head, h.head.next; c != nil; c = c.next {
-		if c.count == 0 {
-			corrupted = true
-			p.next = c.next
-			continue // keep same p
-		}
-		p = c
-	}
-	return corrupted
-}
-
 // set/reset the bit
 func (h *Bitmap) set(ordinal, start, end uint64, any bool, release bool, serial bool) (uint64, error) {
 	var (

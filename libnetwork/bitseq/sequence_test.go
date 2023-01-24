@@ -181,36 +181,6 @@ func TestRetrieveFromStore(t *testing.T) {
 	}
 }
 
-func TestIsCorrupted(t *testing.T) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Negative test
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test_corrupted", 1024)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-
-	_ = hnd.Set(0)
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-
-	_ = hnd.Set(1023)
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func testSetRollover(t *testing.T, serial bool) {
 	ds, err := randomLocalStore()
 	if err != nil {
