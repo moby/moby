@@ -99,20 +99,20 @@ func getNew(t *testing.T) *DrvRegistry {
 		t.Fatal(err)
 	}
 
-	err = initIPAMDrivers(reg, nil, nil)
+	err = initIPAMDrivers(reg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return reg
 }
 
-func initIPAMDrivers(r *DrvRegistry, lDs, gDs interface{}) error {
+func initIPAMDrivers(r *DrvRegistry) error {
 	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
-		builtinIpam.Init,
-		remoteIpam.Init,
-		nullIpam.Init,
+		builtinIpam.Init, //nolint:staticcheck
+		remoteIpam.Init,  //nolint:staticcheck
+		nullIpam.Init,    //nolint:staticcheck
 	} {
-		if err := fn(r, lDs, gDs); err != nil {
+		if err := fn(r, nil, nil); err != nil {
 			return err
 		}
 	}

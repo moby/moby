@@ -149,7 +149,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		}
 	}
 
-	if err = initIPAMDrivers(drvRegistry, nil, nil, c.cfg.DefaultAddressPool); err != nil {
+	if err = initIPAMDrivers(drvRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {
 		return nil, err
 	}
 

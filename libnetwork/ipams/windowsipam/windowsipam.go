@@ -24,11 +24,9 @@ var (
 type allocator struct {
 }
 
-// GetInit registers the built-in ipam service with libnetwork
-func GetInit(ipamName string) func(ic ipamapi.Callback, l, g interface{}) error {
-	return func(ic ipamapi.Callback, l, g interface{}) error {
-		return ic.RegisterIpamDriver(ipamName, &allocator{})
-	}
+// Register registers the built-in ipam service with libnetwork
+func Register(ipamName string, r ipamapi.Registerer) error {
+	return r.RegisterIpamDriver(ipamName, &allocator{})
 }
 
 func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {

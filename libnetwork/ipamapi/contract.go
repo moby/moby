@@ -21,14 +21,21 @@ const (
 	RequestAddressType = "RequestAddressType"
 )
 
-// Callback provides a Callback interface for registering an IPAM instance into LibNetwork
+// Registerer provides a callback interface for registering IPAM instances into libnetwork.
+type Registerer interface {
+	// RegisterIpamDriver provides a way for drivers to dynamically register with libnetwork
+	RegisterIpamDriver(name string, driver Ipam) error
+	// RegisterIpamDriverWithCapabilities provides a way for drivers to dynamically register with libnetwork and specify capabilities
+	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
+}
+
+// Callback is a legacy interface for registering an IPAM instance into LibNetwork.
+//
+// The narrower [Registerer] interface is preferred for new code.
 type Callback interface {
+	Registerer
 	// GetPluginGetter returns the pluginv2 getter.
 	GetPluginGetter() plugingetter.PluginGetter
-	// RegisterIpamDriver provides a way for Remote drivers to dynamically register with libnetwork
-	RegisterIpamDriver(name string, driver Ipam) error
-	// RegisterIpamDriverWithCapabilities provides a way for Remote drivers to dynamically register with libnetwork and specify capabilities
-	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
 }
 
 // Well-known errors returned by IPAM
