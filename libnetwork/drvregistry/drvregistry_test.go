@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
@@ -18,48 +17,16 @@ import (
 
 const mockDriverName = "mock-driver"
 
-type mockDriver struct{}
+type mockDriver struct {
+	driverapi.Driver
+}
+
+var mockDriverCaps = driverapi.Capability{DataScope: datastore.LocalScope}
 
 var md = mockDriver{}
 
 func mockDriverInit(reg driverapi.DriverCallback, opt map[string]interface{}) error {
-	return reg.RegisterDriver(mockDriverName, &md, driverapi.Capability{DataScope: datastore.LocalScope})
-}
-
-func (m *mockDriver) CreateNetwork(nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	return nil
-}
-
-func (m *mockDriver) DeleteNetwork(nid string) error {
-	return nil
-}
-
-func (m *mockDriver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
-	return nil
-}
-
-func (m *mockDriver) DeleteEndpoint(nid, eid string) error {
-	return nil
-}
-
-func (m *mockDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
-	return nil, nil
-}
-
-func (m *mockDriver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	return nil
-}
-
-func (m *mockDriver) Leave(nid, eid string) error {
-	return nil
-}
-
-func (m *mockDriver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
-
-func (m *mockDriver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
+	return reg.RegisterDriver(mockDriverName, &md, mockDriverCaps)
 }
 
 func (m *mockDriver) Type() string {
@@ -68,29 +35,6 @@ func (m *mockDriver) Type() string {
 
 func (m *mockDriver) IsBuiltIn() bool {
 	return true
-}
-
-func (m *mockDriver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
-	return nil
-}
-
-func (m *mockDriver) RevokeExternalConnectivity(nid, eid string) error {
-	return nil
-}
-
-func (m *mockDriver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
-	return nil, nil
-}
-
-func (m *mockDriver) NetworkFree(id string) error {
-	return nil
-}
-
-func (m *mockDriver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
-}
-
-func (m *mockDriver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
-	return "", nil
 }
 
 func getNew(t *testing.T) *DrvRegistry {
