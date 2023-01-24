@@ -22,7 +22,7 @@ func registerBuiltin(ic ipamapi.Registerer) error {
 		localAddressPool = ipamutils.GetLocalScopeDefaultNetworks()
 	}
 
-	a, err := ipam.NewAllocator(nil, nil, localAddressPool, ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := ipam.NewAllocator(localAddressPool, ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		return err
 	}

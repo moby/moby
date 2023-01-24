@@ -1,13 +1,11 @@
 package ipam
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -29,13 +27,8 @@ type PoolData struct {
 
 // addrSpace contains the pool configurations for the address space
 type addrSpace struct {
-	subnets  map[SubnetKey]*PoolData
-	dbIndex  uint64
-	dbExists bool
-	id       string
-	scope    string
-	ds       datastore.DataStore
-	alloc    *Allocator
+	subnets map[SubnetKey]*PoolData
+	alloc   *Allocator
 	sync.Mutex
 }
 
@@ -49,31 +42,6 @@ type AddressRange struct {
 // String returns the string form of the AddressRange object
 func (r *AddressRange) String() string {
 	return fmt.Sprintf("Sub: %s, range [%d, %d]", r.Sub, r.Start, r.End)
-}
-
-// MarshalJSON returns the JSON encoding of the Range object
-func (r *AddressRange) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
-		"Sub":   r.Sub.String(),
-		"Start": r.Start,
-		"End":   r.End,
-	}
-	return json.Marshal(m)
-}
-
-// UnmarshalJSON decodes data into the Range object
-func (r *AddressRange) UnmarshalJSON(data []byte) error {
-	m := map[string]interface{}{}
-	err := json.Unmarshal(data, &m)
-	if err != nil {
-		return err
-	}
-	if r.Sub, err = types.ParseCIDR(m["Sub"].(string)); err != nil {
-		return err
-	}
-	r.Start = uint64(m["Start"].(float64))
-	r.End = uint64(m["End"].(float64))
-	return nil
 }
 
 // String returns the string form of the SubnetKey object
@@ -108,153 +76,6 @@ func (s *SubnetKey) FromString(str string) error {
 func (p *PoolData) String() string {
 	return fmt.Sprintf("ParentKey: %s, Pool: %s, Range: %s, RefCount: %d",
 		p.ParentKey.String(), p.Pool.String(), p.Range, p.RefCount)
-}
-
-// MarshalJSON returns the JSON encoding of the PoolData object
-func (p *PoolData) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
-		"ParentKey": p.ParentKey,
-		"RefCount":  p.RefCount,
-	}
-	if p.Pool != nil {
-		m["Pool"] = p.Pool.String()
-	}
-	if p.Range != nil {
-		m["Range"] = p.Range
-	}
-	return json.Marshal(m)
-}
-
-// UnmarshalJSON decodes data into the PoolData object
-func (p *PoolData) UnmarshalJSON(data []byte) error {
-	var (
-		err error
-		t   struct {
-			ParentKey SubnetKey
-			Pool      string
-			Range     *AddressRange `json:",omitempty"`
-			RefCount  int
-		}
-	)
-
-	if err = json.Unmarshal(data, &t); err != nil {
-		return err
-	}
-
-	p.ParentKey = t.ParentKey
-	p.Range = t.Range
-	p.RefCount = t.RefCount
-	if t.Pool != "" {
-		if p.Pool, err = types.ParseCIDR(t.Pool); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// MarshalJSON returns the JSON encoding of the addrSpace object
-func (aSpace *addrSpace) MarshalJSON() ([]byte, error) {
-	aSpace.Lock()
-	defer aSpace.Unlock()
-
-	m := map[string]interface{}{
-		"Scope": aSpace.scope,
-	}
-
-	if aSpace.subnets != nil {
-		s := map[string]*PoolData{}
-		for k, v := range aSpace.subnets {
-			s[k.String()] = v
-		}
-		m["Subnets"] = s
-	}
-
-	return json.Marshal(m)
-}
-
-// UnmarshalJSON decodes data into the addrSpace object
-func (aSpace *addrSpace) UnmarshalJSON(data []byte) error {
-	aSpace.Lock()
-	defer aSpace.Unlock()
-
-	m := map[string]interface{}{}
-	err := json.Unmarshal(data, &m)
-	if err != nil {
-		return err
-	}
-
-	aSpace.scope = datastore.LocalScope
-	s := m["Scope"].(string)
-	if s == datastore.GlobalScope {
-		aSpace.scope = datastore.GlobalScope
-	}
-
-	if v, ok := m["Subnets"]; ok {
-		sb, _ := json.Marshal(v)
-		var s map[string]*PoolData
-		err := json.Unmarshal(sb, &s)
-		if err != nil {
-			return err
-		}
-		for ks, v := range s {
-			k := SubnetKey{}
-			k.FromString(ks)
-			aSpace.subnets[k] = v
-		}
-	}
-
-	return nil
-}
-
-// CopyTo deep copies the pool data to the destination pooldata
-func (p *PoolData) CopyTo(dstP *PoolData) error {
-	dstP.ParentKey = p.ParentKey
-	dstP.Pool = types.GetIPNetCopy(p.Pool)
-
-	if p.Range != nil {
-		dstP.Range = &AddressRange{}
-		dstP.Range.Sub = types.GetIPNetCopy(p.Range.Sub)
-		dstP.Range.Start = p.Range.Start
-		dstP.Range.End = p.Range.End
-	}
-
-	dstP.RefCount = p.RefCount
-	return nil
-}
-
-func (aSpace *addrSpace) CopyTo(o datastore.KVObject) error {
-	aSpace.Lock()
-	defer aSpace.Unlock()
-
-	dstAspace := o.(*addrSpace)
-
-	dstAspace.id = aSpace.id
-	dstAspace.ds = aSpace.ds
-	dstAspace.alloc = aSpace.alloc
-	dstAspace.scope = aSpace.scope
-	dstAspace.dbIndex = aSpace.dbIndex
-	dstAspace.dbExists = aSpace.dbExists
-
-	dstAspace.subnets = make(map[SubnetKey]*PoolData)
-	for k, v := range aSpace.subnets {
-		dstAspace.subnets[k] = &PoolData{}
-		v.CopyTo(dstAspace.subnets[k])
-	}
-
-	return nil
-}
-
-func (aSpace *addrSpace) New() datastore.KVObject {
-	aSpace.Lock()
-	defer aSpace.Unlock()
-
-	return &addrSpace{
-		id:    aSpace.id,
-		ds:    aSpace.ds,
-		alloc: aSpace.alloc,
-		scope: aSpace.scope,
-	}
 }
 
 // updatePoolDBOnAdd returns a closure which will add the subnet k to the address space when executed.
@@ -354,11 +175,4 @@ func (aSpace *addrSpace) contains(space string, nw *net.IPNet) bool {
 		}
 	}
 	return false
-}
-
-func (aSpace *addrSpace) store() datastore.DataStore {
-	aSpace.Lock()
-	defer aSpace.Unlock()
-
-	return aSpace.ds
 }
