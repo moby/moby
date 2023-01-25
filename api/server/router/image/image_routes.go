@@ -378,6 +378,10 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
+	if _, isDigested := ref.(reference.Digested); isDigested {
+		return errdefs.InvalidParameter(errors.New("tag reference can't have a digest"))
+	}
+
 	if tag != "" {
 		if ref, err = reference.WithTag(reference.TrimNamed(ref), tag); err != nil {
 			return errdefs.InvalidParameter(err)
