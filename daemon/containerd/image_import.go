@@ -135,9 +135,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 		CreatedAt: createdAt,
 	}
 	if img.Name == "" {
-		// TODO(vvoland): danglingImageName(manifestDesc.Digest)
-		img.Name = "dangling@" + manifestDesc.Digest.String()
-
+		img.Name = danglingImageName(manifestDesc.Digest)
 	}
 
 	err = i.saveImage(ctx, img)
