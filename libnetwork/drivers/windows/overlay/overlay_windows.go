@@ -17,10 +17,7 @@ import (
 )
 
 const (
-	networkType  = "overlay"
-	vethPrefix   = "veth"
-	vethLen      = 7
-	secureOption = "encrypted"
+	networkType = "overlay"
 )
 
 type driver struct {

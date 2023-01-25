@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
+	vethLen             = len(vethPrefix) + 7
 	driverName          = "macvlan"      // driver type name
 	modePrivate         = "private"      // macvlan mode private
 	modeVepa            = "vepa"         // macvlan mode vepa

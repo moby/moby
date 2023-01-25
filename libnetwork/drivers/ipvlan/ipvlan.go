@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
+	vethLen             = len(vethPrefix) + 7
 
 	driverName    = "ipvlan"      // driver type name
 	parentOpt     = "parent"      // parent interface -o parent
