@@ -36,6 +36,7 @@ func (j *jobs) showProgress(ctx context.Context, out progress.Output, updater pr
 	ctx, cancelProgress := context.WithCancel(ctx)
 
 	start := time.Now()
+	lastUpdate := make(chan struct{})
 
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
@@ -48,15 +49,24 @@ func (j *jobs) showProgress(ctx context.Context, out progress.Output, updater pr
 					if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 						logrus.WithError(err).Error("Updating progress failed")
 					}
-					return
 				}
 			case <-ctx.Done():
+				ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+				defer cancel()
+				updater.UpdateProgress(ctx, j, out, start)
+				close(lastUpdate)
 				return
 			}
 		}
 	}()
 
-	return cancelProgress
+	return func() {
+		cancelProgress()
+		// Wait for the last update to finish.
+		// UpdateProgress may still write progress to output and we need
+		// to keep the caller from closing it before we finish.
+		<-lastUpdate
+	}
 }
 
 // Add adds a descriptor to be tracked
