@@ -114,12 +114,7 @@ func (a *Allocator) ReleasePool(poolID string) error {
 		return err
 	}
 
-	remove, err := aSpace.updatePoolDBOnRemoval(k)
-	if err != nil {
-		return err
-	}
-
-	return remove()
+	return aSpace.updatePoolDBOnRemoval(k)
 }
 
 // Given the address space, returns the local or global PoolConfig based on whether the

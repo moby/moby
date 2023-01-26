@@ -124,13 +124,13 @@ func (aSpace *addrSpace) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *Addr
 	return func() error { return aSpace.alloc.insertBitMask(p.ParentKey, nw) }, nil
 }
 
-func (aSpace *addrSpace) updatePoolDBOnRemoval(k SubnetKey) (func() error, error) {
+func (aSpace *addrSpace) updatePoolDBOnRemoval(k SubnetKey) error {
 	aSpace.Lock()
 	defer aSpace.Unlock()
 
 	p, ok := aSpace.subnets[k]
 	if !ok {
-		return nil, ipamapi.ErrBadPool
+		return ipamapi.ErrBadPool
 	}
 
 	aSpace.incRefCount(p, -1)
@@ -140,20 +140,14 @@ func (aSpace *addrSpace) updatePoolDBOnRemoval(k SubnetKey) (func() error, error
 		if c.RefCount == 0 {
 			delete(aSpace.subnets, k)
 			if c.Range == nil {
-				return func() error {
-					bm, err := aSpace.alloc.retrieveBitmask(k, c.Pool)
-					if err != nil {
-						return types.InternalErrorf("could not find bitmask in datastore for pool %s removal: %v", k.String(), err)
-					}
-					return bm.Destroy()
-				}, nil
+				return nil
 			}
 		}
 		k = c.ParentKey
 		c, ok = aSpace.subnets[k]
 	}
 
-	return func() error { return nil }, nil
+	return nil
 }
 
 func (aSpace *addrSpace) incRefCount(p *PoolData, delta int) {
