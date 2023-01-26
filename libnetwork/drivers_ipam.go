@@ -10,7 +10,12 @@ import (
 )
 
 func initIPAMDrivers(r *drvregistry.DrvRegistry, lDs, gDs interface{}, addressPool []*ipamutils.NetworkToSplit) error {
-	builtinIpam.SetDefaultIPAddressPool(addressPool)
+	// TODO: pass address pools as arguments to builtinIpam.Init instead of
+	// indirectly through global mutable state. Swarmkit references that
+	// function so changing its signature breaks the build.
+	if err := builtinIpam.SetDefaultIPAddressPool(addressPool); err != nil {
+		return err
+	}
 	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
 		builtinIpam.Init,
 		remoteIpam.Init,

@@ -35,7 +35,6 @@ import (
 	nwconfig "github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/drivers/bridge"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"
 	lntypes "github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
@@ -950,30 +949,37 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 
 	ipamV4Conf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 
-	nwList, nw6List, err := netutils.ElectInterfaceAddresses(bridgeName)
+	// By default, libnetwork will request an arbitrary available address
+	// pool for the network from the configured IPAM allocator.
+	// Configure it to use the IPv4 network ranges of the existing bridge
+	// interface if one exists with IPv4 addresses assigned to it.
+
+	nwList, nw6List, err := ifaceAddrs(bridgeName)
 	if err != nil {
 		return errors.Wrap(err, "list bridge addresses failed")
 	}
 
-	nw := nwList[0]
-	if len(nwList) > 1 && config.BridgeConfig.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
-		if err != nil {
-			return errors.Wrap(err, "parse CIDR failed")
-		}
-		// Iterate through in case there are multiple addresses for the bridge
-		for _, entry := range nwList {
-			if fCIDR.Contains(entry.IP) {
-				nw = entry
-				break
+	if len(nwList) > 0 {
+		nw := nwList[0]
+		if len(nwList) > 1 && config.BridgeConfig.FixedCIDR != "" {
+			_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
+			if err != nil {
+				return errors.Wrap(err, "parse CIDR failed")
+			}
+			// Iterate through in case there are multiple addresses for the bridge
+			for _, entry := range nwList {
+				if fCIDR.Contains(entry.IP) {
+					nw = entry
+					break
+				}
 			}
 		}
-	}
 
-	ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
-	hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
-	if hip.IsGlobalUnicast() {
-		ipamV4Conf.Gateway = nw.IP.String()
+		ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
+		hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
+		if hip.IsGlobalUnicast() {
+			ipamV4Conf.Gateway = nw.IP.String()
+		}
 	}
 
 	if config.BridgeConfig.IP != "" {

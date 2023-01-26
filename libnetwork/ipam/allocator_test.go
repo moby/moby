@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/libnetwork/bitseq"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
@@ -61,7 +62,7 @@ func getAllocator(store bool) (*Allocator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewAllocator(ds, nil)
+	return NewAllocator(ds, nil, ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 }
 
 func TestInt2IP2IntConversion(t *testing.T) {
@@ -1287,7 +1288,7 @@ func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, s
 	ds, err := randomLocalStore(store)
 	assert.NilError(t, err)
 
-	a, err := NewAllocator(ds, nil)
+	a, err := NewAllocator(ds, nil, ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1355,7 +1356,7 @@ func TestRetrieveFromStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := NewAllocator(ds, nil)
+	a, err := NewAllocator(ds, nil, ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1370,7 +1371,7 @@ func TestRetrieveFromStore(t *testing.T) {
 	}
 
 	// Restore
-	a1, err := NewAllocator(ds, nil)
+	a1, err := NewAllocator(ds, nil, ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1392,7 +1393,7 @@ func TestRetrieveFromStore(t *testing.T) {
 	}
 
 	// Restore
-	a2, err := NewAllocator(ds, nil)
+	a2, err := NewAllocator(ds, nil, ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1409,7 +1410,7 @@ func TestRetrieveFromStore(t *testing.T) {
 	}
 
 	// Restore
-	a3, err := NewAllocator(ds, nil)
+	a3, err := NewAllocator(ds, nil, ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1426,7 +1427,7 @@ func TestRetrieveFromStore(t *testing.T) {
 	}
 
 	// Restore
-	a4, err := NewAllocator(ds, nil)
+	a4, err := NewAllocator(ds, nil, ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}

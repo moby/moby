@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
@@ -38,14 +37,14 @@ type Allocator struct {
 }
 
 // NewAllocator returns an instance of libnetwork ipam
-func NewAllocator(lcDs, glDs datastore.DataStore) (*Allocator, error) {
+func NewAllocator(lcDs, glDs datastore.DataStore, lcAs, glAs []*net.IPNet) (*Allocator, error) {
 	a := &Allocator{}
 
 	// Load predefined subnet pools
 
 	a.predefined = map[string][]*net.IPNet{
-		localAddressSpace:  ipamutils.GetLocalScopeDefaultNetworks(),
-		globalAddressSpace: ipamutils.GetGlobalScopeDefaultNetworks(),
+		localAddressSpace:  lcAs,
+		globalAddressSpace: glAs,
 	}
 
 	// Initialize asIndices map

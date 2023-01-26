@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
@@ -59,46 +58,6 @@ func GenerateIfaceName(nlh *netlink.Handle, prefix string, len int) (string, err
 		}
 	}
 	return "", types.InternalErrorf("could not generate interface name")
-}
-
-// ElectInterfaceAddresses looks for an interface on the OS with the
-// specified name and returns returns all its IPv4 and IPv6 addresses in CIDR notation.
-// If a failure in retrieving the addresses or no IPv4 address is found, an error is returned.
-// If the interface does not exist, it chooses from a predefined
-// list the first IPv4 address which does not conflict with other
-// interfaces on the system.
-func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
-	var v4Nets, v6Nets []*net.IPNet
-
-	link, _ := ns.NlHandle().LinkByName(name)
-	if link != nil {
-		v4addr, err := ns.NlHandle().AddrList(link, netlink.FAMILY_V4)
-		if err != nil {
-			return nil, nil, err
-		}
-		v6addr, err := ns.NlHandle().AddrList(link, netlink.FAMILY_V6)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, nlAddr := range v4addr {
-			v4Nets = append(v4Nets, nlAddr.IPNet)
-		}
-		for _, nlAddr := range v6addr {
-			v6Nets = append(v6Nets, nlAddr.IPNet)
-		}
-	}
-
-	if link == nil || len(v4Nets) == 0 {
-		// Choose from predefined local scope networks
-		v4Net, err := FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "PredefinedLocalScopeDefaultNetworks List: %+v",
-				ipamutils.PredefinedLocalScopeDefaultNetworks)
-		}
-		v4Nets = append(v4Nets, v4Net)
-	}
-
-	return v4Nets, v6Nets, nil
 }
 
 // FindAvailableNetwork returns a network from the passed list which does not

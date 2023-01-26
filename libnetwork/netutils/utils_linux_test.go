@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"sort"
 	"strings"
 	"testing"
 
@@ -250,13 +249,13 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 func TestNetworkRequest(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
-	nw, err := FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
+	nw, err := FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var found bool
-	for _, exp := range ipamutils.PredefinedLocalScopeDefaultNetworks {
+	for _, exp := range ipamutils.GetLocalScopeDefaultNetworks() {
 		if types.CompareIPNet(exp, nw) {
 			found = true
 			break
@@ -267,13 +266,13 @@ func TestNetworkRequest(t *testing.T) {
 		t.Fatalf("Found unexpected broad network %s", nw)
 	}
 
-	nw, err = FindAvailableNetwork(ipamutils.PredefinedGlobalScopeDefaultNetworks)
+	nw, err = FindAvailableNetwork(ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	found = false
-	for _, exp := range ipamutils.PredefinedGlobalScopeDefaultNetworks {
+	for _, exp := range ipamutils.GetGlobalScopeDefaultNetworks() {
 		if types.CompareIPNet(exp, nw) {
 			found = true
 			break
@@ -291,72 +290,12 @@ func TestNetworkRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nw, err = FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
+	nw, err = FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(exp, nw) {
 		t.Fatalf("expected %s. got %s", exp, nw)
-	}
-}
-
-func TestElectInterfaceAddressMultipleAddresses(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
-
-	nws := []string{"172.101.202.254/16", "172.102.202.254/16"}
-	createInterface(t, "test", nws...)
-
-	ipv4NwList, ipv6NwList, err := ElectInterfaceAddresses("test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(ipv4NwList) == 0 {
-		t.Fatal("unexpected empty ipv4 network addresses")
-	}
-
-	if len(ipv6NwList) == 0 {
-		t.Fatal("unexpected empty ipv6 network addresses")
-	}
-
-	nwList := []string{}
-	for _, ipv4Nw := range ipv4NwList {
-		nwList = append(nwList, ipv4Nw.String())
-	}
-	sort.Strings(nws)
-	sort.Strings(nwList)
-
-	if len(nws) != len(nwList) {
-		t.Fatalf("expected %v. got %v", nws, nwList)
-	}
-	for i, nw := range nws {
-		if nw != nwList[i] {
-			t.Fatalf("expected %v. got %v", nw, nwList[i])
-		}
-	}
-}
-
-func TestElectInterfaceAddress(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
-
-	nws := "172.101.202.254/16"
-	createInterface(t, "test", nws)
-
-	ipv4Nw, ipv6Nw, err := ElectInterfaceAddresses("test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(ipv4Nw) == 0 {
-		t.Fatal("unexpected empty ipv4 network addresses")
-	}
-
-	if len(ipv6Nw) == 0 {
-		t.Fatal("unexpected empty ipv6 network addresses")
-	}
-
-	if nws != ipv4Nw[0].String() {
-		t.Fatalf("expected %s. got %s", nws, ipv4Nw[0])
 	}
 }
 
