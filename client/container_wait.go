@@ -1,13 +1,18 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/url"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 )
+
+const containerWaitErrorMsgLimit = 2 * 1024 /* Max: 2KiB */
 
 // ContainerWait waits until the specified container is in a certain state
 // indicated by the given condition, either "not-running" (default),
@@ -46,9 +51,23 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 
 	go func() {
 		defer ensureReaderClosed(resp)
+
+		body := resp.body
+		responseText := bytes.NewBuffer(nil)
+		stream := io.TeeReader(body, responseText)
+
 		var res container.WaitResponse
-		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
-			errC <- err
+		if err := json.NewDecoder(stream).Decode(&res); err != nil {
+			// NOTE(nicks): The /wait API does not work well with HTTP proxies.
+			// At any time, the proxy could cut off the response stream.
+			//
+			// But because the HTTP status has already been written, the proxy's
+			// only option is to write a plaintext error message.
+			//
+			// If there's a JSON parsing error, read the real error message
+			// off the body and send it to the client.
+			_, _ = io.ReadAll(io.LimitReader(stream, containerWaitErrorMsgLimit))
+			errC <- errors.New(responseText.String())
 			return
 		}
 
