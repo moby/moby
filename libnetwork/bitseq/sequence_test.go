@@ -29,7 +29,7 @@ func randomLocalStore() (datastore.DataStore, error) {
 	if err := tmp.Close(); err != nil {
 		return nil, fmt.Errorf("Error closing temp file: %v", err)
 	}
-	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
+	return datastore.NewDataStore(datastore.ScopeCfg{
 		Client: datastore.ScopeClientCfg{
 			Provider: "boltdb",
 			Address:  filepath.Join(defaultPrefix, filepath.Base(tmp.Name())),
@@ -177,36 +177,6 @@ func TestRetrieveFromStore(t *testing.T) {
 
 	err = hnd.Destroy()
 	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestIsCorrupted(t *testing.T) {
-	ds, err := randomLocalStore()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Negative test
-	hnd, err := NewHandle("bitseq-test/data/", ds, "test_corrupted", 1024)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-
-	_ = hnd.Set(0)
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-
-	_ = hnd.Set(1023)
-	if err := hnd.CheckConsistency(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := hnd.CheckConsistency(); err != nil {
 		t.Fatal(err)
 	}
 }

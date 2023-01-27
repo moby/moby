@@ -30,9 +30,15 @@ func newAllocator(name string, client *plugins.Client) ipamapi.Ipam {
 	return a
 }
 
-// Init registers a remote ipam when its plugin is activated
+// Init registers a remote ipam when its plugin is activated.
+//
+// Deprecated: use [Register].
 func Init(cb ipamapi.Callback, l, g interface{}) error {
+	return Register(cb, cb.GetPluginGetter())
+}
 
+// Register registers a remote ipam when its plugin is activated.
+func Register(cb ipamapi.Registerer, pg plugingetter.PluginGetter) error {
 	newPluginHandler := func(name string, client *plugins.Client) {
 		a := newAllocator(name, client)
 		if cps, err := a.(*allocator).getCapabilities(); err == nil {
@@ -50,7 +56,7 @@ func Init(cb ipamapi.Callback, l, g interface{}) error {
 
 	// Unit test code is unaware of a true PluginStore. So we fall back to v1 plugins.
 	handleFunc := plugins.Handle
-	if pg := cb.GetPluginGetter(); pg != nil {
+	if pg != nil {
 		handleFunc = pg.Handle
 		activePlugins := pg.GetAllManagedPluginsByCap(ipamapi.PluginEndpointType)
 		for _, ap := range activePlugins {

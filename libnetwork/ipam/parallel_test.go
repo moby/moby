@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"gotest.tools/v3/assert"
@@ -36,15 +37,12 @@ type testContext struct {
 }
 
 func newTestContext(t *testing.T, mask int, options map[string]string) *testContext {
-	a, err := getAllocator(false)
+	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}
 	a.addrSpaces["giallo"] = &addrSpace{
-		id:      dsConfigKey + "/" + "giallo",
-		ds:      a.addrSpaces[localAddressSpace].ds,
 		alloc:   a.addrSpaces[localAddressSpace].alloc,
-		scope:   a.addrSpaces[localAddressSpace].scope,
 		subnets: map[SubnetKey]*PoolData{},
 	}
 
@@ -84,7 +82,7 @@ func (o *op) String() string {
 }
 
 func TestRequestPoolParallel(t *testing.T) {
-	a, err := getAllocator(false)
+	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
 	}

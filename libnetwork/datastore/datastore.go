@@ -129,37 +129,28 @@ const (
 	EndpointKeyPrefix = "endpoint"
 )
 
-var (
-	defaultScopes = makeDefaultScopes()
-)
+var defaultRootChain = []string{"docker", "network", "v1.0"}
+var rootChain = defaultRootChain
 
-func makeDefaultScopes() map[string]*ScopeCfg {
-	def := make(map[string]*ScopeCfg)
-	def[LocalScope] = &ScopeCfg{
+// DefaultScope returns a default scope config for clients to use.
+func DefaultScope(dataDir string) ScopeCfg {
+	var dbpath string
+	if dataDir == "" {
+		dbpath = defaultPrefix + "/local-kv.db"
+	} else {
+		dbpath = dataDir + "/network/files/local-kv.db"
+	}
+
+	return ScopeCfg{
 		Client: ScopeClientCfg{
 			Provider: string(store.BOLTDB),
-			Address:  defaultPrefix + "/local-kv.db",
+			Address:  dbpath,
 			Config: &store.Config{
 				Bucket:            "libnetwork",
 				ConnectionTimeout: time.Minute,
 			},
 		},
 	}
-
-	return def
-}
-
-var defaultRootChain = []string{"docker", "network", "v1.0"}
-var rootChain = defaultRootChain
-
-// DefaultScopes returns a map of default scopes and its config for clients to use.
-func DefaultScopes(dataDir string) map[string]*ScopeCfg {
-	s := makeDefaultScopes()
-	if dataDir != "" {
-		s[LocalScope].Client.Address = dataDir + "/network/files/local-kv.db"
-	}
-
-	return s
 }
 
 // IsValid checks if the scope config has valid configuration.
@@ -192,16 +183,7 @@ func ParseKey(key string) ([]string, error) {
 }
 
 // newClient used to connect to KV Store
-func newClient(scope string, kv string, addr string, config *store.Config, cached bool) (DataStore, error) {
-
-	if cached && scope != LocalScope {
-		return nil, fmt.Errorf("caching supported only for scope %s", LocalScope)
-	}
-	sequential := false
-	if scope == LocalScope {
-		sequential = true
-	}
-
+func newClient(kv string, addr string, config *store.Config) (DataStore, error) {
 	if config == nil {
 		config = &store.Config{}
 	}
@@ -227,31 +209,19 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 		return nil, err
 	}
 
-	ds := &datastore{scope: scope, store: s, active: true, watchCh: make(chan struct{}), sequential: sequential}
-	if cached {
-		ds.cache = newCache(ds)
-	}
+	ds := &datastore{scope: LocalScope, store: s, active: true, watchCh: make(chan struct{}), sequential: true}
+	ds.cache = newCache(ds)
 
 	return ds, nil
 }
 
 // NewDataStore creates a new instance of LibKV data store
-func NewDataStore(scope string, cfg *ScopeCfg) (DataStore, error) {
-	if cfg == nil || cfg.Client.Provider == "" || cfg.Client.Address == "" {
-		c, ok := defaultScopes[scope]
-		if !ok || c.Client.Provider == "" || c.Client.Address == "" {
-			return nil, fmt.Errorf("unexpected scope %s without configuration passed", scope)
-		}
-
-		cfg = c
+func NewDataStore(cfg ScopeCfg) (DataStore, error) {
+	if cfg.Client.Provider == "" || cfg.Client.Address == "" {
+		cfg = DefaultScope("")
 	}
 
-	var cached bool
-	if scope == LocalScope {
-		cached = true
-	}
-
-	return newClient(scope, cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config, cached)
+	return newClient(cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config)
 }
 
 // NewDataStoreFromConfig creates a new instance of LibKV data store starting from the datastore config data
@@ -266,7 +236,7 @@ func NewDataStoreFromConfig(dsc discoverapi.DatastoreConfigData) (DataStore, err
 		return nil, fmt.Errorf("cannot parse store configuration: %v", dsc.Config)
 	}
 
-	scopeCfg := &ScopeCfg{
+	scopeCfg := ScopeCfg{
 		Client: ScopeClientCfg{
 			Address:  dsc.Address,
 			Provider: dsc.Provider,
@@ -274,7 +244,7 @@ func NewDataStoreFromConfig(dsc discoverapi.DatastoreConfigData) (DataStore, err
 		},
 	}
 
-	ds, err := NewDataStore(dsc.Scope, scopeCfg)
+	ds, err := NewDataStore(scopeCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct datastore client from datastore configuration %v: %v", dsc, err)
 	}

@@ -16,13 +16,19 @@ type driver struct {
 	sync.Mutex
 }
 
-// Init registers a new instance of host driver
+// Init registers a new instance of host driver.
+//
+// Deprecated: use [Register].
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+	return Register(dc, config)
+}
+
+func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.LocalScope,
 	}
-	return dc.RegisterDriver(networkType, &driver{}, c)
+	return r.RegisterDriver(networkType, &driver{}, c)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {

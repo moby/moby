@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/overlay"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/vishvananda/netlink"
 )
@@ -26,10 +25,6 @@ type endpoint struct {
 	addr *net.IPNet
 	mac  net.HardwareAddr
 	name string
-}
-
-func (r *router) GetPluginGetter() plugingetter.PluginGetter {
-	return nil
 }
 
 func (r *router) RegisterDriver(name string, driver driverapi.Driver, c driverapi.Capability) error {
@@ -126,7 +121,7 @@ func main() {
 	}
 
 	r := &router{}
-	if err := overlay.Init(r, opt); err != nil {
+	if err := overlay.Register(r, opt); err != nil {
 		fmt.Printf("Failed to initialize overlay driver: %v\n", err)
 		os.Exit(1)
 	}

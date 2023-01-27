@@ -16,12 +16,12 @@ type driver struct {
 	sync.Mutex
 }
 
-// Init registers a new instance of null driver
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+// Register registers a new instance of the null driver.
+func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope: datastore.LocalScope,
 	}
-	return dc.RegisterDriver(networkType, &driver{}, c)
+	return r.RegisterDriver(networkType, &driver{}, c)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {

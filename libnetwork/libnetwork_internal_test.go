@@ -576,7 +576,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	}
 	defer c.Stop()
 
-	if err := c.drvRegistry.AddDriver(badDriverName, badDriverInit, nil); err != nil {
+	if err := badDriverRegister(&c.drvRegistry); err != nil {
 		t.Fatal(err)
 	}
 
@@ -643,7 +643,7 @@ type badDriver struct {
 
 var bd = badDriver{failNetworkCreation: true}
 
-func badDriverInit(reg driverapi.DriverCallback, opt map[string]interface{}) error {
+func badDriverRegister(reg driverapi.Registerer) error {
 	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: datastore.LocalScope})
 }
 

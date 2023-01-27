@@ -4,18 +4,32 @@
 package builtin
 
 import (
+	"errors"
+
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams/windowsipam"
 )
 
-// Init registers the built-in ipam service with libnetwork
+// Init registers the built-in ipam services with libnetwork.
+//
+// Deprecated: use [Register].
 func Init(ic ipamapi.Callback, l, g interface{}) error {
-	initFunc := windowsipam.GetInit(windowsipam.DefaultIPAM)
+	if l != nil {
+		return errors.New("non-nil local datastore passed to built-in ipam init")
+	}
 
-	err := initBuiltin(ic, l, g)
-	if err != nil {
+	if g != nil {
+		return errors.New("non-nil global datastore passed to built-in ipam init")
+	}
+
+	return Register(ic)
+}
+
+// Register registers the built-in ipam services with libnetwork.
+func Register(r ipamapi.Registerer) error {
+	if err := registerBuiltin(r); err != nil {
 		return err
 	}
 
-	return initFunc(ic, l, g)
+	return windowsipam.Register(windowsipam.DefaultIPAM, r)
 }

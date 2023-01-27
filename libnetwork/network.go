@@ -916,7 +916,7 @@ func NetworkDeleteOptionRemoveLB(p *networkDeleteParams) {
 	p.rmLBEndpoint = true
 }
 
-func (n *network) resolveDriver(name string, load bool) (driverapi.Driver, *driverapi.Capability, error) {
+func (n *network) resolveDriver(name string, load bool) (driverapi.Driver, driverapi.Capability, error) {
 	c := n.getController()
 
 	// Check if a driver for the specified network type is available
@@ -925,16 +925,16 @@ func (n *network) resolveDriver(name string, load bool) (driverapi.Driver, *driv
 		if load {
 			err := c.loadDriver(name)
 			if err != nil {
-				return nil, nil, err
+				return nil, driverapi.Capability{}, err
 			}
 
 			d, cap = c.drvRegistry.Driver(name)
 			if d == nil {
-				return nil, nil, fmt.Errorf("could not resolve driver %s in registry", name)
+				return nil, driverapi.Capability{}, fmt.Errorf("could not resolve driver %s in registry", name)
 			}
 		} else {
 			// don't fail if driver loading is not required
-			return nil, nil, nil
+			return nil, driverapi.Capability{}, nil
 		}
 	}
 
@@ -957,7 +957,7 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 
 	n.mu.Lock()
 	// If load is not required, driver, cap and err may all be nil
-	if n.scope == "" && cap != nil {
+	if n.scope == "" {
 		n.scope = cap.DataScope
 	}
 	if n.dynamic {
@@ -1772,7 +1772,11 @@ func (n *network) getIPData(ipVer int) []driverapi.IPAMData {
 }
 
 func (n *network) deriveAddressSpace() (string, error) {
-	local, global, err := n.getController().drvRegistry.IPAMDefaultAddressSpaces(n.ipamType)
+	ipam, _ := n.getController().ipamRegistry.IPAM(n.ipamType)
+	if ipam == nil {
+		return "", types.NotFoundErrorf("failed to get default address space: unknown ipam type %q", n.ipamType)
+	}
+	local, global, err := ipam.GetDefaultAddressSpaces()
 	if err != nil {
 		return "", types.NotFoundErrorf("failed to get default address space: %v", err)
 	}

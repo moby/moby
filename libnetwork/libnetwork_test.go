@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Cleanup local datastore file
-	_ = os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+	_ = os.Remove(datastore.DefaultScope("").Client.Address)
 
 	os.Exit(m.Run())
 }

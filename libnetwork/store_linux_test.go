@@ -9,7 +9,7 @@ import (
 )
 
 func TestBoltdbBackend(t *testing.T) {
-	defer os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+	defer os.Remove(datastore.DefaultScope("").Client.Address)
 	testLocalBackend(t, "", "", nil)
 	defer os.Remove("/tmp/boltdb.db")
 	config := &store.Config{Bucket: "testBackend"}
@@ -30,7 +30,7 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.getStore(datastore.LocalScope).KVStore()
+	store := ctrl.getStore().KVStore()
 	if exists, _ := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); exists {
 		t.Fatalf("Network with persist=false should not be stored in KV Store")
 	}

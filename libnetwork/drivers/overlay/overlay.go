@@ -58,8 +58,8 @@ type driver struct {
 	sync.Mutex
 }
 
-// Init registers a new instance of overlay driver
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+// Register registers a new instance of the overlay driver.
+func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
 		ConnectivityScope: datastore.GlobalScope,
@@ -107,7 +107,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		logrus.Warnf("Failure during overlay endpoints restore: %v", err)
 	}
 
-	return dc.RegisterDriver(networkType, d, c)
+	return r.RegisterDriver(networkType, d, c)
 }
 
 // Endpoints are stored in the local store. Restore them and reconstruct the overlay sandbox
@@ -319,7 +319,6 @@ func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
 func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	var err error
 	switch dType {
 	case discoverapi.NodeDiscovery:
 		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
@@ -327,18 +326,6 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 			return fmt.Errorf("invalid discovery data")
 		}
 		d.nodeJoin(nodeData.Address, nodeData.BindAddress, nodeData.Self)
-	case discoverapi.DatastoreConfig:
-		if d.store != nil {
-			return types.ForbiddenErrorf("cannot accept datastore configuration: Overlay driver has a datastore configured already")
-		}
-		dsc, ok := data.(discoverapi.DatastoreConfigData)
-		if !ok {
-			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
-		}
-		d.store, err = datastore.NewDataStoreFromConfig(dsc)
-		if err != nil {
-			return types.InternalErrorf("failed to initialize data store: %v", err)
-		}
 	case discoverapi.EncryptionKeysConfig:
 		encrData, ok := data.(discoverapi.DriverEncryptionConfig)
 		if !ok {

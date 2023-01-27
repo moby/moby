@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -99,45 +98,6 @@ func (h *Handle) IsSet(ordinal uint64) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.bm.IsSet(ordinal)
-}
-
-// CheckConsistency checks if the bit sequence is in an inconsistent state and attempts to fix it.
-// It looks for a corruption signature that may happen in docker 1.9.0 and 1.9.1.
-func (h *Handle) CheckConsistency() error {
-	for {
-		h.mu.Lock()
-		store := h.store
-		h.mu.Unlock()
-
-		if store != nil {
-			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
-				return err
-			}
-		}
-
-		h.mu.Lock()
-		nh := h.getCopy()
-		h.mu.Unlock()
-
-		if !nh.bm.CheckConsistency() {
-			return nil
-		}
-
-		if err := nh.writeToStore(); err != nil {
-			if _, ok := err.(types.RetryError); !ok {
-				return fmt.Errorf("internal failure while fixing inconsistent bitsequence: %v", err)
-			}
-			continue
-		}
-
-		logrus.Infof("Fixed inconsistent bit sequence in datastore:\n%s\n%s", h, nh)
-
-		h.mu.Lock()
-		h.bm = nh.bm
-		h.mu.Unlock()
-
-		return nil
-	}
 }
 
 // set/reset the bit

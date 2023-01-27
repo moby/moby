@@ -36,7 +36,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.getStore(datastore.LocalScope).KVStore()
+	store := ctrl.getStore().KVStore()
 	if exists, err := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); !exists || err != nil {
 		t.Fatalf("Network key should have been created.")
 	}

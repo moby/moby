@@ -4,7 +4,6 @@ package ipamapi
 import (
 	"net"
 
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
 )
@@ -21,14 +20,21 @@ const (
 	RequestAddressType = "RequestAddressType"
 )
 
-// Callback provides a Callback interface for registering an IPAM instance into LibNetwork
+// Registerer provides a callback interface for registering IPAM instances into libnetwork.
+type Registerer interface {
+	// RegisterIpamDriver provides a way for drivers to dynamically register with libnetwork
+	RegisterIpamDriver(name string, driver Ipam) error
+	// RegisterIpamDriverWithCapabilities provides a way for drivers to dynamically register with libnetwork and specify capabilities
+	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
+}
+
+// Callback is a legacy interface for registering an IPAM instance into LibNetwork.
+//
+// The narrower [Registerer] interface is preferred for new code.
 type Callback interface {
+	Registerer
 	// GetPluginGetter returns the pluginv2 getter.
 	GetPluginGetter() plugingetter.PluginGetter
-	// RegisterIpamDriver provides a way for Remote drivers to dynamically register with libnetwork
-	RegisterIpamDriver(name string, driver Ipam) error
-	// RegisterIpamDriverWithCapabilities provides a way for Remote drivers to dynamically register with libnetwork and specify capabilities
-	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
 }
 
 // Well-known errors returned by IPAM
@@ -52,8 +58,6 @@ var (
 // Ipam represents the interface the IPAM service plugins must implement
 // in order to allow injection/modification of IPAM database.
 type Ipam interface {
-	discoverapi.Discover
-
 	// GetDefaultAddressSpaces returns the default local and global address spaces for this ipam
 	GetDefaultAddressSpaces() (string, string, error)
 	// RequestPool returns an address pool along with its unique id. Address space is a mandatory field

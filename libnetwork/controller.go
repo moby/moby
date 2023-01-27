@@ -58,6 +58,7 @@ import (
 	"github.com/docker/docker/libnetwork/diagnostic"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
+	remotedriver "github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -85,10 +86,11 @@ type sandboxTable map[string]*Sandbox
 // Controller manages networks.
 type Controller struct {
 	id               string
-	drvRegistry      *drvregistry.DrvRegistry
+	drvRegistry      drvregistry.Networks
+	ipamRegistry     drvregistry.IPAMs
 	sandboxes        sandboxTable
 	cfg              *config.Config
-	stores           []datastore.DataStore
+	store            datastore.DataStore
 	extKeyListener   net.Listener
 	watchCh          chan *Endpoint
 	unWatchCh        chan *Endpoint
@@ -108,7 +110,7 @@ type Controller struct {
 }
 
 type initializer struct {
-	fn    drvregistry.InitFunc
+	fn    func(driverapi.Registerer, map[string]interface{}) error
 	ntype string
 }
 
@@ -130,30 +132,23 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	drvRegistry, err := drvregistry.New(c.getStore(datastore.LocalScope), c.getStore(datastore.GlobalScope), c.RegisterDriver, nil, c.cfg.PluginGetter)
-	if err != nil {
+	c.drvRegistry.Notify = c.RegisterDriver
+
+	// External plugins don't need config passed through daemon. They can
+	// bootstrap themselves.
+	if err := remotedriver.Register(&c.drvRegistry, c.cfg.PluginGetter); err != nil {
 		return nil, err
 	}
 
 	for _, i := range getInitializers() {
-		var dcfg map[string]interface{}
-
-		// External plugins don't need config passed through daemon. They can
-		// bootstrap themselves
-		if i.ntype != "remote" {
-			dcfg = c.makeDriverConfig(i.ntype)
-		}
-
-		if err := drvRegistry.AddDriver(i.ntype, i.fn, dcfg); err != nil {
+		if err := i.fn(&c.drvRegistry, c.makeDriverConfig(i.ntype)); err != nil {
 			return nil, err
 		}
 	}
 
-	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope), c.cfg.DefaultAddressPool); err != nil {
+	if err := initIPAMDrivers(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {
 		return nil, err
 	}
-
-	c.drvRegistry = drvRegistry
 
 	c.WalkNetworks(populateSpecial)
 
@@ -353,92 +348,18 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 		}
 	}
 
-	for k, v := range c.cfg.Scopes {
-		if !v.IsValid() {
-			continue
-		}
-		cfg[netlabel.MakeKVClient(k)] = discoverapi.DatastoreConfigData{
-			Scope:    k,
-			Provider: v.Client.Provider,
-			Address:  v.Client.Address,
-			Config:   v.Client.Config,
+	if c.cfg.Scope.IsValid() {
+		// FIXME: every driver instance constructs a new DataStore
+		// instance against the same database. Yikes!
+		cfg[netlabel.LocalKVClient] = discoverapi.DatastoreConfigData{
+			Scope:    datastore.LocalScope,
+			Provider: c.cfg.Scope.Client.Provider,
+			Address:  c.cfg.Scope.Client.Address,
+			Config:   c.cfg.Scope.Client.Config,
 		}
 	}
 
 	return cfg
-}
-
-var procReloadConfig = make(chan (bool), 1)
-
-// ReloadConfiguration updates the controller configuration.
-func (c *Controller) ReloadConfiguration(cfgOptions ...config.Option) error {
-	procReloadConfig <- true
-	defer func() { <-procReloadConfig }()
-
-	// For now we accept the configuration reload only as a mean to provide a global store config after boot.
-	// Refuse the configuration if it alters an existing datastore client configuration.
-	update := false
-	cfg := config.New(cfgOptions...)
-
-	for s := range c.cfg.Scopes {
-		if _, ok := cfg.Scopes[s]; !ok {
-			return types.ForbiddenErrorf("cannot accept new configuration because it removes an existing datastore client")
-		}
-	}
-	for s, nSCfg := range cfg.Scopes {
-		if eSCfg, ok := c.cfg.Scopes[s]; ok {
-			if eSCfg.Client.Provider != nSCfg.Client.Provider ||
-				eSCfg.Client.Address != nSCfg.Client.Address {
-				return types.ForbiddenErrorf("cannot accept new configuration because it modifies an existing datastore client")
-			}
-		} else {
-			if err := c.initScopedStore(s, nSCfg); err != nil {
-				return err
-			}
-			update = true
-		}
-	}
-	if !update {
-		return nil
-	}
-
-	c.mu.Lock()
-	c.cfg = cfg
-	c.mu.Unlock()
-
-	var dsConfig *discoverapi.DatastoreConfigData
-	for scope, sCfg := range cfg.Scopes {
-		if scope == datastore.LocalScope || !sCfg.IsValid() {
-			continue
-		}
-		dsConfig = &discoverapi.DatastoreConfigData{
-			Scope:    scope,
-			Provider: sCfg.Client.Provider,
-			Address:  sCfg.Client.Address,
-			Config:   sCfg.Client.Config,
-		}
-		break
-	}
-	if dsConfig == nil {
-		return nil
-	}
-
-	c.drvRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
-		if err != nil {
-			logrus.Errorf("Failed to set datastore in driver %s: %v", name, err)
-		}
-		return false
-	})
-
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
-		if err != nil {
-			logrus.Errorf("Failed to set datastore in driver %s: %v", name, err)
-		}
-		return false
-	})
-	return nil
 }
 
 // ID returns the controller's unique identity.
@@ -461,7 +382,7 @@ func (c *Controller) BuiltinDrivers() []string {
 // BuiltinIPAMDrivers returns the list of builtin ipam drivers.
 func (c *Controller) BuiltinIPAMDrivers() []string {
 	drivers := []string{}
-	c.drvRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
+	c.ipamRegistry.WalkIPAMs(func(name string, driver ipamapi.Ipam, cap *ipamapi.Capability) bool {
 		if driver.IsBuiltIn() {
 			drivers = append(drivers, name)
 		}
@@ -535,7 +456,7 @@ func (c *Controller) isDistributedControl() bool {
 }
 
 func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
-	return c.drvRegistry.GetPluginGetter()
+	return c.cfg.PluginGetter
 }
 
 func (c *Controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
@@ -550,7 +471,7 @@ const overlayDSROptionString = "dsr"
 // are network specific and modeled in a generic way.
 func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
 	var (
-		caps           *driverapi.Capability
+		caps           driverapi.Capability
 		err            error
 		t              *network
 		skipCfgEpCount bool
@@ -770,7 +691,7 @@ var joinCluster NetworkWalker = func(nw Network) bool {
 }
 
 func (c *Controller) reservePools() {
-	networks, err := c.getNetworksForScope(datastore.LocalScope)
+	networks, err := c.getNetworks()
 	if err != nil {
 		logrus.Warnf("Could not retrieve networks from local store during ipam allocation for existing networks: %v", err)
 		return
@@ -1175,7 +1096,7 @@ func (c *Controller) loadIPAMDriver(name string) error {
 }
 
 func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capability, error) {
-	id, cap := c.drvRegistry.IPAM(name)
+	id, cap := c.ipamRegistry.IPAM(name)
 	if id == nil {
 		// Might be a plugin name. Try loading it
 		if err := c.loadIPAMDriver(name); err != nil {
@@ -1183,7 +1104,7 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 		}
 
 		// Now that we resolved the plugin, try again looking up the registry
-		id, cap = c.drvRegistry.IPAM(name)
+		id, cap = c.ipamRegistry.IPAM(name)
 		if id == nil {
 			return nil, nil, types.BadRequestErrorf("invalid ipam driver: %q", name)
 		}

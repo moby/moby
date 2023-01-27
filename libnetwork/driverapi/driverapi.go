@@ -156,12 +156,16 @@ type JoinInfo interface {
 	AddTableEntry(tableName string, key string, value []byte) error
 }
 
+// Registerer provides a way for network drivers to be dynamically registered.
+type Registerer interface {
+	RegisterDriver(name string, driver Driver, capability Capability) error
+}
+
 // DriverCallback provides a Callback interface for Drivers into LibNetwork
 type DriverCallback interface {
+	Registerer
 	// GetPluginGetter returns the pluginv2 getter.
 	GetPluginGetter() plugingetter.PluginGetter
-	// RegisterDriver provides a way for Remote drivers to dynamically register new NetworkType and associate with a driver instance
-	RegisterDriver(name string, driver Driver, capability Capability) error
 }
 
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of

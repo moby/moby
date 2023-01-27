@@ -3,7 +3,6 @@ package windowsipam
 import (
 	"net"
 
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
@@ -24,11 +23,9 @@ var (
 type allocator struct {
 }
 
-// GetInit registers the built-in ipam service with libnetwork
-func GetInit(ipamName string) func(ic ipamapi.Callback, l, g interface{}) error {
-	return func(ic ipamapi.Callback, l, g interface{}) error {
-		return ic.RegisterIpamDriver(ipamName, &allocator{})
-	}
+// Register registers the built-in ipam service with libnetwork
+func Register(ipamName string, r ipamapi.Registerer) error {
+	return r.RegisterIpamDriver(ipamName, &allocator{})
 }
 
 func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
@@ -84,16 +81,6 @@ func (a *allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 // ReleaseAddress releases the address - always succeeds
 func (a *allocator) ReleaseAddress(poolID string, address net.IP) error {
 	logrus.Debugf("ReleaseAddress(%s, %v)", poolID, address)
-	return nil
-}
-
-// DiscoverNew informs the allocator about a new global scope datastore
-func (a *allocator) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
-
-// DiscoverDelete is a notification of no interest for the allocator
-func (a *allocator) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
 

@@ -62,8 +62,8 @@ type network struct {
 	sync.Mutex
 }
 
-// Init initializes and registers the libnetwork ipvlan driver
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+// Register initializes and registers the libnetwork ipvlan driver.
+func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.GlobalScope,
@@ -75,7 +75,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		return err
 	}
 
-	return dc.RegisterDriver(driverName, d, c)
+	return r.RegisterDriver(driverName, d, c)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
