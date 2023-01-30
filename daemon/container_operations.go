@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -25,6 +27,11 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/sirupsen/logrus"
 )
+
+var mutex sync.Mutex
+
+// waiters is the number of waiters waiting to call func connectToNetwork
+var waiters int32
 
 func (daemon *Daemon) getDNSSearchSettings(container *container.Container) []string {
 	if len(container.HostConfig.DNSSearch) > 0 {
@@ -727,8 +734,20 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
-	if containertypes.NetworkMode(idOrName).IsBridge() &&
-		daemon.configStore.DisableBridge {
+
+	isBridge := containertypes.NetworkMode(idOrName).IsBridge()
+	if isBridge {
+		atomic.AddInt32(&waiters, 1)
+		defer func() {
+			atomic.AddInt32(&waiters, -1)
+		}()
+		if atomic.LoadInt32(&waiters) > 1 {
+			mutex.Lock()
+			defer mutex.Unlock()
+		}
+	}
+
+	if isBridge && daemon.configStore.DisableBridge {
 		container.Config.NetworkDisabled = true
 		return nil
 	}
