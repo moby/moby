@@ -25,7 +25,7 @@ require (
 	github.com/bsphere/le_go v0.0.0-20200109081728-fc06dab2caa8
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/containerd/cgroups v1.0.4
-	github.com/containerd/containerd v1.6.15
+	github.com/containerd/containerd v1.6.16
 	github.com/containerd/continuity v0.3.0
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/typeurl v1.0.2
@@ -74,7 +74,7 @@ require (
 	github.com/opencontainers/runc v1.1.3
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/selinux v1.10.2
-	github.com/pelletier/go-toml v1.9.4
+	github.com/pelletier/go-toml v1.9.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/rootless-containers/rootlesskit v1.1.0
