@@ -63,15 +63,10 @@ source "${MAKEDIR}/.go-autogen"
 	fi
 
 	echo "Building $([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "dynamic") $DEST/$BINARY_FULLNAME ($PLATFORM_NAME)..."
-	go build \
-		-o "$DEST/$BINARY_FULLNAME" \
-		"${BUILDFLAGS[@]}" \
-		-ldflags "
-		$LDFLAGS
-		$LDFLAGS_STATIC_DOCKER
-		$DOCKER_LDFLAGS
-	" \
-		${GO_PACKAGE}
+	if [ -n "$DOCKER_DEBUG" ]; then
+		set -x
+	fi
+	go build -o "$DEST/$BINARY_FULLNAME" "${BUILDFLAGS[@]}" -ldflags "$LDFLAGS $LDFLAGS_STATIC $DOCKER_LDFLAGS" ${GO_PACKAGE}
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
