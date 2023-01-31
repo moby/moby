@@ -148,7 +148,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerdtypes.EventExit:
-		if int(ei.Pid) == c.Pid {
+		if ei.ProcessID == libcontainerdtypes.InitProcessName {
 			return daemon.handleContainerExit(c, &ei)
 		}
 
