@@ -17,7 +17,7 @@
 
 # Vagrantfile for Fedora and EL
 Vagrant.configure("2") do |config|
-  config.vm.box = ENV["BOX"] || "fedora/36-cloud-base"
+  config.vm.box = ENV["BOX"] || "fedora/37-cloud-base"
   config.vm.box_version = ENV["BOX_VERSION"]
   memory = 4096
   cpus = 2
@@ -29,6 +29,8 @@ Vagrant.configure("2") do |config|
     v.memory = memory
     v.cpus = cpus
   end
+
+  config.vm.synced_folder ".", "/vagrant", type: "rsync"
 
   # Disabled by default. To run:
   #   vagrant up --provision-with=upgrade-packages
@@ -91,7 +93,7 @@ EOF
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.upload_path = "/tmp/vagrant-install-golang"
     sh.env = {
-        'GO_VERSION': ENV['GO_VERSION'] || "1.18.9",
+        'GO_VERSION': ENV['GO_VERSION'] || "1.18.10",
     }
     sh.inline = <<~SHELL
         #!/usr/bin/env bash
@@ -146,7 +148,8 @@ EOF
         source /etc/environment
         source /etc/profile.d/sh.local
         set -eux -o pipefail
-        ${GOPATH}/src/github.com/containerd/containerd/script/setup/install-cni
+        cd ${GOPATH}/src/github.com/containerd/containerd
+        script/setup/install-cni
         PATH=/opt/cni/bin:$PATH type ${CNI_BINARIES} || true
     SHELL
   end
@@ -212,8 +215,8 @@ EOF
     SHELL
   end
 
-  # SELinux is permissive by default (via provisioning) in this VM. To re-run with SELinux enforcing:
-  #   vagrant up --provision-with=selinux-enforcing,test-integration
+  # SELinux is Enforcing by default (via provisioning) in this VM. To re-run with SELinux disabled:
+  #   SELINUX=Disabled vagrant up --provision-with=selinux,test-integration
   #
   config.vm.provision "test-integration", type: "shell", run: "never" do |sh|
     sh.upload_path = "/tmp/test-integration"
@@ -234,8 +237,8 @@ EOF
     SHELL
   end
 
-  # SELinux is permissive by default (via provisioning) in this VM. To re-run with SELinux enforcing:
-  #   vagrant up --provision-with=selinux-enforcing,test-cri
+  # SELinux is Enforcing by default (via provisioning) in this VM. To re-run with SELinux disabled:
+  #   SELINUX=Disabled vagrant up --provision-with=selinux,test-cri
   #
   config.vm.provision "test-cri", type: "shell", run: "never" do |sh|
     sh.upload_path = "/tmp/test-cri"
@@ -253,6 +256,7 @@ EOF
         function cleanup()
         {
             journalctl -u containerd > /tmp/containerd.log
+            cat /tmp/containerd.log
             systemctl stop containerd
         }
         selinux=$(getenforce)
@@ -291,8 +295,6 @@ EOF
 [registries.search]
 registries = ['docker.io']
 EOF
-        # Disable SELinux to allow overlayfs
-        setenforce 0
     SHELL
   end
 
