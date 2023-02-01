@@ -28,6 +28,7 @@ type State struct {
 	RemovalInProgress bool // Not need for this to be persistent on disk.
 	Dead              bool
 	Pid               int
+	ExitPid           uint32 // record exit process id.
 	ExitCodeValue     int    `json:"ExitCode"`
 	ErrorMsg          string `json:"Error"` // contains last known error during container start, stop, or remove
 	StartedAt         time.Time
