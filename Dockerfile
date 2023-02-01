@@ -7,6 +7,7 @@ ARG XX_VERSION=1.1.2
 
 ARG VPNKIT_VERSION=0.5.0
 ARG DOCKERCLI_VERSION=v17.06.2-ce
+ARG BUILDX_VERSION=0.10.2
 
 ARG SYSTEMD="false"
 ARG DEBIAN_FRONTEND=noninteractive
@@ -438,6 +439,7 @@ FROM binary-dummy AS containerutil-linux
 FROM containerutil-build AS containerutil-windows-amd64
 FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
+FROM docker/buildx-bin:${BUILDX_VERSION} as buildx
 
 FROM base AS dev-systemd-false
 COPY --from=dockercli     /build/ /usr/local/cli
@@ -458,6 +460,7 @@ COPY --from=rootlesskit   /build/ /usr/local/bin/
 COPY --from=vpnkit        /       /usr/local/bin/
 COPY --from=containerutil /build/ /usr/local/bin/
 COPY --from=crun          /build/ /usr/local/bin/
+COPY --from=buildx        /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
 COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
 ENV CONTAINERD_ADDRESS=/run/docker/containerd/containerd.sock
