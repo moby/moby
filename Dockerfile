@@ -12,6 +12,7 @@ ARG DOCKERCLI_VERSION=v24.0.2
 # cli version used for integration-cli tests
 ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v17.06.2-ce
+ARG BUILDX_VERSION=0.10.5
 
 ARG SYSTEMD="false"
 ARG DEBIAN_FRONTEND=noninteractive
@@ -433,6 +434,7 @@ FROM binary-dummy AS containerutil-linux
 FROM containerutil-build AS containerutil-windows-amd64
 FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
+FROM docker/buildx-bin:${BUILDX_VERSION} as buildx
 
 FROM base AS dev-systemd-false
 COPY --link --from=frozen-images /build/ /docker-frozen-images
@@ -458,6 +460,8 @@ COPY --link --from=vpnkit        /       /usr/local/bin/
 COPY --link --from=containerutil /build/ /usr/local/bin/
 COPY --link --from=crun          /build/ /usr/local/bin/
 COPY --link hack/dockerfile/etc/docker/  /etc/docker/
+COPY --link --from=buildx        /buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
+
 ENV PATH=/usr/local/cli:$PATH
 ENV TEST_CLIENT_BINARY=/usr/local/cli-integration/docker
 ENV CONTAINERD_ADDRESS=/run/docker/containerd/containerd.sock
