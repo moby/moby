@@ -460,6 +460,8 @@ COPY --from=containerutil /build/ /usr/local/bin/
 COPY --from=crun          /build/ /usr/local/bin/
 COPY hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
+ENV CONTAINERD_ADDRESS=/run/docker/containerd/containerd.sock
+ENV CONTAINERD_NAMESPACE=moby
 WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 VOLUME /home/unprivilegeduser/.local/share/docker
