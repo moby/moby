@@ -3,7 +3,6 @@ package mounts
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -259,7 +258,7 @@ func (mm *MountManager) getSecretMountable(ctx context.Context, m *pb.Mount, g s
 		}
 		return nil
 	})
-	if err != nil || dt == nil {
+	if err != nil {
 		return nil, err
 	}
 	return &secretMount{mount: m, data: dt, idmap: mm.cm.IdentityMapping()}, nil
@@ -282,7 +281,7 @@ type secretMountInstance struct {
 }
 
 func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
-	dir, err := ioutil.TempDir("", "buildkit-secrets")
+	dir, err := os.MkdirTemp("", "buildkit-secrets")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create temp dir")
 	}
@@ -320,7 +319,7 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, func() error, error) {
 
 	randID := identity.NewID()
 	fp := filepath.Join(dir, randID)
-	if err := ioutil.WriteFile(fp, sm.sm.data, 0600); err != nil {
+	if err := os.WriteFile(fp, sm.sm.data, 0600); err != nil {
 		cleanup()
 		return nil, nil, err
 	}

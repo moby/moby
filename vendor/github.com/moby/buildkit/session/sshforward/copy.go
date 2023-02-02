@@ -1,10 +1,10 @@
 package sshforward
 
 import (
-	io "io"
+	"context"
+	"io"
 
 	"github.com/pkg/errors"
-	context "golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -14,16 +14,24 @@ type Stream interface {
 }
 
 func Copy(ctx context.Context, conn io.ReadWriteCloser, stream Stream, closeStream func() error) error {
+	defer conn.Close()
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() (retErr error) {
 		p := &BytesMessage{}
 		for {
 			if err := stream.RecvMsg(p); err != nil {
-				conn.Close()
 				if err == io.EOF {
+					// indicates client performed CloseSend, but they may still be
+					// reading data
+					if conn, ok := conn.(interface {
+						CloseWrite() error
+					}); ok {
+						conn.CloseWrite()
+					}
 					return nil
 				}
+				conn.Close()
 				return errors.WithStack(err)
 			}
 			select {

@@ -4,6 +4,7 @@
 package buildkit
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -68,7 +69,7 @@ type bridgeProvider struct {
 	Root string
 }
 
-func (p *bridgeProvider) New() (network.Namespace, error) {
+func (p *bridgeProvider) New(ctx context.Context, hostname string) (network.Namespace, error) {
 	n, err := p.NetworkByName(networkName)
 	if err != nil {
 		return nil, err
@@ -80,6 +81,10 @@ func (p *bridgeProvider) New() (network.Namespace, error) {
 	})
 
 	return iface, nil
+}
+
+func (p *bridgeProvider) Close() error {
+	return nil
 }
 
 type lnInterface struct {

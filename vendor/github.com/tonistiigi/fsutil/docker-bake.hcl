@@ -1,5 +1,5 @@
 variable "GO_VERSION" {
-  default = "1.16"
+  default = "1.18"
 }
 
 group "default" {
@@ -63,5 +63,5 @@ target "shfmt" {
 
 target "cross" {
   inherits = ["build"]
-  platforms = ["linux/amd64", "linux/386", "linux/arm64", "linux/arm", "linux/ppc64le", "linux/s390x", "darwin/amd64", "darwin/arm64", "windows/amd64", "freebsd/amd64", "freebsd/arm64"]
+  platforms = ["linux/amd64", "linux/386", "linux/arm64", "linux/arm", "linux/ppc64le", "linux/s390x", "darwin/amd64", "darwin/arm64", "windows/amd64", "windows/arm64", "freebsd/amd64", "freebsd/arm64"]
 }

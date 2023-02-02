@@ -2,8 +2,10 @@ package worker
 
 import (
 	"context"
+	"io"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/leases"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
@@ -17,10 +19,12 @@ import (
 )
 
 type Worker interface {
+	io.Closer
 	// ID needs to be unique in the cluster
 	ID() string
 	Labels() map[string]string
 	Platforms(noCache bool) []ocispecs.Platform
+	BuildkitVersion() client.BuildkitVersion
 
 	GCPolicy() []client.PruneInfo
 	LoadRef(ctx context.Context, id string, hidden bool) (cache.ImmutableRef, error)
@@ -35,6 +39,7 @@ type Worker interface {
 	ContentStore() content.Store
 	Executor() executor.Executor
 	CacheManager() cache.Manager
+	LeaseManager() leases.Manager
 }
 
 type Infos interface {

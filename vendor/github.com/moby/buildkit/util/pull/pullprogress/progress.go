@@ -106,6 +106,8 @@ func trackProgress(ctx context.Context, desc ocispecs.Descriptor, manager PullMa
 		select {
 		case <-ctx.Done():
 			onFinalStatus = true
+			// we need a context for the manager.Status() calls to pass once. after that this function will exit
+			ctx = context.TODO()
 		case <-ticker.C:
 		}
 

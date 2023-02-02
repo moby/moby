@@ -11,13 +11,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/fileutils"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/locker"
+	"github.com/moby/patternmatcher"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
@@ -79,8 +79,8 @@ type includedPath struct {
 	path             string
 	record           *CacheRecord
 	included         bool
-	includeMatchInfo fileutils.MatchInfo
-	excludeMatchInfo fileutils.MatchInfo
+	includeMatchInfo patternmatcher.MatchInfo
+	excludeMatchInfo patternmatcher.MatchInfo
 }
 
 type cacheManager struct {
@@ -496,17 +496,17 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 	endsInSep := len(p) != 0 && p[len(p)-1] == filepath.Separator
 	p = keyPath(p)
 
-	var includePatternMatcher *fileutils.PatternMatcher
+	var includePatternMatcher *patternmatcher.PatternMatcher
 	if len(opts.IncludePatterns) != 0 {
-		includePatternMatcher, err = fileutils.NewPatternMatcher(opts.IncludePatterns)
+		includePatternMatcher, err = patternmatcher.New(opts.IncludePatterns)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid includepatterns: %s", opts.IncludePatterns)
 		}
 	}
 
-	var excludePatternMatcher *fileutils.PatternMatcher
+	var excludePatternMatcher *patternmatcher.PatternMatcher
 	if len(opts.ExcludePatterns) != 0 {
-		excludePatternMatcher, err = fileutils.NewPatternMatcher(opts.ExcludePatterns)
+		excludePatternMatcher, err = patternmatcher.New(opts.ExcludePatterns)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid excludepatterns: %s", opts.ExcludePatterns)
 		}
@@ -695,21 +695,21 @@ func (cc *cacheContext) includedPaths(ctx context.Context, m *mount, p string, o
 
 func shouldIncludePath(
 	candidate string,
-	includePatternMatcher *fileutils.PatternMatcher,
-	excludePatternMatcher *fileutils.PatternMatcher,
+	includePatternMatcher *patternmatcher.PatternMatcher,
+	excludePatternMatcher *patternmatcher.PatternMatcher,
 	maybeIncludedPath *includedPath,
 	parentDir *includedPath,
 ) (bool, error) {
 	var (
 		m         bool
-		matchInfo fileutils.MatchInfo
+		matchInfo patternmatcher.MatchInfo
 		err       error
 	)
 	if includePatternMatcher != nil {
 		if parentDir != nil {
 			m, matchInfo, err = includePatternMatcher.MatchesUsingParentResults(candidate, parentDir.includeMatchInfo)
 		} else {
-			m, matchInfo, err = includePatternMatcher.MatchesUsingParentResults(candidate, fileutils.MatchInfo{})
+			m, matchInfo, err = includePatternMatcher.MatchesUsingParentResults(candidate, patternmatcher.MatchInfo{})
 		}
 		if err != nil {
 			return false, errors.Wrap(err, "failed to match includepatterns")
@@ -724,7 +724,7 @@ func shouldIncludePath(
 		if parentDir != nil {
 			m, matchInfo, err = excludePatternMatcher.MatchesUsingParentResults(candidate, parentDir.excludeMatchInfo)
 		} else {
-			m, matchInfo, err = excludePatternMatcher.MatchesUsingParentResults(candidate, fileutils.MatchInfo{})
+			m, matchInfo, err = excludePatternMatcher.MatchesUsingParentResults(candidate, patternmatcher.MatchInfo{})
 		}
 		if err != nil {
 			return false, errors.Wrap(err, "failed to match excludepatterns")
@@ -799,7 +799,7 @@ func splitWildcards(p string) (d1, d2 string) {
 			p2 = append(p2, p)
 		}
 	}
-	return filepath.Join(p1...), filepath.Join(p2...)
+	return path.Join(p1...), path.Join(p2...)
 }
 
 func containsWildcards(name string) bool {
@@ -1015,7 +1015,7 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retEr
 			Type:     CacheRecordTypeSymlink,
 			Linkname: filepath.ToSlash(link),
 		}
-		k := []byte(filepath.Join("/", filepath.ToSlash(p)))
+		k := []byte(path.Join("/", filepath.ToSlash(p)))
 		k = convertPathToKey(k)
 		txn.Insert(k, cr)
 		return nil
@@ -1024,15 +1024,15 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retEr
 		return err
 	}
 
-	err = filepath.Walk(parentPath, func(path string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(parentPath, func(itemPath string, fi os.FileInfo, err error) error {
 		if err != nil {
-			return errors.Wrapf(err, "failed to walk %s", path)
+			return errors.Wrapf(err, "failed to walk %s", itemPath)
 		}
-		rel, err := filepath.Rel(mp, path)
+		rel, err := filepath.Rel(mp, itemPath)
 		if err != nil {
 			return err
 		}
-		k := []byte(filepath.Join("/", filepath.ToSlash(rel)))
+		k := []byte(path.Join("/", filepath.ToSlash(rel)))
 		if string(k) == "/" {
 			k = []byte{}
 		}
@@ -1043,7 +1043,7 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retEr
 			}
 			if fi.Mode()&os.ModeSymlink != 0 {
 				cr.Type = CacheRecordTypeSymlink
-				link, err := os.Readlink(path)
+				link, err := os.Readlink(itemPath)
 				if err != nil {
 					return err
 				}

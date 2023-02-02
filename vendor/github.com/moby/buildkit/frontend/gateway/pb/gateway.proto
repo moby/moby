@@ -8,6 +8,7 @@ import "github.com/moby/buildkit/solver/pb/ops.proto";
 import "github.com/moby/buildkit/api/types/worker.proto";
 import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
 import "github.com/tonistiigi/fsutil/types/stat.proto";
+import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
 
 
 option (gogoproto.sizer_all) = true;
@@ -25,6 +26,8 @@ service LLBBridge {
 	rpc ReadDir(ReadDirRequest) returns (ReadDirResponse);
 	// apicaps:CapStatFile
 	rpc StatFile(StatFileRequest) returns (StatFileResponse);
+	// apicaps:CapGatewayEvaluate
+	rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
 	rpc Ping(PingRequest) returns (PongResponse);
 	rpc Return(ReturnRequest) returns (ReturnResponse);
 	// apicaps:CapFrontendInputs
@@ -48,6 +51,8 @@ message Result {
 		RefMap refs = 4;
 	}
 	map<string, bytes> metadata = 10;
+	// 11 was used during development and is reserved for old attestation format
+	map<string, Attestations> attestations = 12;
 }
 
 message RefMapDeprecated {
@@ -61,6 +66,39 @@ message Ref {
 
 message RefMap {
 	map<string, Ref> refs = 1;
+}
+
+message Attestations {
+    repeated Attestation attestation = 1;
+}
+
+message Attestation {
+	AttestationKind kind = 1;
+	map<string, bytes> metadata = 2;
+
+	Ref ref = 3;
+	string path = 4;
+	string inTotoPredicateType = 5;
+	repeated InTotoSubject inTotoSubjects = 6;
+}
+
+enum AttestationKind {
+	option (gogoproto.goproto_enum_prefix) = false;
+	InToto = 0 [(gogoproto.enumvalue_customname) = "AttestationKindInToto"];
+	Bundle = 1 [(gogoproto.enumvalue_customname) = "AttestationKindBundle"];
+}
+
+message InTotoSubject {
+	InTotoSubjectKind kind = 1;
+
+	repeated string digest = 2 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string name = 3;
+}
+
+enum InTotoSubjectKind {
+	option (gogoproto.goproto_enum_prefix) = false;
+	Self = 0 [(gogoproto.enumvalue_customname) = "InTotoSubjectKindSelf"];
+	Raw = 1 [(gogoproto.enumvalue_customname) = "InTotoSubjectKindRaw"];
 }
 
 message ReturnRequest {
@@ -83,6 +121,9 @@ message ResolveImageConfigRequest {
 	pb.Platform Platform = 2;
 	string ResolveMode = 3;
 	string LogName = 4;
+	int32 ResolverType = 5;
+	string SessionID = 6;
+	string StoreID = 7;
 }
 
 message ResolveImageConfigResponse {
@@ -94,11 +135,7 @@ message SolveRequest {
 	pb.Definition Definition = 1;
 	string Frontend = 2;
 	map<string, string> FrontendOpt = 3;
-	// ImportCacheRefsDeprecated is deprecated in favor or the new Imports since BuildKit v0.4.0.
-	// When ImportCacheRefsDeprecated is set, the solver appends
-	// {.Type = "registry", .Attrs = {"ref": importCacheRef}}
-	// for each of the ImportCacheRefs entry to CacheImports for compatibility. (planned to be removed)
-	repeated string ImportCacheRefsDeprecated = 4;
+	// 4 was removed in BuildKit v0.11.0.
 	bool allowResultReturn = 5;
 	bool allowResultArrayRef = 6;
 	
@@ -113,6 +150,8 @@ message SolveRequest {
 	map<string, pb.Definition> FrontendInputs = 13;
 
 	bool Evaluate = 14;
+
+	repeated moby.buildkit.v1.sourcepolicy.Policy SourcePolicies = 15;
 }
 
 // CacheOptionsEntry corresponds to the control.CacheOptionsEntry
@@ -163,6 +202,13 @@ message StatFileRequest {
 
 message StatFileResponse {
 	fsutil.types.Stat stat = 1;
+}
+
+message EvaluateRequest {
+	string Ref = 1;
+}
+
+message EvaluateResponse {
 }
 
 message PingRequest{

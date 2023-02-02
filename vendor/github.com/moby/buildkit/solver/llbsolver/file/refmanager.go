@@ -11,12 +11,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewRefManager(cm cache.Manager) *RefManager {
-	return &RefManager{cm: cm}
+func NewRefManager(cm cache.Manager, name string) *RefManager {
+	return &RefManager{cm: cm, desc: name}
 }
 
 type RefManager struct {
-	cm cache.Manager
+	cm   cache.Manager
+	desc string
 }
 
 func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly bool, g session.Group) (_ fileoptypes.Mount, rerr error) {
@@ -33,7 +34,13 @@ func (rm *RefManager) Prepare(ctx context.Context, ref fileoptypes.Ref, readonly
 		return &Mount{m: m, readonly: readonly}, nil
 	}
 
-	mr, err := rm.cm.New(ctx, ir, g, cache.WithDescription("fileop target"), cache.CachePolicyRetain)
+	desc := "fileop target"
+
+	if d := rm.desc; d != "" {
+		desc = d
+	}
+
+	mr, err := rm.cm.New(ctx, ir, g, cache.WithDescription(desc), cache.CachePolicyRetain)
 	if err != nil {
 		return nil, err
 	}

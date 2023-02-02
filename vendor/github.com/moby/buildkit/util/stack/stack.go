@@ -79,7 +79,7 @@ func Enable(err error) error {
 	return err
 }
 
-func Wrap(err error, s Stack) error {
+func Wrap(err error, s *Stack) error {
 	return &withStack{stack: s, error: err}
 }
 
@@ -151,7 +151,7 @@ func convertStack(s errors.StackTrace) *Stack {
 		if idx == -1 {
 			continue
 		}
-		line, err := strconv.Atoi(p[1][idx+1:])
+		line, err := strconv.ParseInt(p[1][idx+1:], 10, 32)
 		if err != nil {
 			continue
 		}
@@ -169,7 +169,7 @@ func convertStack(s errors.StackTrace) *Stack {
 }
 
 type withStack struct {
-	stack Stack
+	stack *Stack
 	error
 }
 
@@ -178,5 +178,5 @@ func (e *withStack) Unwrap() error {
 }
 
 func (e *withStack) StackTrace() *Stack {
-	return &e.stack
+	return e.stack
 }

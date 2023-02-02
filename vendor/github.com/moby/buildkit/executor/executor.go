@@ -23,6 +23,8 @@ type Meta struct {
 	CgroupParent   string
 	NetMode        pb.NetMode
 	SecurityMode   pb.SecurityMode
+
+	RemoveMountStubsRecursive bool
 }
 
 type Mountable interface {

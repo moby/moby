@@ -279,7 +279,7 @@ func (ah *authHandler) doBasicAuth(ctx context.Context) (string, error) {
 	username, secret := ah.common.Username, ah.common.Secret
 
 	if username == "" || secret == "" {
-		return "", fmt.Errorf("failed to handle basic auth because missing username or secret")
+		return "", errors.New("failed to handle basic auth because missing username or secret")
 	}
 
 	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + secret))

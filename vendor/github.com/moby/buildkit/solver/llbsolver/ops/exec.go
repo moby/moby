@@ -17,12 +17,10 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/secrets"
 	"github.com/moby/buildkit/solver"
-	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
+	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
-	"github.com/moby/buildkit/util/progress"
-	"github.com/moby/buildkit/util/progress/controller"
 	"github.com/moby/buildkit/util/progress/logs"
 	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
@@ -35,7 +33,7 @@ import (
 
 const execCacheType = "buildkit.exec.v0"
 
-type execOp struct {
+type ExecOp struct {
 	op          *pb.ExecOp
 	cm          cache.Manager
 	mm          *mounts.MountManager
@@ -45,15 +43,16 @@ type execOp struct {
 	platform    *pb.Platform
 	numInputs   int
 	parallelism *semaphore.Weighted
-	vtx         solver.Vertex
 }
 
-func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, parallelism *semaphore.Weighted, sm *session.Manager, exec executor.Executor, w worker.Worker) (solver.Op, error) {
-	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
+var _ solver.Op = &ExecOp{}
+
+func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, parallelism *semaphore.Weighted, sm *session.Manager, exec executor.Executor, w worker.Worker) (*ExecOp, error) {
+	if err := opsutils.Validate(&pb.Op{Op: op}); err != nil {
 		return nil, err
 	}
 	name := fmt.Sprintf("exec %s", strings.Join(op.Exec.Meta.Args, " "))
-	return &execOp{
+	return &ExecOp{
 		op:          op.Exec,
 		mm:          mounts.NewMountManager(name, cm, sm),
 		cm:          cm,
@@ -63,8 +62,11 @@ func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.
 		w:           w,
 		platform:    platform,
 		parallelism: parallelism,
-		vtx:         v,
 	}, nil
+}
+
+func (e *ExecOp) Proto() *pb.ExecOp {
+	return e.op
 }
 
 func cloneExecOp(old *pb.ExecOp) pb.ExecOp {
@@ -84,7 +86,7 @@ func cloneExecOp(old *pb.ExecOp) pb.ExecOp {
 	return n
 }
 
-func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
+func (e *ExecOp) CacheMap(ctx context.Context, g session.Group, index int) (*solver.CacheMap, bool, error) {
 	op := cloneExecOp(e.op)
 	for i := range op.Meta.ExtraHosts {
 		h := op.Meta.ExtraHosts[i]
@@ -145,14 +147,6 @@ func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
 		}, e.numInputs),
-		Opts: solver.CacheOpts(map[interface{}]interface{}{
-			cache.ProgressKey{}: &controller.Controller{
-				WriterFactory: progress.FromContext(ctx),
-				Digest:        e.vtx.Digest(),
-				Name:          e.vtx.Name(),
-				ProgressGroup: e.vtx.Options().ProgressGroup,
-			},
-		}),
 	}
 
 	deps, err := e.getMountDeps()
@@ -169,9 +163,9 @@ func (e *execOp) CacheMap(ctx context.Context, g session.Group, index int) (*sol
 			cm.Deps[i].Selector = digest.FromBytes(bytes.Join(dgsts, []byte{0}))
 		}
 		if !dep.NoContentBasedHash {
-			cm.Deps[i].ComputeDigestFunc = llbsolver.NewContentHashFunc(toSelectors(dedupePaths(dep.Selectors)))
+			cm.Deps[i].ComputeDigestFunc = opsutils.NewContentHashFunc(toSelectors(dedupePaths(dep.Selectors)))
 		}
-		cm.Deps[i].PreprocessFunc = llbsolver.UnlazyResultFunc
+		cm.Deps[i].PreprocessFunc = unlazyResultFunc
 	}
 
 	return cm, true, nil
@@ -201,10 +195,10 @@ func dedupePaths(inp []string) []string {
 	return paths
 }
 
-func toSelectors(p []string) []llbsolver.Selector {
-	sel := make([]llbsolver.Selector, 0, len(p))
+func toSelectors(p []string) []opsutils.Selector {
+	sel := make([]opsutils.Selector, 0, len(p))
 	for _, p := range p {
-		sel = append(sel, llbsolver.Selector{Path: p, FollowLinks: true})
+		sel = append(sel, opsutils.Selector{Path: p, FollowLinks: true})
 	}
 	return sel
 }
@@ -214,7 +208,7 @@ type dep struct {
 	NoContentBasedHash bool
 }
 
-func (e *execOp) getMountDeps() ([]dep, error) {
+func (e *ExecOp) getMountDeps() ([]dep, error) {
 	deps := make([]dep, e.numInputs)
 	for _, m := range e.op.Mounts {
 		if m.Input == pb.Empty {
@@ -246,7 +240,7 @@ func addDefaultEnvvar(env []string, k, v string) []string {
 	return append(env, k+"="+v)
 }
 
-func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) (results []solver.Result, err error) {
+func (e *ExecOp) Exec(ctx context.Context, g session.Group, inputs []solver.Result) (results []solver.Result, err error) {
 	trace.SpanFromContext(ctx).AddEvent("ExecOp started")
 
 	refs := make([]*worker.WorkerRef, len(inputs))
@@ -325,17 +319,18 @@ func (e *execOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 	}
 
 	meta := executor.Meta{
-		Args:           e.op.Meta.Args,
-		Env:            e.op.Meta.Env,
-		Cwd:            e.op.Meta.Cwd,
-		User:           e.op.Meta.User,
-		Hostname:       e.op.Meta.Hostname,
-		ReadonlyRootFS: p.ReadonlyRootFS,
-		ExtraHosts:     extraHosts,
-		Ulimit:         e.op.Meta.Ulimit,
-		CgroupParent:   e.op.Meta.CgroupParent,
-		NetMode:        e.op.Network,
-		SecurityMode:   e.op.Security,
+		Args:                      e.op.Meta.Args,
+		Env:                       e.op.Meta.Env,
+		Cwd:                       e.op.Meta.Cwd,
+		User:                      e.op.Meta.User,
+		Hostname:                  e.op.Meta.Hostname,
+		ReadonlyRootFS:            p.ReadonlyRootFS,
+		ExtraHosts:                extraHosts,
+		Ulimit:                    e.op.Meta.Ulimit,
+		CgroupParent:              e.op.Meta.CgroupParent,
+		NetMode:                   e.op.Network,
+		SecurityMode:              e.op.Security,
+		RemoveMountStubsRecursive: e.op.Meta.RemoveMountStubsRecursive,
 	}
 
 	if e.op.Meta.ProxyEnv != nil {
@@ -405,7 +400,7 @@ func proxyEnvList(p *pb.ProxyEnv) []string {
 	return out
 }
 
-func (e *execOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
+func (e *ExecOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
 	if e.parallelism == nil {
 		return func() {}, nil
 	}
@@ -418,7 +413,7 @@ func (e *execOp) Acquire(ctx context.Context) (solver.ReleaseFunc, error) {
 	}, nil
 }
 
-func (e *execOp) loadSecretEnv(ctx context.Context, g session.Group) ([]string, error) {
+func (e *ExecOp) loadSecretEnv(ctx context.Context, g session.Group) ([]string, error) {
 	secretenv := e.op.Secretenv
 	if len(secretenv) == 0 {
 		return nil, nil
@@ -447,4 +442,7 @@ func (e *execOp) loadSecretEnv(ctx context.Context, g session.Group) ([]string, 
 		out = append(out, fmt.Sprintf("%s=%s", sopt.Name, string(dt)))
 	}
 	return out, nil
+}
+
+func (e *ExecOp) IsProvenanceProvider() {
 }

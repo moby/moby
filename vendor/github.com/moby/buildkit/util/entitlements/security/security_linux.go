@@ -145,7 +145,7 @@ func getCurrentCaps() ([]string, error) {
 func getAllCaps() ([]string, error) {
 	availableCaps, err := getCurrentCaps()
 	if err != nil {
-		return nil, fmt.Errorf("error getting current capabilities: %s", err)
+		return nil, errors.Errorf("error getting current capabilities: %s", err)
 	}
 
 	// see if any of the base linux35Caps are not available to be granted

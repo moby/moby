@@ -1,10 +1,10 @@
 package instructions
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/moby/buildkit/util/suggest"
+	"github.com/pkg/errors"
 )
 
 // FlagType is the type of the build flag
@@ -88,7 +88,7 @@ func (bf *BFlags) AddStrings(name string) *Flag {
 // Note, any error will be generated when Parse() is called (see Parse).
 func (bf *BFlags) addFlag(name string, flagType FlagType) *Flag {
 	if _, ok := bf.flags[name]; ok {
-		bf.Err = fmt.Errorf("Duplicate flag defined: %s", name)
+		bf.Err = errors.Errorf("Duplicate flag defined: %s", name)
 		return nil
 	}
 
@@ -123,7 +123,8 @@ func (bf *BFlags) Used() []string {
 func (fl *Flag) IsTrue() bool {
 	if fl.flagType != boolType {
 		// Should never get here
-		panic(fmt.Errorf("Trying to use IsTrue on a non-boolean: %s", fl.name))
+		err := errors.Errorf("Trying to use IsTrue on a non-boolean: %s", fl.name)
+		panic(err)
 	}
 	return fl.Value == "true"
 }
@@ -134,19 +135,21 @@ func (fl *Flag) IsTrue() bool {
 // compile time error so it doesn't matter too much when we stop our
 // processing as long as we do stop it, so this allows the code
 // around AddXXX() to be just:
-//     defFlag := AddString("description", "")
+//
+//	defFlag := AddString("description", "")
+//
 // w/o needing to add an if-statement around each one.
 func (bf *BFlags) Parse() error {
 	// If there was an error while defining the possible flags
 	// go ahead and bubble it back up here since we didn't do it
 	// earlier in the processing
 	if bf.Err != nil {
-		return fmt.Errorf("error setting up flags: %s", bf.Err)
+		return errors.Wrap(bf.Err, "error setting up flags")
 	}
 
 	for _, arg := range bf.Args {
 		if !strings.HasPrefix(arg, "--") {
-			return fmt.Errorf("arg should start with -- : %s", arg)
+			return errors.Errorf("arg should start with -- : %s", arg)
 		}
 
 		if arg == "--" {
@@ -164,11 +167,12 @@ func (bf *BFlags) Parse() error {
 
 		flag, ok := bf.flags[arg]
 		if !ok {
-			return suggest.WrapError(fmt.Errorf("unknown flag: %s", arg), arg, allFlags(bf.flags), true)
+			err := errors.Errorf("unknown flag: %s", arg)
+			return suggest.WrapError(err, arg, allFlags(bf.flags), true)
 		}
 
 		if _, ok = bf.used[arg]; ok && flag.flagType != stringsType {
-			return fmt.Errorf("duplicate flag specified: %s", arg)
+			return errors.Errorf("duplicate flag specified: %s", arg)
 		}
 
 		bf.used[arg] = flag
@@ -177,7 +181,7 @@ func (bf *BFlags) Parse() error {
 		case boolType:
 			// value == "" is only ok if no "=" was specified
 			if index >= 0 && value == "" {
-				return fmt.Errorf("missing a value on flag: %s", arg)
+				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 
 			lower := strings.ToLower(value)
@@ -186,18 +190,18 @@ func (bf *BFlags) Parse() error {
 			} else if lower == "true" || lower == "false" {
 				flag.Value = lower
 			} else {
-				return fmt.Errorf("expecting boolean value for flag %s, not: %s", arg, value)
+				return errors.Errorf("expecting boolean value for flag %s, not: %s", arg, value)
 			}
 
 		case stringType:
 			if index < 0 {
-				return fmt.Errorf("missing a value on flag: %s", arg)
+				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.Value = value
 
 		case stringsType:
 			if index < 0 {
-				return fmt.Errorf("missing a value on flag: %s", arg)
+				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.StringValues = append(flag.StringValues, value)
 

@@ -551,9 +551,7 @@ func (md *cacheMetadata) appendStringSlice(key string, values ...string) error {
 		}
 
 		for _, existing := range slice {
-			if _, ok := idx[existing]; ok {
-				delete(idx, existing)
-			}
+			delete(idx, existing)
 		}
 
 		if len(idx) == 0 {

@@ -26,6 +26,7 @@ import (
 	inlineremotecache "github.com/moby/buildkit/cache/remotecache/inline"
 	localremotecache "github.com/moby/buildkit/cache/remotecache/local"
 	"github.com/moby/buildkit/client"
+	bkconfig "github.com/moby/buildkit/cmd/buildkitd/config"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/frontend"
 	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
@@ -38,6 +39,7 @@ import (
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
+	"go.etcd.io/bbolt"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -157,6 +159,11 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
+	historyDB, err := bbolt.Open(filepath.Join(opt.Root, "history.db"), 0o600, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	gcPolicy, err := getGCPolicy(opt.BuilderConfig, root)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get builder GC policy")
@@ -189,6 +196,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Transport:         rt,
 		Layers:            layers,
 		Platforms:         archutil.SupportedPlatforms(true),
+		LeaseManager:      lm,
 	}
 
 	wc := &worker.Controller{}
@@ -203,6 +211,14 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		"gateway.v0":    gateway.NewGatewayFrontend(wc),
 	}
 
+	var hconf *bkconfig.HistoryConfig
+	if opt.BuilderConfig.History != nil {
+		hconf = &bkconfig.HistoryConfig{
+			MaxAge:     opt.BuilderConfig.History.MaxAge,
+			MaxEntries: opt.BuilderConfig.History.MaxEntries,
+		}
+	}
+
 	return control.NewController(control.Opt{
 		SessionManager:   opt.SessionManager,
 		WorkerController: wc,
@@ -215,7 +231,11 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
 			"inline": inlineremotecache.ResolveCacheExporterFunc(),
 		},
-		Entitlements: getEntitlements(opt.BuilderConfig),
+		Entitlements:  getEntitlements(opt.BuilderConfig),
+		LeaseManager:  lm,
+		ContentStore:  store,
+		HistoryDB:     historyDB,
+		HistoryConfig: hconf,
 	})
 }
 

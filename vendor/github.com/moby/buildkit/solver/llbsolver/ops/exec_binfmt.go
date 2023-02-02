@@ -2,7 +2,6 @@ package ops
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,6 +27,7 @@ var qemuArchMap = map[string]string{
 	"riscv64": "riscv64",
 	"arm":     "arm",
 	"s390x":   "s390x",
+	"ppc64":   "ppc64",
 	"ppc64le": "ppc64le",
 	"386":     "i386",
 }
@@ -47,7 +47,7 @@ type staticEmulatorMount struct {
 }
 
 func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
-	tmpdir, err := ioutil.TempDir("", "buildkit-qemu-emulator")
+	tmpdir, err := os.MkdirTemp("", "buildkit-qemu-emulator")
 	if err != nil {
 		return nil, nil, err
 	}

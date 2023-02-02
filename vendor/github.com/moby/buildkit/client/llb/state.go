@@ -199,10 +199,10 @@ func marshal(ctx context.Context, v Vertex, def *Definition, s *sourceMapCollect
 	if opMeta != nil {
 		def.Metadata[dgst] = mergeMetadata(def.Metadata[dgst], *opMeta)
 	}
+	s.Add(dgst, sls)
 	if _, ok := cache[dgst]; ok {
 		return def, nil
 	}
-	s.Add(dgst, sls)
 	def.Def = append(def.Def, dt)
 	cache[dgst] = struct{}{}
 	return def, nil
@@ -455,6 +455,7 @@ type ConstraintsOpt interface {
 	HTTPOption
 	ImageOption
 	GitOption
+	OCILayoutOption
 }
 
 type constraintsOptFunc func(m *Constraints)
@@ -469,6 +470,10 @@ func (fn constraintsOptFunc) SetRunOption(ei *ExecInfo) {
 
 func (fn constraintsOptFunc) SetLocalOption(li *LocalInfo) {
 	li.applyConstraints(fn)
+}
+
+func (fn constraintsOptFunc) SetOCILayoutOption(oi *OCILayoutInfo) {
+	oi.applyConstraints(fn)
 }
 
 func (fn constraintsOptFunc) SetHTTPOption(hi *HTTPInfo) {
@@ -612,6 +617,7 @@ var (
 	LinuxArmel   = Platform(ocispecs.Platform{OS: "linux", Architecture: "arm", Variant: "v6"})
 	LinuxArm64   = Platform(ocispecs.Platform{OS: "linux", Architecture: "arm64"})
 	LinuxS390x   = Platform(ocispecs.Platform{OS: "linux", Architecture: "s390x"})
+	LinuxPpc64   = Platform(ocispecs.Platform{OS: "linux", Architecture: "ppc64"})
 	LinuxPpc64le = Platform(ocispecs.Platform{OS: "linux", Architecture: "ppc64le"})
 	Darwin       = Platform(ocispecs.Platform{OS: "darwin", Architecture: "amd64"})
 	Windows      = Platform(ocispecs.Platform{OS: "windows", Architecture: "amd64"})
@@ -619,9 +625,7 @@ var (
 
 func Require(filters ...string) ConstraintsOpt {
 	return constraintsOptFunc(func(c *Constraints) {
-		for _, f := range filters {
-			c.WorkerConstraints = append(c.WorkerConstraints, f)
-		}
+		c.WorkerConstraints = append(c.WorkerConstraints, filters...)
 	})
 }
 
