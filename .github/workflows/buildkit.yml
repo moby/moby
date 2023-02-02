@@ -52,6 +52,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        worker:
+          - dockerd
+          - dockerd-containerd
         pkg:
           - client
           - cmd/buildctl
@@ -107,5 +110,5 @@ jobs:
           TEST_DOCKERD: "1"
           TEST_DOCKERD_BINARY: "./build/moby/dockerd"
           TESTPKGS: "./${{ matrix.pkg }}"
-          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
+          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=${{ matrix.worker }}$"
         working-directory: buildkit
