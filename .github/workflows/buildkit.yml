@@ -69,13 +69,17 @@ jobs:
       -
         name: BuildKit ref
         run: |
-          echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          # FIXME(tonistiigi) test suite needs patch moby/buildkit#3567
+          # echo "BUILDKIT_REPO=moby/buildkit" >> $GITHUB_ENV
+          # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          echo "BUILDKIT_REPO=tonistiigi/buildkit" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=db67180a1a439efb1547ecf5decd4003ec8f621b" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
         uses: actions/checkout@v3
         with:
-          repository: "moby/buildkit"
+          repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
           path: buildkit
       -
