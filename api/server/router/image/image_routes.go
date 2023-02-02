@@ -93,10 +93,6 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 			}
 		}
 
-		if len(comment) == 0 {
-			comment = "Imported from " + src
-		}
-
 		var layerReader io.ReadCloser
 		defer r.Body.Close()
 		if src == "-" {
@@ -123,7 +119,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		var id image.ID
 		id, progressErr = ir.backend.ImportImage(ctx, ref, platform, comment, layerReader, r.Form["changes"])
 
-		if progressErr == nil {
+		if id != "" {
 			output.Write(streamformatter.FormatStatus("", id.String()))
 		}
 	}
