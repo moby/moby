@@ -188,6 +188,11 @@ func usingMetacopy(d string) (bool, error) {
 	// ...and check if the pulled-up copy is marked as metadata-only
 	xattr, err := system.Lgetxattr(filepath.Join(l2, "f"), overlayutils.GetOverlayXattr("metacopy"))
 	if err != nil {
+		// ENOTSUP signifies the FS does not support either xattrs or metacopy. In either case,
+		// it is not a fatal error, and we should report metacopy as unused.
+		if errors.Is(err, unix.ENOTSUP) {
+			return false, nil
+		}
 		return false, errors.Wrap(err, "metacopy flag was not set on file in the upperdir")
 	}
 	usingMetacopy := xattr != nil
