@@ -461,7 +461,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		}
 	}()
 	t := &task{process: process{
-		id:         libcontainerdtypes.InitProcessName,
+		id:         ctr.id,
 		ctr:        ctr,
 		hcsProcess: newProcess,
 		waitCh:     make(chan struct{}),
@@ -495,7 +495,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	ctr.client.eventQ.Append(ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
-			ProcessID:   libcontainerdtypes.InitProcessName,
+			ProcessID:   t.id,
 			Pid:         pid,
 		}
 		ctr.client.logger.WithFields(logrus.Fields{
@@ -793,7 +793,7 @@ func (t *task) Pause(_ context.Context) error {
 	t.ctr.client.eventQ.Append(t.ctr.id, func() {
 		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
 			ContainerID: t.ctr.id,
-			ProcessID:   libcontainerdtypes.InitProcessName,
+			ProcessID:   t.id,
 		})
 		t.ctr.client.logger.WithFields(logrus.Fields{
 			"container": t.ctr.id,
@@ -834,7 +834,7 @@ func (t *task) Resume(ctx context.Context) error {
 	t.ctr.client.eventQ.Append(t.ctr.id, func() {
 		err := t.ctr.client.backend.ProcessEvent(t.ctr.id, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
 			ContainerID: t.ctr.id,
-			ProcessID:   libcontainerdtypes.InitProcessName,
+			ProcessID:   t.id,
 		})
 		t.ctr.client.logger.WithFields(logrus.Fields{
 			"container": t.ctr.id,
