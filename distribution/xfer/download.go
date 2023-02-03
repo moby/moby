@@ -267,7 +267,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				downloadReader io.ReadCloser
 				size           int64
 				err            error
-				retries        int
+				attempt        int = 1
 			)
 
 			defer descriptor.Close()
@@ -287,16 +287,16 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				default:
 				}
 
-				retries++
-				if _, isDNR := err.(DoNotRetry); isDNR || retries > ldm.maxDownloadAttempts {
-					logrus.Errorf("Download failed after %d attempts: %v", retries, err)
+				if _, isDNR := err.(DoNotRetry); isDNR || attempt >= ldm.maxDownloadAttempts {
+					logrus.Errorf("Download failed after %d attempts: %v", attempt, err)
 					d.err = err
 					return
 				}
 
-				logrus.Infof("Download failed, retrying (%d/%d): %v", retries, ldm.maxDownloadAttempts, err)
-				delay := retries * 5
+				logrus.Infof("Download failed, retrying (%d/%d): %v", attempt, ldm.maxDownloadAttempts, err)
+				delay := attempt * 5
 				ticker := time.NewTicker(ldm.waitDuration)
+				attempt++
 
 			selectLoop:
 				for {

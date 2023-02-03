@@ -216,7 +216,7 @@ func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput pr
 
 	if d.retries < d.simulateRetries {
 		d.retries++
-		return nil, 0, fmt.Errorf("simulating download attempt %d/%d", d.retries, d.simulateRetries)
+		return nil, 0, fmt.Errorf("simulating download attempt failure %d/%d", d.retries, d.simulateRetries)
 	}
 
 	return d.mockTarStream(), 0, nil
@@ -367,25 +367,25 @@ func TestMaxDownloadAttempts(t *testing.T) {
 	}{
 		{
 			name:                "max-attempts=5, succeed at 2nd attempt",
-			simulateRetries:     2,
+			simulateRetries:     1,
 			maxDownloadAttempts: 5,
 		},
 		{
 			name:                "max-attempts=5, succeed at 5th attempt",
+			simulateRetries:     4,
+			maxDownloadAttempts: 5,
+		},
+		{
+			name:                "max-attempts=5, fail at 5th attempt",
 			simulateRetries:     5,
 			maxDownloadAttempts: 5,
+			expectedErr:         "simulating download attempt failure 5/5",
 		},
 		{
-			name:                "max-attempts=5, fail at 6th attempt",
-			simulateRetries:     6,
-			maxDownloadAttempts: 5,
-			expectedErr:         "simulating download attempt 5/6",
-		},
-		{
-			name:                "max-attempts=0, fail after 1 attempt",
+			name:                "max-attempts=1, fail after 1 attempt",
 			simulateRetries:     1,
-			maxDownloadAttempts: 0,
-			expectedErr:         "simulating download attempt 1/1",
+			maxDownloadAttempts: 1,
+			expectedErr:         "simulating download attempt failure 1/1",
 		},
 	}
 	for _, tc := range tests {
