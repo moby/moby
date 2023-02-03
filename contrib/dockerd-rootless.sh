@@ -32,6 +32,10 @@ if ! [ -d "$HOME" ]; then
 	echo "HOME needs to be set and exist."
 	exit 1
 fi
+if [ "$(dockerd-rootless-setuptool.sh check | sed 's/.*\(Requirements are satisfied\).*/\1/')" != "Requirements are satisfied" ]; then
+	echo "Some dependencies are not met."
+	exit 1
+fi
 
 rootlesskit=""
 for f in docker-rootlesskit rootlesskit; do
