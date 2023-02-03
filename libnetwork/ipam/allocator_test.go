@@ -1317,10 +1317,10 @@ func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, s
 	}
 
 	seed := time.Now().Unix()
-	rand.Seed(seed)
+	rng := rand.New(rand.NewSource(seed))
 
 	// Deallocate half of the allocated addresses following a random pattern
-	pattern := rand.Perm(num)
+	pattern := rng.Perm(num)
 	for i := 0; i < num/2; i++ {
 		idx := pattern[i]
 		ip := indices[idx]
@@ -1553,6 +1553,10 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	seed := time.Now().Unix()
+	t.Logf("Random seed: %v", seed)
+	rng := rand.New(rand.NewSource(seed))
+
 	group := new(errgroup.Group)
 	for err == nil {
 		var c *net.IPNet
@@ -1562,7 +1566,7 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 			l.Unlock()
 			allocatedIPs = append(allocatedIPs, c)
 			if len(allocatedIPs) > 500 {
-				i := rand.Intn(len(allocatedIPs) - 1)
+				i := rng.Intn(len(allocatedIPs) - 1)
 				ip := allocatedIPs[i]
 				group.Go(func() error {
 					if err = a.ReleaseAddress(poolID, ip.IP); err != nil {
