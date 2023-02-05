@@ -349,6 +349,9 @@ github.com/coreos/go-systemd/v22/activation
 github.com/coreos/go-systemd/v22/daemon
 github.com/coreos/go-systemd/v22/dbus
 github.com/coreos/go-systemd/v22/journal
+# github.com/cpuguy83/pipes v0.1.1
+## explicit; go 1.16
+github.com/cpuguy83/pipes
 # github.com/creack/pty v1.1.11
 ## explicit; go 1.13
 github.com/creack/pty
