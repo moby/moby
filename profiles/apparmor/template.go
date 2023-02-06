@@ -24,14 +24,12 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   capability,
   file,
   umount,
-{{if ge .Version 208096}}
   # Host (privileged) processes may send signals to container processes.
   signal (receive) peer=unconfined,
   # dockerd may send signals to container processes (for "docker kill").
   signal (receive) peer={{.DaemonProfile}},
   # Container processes may send signals amongst themselves.
   signal (send,receive) peer={{.Name}},
-{{end}}
 
   deny @{PROC}/* w,   # deny write for all files directly in /proc (not in a subdir)
   # deny write to files not in /proc/<number>/** or /proc/sys/**
@@ -51,9 +49,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/firmware/** rwklx,
   deny /sys/kernel/security/** rwklx,
 
-{{if ge .Version 208095}}
   # suppress ptrace denials when using 'docker ps' or using 'ps' inside a container
   ptrace (trace,read,tracedby,readby) peer={{.Name}},
-{{end}}
 }
 `
