@@ -674,7 +674,7 @@ func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventTy
 			}).Error("failed to process event")
 		}
 
-		if et == libcontainerdtypes.EventExit && ei.ProcessID != ei.ContainerID {
+		if et == libcontainerdtypes.EventExit && ei.ProcessID != libcontainerdtypes.InitProcessName {
 			p, err := c.getProcess(ctx, ei.ContainerID, ei.ProcessID)
 			if err != nil {
 
@@ -822,6 +822,9 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 					Pid:         t.Pid,
 					ExitCode:    t.ExitStatus,
 					ExitedAt:    t.ExitedAt,
+				}
+				if t.ID == t.ContainerID {
+					ei.ProcessID = libcontainerdtypes.InitProcessName
 				}
 			case *apievents.TaskOOM:
 				et = libcontainerdtypes.EventOOM
