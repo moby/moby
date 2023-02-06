@@ -78,29 +78,29 @@ func (p *PoolData) String() string {
 		p.ParentKey.String(), p.Pool.String(), p.Range, p.RefCount)
 }
 
-// updatePoolDBOnAdd returns a closure which will add the subnet k to the address space when executed.
-func (aSpace *addrSpace) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *AddressRange, pdf bool) (func() error, error) {
+// allocateSubnet adds the subnet k to the address space.
+func (aSpace *addrSpace) allocateSubnet(k SubnetKey, nw *net.IPNet, ipr *AddressRange, pdf bool) error {
 	aSpace.Lock()
 	defer aSpace.Unlock()
 
 	// Check if already allocated
 	if _, ok := aSpace.subnets[k]; ok {
 		if pdf {
-			return nil, types.InternalMaskableErrorf("predefined pool %s is already reserved", nw)
+			return types.InternalMaskableErrorf("predefined pool %s is already reserved", nw)
 		}
-		// This means the same pool is already allocated. updatePoolDBOnAdd is called when there
+		// This means the same pool is already allocated. allocateSubnet is called when there
 		// is request for a pool/subpool. It should ensure there is no overlap with existing pools
-		return nil, ipamapi.ErrPoolOverlap
+		return ipamapi.ErrPoolOverlap
 	}
 
 	// If master pool, check for overlap
 	if ipr == nil {
 		if aSpace.contains(k.AddressSpace, nw) {
-			return nil, ipamapi.ErrPoolOverlap
+			return ipamapi.ErrPoolOverlap
 		}
 		// This is a new master pool, add it along with corresponding bitmask
 		aSpace.subnets[k] = &PoolData{Pool: nw, RefCount: 1}
-		return func() error { return aSpace.alloc.insertBitMask(k, nw) }, nil
+		return aSpace.alloc.insertBitMask(k, nw)
 	}
 
 	// This is a new non-master pool (subPool)
@@ -116,15 +116,15 @@ func (aSpace *addrSpace) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *Addr
 	pp, ok := aSpace.subnets[p.ParentKey]
 	if ok {
 		aSpace.incRefCount(pp, 1)
-		return func() error { return nil }, nil
+		return nil
 	}
 
 	// Parent pool does not exist, add it along with corresponding bitmask
 	aSpace.subnets[p.ParentKey] = &PoolData{Pool: nw, RefCount: 1}
-	return func() error { return aSpace.alloc.insertBitMask(p.ParentKey, nw) }, nil
+	return aSpace.alloc.insertBitMask(p.ParentKey, nw)
 }
 
-func (aSpace *addrSpace) updatePoolDBOnRemoval(k SubnetKey) error {
+func (aSpace *addrSpace) releaseSubnet(k SubnetKey) error {
 	aSpace.Lock()
 	defer aSpace.Unlock()
 

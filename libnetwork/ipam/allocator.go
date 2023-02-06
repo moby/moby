@@ -89,8 +89,7 @@ retry:
 		return "", nil, nil, err
 	}
 
-	insert, err := aSpace.updatePoolDBOnAdd(*k, nw, ipr, pdf)
-	if err != nil {
+	if err := aSpace.allocateSubnet(*k, nw, ipr, pdf); err != nil {
 		if _, ok := err.(types.MaskableError); ok {
 			logrus.Debugf("Retrying predefined pool search: %v", err)
 			goto retry
@@ -98,7 +97,7 @@ retry:
 		return "", nil, nil, err
 	}
 
-	return k.String(), nw, nil, insert()
+	return k.String(), nw, nil, nil
 }
 
 // ReleasePool releases the address pool identified by the passed id
@@ -114,7 +113,7 @@ func (a *Allocator) ReleasePool(poolID string) error {
 		return err
 	}
 
-	return aSpace.updatePoolDBOnRemoval(k)
+	return aSpace.releaseSubnet(k)
 }
 
 // Given the address space, returns the local or global PoolConfig based on whether the
