@@ -29,6 +29,11 @@ type PoolData struct {
 type addrSpace struct {
 	subnets map[SubnetKey]*PoolData
 	alloc   *Allocator
+
+	// Predefined pool for the address space
+	predefined           []*net.IPNet
+	predefinedStartIndex int
+
 	sync.Mutex
 }
 

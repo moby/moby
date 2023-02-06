@@ -3,7 +3,6 @@ package ipam
 import (
 	"fmt"
 	"net"
-	"sort"
 	"sync"
 
 	"github.com/docker/docker/libnetwork/bitseq"
@@ -19,12 +18,8 @@ const (
 
 // Allocator provides per address space ipv4/ipv6 book keeping
 type Allocator struct {
-	// Predefined pools for default address spaces
-	// Separate from the addrSpace because they should not be serialized
-	predefined             map[string][]*net.IPNet
-	predefinedStartIndices map[string]int
 	// The address spaces
-	addrSpaces map[string]*addrSpace
+	local, global *addrSpace
 	// Allocated addresses in each address space's subnet
 	addresses map[SubnetKey]*bitseq.Handle
 	sync.Mutex
@@ -33,26 +28,20 @@ type Allocator struct {
 // NewAllocator returns an instance of libnetwork ipam
 func NewAllocator(lcAs, glAs []*net.IPNet) (*Allocator, error) {
 	a := &Allocator{
-		predefined: map[string][]*net.IPNet{
-			localAddressSpace:  lcAs,
-			globalAddressSpace: glAs,
-		},
-		predefinedStartIndices: map[string]int{},
-		addresses:              map[SubnetKey]*bitseq.Handle{},
+		addresses: map[SubnetKey]*bitseq.Handle{},
 	}
 
-	a.addrSpaces = map[string]*addrSpace{
-		localAddressSpace:  a.newAddressSpace(),
-		globalAddressSpace: a.newAddressSpace(),
-	}
+	a.local = newAddrSpace(a, lcAs)
+	a.global = newAddrSpace(a, glAs)
 
 	return a, nil
 }
 
-func (a *Allocator) newAddressSpace() *addrSpace {
+func newAddrSpace(a *Allocator, predefined []*net.IPNet) *addrSpace {
 	return &addrSpace{
-		subnets: map[SubnetKey]*PoolData{},
-		alloc:   a,
+		subnets:    map[SubnetKey]*PoolData{},
+		alloc:      a,
+		predefined: predefined,
 	}
 }
 
@@ -121,11 +110,13 @@ func (a *Allocator) ReleasePool(poolID string) error {
 func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	a.Lock()
 	defer a.Unlock()
-	aSpace, ok := a.addrSpaces[as]
-	if !ok {
-		return nil, types.BadRequestErrorf("cannot find address space %s", as)
+	switch as {
+	case localAddressSpace:
+		return a.local, nil
+	case globalAddressSpace:
+		return a.global, nil
 	}
-	return aSpace, nil
+	return nil, types.BadRequestErrorf("cannot find address space %s", as)
 }
 
 // parsePoolRequest parses and validates a request to create a new pool under addressSpace and returns
@@ -214,27 +205,27 @@ func (a *Allocator) retrieveBitmask(k SubnetKey, n *net.IPNet) (*bitseq.Handle, 
 	return bm, nil
 }
 
-func (a *Allocator) getPredefineds(as string) []*net.IPNet {
-	a.Lock()
-	defer a.Unlock()
-
-	p := a.predefined[as]
-	i := a.predefinedStartIndices[as]
+// getPredefineds returns the predefined subnets for the address space.
+//
+// It should not be called concurrently with any other method on the addrSpace.
+func (aSpace *addrSpace) getPredefineds() []*net.IPNet {
+	i := aSpace.predefinedStartIndex
 	// defensive in case the list changed since last update
-	if i >= len(p) {
+	if i >= len(aSpace.predefined) {
 		i = 0
 	}
-	return append(p[i:], p[:i]...)
+	return append(aSpace.predefined[i:], aSpace.predefined[:i]...)
 }
 
-func (a *Allocator) updateStartIndex(as string, amt int) {
-	a.Lock()
-	i := a.predefinedStartIndices[as] + amt
-	if i < 0 || i >= len(a.predefined[as]) {
+// updatePredefinedStartIndex rotates the predefined subnet list by amt.
+//
+// It should not be called concurrently with any other method on the addrSpace.
+func (aSpace *addrSpace) updatePredefinedStartIndex(amt int) {
+	i := aSpace.predefinedStartIndex + amt
+	if i < 0 || i >= len(aSpace.predefined) {
 		i = 0
 	}
-	a.predefinedStartIndices[as] = i
-	a.Unlock()
+	aSpace.predefinedStartIndex = i
 }
 
 func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) {
@@ -244,19 +235,15 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 		v = v6
 	}
 
-	if as != localAddressSpace && as != globalAddressSpace {
+	aSpace, _ := a.getAddrSpace(as)
+	if aSpace == nil {
 		return nil, types.NotImplementedErrorf("no default pool available for non-default address spaces")
 	}
 
-	aSpace, err := a.getAddrSpace(as)
-	if err != nil {
-		return nil, err
-	}
-
-	predefined := a.getPredefineds(as)
-
 	aSpace.Lock()
-	for i, nw := range predefined {
+	defer aSpace.Unlock()
+
+	for i, nw := range aSpace.getPredefineds() {
 		if v != getAddressVersion(nw.IP) {
 			continue
 		}
@@ -267,12 +254,10 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 		// Shouldn't be necessary, but check prevents IP collisions should
 		// predefined pools overlap for any reason.
 		if !aSpace.contains(as, nw) {
-			aSpace.Unlock()
-			a.updateStartIndex(as, i+1)
+			aSpace.updatePredefinedStartIndex(i + 1)
 			return nw, nil
 		}
 	}
-	aSpace.Unlock()
 
 	return nil, types.NotFoundErrorf("could not find an available, non-overlapping IPv%d address pool among the defaults to assign to the network", v)
 }
@@ -426,18 +411,14 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 // DumpDatabase dumps the internal info
 func (a *Allocator) DumpDatabase() string {
 	a.Lock()
-	aspaces := make(map[string]*addrSpace, len(a.addrSpaces))
-	orderedAS := make([]string, 0, len(a.addrSpaces))
-	for as, aSpace := range a.addrSpaces {
-		orderedAS = append(orderedAS, as)
-		aspaces[as] = aSpace
+	aspaces := map[string]*addrSpace{
+		localAddressSpace:  a.local,
+		globalAddressSpace: a.global,
 	}
 	a.Unlock()
 
-	sort.Strings(orderedAS)
-
 	var s string
-	for _, as := range orderedAS {
+	for _, as := range []string{localAddressSpace, globalAddressSpace} {
 		aSpace := aspaces[as]
 		s = fmt.Sprintf("\n\n%s Config", as)
 		aSpace.Lock()
