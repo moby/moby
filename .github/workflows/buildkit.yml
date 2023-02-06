@@ -69,11 +69,10 @@ jobs:
       -
         name: BuildKit ref
         run: |
-          # FIXME(tonistiigi) test suite needs patch moby/buildkit#3567
-          # echo "BUILDKIT_REPO=moby/buildkit" >> $GITHUB_ENV
+          echo "BUILDKIT_REPO=moby/buildkit" >> $GITHUB_ENV
+          # FIXME(thaJeztah) remove when updating BuildKit to v0.11.3
           # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
-          echo "BUILDKIT_REPO=tonistiigi/buildkit" >> $GITHUB_ENV
-          echo "BUILDKIT_REF=db67180a1a439efb1547ecf5decd4003ec8f621b" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=09223a2c58d06e0333b48107be5490397d11e65a" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
