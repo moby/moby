@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -15,11 +14,7 @@ const (
 	v6 = 6
 )
 
-func getAddressRange(pool string, masterNw *net.IPNet) (*AddressRange, error) {
-	ip, nw, err := net.ParseCIDR(pool)
-	if err != nil {
-		return nil, ipamapi.ErrInvalidSubPool
-	}
+func getAddressRange(nw, masterNw *net.IPNet) (*AddressRange, error) {
 	lIP, e := types.GetHostPartIP(nw.IP, masterNw.Mask)
 	if e != nil {
 		return nil, fmt.Errorf("failed to compute range's lowest ip address: %v", e)
@@ -32,7 +27,6 @@ func getAddressRange(pool string, masterNw *net.IPNet) (*AddressRange, error) {
 	if e != nil {
 		return nil, fmt.Errorf("failed to compute range's highest ip address: %v", e)
 	}
-	nw.IP = ip
 	return &AddressRange{nw, ipToUint64(types.GetMinimalIP(lIP)), ipToUint64(types.GetMinimalIP(hIP))}, nil
 }
 

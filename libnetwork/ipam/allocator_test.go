@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/libnetwork/bitseq"
+	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
@@ -48,13 +48,13 @@ func TestGetAddressVersion(t *testing.T) {
 }
 
 func TestKeyString(t *testing.T) {
-	k := &SubnetKey{AddressSpace: "default", Subnet: "172.27.0.0/16"}
+	k := &PoolID{AddressSpace: "default", SubnetKey: SubnetKey{Subnet: "172.27.0.0/16"}}
 	expected := "default/172.27.0.0/16"
 	if expected != k.String() {
 		t.Fatalf("Unexpected key string: %s", k.String())
 	}
 
-	k2 := &SubnetKey{}
+	k2 := &PoolID{}
 	err := k2.FromString(expected)
 	if err != nil {
 		t.Fatal(err)
@@ -158,7 +158,7 @@ func TestAddReleasePoolID(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	var k0, k1 SubnetKey
+	var k0, k1 PoolID
 	_, err = a.getAddrSpace(localAddressSpace)
 	if err != nil {
 		t.Fatal(err)
@@ -166,7 +166,7 @@ func TestAddReleasePoolID(t *testing.T) {
 
 	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
-		t.Fatal("Unexpected failure in adding pool")
+		t.Fatalf("Unexpected failure in adding pool: %v", err)
 	}
 	if err := k0.FromString(pid0); err != nil {
 		t.Fatal(err)
@@ -177,15 +177,13 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets := aSpace.subnets
-
-	if subnets[k0].RefCount != 1 {
-		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	if got := aSpace.subnets[k0.Subnet].autoRelease; got != false {
+		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 
 	pid1, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
 	if err != nil {
-		t.Fatal("Unexpected failure in adding sub pool")
+		t.Fatalf("Unexpected failure in adding sub pool: %v", err)
 	}
 	if err := k1.FromString(pid1); err != nil {
 		t.Fatal(err)
@@ -200,14 +198,13 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets = aSpace.subnets
-	if subnets[k1].RefCount != 1 {
-		t.Fatalf("Unexpected ref count for %s: %d", k1, subnets[k1].RefCount)
+	if got := aSpace.subnets[k1.Subnet].autoRelease; got != false {
+		t.Errorf("Unexpected autoRelease value for %s: %v", k1, got)
 	}
 
 	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
 	if err == nil {
-		t.Fatal("Expected failure in adding sub pool")
+		t.Fatalf("Expected failure in adding sub pool: %v", err)
 	}
 
 	aSpace, err = a.getAddrSpace(localAddressSpace)
@@ -215,10 +212,8 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets = aSpace.subnets
-
-	if subnets[k0].RefCount != 2 {
-		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	if got := aSpace.subnets[k0.Subnet].autoRelease; got != false {
+		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 
 	if err := a.ReleasePool(pid1); err != nil {
@@ -230,20 +225,23 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets = aSpace.subnets
-	if subnets[k0].RefCount != 1 {
-		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	if got := aSpace.subnets[k0.Subnet].autoRelease; got != false {
+		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 	if err := a.ReleasePool(pid0); err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	}
+
+	if _, ok := aSpace.subnets[k0.Subnet]; ok {
+		t.Error("Pool should have been deleted when released")
 	}
 
 	pid00, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
-		t.Fatal("Unexpected failure in adding pool")
+		t.Errorf("Unexpected failure in adding pool: %v", err)
 	}
 	if pid00 != pid0 {
-		t.Fatal("main pool should still exist")
+		t.Errorf("main pool should still exist. Got poolID %q, want %q", pid00, pid0)
 	}
 
 	aSpace, err = a.getAddrSpace(localAddressSpace)
@@ -251,13 +249,12 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets = aSpace.subnets
-	if subnets[k0].RefCount != 1 {
-		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	if got := aSpace.subnets[k0.Subnet].autoRelease; got != false {
+		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 
 	if err := a.ReleasePool(pid00); err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	aSpace, err = a.getAddrSpace(localAddressSpace)
@@ -265,14 +262,13 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets = aSpace.subnets
-	if bp, ok := subnets[k0]; ok {
-		t.Fatalf("Base pool %s is still present: %v", k0, bp)
+	if bp, ok := aSpace.subnets[k0.Subnet]; ok {
+		t.Errorf("Base pool %s is still present: %v", k0, bp)
 	}
 
 	_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
-		t.Fatal("Unexpected failure in adding pool")
+		t.Errorf("Unexpected failure in adding pool: %v", err)
 	}
 
 	aSpace, err = a.getAddrSpace(localAddressSpace)
@@ -280,9 +276,8 @@ func TestAddReleasePoolID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	subnets = aSpace.subnets
-	if subnets[k0].RefCount != 1 {
-		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
+	if got := aSpace.subnets[k0.Subnet].autoRelease; got != false {
+		t.Errorf("Unexpected autoRelease value for %s: %v", k0, got)
 	}
 }
 
@@ -290,24 +285,25 @@ func TestPredefinedPool(t *testing.T) {
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
-	if _, err := a.getPredefinedPool("blue", false); err == nil {
-		t.Fatal("Expected failure for non default addr space")
-	}
-
 	pid, nw, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	nw2, err := a.getPredefinedPool(localAddressSpace, false)
+	pid2, nw2, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if types.CompareIPNet(nw, nw2) {
 		t.Fatalf("Unexpected default network returned: %s = %s", nw2, nw)
 	}
 
 	if err := a.ReleasePool(pid); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.ReleasePool(pid2); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -958,7 +954,7 @@ func TestRelease(t *testing.T) {
 	for i, inp := range toRelease {
 		ip0 := net.ParseIP(inp.address)
 		a.ReleaseAddress(pid, ip0)
-		bm := a.addresses[SubnetKey{localAddressSpace, subnet, ""}]
+		bm := a.local.subnets[subnet].addrs
 		if bm.Unselected() != 1 {
 			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 		}
@@ -978,7 +974,6 @@ func assertGetAddress(t *testing.T, subnet string) {
 	var (
 		err       error
 		printTime = false
-		a         = &Allocator{}
 	)
 
 	_, sub, _ := net.ParseCIDR(subnet)
@@ -986,15 +981,12 @@ func assertGetAddress(t *testing.T, subnet string) {
 	zeroes := bits - ones
 	numAddresses := 1 << uint(zeroes)
 
-	bm, err := bitseq.NewHandle("ipam_test", nil, "default/"+subnet, uint64(numAddresses))
-	if err != nil {
-		t.Fatal(err)
-	}
+	bm := bitmap.New(uint64(numAddresses))
 
 	start := time.Now()
 	run := 0
 	for err != ipamapi.ErrNoAvailableIPs {
-		_, err = a.getAddress(sub, bm, nil, nil, false)
+		_, err = getAddress(sub, bm, nil, nil, false)
 		run++
 	}
 	if printTime {
@@ -1030,6 +1022,9 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 	start := time.Now()
 	for ; i < numReq; i++ {
 		nw, _, err = a.RequestAddress(pid, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	if printTime {
 		fmt.Printf("\nTaken %v, to allocate %d addresses on %s\n", time.Since(start), numReq, subnet)
