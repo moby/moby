@@ -16,7 +16,7 @@ on:
 
 env:
   GO_VERSION: 1.19.5
-  GOTESTLIST_VERSION: v0.2.0
+  GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.3
   ITG_CLI_MATRIX_SIZE: 6
   DOCKER_EXPERIMENTAL: 1
@@ -401,10 +401,12 @@ jobs:
         id: tests
         working-directory: ./integration-cli
         run: |
-          # Distribute integration-cli tests for the matrix in integration-test job.
-          # Also prepend ./... to the matrix. This is a special case to run "Test integration" step exclusively.
-          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} ./...)"
-          matrix="$(echo "$matrix" | jq -c '. |= ["./..."] + .')"
+          # This step creates a matrix for integration-cli tests. Tests suites
+          # are distributed in integration-cli job through a matrix. There is
+          # also overrides being added to the matrix like "./..." to run
+          # "Test integration" step exclusively and specific tests suites that
+          # take a long time to run.
+          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} -o "./..." -o "DockerSwarmSuite" -o "DockerNetworkSuite|DockerExternalVolumeSuite" ./...)"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
       -
         name: Show matrix
