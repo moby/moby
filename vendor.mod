@@ -49,7 +49,7 @@ require (
 	github.com/klauspost/compress v1.15.12
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
-	github.com/moby/buildkit v0.10.6
+	github.com/moby/buildkit v0.10.7-0.20230206124303-b8fdb4b78da0
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.5.0
@@ -103,7 +103,6 @@ require (
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-runc v1.0.0 // indirect
-	github.com/containerd/stargz-snapshotter v0.11.3 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.11.3 // indirect
 	github.com/containerd/ttrpc v1.1.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
@@ -133,6 +132,8 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/onsi/ginkgo v1.16.4 // indirect
+	github.com/onsi/gomega v1.15.0 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
@@ -163,5 +164,6 @@ require (
 	google.golang.org/api v0.93.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 )
