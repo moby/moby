@@ -193,7 +193,12 @@ func (config *configuration) UnmarshalJSON(b []byte) error {
 	config.Mtu = int(nMap["Mtu"].(float64))
 	config.Parent = nMap["Parent"].(string)
 	config.IpvlanMode = nMap["IpvlanMode"].(string)
-	config.IpvlanFlag = nMap["IpvlanFlag"].(string)
+	if v, ok := nMap["IpvlanFlag"]; ok {
+		config.IpvlanFlag = v.(string)
+	} else {
+		// Migrate config from an older daemon which did not have the flag configurable.
+		config.IpvlanFlag = flagBridge
+	}
 	config.Internal = nMap["Internal"].(bool)
 	config.CreatedSlaveLink = nMap["CreatedSubIface"].(bool)
 	if v, ok := nMap["Ipv4Subnets"]; ok {
