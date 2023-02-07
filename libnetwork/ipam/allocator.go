@@ -58,27 +58,52 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	logrus.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
 
-	k, nw, ipr, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
-	if err != nil {
+	parseErr := func(err error) (string, *net.IPNet, map[string]string, error) {
 		return "", nil, nil, types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
 	}
 
-	pdf := k == nil
+	if addressSpace == "" {
+		return parseErr(ipamapi.ErrInvalidAddressSpace)
+	}
+	aSpace, err := a.getAddrSpace(addressSpace)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	k := SubnetKey{AddressSpace: addressSpace}
+
+	if pool == "" && subPool != "" {
+		return parseErr(ipamapi.ErrInvalidSubPool)
+	}
+	pdf := pool == ""
+
+	var (
+		nw  *net.IPNet
+		ipr *AddressRange
+	)
+	if !pdf {
+		if _, nw, err = net.ParseCIDR(pool); err != nil {
+			return parseErr(ipamapi.ErrInvalidPool)
+		}
+		k.Subnet = nw.String()
+		k.ChildSubnet = subPool
+
+		if subPool != "" {
+			if ipr, err = getAddressRange(subPool, nw); err != nil {
+				return parseErr(err)
+			}
+		}
+
+	}
 
 retry:
 	if pdf {
 		if nw, err = a.getPredefinedPool(addressSpace, v6); err != nil {
 			return "", nil, nil, err
 		}
-		k = &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String()}
+		k.Subnet = nw.String()
 	}
 
-	aSpace, err := a.getAddrSpace(addressSpace)
-	if err != nil {
-		return "", nil, nil, err
-	}
-
-	if err := aSpace.allocateSubnet(*k, nw, ipr, pdf); err != nil {
+	if err := aSpace.allocateSubnet(k, nw, ipr, pdf); err != nil {
 		if _, ok := err.(types.MaskableError); ok {
 			logrus.Debugf("Retrying predefined pool search: %v", err)
 			goto retry
@@ -117,40 +142,6 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 		return a.global, nil
 	}
 	return nil, types.BadRequestErrorf("cannot find address space %s", as)
-}
-
-// parsePoolRequest parses and validates a request to create a new pool under addressSpace and returns
-// a SubnetKey, network and range describing the request.
-func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *AddressRange, error) {
-	var (
-		nw  *net.IPNet
-		ipr *AddressRange
-		err error
-	)
-
-	if addressSpace == "" {
-		return nil, nil, nil, ipamapi.ErrInvalidAddressSpace
-	}
-
-	if pool == "" && subPool != "" {
-		return nil, nil, nil, ipamapi.ErrInvalidSubPool
-	}
-
-	if pool == "" {
-		return nil, nil, nil, nil
-	}
-
-	if _, nw, err = net.ParseCIDR(pool); err != nil {
-		return nil, nil, nil, ipamapi.ErrInvalidPool
-	}
-
-	if subPool != "" {
-		if ipr, err = getAddressRange(subPool, nw); err != nil {
-			return nil, nil, nil, err
-		}
-	}
-
-	return &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String(), ChildSubnet: subPool}, nw, ipr, nil
 }
 
 func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
