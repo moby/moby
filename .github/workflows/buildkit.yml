@@ -70,9 +70,7 @@ jobs:
         name: BuildKit ref
         run: |
           echo "BUILDKIT_REPO=moby/buildkit" >> $GITHUB_ENV
-          # FIXME(thaJeztah) remove when updating BuildKit to v0.11.3
-          # echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
-          echo "BUILDKIT_REF=09223a2c58d06e0333b48107be5490397d11e65a" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}

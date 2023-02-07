@@ -56,16 +56,20 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 		return nil, err
 	}
 
+	layerBlobDigests := make([]digest.Digest, len(layers))
+
 	descs2 := map[digest.Digest]v1.DescriptorProviderPair{}
-	for _, k := range layers {
+	for i, k := range layers {
 		if v, ok := descs[k]; ok {
 			descs2[k] = v
+			layerBlobDigests[i] = k
 			continue
 		}
 		// fallback for uncompressed digests
 		for _, v := range descs {
 			if uc := v.Descriptor.Annotations["containerd.io/uncompressed"]; uc == string(k) {
 				descs2[v.Descriptor.Digest] = v
+				layerBlobDigests[i] = v.Descriptor.Digest
 			}
 		}
 	}
@@ -87,7 +91,7 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 
 	// reorder layers based on the order in the image
 	blobIndexes := make(map[digest.Digest]int, len(layers))
-	for i, blob := range layers {
+	for i, blob := range layerBlobDigests {
 		blobIndexes[blob] = i
 	}
 
