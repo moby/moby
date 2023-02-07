@@ -154,7 +154,25 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 
 	img := vars["name"]
 	tag := r.Form.Get("tag")
-	if err := ir.backend.PushImage(ctx, img, tag, metaHeaders, authConfig, output); err != nil {
+
+	var ref reference.Named
+
+	// Tag is empty only in case ImagePushOptions.All is true.
+	if tag != "" {
+		r, err := httputils.RepoTagReference(img, tag)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		ref = r
+	} else {
+		r, err := reference.ParseNormalizedNamed(img)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		ref = r
+	}
+
+	if err := ir.backend.PushImage(ctx, ref, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
