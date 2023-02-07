@@ -72,25 +72,9 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 	} else { // import
 		src := r.Form.Get("fromSrc")
 
-		var ref reference.Named
-		if repo != "" {
-			var err error
-			ref, err = reference.ParseNormalizedNamed(repo)
-			if err != nil {
-				return errdefs.InvalidParameter(err)
-			}
-			if _, isDigested := ref.(reference.Digested); isDigested {
-				return errdefs.InvalidParameter(errors.New("cannot import digest reference"))
-			}
-
-			if tag != "" {
-				ref, err = reference.WithTag(ref, tag)
-				if err != nil {
-					return errdefs.InvalidParameter(err)
-				}
-			} else {
-				ref = reference.TagNameOnly(ref)
-			}
+		tagRef, err := httputils.RepoTagReference(repo, tag)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
 		}
 
 		if len(comment) == 0 {
@@ -121,7 +105,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		}
 
 		var id image.ID
-		id, progressErr = ir.backend.ImportImage(ctx, ref, platform, comment, layerReader, r.Form["changes"])
+		id, progressErr = ir.backend.ImportImage(ctx, tagRef, platform, comment, layerReader, r.Form["changes"])
 
 		if progressErr == nil {
 			output.Write(streamformatter.FormatStatus("", id.String()))
@@ -369,7 +353,18 @@ func (ir *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter,
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if _, err := ir.backend.TagImage(vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
+
+	ref, err := httputils.RepoTagReference(r.Form.Get("repo"), r.Form.Get("tag"))
+	if ref == nil || err != nil {
+		return errdefs.InvalidParameter(err)
+	}
+
+	img, err := ir.backend.GetImage(ctx, vars["name"], opts.GetImageOpts{})
+	if err != nil {
+		return errdefs.NotFound(err)
+	}
+
+	if err := ir.backend.TagImage(ctx, img.ID(), ref); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
@@ -119,6 +120,7 @@ func merge(userConf, imageConf *containertypes.Config) error {
 // applying that config over the existing container config.
 func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string, c *backend.CreateImageConfig) (string, error) {
 	start := time.Now()
+
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return "", err
@@ -169,12 +171,13 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		return "", err
 	}
 
-	var imageRef string
-	if c.Repo != "" {
-		imageRef, err = daemon.imageService.TagImage(string(id), c.Repo, c.Tag)
+	imageRef := ""
+	if c.Tag != nil {
+		err = daemon.imageService.TagImage(ctx, id, c.Tag)
 		if err != nil {
 			return "", err
 		}
+		imageRef = reference.FamiliarString(c.Tag)
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", map[string]string{
 		"comment":  c.Comment,

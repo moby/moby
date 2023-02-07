@@ -48,10 +48,14 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
+	ref, err := httputils.RepoTagReference(r.Form.Get("repo"), r.Form.Get("tag"))
+	if err != nil {
+		return errdefs.InvalidParameter(err)
+	}
+
 	commitCfg := &backend.CreateImageConfig{
 		Pause:   pause,
-		Repo:    r.Form.Get("repo"),
-		Tag:     r.Form.Get("tag"),
+		Tag:     ref,
 		Author:  r.Form.Get("author"),
 		Comment: r.Form.Get("comment"),
 		Config:  config,

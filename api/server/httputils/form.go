@@ -1,9 +1,12 @@
 package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/docker/distribution/reference"
 )
 
 // BoolValue transforms a form value in different formats into a boolean type.
@@ -39,6 +42,38 @@ func Int64ValueOrDefault(r *http.Request, field string, def int64) (int64, error
 		return value, err
 	}
 	return def, nil
+}
+
+// RepoTagReference parses form values "repo" and "tag" and returns a valid
+// reference with repository and tag.
+// If repo is empty, then a nil reference is returned.
+// If no tag is given, then the default "latest" tag is set.
+func RepoTagReference(repo, tag string) (reference.NamedTagged, error) {
+	if repo == "" {
+		return nil, nil
+	}
+
+	ref, err := reference.ParseNormalizedNamed(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, isDigested := ref.(reference.Digested); isDigested {
+		return nil, fmt.Errorf("cannot import digest reference")
+	}
+
+	if tag != "" {
+		return reference.WithTag(ref, tag)
+	}
+
+	withDefaultTag := reference.TagNameOnly(ref)
+
+	namedTagged, ok := withDefaultTag.(reference.NamedTagged)
+	if !ok {
+		return nil, fmt.Errorf("unexpected reference: %q", ref.String())
+	}
+
+	return namedTagged, nil
 }
 
 // ArchiveOptions stores archive information for different operations.

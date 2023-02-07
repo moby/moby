@@ -21,7 +21,7 @@ import (
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
 	SquashImage(from string, to string) (string, error)
-	TagImageWithReference(image.ID, reference.Named) error
+	TagImage(context.Context, image.ID, reference.Named) error
 }
 
 // Builder defines interface for running a build
@@ -93,7 +93,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
 	}
 	if imageID != "" {
-		err = tagImages(b.imageComponent, config.ProgressWriter.StdoutFormatter, image.ID(imageID), tags)
+		err = tagImages(ctx, b.imageComponent, config.ProgressWriter.StdoutFormatter, image.ID(imageID), tags)
 	}
 	return imageID, err
 }

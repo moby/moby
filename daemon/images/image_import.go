@@ -80,7 +80,7 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 	}
 
 	if newRef != nil {
-		if err := i.TagImageWithReference(id, newRef); err != nil {
+		if err := i.TagImage(ctx, id, newRef); err != nil {
 			return "", err
 		}
 	}
