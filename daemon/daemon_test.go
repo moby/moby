@@ -1,18 +1,33 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"io"
+	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -311,5 +326,165 @@ func TestFindNetworkErrorType(t *testing.T) {
 	ok := errors.As(err, &nsn)
 	if !errdefs.IsNotFound(err) || !ok {
 		t.Error("The FindNetwork method MUST always return an error that implements the NotFound interface and is ErrNoSuchNetwork")
+	}
+}
+
+//
+// https://github.com/moby/moby/issues/38386
+//
+
+func getClientCertificate(t *testing.T) (*x509.Certificate, *rsa.PrivateKey) {
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		t.Fatalf("Error generating client certificate: %v.", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName: "foo",
+		},
+		DNSNames: []string{"example.com"},
+
+		NotBefore: time.Now().Add(-time.Minute),
+		NotAfter:  time.Now().Add(time.Minute),
+
+		IsCA:     true,
+		KeyUsage: x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageClientAuth,
+			x509.ExtKeyUsageServerAuth,
+		},
+		BasicConstraintsValid: true,
+	}
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	certBytes, err := x509.CreateCertificate(
+		rand.Reader,
+		template,
+		template,
+		key.Public(),
+		key,
+	)
+	if err != nil {
+		t.Fatalf("Error generating client certificate: %v.", err)
+	}
+	cert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		t.Fatalf("Error parsing client certificate: %v.", err)
+	}
+
+	return cert, key
+}
+
+func TestRegistryHosts(t *testing.T) {
+	tmp, err := os.MkdirTemp("", "certs.d.*")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v.", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	testHookHostCertsDir = func(host string) string {
+		return path.Join(tmp, host)
+	}
+	defer func() {
+		testHookHostCertsDir = nil
+	}()
+
+	cert, key := getClientCertificate(t)
+	cp := x509.NewCertPool()
+	cp.AddCert(cert)
+
+	// Construct a test server.
+	wantStr := "Hello, Client!\n"
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, wantStr)
+	})
+	s := httptest.NewUnstartedServer(h)
+
+	// Server must ensure that the requested client certificate is presented.
+	s.TLS = &tls.Config{
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs:  cp,
+	}
+	s.StartTLS()
+	defer s.Close()
+	uri, _ := url.Parse(s.URL)
+
+	// Populate the host certificate configuration directory for the test server with
+	// the server's certificate as the trust pool and the generated client certificate.
+	certsDir := registryHostCertsDir(uri.Host)
+	os.MkdirAll(certsDir, 0755)
+	certOut, err := os.Create(path.Join(certsDir, "client.cert"))
+	if err != nil {
+		t.Fatalf("Failed to open client.cert for writing: %v", err)
+	}
+	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
+		t.Fatalf("Failed to write data to client.cert: %v", err)
+	}
+	if err := certOut.Close(); err != nil {
+		t.Fatalf("Error closing client.cert: %v", err)
+	}
+
+	certOut, err = os.Create(path.Join(certsDir, "ca.crt"))
+	if err != nil {
+		t.Fatalf("Failed to open client.cert for writing: %v", err)
+	}
+	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: s.Certificate().Raw}); err != nil {
+		t.Fatalf("Failed to write data to ca.crt: %v", err)
+	}
+	if err := certOut.Close(); err != nil {
+		t.Fatalf("Error closing ca.crt: %v", err)
+	}
+
+	keyOut, err := os.OpenFile(
+		path.Join(certsDir, "client.key"),
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+		0600,
+	)
+	if err != nil {
+		t.Fatalf("Failed to open client.key for writing: %v", err)
+	}
+	privBytes, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("Unable to marshal private key: %v", err)
+	}
+	if err := pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}); err != nil {
+		t.Fatalf("Failed to write data to client.key: %v", err)
+	}
+	if err := keyOut.Close(); err != nil {
+		t.Fatalf("Error closing client.key: %v", err)
+	}
+
+	// Actual test starts here. Acquire a registry configuration for the specified host
+	// and ensure that the returned http Client has a valid TLS configuration for the server.
+	d := Daemon{
+		configStore: new(config.Config),
+	}
+	configs, err := d.RegistryHosts()(uri.Host)
+	if err != nil || len(configs) != 1 {
+		t.Errorf(
+			"Daemon{}.RegistryHosts()(%v) = %+v, %v; want one config, nil error",
+			uri.Host,
+			configs,
+			err,
+		)
+	}
+
+	rsp, err := configs[0].Client.Get(uri.String())
+	if err != nil {
+		t.Errorf(
+			"configs[0].Client.Get(uri.String()) = %+v, %v",
+			rsp,
+			err,
+		)
+	}
+	defer rsp.Body.Close()
+	got, err := io.ReadAll(rsp.Body)
+	if err != nil || !cmp.Equal(got, []byte(wantStr)) {
+		t.Errorf(
+			"io.ReadAll(rsp.Body) = %v, %v; want %v, %v",
+			got, err,
+			[]byte(wantStr), nil,
+		)
 	}
 }
