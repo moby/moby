@@ -251,7 +251,11 @@ func (md *cacheMetadata) queueMediaType(str string) error {
 }
 
 func (md *cacheMetadata) getSnapshotID() string {
-	return md.GetString(keySnapshot)
+	sid := md.GetString(keySnapshot)
+	if sid == "" {
+		return md.ID()
+	}
+	return sid
 }
 
 func (md *cacheMetadata) queueSnapshotID(str string) error {
