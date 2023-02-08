@@ -204,7 +204,7 @@ func (a *Allocator) retrieveBitmask(k SubnetKey, n *net.IPNet) (*bitseq.Handle, 
 	bm, ok := a.addresses[k]
 	a.Unlock()
 	if !ok {
-		logrus.Debugf("Retrieving bitmask (%s, %s)", k.String(), n.String())
+		logrus.Debugf("Retrieving bitmask (%s, %s)", k, n)
 		if err := a.insertBitMask(k, n); err != nil {
 			return nil, types.InternalErrorf("could not find bitmask for %s", k.String())
 		}
@@ -380,7 +380,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 		return types.InternalErrorf("could not find bitmask for %s on address %v release from pool %s: %v",
 			k.String(), address, poolID, err)
 	}
-	defer logrus.Debugf("Released address PoolID:%s, Address:%v Sequence:%s", poolID, address, bm.String())
+	defer logrus.Debugf("Released address PoolID:%s, Address:%v Sequence:%s", poolID, address, bm)
 
 	return bm.Unset(ipToUint64(h))
 }
@@ -392,7 +392,7 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 		base    *net.IPNet
 	)
 
-	logrus.Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", nw, bitmask.String(), serial, prefAddress)
+	logrus.Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", nw, bitmask, serial, prefAddress)
 	base = types.GetIPNetCopy(nw)
 
 	if bitmask.Unselected() == 0 {
