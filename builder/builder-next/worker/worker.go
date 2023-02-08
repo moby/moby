@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/layer"
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/moby/buildkit/cache"
+	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/executor"
@@ -36,7 +37,6 @@ import (
 	"github.com/moby/buildkit/source/http"
 	"github.com/moby/buildkit/source/local"
 	"github.com/moby/buildkit/util/archutil"
-	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/opencontainers/go-digest"
@@ -78,6 +78,10 @@ type Worker struct {
 	Opt
 	SourceManager *source.Manager
 }
+
+var _ interface {
+	GetRemotes(context.Context, cache.ImmutableRef, bool, cacheconfig.RefConfig, bool, session.Group) ([]*solver.Remote, error)
+} = &Worker{}
 
 // NewWorker instantiates a local worker
 func NewWorker(opt Opt) (*Worker, error) {
@@ -227,8 +231,11 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 	}
 }
 
-// GetRemote returns a remote snapshot reference for a local one
-func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ compression.Type, s session.Group) (*solver.Remote, error) {
+// GetRemotes returns the remote snapshot references given a local reference
+func (w *Worker) GetRemotes(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool, _ cacheconfig.RefConfig, all bool, s session.Group) ([]*solver.Remote, error) {
+	if ref == nil {
+		return nil, nil
+	}
 	var diffIDs []layer.DiffID
 	var err error
 	if !createIfNeeded {
@@ -258,10 +265,10 @@ func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIf
 		}
 	}
 
-	return &solver.Remote{
+	return []*solver.Remote{{
 		Descriptors: descriptors,
 		Provider:    &emptyProvider{},
-	}, nil
+	}}, nil
 }
 
 // PruneCacheMounts removes the current cache snapshots for specified IDs
