@@ -1,10 +1,12 @@
 package ipam
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math/rand"
 	"net"
+	"runtime"
 	"strconv"
 	"sync"
 	"testing"
@@ -1251,29 +1253,52 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 	t.Logf("Random seed: %v", seed)
 	rng := rand.New(rand.NewSource(seed))
 
-	group := new(errgroup.Group)
-	for err == nil {
+	group, ctx := errgroup.WithContext(context.Background())
+outer:
+	for n := 0; n < 10000; n++ {
 		var c *net.IPNet
-		if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
-			l.Lock()
-			ips = append(ips, IP{c, 1})
-			l.Unlock()
-			allocatedIPs = append(allocatedIPs, c)
-			if len(allocatedIPs) > 500 {
-				i := rng.Intn(len(allocatedIPs) - 1)
-				ip := allocatedIPs[i]
-				group.Go(func() error {
-					if err = a.ReleaseAddress(poolID, ip.IP); err != nil {
-						return err
-					}
-					l.Lock()
-					ips = append(ips, IP{ip, -1})
-					l.Unlock()
-					return nil
-				})
-
-				allocatedIPs = append(allocatedIPs[:i], allocatedIPs[i+1:]...)
+		for {
+			select {
+			case <-ctx.Done():
+				// One of group's goroutines returned an error.
+				break outer
+			default:
 			}
+			if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
+				break
+			}
+			// No addresses available. Spin until one is.
+			runtime.Gosched()
+		}
+		l.Lock()
+		ips = append(ips, IP{c, 1})
+		l.Unlock()
+		allocatedIPs = append(allocatedIPs, c)
+		if len(allocatedIPs) > 500 {
+			i := rng.Intn(len(allocatedIPs) - 1)
+			ip := allocatedIPs[i]
+			allocatedIPs = append(allocatedIPs[:i], allocatedIPs[i+1:]...)
+
+			group.Go(func() error {
+				// The lifetime of an allocated address begins when RequestAddress returns, and
+				// ends when ReleaseAddress is called. But we can't atomically call one of those
+				// methods and append to the log (ips slice) without also synchronizing the
+				// calls with each other. Synchronizing the calls would defeat the whole point
+				// of this test, which is to race ReleaseAddress against RequestAddress. We have
+				// no choice but to leave a small window of uncertainty open. Appending to the
+				// log after ReleaseAddress returns would allow the next RequestAddress call to
+				// race the log-release operation, which could result in the reallocate being
+				// logged before the release, despite the release happening before the
+				// reallocate: a false positive. Our only other option is to append the release
+				// to the log before calling ReleaseAddress, leaving a small race window for
+				// false negatives. False positives mean a flaky test, so let's err on the side
+				// of false negatives. Eventually we'll get lucky with a true-positive test
+				// failure or with Go's race detector if a concurrency bug exists.
+				l.Lock()
+				ips = append(ips, IP{ip, -1})
+				l.Unlock()
+				return a.ReleaseAddress(poolID, ip.IP)
+			})
 		}
 	}
 
