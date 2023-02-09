@@ -49,8 +49,8 @@ func setupDriver(t *testing.T) *driverTester {
 	}
 	defaultPrefix := filepath.Join(os.TempDir(), "libnetwork", "test", "overlay")
 
-	config[netlabel.GlobalKVClient] = discoverapi.DatastoreConfigData{
-		Scope:    datastore.GlobalScope,
+	config[netlabel.LocalKVClient] = discoverapi.DatastoreConfigData{
+		Scope:    datastore.LocalScope,
 		Provider: "boltdb",
 		Address:  filepath.Join(defaultPrefix, filepath.Base(tmp.Name())),
 		Config: &store.Config{
