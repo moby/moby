@@ -2,7 +2,7 @@ package ipam
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"strings"
 	"sync"
 
@@ -19,9 +19,8 @@ type PoolID struct {
 
 // PoolData contains the configured pool data
 type PoolData struct {
-	Pool     *net.IPNet
 	addrs    *bitmap.Bitmap
-	children map[string]struct{}
+	children map[netip.Prefix]struct{}
 
 	// Whether to implicitly release the pool once it no longer has any children.
 	autoRelease bool
@@ -29,37 +28,25 @@ type PoolData struct {
 
 // SubnetKey is the composite key to an address pool within an address space.
 type SubnetKey struct {
-	Subnet, ChildSubnet string
+	Subnet, ChildSubnet netip.Prefix
 }
 
 // addrSpace contains the pool configurations for the address space
 type addrSpace struct {
 	// Master subnet pools, indexed by the value's stringified PoolData.Pool field.
-	subnets map[string]*PoolData
+	subnets map[netip.Prefix]*PoolData
 
 	// Predefined pool for the address space
-	predefined           []*net.IPNet
+	predefined           []netip.Prefix
 	predefinedStartIndex int
 
 	sync.Mutex
 }
 
-// AddressRange specifies first and last ip ordinal which
-// identifies a range in a pool of addresses
-type AddressRange struct {
-	Sub        *net.IPNet
-	Start, End uint64
-}
-
-// String returns the string form of the AddressRange object
-func (r *AddressRange) String() string {
-	return fmt.Sprintf("Sub: %s, range [%d, %d]", r.Sub, r.Start, r.End)
-}
-
 // String returns the string form of the SubnetKey object
 func (s *PoolID) String() string {
 	k := fmt.Sprintf("%s/%s", s.AddressSpace, s.Subnet)
-	if s.ChildSubnet != "" {
+	if s.ChildSubnet != (netip.Prefix{}) {
 		k = fmt.Sprintf("%s/%s", k, s.ChildSubnet)
 	}
 	return k
@@ -75,104 +62,111 @@ func (s *PoolID) FromString(str string) error {
 	if len(p) != 3 && len(p) != 5 {
 		return types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
 	}
-	s.AddressSpace = p[0]
-	s.Subnet = fmt.Sprintf("%s/%s", p[1], p[2])
+	sub, err := netip.ParsePrefix(p[1] + "/" + p[2])
+	if err != nil {
+		return types.BadRequestErrorf("%v", err)
+	}
+	var child netip.Prefix
 	if len(p) == 5 {
-		s.ChildSubnet = fmt.Sprintf("%s/%s", p[3], p[4])
+		child, err = netip.ParsePrefix(p[3] + "/" + p[4])
+		if err != nil {
+			return types.BadRequestErrorf("%v", err)
+		}
 	}
 
+	*s = PoolID{
+		AddressSpace: p[0],
+		SubnetKey: SubnetKey{
+			Subnet:      sub,
+			ChildSubnet: child,
+		},
+	}
 	return nil
 }
 
 // String returns the string form of the PoolData object
 func (p *PoolData) String() string {
-	return fmt.Sprintf("Pool: %s, Children: %d",
-		p.Pool.String(), len(p.children))
+	return fmt.Sprintf("PoolData[Children: %d]", len(p.children))
 }
 
 // allocateSubnet adds the subnet k to the address space.
-func (aSpace *addrSpace) allocateSubnet(nw, sub *net.IPNet) (SubnetKey, error) {
+func (aSpace *addrSpace) allocateSubnet(nw, sub netip.Prefix) error {
 	aSpace.Lock()
 	defer aSpace.Unlock()
 
 	// Check if already allocated
-	if pool, ok := aSpace.subnets[nw.String()]; ok {
+	if pool, ok := aSpace.subnets[nw]; ok {
 		var childExists bool
-		if sub != nil {
-			_, childExists = pool.children[sub.String()]
+		if sub != (netip.Prefix{}) {
+			_, childExists = pool.children[sub]
 		}
-		if sub == nil || childExists {
+		if sub == (netip.Prefix{}) || childExists {
 			// This means the same pool is already allocated. allocateSubnet is called when there
 			// is request for a pool/subpool. It should ensure there is no overlap with existing pools
-			return SubnetKey{}, ipamapi.ErrPoolOverlap
+			return ipamapi.ErrPoolOverlap
 		}
 	}
 
 	return aSpace.allocateSubnetL(nw, sub)
 }
 
-func (aSpace *addrSpace) allocateSubnetL(nw, sub *net.IPNet) (SubnetKey, error) {
+func (aSpace *addrSpace) allocateSubnetL(nw, sub netip.Prefix) error {
 	// If master pool, check for overlap
-	if sub == nil {
+	if sub == (netip.Prefix{}) {
 		if aSpace.contains(nw) {
-			return SubnetKey{}, ipamapi.ErrPoolOverlap
+			return ipamapi.ErrPoolOverlap
 		}
-		k := SubnetKey{Subnet: nw.String()}
 		// This is a new master pool, add it along with corresponding bitmask
-		aSpace.subnets[k.Subnet] = newPoolData(nw)
-		return k, nil
+		aSpace.subnets[nw] = newPoolData(nw)
+		return nil
 	}
 
 	// This is a new non-master pool (subPool)
-
-	_, err := getAddressRange(sub, nw)
-	if err != nil {
-		return SubnetKey{}, err
+	if nw.Addr().BitLen() != sub.Addr().BitLen() {
+		return fmt.Errorf("pool and subpool are of incompatible address families")
 	}
 
-	k := SubnetKey{Subnet: nw.String(), ChildSubnet: sub.String()}
-
 	// Look for parent pool
-	pp, ok := aSpace.subnets[k.Subnet]
+	pp, ok := aSpace.subnets[nw]
 	if !ok {
 		// Parent pool does not exist, add it along with corresponding bitmask
 		pp = newPoolData(nw)
 		pp.autoRelease = true
-		aSpace.subnets[k.Subnet] = pp
+		aSpace.subnets[nw] = pp
 	}
-	pp.children[k.ChildSubnet] = struct{}{}
-	return k, nil
+	pp.children[sub] = struct{}{}
+	return nil
 }
 
-func (aSpace *addrSpace) releaseSubnet(k SubnetKey) error {
+func (aSpace *addrSpace) releaseSubnet(nw, sub netip.Prefix) error {
 	aSpace.Lock()
 	defer aSpace.Unlock()
 
-	p, ok := aSpace.subnets[k.Subnet]
+	p, ok := aSpace.subnets[nw]
 	if !ok {
 		return ipamapi.ErrBadPool
 	}
 
-	if k.ChildSubnet != "" {
-		if _, ok := p.children[k.ChildSubnet]; !ok {
+	if sub != (netip.Prefix{}) {
+		if _, ok := p.children[sub]; !ok {
 			return ipamapi.ErrBadPool
 		}
-		delete(p.children, k.ChildSubnet)
+		delete(p.children, sub)
 	} else {
 		p.autoRelease = true
 	}
 
 	if len(p.children) == 0 && p.autoRelease {
-		delete(aSpace.subnets, k.Subnet)
+		delete(aSpace.subnets, nw)
 	}
 
 	return nil
 }
 
 // contains checks whether nw is a superset or subset of any of the existing subnets in this address space.
-func (aSpace *addrSpace) contains(nw *net.IPNet) bool {
-	for _, v := range aSpace.subnets {
-		if nw.Contains(v.Pool.IP) || v.Pool.Contains(nw.IP) {
+func (aSpace *addrSpace) contains(nw netip.Prefix) bool {
+	for pool := range aSpace.subnets {
+		if nw.Contains(pool.Addr()) || pool.Contains(nw.Addr()) {
 			return true
 		}
 	}

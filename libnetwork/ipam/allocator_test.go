@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/netip"
 	"runtime"
 	"strconv"
 	"sync"
@@ -21,34 +22,8 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestInt2IP2IntConversion(t *testing.T) {
-	for i := uint64(0); i < 256*256*256; i++ {
-		var array [4]byte // new array at each cycle
-		addIntToIP(array[:], i)
-		j := ipToUint64(array[:])
-		if j != i {
-			t.Fatalf("Failed to convert ordinal %d to IP % x and back to ordinal. Got %d", i, array, j)
-		}
-	}
-}
-
-func TestGetAddressVersion(t *testing.T) {
-	if v4 != getAddressVersion(net.ParseIP("172.28.30.112")) {
-		t.Fatal("Failed to detect IPv4 version")
-	}
-	if v4 != getAddressVersion(net.ParseIP("0.0.0.1")) {
-		t.Fatal("Failed to detect IPv4 version")
-	}
-	if v6 != getAddressVersion(net.ParseIP("ff01::1")) {
-		t.Fatal("Failed to detect IPv6 version")
-	}
-	if v6 != getAddressVersion(net.ParseIP("2001:db8::76:51")) {
-		t.Fatal("Failed to detect IPv6 version")
-	}
-}
-
 func TestKeyString(t *testing.T) {
-	k := &PoolID{AddressSpace: "default", SubnetKey: SubnetKey{Subnet: "172.27.0.0/16"}}
+	k := &PoolID{AddressSpace: "default", SubnetKey: SubnetKey{Subnet: netip.MustParsePrefix("172.27.0.0/16")}}
 	expected := "default/172.27.0.0/16"
 	if expected != k.String() {
 		t.Fatalf("Unexpected key string: %s", k.String())
@@ -64,7 +39,7 @@ func TestKeyString(t *testing.T) {
 	}
 
 	expected = fmt.Sprintf("%s/%s", expected, "172.27.3.0/24")
-	k.ChildSubnet = "172.27.3.0/24"
+	k.ChildSubnet = netip.MustParsePrefix("172.27.3.0/24")
 	if expected != k.String() {
 		t.Fatalf("Unexpected key string: %s", k.String())
 	}
@@ -495,7 +470,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(tre, treExp) {
-		t.Fatalf("Unexpected address: %v", tre)
+		t.Fatalf("Unexpected address: want %v, got %v", treExp, tre)
 	}
 
 	uno, _, err := a.RequestAddress(poolID, nil, nil)
@@ -619,7 +594,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(tre, treExp) {
-		t.Fatalf("Unexpected address: %v", tre)
+		t.Fatalf("Unexpected address: want %v, got %v", treExp, tre)
 	}
 
 	uno, _, err := a.RequestAddress(poolID, nil, opts)
@@ -954,7 +929,7 @@ func TestRelease(t *testing.T) {
 	for i, inp := range toRelease {
 		ip0 := net.ParseIP(inp.address)
 		a.ReleaseAddress(pid, ip0)
-		bm := a.local.subnets[subnet].addrs
+		bm := a.local.subnets[netip.MustParsePrefix(subnet)].addrs
 		if bm.Unselected() != 1 {
 			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 		}
@@ -976,8 +951,8 @@ func assertGetAddress(t *testing.T, subnet string) {
 		printTime = false
 	)
 
-	_, sub, _ := net.ParseCIDR(subnet)
-	ones, bits := sub.Mask.Size()
+	sub := netip.MustParsePrefix(subnet)
+	ones, bits := sub.Bits(), sub.Addr().BitLen()
 	zeroes := bits - ones
 	numAddresses := 1 << uint(zeroes)
 
@@ -986,7 +961,7 @@ func assertGetAddress(t *testing.T, subnet string) {
 	start := time.Now()
 	run := 0
 	for err != ipamapi.ErrNoAvailableIPs {
-		_, err = getAddress(sub, bm, nil, nil, false)
+		_, err = getAddress(sub, bm, netip.Addr{}, netip.Prefix{}, false)
 		run++
 	}
 	if printTime {
