@@ -134,8 +134,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		logrus.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
-	d.pushLocalEndpointEvent("join", nid, eid)
-
 	return nil
 }
 
@@ -217,14 +215,6 @@ func (d *driver) Leave(nid, eid string) error {
 
 	if ep == nil {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
-	}
-
-	if d.notifyCh != nil {
-		d.notifyCh <- ovNotify{
-			action: "leave",
-			nw:     n,
-			ep:     ep,
-		}
 	}
 
 	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), true)

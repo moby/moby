@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
@@ -60,7 +59,6 @@ type network struct {
 	dbIndex   uint64
 	dbExists  bool
 	sbox      osl.Sandbox
-	nlSocket  *nl.NetlinkSocket
 	endpoints endpointTable
 	driver    *driver
 	joinCnt   int
@@ -75,11 +73,11 @@ type network struct {
 
 func init() {
 	// Lock main() to the initial thread to exclude the goroutines executing
-	// func (*network).watchMiss() or func setDefaultVLAN() from being
-	// scheduled onto that thread. Changes to the network namespace of the
-	// initial thread alter /proc/self/ns/net, which would break any code
-	// which (incorrectly) assumes that that file is a handle to the network
-	// namespace for the thread it is currently executing on.
+	// func setDefaultVLAN() from being scheduled onto that thread. Changes to
+	// the network namespace of the initial thread alter /proc/self/ns/net,
+	// which would break any code which (incorrectly) assumes that that file is
+	// a handle to the network namespace for the thread it is currently
+	// executing on.
 	runtime.LockOSThread()
 }
 
@@ -350,12 +348,6 @@ func (n *network) destroySandbox() {
 			if err := removeNetworkChain(n.id[:12]); err != nil {
 				logrus.Warnf("could not remove network chain: %v", err)
 			}
-		}
-
-		// Close the netlink socket, this will also release the watchMiss goroutine that is using it
-		if n.nlSocket != nil {
-			n.nlSocket.Close()
-			n.nlSocket = nil
 		}
 
 		n.sbox.Destroy()
@@ -744,131 +736,7 @@ func (n *network) initSandbox(restore bool) error {
 	// this is needed to let the peerAdd configure the sandbox
 	n.sbox = sbox
 
-	// If we are in swarm mode, we don't need anymore the watchMiss routine.
-	// This will save 1 thread and 1 netlink socket per network
-	if !n.driver.isSerfAlive() {
-		return nil
-	}
-
-	var nlSock *nl.NetlinkSocket
-	sbox.InvokeFunc(func() {
-		nlSock, err = nl.Subscribe(unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
-		if err != nil {
-			return
-		}
-		// set the receive timeout to not remain stuck on the RecvFrom if the fd gets closed
-		tv := unix.NsecToTimeval(soTimeout.Nanoseconds())
-		err = nlSock.SetReceiveTimeout(&tv)
-	})
-	n.nlSocket = nlSock
-
-	if err == nil {
-		go n.watchMiss(nlSock, key)
-	} else {
-		logrus.Errorf("failed to subscribe to neighbor group netlink messages for overlay network %s in sbox %s: %v",
-			n.id, sbox.Key(), err)
-	}
-
 	return nil
-}
-
-func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
-	// With the new version of the netlink library the deserialize function makes
-	// requests about the interface of the netlink message. This can succeed only
-	// if this go routine is in the target namespace.
-	origNs, err := netns.Get()
-	if err != nil {
-		logrus.WithError(err).Error("failed to get the initial network namespace")
-		return
-	}
-	defer origNs.Close()
-	newNs, err := netns.GetFromPath(nsPath)
-	if err != nil {
-		logrus.WithError(err).Errorf("failed to get the namespace %s", nsPath)
-		return
-	}
-	defer newNs.Close()
-
-	runtime.LockOSThread()
-	if err = netns.Set(newNs); err != nil {
-		logrus.WithError(err).Errorf("failed to enter the namespace %s", nsPath)
-		runtime.UnlockOSThread()
-		return
-	}
-	defer func() {
-		if err := netns.Set(origNs); err != nil {
-			logrus.WithError(err).Error("failed to restore the thread's initial network namespace")
-			// The error is only fatal for the current thread. Keep this
-			// goroutine locked to the thread to make the runtime replace it
-			// with a clean thread once this goroutine terminates.
-		} else {
-			runtime.UnlockOSThread()
-		}
-	}()
-	for {
-		msgs, _, err := nlSock.Receive()
-		if err != nil {
-			n.Lock()
-			nlFd := nlSock.GetFd()
-			n.Unlock()
-			if nlFd == -1 {
-				// The netlink socket got closed, simply exit to not leak this goroutine
-				return
-			}
-			// When the receive timeout expires the receive will return EAGAIN
-			if err == unix.EAGAIN {
-				// we continue here to avoid spam for timeouts
-				continue
-			}
-			logrus.Errorf("Failed to receive from netlink: %v ", err)
-			continue
-		}
-
-		for _, msg := range msgs {
-			if msg.Header.Type != unix.RTM_GETNEIGH && msg.Header.Type != unix.RTM_NEWNEIGH {
-				continue
-			}
-
-			neigh, err := netlink.NeighDeserialize(msg.Data)
-			if err != nil {
-				logrus.Errorf("Failed to deserialize netlink ndmsg: %v", err)
-				continue
-			}
-
-			var (
-				ip             net.IP
-				mac            net.HardwareAddr
-				l2Miss, l3Miss bool
-			)
-			if neigh.IP.To4() != nil {
-				ip = neigh.IP
-				l3Miss = true
-			} else if neigh.HardwareAddr != nil {
-				mac = []byte(neigh.HardwareAddr)
-				ip = net.IP(mac[2:])
-				l2Miss = true
-			} else {
-				continue
-			}
-
-			// Not any of the network's subnets. Ignore.
-			if !n.contains(ip) {
-				continue
-			}
-
-			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
-				continue
-			}
-
-			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
-			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
-			if err != nil {
-				logrus.Errorf("could not resolve peer %q: %v", ip, err)
-				continue
-			}
-			n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
-		}
-	}
 }
 
 func (d *driver) network(nid string) *network {
@@ -1037,18 +905,6 @@ func (n *network) obtainVxlanID(s *subnet) error {
 		return nil
 	}
 	return fmt.Errorf("no valid vxlan id and no datastore configured, cannot obtain vxlan id")
-}
-
-// contains return true if the passed ip belongs to one the network's
-// subnets
-func (n *network) contains(ip net.IP) bool {
-	for _, s := range n.subnets {
-		if s.subnetIP.Contains(ip) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs

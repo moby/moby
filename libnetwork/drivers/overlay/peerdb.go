@@ -434,15 +434,6 @@ func (d *driver) peerFlushOp(nid string) error {
 	return nil
 }
 
-func (d *driver) pushLocalDb() {
-	d.peerDbWalk(func(nid string, pKey *peerKey, pEntry *peerEntry) bool {
-		if pEntry.isLocal {
-			d.pushLocalEndpointEvent("join", nid, pEntry.eid)
-		}
-		return false
-	})
-}
-
 func (d *driver) peerDBUpdateSelf() {
 	d.peerDbWalk(func(nid string, pkey *peerKey, pEntry *peerEntry) bool {
 		if pEntry.isLocal {

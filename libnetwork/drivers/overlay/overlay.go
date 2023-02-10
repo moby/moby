@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/hashicorp/serf/serf"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,21 +31,15 @@ const (
 var initVxlanIdm = make(chan (bool), 1)
 
 type driver struct {
-	eventCh          chan serf.Event
-	notifyCh         chan ovNotify
-	exitCh           chan chan struct{}
 	bindAddress      string
 	advertiseAddress string
-	neighIP          string
 	config           map[string]interface{}
 	peerDb           peerNetworkMap
 	secMap           *encrMap
-	serfInstance     *serf.Serf
 	networks         networkTable
 	localStore       datastore.DataStore
 	vxlanIdm         *idm.Idm
 	initOS           sync.Once
-	joinOnce         sync.Once
 	localJoinOnce    sync.Once
 	keys             []*key
 	peerOpMu         sync.Mutex
@@ -139,19 +132,6 @@ func (d *driver) restoreEndpoints() error {
 	return nil
 }
 
-// Fini cleans up the driver resources
-func Fini(drv driverapi.Driver) {
-	d := drv.(*driver)
-
-	if d.exitCh != nil {
-		waitCh := make(chan struct{})
-
-		d.exitCh <- waitCh
-
-		<-waitCh
-	}
-}
-
 func (d *driver) configure() error {
 	// Apply OS specific kernel configs if needed
 	d.initOS.Do(applyOStweaks)
@@ -168,7 +148,7 @@ func (d *driver) IsBuiltIn() bool {
 }
 
 func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
-	if self && !d.isSerfAlive() {
+	if self {
 		d.Lock()
 		d.advertiseAddress = advertiseAddress
 		d.bindAddress = bindAddress
@@ -179,52 +159,6 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 		d.localJoinOnce.Do(func() {
 			d.peerDBUpdateSelf()
 		})
-	}
-
-	d.Lock()
-	if !self {
-		d.neighIP = advertiseAddress
-	}
-	neighIP := d.neighIP
-	d.Unlock()
-
-	if d.serfInstance != nil && neighIP != "" {
-		var err error
-		d.joinOnce.Do(func() {
-			err = d.serfJoin(neighIP)
-			if err == nil {
-				d.pushLocalDb()
-			}
-		})
-		if err != nil {
-			logrus.Errorf("joining serf neighbor %s failed: %v", advertiseAddress, err)
-			d.Lock()
-			d.joinOnce = sync.Once{}
-			d.Unlock()
-			return
-		}
-	}
-}
-
-func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
-	n := d.network(nid)
-	if n == nil {
-		logrus.Debugf("Error pushing local endpoint event for network %s", nid)
-		return
-	}
-	ep := n.endpoint(eid)
-	if ep == nil {
-		logrus.Debugf("Error pushing local endpoint event for ep %s / %s", nid, eid)
-		return
-	}
-
-	if !d.isSerfAlive() {
-		return
-	}
-	d.notifyCh <- ovNotify{
-		action: "join",
-		nw:     n,
-		ep:     ep,
 	}
 }
 
