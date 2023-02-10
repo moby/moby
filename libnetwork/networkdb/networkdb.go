@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/docker/docker/libnetwork/types"
@@ -145,12 +146,12 @@ type network struct {
 	tableBroadcasts *memberlist.TransmitLimitedQueue
 
 	// Number of gossip messages sent related to this network during the last stats collection period
-	qMessagesSent int
+	qMessagesSent atomic.Int64
 
 	// Number of entries on the network. This value is the sum of all the entries of all the tables of a specific network.
 	// Its use is for statistics purposes. It keep tracks of database size and is printed per network every StatsPrintPeriod
 	// interval
-	entriesNumber int
+	entriesNumber atomic.Int64
 }
 
 // Config represents the configuration of the networkdb instance and
@@ -613,11 +614,12 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		nDB.networks[nDB.config.NodeID] = nodeNetworks
 	}
 	n, ok := nodeNetworks[nid]
-	var entries int
+	var entries int64
 	if ok {
-		entries = n.entriesNumber
+		entries = n.entriesNumber.Load()
 	}
-	nodeNetworks[nid] = &network{id: nid, ltime: ltime, entriesNumber: entries}
+	nodeNetworks[nid] = &network{id: nid, ltime: ltime}
+	nodeNetworks[nid].entriesNumber.Store(entries)
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
 			//TODO fcrisciani this can be optimized maybe avoiding the lock?
@@ -759,7 +761,7 @@ func (nDB *NetworkDB) createOrUpdateEntry(nid, tname, key string, entry interfac
 		// Add only if it is an insert not an update
 		n, ok := nDB.networks[nDB.config.NodeID][nid]
 		if ok {
-			n.entriesNumber++
+			n.entriesNumber.Add(1)
 		}
 	}
 	return okTable, okNetwork
@@ -774,7 +776,7 @@ func (nDB *NetworkDB) deleteEntry(nid, tname, key string) (okTable bool, okNetwo
 		// Remove only if the delete is successful
 		n, ok := nDB.networks[nDB.config.NodeID][nid]
 		if ok {
-			n.entriesNumber--
+			n.entriesNumber.Add(-1)
 		}
 	}
 	return okTable, okNetwork

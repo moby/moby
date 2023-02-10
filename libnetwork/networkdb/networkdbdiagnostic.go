@@ -438,7 +438,7 @@ func dbNetworkStats(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		entries := -1
 		qLen := -1
 		if ok {
-			entries = network.entriesNumber
+			entries = int(network.entriesNumber.Load())
 			qLen = network.tableBroadcasts.NumQueued()
 		}
 		nDB.RUnlock()
