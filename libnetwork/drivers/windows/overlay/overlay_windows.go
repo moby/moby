@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
@@ -21,12 +20,8 @@ const (
 )
 
 type driver struct {
-	config     map[string]interface{}
-	networks   networkTable
-	store      datastore.DataStore
-	localStore datastore.DataStore
-	once       sync.Once
-	joinOnce   sync.Once
+	config   map[string]interface{}
+	networks networkTable
 	sync.Mutex
 }
 
@@ -40,30 +35,6 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	d := &driver{
 		networks: networkTable{},
 		config:   config,
-	}
-
-	if data, ok := config[netlabel.GlobalKVClient]; ok {
-		var err error
-		dsc, ok := data.(discoverapi.DatastoreConfigData)
-		if !ok {
-			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
-		}
-		d.store, err = datastore.NewDataStoreFromConfig(dsc)
-		if err != nil {
-			return types.InternalErrorf("failed to initialize data store: %v", err)
-		}
-	}
-
-	if data, ok := config[netlabel.LocalKVClient]; ok {
-		var err error
-		dsc, ok := data.(discoverapi.DatastoreConfigData)
-		if !ok {
-			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
-		}
-		d.localStore, err = datastore.NewDataStoreFromConfig(dsc)
-		if err != nil {
-			return types.InternalErrorf("failed to initialize local data store: %v", err)
-		}
 	}
 
 	d.restoreHNSNetworks()
