@@ -263,7 +263,7 @@ func (sb *sandbox) setupDNS() error {
 		// After building the resolv.conf from the user config save the
 		// external resolvers in the sandbox. Note that --dns 127.0.0.x
 		// config refers to the loopback in the container namespace
-		sb.setExternalResolvers(newRC.Content, resolvconf.IPv4, false)
+		sb.setExternalResolvers(newRC.Content, resolvconf.IPv4, len(sb.config.dnsList) == 0)
 	} else {
 		// If the host resolv.conf file has 127.0.0.x container should
 		// use the host resolver for queries. This is supported by the
