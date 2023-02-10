@@ -583,7 +583,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	}
 	for i := 0; i < 2; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(keysWriteDelete, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries number should match")
+		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
 
@@ -594,14 +594,14 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	assert.NilError(t, err)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(keysWriteDelete, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries number should match")
+		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
 	// at this point the entries should had been all deleted
 	time.Sleep(30 * time.Second)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(0, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries should had been garbage collected")
+		assert.Check(t, is.Equal(int64(0), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
 	}
 
@@ -609,7 +609,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	time.Sleep(15 * time.Second)
 	for i := 0; i < 3; i++ {
 		dbs[i].Lock()
-		assert.Check(t, is.Equal(0, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber), "entries should had been garbage collected")
+		assert.Check(t, is.Equal(int64(0), dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
 	}
 
