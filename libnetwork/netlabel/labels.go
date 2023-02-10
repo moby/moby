@@ -32,12 +32,6 @@ const (
 	// DriverMTU constant represents the MTU size for the network driver
 	DriverMTU = DriverPrefix + ".mtu"
 
-	// OverlayBindInterface constant represents overlay driver bind interface
-	OverlayBindInterface = DriverPrefix + ".overlay.bind_interface"
-
-	// OverlayNeighborIP constant represents overlay driver neighbor IP
-	OverlayNeighborIP = DriverPrefix + ".overlay.neighbor_ip"
-
 	// OverlayVxlanIDList constant represents a list of VXLAN Ids as csv
 	OverlayVxlanIDList = DriverPrefix + ".overlay.vxlanid_list"
 
