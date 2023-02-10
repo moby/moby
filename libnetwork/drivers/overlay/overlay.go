@@ -25,8 +25,6 @@ const (
 	networkType  = "overlay"
 	vethPrefix   = "veth"
 	vethLen      = len(vethPrefix) + 7
-	vxlanIDStart = 256
-	vxlanIDEnd   = (1 << 24) - 1
 	vxlanEncap   = 50
 	secureOption = "encrypted"
 )
@@ -45,7 +43,6 @@ type driver struct {
 	secMap           *encrMap
 	serfInstance     *serf.Serf
 	networks         networkTable
-	store            datastore.DataStore
 	localStore       datastore.DataStore
 	vxlanIdm         *idm.Idm
 	initOS           sync.Once
@@ -69,18 +66,6 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		},
 		secMap: &encrMap{nodes: map[string][]*spi{}},
 		config: config,
-	}
-
-	if data, ok := config[netlabel.GlobalKVClient]; ok {
-		var err error
-		dsc, ok := data.(discoverapi.DatastoreConfigData)
-		if !ok {
-			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
-		}
-		d.store, err = datastore.NewDataStoreFromConfig(dsc)
-		if err != nil {
-			return types.InternalErrorf("failed to initialize data store: %v", err)
-		}
 	}
 
 	if data, ok := config[netlabel.LocalKVClient]; ok {
@@ -171,32 +156,6 @@ func (d *driver) configure() error {
 	// Apply OS specific kernel configs if needed
 	d.initOS.Do(applyOStweaks)
 
-	if d.store == nil {
-		return nil
-	}
-
-	if d.vxlanIdm == nil {
-		return d.initializeVxlanIdm()
-	}
-
-	return nil
-}
-
-func (d *driver) initializeVxlanIdm() error {
-	var err error
-
-	initVxlanIdm <- true
-	defer func() { <-initVxlanIdm }()
-
-	if d.vxlanIdm != nil {
-		return nil
-	}
-
-	d.vxlanIdm, err = idm.New(d.store, "vxlan-id", vxlanIDStart, vxlanIDEnd)
-	if err != nil {
-		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
-	}
-
 	return nil
 }
 
@@ -206,25 +165,6 @@ func (d *driver) Type() string {
 
 func (d *driver) IsBuiltIn() bool {
 	return true
-}
-
-func validateSelf(node string) error {
-	advIP := net.ParseIP(node)
-	if advIP == nil {
-		return fmt.Errorf("invalid self address (%s)", node)
-	}
-
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return fmt.Errorf("Unable to get interface addresses %v", err)
-	}
-	for _, addr := range addrs {
-		ip, _, err := net.ParseCIDR(addr.String())
-		if err == nil && ip.Equal(advIP) {
-			return nil
-		}
-	}
-	return fmt.Errorf("Multi-Host overlay networking requires cluster-advertise(%s) to be configured with a local ip-address that is reachable within the cluster", advIP.String())
 }
 
 func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
@@ -239,22 +179,6 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 		d.localJoinOnce.Do(func() {
 			d.peerDBUpdateSelf()
 		})
-
-		// If there is no cluster store there is no need to start serf.
-		if d.store != nil {
-			if err := validateSelf(advertiseAddress); err != nil {
-				logrus.Warn(err.Error())
-			}
-			err := d.serfInit()
-			if err != nil {
-				logrus.Errorf("initializing serf instance failed: %v", err)
-				d.Lock()
-				d.advertiseAddress = ""
-				d.bindAddress = ""
-				d.Unlock()
-				return
-			}
-		}
 	}
 
 	d.Lock()

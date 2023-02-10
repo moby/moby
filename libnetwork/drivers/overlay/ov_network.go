@@ -166,10 +166,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return fmt.Errorf("attempt to create overlay network %v that already exists", n.id)
 	}
 
-	if err := n.writeToStore(); err != nil {
-		return fmt.Errorf("failed to update data store for network %v: %v", n.id, err)
-	}
-
 	// Make sure no rule is on the way from any stale secure network
 	if !n.secure {
 		for _, vni := range vnis {
@@ -213,10 +209,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	// This is similar to d.network(), but we need to keep holding the lock
 	// until we are done removing this network.
-	n, ok := d.networks[nid]
-	if !ok {
-		n = d.restoreNetworkFromStore(nid)
-	}
+	n := d.networks[nid]
 	if n == nil {
 		return fmt.Errorf("could not find network with id %s", nid)
 	}
@@ -878,38 +871,10 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
 	}
 }
 
-// Restore a network from the store to the driver if it is present.
-// Must be called with the driver locked!
-func (d *driver) restoreNetworkFromStore(nid string) *network {
-	n := d.getNetworkFromStore(nid)
-	if n != nil {
-		n.driver = d
-		n.endpoints = endpointTable{}
-		d.networks[nid] = n
-	}
-	return n
-}
-
 func (d *driver) network(nid string) *network {
 	d.Lock()
-	n, ok := d.networks[nid]
-	if !ok {
-		n = d.restoreNetworkFromStore(nid)
-	}
+	n := d.networks[nid]
 	d.Unlock()
-
-	return n
-}
-
-func (d *driver) getNetworkFromStore(nid string) *network {
-	if d.store == nil {
-		return nil
-	}
-
-	n := &network{id: nid}
-	if err := d.store.GetObject(datastore.Key(n.Key()...), n); err != nil {
-		return nil
-	}
 
 	return n
 }
@@ -924,12 +889,6 @@ func (n *network) vxlanID(s *subnet) uint32 {
 	n.Lock()
 	defer n.Unlock()
 	return s.vni
-}
-
-func (n *network) setVxlanID(s *subnet, vni uint32) {
-	n.Lock()
-	s.vni = vni
-	n.Unlock()
 }
 
 func (n *network) Key() []string {
@@ -1047,14 +1006,6 @@ func (n *network) DataScope() string {
 	return datastore.GlobalScope
 }
 
-func (n *network) writeToStore() error {
-	if n.driver.store == nil {
-		return nil
-	}
-
-	return n.driver.store.PutObjectAtomic(n)
-}
-
 func (n *network) releaseVxlanID() ([]uint32, error) {
 	n.Lock()
 	nSubnets := len(n.subnets)
@@ -1063,17 +1014,6 @@ func (n *network) releaseVxlanID() ([]uint32, error) {
 		return nil, nil
 	}
 
-	if n.driver.store != nil {
-		if err := n.driver.store.DeleteObjectAtomic(n); err != nil {
-			if err == datastore.ErrKeyModified || err == datastore.ErrKeyNotFound {
-				// In both the above cases we can safely assume that the key has been removed by some other
-				// instance and so simply get out of here
-				return nil, nil
-			}
-
-			return nil, fmt.Errorf("failed to delete network to vxlan id map: %v", err)
-		}
-	}
 	var vnis []uint32
 	n.Lock()
 	for _, s := range n.subnets {
@@ -1096,35 +1036,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 	if n.vxlanID(s) != 0 {
 		return nil
 	}
-
-	if n.driver.store == nil {
-		return fmt.Errorf("no valid vxlan id and no datastore configured, cannot obtain vxlan id")
-	}
-
-	for {
-		if err := n.driver.store.GetObject(datastore.Key(n.Key()...), n); err != nil {
-			return fmt.Errorf("getting network %q from datastore failed %v", n.id, err)
-		}
-
-		if n.vxlanID(s) == 0 {
-			vxlanID, err := n.driver.vxlanIdm.GetID(true)
-			if err != nil {
-				return fmt.Errorf("failed to allocate vxlan id: %v", err)
-			}
-
-			n.setVxlanID(s, uint32(vxlanID))
-			if err := n.writeToStore(); err != nil {
-				n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
-				n.setVxlanID(s, 0)
-				if err == datastore.ErrKeyModified {
-					continue
-				}
-				return fmt.Errorf("network %q failed to update data store: %v", n.id, err)
-			}
-			return nil
-		}
-		return nil
-	}
+	return fmt.Errorf("no valid vxlan id and no datastore configured, cannot obtain vxlan id")
 }
 
 // contains return true if the passed ip belongs to one the network's

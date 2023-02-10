@@ -128,27 +128,6 @@ func TestOverlayFiniWithoutConfig(t *testing.T) {
 	cleanupDriver(t, dt)
 }
 
-func TestOverlayConfig(t *testing.T) {
-	dt := setupDriver(t)
-
-	time.Sleep(1 * time.Second)
-
-	d := dt.d
-	if d.notifyCh == nil {
-		t.Fatal("Driver notify channel wasn't initialized after Config method")
-	}
-
-	if d.exitCh == nil {
-		t.Fatal("Driver serfloop exit channel wasn't initialized after Config method")
-	}
-
-	if d.serfInstance == nil {
-		t.Fatal("Driver serfinstance  hasn't been initialized after Config method")
-	}
-
-	cleanupDriver(t, dt)
-}
-
 func TestOverlayType(t *testing.T) {
 	dt := &driverTester{t: t}
 	if err := Register(dt, nil); err != nil {
