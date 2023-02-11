@@ -151,7 +151,7 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   Set parent cgroup for all containers. Default is "/docker" for fs cgroup
   driver and "system.slice" for systemd cgroup driver.
 
-**--config-file**="/etc/docker/daemon.json"
+**--config-file**=*"/etc/docker/daemon.json"*
   Specifies the JSON file path to load the configuration from.
 
 **--containerd**=""
@@ -165,7 +165,7 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
 
-**--default-cgroupns-mode**="**host**|**private**"
+**--default-cgroupns-mode**="*host*|*private*"
   Set the default cgroup namespace mode for newly created containers. The argument
   can either be **host** or **private**. If unset, this defaults to `host` on cgroup v1,
 `private` on cgroup v2.
@@ -182,10 +182,10 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
   Example: base=172.30.0.0/16,size=24 will set the default
   address pools for the selected scope networks to {172.30.[0-255].0/24}
 
-**--default-runtime**="runc"
+**--default-runtime**=*"runc"*
   Set default runtime if there're more than one specified by `--add-runtime`.
 
-**--default-ipc-mode**="**private**|**shareable**"
+**--default-ipc-mode**="*private*|*shareable*"
   Set the default IPC mode for newly created containers. The argument
   can either be **private** or **shareable**.
 
