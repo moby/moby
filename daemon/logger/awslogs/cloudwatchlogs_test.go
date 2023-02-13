@@ -1428,7 +1428,7 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	for i := 0; i < times; i++ {
 		line := fmt.Sprintf("%d", i)
 		if i%2 == 0 {
-			timestamp.Add(1 * time.Nanosecond)
+			timestamp = timestamp.Add(1 * time.Nanosecond)
 		}
 		stream.Log(&logger.Message{
 			Line:      []byte(line),
