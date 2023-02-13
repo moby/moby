@@ -103,7 +103,7 @@ func (tr *Reader) next() (*Header, error) {
 			continue // This is a meta header affecting the next header
 		case TypeGNULongName, TypeGNULongLink:
 			format.mayOnlyBe(FormatGNU)
-			realname, err := readSpecialFile(tr)
+			realname, err := io.ReadAll(tr)
 			if err != nil {
 				return nil, err
 			}
@@ -293,7 +293,7 @@ func mergePAX(hdr *Header, paxHdrs map[string]string) (err error) {
 // parsePAX parses PAX headers.
 // If an extended header (type 'x') is invalid, ErrHeader is returned
 func parsePAX(r io.Reader) (map[string]string, error) {
-	buf, err := readSpecialFile(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -336,9 +336,9 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 // header in case further processing is required.
 //
 // The err will be set to io.EOF only when one of the following occurs:
-//	* Exactly 0 bytes are read and EOF is hit.
-//	* Exactly 1 block of zeros is read and EOF is hit.
-//	* At least 2 blocks of zeros are read.
+//   - Exactly 0 bytes are read and EOF is hit.
+//   - Exactly 1 block of zeros is read and EOF is hit.
+//   - At least 2 blocks of zeros are read.
 func (tr *Reader) readHeader() (*Header, *block, error) {
 	// Two blocks of zero bytes marks the end of the archive.
 	if _, err := io.ReadFull(tr.r, tr.blk[:]); err != nil {
@@ -826,16 +826,6 @@ func tryReadFull(r io.Reader, b []byte) (n int, err error) {
 		err = nil
 	}
 	return n, err
-}
-
-// readSpecialFile is like io.ReadAll except it returns
-// ErrFieldTooLong if more than maxSpecialFileSize is read.
-func readSpecialFile(r io.Reader) ([]byte, error) {
-	buf, err := io.ReadAll(io.LimitReader(r, maxSpecialFileSize+1))
-	if len(buf) > maxSpecialFileSize {
-		return nil, ErrFieldTooLong
-	}
-	return buf, err
 }
 
 // discard skips n bytes in r, reporting an error if unable to do so.

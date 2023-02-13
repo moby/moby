@@ -199,9 +199,6 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 			flag = TypeXHeader
 		}
 		data := buf.String()
-		if len(data) > maxSpecialFileSize {
-			return ErrFieldTooLong
-		}
 		if err := tw.writeRawFile(name, data, flag, FormatPAX); err != nil || isGlobal {
 			return err // Global headers return here
 		}
