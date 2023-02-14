@@ -267,6 +267,9 @@ RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
 RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
 RUN ldconfig
+# Set dev environment as safe git directory to prevent "dubious ownership" errors
+# when bind-mounting the source into the dev-container. See https://github.com/moby/moby/pull/44930
+RUN git config --global --add safe.directory $GOPATH/src/github.com/docker/docker
 # This should only install packages that are specifically needed for the dev environment and nothing else
 # Do you really need to add another package here? Can it be done in a different build stage?
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
