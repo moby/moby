@@ -396,7 +396,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 
 	if err != nil {
-		logrus.WithError(err).Errorf("[resolver] failed to handle query: %s (%s) from %s", queryName, dns.TypeToString[queryType], extConn.LocalAddr().String())
+		logrus.WithError(err).Errorf("[resolver] failed to handle query: %s (%s)", queryName, dns.TypeToString[queryType])
 		return
 	}
 
