@@ -16,10 +16,8 @@ import (
 
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
-	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
@@ -29,7 +27,6 @@ import (
 )
 
 var (
-	hostMode    bool
 	networkOnce sync.Once
 	networkMu   sync.Mutex
 	vniTbl      = make(map[uint32]string)
@@ -233,7 +230,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.
-	networkOnce.Do(networkOnceInit)
+	networkOnce.Do(populateVNITbl)
 
 	n.Lock()
 	// If initialization was successful then tell the peerDB to initialize the
@@ -307,23 +304,11 @@ func (n *network) destroySandbox() {
 		}
 
 		for _, s := range n.subnets {
-			if hostMode {
-				if err := removeFilters(n.id[:12], s.brName); err != nil {
-					logrus.Warnf("Could not remove overlay filters: %v", err)
-				}
-			}
-
 			if s.vxlanName != "" {
 				err := deleteInterface(s.vxlanName)
 				if err != nil {
 					logrus.Warnf("could not cleanup sandbox properly: %v", err)
 				}
-			}
-		}
-
-		if hostMode {
-			if err := removeNetworkChain(n.id[:12]); err != nil {
-				logrus.Warnf("could not remove network chain: %v", err)
 			}
 		}
 
@@ -378,45 +363,6 @@ func populateVNITbl() {
 		})
 }
 
-func networkOnceInit() {
-	populateVNITbl()
-
-	if os.Getenv("_OVERLAY_HOST_MODE") != "" {
-		hostMode = true
-		return
-	}
-
-	err := createVxlan("testvxlan", 1, 0)
-	if err != nil {
-		logrus.Errorf("Failed to create testvxlan interface: %v", err)
-		return
-	}
-
-	defer deleteInterface("testvxlan")
-
-	path := "/proc/self/ns/net"
-	hNs, err := netns.GetFromPath(path)
-	if err != nil {
-		logrus.Errorf("Failed to get network namespace from path %s while setting host mode: %v", path, err)
-		return
-	}
-	defer hNs.Close()
-
-	nlh := ns.NlHandle()
-
-	iface, err := nlh.LinkByName("testvxlan")
-	if err != nil {
-		logrus.Errorf("Failed to get link testvxlan while setting host mode: %v", err)
-		return
-	}
-
-	// If we are not able to move the vxlan interface to a namespace
-	// then fallback to host mode
-	if err := nlh.LinkSetNsFd(iface, int(hNs)); err != nil {
-		hostMode = true
-	}
-}
-
 func (n *network) generateVxlanName(s *subnet) string {
 	id := n.id
 	if len(n.id) > 5 {
@@ -439,59 +385,26 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 	return fmt.Sprintf("ov-%06x", s.vni)
 }
 
-func checkOverlap(nw *net.IPNet) error {
-	var nameservers []string
-
-	if rc, err := os.ReadFile(resolvconf.Path()); err == nil {
-		nameservers = resolvconf.GetNameserversAsCIDR(rc)
-	}
-
-	if err := netutils.CheckNameserverOverlaps(nameservers, nw); err != nil {
-		return fmt.Errorf("overlay subnet %s failed check with nameserver: %v: %v", nw.String(), nameservers, err)
-	}
-
-	if err := netutils.CheckRouteOverlaps(nw); err != nil {
-		return fmt.Errorf("overlay subnet %s failed check with host route table: %v", nw.String(), err)
-	}
-
-	return nil
-}
-
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
-	if hostMode {
-		// Try to delete stale bridge interface if it exists
-		if err := deleteInterface(brName); err != nil {
-			deleteInterfaceBySubnet(n.getBridgeNamePrefix(s), s)
-		}
-		// Try to delete the vxlan interface by vni if already present
-		deleteVxlanByVNI("", s.vni)
+	// Try to find this subnet's vni is being used in some
+	// other namespace by looking at vniTbl that we just
+	// populated in the once init. If a hit is found then
+	// it must a stale namespace from previous
+	// life. Destroy it completely and reclaim resourced.
+	networkMu.Lock()
+	path, ok := vniTbl[s.vni]
+	networkMu.Unlock()
 
-		if err := checkOverlap(s.subnetIP); err != nil {
-			return err
+	if ok {
+		deleteVxlanByVNI(path, s.vni)
+		if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
+			logrus.Errorf("unmount of %s failed: %v", path, err)
 		}
-	}
+		os.Remove(path)
 
-	if !hostMode {
-		// Try to find this subnet's vni is being used in some
-		// other namespace by looking at vniTbl that we just
-		// populated in the once init. If a hit is found then
-		// it must a stale namespace from previous
-		// life. Destroy it completely and reclaim resourced.
 		networkMu.Lock()
-		path, ok := vniTbl[s.vni]
+		delete(vniTbl, s.vni)
 		networkMu.Unlock()
-
-		if ok {
-			deleteVxlanByVNI(path, s.vni)
-			if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
-				logrus.Errorf("unmount of %s failed: %v", path, err)
-			}
-			os.Remove(path)
-
-			networkMu.Lock()
-			delete(vniTbl, s.vni)
-			networkMu.Unlock()
-		}
 	}
 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
@@ -528,10 +441,6 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 			logrus.Warnf("could not delete vxlan interface, %s, error %v, after config error, %v", vxlanName, deleteErr, err)
 		}
 		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.String(), err)
-	}
-
-	if hostMode {
-		return addFilters(n.id[:12], brName)
 	}
 
 	if err := setDefaultVLAN(sbox); err != nil {
@@ -657,18 +566,12 @@ func (n *network) cleanupStaleSandboxes() {
 func (n *network) initSandbox() error {
 	n.initEpoch++
 
-	if hostMode {
-		if err := addNetworkChain(n.id[:12]); err != nil {
-			return err
-		}
-	}
-
 	// If there are any stale sandboxes related to this network
 	// from previous daemon life clean it up here
 	n.cleanupStaleSandboxes()
 
 	key := osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch) + n.id)
-	sbox, err := osl.NewSandbox(key, !hostMode, false)
+	sbox, err := osl.NewSandbox(key, true, false)
 	if err != nil {
 		return fmt.Errorf("could not get network sandbox: %v", err)
 	}

@@ -5,7 +5,6 @@ package overlay
 
 import (
 	"fmt"
-	"strings"
 	"syscall"
 
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
@@ -71,34 +70,6 @@ func createVxlan(name string, vni uint32, mtu int) error {
 		return fmt.Errorf("error creating vxlan interface: %v", err)
 	}
 
-	return nil
-}
-
-func deleteInterfaceBySubnet(brPrefix string, s *subnet) error {
-	nlh := ns.NlHandle()
-	links, err := nlh.LinkList()
-	if err != nil {
-		return fmt.Errorf("failed to list interfaces while deleting bridge interface by subnet: %v", err)
-	}
-
-	for _, l := range links {
-		name := l.Attrs().Name
-		if _, ok := l.(*netlink.Bridge); ok && strings.HasPrefix(name, brPrefix) {
-			addrList, err := nlh.AddrList(l, netlink.FAMILY_V4)
-			if err != nil {
-				logrus.Errorf("error getting AddressList for bridge %s", name)
-				continue
-			}
-			for _, addr := range addrList {
-				if netutils.NetworkOverlaps(addr.IPNet, s.subnetIP) {
-					err = nlh.LinkDel(l)
-					if err != nil {
-						logrus.Errorf("error deleting bridge (%s) with subnet %v: %v", name, addr.IPNet, err)
-					}
-				}
-			}
-		}
-	}
 	return nil
 }
 
