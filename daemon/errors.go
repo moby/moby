@@ -154,6 +154,17 @@ func translateContainerdStartErr(cmd string, setExitCode func(int), err error) e
 		retErr = startInvalidConfigError(errDesc)
 	}
 
+	// Go 1.20 changed the error for attempting to execute a directory from
+	// syscall.EACCESS to syscall.EISDIR. Unfortunately docker/cli checks
+	// whether the error message contains syscall.EACCESS.Error() to
+	// determine whether to exit with code 126 or 125, so we have little
+	// choice but to fudge the error string.
+	if contains(errDesc, syscall.EISDIR.Error()) {
+		errDesc += ": " + syscall.EACCES.Error()
+		setExitCode(126)
+		return startInvalidConfigError(errDesc)
+	}
+
 	// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
 	if contains(errDesc, syscall.ENOTDIR.Error()) {
 		errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
