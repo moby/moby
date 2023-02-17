@@ -473,13 +473,13 @@ func (nDB *NetworkDB) gossip() {
 
 		msgs := broadcastQ.GetBroadcasts(compoundOverhead, bytesAvail)
 		// Collect stats and print the queue info, note this code is here also to have a view of the queues empty
-		network.qMessagesSent += len(msgs)
+		network.qMessagesSent.Add(int64(len(msgs)))
 		if printStats {
+			msent := network.qMessagesSent.Swap(0)
 			logrus.Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d netMsg/s:%d",
 				nDB.config.Hostname, nDB.config.NodeID,
-				nid, network.leaving, broadcastQ.NumNodes(), network.entriesNumber, broadcastQ.NumQueued(),
-				network.qMessagesSent/int((nDB.config.StatsPrintPeriod/time.Second)))
-			network.qMessagesSent = 0
+				nid, network.leaving, broadcastQ.NumNodes(), network.entriesNumber.Load(), broadcastQ.NumQueued(),
+				msent/int64((nDB.config.StatsPrintPeriod/time.Second)))
 		}
 
 		if len(msgs) == 0 {
