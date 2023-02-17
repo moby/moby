@@ -305,6 +305,11 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) error {
 	if !hostConfig.Isolation.IsValid() {
 		return errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
 	}
+	for k := range hostConfig.Annotations {
+		if k == "" {
+			return errors.Errorf("invalid Annotations: the empty string is not permitted as an annotation key")
+		}
+	}
 	return nil
 }
 

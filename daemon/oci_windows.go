@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	coci "github.com/containerd/containerd/oci"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
@@ -36,6 +37,10 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (*
 	}
 
 	s := oci.DefaultSpec()
+
+	if err := coci.WithAnnotations(c.HostConfig.Annotations)(ctx, nil, nil, &s); err != nil {
+		return nil, err
+	}
 
 	linkedEnv, err := daemon.setupLinkedContainers(c)
 	if err != nil {

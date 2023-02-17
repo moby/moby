@@ -976,6 +976,13 @@ definitions:
             items:
               type: "integer"
               minimum: 0
+          Annotations:
+            type: "object"
+            description: |
+              Arbitrary non-identifying metadata attached to container and
+              provided to the runtime when the container is started.
+            additionalProperties:
+              type: "string"
 
           # Applicable to UNIX platforms
           CapAdd:

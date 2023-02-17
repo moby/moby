@@ -377,16 +377,17 @@ type UpdateConfig struct {
 // Portable information *should* appear in Config.
 type HostConfig struct {
 	// Applicable to all platforms
-	Binds           []string      // List of volume bindings for this container
-	ContainerIDFile string        // File (path) where the containerId is written
-	LogConfig       LogConfig     // Configuration of the logs for this container
-	NetworkMode     NetworkMode   // Network mode to use for the container
-	PortBindings    nat.PortMap   // Port mapping between the exposed port (container) and the host
-	RestartPolicy   RestartPolicy // Restart policy to be used for the container
-	AutoRemove      bool          // Automatically remove container when it exits
-	VolumeDriver    string        // Name of the volume driver used to mount volumes
-	VolumesFrom     []string      // List of volumes to take from other container
-	ConsoleSize     [2]uint       // Initial console size (height,width)
+	Binds           []string          // List of volume bindings for this container
+	ContainerIDFile string            // File (path) where the containerId is written
+	LogConfig       LogConfig         // Configuration of the logs for this container
+	NetworkMode     NetworkMode       // Network mode to use for the container
+	PortBindings    nat.PortMap       // Port mapping between the exposed port (container) and the host
+	RestartPolicy   RestartPolicy     // Restart policy to be used for the container
+	AutoRemove      bool              // Automatically remove container when it exits
+	VolumeDriver    string            // Name of the volume driver used to mount volumes
+	VolumesFrom     []string          // List of volumes to take from other container
+	ConsoleSize     [2]uint           // Initial console size (height,width)
+	Annotations     map[string]string `json:",omitempty"` // Arbitrary non-identifying metadata attached to container and provided to the runtime
 
 	// Applicable to UNIX platforms
 	CapAdd          strslice.StrSlice // List of kernel capabilities to add to the container

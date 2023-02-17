@@ -563,6 +563,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.ConsoleSize = [2]uint{0, 0}
 	}
 
+	if hostConfig != nil && versions.LessThan(version, "1.43") {
+		// Ignore Annotations because it was added in API v1.43.
+		hostConfig.Annotations = nil
+	}
+
 	var platform *specs.Platform
 	if versions.GreaterThanOrEqualTo(version, "1.41") {
 		if v := r.Form.Get("platform"); v != "" {

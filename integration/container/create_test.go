@@ -561,6 +561,11 @@ func TestCreateInvalidHostConfig(t *testing.T) {
 			hc:          containertypes.HostConfig{UTSMode: "invalid"},
 			expectedErr: "Error response from daemon: invalid UTS mode: invalid",
 		},
+		{
+			doc:         "invalid Annotations",
+			hc:          containertypes.HostConfig{Annotations: map[string]string{"": "a"}},
+			expectedErr: "Error response from daemon: invalid Annotations: the empty string is not permitted as an annotation key",
+		},
 	}
 
 	for _, tc := range testCases {
