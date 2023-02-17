@@ -1,4 +1,4 @@
-### Build and test Moby on Windows
+# Build and test Moby on Windows
 
 This page explains how to get the software you need to build, test, and run the
 Moby source code for Windows and setup the required software and services:

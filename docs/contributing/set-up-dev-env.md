@@ -1,4 +1,4 @@
-### Work with a development container
+# Work with a development container
 
 In this section, you learn to develop like the Moby Engine core team.
 The `moby/moby` repository includes a `Dockerfile` at its root. This file defines

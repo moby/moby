@@ -1,4 +1,4 @@
-### Debugging the daemon
+# Debugging the daemon
 
 The Docker daemon inside the development container can be debugged with [Delve](https://github.com/go-delve/delve).
 

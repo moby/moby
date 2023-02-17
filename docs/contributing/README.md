@@ -1,4 +1,4 @@
-### Get set up for Moby development
+# Get set up for Moby development
 
  * [README first](who-written-for.md)
  * [Get the required software](software-required.md)

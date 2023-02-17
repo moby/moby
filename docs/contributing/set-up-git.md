@@ -1,4 +1,4 @@
-### Configure Git for contributing
+# Configure Git for contributing
 
 Work through this page to configure Git and a repository you'll use throughout
 the Contributor Guide. The work you do further in the guide, depends on the work

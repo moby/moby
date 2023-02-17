@@ -1,4 +1,4 @@
-### Run tests
+# Run tests
 
 Contributing includes testing your changes. If you change the Moby code, you
 may need to add a new test or modify an existing test. Your contribution could

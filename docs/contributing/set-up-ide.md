@@ -1,4 +1,4 @@
-### Configure project for IDE (optional)
+# Configure project for IDE (optional)
 
 In this section you will configure the project in order to make use of [GoLand](https://www.jetbrains.com/go)
 integrated development environment's (IDE) features like syntax highlighting and code completion.
