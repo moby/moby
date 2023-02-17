@@ -705,7 +705,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		hostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
 	}
 
-	if _, err := daemon.getRuntime(hostConfig.Runtime); err != nil {
+	if _, _, err := daemon.getRuntime(hostConfig.Runtime); err != nil {
 		return warnings, err
 	}
 

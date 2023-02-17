@@ -1,0 +1,25 @@
+// To regenerate api.pb.go run `make protos`
+syntax = "proto3";
+
+package runtimeoptions.v1;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.goproto_stringer_all) = false;
+option (gogoproto.stringer_all) =  true;
+option (gogoproto.goproto_getters_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_unrecognized_all) = false;
+
+
+option go_package = "github.com/containerd/containerd/pkg/runtimeoptions/v1;runtimeoptions_v1";
+
+message Options {
+	// TypeUrl specifies the type of the content inside the config file.
+	string type_url = 1;
+	// ConfigPath specifies the filesystem location of the config file
+	// used by the runtime.
+	string config_path = 2;
+}

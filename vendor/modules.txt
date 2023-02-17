@@ -259,6 +259,7 @@ github.com/containerd/containerd/pkg/apparmor
 github.com/containerd/containerd/pkg/cap
 github.com/containerd/containerd/pkg/dialer
 github.com/containerd/containerd/pkg/kmutex
+github.com/containerd/containerd/pkg/runtimeoptions/v1
 github.com/containerd/containerd/pkg/seccomp
 github.com/containerd/containerd/pkg/shutdown
 github.com/containerd/containerd/pkg/ttrpcutil

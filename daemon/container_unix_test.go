@@ -6,7 +6,6 @@ package daemon
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/go-connections/nat"
@@ -33,9 +32,8 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			NetworkMode:  "host",
 			PortBindings: tc.ports,
 		}
-		cs := &config.Config{
-			Runtimes: map[string]types.Runtime{"runc": {}},
-		}
+		cs := &config.Config{}
+		configureRuntimes(cs)
 		d := &Daemon{configStore: cs}
 		wrns, err := d.verifyContainerSettings(hostConfig, &containertypes.Config{}, false)
 		assert.NilError(t, err)
