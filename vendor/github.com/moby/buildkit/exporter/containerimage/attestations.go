@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"strings"
 
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
@@ -30,6 +31,9 @@ var intotoPlatform ocispecs.Platform = ocispecs.Platform{
 
 // supplementSBOM modifies SPDX attestations to include the file layers
 func supplementSBOM(ctx context.Context, s session.Group, target cache.ImmutableRef, targetRemote *solver.Remote, att exporter.Attestation) (exporter.Attestation, error) {
+	if target == nil {
+		return att, nil
+	}
 	if att.Kind != gatewaypb.AttestationKindInToto {
 		return att, nil
 	}
@@ -40,7 +44,7 @@ func supplementSBOM(ctx context.Context, s session.Group, target cache.Immutable
 	if !ok {
 		return att, nil
 	}
-	if n, _, _ := strings.Cut(att.Path, "."); n != string(name) {
+	if n, _, _ := strings.Cut(filepath.Base(att.Path), "."); n != string(name) {
 		return att, nil
 	}
 
@@ -172,6 +176,8 @@ func newFileLayerFinder(target cache.ImmutableRef, remote *solver.Remote) (fileL
 //
 // find is not concurrency-safe.
 func (c *fileLayerFinder) find(ctx context.Context, s session.Group, filename string) (cache.ImmutableRef, *ocispecs.Descriptor, error) {
+	filename = filepath.Join("/", filename)
+
 	// return immediately if we've already found the layer containing filename
 	if cache, ok := c.cache[filename]; ok {
 		return cache.ref, &cache.desc, nil
@@ -188,7 +194,9 @@ func (c *fileLayerFinder) find(ctx context.Context, s session.Group, filename st
 
 		found := false
 		for _, f := range files {
-			if strings.HasPrefix(f, ".wh.") {
+			f = filepath.Join("/", f)
+
+			if strings.HasPrefix(filepath.Base(f), ".wh.") {
 				// skip whiteout files, we only care about file creations
 				continue
 			}

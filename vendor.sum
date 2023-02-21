@@ -754,8 +754,8 @@ github.com/mitchellh/iochan v1.0.0/go.mod h1:JwYml1nuB7xOzsp52dPpHFffvOCDupsG0Qu
 github.com/mitchellh/mapstructure v0.0.0-20160808181253-ca63d7c062ee/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
 github.com/mitchellh/osext v0.0.0-20151018003038-5e2d6d41470f/go.mod h1:OkQIRizQZAeMln+1tSwduZz7+Af5oFlKirV/MSYes2A=
-github.com/moby/buildkit v0.11.3-0.20230206194711-49992f513921 h1:B6x+BCRpTTUhEsHtvBpi2IsRnrLCJ7xoJ3oZrO8oQEU=
-github.com/moby/buildkit v0.11.3-0.20230206194711-49992f513921/go.mod h1:P8MqGq7YrIDldCdZLhK8M/vPcrFYZ6GX1crX0j4hOmQ=
+github.com/moby/buildkit v0.11.3 h1:bnQFPHkNJTELRb2n3HISPGvB1FWzFx+YD1MTZg8bsfk=
+github.com/moby/buildkit v0.11.3/go.mod h1:P8MqGq7YrIDldCdZLhK8M/vPcrFYZ6GX1crX0j4hOmQ=
 github.com/moby/ipvs v1.1.0 h1:ONN4pGaZQgAx+1Scz5RvWV4Q7Gb+mvfRh3NsPS+1XQQ=
 github.com/moby/ipvs v1.1.0/go.mod h1:4VJMWuf098bsUMmZEiD4Tjk/O7mOn3l1PTD3s4OoYAs=
 github.com/moby/locker v1.0.1 h1:fOXqR41zeveg4fFODix+1Ch4mj/gT0NE1XJbp/epuBg=
