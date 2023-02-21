@@ -60,6 +60,6 @@ func parseTime(key, value string) (*time.Time, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid %s: %s", key, err)
 	}
-	tm := time.Unix(sde, 0)
+	tm := time.Unix(sde, 0).UTC()
 	return &tm, nil
 }

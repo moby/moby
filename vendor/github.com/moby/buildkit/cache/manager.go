@@ -222,10 +222,8 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 
 	id := identity.NewID()
 	snapshotID := chainID.String()
-	blobOnly := true
 	if link != nil {
 		snapshotID = link.getSnapshotID()
-		blobOnly = link.getBlobOnly()
 		go link.Release(context.TODO())
 	}
 
@@ -289,7 +287,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 	rec.queueChainID(chainID)
 	rec.queueBlobChainID(blobChainID)
 	rec.queueSnapshotID(snapshotID)
-	rec.queueBlobOnly(blobOnly)
+	rec.queueBlobOnly(true)
 	rec.queueMediaType(desc.MediaType)
 	rec.queueBlobSize(desc.Size)
 	rec.appendURLs(desc.URLs)

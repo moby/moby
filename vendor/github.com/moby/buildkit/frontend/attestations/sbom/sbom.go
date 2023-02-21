@@ -78,6 +78,8 @@ func CreateSBOMScanner(ctx context.Context, resolver llb.ImageMetaResolver, scan
 		}
 
 		runscan := llb.Image(scanner).Run(runOpts...)
+		runscan.AddMount("/tmp", llb.Scratch(), llb.Tmpfs())
+
 		runscan.AddMount(path.Join(srcDir, "core", CoreSBOMName), ref, llb.Readonly)
 		for k, extra := range extras {
 			runscan.AddMount(path.Join(srcDir, "extras", ExtraSBOMPrefix+k), extra, llb.Readonly)

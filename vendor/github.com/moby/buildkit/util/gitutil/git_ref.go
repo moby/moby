@@ -73,22 +73,12 @@ func ParseGitRef(ref string) (*GitRef, error) {
 		}
 	}
 
-	refSplitBySharp := strings.SplitN(ref, "#", 2)
-	res.Remote = refSplitBySharp[0]
+	var fragment string
+	res.Remote, fragment, _ = strings.Cut(ref, "#")
 	if len(res.Remote) == 0 {
 		return res, errdefs.ErrInvalidArgument
 	}
-
-	if len(refSplitBySharp) > 1 {
-		refSplitBySharpSplitByColon := strings.SplitN(refSplitBySharp[1], ":", 2)
-		res.Commit = refSplitBySharpSplitByColon[0]
-		if len(res.Commit) == 0 {
-			return res, errdefs.ErrInvalidArgument
-		}
-		if len(refSplitBySharpSplitByColon) > 1 {
-			res.SubDir = refSplitBySharpSplitByColon[1]
-		}
-	}
+	res.Commit, res.SubDir, _ = strings.Cut(fragment, ":")
 	repoSplitBySlash := strings.Split(res.Remote, "/")
 	res.ShortName = strings.TrimSuffix(repoSplitBySlash[len(repoSplitBySlash)-1], ".git")
 	return res, nil

@@ -251,14 +251,14 @@ func (mm *MountManager) getSecretMountable(ctx context.Context, m *pb.Mount, g s
 	err = mm.sm.Any(ctx, g, func(ctx context.Context, _ string, caller session.Caller) error {
 		dt, err = secrets.GetSecret(ctx, caller, id)
 		if err != nil {
-			if errors.Is(err, secrets.ErrNotFound) && m.SecretOpt.Optional {
-				return nil
-			}
 			return err
 		}
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, secrets.ErrNotFound) && m.SecretOpt.Optional {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &secretMount{mount: m, data: dt, idmap: mm.cm.IdentityMapping()}, nil
