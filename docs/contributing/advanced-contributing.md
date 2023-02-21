@@ -33,7 +33,9 @@ A refactor or cleanup proposal changes Docker's internal structure without alter
 
     PR's title's format:
 
-    **Refactor:** _short title_
+    **area/of/code: _short title_**
+
+    If the area of code section is further down the code base than `area/of/code`, use **_Short Title_** instead.
 
     If the changes require a change in logic, note that in the PR.
 
@@ -99,9 +101,11 @@ You might want to pair with someone on design work.
 
     Submits your proposal in a PR to `moby/moby`.
 
-    The title should have the format:
+    The PR title should have the format:
 
-    **Proposal:** _short title_
+    **area/of/code: _short title_**
+
+    If the area of code section is further down the code base than `area/of/code`, use **_Short Title_** instead.
 
     The body of the PR should include a brief summary of your change and point to the Markdown file you created (for example, "_See `daemon/redesign-daemon-proposal.md` for a complete description_").
 

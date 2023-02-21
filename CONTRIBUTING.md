@@ -4,7 +4,7 @@ Want to hack on the Moby Project? Awesome! We have a contributor's guide that ex
 [setting up a development environment and the contribution
 process](docs/contributing/). 
 
-[![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/contribute/overview/)
+[![Contributors guide](docs/static_files/contribute.png)](docs/contributing/who-written-for.md)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
@@ -101,7 +101,7 @@ the contributors guide.
     <td>
       <p>
         Register for the Docker Community Slack at
-	<a href="https://dockr.ly/slack" target="_blank">https://dockr.ly/comm-slack</a>.
+	<a href="https://dockr.ly/comm-slack" target="_blank">https://dockr.ly/comm-slack</a>.
         We use the #moby-project channel for general discussion, and there are separate channels for other Moby projects such as #containerd.
       </p>
     </td>
