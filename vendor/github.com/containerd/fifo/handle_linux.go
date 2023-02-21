@@ -1,4 +1,4 @@
-// +build linux
+//go:build linux
 
 /*
    Copyright The containerd Authors.
@@ -23,11 +23,9 @@ import (
 	"os"
 	"sync"
 	"syscall"
-
-	"github.com/pkg/errors"
 )
 
-//nolint:golint
+//nolint:revive
 const O_PATH = 010000000
 
 type handle struct {
@@ -42,7 +40,7 @@ type handle struct {
 func getHandle(fn string) (*handle, error) {
 	f, err := os.OpenFile(fn, O_PATH, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open %v with O_PATH", fn)
+		return nil, fmt.Errorf("failed to open %v with O_PATH: %w", fn, err)
 	}
 
 	var (
@@ -51,7 +49,7 @@ func getHandle(fn string) (*handle, error) {
 	)
 	if err := syscall.Fstat(int(fd), &stat); err != nil {
 		f.Close()
-		return nil, errors.Wrapf(err, "failed to stat handle %v", fd)
+		return nil, fmt.Errorf("failed to stat handle %v: %w", fd, err)
 	}
 
 	h := &handle{
@@ -66,7 +64,7 @@ func getHandle(fn string) (*handle, error) {
 	// check /proc just in case
 	if _, err := os.Stat(h.procPath()); err != nil {
 		f.Close()
-		return nil, errors.Wrapf(err, "couldn't stat %v", h.procPath())
+		return nil, fmt.Errorf("couldn't stat %v: %w", h.procPath(), err)
 	}
 
 	return h, nil
@@ -83,11 +81,11 @@ func (h *handle) Name() string {
 func (h *handle) Path() (string, error) {
 	var stat syscall.Stat_t
 	if err := syscall.Stat(h.procPath(), &stat); err != nil {
-		return "", errors.Wrapf(err, "path %v could not be statted", h.procPath())
+		return "", fmt.Errorf("path %v could not be statted: %w", h.procPath(), err)
 	}
 	//nolint:unconvert
 	if uint64(stat.Dev) != h.dev || stat.Ino != h.ino {
-		return "", errors.Errorf("failed to verify handle %v/%v %v/%v", stat.Dev, h.dev, stat.Ino, h.ino)
+		return "", fmt.Errorf("failed to verify handle %v/%v %v/%v", stat.Dev, h.dev, stat.Ino, h.ino)
 	}
 	return h.procPath(), nil
 }
