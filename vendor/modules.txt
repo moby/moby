@@ -261,6 +261,7 @@ github.com/containerd/containerd/pkg/dialer
 github.com/containerd/containerd/pkg/kmutex
 github.com/containerd/containerd/pkg/seccomp
 github.com/containerd/containerd/pkg/shutdown
+github.com/containerd/containerd/pkg/snapshotters
 github.com/containerd/containerd/pkg/ttrpcutil
 github.com/containerd/containerd/pkg/userns
 github.com/containerd/containerd/platforms

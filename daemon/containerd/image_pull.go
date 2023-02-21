@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
@@ -62,6 +63,11 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 
 	opts = append(opts, containerd.WithPullUnpack)
 	opts = append(opts, containerd.WithPullSnapshotter(i.snapshotter))
+
+	// AppendInfoHandlerWrapper will annotate the image with basic information like manifest and layer digests as labels;
+	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.
+	infoHandler := snapshotters.AppendInfoHandlerWrapper(ref.String())
+	opts = append(opts, containerd.WithImageHandlerWrapper(infoHandler))
 
 	_, err = i.client.Pull(ctx, ref.String(), opts...)
 	return err
