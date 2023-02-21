@@ -52,10 +52,27 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	ctr.StreamConfig.AttachStreams(&cfg)
 
 	multiplexed := !ctr.Config.Tty && c.MuxStreams
-	inStream, outStream, errStream, err := c.GetStreams(multiplexed)
+
+	clientCtx, closeNotify := context.WithCancel(context.Background())
+	defer closeNotify()
+	go func() {
+		<-clientCtx.Done()
+		// The client has disconnected
+		// In this case we need to close the container's output streams so that the goroutines used to copy
+		// to the client streams are unblocked and can exit.
+		if cfg.CStdout != nil {
+			cfg.CStdout.Close()
+		}
+		if cfg.CStderr != nil {
+			cfg.CStderr.Close()
+		}
+	}()
+
+	inStream, outStream, errStream, err := c.GetStreams(multiplexed, closeNotify)
 	if err != nil {
 		return err
 	}
+
 	defer inStream.Close()
 
 	if multiplexed {
