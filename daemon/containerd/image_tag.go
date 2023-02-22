@@ -25,8 +25,8 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 	}
 
 	is := i.client.ImageService()
-	_, createErr := is.Create(ctx, newImg)
-	if createErr != nil {
+	_, err = is.Create(ctx, newImg)
+	if err != nil {
 		if !cerrdefs.IsAlreadyExists(err) {
 			return errdefs.System(errors.Wrapf(err, "failed to create image with name %s and target %s", newImg.Name, newImg.Target.Digest.String()))
 		}
