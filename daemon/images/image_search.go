@@ -7,6 +7,8 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 var acceptedSearchFilterTags = map[string]bool{
@@ -27,28 +29,22 @@ func (i *ImageService) SearchRegistryForImages(ctx context.Context, searchFilter
 		return nil, err
 	}
 
-	var isAutomated, isOfficial bool
-	var hasStarFilter = 0
-	if searchFilters.Contains("is-automated") {
-		if searchFilters.UniqueExactMatch("is-automated", "true") {
-			isAutomated = true
-		} else if !searchFilters.UniqueExactMatch("is-automated", "false") {
-			return nil, invalidFilter{"is-automated", searchFilters.Get("is-automated")}
-		}
+	isAutomated, err := searchFilters.GetBoolOrDefault("is-automated", false)
+	if err != nil {
+		return nil, err
 	}
-	if searchFilters.Contains("is-official") {
-		if searchFilters.UniqueExactMatch("is-official", "true") {
-			isOfficial = true
-		} else if !searchFilters.UniqueExactMatch("is-official", "false") {
-			return nil, invalidFilter{"is-official", searchFilters.Get("is-official")}
-		}
+	isOfficial, err := searchFilters.GetBoolOrDefault("is-official", false)
+	if err != nil {
+		return nil, err
 	}
+
+	hasStarFilter := 0
 	if searchFilters.Contains("stars") {
 		hasStars := searchFilters.Get("stars")
 		for _, hasStar := range hasStars {
 			iHasStar, err := strconv.Atoi(hasStar)
 			if err != nil {
-				return nil, invalidFilter{"stars", hasStar}
+				return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'stars=%s'", hasStar))
 			}
 			if iHasStar > hasStarFilter {
 				hasStarFilter = iHasStar

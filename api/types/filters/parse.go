@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/versions"
-	"github.com/pkg/errors"
 )
 
 // Args stores a mapping of keys to a set of multiple values.
@@ -99,7 +98,7 @@ func FromJSON(p string) (Args, error) {
 	// Fallback to parsing arguments in the legacy slice format
 	deprecated := map[string][]string{}
 	if legacyErr := json.Unmarshal(raw, &deprecated); legacyErr != nil {
-		return args, invalidFilter{errors.Wrap(err, "invalid filter")}
+		return args, invalidFilter{}
 	}
 
 	args.fields = deprecatedArgs(deprecated)
@@ -196,6 +195,38 @@ func (args Args) Match(field, source string) bool {
 	return false
 }
 
+// GetBoolOrDefault returns a boolean value of the key if the key is present
+// and is intepretable as a boolean value. Otherwise the default value is returned.
+// Error is not nil only if the filter values are not valid boolean or are conflicting.
+func (args Args) GetBoolOrDefault(key string, defaultValue bool) (bool, error) {
+	fieldValues, ok := args.fields[key]
+
+	if !ok {
+		return defaultValue, nil
+	}
+
+	if len(fieldValues) == 0 {
+		return defaultValue, invalidFilter{key, nil}
+	}
+
+	isFalse := fieldValues["0"] || fieldValues["false"]
+	isTrue := fieldValues["1"] || fieldValues["true"]
+
+	conflicting := isFalse && isTrue
+	invalid := !isFalse && !isTrue
+
+	if conflicting || invalid {
+		return defaultValue, invalidFilter{key, args.Get(key)}
+	} else if isFalse {
+		return false, nil
+	} else if isTrue {
+		return true, nil
+	}
+
+	// This code shouldn't be reached.
+	return defaultValue, unreachableCode{Filter: key, Value: args.Get(key)}
+}
+
 // ExactMatch returns true if the source matches exactly one of the values.
 func (args Args) ExactMatch(key, source string) bool {
 	fieldValues, ok := args.fields[key]
@@ -246,20 +277,12 @@ func (args Args) Contains(field string) bool {
 	return ok
 }
 
-type invalidFilter struct{ error }
-
-func (e invalidFilter) Error() string {
-	return e.error.Error()
-}
-
-func (invalidFilter) InvalidParameter() {}
-
 // Validate compared the set of accepted keys against the keys in the mapping.
 // An error is returned if any mapping keys are not in the accepted set.
 func (args Args) Validate(accepted map[string]bool) error {
 	for name := range args.fields {
 		if !accepted[name] {
-			return invalidFilter{errors.New("invalid filter '" + name + "'")}
+			return invalidFilter{name, nil}
 		}
 	}
 	return nil

@@ -318,12 +318,15 @@ func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
 	enabledOnly := false
 	disabledOnly := false
 	if pluginFilters.Contains("enabled") {
-		if pluginFilters.ExactMatch("enabled", "true") {
+		enabledFilter, err := pluginFilters.GetBoolOrDefault("enabled", false)
+		if err != nil {
+			return nil, err
+		}
+
+		if enabledFilter {
 			enabledOnly = true
-		} else if pluginFilters.ExactMatch("enabled", "false") {
-			disabledOnly = true
 		} else {
-			return nil, invalidFilter{"enabled", pluginFilters.Get("enabled")}
+			disabledOnly = true
 		}
 	}
 

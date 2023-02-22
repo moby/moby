@@ -3,6 +3,7 @@ package filters // import "github.com/docker/docker/api/types/filters"
 import (
 	"encoding/json"
 	"errors"
+	"sort"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -417,4 +418,119 @@ func TestClone(t *testing.T) {
 	f2 := f.Clone()
 	f2.Add("baz", "qux")
 	assert.Check(t, is.Len(f.Get("baz"), 0))
+}
+
+func TestGetBoolOrDefault(t *testing.T) {
+	for _, tC := range []struct {
+		name          string
+		args          map[string][]string
+		defValue      bool
+		expectedErr   error
+		expectedValue bool
+	}{
+		{
+			name: "single true",
+			args: map[string][]string{
+				"dangling": {"true"},
+			},
+			defValue:      false,
+			expectedErr:   nil,
+			expectedValue: true,
+		},
+		{
+			name: "single false",
+			args: map[string][]string{
+				"dangling": {"false"},
+			},
+			defValue:      true,
+			expectedErr:   nil,
+			expectedValue: false,
+		},
+		{
+			name: "single bad value",
+			args: map[string][]string{
+				"dangling": {"potato"},
+			},
+			defValue:      true,
+			expectedErr:   invalidFilter{Filter: "dangling", Value: []string{"potato"}},
+			expectedValue: true,
+		},
+		{
+			name: "two bad values",
+			args: map[string][]string{
+				"dangling": {"banana", "potato"},
+			},
+			defValue:      true,
+			expectedErr:   invalidFilter{Filter: "dangling", Value: []string{"banana", "potato"}},
+			expectedValue: true,
+		},
+		{
+			name: "two conflicting values",
+			args: map[string][]string{
+				"dangling": {"false", "true"},
+			},
+			defValue:      false,
+			expectedErr:   invalidFilter{Filter: "dangling", Value: []string{"false", "true"}},
+			expectedValue: false,
+		},
+		{
+			name: "multiple conflicting values",
+			args: map[string][]string{
+				"dangling": {"false", "true", "1"},
+			},
+			defValue:      true,
+			expectedErr:   invalidFilter{Filter: "dangling", Value: []string{"false", "true", "1"}},
+			expectedValue: true,
+		},
+		{
+			name: "1 means true",
+			args: map[string][]string{
+				"dangling": {"1"},
+			},
+			defValue:      false,
+			expectedErr:   nil,
+			expectedValue: true,
+		},
+		{
+			name: "0 means false",
+			args: map[string][]string{
+				"dangling": {"0"},
+			},
+			defValue:      true,
+			expectedErr:   nil,
+			expectedValue: false,
+		},
+	} {
+		tC := tC
+		t.Run(tC.name, func(t *testing.T) {
+			a := NewArgs()
+
+			for key, values := range tC.args {
+				for _, value := range values {
+					a.Add(key, value)
+				}
+			}
+
+			value, err := a.GetBoolOrDefault("dangling", tC.defValue)
+
+			if tC.expectedErr == nil {
+				assert.Check(t, is.Nil(err))
+			} else {
+				assert.Check(t, is.ErrorType(err, tC.expectedErr))
+
+				// Check if error is the same.
+				expected := tC.expectedErr.(invalidFilter)
+				actual := err.(invalidFilter)
+
+				assert.Check(t, is.Equal(expected.Filter, actual.Filter))
+
+				sort.Strings(expected.Value)
+				sort.Strings(actual.Value)
+				assert.Check(t, is.DeepEqual(expected.Value, actual.Value))
+			}
+
+			assert.Check(t, is.Equal(tC.expectedValue, value))
+		})
+	}
+
 }

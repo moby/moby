@@ -114,11 +114,9 @@ func filtersToBy(filter filters.Args, acceptedFilters map[string]bool) (By, erro
 	bys = append(bys, byLabelFilter(filter))
 
 	if filter.Contains("dangling") {
-		var dangling bool
-		if filter.ExactMatch("dangling", "true") || filter.ExactMatch("dangling", "1") {
-			dangling = true
-		} else if !filter.ExactMatch("dangling", "false") && !filter.ExactMatch("dangling", "0") {
-			return nil, invalidFilter{"dangling", filter.Get("dangling")}
+		dangling, err := filter.GetBoolOrDefault("dangling", false)
+		if err != nil {
+			return nil, err
 		}
 		bys = append(bys, ByReferenced(!dangling))
 	}
@@ -138,7 +136,7 @@ func withPrune(filter filters.Args) error {
 	all := filter.Get("all")
 	switch {
 	case len(all) > 1:
-		return invalidFilter{"all", all}
+		return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'all=%s': only one value is expected", all))
 	case len(all) == 1:
 		ok, err := strconv.ParseBool(all[0])
 		if err != nil {

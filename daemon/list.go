@@ -254,7 +254,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	err := psFilters.WalkValues("exited", func(value string) error {
 		code, err := strconv.Atoi(value)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(errors.Wrapf(err, "invalid filter 'exited=%s'", value))
 		}
 		filtExited = append(filtExited, code)
 		return nil
@@ -265,7 +265,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 
 	err = psFilters.WalkValues("status", func(value string) error {
 		if !container.IsValidStateString(value) {
-			return invalidFilter{"status", value}
+			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'status=%s'", value))
 		}
 
 		config.All = true
@@ -275,22 +275,15 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 		return nil, err
 	}
 
-	var taskFilter, isTask bool
-	if psFilters.Contains("is-task") {
-		if psFilters.ExactMatch("is-task", "true") {
-			taskFilter = true
-			isTask = true
-		} else if psFilters.ExactMatch("is-task", "false") {
-			taskFilter = true
-			isTask = false
-		} else {
-			return nil, invalidFilter{"is-task", psFilters.Get("is-task")}
-		}
+	taskFilter := psFilters.Contains("is-task")
+	isTask, err := psFilters.GetBoolOrDefault("is-task", false)
+	if err != nil {
+		return nil, err
 	}
 
 	err = psFilters.WalkValues("health", func(value string) error {
 		if !container.IsValidHealthString(value) {
-			return errdefs.InvalidParameter(errors.Errorf("Unrecognised filter value for health: %s", value))
+			return errdefs.InvalidParameter(fmt.Errorf("unrecognized filter value for health: %s", value))
 		}
 
 		return nil
