@@ -15,13 +15,13 @@ Move the previously cloned repository or clone it again to the `<GOPATH>/src/git
 Open the `<GOPATH>/src/github.com/docker/docker` directory in GoLand.
 Then open the settings (Ctrl+Alt+S) and change two settings:
 
-1. Disable Go modules integration
+1. Disable Go modules integration:
 
-![Disabling Go modules integration](images/ide_go_modules_integration.png)
+    ![Disabling Go modules integration](images/ide_go_modules_integration.png)
 
-3. Disable using system environment's GOPATH
+2. Disable using system environment's GOPATH:
 
-![Disabling using system environment's GOPATH](images/ide_system_environment_gopath.png)
+    ![Disabling using system environment's GOPATH](images/ide_system_environment_gopath.png)
 
 ### Custom GOPATH
 
