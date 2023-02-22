@@ -1,18 +1,34 @@
 linters:
   enable:
-    - structcheck
-    - varcheck
-    - staticcheck
-    - unconvert
+    - exportloopref # Checks for pointers to enclosing loop variables
     - gofmt
     - goimports
-    - golint
+    - gosec
     - ineffassign
-    - vet
-    - unused
     - misspell
+    - nolintlint
+    - revive
+    - staticcheck
+    - tenv # Detects using os.Setenv instead of t.Setenv since Go 1.17
+    - unconvert
+    - unused
+    - vet
+    - dupword # Checks for duplicate words in the source code
   disable:
     - errcheck
+
+linters-settings:
+  gosec:
+    # The following issues surfaced when `gosec` linter
+    # was enabled. They are temporarily excluded to unblock
+    # the existing workflow, but still to be addressed by
+    # future works.
+    excludes:
+      - G204
+      - G305
+      - G306
+      - G402
+      - G404
 
 run:
   timeout: 3m
