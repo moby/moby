@@ -90,6 +90,7 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 	for _, c := range cases {
+		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			dockerfile := []byte(c.dockerfile)
