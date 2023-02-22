@@ -223,8 +223,7 @@ FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
-# FIXME: when updating golangci-lint, remove the temporary "nolint" in https://github.com/moby/moby/blob/7860686a8df15eea9def9e6189c6f9eca031bb6f/libnetwork/networkdb/cluster.go#L246
-ARG GOLANGCI_LINT_VERSION=v1.49.0
+ARG GOLANGCI_LINT_VERSION=v1.51.2
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
