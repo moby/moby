@@ -891,10 +891,10 @@ func TestRandomAllocateDeallocate(t *testing.T) {
 	}
 
 	seed := time.Now().Unix()
-	rand.Seed(seed)
+	rng := rand.New(rand.NewSource(seed))
 
 	// Allocate all bits using a random pattern
-	pattern := rand.Perm(numBits)
+	pattern := rng.Perm(numBits)
 	for _, bit := range pattern {
 		err := hnd.Set(uint64(bit))
 		if err != nil {
@@ -909,7 +909,7 @@ func TestRandomAllocateDeallocate(t *testing.T) {
 	}
 
 	// Deallocate all bits using a random pattern
-	pattern = rand.Perm(numBits)
+	pattern = rng.Perm(numBits)
 	for _, bit := range pattern {
 		err := hnd.Unset(uint64(bit))
 		if err != nil {
@@ -959,10 +959,10 @@ func TestAllocateRandomDeallocate(t *testing.T) {
 	}
 
 	seed := time.Now().Unix()
-	rand.Seed(seed)
+	rng := rand.New(rand.NewSource(seed))
 
 	// Deallocate half of the allocated bits following a random pattern
-	pattern := rand.Perm(numBits / 2)
+	pattern := rng.Perm(numBits / 2)
 	for i := 0; i < numBits/4; i++ {
 		bit := pattern[i]
 		err := hnd.Unset(uint64(bit))
@@ -1025,10 +1025,10 @@ func TestAllocateRandomDeallocateSerialize(t *testing.T) {
 	}
 
 	seed := time.Now().Unix()
-	rand.Seed(seed)
+	rng := rand.New(rand.NewSource(seed))
 
 	// Deallocate half of the allocated bits following a random pattern
-	pattern := rand.Perm(numBits / 2)
+	pattern := rng.Perm(numBits / 2)
 	for i := 0; i < numBits/4; i++ {
 		bit := pattern[i]
 		err := hnd.Unset(uint64(bit))
@@ -1269,10 +1269,10 @@ func testSetRollover(t *testing.T, serial bool) {
 	}
 
 	seed := time.Now().Unix()
-	rand.Seed(seed)
+	rng := rand.New(rand.NewSource(seed))
 
 	// Deallocate half of the allocated bits following a random pattern
-	pattern := rand.Perm(numBits / 2)
+	pattern := rng.Perm(numBits / 2)
 	for i := 0; i < numBits/4; i++ {
 		bit := pattern[i]
 		err := hnd.Unset(uint64(bit))
