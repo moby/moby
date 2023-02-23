@@ -337,6 +337,13 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
+	for _, img := range images {
+		if len(img.RepoTags) == 0 && len(img.RepoDigests) == 0 {
+			img.RepoTags = append(img.RepoTags, "<none>:<none>")
+			img.RepoDigests = append(img.RepoDigests, "<none>@<none>")
+		}
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, images)
 }
 

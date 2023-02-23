@@ -173,8 +173,6 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 				if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
 					continue
 				}
-				summary.RepoDigests = []string{"<none>@<none>"}
-				summary.RepoTags = []string{"<none>:<none>"}
 			} else {
 				continue
 			}

@@ -59,3 +59,7 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 func danglingImageName(digest digest.Digest) string {
 	return "moby-dangling@" + digest.String()
 }
+
+func isDanglingImage(image containerdimages.Image) bool {
+	return image.Name == danglingImageName(image.Target.Digest)
+}
