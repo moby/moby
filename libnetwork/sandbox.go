@@ -38,7 +38,7 @@ type Sandbox struct {
 	extDNS             []extDNSEntry
 	osSbox             osl.Sandbox
 	controller         *Controller
-	resolver           Resolver
+	resolver           *Resolver
 	resolverOnce       sync.Once
 	endpoints          []*Endpoint
 	epPriority         map[string]int

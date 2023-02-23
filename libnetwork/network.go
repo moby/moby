@@ -223,7 +223,7 @@ type network struct {
 	persist          bool
 	drvOnce          *sync.Once
 	resolverOnce     sync.Once //nolint:nolintlint,unused // only used on windows
-	resolver         []Resolver
+	resolver         []*Resolver
 	internal         bool
 	attachable       bool
 	inDelete         bool
