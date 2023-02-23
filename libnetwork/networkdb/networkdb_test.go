@@ -109,7 +109,10 @@ func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string
 		nn, nnok := db.networks[node]
 		if nnok {
 			n, ok := nn[id]
-			leaving := n.leaving
+			var leaving bool
+			if ok {
+				leaving = n.leaving
+			}
 			db.RUnlock()
 			if present && ok {
 				return
