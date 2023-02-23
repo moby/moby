@@ -20,6 +20,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/create` now accepts `Annotations` as part of `HostConfig`.
   Can be used to attach arbitrary metadata to the container, which will also be
   passed to the runtime when the container is started.
+* `GET /images/json` no longer includes hardcoded `<none>:<none>` and
+  `<none>@<none>` in `RepoTags` and`RepoDigests` for untagged images.
+  In such cases, empty arrays will be produced instead.
 
 ## v1.42 API changes
 

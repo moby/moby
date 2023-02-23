@@ -109,7 +109,7 @@ deleteImagesLoop:
 					}
 				}
 
-				// Only delete if it's untagged (i.e. repo:<none>)
+				// Only delete if it has no references which is a valid NamedTagged.
 				shouldDelete = !hasTag
 			}
 
