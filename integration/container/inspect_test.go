@@ -47,3 +47,27 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 	_, ok = cfg["Cpuset"]
 	assert.Check(t, is.Equal(true, ok), "API version 1.19 expected to include Cpuset in 'Config'")
 }
+
+func TestInspectAnnotations(t *testing.T) {
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+	ctx := context.Background()
+
+	annotations := map[string]string{
+		"hello": "world",
+		"foo":   "bar",
+	}
+
+	name := strings.ToLower(t.Name())
+	id := container.Create(ctx, t, client,
+		container.WithName(name),
+		container.WithCmd("true"),
+		func(c *container.TestContainerConfig) {
+			c.HostConfig.Annotations = annotations
+		},
+	)
+
+	inspect, err := client.ContainerInspect(ctx, id)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(inspect.HostConfig.Annotations, annotations))
+}

@@ -1026,6 +1026,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (r
 		WithApparmor(c),
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
+		coci.WithAnnotations(c.HostConfig.Annotations),
 	)
 	if daemon.UsesSnapshotter() {
 		s.Root = &specs.Root{

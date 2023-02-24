@@ -17,7 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.43](https://docs.docker.com/engine/api/v1.43/) documentation
 
-* TODO add API changes for v1.43 here when they arrive.
+* `POST /containers/create` now accepts `Annotations` as part of `HostConfig`.
+  Can be used to attach arbitrary metadata to the container, which will also be
+  passed to the runtime when the container is started.
 
 ## v1.42 API changes
 
