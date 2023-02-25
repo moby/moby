@@ -192,6 +192,10 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	return img, nil
 }
 
+func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (*v1.Descriptor, error) {
+	panic("not implemented")
+}
+
 func (i *ImageService) getImage(ctx context.Context, refOrID string, options imagetypes.GetImageOpts) (retImg *image.Image, retErr error) {
 	defer func() {
 		if retErr != nil || retImg == nil || options.Platform == nil {
