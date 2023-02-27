@@ -3,7 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -26,7 +26,7 @@ func TestPingFail(t *testing.T) {
 				resp.Header.Set("API-Version", "awesome")
 				resp.Header.Set("Docker-Experimental", "true")
 			}
-			resp.Body = ioutil.NopCloser(strings.NewReader("some error with the server"))
+			resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
 			return resp, nil
 		}),
 	}
@@ -52,7 +52,7 @@ func TestPingWithError(t *testing.T) {
 			resp.Header = http.Header{}
 			resp.Header.Set("API-Version", "awesome")
 			resp.Header.Set("Docker-Experimental", "true")
-			resp.Body = ioutil.NopCloser(strings.NewReader("some error with the server"))
+			resp.Body = io.NopCloser(strings.NewReader("some error with the server"))
 			return resp, errors.New("some error")
 		}),
 	}
@@ -72,7 +72,7 @@ func TestPingSuccess(t *testing.T) {
 			resp.Header = http.Header{}
 			resp.Header.Set("API-Version", "awesome")
 			resp.Header.Set("Docker-Experimental", "true")
-			resp.Body = ioutil.NopCloser(strings.NewReader("OK"))
+			resp.Body = io.NopCloser(strings.NewReader("OK"))
 			return resp, nil
 		}),
 	}

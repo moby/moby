@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -92,7 +92,7 @@ func TestTLSCloseWriter(t *testing.T) {
 	_, err = resp.Conn.Write([]byte("hello"))
 	assert.NilError(t, err)
 
-	b, err := ioutil.ReadAll(resp.Reader)
+	b, err := io.ReadAll(resp.Reader)
 	assert.NilError(t, err)
 	assert.Assert(t, string(b) == "hello")
 	assert.Assert(t, resp.CloseWrite())

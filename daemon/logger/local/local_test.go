@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +23,7 @@ import (
 func TestWriteLog(t *testing.T) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
@@ -83,7 +82,7 @@ func TestWriteLog(t *testing.T) {
 func TestReadLog(t *testing.T) {
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
@@ -170,7 +169,7 @@ func TestReadLog(t *testing.T) {
 }
 
 func BenchmarkLogWrite(b *testing.B) {
-	f, err := ioutil.TempFile("", b.Name())
+	f, err := os.CreateTemp("", b.Name())
 	assert.Assert(b, err)
 	defer os.Remove(f.Name())
 	f.Close()

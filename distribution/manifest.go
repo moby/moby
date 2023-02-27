@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/containerd/containerd/content"
@@ -141,7 +140,7 @@ func (m *manifestStore) getLocal(ctx context.Context, desc specs.Descriptor, ref
 	}
 
 	r := io.NewSectionReader(ra, 0, ra.Size())
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading manifest from content store")
 	}

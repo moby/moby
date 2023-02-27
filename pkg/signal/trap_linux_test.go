@@ -4,7 +4,6 @@
 package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"syscall"
@@ -16,7 +15,7 @@ import (
 
 func buildTestBinary(t *testing.T, tmpdir string, prefix string) (string, string) {
 	t.Helper()
-	tmpDir, err := ioutil.TempDir(tmpdir, prefix)
+	tmpDir, err := os.MkdirTemp(tmpdir, prefix)
 	assert.NilError(t, err)
 	exePath := tmpDir + "/" + prefix
 	wd, _ := os.Getwd()
@@ -67,12 +66,12 @@ func TestTrap(t *testing.T) {
 }
 
 func TestDumpStacks(t *testing.T) {
-	directory, err := ioutil.TempDir("", "test-dump-tasks")
+	directory, err := os.MkdirTemp("", "test-dump-tasks")
 	assert.Check(t, err)
 	defer os.RemoveAll(directory)
 	dumpPath, err := DumpStacks(directory)
 	assert.Check(t, err)
-	readFile, _ := ioutil.ReadFile(dumpPath)
+	readFile, _ := os.ReadFile(dumpPath)
 	fileData := string(readFile)
 	assert.Check(t, is.Contains(fileData, "goroutine"))
 }

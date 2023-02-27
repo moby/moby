@@ -1,14 +1,13 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestAtomicRemoveAllNormal(t *testing.T) {
-	dir, err := ioutil.TempDir("", "atomic-remove-with-normal")
+	dir, err := os.MkdirTemp("", "atomic-remove-with-normal")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +26,7 @@ func TestAtomicRemoveAllNormal(t *testing.T) {
 }
 
 func TestAtomicRemoveAllAlreadyExists(t *testing.T) {
-	dir, err := ioutil.TempDir("", "atomic-remove-already-exists")
+	dir, err := os.MkdirTemp("", "atomic-remove-already-exists")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +54,7 @@ func TestAtomicRemoveAllNotExist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dir, err := ioutil.TempDir("", "atomic-remove-already-exists")
+	dir, err := os.MkdirTemp("", "atomic-remove-already-exists")
 	if err != nil {
 		t.Fatal(err)
 	}

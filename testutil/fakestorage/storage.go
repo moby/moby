@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -149,7 +148,7 @@ COPY . /static`); err != nil {
 		Tags:    []string{image},
 	})
 	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, err = io.Copy(io.Discard, resp.Body)
 	assert.NilError(t, err)
 
 	// Start the container

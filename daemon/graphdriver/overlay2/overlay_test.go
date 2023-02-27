@@ -4,7 +4,6 @@
 package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -24,7 +23,7 @@ func init() {
 }
 
 func skipIfNaive(t *testing.T) {
-	td, err := ioutil.TempDir("", "naive-check-")
+	td, err := os.MkdirTemp("", "naive-check-")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

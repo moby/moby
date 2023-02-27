@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +115,7 @@ func (dummyDecoder) Reset(io.Reader) {}
 func TestFollowLogsConsumerGone(t *testing.T) {
 	lw := logger.NewLogWatcher()
 
-	f, err := ioutil.TempFile("", t.Name())
+	f, err := os.CreateTemp("", t.Name())
 	assert.NilError(t, err)
 	defer func() {
 		f.Close()
@@ -166,7 +165,7 @@ func TestFollowLogsProducerGone(t *testing.T) {
 	lw := logger.NewLogWatcher()
 	defer lw.ConsumerGone()
 
-	f, err := ioutil.TempFile("", t.Name())
+	f, err := os.CreateTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.Remove(f.Name())
 
@@ -248,11 +247,11 @@ func TestFollowLogsProducerGone(t *testing.T) {
 }
 
 func TestCheckCapacityAndRotate(t *testing.T) {
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
-	f, err := ioutil.TempFile(dir, "log")
+	f, err := os.CreateTemp(dir, "log")
 	assert.NilError(t, err)
 
 	l := &LogFile{
@@ -337,7 +336,7 @@ type dirStringer struct {
 }
 
 func (d dirStringer) String() string {
-	ls, err := ioutil.ReadDir(d.d)
+	ls, err := os.ReadDir(d.d)
 	if err != nil {
 		return ""
 	}
@@ -347,7 +346,12 @@ func (d dirStringer) String() string {
 
 	btw := bufio.NewWriter(tw)
 
-	for _, fi := range ls {
+	for _, entry := range ls {
+		fi, err := entry.Info()
+		if err != nil {
+			return ""
+		}
+
 		btw.WriteString(fmt.Sprintf("%s\t%s\t%dB\t%s\n", fi.Name(), fi.Mode(), fi.Size(), fi.ModTime()))
 	}
 	btw.Flush()

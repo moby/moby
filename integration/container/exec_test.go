@@ -2,7 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -59,7 +59,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 	go func() {
 		close(waitCh)
 		defer close(resCh)
-		r, err := ioutil.ReadAll(resp.Reader)
+		r, err := io.ReadAll(resp.Reader)
 
 		resCh <- struct {
 			content string
@@ -113,7 +113,7 @@ func TestExec(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	defer resp.Close()
-	r, err := ioutil.ReadAll(resp.Reader)
+	r, err := io.ReadAll(resp.Reader)
 	assert.NilError(t, err)
 	out := string(r)
 	assert.NilError(t, err)

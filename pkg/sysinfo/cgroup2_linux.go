@@ -1,7 +1,6 @@
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -139,13 +138,13 @@ func applyCPUSetCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, dir
 	}
 	info.Cpuset = true
 
-	cpus, err := ioutil.ReadFile(path.Join(dirPath, "cpuset.cpus.effective"))
+	cpus, err := os.ReadFile(path.Join(dirPath, "cpuset.cpus.effective"))
 	if err != nil {
 		return warnings
 	}
 	info.Cpus = strings.TrimSpace(string(cpus))
 
-	mems, err := ioutil.ReadFile(path.Join(dirPath, "cpuset.mems.effective"))
+	mems, err := os.ReadFile(path.Join(dirPath, "cpuset.mems.effective"))
 	if err != nil {
 		return warnings
 	}

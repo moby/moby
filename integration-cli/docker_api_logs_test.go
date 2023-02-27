@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -173,7 +172,7 @@ func (s *DockerSuite) TestLogsAPIUntil(c *testing.T) {
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)
-		actualStderr := ioutil.Discard
+		actualStderr := io.Discard
 		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
 		assert.NilError(c, err)
 
@@ -210,7 +209,7 @@ func (s *DockerSuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)
-		actualStderr := ioutil.Discard
+		actualStderr := io.Discard
 		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
 		assert.NilError(c, err)
 

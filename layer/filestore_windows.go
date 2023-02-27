@@ -2,7 +2,6 @@ package layer // import "github.com/docker/docker/layer"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -17,7 +16,7 @@ func (fm *fileMetadataTransaction) setOS(os string) error {
 
 // getOS reads the "os" file from the layer filestore
 func (fms *fileMetadataStore) getOS(layer ChainID) (string, error) {
-	contentBytes, err := ioutil.ReadFile(fms.getLayerFilename(layer, "os"))
+	contentBytes, err := os.ReadFile(fms.getLayerFilename(layer, "os"))
 	if err != nil {
 		// For backwards compatibility, the os file may not exist. Default to "windows" if missing.
 		if os.IsNotExist(err) {

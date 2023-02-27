@@ -62,12 +62,12 @@ type serviceVM struct {
 }
 
 // add will add an id to the service vm map. There are three cases:
-// 	- entry doesn't exist:
-// 		- add id to map and return a new vm that the caller can manually configure+start
-//	- entry does exist
-//  	- return vm in map and increment ref count
-//  - entry does exist but the ref count is 0
-//		- return the svm and errVMisTerminating. Caller can call svm.getStopError() to wait for stop
+//   - entry doesn't exist:
+//     add id to map and return a new vm that the caller can manually configure+start
+//   - entry does exist:
+//     return vm in map and increment ref count
+//   - entry does exist but the ref count is 0:
+//     return the svm and errVMisTerminating. Caller can call svm.getStopError() to wait for stop
 func (svmMap *serviceVMMap) add(id string) (svm *serviceVM, alreadyExists bool, err error) {
 	svmMap.Lock()
 	defer svmMap.Unlock()
@@ -95,12 +95,12 @@ func (svmMap *serviceVMMap) add(id string) (svm *serviceVM, alreadyExists bool, 
 }
 
 // get will get the service vm from the map. There are three cases:
-// 	- entry doesn't exist:
-// 		- return errVMUnknown
-//	- entry does exist
-//  	- return vm with no error
-//  - entry does exist but the ref count is 0
-//		- return the svm and errVMisTerminating. Caller can call svm.getStopError() to wait for stop
+//   - entry doesn't exist:
+//     return errVMUnknown
+//   - entry does exist:
+//     return vm with no error
+//   - entry does exist but the ref count is 0:
+//     return the svm and errVMisTerminating. Caller can call svm.getStopError() to wait for stop
 func (svmMap *serviceVMMap) get(id string) (*serviceVM, error) {
 	svmMap.Lock()
 	defer svmMap.Unlock()
@@ -115,15 +115,15 @@ func (svmMap *serviceVMMap) get(id string) (*serviceVM, error) {
 }
 
 // decrementRefCount decrements the ref count of the given ID from the map. There are four cases:
-// 	- entry doesn't exist:
-// 		- return errVMUnknown
-//  - entry does exist but the ref count is 0
-//		- return the svm and errVMisTerminating. Caller can call svm.getStopError() to wait for stop
-//	- entry does exist but ref count is 1
-//  	- return vm and set lastRef to true. The caller can then stop the vm, delete the id from this map
-//      - and execute svm.signalStopFinished to signal the threads that the svm has been terminated.
-//	- entry does exist and ref count > 1
-//		- just reduce ref count and return svm
+//   - entry doesn't exist:
+//     return errVMUnknown
+//   - entry does exist but the ref count is 0:
+//     return the svm and errVMisTerminating. Caller can call svm.getStopError() to wait for stop
+//   - entry does exist but ref count is 1:
+//     return vm and set lastRef to true. The caller can then stop the vm, delete the id from this map
+//     and execute svm.signalStopFinished to signal the threads that the svm has been terminated.
+//   - entry does exist and ref count > 1:
+//     just reduce ref count and return svm
 func (svmMap *serviceVMMap) decrementRefCount(id string) (_ *serviceVM, lastRef bool, _ error) {
 	svmMap.Lock()
 	defer svmMap.Unlock()

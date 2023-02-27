@@ -2,7 +2,6 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -436,7 +435,7 @@ func TestParseMountSpec(t *testing.T) {
 		input    mount.Mount
 		expected MountPoint
 	}
-	testDir, err := ioutil.TempDir("", "test-mount-config")
+	testDir, err := os.MkdirTemp("", "test-mount-config")
 	if err != nil {
 		t.Fatal(err)
 	}

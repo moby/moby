@@ -3,7 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -514,7 +514,7 @@ func readCredentialSpecFile(id, root, location string) (string, error) {
 	if !strings.HasPrefix(full, base) {
 		return "", fmt.Errorf("invalid credential spec - file:// path must be under %s", base)
 	}
-	bcontents, err := ioutil.ReadFile(full)
+	bcontents, err := os.ReadFile(full)
 	if err != nil {
 		return "", errors.Wrapf(err, "credential spec for container %s could not be read from file %q", id, full)
 	}

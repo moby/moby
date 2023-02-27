@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -205,7 +204,7 @@ func writeResponse(w http.ResponseWriter, message interface{}, code int) {
 }
 
 func readJSON(r *http.Request, dest interface{}) error {
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
 	}
@@ -327,7 +326,7 @@ func handlerPutImage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		apiError(w, fmt.Sprintf("Error: %s", err), http.StatusInternalServerError)
 		return

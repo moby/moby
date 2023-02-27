@@ -4,7 +4,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -186,7 +185,7 @@ func TestRootMountCleanup(t *testing.T) {
 
 	t.Parallel()
 
-	testRoot, err := ioutil.TempDir("", t.Name())
+	testRoot, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testRoot)
 	cfg := &config.Config{}
@@ -258,7 +257,7 @@ func TestRootMountCleanup(t *testing.T) {
 		err = mount.MakeShared(testRoot)
 		assert.NilError(t, err)
 		defer mount.MakePrivate(testRoot)
-		err = ioutil.WriteFile(unmountFile, nil, 0644)
+		err = os.WriteFile(unmountFile, nil, 0644)
 		assert.NilError(t, err)
 
 		err = setupDaemonRootPropagation(cfg)

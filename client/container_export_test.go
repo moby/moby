@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -32,7 +32,7 @@ func TestContainerExport(t *testing.T) {
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       ioutil.NopCloser(bytes.NewReader([]byte("response"))),
+				Body:       io.NopCloser(bytes.NewReader([]byte("response"))),
 			}, nil
 		}),
 	}
@@ -41,7 +41,7 @@ func TestContainerExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer body.Close()
-	content, err := ioutil.ReadAll(body)
+	content, err := io.ReadAll(body)
 	if err != nil {
 		t.Fatal(err)
 	}

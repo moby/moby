@@ -3,11 +3,10 @@ package distribution // import "github.com/docker/docker/distribution"
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -134,7 +133,7 @@ func TestValidateManifest(t *testing.T) {
 
 	// Good manifest
 
-	goodManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/good_manifest")
+	goodManifestBytes, err := os.ReadFile("fixtures/validate_manifest/good_manifest")
 	if err != nil {
 		t.Fatal("error reading fixture:", err)
 	}
@@ -156,7 +155,7 @@ func TestValidateManifest(t *testing.T) {
 
 	// "Extra data" manifest
 
-	extraDataManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/extra_data_manifest")
+	extraDataManifestBytes, err := os.ReadFile("fixtures/validate_manifest/extra_data_manifest")
 	if err != nil {
 		t.Fatal("error reading fixture:", err)
 	}
@@ -178,7 +177,7 @@ func TestValidateManifest(t *testing.T) {
 
 	// Bad manifest
 
-	badManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/bad_manifest")
+	badManifestBytes, err := os.ReadFile("fixtures/validate_manifest/bad_manifest")
 	if err != nil {
 		t.Fatal("error reading fixture:", err)
 	}
@@ -210,7 +209,7 @@ func TestFormatPlatform(t *testing.T) {
 		}
 		matches, _ := regexp.MatchString("windows.* [0-9]", result)
 		if !matches {
-			t.Fatal(fmt.Sprintf("expected formatPlatform to show windows platform with a version, but got '%s'", result))
+			t.Fatalf("expected formatPlatform to show windows platform with a version, but got '%s'", result)
 		}
 	}
 }

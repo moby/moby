@@ -4,7 +4,6 @@
 package fsutils // import "github.com/docker/docker/pkg/fsutils"
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"testing"
@@ -20,7 +19,7 @@ func testSupportsDType(t *testing.T, expected bool, mkfsCommand string, mkfsArg 
 
 	// create a sparse image
 	imageSize := int64(32 * 1024 * 1024)
-	imageFile, err := ioutil.TempFile("", "fsutils-image")
+	imageFile, err := os.CreateTemp("", "fsutils-image")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +36,7 @@ func testSupportsDType(t *testing.T, expected bool, mkfsCommand string, mkfsArg 
 	}
 
 	// create a mountpoint
-	mountpoint, err := ioutil.TempDir("", "fsutils-mountpoint")
+	mountpoint, err := os.MkdirTemp("", "fsutils-mountpoint")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -178,7 +177,7 @@ func handleLoadError(err error, id string) {
 }
 
 func (pm *Manager) reload() error { // todo: restore
-	dir, err := ioutil.ReadDir(pm.config.Root)
+	dir, err := os.ReadDir(pm.config.Root)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read %v", pm.config.Root)
 	}
@@ -268,7 +267,7 @@ func (pm *Manager) Get(idOrName string) (*v2.Plugin, error) {
 
 func (pm *Manager) loadPlugin(id string) (*v2.Plugin, error) {
 	p := filepath.Join(pm.config.Root, id, configFileName)
-	dt, err := ioutil.ReadFile(p)
+	dt, err := os.ReadFile(p)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error reading %v", p)
 	}

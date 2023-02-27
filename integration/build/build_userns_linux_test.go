@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -33,7 +32,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	const imageTag = "capabilities:1.0"
 
-	tmp, err := ioutil.TempDir("", "integration-")
+	tmp, err := os.MkdirTemp("", "integration-")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmp)
 
@@ -123,7 +122,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	defer logReader.Close()
 
 	actualStdout := new(bytes.Buffer)
-	actualStderr := ioutil.Discard
+	actualStderr := io.Discard
 	_, err = stdcopy.StdCopy(actualStdout, actualStderr, logReader)
 	assert.NilError(t, err)
 	if strings.TrimSpace(actualStdout.String()) != "/bin/sleep cap_net_bind_service=eip" {

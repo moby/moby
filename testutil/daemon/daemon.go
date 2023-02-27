@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -253,7 +252,7 @@ func (d *Daemon) LogFileName() string {
 
 // ReadLogFile returns the content of the daemon log file
 func (d *Daemon) ReadLogFile() ([]byte, error) {
-	return ioutil.ReadFile(d.logFile.Name())
+	return os.ReadFile(d.logFile.Name())
 }
 
 // NewClientT creates new client based on daemon's socket path

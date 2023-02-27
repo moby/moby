@@ -2,7 +2,6 @@ package plugin // import "github.com/docker/docker/plugin"
 
 import (
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -21,7 +20,7 @@ import (
 
 func TestManagerWithPluginMounts(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	root, err := ioutil.TempDir("", "test-store-with-plugin-mounts")
+	root, err := os.MkdirTemp("", "test-store-with-plugin-mounts")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +106,7 @@ func (e *simpleExecutor) Signal(id string, signal int) error {
 }
 
 func TestCreateFailed(t *testing.T) {
-	root, err := ioutil.TempDir("", "test-create-failed")
+	root, err := os.MkdirTemp("", "test-create-failed")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +177,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
-	root, err := ioutil.TempDir("", t.Name())
+	root, err := os.MkdirTemp("", t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +210,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 			p.PluginObj.Enabled = true
 
 			// Need a short-ish path here so we don't run into unix socket path length issues.
-			config.ExecRoot, err = ioutil.TempDir("", "plugintest")
+			config.ExecRoot, err = os.MkdirTemp("", "plugintest")
 
 			executor := &executorWithRunning{root: config.ExecRoot}
 			config.CreateExecutor = func(m *Manager) (Executor, error) { executor.m = m; return executor, nil }

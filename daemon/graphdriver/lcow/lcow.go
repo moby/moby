@@ -48,7 +48,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -743,7 +742,7 @@ func (d *Driver) Put(id string) error {
 func (d *Driver) Cleanup() error {
 	title := "lcowdriver: cleanup"
 
-	items, err := ioutil.ReadDir(d.dataRoot)
+	items, err := os.ReadDir(d.dataRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -972,7 +971,7 @@ func (d *Driver) dir(id string) string {
 func (d *Driver) getLayerChain(id string) ([]string, error) {
 	jPath := filepath.Join(d.dir(id), "layerchain.json")
 	logrus.Debugf("lcowdriver: getlayerchain: id %s json %s", id, jPath)
-	content, err := ioutil.ReadFile(jPath)
+	content, err := os.ReadFile(jPath)
 	if os.IsNotExist(err) {
 		return nil, nil
 	} else if err != nil {
@@ -996,7 +995,7 @@ func (d *Driver) setLayerChain(id string, chain []string) error {
 
 	jPath := filepath.Join(d.dir(id), "layerchain.json")
 	logrus.Debugf("lcowdriver: setlayerchain: id %s json %s", id, jPath)
-	err = ioutil.WriteFile(jPath, content, 0600)
+	err = os.WriteFile(jPath, content, 0600)
 	if err != nil {
 		return fmt.Errorf("lcowdriver: setlayerchain: %s failed to write layerchain file: %s", id, err)
 	}

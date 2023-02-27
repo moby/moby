@@ -5,7 +5,7 @@ package seccomp // import "github.com/docker/docker/profiles/seccomp"
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -14,7 +14,7 @@ import (
 )
 
 func TestLoadProfile(t *testing.T) {
-	f, err := ioutil.ReadFile("fixtures/example.json")
+	f, err := os.ReadFile("fixtures/example.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestLoadProfile(t *testing.T) {
 // TestLoadLegacyProfile tests loading a seccomp profile in the old format
 // (before https://github.com/docker/docker/pull/24510)
 func TestLoadLegacyProfile(t *testing.T) {
-	f, err := ioutil.ReadFile("fixtures/default-old-format.json")
+	f, err := os.ReadFile("fixtures/default-old-format.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestLoadLegacyProfile(t *testing.T) {
 }
 
 func TestLoadDefaultProfile(t *testing.T) {
-	f, err := ioutil.ReadFile("default.json")
+	f, err := os.ReadFile("default.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestUnmarshalDefaultProfile(t *testing.T) {
 		t.Skip("seccomp not supported")
 	}
 
-	f, err := ioutil.ReadFile("default.json")
+	f, err := os.ReadFile("default.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestMarshalUnmarshalFilter(t *testing.T) {
 }
 
 func TestLoadConditional(t *testing.T) {
-	f, err := ioutil.ReadFile("fixtures/conditional_include.json")
+	f, err := os.ReadFile("fixtures/conditional_include.json")
 	if err != nil {
 		t.Fatal(err)
 	}

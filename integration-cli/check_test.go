@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path"
@@ -151,7 +150,7 @@ func (s *DockerSuite) OnTimeout(c *testing.T) {
 		return
 	}
 	path := filepath.Join(os.Getenv("DEST"), "docker.pid")
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		c.Fatalf("Failed to get daemon PID from %s\n", path)
 	}

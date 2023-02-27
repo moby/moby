@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,7 +98,7 @@ func makeTestContentInDir(c *testing.T, dir string) {
 		path := filepath.Join(dir, filepath.FromSlash(fd.path))
 		switch fd.filetype {
 		case ftRegular:
-			assert.NilError(c, ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(fd.mode)))
+			assert.NilError(c, os.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(fd.mode)))
 		case ftDir:
 			assert.NilError(c, os.Mkdir(path, os.FileMode(fd.mode)))
 		case ftSymlink:
@@ -217,7 +217,7 @@ func getTestDir(c *testing.T, label string) (tmpDir string) {
 	c.Helper()
 	var err error
 
-	tmpDir, err = ioutil.TempDir("", label)
+	tmpDir, err = os.MkdirTemp("", label)
 	// unable to make temporary directory
 	assert.NilError(c, err)
 
@@ -239,12 +239,12 @@ func isCpCannotCopyReadOnly(err error) bool {
 func fileContentEquals(c *testing.T, filename, contents string) error {
 	c.Helper()
 
-	fileBytes, err := ioutil.ReadFile(filename)
+	fileBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
 
-	expectedBytes, err := ioutil.ReadAll(strings.NewReader(contents))
+	expectedBytes, err := io.ReadAll(strings.NewReader(contents))
 	if err != nil {
 		return err
 	}

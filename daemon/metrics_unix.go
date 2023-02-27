@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -31,7 +32,11 @@ func (daemon *Daemon) listenMetricsSock() (string, error) {
 	mux.Handle("/metrics", metrics.Handler())
 	go func() {
 		logrus.Debugf("metrics API listening on %s", l.Addr())
-		if err := http.Serve(l, mux); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+		srv := &http.Server{
+			Handler:           mux,
+			ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
+		}
+		if err := srv.Serve(l); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			logrus.WithError(err).Error("error serving metrics API")
 		}
 	}()

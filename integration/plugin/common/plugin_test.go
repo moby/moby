@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -80,7 +79,7 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, err)
 		defer rdr.Close()
 
-		_, err = io.Copy(ioutil.Discard, rdr)
+		_, err = io.Copy(io.Discard, rdr)
 		assert.NilError(t, err)
 
 		_, _, err = client.PluginInspectWithRaw(ctx, repo)
@@ -109,7 +108,7 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, err)
 		defer rdr.Close()
 
-		_, err = io.Copy(ioutil.Discard, rdr)
+		_, err = io.Copy(io.Discard, rdr)
 		assert.NilError(t, err)
 
 		_, _, err = client.PluginInspectWithRaw(ctx, repo)
@@ -157,7 +156,7 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, err)
 		defer rdr.Close()
 
-		_, err = io.Copy(ioutil.Discard, rdr)
+		_, err = io.Copy(io.Discard, rdr)
 		assert.NilError(t, err)
 
 		_, _, err = client.PluginInspectWithRaw(ctx, repo)
@@ -171,7 +170,7 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "Test not supported on rootless due to buggy daemon setup in rootless mode due to daemon restart")
 	skip.If(t, testEnv.OSType == "windows")
 
-	dir, err := ioutil.TempDir("", t.Name())
+	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
@@ -201,7 +200,7 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	exec runc $@
 	`, dir)
 
-	assert.NilError(t, ioutil.WriteFile(p, []byte(script), 0777))
+	assert.NilError(t, os.WriteFile(p, []byte(script), 0777))
 
 	type config struct {
 		Runtimes map[string]types.Runtime `json:"runtimes"`
@@ -214,7 +213,7 @@ func TestPluginsWithRuntimes(t *testing.T) {
 		},
 	})
 	configPath := filepath.Join(dir, "config.json")
-	ioutil.WriteFile(configPath, cfg, 0644)
+	os.WriteFile(configPath, cfg, 0644)
 
 	t.Run("No Args", func(t *testing.T) {
 		d.Restart(t, "--default-runtime=myrt", "--config-file="+configPath)

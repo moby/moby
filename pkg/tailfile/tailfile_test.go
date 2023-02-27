@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -15,7 +14,7 @@ import (
 )
 
 func TestTailFile(t *testing.T) {
-	f, err := ioutil.TempFile("", "tail-test")
+	f, err := os.CreateTemp("", "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +68,7 @@ truncated line`)
 }
 
 func TestTailFileManyLines(t *testing.T) {
-	f, err := ioutil.TempFile("", "tail-test")
+	f, err := os.CreateTemp("", "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +99,7 @@ truncated line`)
 }
 
 func TestTailEmptyFile(t *testing.T) {
-	f, err := ioutil.TempFile("", "tail-test")
+	f, err := os.CreateTemp("", "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +115,7 @@ func TestTailEmptyFile(t *testing.T) {
 }
 
 func TestTailNegativeN(t *testing.T) {
-	f, err := ioutil.TempFile("", "tail-test")
+	f, err := os.CreateTemp("", "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +139,7 @@ truncated line`)
 }
 
 func BenchmarkTail(b *testing.B) {
-	f, err := ioutil.TempFile("", "tail-test")
+	f, err := os.CreateTemp("", "tail-test")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -235,7 +234,7 @@ func TestNewTailReader(t *testing.T) {
 							assert.NilError(t, err)
 							assert.Check(t, lines == i, "%d -- %d", lines, i)
 
-							b, err := ioutil.ReadAll(tr)
+							b, err := io.ReadAll(tr)
 							assert.NilError(t, err)
 
 							expectLines := test.data[len(test.data)-i:]
@@ -262,7 +261,7 @@ func TestNewTailReader(t *testing.T) {
 
 						assert.NilError(t, err)
 						assert.Check(t, lines == len(test.data), "%d -- %d", lines, len(test.data))
-						b, err := ioutil.ReadAll(tr)
+						b, err := io.ReadAll(tr)
 						assert.NilError(t, err)
 						assert.Check(t, bytes.Equal(b, []byte(s)), "\n%v\n%v", b, []byte(s))
 					})

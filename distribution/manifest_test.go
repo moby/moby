@@ -3,7 +3,6 @@ package distribution
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -135,7 +134,7 @@ func TestManifestStore(t *testing.T) {
 	dgst := digest.Canonical.FromBytes(serialized)
 
 	setupTest := func(t *testing.T) (reference.Named, specs.Descriptor, *mockManifestGetter, *manifestStore, content.Store, func(*testing.T)) {
-		root, err := ioutil.TempDir("", strings.Replace(t.Name(), "/", "_", -1))
+		root, err := os.MkdirTemp("", strings.Replace(t.Name(), "/", "_", -1))
 		assert.NilError(t, err)
 		defer func() {
 			if t.Failed() {

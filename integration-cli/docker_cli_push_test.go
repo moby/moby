@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -123,7 +122,7 @@ func (s *DockerSchema1RegistrySuite) TestPushMultipleTags(c *testing.T) {
 
 func testPushEmptyLayer(c *testing.T) {
 	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
-	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
+	emptyTarball, err := os.CreateTemp("", "empty_tarball")
 	assert.NilError(c, err, "Unable to create test file")
 
 	tw := tar.NewWriter(emptyTarball)

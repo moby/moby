@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"runtime"
@@ -1112,7 +1111,7 @@ func fixManifestLayers(m *schema1.Manifest) error {
 }
 
 func createDownloadFile() (*os.File, error) {
-	return ioutil.TempFile("", "GetImageBlob")
+	return os.CreateTemp("", "GetImageBlob")
 }
 
 func toOCIPlatform(p manifestlist.PlatformSpec) specs.Platform {

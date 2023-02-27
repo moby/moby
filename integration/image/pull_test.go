@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -116,7 +115,7 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) ima
 }
 
 // Make sure that pulling by an already cached digest but for a different ref (that should not have that digest)
-//  verifies with the remote that the digest exists in that repo.
+// verifies with the remote that the digest exists in that repo.
 func TestImagePullStoredfDigestForOtherRepo(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.OSType == "windows", "We don't run a test registry on Windows")
@@ -151,7 +150,7 @@ func TestImagePullStoredfDigestForOtherRepo(t *testing.T) {
 	rdr, err := client.ImagePull(ctx, remote, types.ImagePullOptions{})
 	assert.NilError(t, err)
 	defer rdr.Close()
-	io.Copy(ioutil.Discard, rdr)
+	io.Copy(io.Discard, rdr)
 
 	// Now, pull a totally different repo with a the same digest
 	rdr, err = client.ImagePull(ctx, path.Join(registry.DefaultURL, "other:image@"+desc.Digest.String()), types.ImagePullOptions{})

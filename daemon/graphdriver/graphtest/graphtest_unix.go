@@ -5,7 +5,6 @@ package graphtest // import "github.com/docker/docker/daemon/graphdriver/graphte
 
 import (
 	"bytes"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -36,7 +35,7 @@ type Driver struct {
 }
 
 func newDriver(t testing.TB, name string, options []string) *Driver {
-	root, err := ioutil.TempDir("", "docker-graphtest-")
+	root, err := os.MkdirTemp("", "docker-graphtest-")
 	assert.NilError(t, err)
 
 	assert.NilError(t, os.MkdirAll(root, 0755))
@@ -308,7 +307,7 @@ func writeRandomFile(path string, size uint64) error {
 	header.Cap *= 8
 	data := *(*[]byte)(unsafe.Pointer(&header)) //nolint:govet // FIXME: unsafeptr: possible misuse of reflect.SliceHeader (govet) see https://github.com/moby/moby/issues/42444
 
-	return ioutil.WriteFile(path, data, 0700)
+	return os.WriteFile(path, data, 0700)
 }
 
 // DriverTestSetQuota Create a driver and test setting quota.
