@@ -6,6 +6,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 
@@ -94,4 +95,46 @@ func (daemon *Daemon) populateVolumes(c *container.Container) error {
 		}
 	}
 	return nil
+}
+
+func (daemon *Daemon) warnExposedHostPorts(c *container.Container) bool {
+	if os.Getenv("DOCKER_NOWARN_FIREWALL_BYPASS") == "1" {
+		return false
+	}
+	if daemon.Rootless() {
+		return false
+	}
+
+	return daemon.exposesHostPorts(c)
+}
+
+func (daemon *Daemon) exposesHostPorts(c *container.Container) bool {
+	safeDefault := daemon.configStore.DefaultIP.IsLoopback()
+
+	if !safeDefault && c.HostConfig.PublishAllPorts && len(c.Config.ExposedPorts) > 0 {
+		return true
+	}
+
+	for _, mapping := range c.HostConfig.PortBindings {
+		for _, m := range mapping {
+			if m.HostIP == "" {
+				if !safeDefault {
+					return true
+				}
+				continue
+			}
+
+			addr, err := netip.ParseAddr(m.HostIP)
+			if err != nil {
+				// This really shouldn't happen, but just in case it does we'll log it
+				logrus.WithField("container", c.Name).WithField("hostIP", m.HostIP).WithError(err).Warn("invalid host IP in port binding")
+				continue
+			}
+
+			if !addr.IsLoopback() {
+				return true
+			}
+		}
+	}
+	return false
 }
