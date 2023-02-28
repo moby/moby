@@ -1459,6 +1459,11 @@ func (daemon *Daemon) ImageService() ImageService {
 	return daemon.imageService
 }
 
+// RegistryService returns the Daemon's RegistryService
+func (daemon *Daemon) RegistryService() registry.Service {
+	return daemon.registryService
+}
+
 // BuilderBackend returns the backend used by builder
 func (daemon *Daemon) BuilderBackend() builder.Backend {
 	return struct {

@@ -1,44 +1,26 @@
-package images // import "github.com/docker/docker/daemon/images"
+package registry // import "github.com/docker/docker/registry"
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	registrypkg "github.com/docker/docker/registry"
 	"gotest.tools/v3/assert"
 )
 
-type fakeService struct {
-	registrypkg.Service
-	shouldReturnError bool
-
-	term    string
-	results []registry.SearchResult
-}
-
-func (s *fakeService) Search(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
-	if s.shouldReturnError {
-		return nil, errdefs.Unknown(errors.New("search unknown error"))
-	}
-	return &registry.SearchResults{
-		Query:      s.term,
-		NumResults: len(s.results),
-		Results:    s.results,
-	}, nil
-}
-
-func TestSearchRegistryForImagesErrors(t *testing.T) {
+func TestSearchErrors(t *testing.T) {
 	errorCases := []struct {
 		filtersArgs       filters.Args
 		shouldReturnError bool
 		expectedError     string
 	}{
 		{
-			expectedError:     "search unknown error",
+			expectedError:     "Unexpected status code 500",
 			shouldReturnError: true,
 		},
 		{
@@ -82,12 +64,20 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 	for _, tc := range errorCases {
 		tc := tc
 		t.Run(tc.expectedError, func(t *testing.T) {
-			daemon := &ImageService{
-				registryService: &fakeService{
-					shouldReturnError: tc.shouldReturnError,
-				},
-			}
-			_, err := daemon.SearchRegistryForImages(context.Background(), tc.filtersArgs, "term", 0, nil, map[string][]string{})
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !tc.shouldReturnError {
+					t.Errorf("unexpected HTTP request")
+				}
+				http.Error(w, "no search for you", http.StatusInternalServerError)
+			}))
+			defer srv.Close()
+
+			// Construct the search term by cutting the 'http://' prefix off srv.URL.
+			term := srv.URL[7:] + "/term"
+
+			reg, err := NewService(ServiceOptions{})
+			assert.NilError(t, err)
+			_, err = reg.Search(context.Background(), tc.filtersArgs, term, 0, nil, map[string][]string{})
 			assert.ErrorContains(t, err, tc.expectedError)
 			if tc.shouldReturnError {
 				assert.Check(t, errdefs.IsUnknown(err), "got: %T: %v", err, err)
@@ -98,8 +88,8 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 	}
 }
 
-func TestSearchRegistryForImages(t *testing.T) {
-	term := "term"
+func TestSearch(t *testing.T) {
+	const term = "term"
 	successCases := []struct {
 		name            string
 		filtersArgs     filters.Args
@@ -348,17 +338,24 @@ func TestSearchRegistryForImages(t *testing.T) {
 	for _, tc := range successCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			daemon := &ImageService{
-				registryService: &fakeService{
-					term:    term,
-					results: tc.registryResults,
-				},
-			}
-			results, err := daemon.SearchRegistryForImages(context.Background(), tc.filtersArgs, term, 0, nil, map[string][]string{})
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-type", "application/json")
+				json.NewEncoder(w).Encode(registry.SearchResults{
+					Query:      term,
+					NumResults: len(tc.registryResults),
+					Results:    tc.registryResults,
+				})
+			}))
+			defer srv.Close()
+
+			// Construct the search term by cutting the 'http://' prefix off srv.URL.
+			searchTerm := srv.URL[7:] + "/" + term
+
+			reg, err := NewService(ServiceOptions{})
 			assert.NilError(t, err)
-			assert.Equal(t, results.Query, term)
-			assert.Equal(t, results.NumResults, len(tc.expectedResults))
-			assert.DeepEqual(t, results.Results, tc.expectedResults)
+			results, err := reg.Search(context.Background(), tc.filtersArgs, searchTerm, 0, nil, map[string][]string{})
+			assert.NilError(t, err)
+			assert.DeepEqual(t, results, tc.expectedResults)
 		})
 	}
 }
