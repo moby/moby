@@ -118,6 +118,9 @@ func getExistingImages(t testing.TB, testEnv *Execution) []string {
 func tagsFromImageSummary(image types.ImageSummary) []string {
 	var result []string
 	for _, tag := range image.RepoTags {
+		// Starting from API 1.43 no longer outputs the hardcoded <none>
+		// strings. But since the tests might be ran against a remote
+		// daemon/pre 1.43 CLI we must still be able to handle it.
 		if tag != "<none>:<none>" {
 			result = append(result, tag)
 		}

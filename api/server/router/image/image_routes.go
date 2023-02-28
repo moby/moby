@@ -338,9 +338,18 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	}
 
 	for _, img := range images {
-		if len(img.RepoTags) == 0 && len(img.RepoDigests) == 0 {
-			img.RepoTags = append(img.RepoTags, "<none>:<none>")
-			img.RepoDigests = append(img.RepoDigests, "<none>@<none>")
+		if versions.LessThan(version, "1.43") {
+			if len(img.RepoTags) == 0 && len(img.RepoDigests) == 0 {
+				img.RepoTags = append(img.RepoTags, "<none>:<none>")
+				img.RepoDigests = append(img.RepoDigests, "<none>@<none>")
+			}
+		} else {
+			if img.RepoTags == nil {
+				img.RepoTags = []string{}
+			}
+			if img.RepoDigests == nil {
+				img.RepoDigests = []string{}
+			}
 		}
 	}
 
