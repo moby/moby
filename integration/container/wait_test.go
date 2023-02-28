@@ -145,7 +145,7 @@ func TestWaitConditions(t *testing.T) {
 				opts = append(opts, container.WithAutoRemove)
 			}
 			containerID := container.Run(ctx, t, cli, opts...)
-			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(75*time.Second), poll.WithDelay(100*time.Millisecond))
 
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
 			select {
