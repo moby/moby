@@ -3,7 +3,7 @@
 The contributions described below are advanced because they use complex workflows or require more experience.
 If you like the challenge, this is the place for you.
 
-By now you should have worked through the [previous parts](README.md) of the project contributing guide, and also [made at least one contribution](who-written-for.md).
+By now you should have worked through the [previous parts](README.md) of the project contributing guide, and also [made at least one contribution](getting-started.md).
 
 ## About the Advanced Contribution Process
 

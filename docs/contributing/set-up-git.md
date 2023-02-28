@@ -275,6 +275,4 @@ commit is signed.
 
 ## Where to go next
 
-Congratulations, you have finished configuring both your local host environment
-and Git for contributing. In the next section you'll [learn how to set up and
-work in a Moby development container](set-up-dev-env.md).
+Congratulations, you have finished configuring both your local host environment and Git for contributing. In the next section you'll [learn how to set up and work in a Moby development container](set-up-dev-env.md).

@@ -1,10 +1,9 @@
 # Contribute to the Moby Project
 
-Want to hack on the Moby Project? Awesome! We have a contributor's guide that explains
-[setting up a development environment and the contribution
-process](docs/contributing/). 
+Want to hack on the Moby Project? Awesome! We have a [contributor's guide](docs/contributing/README.md) that explains the contribution
+process.
 
-[![Contributors guide](docs/static_files/contribute.png)](docs/contributing/who-written-for.md)
+[![Contributors guide](docs/static_files/contribute.png)](docs/contributing/README.md)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure

@@ -60,7 +60,9 @@ outside the developer's machine and is not recommended.
    The Docker daemon will continue execution inside the container and debugger will stop it on the breakpoints.
    ![GoLand - run Go Remote configuration](images/goland_run_debug_config.png)
 
-## Where to go next
+## Next steps
 
 Congratulations, you have experienced how to use Delve to debug the Docker daemon
 and how to configure an IDE to make use of it.
+
+You're welcome to check out our [issue section on GitHub](https://github.com/moby/moby/issues) and start contributing.

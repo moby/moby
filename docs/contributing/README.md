@@ -1,11 +1,20 @@
-# Get set up for Moby development
+# Moby Contribution Guide
 
- * [README first](who-written-for.md)
- * [Get the required software](software-required.md)
- * [Set up for development on Windows](software-req-win.md)
- * (Optional) [Configure project for IDE](set-up-ide.md)
- * [Configure Git for contributing](set-up-git.md)
- * [Work with a development container](set-up-dev-env.md)
- * [Containerized build and cross compilation](ctn-build.md)
- * [Run tests and test documentation](test.md)
- * [Debugging the daemon](debug.md)
+## About this Guide
+
+The Moby Contribution Guide will take you through the steps for setting up the tools and environment needed for development, and start contributing to the Moby Project.
+
+## Steps for Contributing
+
+Follow these steps:
+
+1. [Get started with Moby](getting-started.md)
+2. Get the required software:
+    - [For Linux / macOS](software-required.md)
+    - [For Windows](software-req-win.md)
+3. (Optional) [Configure IDE](set-up-ide.md)
+4. [Configure Git](set-up-git.md)
+5. [Work with a Development Container](set-up-dev-env.md)
+6. [Containerized build and Cross compilation](ctn-build.md)
+7. [Run tests and test documentation](test.md)
+8. [Debugging the daemon](debug.md)
