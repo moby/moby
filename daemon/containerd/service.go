@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -27,15 +26,19 @@ type ImageService struct {
 	containers      container.Store
 	snapshotter     string
 	registryHosts   RegistryHostsProvider
-	registryService registry.Service
+	registryService RegistryConfigProvider
 }
 
 type RegistryHostsProvider interface {
 	RegistryHosts() docker.RegistryHosts
 }
 
+type RegistryConfigProvider interface {
+	IsInsecureRegistry(host string) bool
+}
+
 // NewService creates a new ImageService.
-func NewService(c *containerd.Client, containers container.Store, snapshotter string, hostsProvider RegistryHostsProvider, registry registry.Service) *ImageService {
+func NewService(c *containerd.Client, containers container.Store, snapshotter string, hostsProvider RegistryHostsProvider, registry RegistryConfigProvider) *ImageService {
 	return &ImageService{
 		client:          c,
 		containers:      containers,

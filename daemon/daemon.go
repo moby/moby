@@ -82,7 +82,7 @@ type Daemon struct {
 	configStore           *config.Config
 	statsCollector        *stats.Collector
 	defaultLogConfig      containertypes.LogConfig
-	registryService       registry.Service
+	registryService       *registry.Service
 	EventsService         *events.Events
 	netController         *libnetwork.Controller
 	volumes               *volumesservice.VolumesService
@@ -1460,7 +1460,7 @@ func (daemon *Daemon) ImageService() ImageService {
 }
 
 // RegistryService returns the Daemon's RegistryService
-func (daemon *Daemon) RegistryService() registry.Service {
+func (daemon *Daemon) RegistryService() *registry.Service {
 	return daemon.registryService
 }
 

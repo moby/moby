@@ -23,7 +23,7 @@ func (i *ImageService) newResolverFromAuthConfig(authConfig *registrytypes.AuthC
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, authConfig *registrytypes.AuthConfig, regService registry.Service) docker.RegistryHosts {
+func hostsWrapper(hostsFn docker.RegistryHosts, authConfig *registrytypes.AuthConfig, regService RegistryConfigProvider) docker.RegistryHosts {
 	return func(n string) ([]docker.RegistryHost, error) {
 		hosts, err := hostsFn(n)
 		if err != nil {

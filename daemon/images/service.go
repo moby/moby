@@ -8,12 +8,12 @@ import (
 	"github.com/containerd/containerd/leases"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
+	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	dockerreference "github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -39,7 +39,7 @@ type ImageServiceConfig struct {
 	MaxConcurrentUploads      int
 	MaxDownloadAttempts       int
 	ReferenceStore            dockerreference.Store
-	RegistryService           registry.Service
+	RegistryService           distribution.RegistryResolver
 	ContentStore              content.Store
 	Leases                    leases.Manager
 	ContentNamespace          string
@@ -73,7 +73,7 @@ type ImageService struct {
 	layerStore                layer.Store
 	pruneRunning              int32
 	referenceStore            dockerreference.Store
-	registryService           registry.Service
+	registryService           distribution.RegistryResolver
 	uploadManager             *xfer.LayerUploadManager
 	leases                    leases.Manager
 	content                   content.Store

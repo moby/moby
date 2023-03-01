@@ -8,50 +8,35 @@ import (
 	"sync"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 )
 
-// Service is the interface defining what a registry service should implement.
-type Service interface {
-	Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error)
-	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
-	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
-	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
-	Search(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *registry.AuthConfig, headers map[string][]string) ([]registry.SearchResult, error)
-	ServiceConfig() *registry.ServiceConfig
-	LoadAllowNondistributableArtifacts([]string) error
-	LoadMirrors([]string) error
-	LoadInsecureRegistries([]string) error
-	IsInsecureRegistry(string) bool
-}
-
-// defaultService is a registry service. It tracks configuration data such as a list
+// Service is a registry service. It tracks configuration data such as a list
 // of mirrors.
-type defaultService struct {
+type Service struct {
 	config *serviceConfig
 	mu     sync.RWMutex
 }
 
 // NewService returns a new instance of defaultService ready to be
 // installed into an engine.
-func NewService(options ServiceOptions) (Service, error) {
+func NewService(options ServiceOptions) (*Service, error) {
 	config, err := newServiceConfig(options)
 
-	return &defaultService{config: config}, err
+	return &Service{config: config}, err
 }
 
 // ServiceConfig returns a copy of the public registry service's configuration.
-func (s *defaultService) ServiceConfig() *registry.ServiceConfig {
+func (s *Service) ServiceConfig() *registry.ServiceConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.config.copy()
 }
 
 // LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.
-func (s *defaultService) LoadAllowNondistributableArtifacts(registries []string) error {
+func (s *Service) LoadAllowNondistributableArtifacts(registries []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -59,7 +44,7 @@ func (s *defaultService) LoadAllowNondistributableArtifacts(registries []string)
 }
 
 // LoadMirrors loads registry mirrors for Service
-func (s *defaultService) LoadMirrors(mirrors []string) error {
+func (s *Service) LoadMirrors(mirrors []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -67,7 +52,7 @@ func (s *defaultService) LoadMirrors(mirrors []string) error {
 }
 
 // LoadInsecureRegistries loads insecure registries for Service
-func (s *defaultService) LoadInsecureRegistries(registries []string) error {
+func (s *Service) LoadInsecureRegistries(registries []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -77,7 +62,7 @@ func (s *defaultService) LoadInsecureRegistries(registries []string) error {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *defaultService) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
+func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
 	var registryHostName = IndexHostname
 
@@ -130,7 +115,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // ResolveRepository splits a repository name into its components
 // and configuration of the associated registry.
-func (s *defaultService) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
+func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return newRepositoryInfo(s.config, name)
@@ -149,7 +134,7 @@ type APIEndpoint struct {
 
 // LookupPullEndpoints creates a list of v2 endpoints to try to pull from, in order of preference.
 // It gives preference to mirrors over the actual registry, and HTTPS over plain HTTP.
-func (s *defaultService) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -158,7 +143,7 @@ func (s *defaultService) LookupPullEndpoints(hostname string) (endpoints []APIEn
 
 // LookupPushEndpoints creates a list of v2 endpoints to try to push to, in order of preference.
 // It gives preference to HTTPS over plain HTTP. Mirrors are not included.
-func (s *defaultService) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -175,7 +160,7 @@ func (s *defaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 
 // IsInsecureRegistry returns true if the registry at given host is configured as
 // insecure registry.
-func (s *defaultService) IsInsecureRegistry(host string) bool {
+func (s *Service) IsInsecureRegistry(host string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return !s.config.isSecureIndex(host)

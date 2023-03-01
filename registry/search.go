@@ -24,7 +24,7 @@ var acceptedSearchFilterTags = map[string]bool{
 
 // Search queries the public registry for repositories matching the specified
 // search term and filters.
-func (s *defaultService) Search(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *registry.AuthConfig, headers map[string][]string) ([]registry.SearchResult, error) {
+func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term string, limit int, authConfig *registry.AuthConfig, headers map[string][]string) ([]registry.SearchResult, error) {
 	if err := searchFilters.Validate(acceptedSearchFilterTags); err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (s *defaultService) Search(ctx context.Context, searchFilters filters.Args,
 	return filteredResults, nil
 }
 
-func (s *defaultService) searchUnfiltered(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
+func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
