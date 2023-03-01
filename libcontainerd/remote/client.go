@@ -145,7 +145,7 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 // Start create and start a task for the specified containerd id
 func (c *container) Start(ctx context.Context, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
 	var (
-		cp             *types.Descriptor
+		checkpoint     *types.Descriptor
 		t              containerd.Task
 		rio            cio.IO
 		stdinCloseSync = make(chan containerd.Process, 1)
@@ -154,15 +154,16 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 	if checkpointDir != "" {
 		// write checkpoint to the content store
 		tar := archive.Diff(ctx, "", checkpointDir)
-		cp, err := c.client.writeContent(ctx, images.MediaTypeContainerd1Checkpoint, checkpointDir, tar)
+		var err error
+		checkpoint, err = c.client.writeContent(ctx, images.MediaTypeContainerd1Checkpoint, checkpointDir, tar)
 		// remove the checkpoint when we're done
 		defer func() {
-			if cp != nil {
-				err := c.client.client.ContentStore().Delete(ctx, cp.Digest)
+			if checkpoint != nil {
+				err := c.client.client.ContentStore().Delete(ctx, checkpoint.Digest)
 				if err != nil {
 					c.client.logger.WithError(err).WithFields(logrus.Fields{
 						"ref":    checkpointDir,
-						"digest": cp.Digest,
+						"digest": checkpoint.Digest,
 					}).Warnf("failed to delete temporary checkpoint entry")
 				}
 			}
@@ -192,7 +193,7 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 
 	taskOpts := []containerd.NewTaskOpts{
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
-			info.Checkpoint = cp
+			info.Checkpoint = checkpoint
 			return nil
 		},
 	}
