@@ -77,9 +77,8 @@ func (s *Server) Close() {
 	}
 }
 
-// serveAPI loops through all initialized servers and spawns goroutine
-// with Serve method for each. It sets createMux() as Handler also.
-func (s *Server) serveAPI() error {
+// Serve starts listening for inbound requests.
+func (s *Server) Serve() error {
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
 		srv.srv.Handler = s.createMux()
@@ -193,16 +192,4 @@ func (s *Server) createMux() *mux.Router {
 	m.MethodNotAllowedHandler = notFoundHandler
 
 	return m
-}
-
-// Wait blocks the server goroutine until it exits.
-// It sends an error message if there is any error during
-// the API execution.
-func (s *Server) Wait(waitChan chan error) {
-	if err := s.serveAPI(); err != nil {
-		logrus.Errorf("ServeAPI error: %v", err)
-		waitChan <- err
-		return
-	}
-	waitChan <- nil
 }
