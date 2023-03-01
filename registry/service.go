@@ -237,5 +237,7 @@ func (s *defaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 // IsInsecureRegistry returns true if the registry at given host is configured as
 // insecure registry.
 func (s *defaultService) IsInsecureRegistry(host string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return !s.config.isSecureIndex(host)
 }
