@@ -237,18 +237,16 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	cli.setupConfigReloadTrap()
 
-	// The serve API routine never exits unless an error occurs
-	// We need to start it as a goroutine and wait on it so
-	// daemon doesn't exit
-	serveAPIWait := make(chan error)
-	go cli.api.Wait(serveAPIWait)
-
 	// after the daemon is done setting up we can notify systemd api
 	notifyReady()
 
-	// Daemon is fully initialized and handling API traffic
-	// Wait for serve API to complete
-	errAPI := <-serveAPIWait
+	// Daemon is fully initialized. Start handling API traffic
+	// and wait for serve API to complete.
+	errAPI := cli.api.Serve()
+	if errAPI != nil {
+		logrus.WithError(errAPI).Error("ServeAPI error")
+	}
+
 	c.Cleanup()
 
 	// notify systemd that we're shutting down
