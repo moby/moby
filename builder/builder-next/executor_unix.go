@@ -12,7 +12,6 @@ import (
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
@@ -26,10 +25,10 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfig *oci.DNSConfig, rootless bool, idmap idtools.IdentityMapping, apparmorProfile string) (executor.Executor, error) {
-	netRoot := filepath.Join(root, "net")
+func newExecutor(opt Opt) (executor.Executor, error) {
+	netRoot := filepath.Join(opt.Root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
-		pb.NetMode_UNSET: &bridgeProvider{Controller: net, Root: netRoot},
+		pb.NetMode_UNSET: &bridgeProvider{Controller: opt.NetworkController, Root: netRoot},
 		pb.NetMode_HOST:  network.NewHostProvider(),
 		pb.NetMode_NONE:  network.NewNoneProvider(),
 	}
@@ -47,20 +46,22 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
-	pidmap := &idmap
-	if idmap.Empty() {
+	pidmap := &opt.IdentityMapping
+	if pidmap.Empty() {
 		pidmap = nil
 	}
 
+	dnsConfig := getDNSConfig(opt.DNSConfig)
+
 	return runcexecutor.New(runcexecutor.Opt{
-		Root:                filepath.Join(root, "executor"),
+		Root:                filepath.Join(opt.Root, "executor"),
 		CommandCandidates:   []string{"runc"},
-		DefaultCgroupParent: cgroupParent,
-		Rootless:            rootless,
+		DefaultCgroupParent: opt.DefaultCgroupParent,
+		Rootless:            opt.Rootless,
 		NoPivot:             os.Getenv("DOCKER_RAMDISK") != "",
 		IdentityMapping:     pidmap,
 		DNS:                 dnsConfig,
-		ApparmorProfile:     apparmorProfile,
+		ApparmorProfile:     opt.ApparmorProfile,
 	}, networkProviders)
 }
 
