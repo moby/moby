@@ -2,7 +2,6 @@ package server // import "github.com/docker/docker/api/server"
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"net/http"
 	"strings"
@@ -22,30 +21,11 @@ import (
 // when a request is about to be served.
 const versionMatcher = "/v{version:[0-9.]+}"
 
-// Config provides the configuration for the API server
-type Config struct {
-	CorsHeaders string
-	Version     string
-	SocketGroup string
-	TLSConfig   *tls.Config
-	// Hosts is a list of addresses for the API to listen on.
-	Hosts []string
-}
-
 // Server contains instance details for the server
 type Server struct {
-	cfg         *Config
 	servers     []*HTTPServer
 	routers     []router.Router
 	middlewares []middleware.Middleware
-}
-
-// New returns a new instance of the server based on the specified configuration.
-// It allocates resources which will be needed for ServeAPI(ports, unix-sockets).
-func New(cfg *Config) *Server {
-	return &Server{
-		cfg: cfg,
-	}
 }
 
 // UseMiddleware appends a new middleware to the request chain.
