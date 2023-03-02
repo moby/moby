@@ -190,11 +190,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	pluginStore := plugin.NewStore()
 
-	if err := cli.initMiddlewares(&cli.api, pluginStore); err != nil {
-		logrus.Fatalf("Error creating middlewares: %v", err)
-	}
+	cli.authzMiddleware = initMiddlewares(&cli.api, cli.Config, pluginStore)
 
-	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore)
+	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware)
 	if err != nil {
 		return errors.Wrap(err, "failed to start daemon")
 	}
@@ -541,25 +539,23 @@ func initRouter(opts routerOptions) {
 	opts.api.InitRouter(routers...)
 }
 
-// TODO: remove this from cli and return the authzMiddleware
-func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, pluginStore plugingetter.PluginGetter) error {
+func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugingetter.PluginGetter) *authorization.Middleware {
 	v := dockerversion.Version
 
-	exp := middleware.NewExperimentalMiddleware(cli.Config.Experimental)
+	exp := middleware.NewExperimentalMiddleware(cfg.Experimental)
 	s.UseMiddleware(exp)
 
 	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
 	s.UseMiddleware(vm)
 
-	if cli.Config.CorsHeaders != "" {
-		c := middleware.NewCORSMiddleware(cli.Config.CorsHeaders)
+	if cfg.CorsHeaders != "" {
+		c := middleware.NewCORSMiddleware(cfg.CorsHeaders)
 		s.UseMiddleware(c)
 	}
 
-	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins, pluginStore)
-	cli.Config.AuthzMiddleware = cli.authzMiddleware
-	s.UseMiddleware(cli.authzMiddleware)
-	return nil
+	authzMiddleware := authorization.NewMiddleware(cfg.AuthorizationPlugins, pluginStore)
+	s.UseMiddleware(authzMiddleware)
+	return authzMiddleware
 }
 
 func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
