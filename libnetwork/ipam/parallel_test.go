@@ -41,16 +41,11 @@ func newTestContext(t *testing.T, mask int, options map[string]string) *testCont
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.addrSpaces["giallo"] = &addrSpace{
-		alloc:   a.addrSpaces[localAddressSpace].alloc,
-		subnets: map[SubnetKey]*PoolData{},
-	}
-
 	network := fmt.Sprintf("192.168.100.0/%d", mask)
 	// total ips 2^(32-mask) - 2 (network and broadcast)
 	totalIps := 1<<uint(32-mask) - 2
 
-	pid, _, _, err := a.RequestPool("giallo", network, "", nil, false)
+	pid, _, _, err := a.RequestPool(localAddressSpace, network, "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
