@@ -15,10 +15,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// const (
-// 	emptyGZLayer = digest.Digest("sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1")
-// )
-
 func emptyImageConfig() ([]byte, error) {
 	pl := platforms.Normalize(platforms.DefaultSpec())
 	img := ocispec.Image{}
