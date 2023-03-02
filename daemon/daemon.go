@@ -909,15 +909,17 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			}
 		}
 
-		var rt types.Runtime
+		var (
+			shim     string
+			shimOpts interface{}
+		)
 		if runtime.GOOS != "windows" {
-			rtPtr, err := d.getRuntime(config.GetDefaultRuntimeName())
+			shim, shimOpts, err = d.getRuntime(config.GetDefaultRuntimeName())
 			if err != nil {
 				return nil, err
 			}
-			rt = *rtPtr
 		}
-		return pluginexec.New(ctx, getPluginExecRoot(config), pluginCli, config.ContainerdPluginNamespace, m, rt)
+		return pluginexec.New(ctx, getPluginExecRoot(config), pluginCli, config.ContainerdPluginNamespace, m, shim, shimOpts)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.

@@ -1,10 +1,9 @@
 package daemon
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/pkg/errors"
+	"errors"
 )
 
-func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
-	return nil, errors.New("not implemented")
+func (daemon *Daemon) getRuntime(name string) (shim string, opts interface{}, err error) {
+	return "", nil, errors.New("not implemented")
 }
