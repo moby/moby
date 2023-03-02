@@ -29,6 +29,10 @@ type DefinitionOp struct {
 
 // NewDefinitionOp returns a new operation from a marshalled definition.
 func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
+	if def == nil {
+		return nil, errors.New("invalid nil input definition to definition op")
+	}
+
 	ops := make(map[digest.Digest]*pb.Op)
 	defs := make(map[digest.Digest][]byte)
 	platforms := make(map[digest.Digest]*ocispecs.Platform)

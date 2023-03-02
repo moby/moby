@@ -228,13 +228,13 @@ func (sr *immutableRef) getRemote(ctx context.Context, createIfNeeded bool, refC
 				newDesc.Size = blobDesc.Size
 				newDesc.URLs = blobDesc.URLs
 				newDesc.Annotations = nil
+				if len(addAnnotations) > 0 || len(blobDesc.Annotations) > 0 {
+					newDesc.Annotations = make(map[string]string)
+				}
 				for _, k := range addAnnotations {
 					newDesc.Annotations[k] = desc.Annotations[k]
 				}
 				for k, v := range blobDesc.Annotations {
-					if newDesc.Annotations == nil {
-						newDesc.Annotations = make(map[string]string)
-					}
 					newDesc.Annotations[k] = v
 				}
 				desc = newDesc

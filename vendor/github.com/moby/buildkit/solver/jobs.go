@@ -200,7 +200,6 @@ type subBuilder struct {
 }
 
 func (sb *subBuilder) Build(ctx context.Context, e Edge) (CachedResultWithProvenance, error) {
-	// TODO(@crazy-max): Handle BuildInfo from subbuild
 	res, err := sb.solver.subBuild(ctx, e, sb.vtx)
 	if err != nil {
 		return nil, err

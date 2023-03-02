@@ -9,6 +9,8 @@ import (
 )
 
 // BuildInfo returns build info from image config.
+//
+// Deprecated: Build information is deprecated: https://github.com/moby/buildkit/blob/master/docs/deprecated.md
 func BuildInfo(dt []byte) (*binfotypes.BuildInfo, error) {
 	if len(dt) == 0 {
 		return nil, nil
