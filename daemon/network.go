@@ -315,9 +315,22 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		driver = c.Config().DefaultDriver
 	}
 
+	networkOptions := make(map[string]string)
+	for k, v := range create.Options {
+		networkOptions[k] = v
+	}
+	if defaultOpts, ok := daemon.configStore.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
+		for k, v := range defaultOpts {
+			if _, ok := networkOptions[k]; !ok {
+				logrus.WithFields(logrus.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
+				networkOptions[k] = v
+			}
+		}
+	}
+
 	nwOptions := []libnetwork.NetworkOption{
 		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
-		libnetwork.NetworkOptionDriverOpts(create.Options),
+		libnetwork.NetworkOptionDriverOpts(networkOptions),
 		libnetwork.NetworkOptionLabels(create.Labels),
 		libnetwork.NetworkOptionAttachable(create.Attachable),
 		libnetwork.NetworkOptionIngress(create.Ingress),
