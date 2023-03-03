@@ -55,6 +55,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	flags.StringVar(&conf.ContainerdNamespace, "containerd-namespace", conf.ContainerdNamespace, "Containerd namespace to use")
 	flags.StringVar(&conf.ContainerdPluginNamespace, "containerd-plugins-namespace", conf.ContainerdPluginNamespace, "Containerd namespace to use for plugins")
+	flags.StringVar(&conf.ContainerdBuildNamespace, "containerd-build-namespace", conf.ContainerdBuildNamespace, "Containerd namespace to use when building containers")
 	flags.StringVar(&conf.DefaultRuntime, "default-runtime", conf.DefaultRuntime, "Default OCI runtime for containers")
 
 	flags.StringVar(&conf.HTTPProxy, "http-proxy", "", "HTTP proxy URL to use for outgoing traffic")

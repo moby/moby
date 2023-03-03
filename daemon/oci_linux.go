@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/rootless/specconv"
-	"github.com/docker/docker/pkg/stringid"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
@@ -55,31 +54,6 @@ func WithRlimits(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		s.Process.Rlimits = rlimits
-		return nil
-	}
-}
-
-// WithLibnetwork sets the libnetwork hook
-func WithLibnetwork(daemon *Daemon, c *container.Container) coci.SpecOpts {
-	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if s.Hooks == nil {
-			s.Hooks = &specs.Hooks{}
-		}
-		for _, ns := range s.Linux.Namespaces {
-			if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
-				target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
-				shortNetCtlrID := stringid.TruncateID(daemon.netController.ID())
-				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
-					Path: target,
-					Args: []string{
-						"libnetwork-setkey",
-						"-exec-root=" + daemon.configStore.GetExecRoot(),
-						c.ID,
-						shortNetCtlrID,
-					},
-				})
-			}
-		}
 		return nil
 	}
 }
@@ -1022,7 +996,6 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (r
 		WithCapabilities(c),
 		WithSeccomp(daemon, c),
 		WithMounts(daemon, c),
-		WithLibnetwork(daemon, c),
 		WithApparmor(c),
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),

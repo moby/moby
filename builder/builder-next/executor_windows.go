@@ -4,14 +4,10 @@ import (
 	"context"
 	"errors"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
-	"github.com/moby/buildkit/executor/oci"
 )
 
-func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ idtools.IdentityMapping, _ string) (executor.Executor, error) {
+func newExecutor(_ Opt) (executor.Executor, error) {
 	return &winExecutor{}, nil
 }
 
@@ -24,8 +20,4 @@ func (w *winExecutor) Run(ctx context.Context, id string, root executor.Mount, m
 
 func (w *winExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) error {
 	return errors.New("buildkit executor not implemented for windows")
-}
-
-func getDNSConfig(config.DNSConfig) *oci.DNSConfig {
-	return nil
 }

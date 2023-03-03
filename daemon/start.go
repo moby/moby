@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/oci"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -188,16 +191,46 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 	if err != nil {
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
+	defer func() {
+		if err != nil {
+			if err := ctr.Delete(context.Background()); err != nil {
+				logrus.WithError(err).WithField("container", container.ID).
+					Error("failed to delete failed start container")
+			}
+		}
+	}()
 
 	// TODO(mlaventure): we need to specify checkpoint options here
-	tsk, err := ctr.Start(context.TODO(), // Passing ctx to ctr.Start caused integration tests to be stuck in the cleanup phase
+	tsk, err := ctr.NewTask(context.TODO(), // Passing ctx caused integration tests to be stuck in the cleanup phase
 		checkpointDir, container.StreamConfig.Stdin() != nil || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
-		if err := ctr.Delete(context.Background()); err != nil {
-			logrus.WithError(err).WithField("container", container.ID).
-				Error("failed to delete failed start container")
+		return setExitCodeFromError(container.SetExitCode, err)
+	}
+	defer func() {
+		if err != nil {
+			if err := tsk.ForceDelete(ctx); err != nil {
+				logrus.WithError(err).WithField("container", container.ID).
+					Error("failed to delete task after fail start")
+			}
 		}
+	}()
+
+	if runtime.GOOS == "linux" && !container.Config.NetworkDisabled {
+		nspath, ok := oci.NamespacePath(spec, specs.NetworkNamespace)
+		if ok && nspath == "" { // the runtime has been instructed to create a new network namespace for tsk.
+			sb := daemon.getNetworkSandbox(container)
+			if sb == nil {
+				return errdefs.System(errors.Errorf("no network sandbox found for container %s", container.ID))
+			}
+			err := sb.SetKey(fmt.Sprintf("/proc/%d/ns/net", tsk.Pid()))
+			if err != nil {
+				return errdefs.System(err)
+			}
+		}
+	}
+
+	if err := tsk.Start(context.TODO()); err != nil { // passing ctx caused integration tests to be stuck in the cleanup phase
 		return setExitCodeFromError(container.SetExitCode, err)
 	}
 

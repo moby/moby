@@ -133,9 +133,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	dns := getDNSConfig(opt.DNSConfig)
-
-	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
+	exec, err := newExecutor(opt)
 	if err != nil {
 		return nil, err
 	}

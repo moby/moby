@@ -389,7 +389,7 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
-func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
+func (ctr *container) NewTask(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (libcontainerdtypes.Task, error) {
 	ctr.mu.Lock()
 	defer ctr.mu.Unlock()
 
@@ -514,6 +514,11 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	})
 	logger.Debug("start() completed")
 	return t, nil
+}
+
+func (*task) Start(context.Context) error {
+	// No-op on Windows.
+	return nil
 }
 
 func (ctr *container) Task(context.Context) (libcontainerdtypes.Task, error) {

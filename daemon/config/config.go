@@ -55,6 +55,8 @@ const (
 	DefaultContainersNamespace = "moby"
 	// DefaultPluginNamespace is the name of the default containerd namespace used for plugins.
 	DefaultPluginNamespace = "plugins.moby"
+	// DefaultBuildNamespace is the name of the default containerd namespace used for buildkit.
+	DefaultBuildNamespace = "build.moby"
 
 	// LinuxV2RuntimeName is the runtime used to specify the containerd v2 runc shim
 	LinuxV2RuntimeName = "io.containerd.runc.v2"
@@ -253,6 +255,7 @@ type CommonConfig struct {
 
 	ContainerdNamespace       string `json:"containerd-namespace,omitempty"`
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
+	ContainerdBuildNamespace  string `json:"containerd-build-namespace,omitempty"`
 
 	DefaultRuntime string `json:"default-runtime,omitempty"`
 }
@@ -293,6 +296,7 @@ func New() (*Config, error) {
 			},
 			ContainerdNamespace:       DefaultContainersNamespace,
 			ContainerdPluginNamespace: DefaultPluginNamespace,
+			ContainerdBuildNamespace:  DefaultBuildNamespace,
 			DefaultRuntime:            StockRuntimeName,
 		},
 	}

@@ -91,7 +91,6 @@ type Controller struct {
 	sandboxes        sandboxTable
 	cfg              *config.Config
 	store            datastore.DataStore
-	extKeyListener   net.Listener
 	watchCh          chan *Endpoint
 	unWatchCh        chan *Endpoint
 	svcRecords       map[string]svcInfo
@@ -161,10 +160,6 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 	c.sandboxCleanup(c.cfg.ActiveSandboxes)
 	c.cleanupLocalEndpoints()
 	c.networkCleanup()
-
-	if err := c.startExternalKeyListener(); err != nil {
-		return nil, err
-	}
 
 	setupArrangeUserFilterRule(c)
 	return c, nil
@@ -1116,7 +1111,6 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 // Stop stops the network controller.
 func (c *Controller) Stop() {
 	c.closeStores()
-	c.stopExternalKeyListener()
 	osl.GC()
 }
 

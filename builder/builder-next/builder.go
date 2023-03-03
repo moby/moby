@@ -77,6 +77,8 @@ type Opt struct {
 	IdentityMapping     idtools.IdentityMapping
 	DNSConfig           config.DNSConfig
 	ApparmorProfile     string
+	ContainerdAddr      string
+	ContainerdNamespace string
 }
 
 // Builder can build using BuildKit backend
