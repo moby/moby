@@ -542,7 +542,7 @@ github.com/mistifyio/go-zfs
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
-# github.com/moby/buildkit v0.11.3
+# github.com/moby/buildkit v0.11.4-0.20230228113103-218e934edfba
 ## explicit; go 1.18
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types

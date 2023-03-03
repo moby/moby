@@ -337,6 +337,15 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		}
 	}
 
+	if v, ok := req.FrontendAttrs["build-arg:BUILDKIT_BUILDINFO"]; ok && v != "" {
+		if _, ok := req.ExporterAttrs["buildinfo"]; !ok {
+			if req.ExporterAttrs == nil {
+				req.ExporterAttrs = make(map[string]string)
+			}
+			req.ExporterAttrs["buildinfo"] = v
+		}
+	}
+
 	if req.Exporter != "" {
 		exp, err := w.Exporter(req.Exporter, c.opt.SessionManager)
 		if err != nil {

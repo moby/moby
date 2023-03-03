@@ -11,7 +11,7 @@ const (
 	ExporterImageConfigDigestKey = "containerimage.config.digest"
 	ExporterImageDescriptorKey   = "containerimage.descriptor"
 	ExporterInlineCache          = "containerimage.inlinecache"
-	ExporterBuildInfo            = "containerimage.buildinfo"
+	ExporterBuildInfo            = "containerimage.buildinfo" // Deprecated: Build information is deprecated: https://github.com/moby/buildkit/blob/master/docs/deprecated.md
 	ExporterPlatformsKey         = "refs.platforms"
 	ExporterEpochKey             = "source.date.epoch"
 )

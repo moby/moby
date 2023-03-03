@@ -379,6 +379,18 @@ func (a *applier) applyCopy(ctx context.Context, ca *changeApply) error {
 		return errors.Errorf("unhandled file type %d during merge at path %q", ca.srcStat.Mode&unix.S_IFMT, ca.srcPath)
 	}
 
+	// NOTE: it's important that chown happens before setting xattrs due to the fact that chown will
+	// reset the security.capabilities xattr which results in file capabilities being lost.
+	if err := os.Lchown(ca.dstPath, int(ca.srcStat.Uid), int(ca.srcStat.Gid)); err != nil {
+		return errors.Wrap(err, "failed to chown during apply")
+	}
+
+	if ca.srcStat.Mode&unix.S_IFMT != unix.S_IFLNK {
+		if err := unix.Chmod(ca.dstPath, ca.srcStat.Mode); err != nil {
+			return errors.Wrapf(err, "failed to chmod path %q during apply", ca.dstPath)
+		}
+	}
+
 	if ca.srcPath != "" {
 		xattrs, err := sysx.LListxattr(ca.srcPath)
 		if err != nil {
@@ -407,16 +419,6 @@ func (a *applier) applyCopy(ctx context.Context, ca *changeApply) error {
 		xattr := opaqueXattr(a.userxattr)
 		if err := sysx.LSetxattr(ca.dstPath, xattr, []byte{'y'}, 0); err != nil {
 			return errors.Wrapf(err, "failed to set opaque xattr %q of path %s", xattr, ca.dstPath)
-		}
-	}
-
-	if err := os.Lchown(ca.dstPath, int(ca.srcStat.Uid), int(ca.srcStat.Gid)); err != nil {
-		return errors.Wrap(err, "failed to chown during apply")
-	}
-
-	if ca.srcStat.Mode&unix.S_IFMT != unix.S_IFLNK {
-		if err := unix.Chmod(ca.dstPath, ca.srcStat.Mode); err != nil {
-			return errors.Wrapf(err, "failed to chmod path %q during apply", ca.dstPath)
 		}
 	}
 

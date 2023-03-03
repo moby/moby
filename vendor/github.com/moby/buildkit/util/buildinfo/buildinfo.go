@@ -1,3 +1,6 @@
+// Package buildinfo implements utilities for build information.
+//
+// Deprecated: Build information is deprecated: https://github.com/moby/buildkit/blob/master/docs/deprecated.md
 package buildinfo
 
 import (
@@ -16,9 +19,6 @@ import (
 	"github.com/moby/buildkit/util/urlutil"
 	"github.com/pkg/errors"
 )
-
-// BuildInfo format has been deprecated and will be removed in a future release.
-// Use provenance attestations instead.
 
 func FromProvenance(c *provenance.Capture) (*binfotypes.BuildInfo, error) {
 	var bi binfotypes.BuildInfo
@@ -418,6 +418,7 @@ func filterAttrs(key string, attrs map[string]*string) map[string]*string {
 var knownControlArgs = []string{
 	"BUILDKIT_CACHE_MOUNT_NS",
 	"BUILDKIT_CONTEXT_KEEP_GIT_DIR",
+	"BUILDKIT_BUILDINFO",
 	"BUILDKIT_INLINE_BUILDINFO_ATTRS",
 	"BUILDKIT_INLINE_CACHE",
 	"BUILDKIT_MULTI_PLATFORM",
