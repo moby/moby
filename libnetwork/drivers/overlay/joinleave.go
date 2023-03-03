@@ -59,10 +59,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	ep.ifName = containerIfName
 
-	if err = d.writeEndpointToStore(ep); err != nil {
-		return fmt.Errorf("failed to update overlay endpoint %.7s to local data store: %v", ep.id, err)
-	}
-
 	// Set the container interface and its peer MTU to 1450 to allow
 	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
 	// outer UDP(8) + vxlan header(8))

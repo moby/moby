@@ -12,8 +12,6 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,7 +30,6 @@ type driver struct {
 	peerDb           peerNetworkMap
 	secMap           *encrMap
 	networks         networkTable
-	localStore       datastore.DataStore
 	initOS           sync.Once
 	localJoinOnce    sync.Once
 	keys             []*key
@@ -53,18 +50,6 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		},
 		secMap: &encrMap{nodes: map[string][]*spi{}},
 		config: config,
-	}
-
-	if data, ok := config[netlabel.LocalKVClient]; ok {
-		var err error
-		dsc, ok := data.(discoverapi.DatastoreConfigData)
-		if !ok {
-			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
-		}
-		d.localStore, err = datastore.NewDataStoreFromConfig(dsc)
-		if err != nil {
-			return types.InternalErrorf("failed to initialize local data store: %v", err)
-		}
 	}
 
 	return r.RegisterDriver(networkType, d, c)

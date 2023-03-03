@@ -92,10 +92,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	n.addEndpoint(ep)
 
-	if err := d.writeEndpointToStore(ep); err != nil {
-		return fmt.Errorf("failed to update overlay endpoint %.7s to local store: %v", ep.id, err)
-	}
-
 	return nil
 }
 
@@ -118,10 +114,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	n.deleteEndpoint(eid)
 
-	if err := d.deleteEndpointFromStore(ep); err != nil {
-		logrus.Warnf("Failed to delete overlay endpoint %.7s from local store: %v", ep.id, err)
-	}
-
 	if ep.ifName == "" {
 		return nil
 	}
@@ -140,22 +132,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	return make(map[string]interface{}), nil
-}
-
-func (d *driver) deleteEndpointFromStore(e *endpoint) error {
-	if d.localStore == nil {
-		return fmt.Errorf("overlay local store not initialized, ep not deleted")
-	}
-
-	return d.localStore.DeleteObjectAtomic(e)
-}
-
-func (d *driver) writeEndpointToStore(e *endpoint) error {
-	if d.localStore == nil {
-		return fmt.Errorf("overlay local store not initialized, ep not added")
-	}
-
-	return d.localStore.PutObjectAtomic(e)
 }
 
 func (ep *endpoint) DataScope() string {
