@@ -38,7 +38,7 @@ var (
 )
 
 // ContainersPrune removes unused containers
-func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
+func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.Args, dryRun bool) (*types.ContainersPruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
@@ -56,6 +56,8 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 	if err != nil {
 		return nil, err
 	}
+
+	dryRunMode := dryRun
 
 	allContainers := daemon.List()
 	for _, c := range allContainers {
@@ -75,15 +77,18 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 			}
 			cSize, _ := daemon.imageService.GetContainerLayerSize(c.ID)
 			// TODO: sets RmLink to true?
-			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
-			if err != nil {
-				logrus.Warnf("failed to prune container %s: %v", c.ID, err)
-				continue
+			if !dryRunMode {
+				err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
+				if err != nil {
+					logrus.Warnf("failed to prune container %s: %v", c.ID, err)
+					continue
+				}
 			}
 			if cSize > 0 {
 				rep.SpaceReclaimed += uint64(cSize)
 			}
 			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
+
 		}
 	}
 	daemon.EventsService.Log("prune", events.ContainerEventType, events.Actor{

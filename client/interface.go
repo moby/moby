@@ -76,7 +76,7 @@ type ContainerAPIClient interface {
 	ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
-	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error)
+	ContainersPrune(ctx context.Context, pruneFilters filters.Args, dryRun bool) (types.ContainersPruneReport, error)
 }
 
 // DistributionAPIClient defines API client methods for the registry
