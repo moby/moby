@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/idm"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
@@ -28,8 +27,6 @@ const (
 	secureOption = "encrypted"
 )
 
-var initVxlanIdm = make(chan (bool), 1)
-
 type driver struct {
 	bindAddress      string
 	advertiseAddress string
@@ -38,7 +35,6 @@ type driver struct {
 	secMap           *encrMap
 	networks         networkTable
 	localStore       datastore.DataStore
-	vxlanIdm         *idm.Idm
 	initOS           sync.Once
 	localJoinOnce    sync.Once
 	keys             []*key

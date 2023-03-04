@@ -46,10 +46,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find subnet for endpoint %s", eid)
 	}
 
-	if err := n.obtainVxlanID(s); err != nil {
-		return fmt.Errorf("couldn't get vxlan id for %q: %v", s.subnetIP.String(), err)
-	}
-
 	if err := n.joinSandbox(s, false, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}

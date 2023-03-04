@@ -5,6 +5,7 @@ package overlay
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -111,37 +112,43 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 
 	vnis := make([]uint32, 0, len(ipV4Data))
-	if gval, ok := option[netlabel.GenericData]; ok {
-		optMap := gval.(map[string]string)
-		if val, ok := optMap[netlabel.OverlayVxlanIDList]; ok {
-			logrus.Debugf("overlay: Received vxlan IDs: %s", val)
-			vniStrings := strings.Split(val, ",")
-			for _, vniStr := range vniStrings {
-				vni, err := strconv.Atoi(vniStr)
-				if err != nil {
-					return fmt.Errorf("invalid vxlan id value %q passed", vniStr)
-				}
+	gval, ok := option[netlabel.GenericData]
+	if !ok {
+		return fmt.Errorf("option %s is missing", netlabel.GenericData)
+	}
 
-				vnis = append(vnis, uint32(vni))
-			}
+	optMap := gval.(map[string]string)
+	vnisOpt, ok := optMap[netlabel.OverlayVxlanIDList]
+	if !ok {
+		return errors.New("no VNI provided")
+	}
+	logrus.Debugf("overlay: Received vxlan IDs: %s", vnisOpt)
+	vniStrings := strings.Split(vnisOpt, ",")
+	for _, vniStr := range vniStrings {
+		vni, err := strconv.Atoi(vniStr)
+		if err != nil {
+			return fmt.Errorf("invalid vxlan id value %q passed", vniStr)
 		}
-		if _, ok := optMap[secureOption]; ok {
-			n.secure = true
+
+		vnis = append(vnis, uint32(vni))
+	}
+
+	if _, ok := optMap[secureOption]; ok {
+		n.secure = true
+	}
+	if val, ok := optMap[netlabel.DriverMTU]; ok {
+		var err error
+		if n.mtu, err = strconv.Atoi(val); err != nil {
+			return fmt.Errorf("failed to parse %v: %v", val, err)
 		}
-		if val, ok := optMap[netlabel.DriverMTU]; ok {
-			var err error
-			if n.mtu, err = strconv.Atoi(val); err != nil {
-				return fmt.Errorf("failed to parse %v: %v", val, err)
-			}
-			if n.mtu < 0 {
-				return fmt.Errorf("invalid MTU value: %v", n.mtu)
-			}
+		if n.mtu < 0 {
+			return fmt.Errorf("invalid MTU value: %v", n.mtu)
 		}
 	}
 
-	// If we are getting vnis from libnetwork, either we get for
-	// all subnets or none.
-	if len(vnis) != 0 && len(vnis) < len(ipV4Data) {
+	if len(vnis) == 0 {
+		return errors.New("no VNI provided")
+	} else if len(vnis) < len(ipV4Data) {
 		return fmt.Errorf("insufficient vnis(%d) passed to overlay", len(vnis))
 	}
 
@@ -149,10 +156,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		s := &subnet{
 			subnetIP: ipd.Pool,
 			gwIP:     ipd.Gateway,
-		}
-
-		if len(vnis) != 0 {
-			s.vni = vnis[i]
+			vni:      vnis[i],
 		}
 
 		n.subnets = append(n.subnets, s)
@@ -228,18 +232,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	doPeerFlush = true
 	delete(d.networks, nid)
-
-	vnis, err := n.releaseVxlanID()
-	if err != nil {
-		return err
-	}
-
-	if n.secure {
-		for _, vni := range vnis {
-			programMangle(vni, false)
-			programInput(vni, false)
-		}
-	}
 
 	return nil
 }
@@ -872,39 +864,6 @@ func (n *network) SetValue(value []byte) error {
 
 func (n *network) DataScope() string {
 	return datastore.GlobalScope
-}
-
-func (n *network) releaseVxlanID() ([]uint32, error) {
-	n.Lock()
-	nSubnets := len(n.subnets)
-	n.Unlock()
-	if nSubnets == 0 {
-		return nil, nil
-	}
-
-	var vnis []uint32
-	n.Lock()
-	for _, s := range n.subnets {
-		if n.driver.vxlanIdm != nil {
-			vnis = append(vnis, s.vni)
-		}
-		s.vni = 0
-	}
-	n.Unlock()
-
-	for _, vni := range vnis {
-		n.driver.vxlanIdm.Release(uint64(vni))
-	}
-
-	return vnis, nil
-}
-
-func (n *network) obtainVxlanID(s *subnet) error {
-	// return if the subnet already has a vxlan id assigned
-	if n.vxlanID(s) != 0 {
-		return nil
-	}
-	return fmt.Errorf("no valid vxlan id and no datastore configured, cannot obtain vxlan id")
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs
