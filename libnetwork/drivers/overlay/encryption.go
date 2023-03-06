@@ -227,11 +227,9 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 
 func programMangle(vni uint32, add bool) error {
 	var (
-		p      = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
-		c      = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
 		m      = strconv.FormatUint(mark, 10)
 		chain  = "OUTPUT"
-		rule   = []string{"-p", "udp", "--dport", p, "-m", "u32", "--u32", c, "-j", "MARK", "--set-mark", m}
+		rule   = append(matchVXLAN(overlayutils.VXLANUDPPort(), vni), "-j", "MARK", "--set-mark", m)
 		a      = iptables.Append
 		action = "install"
 	)
@@ -253,12 +251,10 @@ func programMangle(vni uint32, add bool) error {
 
 func programInput(vni uint32, add bool) error {
 	var (
-		port       = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
-		vniMatch   = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
-		plainVxlan = []string{"-p", "udp", "--dport", port, "-m", "u32", "--u32", vniMatch, "-j"}
+		plainVxlan = matchVXLAN(overlayutils.VXLANUDPPort(), vni)
 		ipsecVxlan = append([]string{"-m", "policy", "--dir", "in", "--pol", "ipsec"}, plainVxlan...)
-		block      = append(plainVxlan, "DROP")
-		accept     = append(ipsecVxlan, "ACCEPT")
+		block      = append(plainVxlan, "-j", "DROP")
+		accept     = append(ipsecVxlan, "-j", "ACCEPT")
 		chain      = "INPUT"
 		action     = iptables.Append
 		msg        = "add"
