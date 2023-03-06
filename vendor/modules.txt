@@ -724,7 +724,7 @@ github.com/moby/patternmatcher
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.0.0-20230119195359-904c221ac281
+# github.com/moby/swarmkit/v2 v2.0.0-20230302163403-80a528a86877
 ## explicit; go 1.18
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
@@ -744,6 +744,7 @@ github.com/moby/swarmkit/v2/ca/keyutils
 github.com/moby/swarmkit/v2/ca/pkcs8
 github.com/moby/swarmkit/v2/connectionbroker
 github.com/moby/swarmkit/v2/identity
+github.com/moby/swarmkit/v2/internal/csi/capability
 github.com/moby/swarmkit/v2/ioutils
 github.com/moby/swarmkit/v2/log
 github.com/moby/swarmkit/v2/manager
