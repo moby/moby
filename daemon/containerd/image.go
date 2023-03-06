@@ -122,6 +122,44 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	return img, nil
 }
 
+func (i *ImageService) GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*ocispec.Descriptor, error) {
+	cs := i.client.ContentStore()
+
+	desc, err := i.resolveDescriptor(ctx, refOrID)
+	if err != nil {
+		return nil, err
+	}
+
+	if containerdimages.IsManifestType(desc.MediaType) {
+		return &desc, nil
+	}
+
+	if containerdimages.IsIndexType(desc.MediaType) {
+		platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+		if options.Platform != nil {
+			platform = cplatforms.Only(*options.Platform)
+		}
+
+		childManifests, err := containerdimages.LimitManifests(containerdimages.ChildrenHandler(cs), platform, 1)(ctx, desc)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil, errdefs.NotFound(err)
+			}
+			return nil, errdefs.System(err)
+		}
+
+		// len(childManifests) == 1 since we requested 1 and if none
+		// were found LimitManifests would have thrown an error
+		if !containerdimages.IsManifestType(childManifests[0].MediaType) {
+			return nil, errdefs.NotFound(fmt.Errorf("manifest has incorrect mediatype: %s", childManifests[0].MediaType))
+		}
+
+		return &childManifests[0], nil
+	}
+
+	return nil, errdefs.NotFound(errors.New("failed to find manifest"))
+}
+
 // size returns the total size of the image's packed resources.
 func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platform cplatforms.MatchComparer) (int64, error) {
 	var size int64

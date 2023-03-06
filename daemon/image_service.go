@@ -46,6 +46,7 @@ type ImageService interface {
 	// Containerd related methods
 
 	PrepareSnapshot(ctx context.Context, id string, image string, platform *v1.Platform) error
+	GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*v1.Descriptor, error)
 
 	// Layers
 

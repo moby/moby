@@ -19,6 +19,7 @@ import (
 // ImageService implements daemon.ImageService
 type ImageService struct {
 	client          *containerd.Client
+	containers      container.Store
 	snapshotter     string
 	registryHosts   RegistryHostsProvider
 	registryService registry.Service
@@ -29,9 +30,10 @@ type RegistryHostsProvider interface {
 }
 
 // NewService creates a new ImageService.
-func NewService(c *containerd.Client, snapshotter string, hostsProvider RegistryHostsProvider, registry registry.Service) *ImageService {
+func NewService(c *containerd.Client, containers container.Store, snapshotter string, hostsProvider RegistryHostsProvider, registry registry.Service) *ImageService {
 	return &ImageService{
 		client:          c,
+		containers:      containers,
 		snapshotter:     snapshotter,
 		registryHosts:   hostsProvider,
 		registryService: registry,

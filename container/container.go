@@ -39,6 +39,7 @@ import (
 	agentexec "github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/sys/signal"
 	"github.com/moby/sys/symlink"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -72,6 +73,7 @@ type Container struct {
 	Args            []string
 	Config          *containertypes.Config
 	ImageID         image.ID `json:"Image"`
+	ImageManifest   *ocispec.Descriptor
 	NetworkSettings *network.Settings
 	LogPath         string
 	Name            string
