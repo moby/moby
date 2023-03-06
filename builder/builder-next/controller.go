@@ -39,6 +39,9 @@ import (
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/apicaps"
 )
 
 func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -48,6 +51,18 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 
 	dist := opt.Dist
 	root := opt.Root
+
+	pb.Caps.Init(apicaps.Cap{
+		ID:                pb.CapMergeOp,
+		Enabled:           false,
+		DisabledReasonMsg: "only enabled with containerd image store backend",
+	})
+
+	pb.Caps.Init(apicaps.Cap{
+		ID:                pb.CapDiffOp,
+		Enabled:           false,
+		DisabledReasonMsg: "only enabled with containerd image store backend",
+	})
 
 	var driver graphdriver.Driver
 	if ls, ok := dist.LayerStore.(interface {
