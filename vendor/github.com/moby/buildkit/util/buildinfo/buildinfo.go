@@ -313,6 +313,11 @@ func filterAttrs(key string, attrs map[string]*string) map[string]*string {
 	if len(skey) == 2 {
 		platform = skey[1]
 	}
+	const defaultContextKey = "context"
+	contextKey := defaultContextKey
+	if v, ok := attrs["contextkey"]; ok && *v != "" {
+		contextKey = *v
+	}
 	filtered := make(map[string]*string)
 	for k, v := range attrs {
 		if v == nil {
@@ -329,7 +334,7 @@ func filterAttrs(key string, attrs map[string]*string) map[string]*string {
 		}
 		// input context key and value has to be cleaned up
 		// before being included
-		if strings.HasPrefix(k, "context:") {
+		if k == contextKey || strings.HasPrefix(k, defaultContextKey+":") {
 			ctxkey := strings.SplitN(k, "::", 2)
 			hasCtxPlatform := len(ctxkey) == 2
 			// if platform is set and also defined in key, set context
@@ -338,11 +343,11 @@ func filterAttrs(key string, attrs map[string]*string) map[string]*string {
 				continue
 			}
 			if platform == "" && hasCtxPlatform {
-				ctxval := strings.TrimSuffix(*v, "::"+ctxkey[1])
+				ctxval := urlutil.RedactCredentials(strings.TrimSuffix(*v, "::"+ctxkey[1]))
 				filtered[strings.TrimSuffix(k, "::"+ctxkey[1])] = &ctxval
 				continue
 			}
-			ctxival := strings.TrimSuffix(*v, "::"+platform)
+			ctxival := urlutil.RedactCredentials(strings.TrimSuffix(*v, "::"+platform))
 			filtered[strings.TrimSuffix(k, "::"+platform)] = &ctxival
 			continue
 		}
