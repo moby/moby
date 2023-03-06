@@ -201,6 +201,11 @@ func (o *Orchestrator) handleEvent(ctx context.Context, event events.Event) {
 		service = ev.Service
 	case api.EventUpdateService:
 		service = ev.Service
+	case api.EventDeleteService:
+		if orchestrator.IsReplicatedJob(ev.Service) || orchestrator.IsGlobalJob(ev.Service) {
+			orchestrator.SetServiceTasksRemove(ctx, o.store, ev.Service)
+			o.restartSupervisor.ClearServiceHistory(ev.Service.ID)
+		}
 	case api.EventUpdateTask:
 		task = ev.Task
 	}
