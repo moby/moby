@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -19,19 +20,19 @@ import (
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(name string, size bool, version string) (interface{}, error) {
+func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, size bool, version string) (interface{}, error) {
 	switch {
 	case versions.LessThan(version, "1.20"):
-		return daemon.containerInspectPre120(name)
+		return daemon.containerInspectPre120(ctx, name)
 	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
 	}
-	return daemon.ContainerInspectCurrent(name, size)
+	return daemon.ContainerInspectCurrent(ctx, name, size)
 }
 
 // ContainerInspectCurrent returns low-level information about a
 // container in a most recent api version.
-func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
+func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, size bool) (*types.ContainerJSON, error) {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
@@ -78,7 +79,10 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	ctr.Unlock()
 
 	if size {
-		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(base.ID)
+		sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, base.ID)
+		if err != nil {
+			return nil, err
+		}
 		base.SizeRw = &sizeRw
 		base.SizeRootFs = &sizeRootFs
 	}
