@@ -244,16 +244,15 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
-func (n *network) joinSandbox(s *subnet, restore bool, incJoinCount bool) error {
+func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.
 	networkOnce.Do(networkOnceInit)
 
 	n.Lock()
-	// If non-restore initialization occurred and was successful then
-	// tell the peerDB to initialize the sandbox with all the peers
-	// previously received from networkdb.  But only do this after
-	// unlocking the network.  Otherwise we could deadlock with
+	// If initialization was successful then tell the peerDB to initialize the
+	// sandbox with all the peers previously received from networkdb. But only
+	// do this after unlocking the network. Otherwise we could deadlock with
 	// on the peerDB channel while peerDB is waiting for the network lock.
 	var doInitPeerDB bool
 	defer func() {
@@ -264,8 +263,8 @@ func (n *network) joinSandbox(s *subnet, restore bool, incJoinCount bool) error 
 	}()
 
 	if !n.sboxInit {
-		n.initErr = n.initSandbox(restore)
-		doInitPeerDB = n.initErr == nil && !restore
+		n.initErr = n.initSandbox()
+		doInitPeerDB = n.initErr == nil
 		// If there was an error, we cannot recover it
 		n.sboxInit = true
 	}
@@ -276,9 +275,9 @@ func (n *network) joinSandbox(s *subnet, restore bool, incJoinCount bool) error 
 
 	subnetErr := s.initErr
 	if !s.sboxInit {
-		subnetErr = n.initSubnetSandbox(s, restore)
-		// We can recover from these errors, but not on restore
-		if restore || subnetErr == nil {
+		subnetErr = n.initSubnetSandbox(s)
+		// We can recover from these errors
+		if subnetErr == nil {
 			s.initErr = subnetErr
 			s.sboxInit = true
 		}
@@ -472,26 +471,6 @@ func checkOverlap(nw *net.IPNet) error {
 	return nil
 }
 
-func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) error {
-	// restore overlay osl sandbox
-	ifaces := map[string][]osl.IfaceOption{
-		brName + "+br": {
-			n.sbox.InterfaceOptions().Address(s.gwIP),
-			n.sbox.InterfaceOptions().Bridge(true),
-		},
-	}
-	if err := n.sbox.Restore(ifaces, nil, nil, nil); err != nil {
-		return err
-	}
-
-	ifaces = map[string][]osl.IfaceOption{
-		vxlanName + "+vxlan": {
-			n.sbox.InterfaceOptions().Master(brName),
-		},
-	}
-	return n.sbox.Restore(ifaces, nil, nil, nil)
-}
-
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
 	if hostMode {
 		// Try to delete stale bridge interface if it exists
@@ -628,7 +607,7 @@ func setDefaultVLAN(sbox osl.Sandbox) error {
 }
 
 // Must be called with the network lock
-func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
+func (n *network) initSubnetSandbox(s *subnet) error {
 	brName := n.generateBridgeName(s)
 	vxlanName := n.generateVxlanName(s)
 
@@ -644,14 +623,8 @@ func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
 		}
 	}
 
-	if restore {
-		if err := n.restoreSubnetSandbox(s, brName, vxlanName); err != nil {
-			return err
-		}
-	} else {
-		if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {
-			return err
-		}
+	if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {
+		return err
 	}
 
 	s.vxlanName = vxlanName
@@ -695,34 +668,23 @@ func (n *network) cleanupStaleSandboxes() {
 		})
 }
 
-func (n *network) initSandbox(restore bool) error {
+func (n *network) initSandbox() error {
 	n.initEpoch++
 
-	if !restore {
-		if hostMode {
-			if err := addNetworkChain(n.id[:12]); err != nil {
-				return err
-			}
+	if hostMode {
+		if err := addNetworkChain(n.id[:12]); err != nil {
+			return err
 		}
-
-		// If there are any stale sandboxes related to this network
-		// from previous daemon life clean it up here
-		n.cleanupStaleSandboxes()
 	}
 
-	// In the restore case network sandbox already exist; but we don't know
-	// what epoch number it was created with. It has to be retrieved by
-	// searching the net namespaces.
-	var key string
-	if restore {
-		key = osl.GenerateKey("-" + n.id)
-	} else {
-		key = osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch) + n.id)
-	}
+	// If there are any stale sandboxes related to this network
+	// from previous daemon life clean it up here
+	n.cleanupStaleSandboxes()
 
-	sbox, err := osl.NewSandbox(key, !hostMode, restore)
+	key := osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch) + n.id)
+	sbox, err := osl.NewSandbox(key, !hostMode, false)
 	if err != nil {
-		return fmt.Errorf("could not get network sandbox (oper %t): %v", restore, err)
+		return fmt.Errorf("could not get network sandbox: %v", err)
 	}
 
 	// this is needed to let the peerAdd configure the sandbox

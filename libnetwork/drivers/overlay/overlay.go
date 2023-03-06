@@ -7,14 +7,12 @@ package overlay
 
 import (
 	"fmt"
-	"net"
 	"sync"
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
@@ -69,63 +67,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		}
 	}
 
-	if err := d.restoreEndpoints(); err != nil {
-		logrus.Warnf("Failure during overlay endpoints restore: %v", err)
-	}
-
 	return r.RegisterDriver(networkType, d, c)
-}
-
-// Endpoints are stored in the local store. Restore them and reconstruct the overlay sandbox
-func (d *driver) restoreEndpoints() error {
-	if d.localStore == nil {
-		logrus.Warn("Cannot restore overlay endpoints because local datastore is missing")
-		return nil
-	}
-	kvol, err := d.localStore.List(datastore.Key(overlayEndpointPrefix), &endpoint{})
-	if err != nil && err != datastore.ErrKeyNotFound {
-		return fmt.Errorf("failed to read overlay endpoint from store: %v", err)
-	}
-
-	if err == datastore.ErrKeyNotFound {
-		return nil
-	}
-	for _, kvo := range kvol {
-		ep := kvo.(*endpoint)
-		n := d.network(ep.nid)
-		if n == nil {
-			logrus.Debugf("Network (%.7s) not found for restored endpoint (%.7s)", ep.nid, ep.id)
-			logrus.Debugf("Deleting stale overlay endpoint (%.7s) from store", ep.id)
-			if err := d.deleteEndpointFromStore(ep); err != nil {
-				logrus.Debugf("Failed to delete stale overlay endpoint (%.7s) from store", ep.id)
-			}
-			continue
-		}
-		n.addEndpoint(ep)
-
-		s := n.getSubnetforIP(ep.addr)
-		if s == nil {
-			return fmt.Errorf("could not find subnet for endpoint %s", ep.id)
-		}
-
-		if err := n.joinSandbox(s, true, true); err != nil {
-			return fmt.Errorf("restore network sandbox failed: %v", err)
-		}
-
-		Ifaces := make(map[string][]osl.IfaceOption)
-		vethIfaceOption := make([]osl.IfaceOption, 1)
-		vethIfaceOption = append(vethIfaceOption, n.sbox.InterfaceOptions().Master(s.brName))
-		Ifaces["veth+veth"] = vethIfaceOption
-
-		err := n.sbox.Restore(Ifaces, nil, nil, nil)
-		if err != nil {
-			n.leaveSandbox()
-			return fmt.Errorf("failed to restore overlay sandbox: %v", err)
-		}
-
-		d.peerAdd(ep.nid, ep.id, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), false, false, true)
-	}
-	return nil
 }
 
 func (d *driver) configure() error {

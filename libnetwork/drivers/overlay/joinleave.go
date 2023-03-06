@@ -46,7 +46,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find subnet for endpoint %s", eid)
 	}
 
-	if err := n.joinSandbox(s, false, true); err != nil {
+	if err := n.joinSandbox(s, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
 
