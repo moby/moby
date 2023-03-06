@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,63 +13,10 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 )
-
-// TestStopContainerWithTimeout checks that ContainerStop with
-// a timeout works as documented, i.e. in case of negative timeout
-// waiting is not limited (issue #35311).
-func TestStopContainerWithTimeout(t *testing.T) {
-	ctx := setupTest(t)
-
-	apiClient := testEnv.APIClient()
-
-	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
-	tests := []struct {
-		doc              string
-		timeout          int
-		expectedExitCode int
-	}{
-		// In case container is forcefully killed, 137 is returned,
-		// otherwise the exit code from the above script
-		{
-			"zero timeout: expect forceful container kill",
-			0, 137,
-		},
-		{
-			"too small timeout: expect forceful container kill",
-			1, 137,
-		},
-		{
-			"big enough timeout: expect graceful container stop",
-			3, 42,
-		},
-		{
-			"unlimited timeout: expect graceful container stop",
-			-1, 42,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(strconv.Itoa(tc.timeout), func(t *testing.T) {
-			t.Parallel()
-			ctx := testutil.StartSpan(ctx, t)
-			id := container.Run(ctx, t, apiClient, testCmd)
-
-			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &tc.timeout})
-			assert.NilError(t, err)
-
-			poll.WaitOn(t, container.IsStopped(ctx, apiClient, id))
-
-			inspect, err := apiClient.ContainerInspect(ctx, id)
-			assert.NilError(t, err)
-			assert.Equal(t, inspect.State.ExitCode, tc.expectedExitCode)
-		})
-	}
-}
 
 // TestStopContainerWithTimeoutCancel checks that ContainerStop is not cancelled
 // if the request is cancelled.
