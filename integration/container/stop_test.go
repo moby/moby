@@ -11,6 +11,9 @@ import (
 	"gotest.tools/v3/poll"
 )
 
+// hcs can sometimes take a long time to stop container.
+const StopContainerWindowsPollTimeout = 75 * time.Second
+
 func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	defer setupTest(t)()
 	client := testEnv.APIClient()

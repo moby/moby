@@ -170,7 +170,7 @@ func TestWaitConditions(t *testing.T) {
 				assert.NilError(t, err)
 			case waitRes := <-waitResC:
 				assert.Check(t, is.Equal(int64(99), waitRes.StatusCode))
-			case <-time.After(75 * time.Second):
+			case <-time.After(StopContainerWindowsPollTimeout):
 				info, _ := cli.ContainerInspect(ctx, containerID)
 				t.Fatalf("Timed out waiting for container exit code (status = %q)", info.State.Status)
 			}

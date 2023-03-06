@@ -126,8 +126,7 @@ func testLogs(t *testing.T, logDriver string) {
 
 	pollTimeout := time.Second * 10
 	if testEnv.OSType == "windows" {
-		// hcs can take longer than 10s to stop a container.
-		pollTimeout = time.Second * 75
+		pollTimeout = StopContainerWindowsPollTimeout
 	}
 
 	for _, tC := range testCases {
