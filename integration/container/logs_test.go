@@ -124,6 +124,12 @@ func testLogs(t *testing.T, logDriver string) {
 		},
 	}
 
+	pollTimeout := time.Second * 10
+	if testEnv.OSType == "windows" {
+		// hcs can take longer than 10s to stop a container.
+		pollTimeout = time.Second * 75
+	}
+
 	for _, tC := range testCases {
 		tC := tC
 		t.Run(tC.desc, func(t *testing.T) {
@@ -136,7 +142,9 @@ func testLogs(t *testing.T, logDriver string) {
 			)
 			defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 
-			poll.WaitOn(t, container.IsStopped(ctx, client, id), poll.WithDelay(time.Millisecond*100))
+			poll.WaitOn(t, container.IsStopped(ctx, client, id),
+				poll.WithDelay(time.Millisecond*100),
+				poll.WithTimeout(pollTimeout))
 
 			logs, err := client.ContainerLogs(ctx, id, tC.logOps)
 			assert.NilError(t, err)
