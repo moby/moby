@@ -703,12 +703,6 @@ func (n *network) sandbox() osl.Sandbox {
 	return n.sbox
 }
 
-func (n *network) vxlanID(s *subnet) uint32 {
-	n.Lock()
-	defer n.Unlock()
-	return s.vni
-}
-
 func (n *network) Key() []string {
 	return []string{"overlay", "network", n.id}
 }
