@@ -1,3 +1,6 @@
+//go:build !libnetwork_overlay_bpf
+// +build !libnetwork_overlay_bpf
+
 package overlay
 
 import (
