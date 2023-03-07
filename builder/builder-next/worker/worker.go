@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
+	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
 	distmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -248,7 +249,7 @@ func (w *Worker) Prune(ctx context.Context, ch chan client.UsageInfo, info ...cl
 // Exporter returns exporter by name
 func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, error) {
 	switch name {
-	case "moby":
+	case mobyexporter.Moby:
 		return w.Opt.Exporter, nil
 	case client.ExporterLocal:
 		return localexporter.New(localexporter.Opt{
