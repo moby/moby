@@ -22,8 +22,36 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+/*
+Encrypted overlay networks use IPsec in transport mode to encrypt and
+authenticate the VXLAN UDP datagrams. This driver implements a bespoke control
+plane which negotiates the security parameters for each peer-to-peer tunnel.
+
+IPsec Terminology
+
+ - ESP: IPSec Encapsulating Security Payload
+ - SPI: Security Parameter Index
+ - ICV: Integrity Check Value
+ - SA: Security Association https://en.wikipedia.org/wiki/IPsec#Security_association
+
+
+Developer documentation for Linux IPsec is rather sparse online. The following
+slide deck provides a decent overview.
+https://libreswan.org/wiki/images/e/e0/Netdev-0x12-ipsec-flow.pdf
+
+The Linux IPsec stack is part of XFRM, the netlink packet transformation
+interface.
+https://man7.org/linux/man-pages/man8/ip-xfrm.8.html
+*/
+
 const (
-	r            = 0xD0C4E3
+	// Value used to mark outgoing packets which should have our IPsec
+	// processing applied. It is also used as a label to identify XFRM
+	// states (Security Associations) and policies (Security Policies)
+	// programmed by us so we know which ones we can clean up without
+	// disrupting other VPN connections on the system.
+	mark = 0xD0C4E3
+
 	pktExpansion = 26 // SPI(4) + SeqN(4) + IV(8) + PadLength(1) + NextHeader(1) + ICV(8)
 )
 
@@ -33,7 +61,9 @@ const (
 	bidir
 )
 
-var spMark = netlink.XfrmMark{Value: uint32(r), Mask: 0xffffffff}
+// Mark value for matching packets which should have our IPsec security policy
+// applied.
+var spMark = netlink.XfrmMark{Value: mark, Mask: 0xffffffff}
 
 type key struct {
 	value []byte
@@ -47,6 +77,9 @@ func (k *key) String() string {
 	return ""
 }
 
+// Security Parameter Indices for the IPsec flows between local node and a
+// remote peer, which identify the Security Associations (XFRM states) to be
+// applied when encrypting and decrypting packets.
 type spi struct {
 	forward int
 	reverse int
@@ -204,7 +237,7 @@ func programMangle(vni uint32, add bool) (err error) {
 	var (
 		p      = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
 		c      = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
-		m      = strconv.FormatUint(uint64(r), 10)
+		m      = strconv.FormatUint(mark, 10)
 		chain  = "OUTPUT"
 		rule   = []string{"-p", "udp", "--dport", p, "-m", "u32", "--u32", c, "-j", "MARK", "--set-mark", m}
 		a      = "-A"
@@ -251,10 +284,12 @@ func programInput(vni uint32, add bool) (err error) {
 		msg = "remove"
 	}
 
+	// Accept incoming VXLAN datagrams for the VNI which were subjected to IPSec processing.
 	if err := iptable.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
 		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
 	}
 
+	// Drop incoming VXLAN datagrams for the VNI which were received in cleartext.
 	if err := iptable.ProgramRule(iptables.Filter, chain, action, block); err != nil {
 		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
 	}
@@ -280,7 +315,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Proto: netlink.XFRM_PROTO_ESP,
 			Spi:   spi.reverse,
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
-			Reqid: r,
+			Reqid: mark,
 		}
 		if add {
 			rSA.Aead = buildAeadAlgo(k, spi.reverse)
@@ -306,7 +341,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Proto: netlink.XFRM_PROTO_ESP,
 			Spi:   spi.forward,
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
-			Reqid: r,
+			Reqid: mark,
 		}
 		if add {
 			fSA.Aead = buildAeadAlgo(k, spi.forward)
@@ -355,7 +390,7 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 				Proto: netlink.XFRM_PROTO_ESP,
 				Mode:  netlink.XFRM_MODE_TRANSPORT,
 				Spi:   fSA.Spi,
-				Reqid: r,
+				Reqid: mark,
 			},
 		},
 	}
@@ -569,7 +604,7 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, pr
 					Proto: netlink.XFRM_PROTO_ESP,
 					Mode:  netlink.XFRM_MODE_TRANSPORT,
 					Spi:   fSA2.Spi,
-					Reqid: r,
+					Reqid: mark,
 				},
 			},
 		}
@@ -638,7 +673,7 @@ func clearEncryptionStates() {
 	}
 	for _, sa := range saList {
 		sa := sa
-		if sa.Reqid == r {
+		if sa.Reqid == mark {
 			if err := nlh.XfrmStateDel(&sa); err != nil {
 				logrus.Warnf("Failed to delete stale SA %s: %v", sa, err)
 				continue
