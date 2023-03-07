@@ -5,6 +5,7 @@ import (
 
 	distreference "github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/solver/result"
+	"github.com/moby/buildkit/util/urlutil"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -190,6 +191,7 @@ func (c *Capture) AddLocal(l LocalSource) {
 }
 
 func (c *Capture) AddGit(g GitSource) {
+	g.URL = urlutil.RedactCredentials(g.URL)
 	for _, v := range c.Sources.Git {
 		if v.URL == g.URL {
 			return
@@ -199,6 +201,7 @@ func (c *Capture) AddGit(g GitSource) {
 }
 
 func (c *Capture) AddHTTP(h HTTPSource) {
+	h.URL = urlutil.RedactCredentials(h.URL)
 	for _, v := range c.Sources.HTTP {
 		if v.URL == h.URL {
 			return
