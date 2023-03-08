@@ -2,8 +2,10 @@ package containerd
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
@@ -13,6 +15,9 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/registry"
+	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -139,6 +144,56 @@ func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) 
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
-func (i *ImageService) GetContainerLayerSize(containerID string) (int64, int64) {
-	panic("not implemented")
+func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error) {
+	ctr := i.containers.Get(containerID)
+	if ctr == nil {
+		return 0, 0, nil
+	}
+	cs := i.client.ContentStore()
+
+	imageManifestBytes, err := content.ReadBlob(ctx, cs, *ctr.ImageManifest)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var manifest ocispec.Manifest
+	if err := json.Unmarshal(imageManifestBytes, &manifest); err != nil {
+		return 0, 0, err
+	}
+
+	imageConfigBytes, err := content.ReadBlob(ctx, cs, manifest.Config)
+	if err != nil {
+		return 0, 0, err
+	}
+	var img ocispec.Image
+	if err := json.Unmarshal(imageConfigBytes, &img); err != nil {
+		return 0, 0, err
+	}
+
+	snapshotter := i.client.SnapshotService(i.snapshotter)
+	usage, err := snapshotter.Usage(ctx, containerID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	sizeCache := make(map[digest.Digest]int64)
+	snapshotSizeFn := func(d digest.Digest) (int64, error) {
+		if s, ok := sizeCache[d]; ok {
+			return s, nil
+		}
+		u, err := snapshotter.Usage(ctx, d.String())
+		if err != nil {
+			return 0, err
+		}
+		sizeCache[d] = u.Size
+		return u.Size, nil
+	}
+
+	chainIDs := identity.ChainIDs(img.RootFS.DiffIDs)
+	virtualSize, err := computeVirtualSize(chainIDs, snapshotSizeFn)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return usage.Size, usage.Size + virtualSize, nil
 }

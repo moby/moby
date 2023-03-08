@@ -361,7 +361,7 @@ func (c *containerAdapter) start(ctx context.Context) error {
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {
-	cs, err := c.backend.ContainerInspectCurrent(c.container.name(), false)
+	cs, err := c.backend.ContainerInspectCurrent(ctx, c.container.name(), false)
 	if ctx.Err() != nil {
 		return types.ContainerJSON{}, ctx.Err()
 	}
