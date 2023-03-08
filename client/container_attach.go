@@ -57,3 +57,27 @@ func (cli *Client) ContainerAttach(ctx context.Context, container string, option
 	}
 	return cli.postHijacked(ctx, "/containers/"+container+"/attach", query, nil, headers)
 }
+
+func (cli *Client) ContainerAttachStreams(ctx context.Context, container string, options types.AttachStreamConfig) error {
+	query := url.Values{}
+	query.Set("stream", "1")
+
+	if options.Stdin != "" {
+		query.Set("stdin-stream", options.Stdin)
+	}
+
+	if options.Stdout != "" {
+		query.Set("stdout-stream", options.Stdout)
+	}
+
+	if options.Stderr != "" {
+		query.Set("stderr-stream", options.Stderr)
+	}
+
+	resp, err := cli.post(ctx, "/containers/"+container+"/attach", query, nil, nil)
+	if err != nil {
+		return err
+	}
+	defer ensureReaderClosed(resp)
+	return nil
+}

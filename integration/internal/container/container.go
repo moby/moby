@@ -51,6 +51,10 @@ func Create(ctx context.Context, t *testing.T, client client.APIClient, ops ...f
 	c, err := create(ctx, t, client, ops...)
 	assert.NilError(t, err)
 
+	t.Cleanup(func() {
+		client.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{Force: true, RemoveVolumes: true})
+	})
+
 	return c.ID
 }
 

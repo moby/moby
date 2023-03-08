@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/streams"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/term"
@@ -40,6 +41,35 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		return errdefs.Conflict(err)
 	}
 
+	multiplexed := c.Streams == nil && !ctr.Config.Tty && c.MuxStreams
+
+	var (
+		inStream             io.ReadCloser
+		outStream, errStream io.Writer
+		ctx                  = context.TODO()
+	)
+
+	if c.Streams == nil {
+		inStream, outStream, errStream, err = c.GetStreams(multiplexed)
+		if err != nil {
+			return err
+		}
+		defer inStream.Close()
+	} else {
+		inStream, outStream, errStream, err = daemon.openStdioStreams(ctx, c.Streams.StdinID, c.Streams.StdoutID, c.Streams.StderrID)
+		if err != nil {
+			return err
+		}
+
+		attached := make(chan struct{})
+		if err := daemon.ContainerAttachRaw(prefixOrName, inStream, outStream, errStream, c.Stream, attached); err != nil {
+			return err
+		}
+		<-attached
+		logrus.WithField("container", prefixOrName).WithField("config", c.Streams).Debug("container attached")
+		return nil
+	}
+
 	cfg := stream.AttachConfig{
 		UseStdin:   c.UseStdin,
 		UseStdout:  c.UseStdout,
@@ -49,13 +79,6 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		DetachKeys: keys,
 	}
 	ctr.StreamConfig.AttachStreams(&cfg)
-
-	multiplexed := !ctr.Config.Tty && c.MuxStreams
-	inStream, outStream, errStream, err := c.GetStreams(multiplexed)
-	if err != nil {
-		return err
-	}
-	defer inStream.Close()
 
 	if multiplexed {
 		errStream = stdcopy.NewStdWriter(errStream, stdcopy.Stderr)
@@ -76,6 +99,58 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil
+}
+
+// openStdioStreams is a convenience wrapper around OpenStream that handles the exact case of attaching said streams to a container.
+func (daemon *Daemon) openStdioStreams(ctx context.Context, stdin, stdout, stderr string) (io.ReadCloser, io.WriteCloser, io.WriteCloser, error) {
+	openStream := func(id string) (io.ReadCloser, io.WriteCloser, error) {
+		if id == "" {
+			return nil, nil, nil
+		}
+
+		r, w, err := daemon.OpenStream(ctx, id)
+		if err != nil {
+			if errdefs.IsNotFound(err) {
+				err = errdefs.InvalidParameter(err)
+			}
+			return nil, nil, fmt.Errorf("could not open stream %s: %w", id, err)
+		}
+		return r, w, nil
+	}
+
+	inR, inW, err := openStream(stdin)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("stdin stream: %w", err)
+	}
+	if inW != nil {
+		inW.Close()
+	}
+
+	outR, outW, err := openStream(stdout)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("stdout stream: %w", err)
+	}
+	if outR != nil {
+		outR.Close()
+	}
+
+	errR, errW, err := openStream(stderr)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("stderr stream: %w", err)
+	}
+	if errR != nil {
+		errR.Close()
+	}
+
+	return inR, outW, errW, nil
+}
+
+func (daemon *Daemon) OpenStream(ctx context.Context, id string) (io.ReadCloser, io.WriteCloser, error) {
+	s, err := daemon.streams.Get(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return streams.Open(ctx, s)
 }
 
 // ContainerAttachRaw attaches the provided streams to the container's stdio
