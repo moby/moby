@@ -7,6 +7,13 @@ import (
 	"github.com/moby/buildkit/exporter"
 )
 
+// TODO(vvoland): Use buildkit consts once they're public
+// https://github.com/moby/buildkit/pull/3694
+const (
+	keyImageName = "name"
+	keyUnpack    = "unpack"
+)
+
 // Wraps the containerimage exporter's Resolve method to apply moby-specific
 // overrides to the exporter attributes.
 type imageExporterMobyWrapper struct {
@@ -22,12 +29,12 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, exporterAttrs ma
 	if exporterAttrs == nil {
 		exporterAttrs = make(map[string]string)
 	}
-	reposAndTags, err := SanitizeRepoAndTags(strings.Split(exporterAttrs["name"], ","))
+	reposAndTags, err := SanitizeRepoAndTags(strings.Split(exporterAttrs[keyImageName], ","))
 	if err != nil {
 		return nil, err
 	}
-	exporterAttrs["name"] = strings.Join(reposAndTags, ",")
-	exporterAttrs["unpack"] = "true"
+	exporterAttrs[keyImageName] = strings.Join(reposAndTags, ",")
+	exporterAttrs[keyUnpack] = "true"
 
 	return e.exp.Resolve(ctx, exporterAttrs)
 }
