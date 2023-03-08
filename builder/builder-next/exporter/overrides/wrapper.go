@@ -10,8 +10,9 @@ import (
 // TODO(vvoland): Use buildkit consts once they're public
 // https://github.com/moby/buildkit/pull/3694
 const (
-	keyImageName = "name"
-	keyUnpack    = "unpack"
+	keyImageName      = "name"
+	keyUnpack         = "unpack"
+	keyDanglingPrefix = "dangling-name-prefix"
 )
 
 // Wraps the containerimage exporter's Resolve method to apply moby-specific
@@ -35,6 +36,9 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, exporterAttrs ma
 	}
 	exporterAttrs[keyImageName] = strings.Join(reposAndTags, ",")
 	exporterAttrs[keyUnpack] = "true"
+	if _, has := exporterAttrs[keyDanglingPrefix]; !has {
+		exporterAttrs[keyDanglingPrefix] = "moby-dangling"
+	}
 
 	return e.exp.Resolve(ctx, exporterAttrs)
 }
