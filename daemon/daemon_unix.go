@@ -18,9 +18,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/cgroups"
-	statsV1 "github.com/containerd/cgroups/stats/v1"
-	statsV2 "github.com/containerd/cgroups/v2/stats"
+	"github.com/containerd/cgroups/v3"
+	statsV1 "github.com/containerd/cgroups/v3/cgroup1/stats"
+	statsV2 "github.com/containerd/cgroups/v3/cgroup2/stats"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"

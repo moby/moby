@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	cdcgroups "github.com/containerd/cgroups"
+	cdcgroups "github.com/containerd/cgroups/v3"
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"

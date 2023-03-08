@@ -7,7 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containerd/cgroups"
+	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/cgroups/v3/cgroup1"
 	"github.com/containerd/containerd/pkg/seccomp"
 	"github.com/moby/sys/mountinfo"
 	"github.com/sirupsen/logrus"
@@ -40,7 +41,7 @@ func findCgroupV1Mountpoints() (map[string]string, error) {
 		return nil, err
 	}
 
-	allSubsystems, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
+	allSubsystems, err := cgroup1.ParseCgroupFile("/proc/self/cgroup")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse cgroup information: %v", err)
 	}
