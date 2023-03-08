@@ -25,6 +25,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -98,7 +99,9 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		if err != nil {
 			return nil, err
 		}
-		tags := make([]reference.Named, 0, len(tagged))
+
+		// Each image will result in 2 references (named and digested).
+		refs := make([]reference.Named, 0, len(tagged)*2)
 		for _, i := range tagged {
 			if i.UpdatedAt.After(lastUpdated) {
 				lastUpdated = i.UpdatedAt
@@ -107,11 +110,21 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			if err != nil {
 				return nil, err
 			}
-			tags = append(tags, name)
+			refs = append(refs, name)
+
+			digested, err := reference.WithDigest(reference.TrimNamed(name), desc.Digest)
+			if err != nil {
+				// This could only happen if digest is invalid, but considering that
+				// we get it from the Descriptor it's highly unlikely.
+				// Log error just in case.
+				logrus.WithError(err).Error("failed to create digested reference")
+				continue
+			}
+			refs = append(refs, digested)
 		}
 
 		img.Details = &image.Details{
-			References:  tags,
+			References:  refs,
 			Size:        size,
 			Metadata:    nil,
 			Driver:      i.snapshotter,
