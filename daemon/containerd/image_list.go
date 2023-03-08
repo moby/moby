@@ -2,18 +2,21 @@ package containerd
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
-	cplatforms "github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/buildkit/util/attestation"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -77,29 +80,77 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			continue
 		}
 
-		platforms, err := images.Platforms(ctx, contentStore, img.Target)
+		err := images.Walk(ctx, images.HandlerFunc(func(ctx context.Context, desc v1.Descriptor) ([]v1.Descriptor, error) {
+			if images.IsIndexType(desc.MediaType) {
+				return images.Children(ctx, contentStore, desc)
+			}
+
+			if images.IsManifestType(desc.MediaType) {
+				// Ignore buildkit attestation manifests
+				// https://github.com/moby/buildkit/blob/v0.11.4/docs/attestations/attestation-storage.md
+				// This would have also been caught by the isImageManifest call below, but it requires
+				// an additional content read and deserialization of Manifest.
+				if _, has := desc.Annotations[attestation.DockerAnnotationReferenceType]; has {
+					return nil, nil
+				}
+
+				mfst, err := images.Manifest(ctx, contentStore, desc, platforms.All)
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						return nil, nil
+					}
+					return nil, err
+				}
+
+				if !isImageManifest(mfst) {
+					return nil, nil
+				}
+
+				platform, err := getManifestPlatform(ctx, contentStore, desc, mfst.Config)
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						return nil, nil
+					}
+					return nil, err
+				}
+
+				pm := platforms.OnlyStrict(platform)
+				available, _, _, missing, err := images.Check(ctx, contentStore, img.Target, pm)
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						logrus.ErrorKey: err,
+						"platform":      platform,
+						"image":         img.Target,
+					}).Warn("checking availability of platform content failed")
+					return nil, nil
+				}
+				if !available || len(missing) > 0 {
+					return nil, nil
+				}
+
+				c8dImage := containerd.NewImageWithPlatform(i.client, img, pm)
+				image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, c8dImage)
+				if err != nil {
+					return nil, err
+				}
+
+				summaries = append(summaries, image)
+
+				if opts.SharedSize {
+					root = append(root, &chainIDs)
+					for _, id := range chainIDs {
+						layers[id] = layers[id] + 1
+					}
+				}
+			}
+
+			return nil, nil
+		}), img.Target)
+
 		if err != nil {
 			return nil, err
 		}
 
-		for _, platform := range platforms {
-			image, chainIDs, err := i.singlePlatformImage(ctx, contentStore, img, platform)
-			if err != nil {
-				return nil, err
-			}
-			if image == nil {
-				continue
-			}
-
-			summaries = append(summaries, image)
-
-			if opts.SharedSize {
-				root = append(root, &chainIDs)
-				for _, id := range chainIDs {
-					layers[id] = layers[id] + 1
-				}
-			}
-		}
 	}
 
 	if opts.SharedSize {
@@ -115,15 +166,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 	return summaries, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, img images.Image, platform v1.Platform) (*types.ImageSummary, []digest.Digest, error) {
-	platformMatcher := cplatforms.OnlyStrict(platform)
-	available, _, _, missing, err := images.Check(ctx, contentStore, img.Target, platformMatcher)
-	if !available || err != nil || len(missing) > 0 {
-		return nil, nil, nil
-	}
-
-	image := containerd.NewImageWithPlatform(i.client, img, platformMatcher)
-
+func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, image containerd.Image) (*types.ImageSummary, []digest.Digest, error) {
 	diffIDs, err := image.RootFS(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -302,4 +345,45 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 		sharedSize += size
 	}
 	return sharedSize, nil
+}
+
+// getManifestPlatform returns a platform specified by the manifest descriptor
+// or reads it from its config.
+func getManifestPlatform(ctx context.Context, store content.Provider, manifestDesc, configDesc v1.Descriptor) (v1.Platform, error) {
+	var platform v1.Platform
+	if manifestDesc.Platform != nil {
+		platform = *manifestDesc.Platform
+	} else {
+		// Config is technically a v1.Image, but it has the same member as v1.Platform
+		// which makes the v1.Platform a subset of Image so we can unmarshal directly.
+		if err := readConfig(ctx, store, configDesc, &platform); err != nil {
+			return platform, err
+		}
+	}
+	return platforms.Normalize(platform), nil
+}
+
+// isImageManifests returns true if the manifest has any layer that is a known image layer.
+// Some manifests use the image media type for compatibility, even if they are not a real image.
+func isImageManifest(mfst v1.Manifest) bool {
+	for _, l := range mfst.Layers {
+		if images.IsLayerType(l.MediaType) {
+			return true
+		}
+	}
+	return false
+}
+
+// readConfig reads content pointed by the descriptor and unmarshals it into a specified output.
+func readConfig(ctx context.Context, store content.Provider, desc v1.Descriptor, out interface{}) error {
+	data, err := content.ReadBlob(ctx, store, desc)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read config content")
+	}
+	err = json.Unmarshal(data, out)
+	if err != nil {
+		return errors.Wrapf(err, "could not deserialize image config")
+	}
+
+	return nil
 }
