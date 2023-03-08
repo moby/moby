@@ -323,6 +323,9 @@ github.com/containerd/ttrpc
 # github.com/containerd/typeurl v1.0.2
 ## explicit; go 1.13
 github.com/containerd/typeurl
+# github.com/containerd/typeurl/v2 v2.1.0
+## explicit; go 1.13
+github.com/containerd/typeurl/v2
 # github.com/containernetworking/cni v1.1.1
 ## explicit; go 1.14
 github.com/containernetworking/cni/libcni
