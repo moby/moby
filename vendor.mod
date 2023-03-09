@@ -54,7 +54,7 @@ require (
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.5.0
 	github.com/moby/pubsub v1.0.0
-	github.com/moby/swarmkit/v2 v2.0.0-20230302163403-80a528a86877
+	github.com/moby/swarmkit/v2 v2.0.0-20230309194213-a745a8755ce3
 	github.com/moby/sys/mount v0.3.3
 	github.com/moby/sys/mountinfo v0.6.2
 	github.com/moby/sys/sequential v0.5.0
@@ -132,8 +132,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
-	github.com/onsi/ginkgo v1.16.4 // indirect
-	github.com/onsi/gomega v1.15.0 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
