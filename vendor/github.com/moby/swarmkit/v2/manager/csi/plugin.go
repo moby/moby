@@ -10,6 +10,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/internal/csi/capability"
 )
 
 // Plugin is the interface for a CSI controller plugin.
@@ -275,7 +276,7 @@ func (p *plugin) makeCreateVolume(v *api.Volume) *csi.CreateVolumeRequest {
 		Name:       v.Spec.Annotations.Name,
 		Parameters: v.Spec.Driver.Options,
 		VolumeCapabilities: []*csi.VolumeCapability{
-			makeCapability(v.Spec.AccessMode),
+			capability.MakeCapability(v.Spec.AccessMode),
 		},
 		Secrets:                   secrets,
 		AccessibilityRequirements: makeTopologyRequirement(v.Spec.AccessibilityRequirements),
@@ -307,7 +308,7 @@ func (p *plugin) makeControllerPublishVolumeRequest(v *api.Volume, nodeID string
 	}
 
 	secrets := p.makeSecrets(v)
-	capability := makeCapability(v.Spec.AccessMode)
+	capability := capability.MakeCapability(v.Spec.AccessMode)
 	capability.AccessType = &csi.VolumeCapability_Mount{
 		Mount: &csi.VolumeCapability_MountVolume{},
 	}
