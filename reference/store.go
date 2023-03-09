@@ -36,7 +36,7 @@ type Store interface {
 	Get(ref reference.Named) (digest.Digest, error)
 }
 
-type store struct {
+type refStore struct {
 	mu sync.RWMutex
 	// jsonPath is the path to the file where the serialized tag data is
 	// stored.
@@ -76,7 +76,7 @@ func NewReferenceStore(jsonPath string) (Store, error) {
 		return nil, err
 	}
 
-	store := &store{
+	store := &refStore{
 		jsonPath:            abspath,
 		Repositories:        make(map[string]repository),
 		referencesByIDCache: make(map[digest.Digest]map[string]reference.Named),
@@ -94,7 +94,7 @@ func NewReferenceStore(jsonPath string) (Store, error) {
 
 // AddTag adds a tag reference to the store. If force is set to true, existing
 // references can be overwritten. This only works for tags, not digests.
-func (store *store) AddTag(ref reference.Named, id digest.Digest, force bool) error {
+func (store *refStore) AddTag(ref reference.Named, id digest.Digest, force bool) error {
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		return errors.WithStack(invalidTagError("refusing to create a tag with a digest reference"))
 	}
@@ -102,7 +102,7 @@ func (store *store) AddTag(ref reference.Named, id digest.Digest, force bool) er
 }
 
 // AddDigest adds a digest reference to the store.
-func (store *store) AddDigest(ref reference.Canonical, id digest.Digest, force bool) error {
+func (store *refStore) AddDigest(ref reference.Canonical, id digest.Digest, force bool) error {
 	return store.addReference(ref, id, force)
 }
 
@@ -124,7 +124,7 @@ func favorDigest(originalRef reference.Named) (reference.Named, error) {
 	return ref, nil
 }
 
-func (store *store) addReference(ref reference.Named, id digest.Digest, force bool) error {
+func (store *refStore) addReference(ref reference.Named, id digest.Digest, force bool) error {
 	ref, err := favorDigest(ref)
 	if err != nil {
 		return err
@@ -140,13 +140,13 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	repository, exists := store.Repositories[refName]
-	if !exists || repository == nil {
-		repository = make(map[string]digest.Digest)
-		store.Repositories[refName] = repository
+	repo, exists := store.Repositories[refName]
+	if !exists || repo == nil {
+		repo = make(map[string]digest.Digest)
+		store.Repositories[refName] = repo
 	}
 
-	oldID, exists := repository[refStr]
+	oldID, exists := repo[refStr]
 
 	if exists {
 		if oldID == id {
@@ -156,13 +156,13 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 
 		// force only works for tags
 		if digested, isDigest := ref.(reference.Canonical); isDigest {
-			return errors.WithStack(conflictingTagError("Cannot overwrite digest " + digested.Digest().String()))
+			return errors.WithStack(conflictingTagError("cannot overwrite digest " + digested.Digest().String()))
 		}
 
 		if !force {
 			return errors.WithStack(
 				conflictingTagError(
-					fmt.Sprintf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use the force option", refStr, oldID.String()),
+					fmt.Sprintf("tag %s is already set to image %s, use the force option to replace it", refStr, oldID.String()),
 				),
 			)
 		}
@@ -175,7 +175,7 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 		}
 	}
 
-	repository[refStr] = id
+	repo[refStr] = id
 	if store.referencesByIDCache[id] == nil {
 		store.referencesByIDCache[id] = make(map[string]reference.Named)
 	}
@@ -186,7 +186,7 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 
 // Delete deletes a reference from the store. It returns true if a deletion
 // happened, or false otherwise.
-func (store *store) Delete(ref reference.Named) (bool, error) {
+func (store *refStore) Delete(ref reference.Named) (bool, error) {
 	ref, err := favorDigest(ref)
 	if err != nil {
 		return false, err
@@ -200,14 +200,14 @@ func (store *store) Delete(ref reference.Named) (bool, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	repository, exists := store.Repositories[refName]
+	repo, exists := store.Repositories[refName]
 	if !exists {
 		return false, ErrDoesNotExist
 	}
 
-	if id, exists := repository[refStr]; exists {
-		delete(repository, refStr)
-		if len(repository) == 0 {
+	if id, exists := repo[refStr]; exists {
+		delete(repo, refStr)
+		if len(repo) == 0 {
 			delete(store.Repositories, refName)
 		}
 		if store.referencesByIDCache[id] != nil {
@@ -223,7 +223,7 @@ func (store *store) Delete(ref reference.Named) (bool, error) {
 }
 
 // Get retrieves an item from the store by reference
-func (store *store) Get(ref reference.Named) (digest.Digest, error) {
+func (store *refStore) Get(ref reference.Named) (digest.Digest, error) {
 	if canonical, ok := ref.(reference.Canonical); ok {
 		// If reference contains both tag and digest, only
 		// lookup by digest as it takes precedence over
@@ -245,12 +245,12 @@ func (store *store) Get(ref reference.Named) (digest.Digest, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
-	repository, exists := store.Repositories[refName]
-	if !exists || repository == nil {
+	repo, exists := store.Repositories[refName]
+	if !exists || repo == nil {
 		return "", ErrDoesNotExist
 	}
 
-	id, exists := repository[refStr]
+	id, exists := repo[refStr]
 	if !exists {
 		return "", ErrDoesNotExist
 	}
@@ -260,7 +260,7 @@ func (store *store) Get(ref reference.Named) (digest.Digest, error) {
 
 // References returns a slice of references to the given ID. The slice
 // will be nil if there are no references to this ID.
-func (store *store) References(id digest.Digest) []reference.Named {
+func (store *refStore) References(id digest.Digest) []reference.Named {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
@@ -281,19 +281,19 @@ func (store *store) References(id digest.Digest) []reference.Named {
 // ReferencesByName returns the references for a given repository name.
 // If there are no references known for this repository name,
 // ReferencesByName returns nil.
-func (store *store) ReferencesByName(ref reference.Named) []Association {
+func (store *refStore) ReferencesByName(ref reference.Named) []Association {
 	refName := reference.FamiliarName(ref)
 
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
-	repository, exists := store.Repositories[refName]
+	repo, exists := store.Repositories[refName]
 	if !exists {
 		return nil
 	}
 
 	var associations []Association
-	for refStr, refID := range repository {
+	for refStr, refID := range repo {
 		ref, err := reference.ParseNormalizedNamed(refStr)
 		if err != nil {
 			// Should never happen
@@ -311,7 +311,7 @@ func (store *store) ReferencesByName(ref reference.Named) []Association {
 	return associations
 }
 
-func (store *store) save() error {
+func (store *refStore) save() error {
 	// Store the json
 	jsonData, err := json.Marshal(store)
 	if err != nil {
@@ -320,7 +320,7 @@ func (store *store) save() error {
 	return ioutils.AtomicWriteFile(store.jsonPath, jsonData, 0600)
 }
 
-func (store *store) reload() error {
+func (store *refStore) reload() error {
 	f, err := os.Open(store.jsonPath)
 	if err != nil {
 		return err
@@ -330,8 +330,8 @@ func (store *store) reload() error {
 		return err
 	}
 
-	for _, repository := range store.Repositories {
-		for refStr, refID := range repository {
+	for _, repo := range store.Repositories {
+		for refStr, refID := range repo {
 			ref, err := reference.ParseNormalizedNamed(refStr)
 			if err != nil {
 				// Should never happen
