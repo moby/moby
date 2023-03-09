@@ -61,6 +61,8 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVar(&conf.HTTPSProxy, "https-proxy", "", "HTTPS proxy URL to use for outgoing traffic")
 	flags.StringVar(&conf.NoProxy, "no-proxy", "", "Comma-separated list of hosts or IP addresses for which the proxy is skipped")
 
+	flags.Var(opts.NewNamedListOptsRef("cdi-spec-dirs", &conf.CDISpecDirs, nil), "cdi-spec-dir", "CDI specification directories to use")
+
 	// Deprecated flags / options
 
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")

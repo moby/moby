@@ -237,3 +237,15 @@ func WithRuntime(name string) func(*TestContainerConfig) {
 		c.HostConfig.Runtime = name
 	}
 }
+
+// WithCDIDevices sets the CDI devices to use to start the container
+func WithCDIDevices(cdiDeviceNames ...string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		request := containertypes.DeviceRequest{
+			Driver:       "cdi",
+			Capabilities: [][]string{{"cdi"}},
+			DeviceIDs:    cdiDeviceNames,
+		}
+		c.HostConfig.DeviceRequests = append(c.HostConfig.DeviceRequests, request)
+	}
+}

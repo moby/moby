@@ -15,6 +15,7 @@ import (
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 
+	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
@@ -256,6 +257,9 @@ type CommonConfig struct {
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
 
 	DefaultRuntime string `json:"default-runtime,omitempty"`
+
+	// CDISpecDirs is a list of directories in which CDI specifications can be found.
+	CDISpecDirs []string `json:"cdi-spec-dirs,omitempty"`
 }
 
 // Proxies holds the proxies that are configured for the daemon.
@@ -295,6 +299,7 @@ func New() (*Config, error) {
 			ContainerdNamespace:       DefaultContainersNamespace,
 			ContainerdPluginNamespace: DefaultPluginNamespace,
 			DefaultRuntime:            StockRuntimeName,
+			CDISpecDirs:               append([]string(nil), cdi.DefaultSpecDirs...),
 		},
 	}
 

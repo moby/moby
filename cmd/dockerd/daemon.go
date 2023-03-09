@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
@@ -239,6 +240,18 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// validate after NewDaemon has restored enabled plugins. Don't change order.
 	if err := validateAuthzPlugins(cli.Config.AuthorizationPlugins, pluginStore); err != nil {
 		return errors.Wrap(err, "failed to validate authorization plugin")
+	}
+
+	// Note that CDI is not inherrently linux-specific, there are some linux-specific assumptions / implementations in the code that
+	// queries the properties of device on the host as wel as performs the injection of device nodes and their access permissions into the OCI spec.
+	//
+	// In order to lift this restriction the following would have to be addressed:
+	// - Support needs to be added to the cdi package for injecting Windows devices: https://github.com/container-orchestrated-devices/container-device-interface/issues/28
+	// - The DeviceRequests API must be extended to non-linux platforms.
+	if runtime.GOOS == "linux" && cli.Config.Experimental {
+		daemon.RegisterCDIDriver(
+			cdi.WithSpecDirs(cli.Config.CDISpecDirs...),
+		)
 	}
 
 	cli.d = d
