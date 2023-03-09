@@ -61,10 +61,6 @@ type ImageService interface {
 	Mount(ctx context.Context, container *container.Container) error
 	Unmount(ctx context.Context, container *container.Container) error
 
-	// Windows specific
-
-	GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error)
-
 	// Build
 
 	MakeImageCache(ctx context.Context, cacheFrom []string) (builder.ImageCache, error)

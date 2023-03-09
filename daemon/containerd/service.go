@@ -138,11 +138,6 @@ func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
 	panic("not implemented")
 }
 
-// GetLayerFolders returns the layer folders from an image RootFS.
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
-	return nil, errdefs.NotImplemented(errors.New("not implemented"))
-}
-
 // GetContainerLayerSize returns the real size & virtual size of the container.
 func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error) {
 	ctr := i.containers.Get(containerID)

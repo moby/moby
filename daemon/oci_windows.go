@@ -13,6 +13,8 @@ import (
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
@@ -137,7 +139,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (*
 		}
 	}
 	s.Process.User.Username = c.Config.User
-	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer)
+	s.Windows.LayerFolders, err = daemon.getLayerFolders(img, c.RWLayer)
 	if err != nil {
 		return nil, errors.Wrapf(err, "container %s", c.ID)
 	}
@@ -212,6 +214,33 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (*
 	}
 
 	return &s, nil
+}
+
+// getLayerFolders returns the layer folders from an image RootFS
+func (daemon *Daemon) getLayerFolders(img *image.Image, rwLayer layer.RWLayer) ([]string, error) {
+	folders := []string{}
+	max := len(img.RootFS.DiffIDs)
+	for index := 1; index <= max; index++ {
+		// FIXME: why does this mutate the RootFS?
+		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:index]
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "cannot get layerpath for ImageID %s", img.RootFS.ChainID())
+		}
+		layerPath, err := layer.GetLayerPath(daemon.DistributionServices().LayerStore, img.RootFS.ChainID())
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get layer path from graphdriver %s for ImageID %s", daemon.DistributionServices().LayerStore, img.RootFS.ChainID())
+		}
+		// Reverse order, expecting parent first
+		folders = append([]string{layerPath}, folders...)
+	}
+	if rwLayer == nil {
+		return nil, errors.New("RWLayer is unexpectedly nil")
+	}
+	m, err := rwLayer.Metadata()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get layer metadata")
+	}
+	return append(folders, m["dir"]), nil
 }
 
 // Sets the Windows-specific fields of the OCI spec
