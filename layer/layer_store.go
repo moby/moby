@@ -62,6 +62,9 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 		ExperimentalEnabled: options.ExperimentalEnabled,
 	})
 	if err != nil {
+		if options.GraphDriver != "" {
+			return nil, fmt.Errorf("error initializing graphdriver: %v: %s", err, options.GraphDriver)
+		}
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
 	logrus.Debugf("Initialized graph driver %s", driver)
