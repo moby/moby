@@ -655,7 +655,7 @@ func loadListeners(cli *DaemonCli, tlsConfig *tls.Config) ([]string, error) {
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		protoAddr := cli.Config.Hosts[i]
 		proto, addr, ok := strings.Cut(protoAddr, "://")
-		if !ok || addr == "" {
+		if !ok {
 			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
 
