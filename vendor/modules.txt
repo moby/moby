@@ -611,7 +611,7 @@ github.com/moby/patternmatcher
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.0.0-20230302163403-80a528a86877
+# github.com/moby/swarmkit/v2 v2.0.0-20230309194213-a745a8755ce3
 ## explicit; go 1.18
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
@@ -702,10 +702,6 @@ github.com/moby/term/windows
 # github.com/morikuni/aec v1.0.0
 ## explicit
 github.com/morikuni/aec
-# github.com/onsi/ginkgo v1.16.4
-## explicit; go 1.15
-# github.com/onsi/gomega v1.15.0
-## explicit; go 1.14
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
