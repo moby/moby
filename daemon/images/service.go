@@ -136,7 +136,7 @@ func (i *ImageService) CreateLayer(container *container.Container, initFunc laye
 }
 
 // GetLayerByID returns a layer by ID
-// called from daemon.go Daemon.restore(), and Daemon.containerExport().
+// called from daemon.go Daemon.restore().
 func (i *ImageService) GetLayerByID(cid string) (layer.RWLayer, error) {
 	return i.layerStore.GetRWLayer(cid)
 }
@@ -169,7 +169,7 @@ func (i *ImageService) StorageDriver() string {
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
-// called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
+// called from delete.go Daemon.cleanupContainer().
 func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
 	metaData, err := i.layerStore.ReleaseRWLayer(rwlayer)
 	layer.LogReleaseMetadata(metaData)
