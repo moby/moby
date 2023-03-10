@@ -5,11 +5,11 @@ import (
 	"strconv"
 )
 
-// matchVXLAN returns an iptables rule fragment which matches VXLAN datagrams
-// with the given destination port and VXLAN Network ID utilizing the xt_u32
-// netfilter kernel module. The returned slice's backing array is guaranteed not
-// to alias any other slice's.
-func matchVXLAN(port, vni uint32) []string {
+// matchVXLANWithU32 returns an iptables rule fragment which matches VXLAN
+// datagrams with the given destination port and VXLAN Network ID utilizing the
+// xt_u32 netfilter kernel module. The returned slice's backing array is
+// guaranteed not to alias any other slice's.
+func matchVXLANWithU32(port, vni uint32) []string {
 	dport := strconv.FormatUint(uint64(port), 10)
 
 	// The u32 expression language is documented in iptables-extensions(8).
