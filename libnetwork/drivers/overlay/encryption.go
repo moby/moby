@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -225,7 +226,31 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 	return nil
 }
 
-func programMangle(vni uint32, add bool) error {
+type matchVXLANFunc func(port, vni uint32) []string
+
+// programVXLANRuleFunc returns a function which tries calling programWithMatch
+// with the u32 match, falling back to the BPF match if installing u32 variant
+// of the rules fails.
+func programVXLANRuleFunc(programWithMatch func(matchVXLAN matchVXLANFunc, vni uint32, add bool) error) func(vni uint32, add bool) error {
+	return func(vni uint32, add bool) error {
+		if add {
+			if err := programWithMatch(matchVXLANWithU32, vni, add); err != nil {
+				// That didn't work. Maybe the xt_u32 module isn't available? Try again with xt_bpf.
+				err2 := programWithMatch(matchVXLANWithBPF, vni, add)
+				if err2 != nil {
+					return multierror.Append(err, err2)
+				}
+			}
+			return nil
+		} else {
+			// Delete both flavours.
+			err := programWithMatch(matchVXLANWithU32, vni, add)
+			return multierror.Append(err, programWithMatch(matchVXLANWithBPF, vni, add)).ErrorOrNil()
+		}
+	}
+}
+
+var programMangle = programVXLANRuleFunc(func(matchVXLAN matchVXLANFunc, vni uint32, add bool) error {
 	var (
 		m      = strconv.FormatUint(mark, 10)
 		chain  = "OUTPUT"
@@ -247,9 +272,9 @@ func programMangle(vni uint32, add bool) error {
 	}
 
 	return nil
-}
+})
 
-func programInput(vni uint32, add bool) error {
+var programInput = programVXLANRuleFunc(func(matchVXLAN matchVXLANFunc, vni uint32, add bool) error {
 	var (
 		plainVxlan = matchVXLAN(overlayutils.VXLANUDPPort(), vni)
 		ipsecVxlan = append([]string{"-m", "policy", "--dir", "in", "--pol", "ipsec"}, plainVxlan...)
@@ -279,7 +304,7 @@ func programInput(vni uint32, add bool) error {
 	}
 
 	return nil
-}
+})
 
 func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, err error) {
 	var (
