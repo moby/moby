@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	clientpkg "github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/request"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -75,16 +76,31 @@ func TestVolumesRemove(t *testing.T) {
 	assert.NilError(t, err)
 	vname := c.Mounts[0].Name
 
-	err = client.VolumeRemove(ctx, vname, false)
-	assert.Check(t, is.ErrorContains(err, "volume is in use"))
-
-	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
-		Force: true,
+	t.Run("volume in use", func(t *testing.T) {
+		err = client.VolumeRemove(ctx, vname, false)
+		assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+		assert.Check(t, is.ErrorContains(err, "volume is in use"))
 	})
-	assert.NilError(t, err)
 
-	err = client.VolumeRemove(ctx, vname, false)
-	assert.NilError(t, err)
+	t.Run("volume not in use", func(t *testing.T) {
+		err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+			Force: true,
+		})
+		assert.NilError(t, err)
+
+		err = client.VolumeRemove(ctx, vname, false)
+		assert.NilError(t, err)
+	})
+
+	t.Run("non-existing volume", func(t *testing.T) {
+		err = client.VolumeRemove(ctx, "no_such_volume", false)
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	})
+
+	t.Run("non-existing volume force", func(t *testing.T) {
+		err = client.VolumeRemove(ctx, "no_such_volume", true)
+		assert.NilError(t, err)
+	})
 }
 
 func TestVolumesInspect(t *testing.T) {
