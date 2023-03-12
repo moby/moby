@@ -15,11 +15,13 @@ import (
 	clientpkg "github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestVolumesCreateAndList(t *testing.T) {
@@ -70,6 +72,58 @@ func TestVolumesRemove(t *testing.T) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
+	id := container.Create(ctx, t, client, container.WithVolume(prefix+slash+"foo"))
+
+	c, err := client.ContainerInspect(ctx, id)
+	assert.NilError(t, err)
+	vname := c.Mounts[0].Name
+
+	t.Run("volume in use", func(t *testing.T) {
+		err = client.VolumeRemove(ctx, vname, false)
+		assert.Check(t, is.ErrorType(err, errdefs.IsConflict))
+		assert.Check(t, is.ErrorContains(err, "volume is in use"))
+	})
+
+	t.Run("volume not in use", func(t *testing.T) {
+		err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+			Force: true,
+		})
+		assert.NilError(t, err)
+
+		err = client.VolumeRemove(ctx, vname, false)
+		assert.NilError(t, err)
+	})
+
+	t.Run("non-existing volume", func(t *testing.T) {
+		err = client.VolumeRemove(ctx, "no_such_volume", false)
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	})
+
+	t.Run("non-existing volume force", func(t *testing.T) {
+		err = client.VolumeRemove(ctx, "no_such_volume", true)
+		assert.NilError(t, err)
+	})
+}
+
+// TestVolumesRemoveSwarmEnabled tests that an error is returned if a volume
+// is in use, also if swarm is enabled (and cluster volumes are supported).
+//
+// Regression test for https://github.com/docker/cli/issues/4082
+func TestVolumesRemoveSwarmEnabled(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.OSType == "windows", "TODO enable on windows")
+	t.Parallel()
+	defer setupTest(t)()
+
+	// Spin up a new daemon, so that we can run this test in parallel (it's a slow test)
+	d := daemon.New(t)
+	d.StartAndSwarmInit(t)
+	defer d.Stop(t)
+
+	client := d.NewClientT(t)
+
+	ctx := context.Background()
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	id := container.Create(ctx, t, client, container.WithVolume(prefix+slash+"foo"))
 
 	c, err := client.ContainerInspect(ctx, id)
