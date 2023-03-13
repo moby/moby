@@ -509,16 +509,18 @@ func (s *DockerCLIExecSuite) TestExecUlimits(c *testing.T) {
 
 // #15750
 func (s *DockerCLIExecSuite) TestExecStartFails(c *testing.T) {
-	// TODO Windows CI. This test should be portable. Figure out why it fails
-	// currently.
-	testRequires(c, DaemonIsLinux)
 	name := "exec-15750"
 	runSleepingContainer(c, "-d", "--name", name)
 	assert.NilError(c, waitRun(name))
 
 	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "executable file not found"))
+
+	expectedMsg := "executable file not found"
+	if runtime.GOOS == "windows" {
+		expectedMsg = "The system cannot find the file specified"
+	}
+	assert.Assert(c, is.Contains(out, expectedMsg))
 }
 
 // Fix regression in https://github.com/docker/docker/pull/26461#issuecomment-250287297
