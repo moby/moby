@@ -479,20 +479,21 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		return nil, err
 	}
 
-	t := &task{process{
+	p := process{
 		id:         ctr.id,
 		ctr:        ctr,
 		hcsProcess: newProcess,
 		waitCh:     make(chan struct{}),
-	}}
+	}
 
 	// Spin up a goroutine to notify the backend and clean up resources when
 	// the task exits. Defer until after the start event is sent so that the
 	// exit event is not sent out-of-order.
-	defer func() { go t.reap() }()
+	defer func() { go p.reap() }()
 
 	// All fallible operations have succeeded so it is now safe to set the
 	// container's current task.
+	t := &task{process: p}
 	ctr.task = t
 
 	// Generate the associated event
@@ -599,7 +600,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		return nil, err
 	}
 
-	p := &process{
+	p := process{
 		id:         processID,
 		ctr:        t.ctr,
 		hcsProcess: newProcess,
@@ -640,7 +641,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		}
 	})
 
-	return p, nil
+	return &p, nil
 }
 
 func (p *process) Pid() uint32 {
