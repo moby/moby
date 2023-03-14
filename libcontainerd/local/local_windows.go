@@ -437,7 +437,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	setCommandLineAndArgs(ctr.ociSpec.Process, createProcessParms)
 	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
 
-	createProcessParms.User = ctr.ociSpec.Process.User.Username
+	createProcessParms.User = spec.User.Username
 
 	// Start the command running in the container.
 	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
