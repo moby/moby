@@ -466,18 +466,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 			}()
 		}
 	}()
-	t := &task{process: process{
-		id:         ctr.id,
-		ctr:        ctr,
-		hcsProcess: newProcess,
-		waitCh:     make(chan struct{}),
-	}}
 	logger.WithField("pid", pid).Debug("init process started")
-
-	// Spin up a goroutine to notify the backend and clean up resources when
-	// the task exits. Defer until after the start event is sent so that the
-	// exit event is not sent out-of-order.
-	defer func() { go t.reap() }()
 
 	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
@@ -489,6 +478,18 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		logger.WithError(err).Error("failed to attach stdio")
 		return nil, err
 	}
+
+	t := &task{process{
+		id:         ctr.id,
+		ctr:        ctr,
+		hcsProcess: newProcess,
+		waitCh:     make(chan struct{}),
+	}}
+
+	// Spin up a goroutine to notify the backend and clean up resources when
+	// the task exits. Defer until after the start event is sent so that the
+	// exit event is not sent out-of-order.
+	defer func() { go t.reap() }()
 
 	// All fallible operations have succeeded so it is now safe to set the
 	// container's current task.
