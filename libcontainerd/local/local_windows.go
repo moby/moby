@@ -431,7 +431,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	}
 
 	// Configure the environment for the process
-	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
+	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
 
 	// Configure the CommandLine/CommandArgs
 	setCommandLineAndArgs(ctr.ociSpec.Process, createProcessParms)
