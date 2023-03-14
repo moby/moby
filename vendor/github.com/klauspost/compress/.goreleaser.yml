@@ -3,7 +3,7 @@
 before:
   hooks:
     - ./gen.sh
-    - go install mvdan.cc/garble@latest
+    - go install mvdan.cc/garble@v0.9.3
 
 builds:
   -

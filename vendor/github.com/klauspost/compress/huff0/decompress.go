@@ -61,7 +61,7 @@ func ReadTable(in []byte, s *Scratch) (s2 *Scratch, remain []byte, err error) {
 		b, err := fse.Decompress(in[:iSize], s.fse)
 		s.fse.Out = nil
 		if err != nil {
-			return s, nil, err
+			return s, nil, fmt.Errorf("fse decompress returned: %w", err)
 		}
 		if len(b) > 255 {
 			return s, nil, errors.New("corrupt input: output table too large")

@@ -1,7 +1,6 @@
 package zstd
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -20,7 +19,10 @@ type dict struct {
 	content []byte
 }
 
-var dictMagic = [4]byte{0x37, 0xa4, 0x30, 0xec}
+const dictMagic = "\x37\xa4\x30\xec"
+
+// Maximum dictionary size for the reference implementation (1.5.3) is 2 GiB.
+const dictMaxLength = 1 << 31
 
 // ID returns the dictionary id or 0 if d is nil.
 func (d *dict) ID() uint32 {
@@ -30,12 +32,36 @@ func (d *dict) ID() uint32 {
 	return d.id
 }
 
-// DictContentSize returns the dictionary content size or 0 if d is nil.
-func (d *dict) DictContentSize() int {
+// ContentSize returns the dictionary content size or 0 if d is nil.
+func (d *dict) ContentSize() int {
 	if d == nil {
 		return 0
 	}
 	return len(d.content)
+}
+
+// Content returns the dictionary content.
+func (d *dict) Content() []byte {
+	if d == nil {
+		return nil
+	}
+	return d.content
+}
+
+// Offsets returns the initial offsets.
+func (d *dict) Offsets() [3]int {
+	if d == nil {
+		return [3]int{}
+	}
+	return d.offsets
+}
+
+// LitEncoder returns the literal encoder.
+func (d *dict) LitEncoder() *huff0.Scratch {
+	if d == nil {
+		return nil
+	}
+	return d.litEnc
 }
 
 // Load a dictionary as described in
@@ -50,7 +76,7 @@ func loadDict(b []byte) (*dict, error) {
 		ofDec: sequenceDec{fse: &fseDecoder{}},
 		mlDec: sequenceDec{fse: &fseDecoder{}},
 	}
-	if !bytes.Equal(b[:4], dictMagic[:]) {
+	if string(b[:4]) != dictMagic {
 		return nil, ErrMagicMismatch
 	}
 	d.id = binary.LittleEndian.Uint32(b[4:8])
@@ -62,7 +88,7 @@ func loadDict(b []byte) (*dict, error) {
 	var err error
 	d.litEnc, b, err = huff0.ReadTable(b[8:], nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading literal table: %w", err)
 	}
 	d.litEnc.Reuse = huff0.ReusePolicyMust
 
@@ -119,4 +145,17 @@ func loadDict(b []byte) (*dict, error) {
 	}
 
 	return &d, nil
+}
+
+// InspectDictionary loads a zstd dictionary and provides functions to inspect the content.
+func InspectDictionary(b []byte) (interface {
+	ID() uint32
+	ContentSize() int
+	Content() []byte
+	Offsets() [3]int
+	LitEncoder() *huff0.Scratch
+}, error) {
+	initPredefined()
+	d, err := loadDict(b)
+	return d, err
 }

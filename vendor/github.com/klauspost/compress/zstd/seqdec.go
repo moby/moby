@@ -314,9 +314,6 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 		}
 		size := ll + ml + len(out)
 		if size-startSize > maxBlockSize {
-			if size-startSize == 424242 {
-				panic("here")
-			}
 			return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 		}
 		if size > cap(out) {
@@ -427,8 +424,7 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 		}
 	}
 
-	// Check if space for literals
-	if size := len(s.literals) + len(s.out) - startSize; size > maxBlockSize {
+	if size := len(s.literals) + len(out) - startSize; size > maxBlockSize {
 		return fmt.Errorf("output bigger than max block size (%d)", maxBlockSize)
 	}
 

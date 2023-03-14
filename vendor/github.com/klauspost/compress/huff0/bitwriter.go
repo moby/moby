@@ -60,6 +60,22 @@ func (b *bitWriter) encTwoSymbols(ct cTable, av, bv byte) {
 	b.nBits += encA.nBits + encB.nBits
 }
 
+// encFourSymbols adds up to 32 bits from four symbols.
+// It will not check if there is space for them,
+// so the caller must ensure that b has been flushed recently.
+func (b *bitWriter) encFourSymbols(encA, encB, encC, encD cTableEntry) {
+	bitsA := encA.nBits
+	bitsB := bitsA + encB.nBits
+	bitsC := bitsB + encC.nBits
+	bitsD := bitsC + encD.nBits
+	combined := uint64(encA.val) |
+		(uint64(encB.val) << (bitsA & 63)) |
+		(uint64(encC.val) << (bitsB & 63)) |
+		(uint64(encD.val) << (bitsC & 63))
+	b.bitContainer |= combined << (b.nBits & 63)
+	b.nBits += bitsD
+}
+
 // flush32 will flush out, so there are at least 32 bits available for writing.
 func (b *bitWriter) flush32() {
 	if b.nBits < 32 {

@@ -260,7 +260,9 @@ func (s *Scratch) buildDtable() error {
 // If the buffer is over-read an error is returned.
 func (s *Scratch) decompress() error {
 	br := &s.bits
-	br.init(s.br.unread())
+	if err := br.init(s.br.unread()); err != nil {
+		return err
+	}
 
 	var s1, s2 decoder
 	// Initialize and decode first state and symbol.

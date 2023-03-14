@@ -6,6 +6,8 @@ package zstd
 
 import (
 	"errors"
+	"fmt"
+	"math/bits"
 	"runtime"
 )
 
@@ -18,7 +20,7 @@ type decoderOptions struct {
 	concurrent      int
 	maxDecodedSize  uint64
 	maxWindowSize   uint64
-	dicts           []dict
+	dicts           []*dict
 	ignoreChecksum  bool
 	limitToCap      bool
 	decodeBufsBelow int
@@ -85,7 +87,13 @@ func WithDecoderMaxMemory(n uint64) DOption {
 }
 
 // WithDecoderDicts allows to register one or more dictionaries for the decoder.
-// If several dictionaries with the same ID is provided the last one will be used.
+//
+// Each slice in dict must be in the [dictionary format] produced by
+// "zstd --train" from the Zstandard reference implementation.
+//
+// If several dictionaries with the same ID are provided, the last one will be used.
+//
+// [dictionary format]: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format
 func WithDecoderDicts(dicts ...[]byte) DOption {
 	return func(o *decoderOptions) error {
 		for _, b := range dicts {
@@ -93,8 +101,20 @@ func WithDecoderDicts(dicts ...[]byte) DOption {
 			if err != nil {
 				return err
 			}
-			o.dicts = append(o.dicts, *d)
+			o.dicts = append(o.dicts, d)
 		}
+		return nil
+	}
+}
+
+// WithEncoderDictRaw registers a dictionary that may be used by the decoder.
+// The slice content can be arbitrary data.
+func WithDecoderDictRaw(id uint32, content []byte) DOption {
+	return func(o *decoderOptions) error {
+		if bits.UintSize > 32 && uint(len(content)) > dictMaxLength {
+			return fmt.Errorf("dictionary of size %d > 2GiB too large", len(content))
+		}
+		o.dicts = append(o.dicts, &dict{id: id, content: content, offsets: [3]int{1, 4, 8}})
 		return nil
 	}
 }

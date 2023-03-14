@@ -44,14 +44,10 @@ func (e *doubleFastEncoder) Encode(blk *blockEnc, src []byte) {
 	)
 
 	// Protect against e.cur wraparound.
-	for e.cur >= bufferReset {
+	for e.cur >= e.bufferReset-int32(len(e.hist)) {
 		if len(e.hist) == 0 {
-			for i := range e.table[:] {
-				e.table[i] = tableEntry{}
-			}
-			for i := range e.longTable[:] {
-				e.longTable[i] = tableEntry{}
-			}
+			e.table = [dFastShortTableSize]tableEntry{}
+			e.longTable = [dFastLongTableSize]tableEntry{}
 			e.cur = e.maxMatchOff
 			break
 		}
@@ -388,7 +384,7 @@ func (e *doubleFastEncoder) EncodeNoHist(blk *blockEnc, src []byte) {
 	)
 
 	// Protect against e.cur wraparound.
-	if e.cur >= bufferReset {
+	if e.cur >= e.bufferReset {
 		for i := range e.table[:] {
 			e.table[i] = tableEntry{}
 		}
@@ -685,7 +681,7 @@ encodeLoop:
 	}
 
 	// We do not store history, so we must offset e.cur to avoid false matches for next user.
-	if e.cur < bufferReset {
+	if e.cur < e.bufferReset {
 		e.cur += int32(len(src))
 	}
 }
@@ -700,7 +696,7 @@ func (e *doubleFastEncoderDict) Encode(blk *blockEnc, src []byte) {
 	)
 
 	// Protect against e.cur wraparound.
-	for e.cur >= bufferReset {
+	for e.cur >= e.bufferReset-int32(len(e.hist)) {
 		if len(e.hist) == 0 {
 			for i := range e.table[:] {
 				e.table[i] = tableEntry{}
