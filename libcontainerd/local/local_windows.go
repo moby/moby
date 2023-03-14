@@ -402,6 +402,8 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 
 	logger := ctr.client.logger.WithField("container", ctr.id)
 
+	ctrSpec := ctr.ociSpec.Process
+
 	// Note we always tell HCS to create stdout as it's required
 	// regardless of '-i' or '-t' options, so that docker can always grab
 	// the output through logs. We also tell HCS to always create stdin,
@@ -418,7 +420,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 
 	createProcessParms := &hcsshim.ProcessConfig{
 		EmulateConsole:   emulateConsole,
-		WorkingDirectory: ctr.ociSpec.Process.Cwd,
+		WorkingDirectory: ctrSpec.Cwd,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: createStdErrPipe,
@@ -427,6 +429,12 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	if ctr.ociSpec.Process != nil && ctr.ociSpec.Process.ConsoleSize != nil {
 		createProcessParms.ConsoleSize[0] = uint(ctr.ociSpec.Process.ConsoleSize.Height)
 		createProcessParms.ConsoleSize[1] = uint(ctr.ociSpec.Process.ConsoleSize.Width)
+	}
+
+	// Take working directory from the process to add if it is defined,
+	// otherwise leave cwd from the first process.
+	if spec.Cwd != "" {
+		createProcessParms.WorkingDirectory = spec.Cwd
 	}
 
 	// Configure the environment for the process
@@ -565,12 +573,15 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		"exec":      processID,
 	})
 
+	ctrSpec := t.ctr.ociSpec.Process
+
 	// Note we always tell HCS to
 	// create stdout as it's required regardless of '-i' or '-t' options, so that
 	// docker can always grab the output through logs. We also tell HCS to always
 	// create stdin, even if it's not used - it will be closed shortly. Stderr
 	// is only created if it we're not -t.
 	createProcessParms := &hcsshim.ProcessConfig{
+		WorkingDirectory: ctrSpec.Cwd,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !spec.Terminal,
@@ -584,11 +595,9 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	}
 
 	// Take working directory from the process to add if it is defined,
-	// otherwise take from the first process.
+	// otherwise leave cwd from the first process.
 	if spec.Cwd != "" {
 		createProcessParms.WorkingDirectory = spec.Cwd
-	} else {
-		createProcessParms.WorkingDirectory = t.ctr.ociSpec.Process.Cwd
 	}
 
 	// Configure the environment for the process
