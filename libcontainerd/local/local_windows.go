@@ -415,6 +415,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !spec.Terminal,
+		User:             spec.User.Username,
 	}
 	if spec.Terminal {
 		createProcessParms.EmulateConsole = true
@@ -439,8 +440,6 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		createProcessParms.CommandLine = system.EscapeArgs(spec.Args)
 	}
 	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
-
-	createProcessParms.User = spec.User.Username
 
 	// Start the command running in the container.
 	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
@@ -572,6 +571,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !spec.Terminal,
+		User:             spec.User.Username,
 	}
 	if spec.Terminal {
 		createProcessParms.EmulateConsole = true
@@ -596,8 +596,6 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		createProcessParms.CommandLine = system.EscapeArgs(spec.Args)
 	}
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
-
-	createProcessParms.User = spec.User.Username
 
 	// Start the command running in the container.
 	newProcess, err := hcsContainer.CreateProcess(createProcessParms)
