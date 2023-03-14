@@ -159,25 +159,29 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	}
 	force := httputils.BoolValue(r, "force")
 
-	version := httputils.VersionFromContext(ctx)
-
+	// First we try deleting local volume. The volume may not be found as a
+	// local volume, but could be a cluster volume, so we ignore "not found"
+	// errors at this stage. Note that no "not found" error is produced if
+	// "force" is enabled.
 	err := v.backend.Remove(ctx, vars["name"], opts.WithPurgeOnError(force))
-	// when a removal is forced, if the volume does not exist, no error will be
-	// returned. this means that to ensure forcing works on swarm volumes as
-	// well, we should always also force remove against the cluster.
-	if err != nil || force {
+	if err != nil && !errdefs.IsNotFound(err) {
+		return err
+	}
+
+	// If no volume was found, the volume may be a cluster volume. If force
+	// is enabled, the volume backend won't return an error for non-existing
+	// volumes, so we don't know if removal succeeded (or not volume existed).
+	// In that case we always try to delete cluster volumes as well.
+	if errdefs.IsNotFound(err) || force {
+		version := httputils.VersionFromContext(ctx)
 		if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-			if errdefs.IsNotFound(err) || force {
-				err := v.cluster.RemoveVolume(vars["name"], force)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			return err
+			err = v.cluster.RemoveVolume(vars["name"], force)
 		}
 	}
 
+	if err != nil {
+		return err
+	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
