@@ -450,7 +450,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		logger.WithError(err).Error("CreateProcess() failed")
 		return nil, err
 	}
-
+	pid := newProcess.Pid()
 	defer func() {
 		if retErr != nil {
 			if err := newProcess.Kill(); err != nil {
@@ -472,7 +472,6 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		hcsProcess: newProcess,
 		waitCh:     make(chan struct{}),
 	}}
-	pid := t.Pid()
 	logger.WithField("pid", pid).Debug("init process started")
 
 	// Spin up a goroutine to notify the backend and clean up resources when
@@ -500,7 +499,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
 			ProcessID:   t.id,
-			Pid:         pid,
+			Pid:         uint32(pid),
 		}
 		ctr.client.logger.WithFields(logrus.Fields{
 			"container":  ctr.id,
