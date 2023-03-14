@@ -389,28 +389,13 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
-func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
-	ctr.mu.Lock()
-	defer ctr.mu.Unlock()
-
-	switch {
-	case ctr.ociSpec == nil:
-		return nil, errors.WithStack(errdefs.NotImplemented(errors.New("a restored container cannot be started")))
-	case ctr.task != nil:
-		return nil, errors.WithStack(errdefs.NotModified(containerderrdefs.ErrAlreadyExists))
-	}
-
-	logger := ctr.client.logger.WithField("container", ctr.id)
-
-	ctrSpec := ctr.ociSpec.Process
-	spec := ctrSpec
-
+func createProcessConfig(spec, ctrSpec *specs.Process) hcsshim.ProcessConfig {
 	// Note we always tell HCS to create stdout as it's required
 	// regardless of '-i' or '-t' options, so that docker can always grab
 	// the output through logs. We also tell HCS to always create stdin,
 	// even if it's not used - it will be closed shortly. Stderr is only
 	// created if it we're not -t.
-	createProcessParms := &hcsshim.ProcessConfig{
+	createProcessParms := hcsshim.ProcessConfig{
 		WorkingDirectory: ctrSpec.Cwd,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
@@ -439,6 +424,24 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	} else {
 		createProcessParms.CommandLine = system.EscapeArgs(spec.Args)
 	}
+
+	return createProcessParms
+}
+
+func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+
+	switch {
+	case ctr.ociSpec == nil:
+		return nil, errors.WithStack(errdefs.NotImplemented(errors.New("a restored container cannot be started")))
+	case ctr.task != nil:
+		return nil, errors.WithStack(errdefs.NotModified(containerderrdefs.ErrAlreadyExists))
+	}
+
+	logger := ctr.client.logger.WithField("container", ctr.id)
+
+	createProcessParms := createProcessConfig(ctr.ociSpec.Process, ctr.ociSpec.Process)
 	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
@@ -559,42 +562,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		"exec":      processID,
 	})
 
-	ctrSpec := t.ctr.ociSpec.Process
-
-	// Note we always tell HCS to
-	// create stdout as it's required regardless of '-i' or '-t' options, so that
-	// docker can always grab the output through logs. We also tell HCS to always
-	// create stdin, even if it's not used - it will be closed shortly. Stderr
-	// is only created if it we're not -t.
-	createProcessParms := &hcsshim.ProcessConfig{
-		WorkingDirectory: ctrSpec.Cwd,
-		CreateStdInPipe:  true,
-		CreateStdOutPipe: true,
-		CreateStdErrPipe: !spec.Terminal,
-		User:             spec.User.Username,
-	}
-	if spec.Terminal {
-		createProcessParms.EmulateConsole = true
-		if spec.ConsoleSize != nil {
-			createProcessParms.ConsoleSize[0] = uint(spec.ConsoleSize.Height)
-			createProcessParms.ConsoleSize[1] = uint(spec.ConsoleSize.Width)
-		}
-	}
-
-	// Take working directory from the process to add if it is defined,
-	// otherwise leave cwd from the first process.
-	if spec.Cwd != "" {
-		createProcessParms.WorkingDirectory = spec.Cwd
-	}
-
-	// Configure the environment for the process
-	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
-
-	if spec.CommandLine != "" {
-		createProcessParms.CommandLine = spec.CommandLine
-	} else {
-		createProcessParms.CommandLine = system.EscapeArgs(spec.Args)
-	}
+	createProcessParms := createProcessConfig(spec, t.ctr.ociSpec.Process)
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
