@@ -15,10 +15,9 @@
 package otlpconfig // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlpconfig"
 
 const (
-	// DefaultCollectorGRPCPort is the default gRPC port of the collector.
-	DefaultCollectorGRPCPort uint16 = 4317
-	// DefaultCollectorHTTPPort is the default HTTP port of the collector.
-	DefaultCollectorHTTPPort uint16 = 4318
+	// DefaultCollectorPort is the port the Exporter will attempt connect to
+	// if no collector port is provided.
+	DefaultCollectorPort uint16 = 4317
 	// DefaultCollectorHost is the host address the Exporter will attempt
 	// connect to if no collector address is provided.
 	DefaultCollectorHost string = "localhost"
@@ -37,7 +36,7 @@ const (
 	GzipCompression
 )
 
-// Marshaler describes the kind of message format sent to the collector.
+// Marshaler describes the kind of message format sent to the collector
 type Marshaler int
 
 const (

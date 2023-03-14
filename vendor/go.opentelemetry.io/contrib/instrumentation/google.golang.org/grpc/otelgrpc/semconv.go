@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+package otelgrpc
 
 import (
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
 
 // Semantic conventions for attribute keys for gRPC.
@@ -41,7 +41,7 @@ const (
 // Semantic conventions for common RPC attributes.
 var (
 	// Semantic convention for gRPC as the remoting system.
-	RPCSystemGRPC = semconv.RPCSystemGRPC
+	RPCSystemGRPC = semconv.RPCSystemKey.String("grpc")
 
 	// Semantic convention for a message named message.
 	RPCNameMessage = RPCNameKey.String("message")

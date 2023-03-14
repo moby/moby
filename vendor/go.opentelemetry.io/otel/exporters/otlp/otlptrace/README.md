@@ -12,8 +12,8 @@ go get -u go.opentelemetry.io/otel/exporters/otlp/otlptrace
 
 ## Examples
 
-- [HTTP Exporter setup and examples](./otlptracehttp/example_test.go)
-- [Full example of gRPC Exporter sending telemetry to a local collector](../../../example/otel-collector)
+- [Exporter setup and examples](./otlptracehttp/example_test.go)
+- [Full example sending telemetry to a local collector](../../../example/otel-collector)
 
 ## [`otlptrace`](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlptrace)
 
@@ -38,14 +38,12 @@ override the default configuration. For more information about how each of
 these environment variables is interpreted, see [the OpenTelemetry
 specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.8.0/specification/protocol/exporter.md).
 
-| Environment variable                                                     | Option                        | Default value                                            |
-| ------------------------------------------------------------------------ |------------------------------ | -------------------------------------------------------- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`       | `WithEndpoint` `WithInsecure` | `https://localhost:4317` or `https://localhost:4318`[^1] |
-| `OTEL_EXPORTER_OTLP_CERTIFICATE` `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE` | `WithTLSClientConfig`         |                                                          |
-| `OTEL_EXPORTER_OTLP_HEADERS` `OTEL_EXPORTER_OTLP_TRACES_HEADERS`         | `WithHeaders`                 |                                                          |
-| `OTEL_EXPORTER_OTLP_COMPRESSION` `OTEL_EXPORTER_OTLP_TRACES_COMPRESSION` | `WithCompression`             |                                                          |
-| `OTEL_EXPORTER_OTLP_TIMEOUT` `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`         | `WithTimeout`                 | `10s`                                                    |
-
-[^1]: The gRPC client defaults to `https://localhost:4317` and the HTTP client `https://localhost:4318`.
+| Environment variable                                                     | Option                        | Default value                       |
+| ------------------------------------------------------------------------ |------------------------------ | ----------------------------------- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`       | `WithEndpoint` `WithInsecure` | `https://localhost:4317`            |
+| `OTEL_EXPORTER_OTLP_CERTIFICATE` `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE` | `WithTLSClientConfig`         |                                     |
+| `OTEL_EXPORTER_OTLP_HEADERS` `OTEL_EXPORTER_OTLP_TRACES_HEADERS`         | `WithHeaders`                 |                                     |
+| `OTEL_EXPORTER_OTLP_COMPRESSION` `OTEL_EXPORTER_OTLP_TRACES_COMPRESSION` | `WithCompression`             |                                     |
+| `OTEL_EXPORTER_OTLP_TIMEOUT` `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`         | `WithTimeout`                 | `10s`                               |
 
 Configuration using options have precedence over the environment variables.

@@ -14,38 +14,84 @@
 
 package metric // import "go.opentelemetry.io/otel/metric"
 
-import "go.opentelemetry.io/otel/attribute"
+import (
+	"go.opentelemetry.io/otel/metric/unit"
+)
+
+// InstrumentConfig contains options for metric instrument descriptors.
+type InstrumentConfig struct {
+	description string
+	unit        unit.Unit
+}
+
+// Description describes the instrument in human-readable terms.
+func (cfg *InstrumentConfig) Description() string {
+	return cfg.description
+}
+
+// Unit describes the measurement unit for a instrument.
+func (cfg *InstrumentConfig) Unit() unit.Unit {
+	return cfg.unit
+}
+
+// InstrumentOption is an interface for applying metric instrument options.
+type InstrumentOption interface {
+	// ApplyMeter is used to set a InstrumentOption value of a
+	// InstrumentConfig.
+	applyInstrument(InstrumentConfig) InstrumentConfig
+}
+
+// NewInstrumentConfig creates a new InstrumentConfig
+// and applies all the given options.
+func NewInstrumentConfig(opts ...InstrumentOption) InstrumentConfig {
+	var config InstrumentConfig
+	for _, o := range opts {
+		config = o.applyInstrument(config)
+	}
+	return config
+}
+
+type instrumentOptionFunc func(InstrumentConfig) InstrumentConfig
+
+func (fn instrumentOptionFunc) applyInstrument(cfg InstrumentConfig) InstrumentConfig {
+	return fn(cfg)
+}
+
+// WithDescription applies provided description.
+func WithDescription(desc string) InstrumentOption {
+	return instrumentOptionFunc(func(cfg InstrumentConfig) InstrumentConfig {
+		cfg.description = desc
+		return cfg
+	})
+}
+
+// WithUnit applies provided unit.
+func WithUnit(unit unit.Unit) InstrumentOption {
+	return instrumentOptionFunc(func(cfg InstrumentConfig) InstrumentConfig {
+		cfg.unit = unit
+		return cfg
+	})
+}
 
 // MeterConfig contains options for Meters.
 type MeterConfig struct {
 	instrumentationVersion string
 	schemaURL              string
-	attrs                  attribute.Set
-
-	// Ensure forward compatibility by explicitly making this not comparable.
-	noCmp [0]func() //nolint: unused  // This is indeed used.
 }
 
-// InstrumentationVersion returns the version of the library providing
-// instrumentation.
-func (cfg MeterConfig) InstrumentationVersion() string {
+// InstrumentationVersion is the version of the library providing instrumentation.
+func (cfg *MeterConfig) InstrumentationVersion() string {
 	return cfg.instrumentationVersion
 }
 
-// InstrumentationAttributes returns the attributes associated with the library
-// providing instrumentation.
-func (cfg MeterConfig) InstrumentationAttributes() attribute.Set {
-	return cfg.attrs
-}
-
 // SchemaURL is the schema_url of the library providing instrumentation.
-func (cfg MeterConfig) SchemaURL() string {
+func (cfg *MeterConfig) SchemaURL() string {
 	return cfg.schemaURL
 }
 
 // MeterOption is an interface for applying Meter options.
 type MeterOption interface {
-	// applyMeter is used to set a MeterOption value of a MeterConfig.
+	// ApplyMeter is used to set a MeterOption value of a MeterConfig.
 	applyMeter(MeterConfig) MeterConfig
 }
 
@@ -69,16 +115,6 @@ func (fn meterOptionFunc) applyMeter(cfg MeterConfig) MeterConfig {
 func WithInstrumentationVersion(version string) MeterOption {
 	return meterOptionFunc(func(config MeterConfig) MeterConfig {
 		config.instrumentationVersion = version
-		return config
-	})
-}
-
-// WithInstrumentationAttributes sets the instrumentation attributes.
-//
-// The passed attributes will be de-duplicated.
-func WithInstrumentationAttributes(attr ...attribute.KeyValue) MeterOption {
-	return meterOptionFunc(func(config MeterConfig) MeterConfig {
-		config.attrs = attribute.NewSet(attr...)
 		return config
 	})
 }

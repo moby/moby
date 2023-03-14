@@ -84,7 +84,8 @@ func WithReconnectionPeriod(rp time.Duration) Option {
 }
 
 func compressorToCompression(compressor string) otlpconfig.Compression {
-	if compressor == "gzip" {
+	switch compressor {
+	case "gzip":
 		return otlpconfig.GzipCompression
 	}
 

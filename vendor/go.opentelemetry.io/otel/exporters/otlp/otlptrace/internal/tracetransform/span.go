@@ -23,6 +23,10 @@ import (
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
+const (
+	maxEventsPerSpan = 128
+)
+
 // Spans transforms a slice of OpenTelemetry spans into a slice of OTLP
 // ResourceSpans.
 func Spans(sdl []tracesdk.ReadOnlySpan) []*tracepb.ResourceSpans {
@@ -32,11 +36,11 @@ func Spans(sdl []tracesdk.ReadOnlySpan) []*tracepb.ResourceSpans {
 
 	rsm := make(map[attribute.Distinct]*tracepb.ResourceSpans)
 
-	type key struct {
+	type ilsKey struct {
 		r  attribute.Distinct
-		is instrumentation.Scope
+		il instrumentation.Library
 	}
-	ssm := make(map[key]*tracepb.ScopeSpans)
+	ilsm := make(map[ilsKey]*tracepb.InstrumentationLibrarySpans)
 
 	var resources int
 	for _, sd := range sdl {
@@ -45,30 +49,30 @@ func Spans(sdl []tracesdk.ReadOnlySpan) []*tracepb.ResourceSpans {
 		}
 
 		rKey := sd.Resource().Equivalent()
-		k := key{
+		iKey := ilsKey{
 			r:  rKey,
-			is: sd.InstrumentationScope(),
+			il: sd.InstrumentationLibrary(),
 		}
-		scopeSpan, iOk := ssm[k]
+		ils, iOk := ilsm[iKey]
 		if !iOk {
-			// Either the resource or instrumentation scope were unknown.
-			scopeSpan = &tracepb.ScopeSpans{
-				Scope:     InstrumentationScope(sd.InstrumentationScope()),
-				Spans:     []*tracepb.Span{},
-				SchemaUrl: sd.InstrumentationScope().SchemaURL,
+			// Either the resource or instrumentation library were unknown.
+			ils = &tracepb.InstrumentationLibrarySpans{
+				InstrumentationLibrary: InstrumentationLibrary(sd.InstrumentationLibrary()),
+				Spans:                  []*tracepb.Span{},
+				SchemaUrl:              sd.InstrumentationLibrary().SchemaURL,
 			}
 		}
-		scopeSpan.Spans = append(scopeSpan.Spans, span(sd))
-		ssm[k] = scopeSpan
+		ils.Spans = append(ils.Spans, span(sd))
+		ilsm[iKey] = ils
 
 		rs, rOk := rsm[rKey]
 		if !rOk {
 			resources++
 			// The resource was unknown.
 			rs = &tracepb.ResourceSpans{
-				Resource:   Resource(sd.Resource()),
-				ScopeSpans: []*tracepb.ScopeSpans{scopeSpan},
-				SchemaUrl:  sd.Resource().SchemaURL(),
+				Resource:                    Resource(sd.Resource()),
+				InstrumentationLibrarySpans: []*tracepb.InstrumentationLibrarySpans{ils},
+				SchemaUrl:                   sd.Resource().SchemaURL(),
 			}
 			rsm[rKey] = rs
 			continue
@@ -78,9 +82,9 @@ func Spans(sdl []tracesdk.ReadOnlySpan) []*tracepb.ResourceSpans {
 		// library lookup was unknown because if so we need to add it to the
 		// ResourceSpans. Otherwise, the instrumentation library has already
 		// been seen and the append we did above will be included it in the
-		// ScopeSpans reference.
+		// InstrumentationLibrarySpans reference.
 		if !iOk {
-			rs.ScopeSpans = append(rs.ScopeSpans, scopeSpan)
+			rs.InstrumentationLibrarySpans = append(rs.InstrumentationLibrarySpans, ils)
 		}
 	}
 
@@ -158,10 +162,9 @@ func links(links []tracesdk.Link) []*tracepb.Span_Link {
 		sid := otLink.SpanContext.SpanID()
 
 		sl = append(sl, &tracepb.Span_Link{
-			TraceId:                tid[:],
-			SpanId:                 sid[:],
-			Attributes:             KeyValues(otLink.Attributes),
-			DroppedAttributesCount: uint32(otLink.DroppedAttributeCount),
+			TraceId:    tid[:],
+			SpanId:     sid[:],
+			Attributes: KeyValues(otLink.Attributes),
 		})
 	}
 	return sl
@@ -173,16 +176,29 @@ func spanEvents(es []tracesdk.Event) []*tracepb.Span_Event {
 		return nil
 	}
 
-	events := make([]*tracepb.Span_Event, len(es))
-	// Transform message events
-	for i := 0; i < len(es); i++ {
-		events[i] = &tracepb.Span_Event{
-			Name:                   es[i].Name,
-			TimeUnixNano:           uint64(es[i].Time.UnixNano()),
-			Attributes:             KeyValues(es[i].Attributes),
-			DroppedAttributesCount: uint32(es[i].DroppedAttributeCount),
-		}
+	evCount := len(es)
+	if evCount > maxEventsPerSpan {
+		evCount = maxEventsPerSpan
 	}
+	events := make([]*tracepb.Span_Event, 0, evCount)
+	nEvents := 0
+
+	// Transform message events
+	for _, e := range es {
+		if nEvents >= maxEventsPerSpan {
+			break
+		}
+		nEvents++
+		events = append(events,
+			&tracepb.Span_Event{
+				Name:         e.Name,
+				TimeUnixNano: uint64(e.Time.UnixNano()),
+				Attributes:   KeyValues(e.Attributes),
+				// TODO (rghetia) : Add Drop Counts when supported.
+			},
+		)
+	}
+
 	return events
 }
 

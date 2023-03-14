@@ -147,7 +147,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
@@ -175,18 +175,19 @@ require (
 	go.etcd.io/etcd/raft/v3 v3.5.6 // indirect
 	go.etcd.io/etcd/server/v3 v3.5.6 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.40.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.29.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.29.0 // indirect
-	go.opentelemetry.io/otel v1.14.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.14.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.14.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.14.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.14.0 // indirect
-	go.opentelemetry.io/otel/metric v0.37.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.14.0 // indirect
-	go.opentelemetry.io/otel/trace v1.14.0 // indirect
-	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.40.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.29.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.29.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel v1.14.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.14.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.14.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.14.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.14.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel/internal/metric v0.27.0 // indirect
+	go.opentelemetry.io/otel/metric v0.37.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel/sdk v1.14.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/otel/trace v1.14.0 // indirect; indirect // replaced: see replace section for version used
+	go.opentelemetry.io/proto/otlp v0.19.0 // indirect; indirect // replaced: see replace section for version used
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
@@ -197,4 +198,26 @@ require (
 	google.golang.org/api v0.110.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
+)
+
+replace (
+	// pinning to older version to fix compatibility with BuildKit v0.11;
+	// - https://github.com/moby/buildkit/blob/v0.11.4/go.mod#L71-L81
+	// - https://github.com/moby/buildkit/blob/v0.11.4/go.mod#L148-L151
+	// see https://github.com/moby/moby/pull/44530#issuecomment-1460561806
+	// FIXME(thaJeztah): remove once we update to BuildKit v0.12.x
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.29.0
+	//go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace => go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.29.0
+	//go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.29.0
+	//go.opentelemetry.io/otel => go.opentelemetry.io/otel v1.4.1
+	//go.opentelemetry.io/otel/exporters/jaeger => go.opentelemetry.io/otel/exporters/jaeger v1.4.1
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace => go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.4.1
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc => go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.4.1
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp => go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.4.1
+	//go.opentelemetry.io/otel/exporters/otlp/internal/retry => go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.4.1
+	go.opentelemetry.io/otel/internal/metric => go.opentelemetry.io/otel/internal/metric v0.27.0
+	go.opentelemetry.io/otel/metric => go.opentelemetry.io/otel/metric v0.27.0
+	//go.opentelemetry.io/otel/sdk => go.opentelemetry.io/otel/sdk v1.4.1
+	//go.opentelemetry.io/otel/trace => go.opentelemetry.io/otel/trace v1.4.1
+	go.opentelemetry.io/proto/otlp => go.opentelemetry.io/proto/otlp v0.12.0
 )

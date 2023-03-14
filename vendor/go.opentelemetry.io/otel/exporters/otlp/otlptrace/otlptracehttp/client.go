@@ -20,17 +20,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/internal"
 	"go.opentelemetry.io/otel/exporters/otlp/internal/retry"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/otlpconfig"
@@ -42,7 +43,7 @@ const contentTypeProto = "application/x-protobuf"
 
 var gzPool = sync.Pool{
 	New: func() interface{} {
-		w := gzip.NewWriter(io.Discard)
+		w := gzip.NewWriter(ioutil.Discard)
 		return w
 	},
 }
@@ -78,7 +79,26 @@ var _ otlptrace.Client = (*client)(nil)
 
 // NewClient creates a new HTTP trace client.
 func NewClient(opts ...Option) otlptrace.Client {
-	cfg := otlpconfig.NewHTTPConfig(asHTTPOptions(opts)...)
+	cfg := otlpconfig.NewDefaultConfig()
+	cfg = otlpconfig.ApplyHTTPEnvConfigs(cfg)
+	for _, opt := range opts {
+		cfg = opt.applyHTTPOption(cfg)
+	}
+
+	for pathPtr, defaultPath := range map[*string]string{
+		&cfg.Traces.URLPath: otlpconfig.DefaultTracesPath,
+	} {
+		tmp := strings.TrimSpace(*pathPtr)
+		if tmp == "" {
+			tmp = defaultPath
+		} else {
+			tmp = path.Clean(tmp)
+			if !path.IsAbs(tmp) {
+				tmp = fmt.Sprintf("/%s", tmp)
+			}
+		}
+		*pathPtr = tmp
+	}
 
 	httpClient := &http.Client{
 		Transport: ourTransport,
@@ -101,7 +121,7 @@ func NewClient(opts ...Option) otlptrace.Client {
 	}
 }
 
-// Start does nothing in a HTTP client.
+// Start does nothing in a HTTP client
 func (d *client) Start(ctx context.Context) error {
 	// nothing to do
 	select {
@@ -156,49 +176,28 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			return err
 		}
 
-		if resp != nil && resp.Body != nil {
-			defer func() {
-				if err := resp.Body.Close(); err != nil {
-					otel.Handle(err)
-				}
-			}()
-		}
-
+		var rErr error
 		switch resp.StatusCode {
 		case http.StatusOK:
 			// Success, do not retry.
-			// Read the partial success message, if any.
-			var respData bytes.Buffer
-			if _, err := io.Copy(&respData, resp.Body); err != nil {
+		case http.StatusTooManyRequests,
+			http.StatusServiceUnavailable:
+			// Retry-able failure.
+			rErr = newResponseError(resp.Header)
+
+			// Going to retry, drain the body to reuse the connection.
+			if _, err := io.Copy(ioutil.Discard, resp.Body); err != nil {
+				_ = resp.Body.Close()
 				return err
 			}
-
-			if respData.Len() != 0 {
-				var respProto coltracepb.ExportTraceServiceResponse
-				if err := proto.Unmarshal(respData.Bytes(), &respProto); err != nil {
-					return err
-				}
-
-				if respProto.PartialSuccess != nil {
-					msg := respProto.PartialSuccess.GetErrorMessage()
-					n := respProto.PartialSuccess.GetRejectedSpans()
-					if n != 0 || msg != "" {
-						err := internal.TracePartialSuccessError(n, msg)
-						otel.Handle(err)
-					}
-				}
-			}
-			return nil
-
-		case http.StatusTooManyRequests, http.StatusServiceUnavailable:
-			// Retry-able failures.  Drain the body to reuse the connection.
-			if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-				otel.Handle(err)
-			}
-			return newResponseError(resp.Header)
 		default:
-			return fmt.Errorf("failed to send to %s: %s", request.URL, resp.Status)
+			rErr = fmt.Errorf("failed to send %s to %s: %s", d.name, request.URL, resp.Status)
 		}
+
+		if err := resp.Body.Close(); err != nil {
+			return err
+		}
+		return rErr
 	})
 }
 
@@ -208,8 +207,6 @@ func (d *client) newRequest(body []byte) (request, error) {
 	if err != nil {
 		return request{Request: r}, err
 	}
-
-	r.Header.Set("User-Agent", internal.GetUserAgentHeader())
 
 	for k, v := range d.cfg.Headers {
 		r.Header.Set(k, v)
@@ -246,23 +243,10 @@ func (d *client) newRequest(body []byte) (request, error) {
 	return req, nil
 }
 
-// MarshalLog is the marshaling function used by the logging system to represent this Client.
-func (d *client) MarshalLog() interface{} {
-	return struct {
-		Type     string
-		Endpoint string
-		Insecure bool
-	}{
-		Type:     "otlphttphttp",
-		Endpoint: d.cfg.Endpoint,
-		Insecure: d.cfg.Insecure,
-	}
-}
-
 // bodyReader returns a closure returning a new reader for buf.
 func bodyReader(buf []byte) func() io.ReadCloser {
 	return func() io.ReadCloser {
-		return io.NopCloser(bytes.NewReader(buf))
+		return ioutil.NopCloser(bytes.NewReader(buf))
 	}
 }
 

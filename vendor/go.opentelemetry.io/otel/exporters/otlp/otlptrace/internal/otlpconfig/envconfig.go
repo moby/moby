@@ -16,59 +16,66 @@ package otlpconfig // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/
 
 import (
 	"crypto/tls"
-	"crypto/x509"
+	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/otel/exporters/otlp/internal/envconfig"
+	"go.opentelemetry.io/otel"
 )
 
-// DefaultEnvOptionsReader is the default environments reader.
-var DefaultEnvOptionsReader = envconfig.EnvOptionsReader{
-	GetEnv:    os.Getenv,
-	ReadFile:  os.ReadFile,
-	Namespace: "OTEL_EXPORTER_OTLP",
+var DefaultEnvOptionsReader = EnvOptionsReader{
+	GetEnv:   os.Getenv,
+	ReadFile: ioutil.ReadFile,
 }
 
-// ApplyGRPCEnvConfigs applies the env configurations for gRPC.
 func ApplyGRPCEnvConfigs(cfg Config) Config {
-	opts := getOptionsFromEnv()
-	for _, opt := range opts {
-		cfg = opt.ApplyGRPCOption(cfg)
-	}
-	return cfg
+	return DefaultEnvOptionsReader.ApplyGRPCEnvConfigs(cfg)
 }
 
-// ApplyHTTPEnvConfigs applies the env configurations for HTTP.
 func ApplyHTTPEnvConfigs(cfg Config) Config {
-	opts := getOptionsFromEnv()
+	return DefaultEnvOptionsReader.ApplyHTTPEnvConfigs(cfg)
+}
+
+type EnvOptionsReader struct {
+	GetEnv   func(string) string
+	ReadFile func(filename string) ([]byte, error)
+}
+
+func (e *EnvOptionsReader) ApplyHTTPEnvConfigs(cfg Config) Config {
+	opts := e.GetOptionsFromEnv()
 	for _, opt := range opts {
 		cfg = opt.ApplyHTTPOption(cfg)
 	}
 	return cfg
 }
 
-func getOptionsFromEnv() []GenericOption {
-	opts := []GenericOption{}
+func (e *EnvOptionsReader) ApplyGRPCEnvConfigs(cfg Config) Config {
+	opts := e.GetOptionsFromEnv()
+	for _, opt := range opts {
+		cfg = opt.ApplyGRPCOption(cfg)
+	}
+	return cfg
+}
 
-	tlsConf := &tls.Config{}
-	DefaultEnvOptionsReader.Apply(
-		envconfig.WithURL("ENDPOINT", func(u *url.URL) {
-			opts = append(opts, withEndpointScheme(u))
-			opts = append(opts, newSplitOption(func(cfg Config) Config {
-				cfg.Traces.Endpoint = u.Host
-				// For OTLP/HTTP endpoint URLs without a per-signal
-				// configuration, the passed endpoint is used as a base URL
-				// and the signals are sent to these paths relative to that.
-				cfg.Traces.URLPath = path.Join(u.Path, DefaultTracesPath)
-				return cfg
-			}, withEndpointForGRPC(u)))
-		}),
-		envconfig.WithURL("TRACES_ENDPOINT", func(u *url.URL) {
-			opts = append(opts, withEndpointScheme(u))
+func (e *EnvOptionsReader) GetOptionsFromEnv() []GenericOption {
+	var opts []GenericOption
+
+	// Endpoint
+	if v, ok := e.getEnvValue("TRACES_ENDPOINT"); ok {
+		u, err := url.Parse(v)
+		// Ignore invalid values.
+		if err == nil {
+			// This is used to set the scheme for OTLP/HTTP.
+			if insecureSchema(u.Scheme) {
+				opts = append(opts, WithInsecure())
+			} else {
+				opts = append(opts, WithSecure())
+			}
 			opts = append(opts, newSplitOption(func(cfg Config) Config {
 				cfg.Traces.Endpoint = u.Host
 				// For endpoint URLs for OTLP/HTTP per-signal variables, the
@@ -81,70 +88,140 @@ func getOptionsFromEnv() []GenericOption {
 				}
 				cfg.Traces.URLPath = path
 				return cfg
-			}, withEndpointForGRPC(u)))
-		}),
-		envconfig.WithCertPool("CERTIFICATE", func(p *x509.CertPool) { tlsConf.RootCAs = p }),
-		envconfig.WithCertPool("TRACES_CERTIFICATE", func(p *x509.CertPool) { tlsConf.RootCAs = p }),
-		envconfig.WithClientCert("CLIENT_CERTIFICATE", "CLIENT_KEY", func(c tls.Certificate) { tlsConf.Certificates = []tls.Certificate{c} }),
-		envconfig.WithClientCert("TRACES_CLIENT_CERTIFICATE", "TRACES_CLIENT_KEY", func(c tls.Certificate) { tlsConf.Certificates = []tls.Certificate{c} }),
-		withTLSConfig(tlsConf, func(c *tls.Config) { opts = append(opts, WithTLSClientConfig(c)) }),
-		envconfig.WithBool("INSECURE", func(b bool) { opts = append(opts, withInsecure(b)) }),
-		envconfig.WithBool("TRACES_INSECURE", func(b bool) { opts = append(opts, withInsecure(b)) }),
-		envconfig.WithHeaders("HEADERS", func(h map[string]string) { opts = append(opts, WithHeaders(h)) }),
-		envconfig.WithHeaders("TRACES_HEADERS", func(h map[string]string) { opts = append(opts, WithHeaders(h)) }),
-		WithEnvCompression("COMPRESSION", func(c Compression) { opts = append(opts, WithCompression(c)) }),
-		WithEnvCompression("TRACES_COMPRESSION", func(c Compression) { opts = append(opts, WithCompression(c)) }),
-		envconfig.WithDuration("TIMEOUT", func(d time.Duration) { opts = append(opts, WithTimeout(d)) }),
-		envconfig.WithDuration("TRACES_TIMEOUT", func(d time.Duration) { opts = append(opts, WithTimeout(d)) }),
-	)
+			}, func(cfg Config) Config {
+				// For OTLP/gRPC endpoints, this is the target to which the
+				// exporter is going to send telemetry.
+				cfg.Traces.Endpoint = path.Join(u.Host, u.Path)
+				return cfg
+			}))
+		}
+	} else if v, ok = e.getEnvValue("ENDPOINT"); ok {
+		u, err := url.Parse(v)
+		// Ignore invalid values.
+		if err == nil {
+			// This is used to set the scheme for OTLP/HTTP.
+			if insecureSchema(u.Scheme) {
+				opts = append(opts, WithInsecure())
+			} else {
+				opts = append(opts, WithSecure())
+			}
+			opts = append(opts, newSplitOption(func(cfg Config) Config {
+				cfg.Traces.Endpoint = u.Host
+				// For OTLP/HTTP endpoint URLs without a per-signal
+				// configuration, the passed endpoint is used as a base URL
+				// and the signals are sent to these paths relative to that.
+				cfg.Traces.URLPath = path.Join(u.Path, DefaultTracesPath)
+				return cfg
+			}, func(cfg Config) Config {
+				// For OTLP/gRPC endpoints, this is the target to which the
+				// exporter is going to send telemetry.
+				cfg.Traces.Endpoint = path.Join(u.Host, u.Path)
+				return cfg
+			}))
+		}
+	}
+
+	// Certificate File
+	if path, ok := e.getEnvValue("CERTIFICATE"); ok {
+		if tls, err := e.readTLSConfig(path); err == nil {
+			opts = append(opts, WithTLSClientConfig(tls))
+		} else {
+			otel.Handle(fmt.Errorf("failed to configure otlp exporter certificate '%s': %w", path, err))
+		}
+	}
+	if path, ok := e.getEnvValue("TRACES_CERTIFICATE"); ok {
+		if tls, err := e.readTLSConfig(path); err == nil {
+			opts = append(opts, WithTLSClientConfig(tls))
+		} else {
+			otel.Handle(fmt.Errorf("failed to configure otlp traces exporter certificate '%s': %w", path, err))
+		}
+	}
+
+	// Headers
+	if h, ok := e.getEnvValue("HEADERS"); ok {
+		opts = append(opts, WithHeaders(stringToHeader(h)))
+	}
+	if h, ok := e.getEnvValue("TRACES_HEADERS"); ok {
+		opts = append(opts, WithHeaders(stringToHeader(h)))
+	}
+
+	// Compression
+	if c, ok := e.getEnvValue("COMPRESSION"); ok {
+		opts = append(opts, WithCompression(stringToCompression(c)))
+	}
+	if c, ok := e.getEnvValue("TRACES_COMPRESSION"); ok {
+		opts = append(opts, WithCompression(stringToCompression(c)))
+	}
+	// Timeout
+	if t, ok := e.getEnvValue("TIMEOUT"); ok {
+		if d, err := strconv.Atoi(t); err == nil {
+			opts = append(opts, WithTimeout(time.Duration(d)*time.Millisecond))
+		}
+	}
+	if t, ok := e.getEnvValue("TRACES_TIMEOUT"); ok {
+		if d, err := strconv.Atoi(t); err == nil {
+			opts = append(opts, WithTimeout(time.Duration(d)*time.Millisecond))
+		}
+	}
 
 	return opts
 }
 
-func withEndpointScheme(u *url.URL) GenericOption {
-	switch strings.ToLower(u.Scheme) {
+func insecureSchema(schema string) bool {
+	switch strings.ToLower(schema) {
 	case "http", "unix":
-		return WithInsecure()
+		return true
 	default:
-		return WithSecure()
+		return false
 	}
 }
 
-func withEndpointForGRPC(u *url.URL) func(cfg Config) Config {
-	return func(cfg Config) Config {
-		// For OTLP/gRPC endpoints, this is the target to which the
-		// exporter is going to send telemetry.
-		cfg.Traces.Endpoint = path.Join(u.Host, u.Path)
-		return cfg
-	}
+// getEnvValue gets an OTLP environment variable value of the specified key using the GetEnv function.
+// This function already prepends the OTLP prefix to all key lookup.
+func (e *EnvOptionsReader) getEnvValue(key string) (string, bool) {
+	v := strings.TrimSpace(e.GetEnv(fmt.Sprintf("OTEL_EXPORTER_OTLP_%s", key)))
+	return v, v != ""
 }
 
-// WithEnvCompression retrieves the specified config and passes it to ConfigFn as a Compression.
-func WithEnvCompression(n string, fn func(Compression)) func(e *envconfig.EnvOptionsReader) {
-	return func(e *envconfig.EnvOptionsReader) {
-		if v, ok := e.GetEnvValue(n); ok {
-			cp := NoCompression
-			if v == "gzip" {
-				cp = GzipCompression
-			}
+func (e *EnvOptionsReader) readTLSConfig(path string) (*tls.Config, error) {
+	b, err := e.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return CreateTLSConfig(b)
+}
 
-			fn(cp)
+func stringToCompression(value string) Compression {
+	switch value {
+	case "gzip":
+		return GzipCompression
+	}
+
+	return NoCompression
+}
+
+func stringToHeader(value string) map[string]string {
+	headersPairs := strings.Split(value, ",")
+	headers := make(map[string]string)
+
+	for _, header := range headersPairs {
+		nameValue := strings.SplitN(header, "=", 2)
+		if len(nameValue) < 2 {
+			continue
 		}
-	}
-}
-
-// revive:disable-next-line:flag-parameter
-func withInsecure(b bool) GenericOption {
-	if b {
-		return WithInsecure()
-	}
-	return WithSecure()
-}
-
-func withTLSConfig(c *tls.Config, fn func(*tls.Config)) func(e *envconfig.EnvOptionsReader) {
-	return func(e *envconfig.EnvOptionsReader) {
-		if c.RootCAs != nil || len(c.Certificates) > 0 {
-			fn(c)
+		name, err := url.QueryUnescape(nameValue[0])
+		if err != nil {
+			continue
 		}
+		trimmedName := strings.TrimSpace(name)
+		value, err := url.QueryUnescape(nameValue[1])
+		if err != nil {
+			continue
+		}
+		trimmedValue := strings.TrimSpace(value)
+
+		headers[trimmedName] = trimmedValue
 	}
+
+	return headers
 }

@@ -19,11 +19,11 @@ import (
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 )
 
-func InstrumentationScope(il instrumentation.Scope) *commonpb.InstrumentationScope {
-	if il == (instrumentation.Scope{}) {
+func InstrumentationLibrary(il instrumentation.Library) *commonpb.InstrumentationLibrary {
+	if il == (instrumentation.Library{}) {
 		return nil
 	}
-	return &commonpb.InstrumentationScope{
+	return &commonpb.InstrumentationLibrary{
 		Name:    il.Name,
 		Version: il.Version,
 	}
