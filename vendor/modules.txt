@@ -846,11 +846,10 @@ github.com/opencontainers/runc/libcontainer/userns
 # github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/opencontainers/selinux v1.10.2
-## explicit; go 1.13
+# github.com/opencontainers/selinux v1.11.0
+## explicit; go 1.19
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
-github.com/opencontainers/selinux/pkg/pwalk
 github.com/opencontainers/selinux/pkg/pwalkdir
 # github.com/package-url/packageurl-go v0.1.1-0.20220428063043-89078438f170
 ## explicit; go 1.17
