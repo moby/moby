@@ -44,7 +44,7 @@ type process struct {
 }
 
 type task struct {
-	process
+	*process
 }
 
 type container struct {
@@ -428,24 +428,11 @@ func createProcessConfig(spec, ctrSpec *specs.Process) hcsshim.ProcessConfig {
 	return createProcessParms
 }
 
-func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
-	ctr.mu.Lock()
-	defer ctr.mu.Unlock()
-
-	switch {
-	case ctr.ociSpec == nil:
-		return nil, errors.WithStack(errdefs.NotImplemented(errors.New("a restored container cannot be started")))
-	case ctr.task != nil:
-		return nil, errors.WithStack(errdefs.NotModified(containerderrdefs.ErrAlreadyExists))
-	}
-
+func (ctr *container) createProcessWithStdio(params hcsshim.ProcessConfig, attachStdio libcontainerdtypes.StdioCallback) (_ *process, retErr error) {
 	logger := ctr.client.logger.WithField("container", ctr.id)
 
-	createProcessParms := createProcessConfig(ctr.ociSpec.Process, ctr.ociSpec.Process)
-	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
-
 	// Start the command running in the container.
-	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
+	newProcess, err := ctr.hcsContainer.CreateProcess(&params)
 	if err != nil {
 		logger.WithError(err).Error("CreateProcess() failed")
 		return nil, err
@@ -468,7 +455,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	}()
 	logger.WithField("pid", pid).Debug("init process started")
 
-	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
+	dio, err := newIOFromProcess(newProcess, params.EmulateConsole)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
 		return nil, err
@@ -479,12 +466,35 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		return nil, err
 	}
 
-	p := process{
+	return &process{
 		id:         ctr.id,
 		ctr:        ctr,
 		hcsProcess: newProcess,
 		waitCh:     make(chan struct{}),
+	}, nil
+}
+
+func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Task, retErr error) {
+	ctr.mu.Lock()
+	defer ctr.mu.Unlock()
+
+	switch {
+	case ctr.ociSpec == nil:
+		return nil, errors.WithStack(errdefs.NotImplemented(errors.New("a restored container cannot be started")))
+	case ctr.task != nil:
+		return nil, errors.WithStack(errdefs.NotModified(containerderrdefs.ErrAlreadyExists))
 	}
+
+	logger := ctr.client.logger.WithField("container", ctr.id)
+
+	createProcessParms := createProcessConfig(ctr.ociSpec.Process, ctr.ociSpec.Process)
+	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
+
+	p, err := ctr.createProcessWithStdio(createProcessParms, attachStdio)
+	if err != nil {
+		return nil, err
+	}
+	pid := p.Pid()
 
 	// Spin up a goroutine to notify the backend and clean up resources when
 	// the task exits. Defer until after the start event is sent so that the
@@ -501,7 +511,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
 			ProcessID:   t.id,
-			Pid:         uint32(pid),
+			Pid:         pid,
 		}
 		ctr.client.logger.WithFields(logrus.Fields{
 			"container":  ctr.id,
@@ -554,10 +564,9 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 // (exposed through the libcontainerd interfaces) to enumerate or reference an
 // exec'd process by ID, uniqueness is not currently enforced.
 func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (_ libcontainerdtypes.Process, retErr error) {
-	hcsContainer, err := t.getHCSContainer()
-	if err != nil {
-		return nil, err
-	}
+	t.ctr.mu.Lock()
+	defer t.ctr.mu.Unlock()
+
 	logger := t.ctr.client.logger.WithFields(logrus.Fields{
 		"container": t.ctr.id,
 		"exec":      processID,
@@ -566,46 +575,11 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	createProcessParms := createProcessConfig(spec, t.ctr.ociSpec.Process)
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
-	// Start the command running in the container.
-	newProcess, err := hcsContainer.CreateProcess(createProcessParms)
-	if err != nil {
-		logger.WithError(err).Errorf("exec's CreateProcess() failed")
-		return nil, err
-	}
-	pid := newProcess.Pid()
-	defer func() {
-		if retErr != nil {
-			if err := newProcess.Kill(); err != nil {
-				logger.WithError(err).Error("failed to kill process")
-			}
-			go func() {
-				if err := newProcess.Wait(); err != nil {
-					logger.WithError(err).Error("failed to wait for process")
-				}
-				if err := newProcess.Close(); err != nil {
-					logger.WithError(err).Error("failed to clean process resources")
-				}
-			}()
-		}
-	}()
-
-	dio, err := newIOFromProcess(newProcess, spec.Terminal)
-	if err != nil {
-		logger.WithError(err).Error("failed to get stdio pipes")
-		return nil, err
-	}
-	// Tell the engine to attach streams back to the client
-	_, err = attachStdio(dio)
+	p, err := t.ctr.createProcessWithStdio(createProcessParms, attachStdio)
 	if err != nil {
 		return nil, err
 	}
-
-	p := process{
-		id:         processID,
-		ctr:        t.ctr,
-		hcsProcess: newProcess,
-		waitCh:     make(chan struct{}),
-	}
+	pid := p.hcsProcess.Pid()
 
 	// Spin up a goroutine to notify the backend and clean up resources when
 	// the process exits. Defer until after the start event is sent so that
@@ -641,7 +615,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 		}
 	})
 
-	return &p, nil
+	return p, nil
 }
 
 func (p *process) Pid() uint32 {
