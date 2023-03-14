@@ -49,8 +49,16 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+var (
+	// buildkitVersion holds the version number. Filled in at linking time.
+	buildkitVersion = "v0.0.0+unknown"
+	// buildkitRevision holds the VCS revision. Filled in at linking time.
+	buildkitRevision = ""
+)
+
 func init() {
-	version.Version = "v0.11.0-rc3"
+	version.Version = buildkitVersion
+	version.Revision = buildkitRevision
 }
 
 const labelCreatedAt = "buildkit/createdat"

@@ -62,6 +62,15 @@ source "${MAKEDIR}/.go-autogen"
 		fi
 	fi
 
+	# Set buildkit version and revision
+	. hack/buildkit-ref
+	if [ -n "$BUILDKIT_VERSION" ]; then
+		LDFLAGS="${LDFLAGS} -X \"github.com/docker/docker/builder/builder-next/worker.buildkitVersion=${BUILDKIT_VERSION}\" "
+		if [ -n "$BUILDKIT_REVISION" ]; then
+			LDFLAGS="${LDFLAGS} -X \"github.com/docker/docker/builder/builder-next/worker.buildkitRevision=${BUILDKIT_REVISION}\" "
+		fi
+	fi
+
 	echo "Building $([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "dynamic") $DEST/$BINARY_FULLNAME ($PLATFORM_NAME)..."
 	if [ -n "$DOCKER_DEBUG" ]; then
 		set -x

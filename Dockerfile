@@ -584,12 +584,13 @@ ARG PACKAGER_NAME
 # read only mount in current work dir
 ENV PREFIX=/tmp
 RUN <<EOT
+  set -e
   # in bullseye arm64 target does not link with lld so configure it to use ld instead
   if [ "$(xx-info arch)" = "arm64" ]; then
     XX_CC_PREFER_LINKER=ld xx-clang --setup-target-triple
   fi
 EOT
-RUN --mount=type=bind,target=. \
+RUN --mount=type=bind,target=.,rw \
     --mount=type=tmpfs,target=cli/winresources/dockerd \
     --mount=type=tmpfs,target=cli/winresources/docker-proxy \
     --mount=type=cache,target=/root/.cache/go-build,id=moby-build-$TARGETPLATFORM <<EOT

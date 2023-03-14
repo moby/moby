@@ -9,7 +9,7 @@
 set -e
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOTDIR="$(git -C "$SCRIPTDIR" rev-parse --show-toplevel)"
+ROOTDIR="${SCRIPTDIR}/.."
 
 if test -e "${ROOTDIR}/go.mod"; then
 	{
@@ -18,13 +18,7 @@ if test -e "${ROOTDIR}/go.mod"; then
 		echo "${scriptname}: WARN: Using your go.mod instead of our generated version -- this may misbehave!"
 	} >&2
 else
-	set -x
-
-	tee "${ROOTDIR}/go.mod" >&2 <<- EOF
-		module github.com/docker/docker
-
-		go 1.19
-	EOF
+	printf '%s\n\n%s' 'module github.com/docker/docker' 'go 1.19' > "${ROOTDIR}/go.mod"
 	trap 'rm -f "${ROOTDIR}/go.mod"' EXIT
 fi
 
