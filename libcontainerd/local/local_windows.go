@@ -433,8 +433,11 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
 
-	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(ctr.ociSpec.Process, createProcessParms)
+	if spec.CommandLine != "" {
+		createProcessParms.CommandLine = spec.CommandLine
+	} else {
+		createProcessParms.CommandLine = system.EscapeArgs(spec.Args)
+	}
 	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = spec.User.Username
@@ -524,15 +527,6 @@ func (ctr *container) Task(context.Context) (libcontainerdtypes.Task, error) {
 	return ctr.task, nil
 }
 
-// setCommandLineAndArgs configures the HCS ProcessConfig based on an OCI process spec
-func setCommandLineAndArgs(process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
-	if process.CommandLine != "" {
-		createProcessParms.CommandLine = process.CommandLine
-	} else {
-		createProcessParms.CommandLine = system.EscapeArgs(process.Args)
-	}
-}
-
 func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO, error) {
 	stdin, stdout, stderr, err := newProcess.Stdio()
 	if err != nil {
@@ -596,8 +590,11 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
 
-	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(spec, createProcessParms)
+	if spec.CommandLine != "" {
+		createProcessParms.CommandLine = spec.CommandLine
+	} else {
+		createProcessParms.CommandLine = system.EscapeArgs(spec.Args)
+	}
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = spec.User.Username
