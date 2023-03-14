@@ -5,7 +5,6 @@
 package zstd
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"io"
@@ -41,8 +40,7 @@ type Decoder struct {
 	frame *frameDec
 
 	// Custom dictionaries.
-	// Always uses copies.
-	dicts map[uint32]dict
+	dicts map[uint32]*dict
 
 	// streamWg is the waitgroup for all streams
 	streamWg sync.WaitGroup
@@ -104,7 +102,7 @@ func NewReader(r io.Reader, opts ...DOption) (*Decoder, error) {
 	}
 
 	// Transfer option dicts.
-	d.dicts = make(map[uint32]dict, len(d.o.dicts))
+	d.dicts = make(map[uint32]*dict, len(d.o.dicts))
 	for _, dc := range d.o.dicts {
 		d.dicts[dc.id] = dc
 	}
@@ -342,15 +340,8 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) {
 			}
 			return dst, err
 		}
-		if frame.DictionaryID != nil {
-			dict, ok := d.dicts[*frame.DictionaryID]
-			if !ok {
-				return nil, ErrUnknownDictionary
-			}
-			if debugDecoder {
-				println("setting dict", frame.DictionaryID)
-			}
-			frame.history.setDict(&dict)
+		if err = d.setDict(frame); err != nil {
+			return nil, err
 		}
 		if frame.WindowSize > d.o.maxWindowSize {
 			if debugDecoder {
@@ -459,7 +450,11 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) {
 		println("got", len(d.current.b), "bytes, error:", d.current.err, "data crc:", tmp)
 	}
 
-	if !d.o.ignoreChecksum && len(next.b) > 0 {
+	if d.o.ignoreChecksum {
+		return true
+	}
+
+	if len(next.b) > 0 {
 		n, err := d.current.crc.Write(next.b)
 		if err == nil {
 			if n != len(next.b) {
@@ -467,18 +462,16 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) {
 			}
 		}
 	}
-	if next.err == nil && next.d != nil && len(next.d.checkCRC) != 0 {
-		got := d.current.crc.Sum64()
-		var tmp [4]byte
-		binary.LittleEndian.PutUint32(tmp[:], uint32(got))
-		if !d.o.ignoreChecksum && !bytes.Equal(tmp[:], next.d.checkCRC) {
+	if next.err == nil && next.d != nil && next.d.hasCRC {
+		got := uint32(d.current.crc.Sum64())
+		if got != next.d.checkCRC {
 			if debugDecoder {
-				println("CRC Check Failed:", tmp[:], " (got) !=", next.d.checkCRC, "(on stream)")
+				printf("CRC Check Failed: %08x (got) != %08x (on stream)\n", got, next.d.checkCRC)
 			}
 			d.current.err = ErrCRCMismatch
 		} else {
 			if debugDecoder {
-				println("CRC ok", tmp[:])
+				printf("CRC ok %08x\n", got)
 			}
 		}
 	}
@@ -494,17 +487,11 @@ func (d *Decoder) nextBlockSync() (ok bool) {
 		if !d.syncStream.inFrame {
 			d.frame.history.reset()
 			d.current.err = d.frame.reset(&d.syncStream.br)
+			if d.current.err == nil {
+				d.current.err = d.setDict(d.frame)
+			}
 			if d.current.err != nil {
 				return false
-			}
-			if d.frame.DictionaryID != nil {
-				dict, ok := d.dicts[*d.frame.DictionaryID]
-				if !ok {
-					d.current.err = ErrUnknownDictionary
-					return false
-				} else {
-					d.frame.history.setDict(&dict)
-				}
 			}
 			if d.frame.WindowSize > d.o.maxDecodedSize || d.frame.WindowSize > d.o.maxWindowSize {
 				d.current.err = ErrDecoderSizeExceeded
@@ -864,13 +851,8 @@ decodeStream:
 		if debugDecoder && err != nil {
 			println("Frame decoder returned", err)
 		}
-		if err == nil && frame.DictionaryID != nil {
-			dict, ok := d.dicts[*frame.DictionaryID]
-			if !ok {
-				err = ErrUnknownDictionary
-			} else {
-				frame.history.setDict(&dict)
-			}
+		if err == nil {
+			err = d.setDict(frame)
 		}
 		if err == nil && d.frame.WindowSize > d.o.maxWindowSize {
 			if debugDecoder {
@@ -918,18 +900,22 @@ decodeStream:
 				println("next block returned error:", err)
 			}
 			dec.err = err
-			dec.checkCRC = nil
+			dec.hasCRC = false
 			if dec.Last && frame.HasCheckSum && err == nil {
 				crc, err := frame.rawInput.readSmall(4)
-				if err != nil {
+				if len(crc) < 4 {
+					if err == nil {
+						err = io.ErrUnexpectedEOF
+
+					}
 					println("CRC missing?", err)
 					dec.err = err
-				}
-				var tmp [4]byte
-				copy(tmp[:], crc)
-				dec.checkCRC = tmp[:]
-				if debugDecoder {
-					println("found crc to check:", dec.checkCRC)
+				} else {
+					dec.checkCRC = binary.LittleEndian.Uint32(crc)
+					dec.hasCRC = true
+					if debugDecoder {
+						printf("found crc to check: %08x\n", dec.checkCRC)
+					}
 				}
 			}
 			err = dec.err
@@ -947,4 +933,21 @@ decodeStream:
 	wg.Wait()
 	hist.reset()
 	d.frame.history.b = frameHistCache
+}
+
+func (d *Decoder) setDict(frame *frameDec) (err error) {
+	dict, ok := d.dicts[frame.DictionaryID]
+	if ok {
+		if debugDecoder {
+			println("setting dict", frame.DictionaryID)
+		}
+		frame.history.setDict(dict)
+	} else if frame.DictionaryID != 0 {
+		// A zero or missing dictionary id is ambiguous:
+		// either dictionary zero, or no dictionary. In particular,
+		// zstd --patch-from uses this id for the source file,
+		// so only return an error if the dictionary id is not zero.
+		err = ErrUnknownDictionary
+	}
+	return err
 }

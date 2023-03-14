@@ -320,10 +320,6 @@ error_not_enough_literals:
 	MOVQ $0x00000004, ret+24(FP)
 	RET
 
-	// Return with not enough output space error
-	MOVQ $0x00000005, ret+24(FP)
-	RET
-
 // func sequenceDecs_decode_56_amd64(s *sequenceDecs, br *bitReader, ctx *decodeAsmContext) int
 // Requires: CMOV
 TEXT ·sequenceDecs_decode_56_amd64(SB), $8-32
@@ -617,10 +613,6 @@ error_not_enough_literals:
 	MOVQ $0x00000004, ret+24(FP)
 	RET
 
-	// Return with not enough output space error
-	MOVQ $0x00000005, ret+24(FP)
-	RET
-
 // func sequenceDecs_decode_bmi2(s *sequenceDecs, br *bitReader, ctx *decodeAsmContext) int
 // Requires: BMI, BMI2, CMOV
 TEXT ·sequenceDecs_decode_bmi2(SB), $8-32
@@ -897,10 +889,6 @@ error_not_enough_literals:
 	MOVQ $0x00000004, ret+24(FP)
 	RET
 
-	// Return with not enough output space error
-	MOVQ $0x00000005, ret+24(FP)
-	RET
-
 // func sequenceDecs_decode_56_bmi2(s *sequenceDecs, br *bitReader, ctx *decodeAsmContext) int
 // Requires: BMI, BMI2, CMOV
 TEXT ·sequenceDecs_decode_56_bmi2(SB), $8-32
@@ -1152,10 +1140,6 @@ error_not_enough_literals:
 	MOVQ $0x00000004, ret+24(FP)
 	RET
 
-	// Return with not enough output space error
-	MOVQ $0x00000005, ret+24(FP)
-	RET
-
 // func sequenceDecs_executeSimple_amd64(ctx *executeAsmContext) bool
 // Requires: SSE
 TEXT ·sequenceDecs_executeSimple_amd64(SB), $8-9
@@ -1389,8 +1373,7 @@ loop_finished:
 	MOVQ ctx+0(FP), AX
 	MOVQ DX, 24(AX)
 	MOVQ DI, 104(AX)
-	MOVQ 80(AX), CX
-	SUBQ CX, SI
+	SUBQ 80(AX), SI
 	MOVQ SI, 112(AX)
 	RET
 
@@ -1402,8 +1385,7 @@ error_match_off_too_big:
 	MOVQ ctx+0(FP), AX
 	MOVQ DX, 24(AX)
 	MOVQ DI, 104(AX)
-	MOVQ 80(AX), CX
-	SUBQ CX, SI
+	SUBQ 80(AX), SI
 	MOVQ SI, 112(AX)
 	RET
 
@@ -1747,8 +1729,7 @@ loop_finished:
 	MOVQ ctx+0(FP), AX
 	MOVQ DX, 24(AX)
 	MOVQ DI, 104(AX)
-	MOVQ 80(AX), CX
-	SUBQ CX, SI
+	SUBQ 80(AX), SI
 	MOVQ SI, 112(AX)
 	RET
 
@@ -1760,8 +1741,7 @@ error_match_off_too_big:
 	MOVQ ctx+0(FP), AX
 	MOVQ DX, 24(AX)
 	MOVQ DI, 104(AX)
-	MOVQ 80(AX), CX
-	SUBQ CX, SI
+	SUBQ 80(AX), SI
 	MOVQ SI, 112(AX)
 	RET
 

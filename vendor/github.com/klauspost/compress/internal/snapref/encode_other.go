@@ -103,6 +103,28 @@ func hash(u, shift uint32) uint32 {
 	return (u * 0x1e35a7bd) >> shift
 }
 
+// EncodeBlockInto exposes encodeBlock but checks dst size.
+func EncodeBlockInto(dst, src []byte) (d int) {
+	if MaxEncodedLen(len(src)) > len(dst) {
+		return 0
+	}
+
+	// encodeBlock breaks on too big blocks, so split.
+	for len(src) > 0 {
+		p := src
+		src = nil
+		if len(p) > maxBlockSize {
+			p, src = p[:maxBlockSize], p[maxBlockSize:]
+		}
+		if len(p) < minNonLiteralBlockSize {
+			d += emitLiteral(dst[d:], p)
+		} else {
+			d += encodeBlock(dst[d:], p)
+		}
+	}
+	return d
+}
+
 // encodeBlock encodes a non-empty src to a guaranteed-large-enough dst. It
 // assumes that the varint-encoded length of the decompressed bytes has already
 // been written.

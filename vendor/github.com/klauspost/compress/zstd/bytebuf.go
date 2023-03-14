@@ -54,7 +54,7 @@ func (b *byteBuf) readBig(n int, dst []byte) ([]byte, error) {
 func (b *byteBuf) readByte() (byte, error) {
 	bb := *b
 	if len(bb) < 1 {
-		return 0, nil
+		return 0, io.ErrUnexpectedEOF
 	}
 	r := bb[0]
 	*b = bb[1:]
