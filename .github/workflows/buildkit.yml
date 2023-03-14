@@ -72,8 +72,8 @@ jobs:
       -
         name: BuildKit ref
         run: |
-          echo "BUILDKIT_REPO=moby/buildkit" >> $GITHUB_ENV
-          echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          echo "BUILDKIT_REPO=crazy-max/buildkit" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=837e0e97cb2e7fbd588177ce89c6c3313b15116e" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
@@ -111,4 +111,5 @@ jobs:
           TEST_DOCKERD_BINARY: "./build/moby/dockerd"
           TESTPKGS: "./${{ matrix.pkg }}"
           TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=${{ matrix.worker }}$"
+          BUILDKIT_TEST_DISABLE_FEATURES: "cache_backend_azblob,cache_backend_s3"
         working-directory: buildkit
