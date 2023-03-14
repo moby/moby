@@ -6,50 +6,26 @@ import (
 	mapset "github.com/deckarep/golang-set"
 )
 
-// SetMatrix is a map of Sets
-type SetMatrix interface {
-	// Get returns the members of the set for a specific key as a slice.
-	Get(key string) ([]interface{}, bool)
-	// Contains is used to verify if an element is in a set for a specific key
-	// returns true if the element is in the set
-	// returns true if there is a set for the key
-	Contains(key string, value interface{}) (bool, bool)
-	// Insert inserts the value in the set of a key
-	// returns true if the value is inserted (was not already in the set), false otherwise
-	// returns also the length of the set for the key
-	Insert(key string, value interface{}) (bool, int)
-	// Remove removes the value in the set for a specific key
-	// returns true if the value is deleted, false otherwise
-	// returns also the length of the set for the key
-	Remove(key string, value interface{}) (bool, int)
-	// Cardinality returns the number of elements in the set for a key
-	// returns false if the set is not present
-	Cardinality(key string) (int, bool)
-	// String returns the string version of the set, empty otherwise
-	// returns false if the set is not present
-	String(key string) (string, bool)
-	// Returns all the keys in the map
-	Keys() []string
-}
-
-type setMatrix struct {
+// SetMatrix is a map of Sets.
+type SetMatrix struct {
 	matrix map[string]mapset.Set
 
 	mu sync.Mutex
 }
 
-// NewSetMatrix creates a new set matrix object
-func NewSetMatrix() SetMatrix {
-	s := &setMatrix{}
+// NewSetMatrix creates a new set matrix object.
+func NewSetMatrix() *SetMatrix {
+	s := &SetMatrix{}
 	s.init()
 	return s
 }
 
-func (s *setMatrix) init() {
+func (s *SetMatrix) init() {
 	s.matrix = make(map[string]mapset.Set)
 }
 
-func (s *setMatrix) Get(key string) ([]interface{}, bool) {
+// Get returns the members of the set for a specific key as a slice.
+func (s *SetMatrix) Get(key string) ([]interface{}, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
@@ -59,7 +35,8 @@ func (s *setMatrix) Get(key string) ([]interface{}, bool) {
 	return set.ToSlice(), ok
 }
 
-func (s *setMatrix) Contains(key string, value interface{}) (bool, bool) {
+// Contains is used to verify if an element is in a set for a specific key.
+func (s *SetMatrix) Contains(key string, value interface{}) (containsElement, setExists bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
@@ -69,7 +46,9 @@ func (s *setMatrix) Contains(key string, value interface{}) (bool, bool) {
 	return set.Contains(value), ok
 }
 
-func (s *setMatrix) Insert(key string, value interface{}) (bool, int) {
+// Insert inserts the value in the set of a key and returns whether the value is
+// inserted (was not already in the set) and the number of elements in the set.
+func (s *SetMatrix) Insert(key string, value interface{}) (insetrted bool, cardinality int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
@@ -82,7 +61,8 @@ func (s *setMatrix) Insert(key string, value interface{}) (bool, int) {
 	return set.Add(value), set.Cardinality()
 }
 
-func (s *setMatrix) Remove(key string, value interface{}) (bool, int) {
+// Remove removes the value in the set for a specific key.
+func (s *SetMatrix) Remove(key string, value interface{}) (removed bool, cardinality int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
@@ -90,7 +70,6 @@ func (s *setMatrix) Remove(key string, value interface{}) (bool, int) {
 		return false, 0
 	}
 
-	var removed bool
 	if set.Contains(value) {
 		set.Remove(value)
 		removed = true
@@ -103,7 +82,8 @@ func (s *setMatrix) Remove(key string, value interface{}) (bool, int) {
 	return removed, set.Cardinality()
 }
 
-func (s *setMatrix) Cardinality(key string) (int, bool) {
+// Cardinality returns the number of elements in the set for a key.
+func (s *SetMatrix) Cardinality(key string) (cardinality int, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
@@ -114,7 +94,9 @@ func (s *setMatrix) Cardinality(key string) (int, bool) {
 	return set.Cardinality(), ok
 }
 
-func (s *setMatrix) String(key string) (string, bool) {
+// String returns the string version of the set.
+// The empty string is returned if there is no set for key.
+func (s *SetMatrix) String(key string) (v string, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
@@ -124,7 +106,8 @@ func (s *setMatrix) String(key string) (string, bool) {
 	return set.String(), ok
 }
 
-func (s *setMatrix) Keys() []string {
+// Keys returns all the keys in the map.
+func (s *SetMatrix) Keys() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	keys := make([]string, 0, len(s.matrix))

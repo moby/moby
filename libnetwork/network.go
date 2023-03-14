@@ -105,9 +105,9 @@ type svcMapEntry struct {
 }
 
 type svcInfo struct {
-	svcMap     setmatrix.SetMatrix
-	svcIPv6Map setmatrix.SetMatrix
-	ipMap      setmatrix.SetMatrix
+	svcMap     *setmatrix.SetMatrix
+	svcIPv6Map *setmatrix.SetMatrix
+	ipMap      *setmatrix.SetMatrix
 	service    map[string][]servicePorts
 }
 
@@ -1362,7 +1362,7 @@ func (n *network) updateSvcRecord(ep *Endpoint, localEps []*Endpoint, isAdd bool
 	}
 }
 
-func addIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
+func addIPToName(ipMap *setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Insert(reverseIP, ipInfo{
 		name:      name,
@@ -1370,7 +1370,7 @@ func addIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	})
 }
 
-func delIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
+func delIPToName(ipMap *setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Remove(reverseIP, ipInfo{
 		name:      name,
@@ -1378,7 +1378,7 @@ func delIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	})
 }
 
-func addNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
+func addNameToIP(svcMap *setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
 	// Since DNS name resolution is case-insensitive, Use the lower-case form
 	// of the name as the key into svcMap
 	lowerCaseName := strings.ToLower(name)
@@ -1388,7 +1388,7 @@ func addNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP
 	})
 }
 
-func delNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
+func delNameToIP(svcMap *setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
 	lowerCaseName := strings.ToLower(name)
 	svcMap.Remove(lowerCaseName, svcMapEntry{
 		ip:        epIP.String(),
