@@ -403,6 +403,7 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	logger := ctr.client.logger.WithField("container", ctr.id)
 
 	ctrSpec := ctr.ociSpec.Process
+	spec := ctrSpec
 
 	// Note we always tell HCS to create stdout as it's required
 	// regardless of '-i' or '-t' options, so that docker can always grab
@@ -410,25 +411,24 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	// even if it's not used - it will be closed shortly. Stderr is only
 	// created if it we're not -t.
 	var (
-		emulateConsole   bool
 		createStdErrPipe bool
 	)
 	if ctr.ociSpec.Process != nil {
-		emulateConsole = ctr.ociSpec.Process.Terminal
 		createStdErrPipe = !ctr.ociSpec.Process.Terminal
 	}
 
 	createProcessParms := &hcsshim.ProcessConfig{
-		EmulateConsole:   emulateConsole,
 		WorkingDirectory: ctrSpec.Cwd,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: createStdErrPipe,
 	}
-
-	if ctr.ociSpec.Process != nil && ctr.ociSpec.Process.ConsoleSize != nil {
-		createProcessParms.ConsoleSize[0] = uint(ctr.ociSpec.Process.ConsoleSize.Height)
-		createProcessParms.ConsoleSize[1] = uint(ctr.ociSpec.Process.ConsoleSize.Width)
+	if spec.Terminal {
+		createProcessParms.EmulateConsole = true
+		if spec.ConsoleSize != nil {
+			createProcessParms.ConsoleSize[0] = uint(spec.ConsoleSize.Height)
+			createProcessParms.ConsoleSize[1] = uint(spec.ConsoleSize.Width)
+		}
 	}
 
 	// Take working directory from the process to add if it is defined,
