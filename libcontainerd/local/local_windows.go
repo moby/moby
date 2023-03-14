@@ -410,18 +410,11 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	// the output through logs. We also tell HCS to always create stdin,
 	// even if it's not used - it will be closed shortly. Stderr is only
 	// created if it we're not -t.
-	var (
-		createStdErrPipe bool
-	)
-	if ctr.ociSpec.Process != nil {
-		createStdErrPipe = !ctr.ociSpec.Process.Terminal
-	}
-
 	createProcessParms := &hcsshim.ProcessConfig{
 		WorkingDirectory: ctrSpec.Cwd,
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
-		CreateStdErrPipe: createStdErrPipe,
+		CreateStdErrPipe: !spec.Terminal,
 	}
 	if spec.Terminal {
 		createProcessParms.EmulateConsole = true
