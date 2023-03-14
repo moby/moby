@@ -14,8 +14,10 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	clientpkg "github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
@@ -303,4 +305,38 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
 	assert.Check(t, cmp.Contains(pruneReport.VolumesDeleted, v.Name))
 	assert.Check(t, cmp.Contains(pruneReport.VolumesDeleted, vNamed.Name))
+}
+
+func TestVolumePruneAnonFromImage(t *testing.T) {
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+
+	volDest := "/foo"
+	if testEnv.OSType == "windows" {
+		volDest = `c:\\foo`
+	}
+
+	dockerfile := `FROM busybox
+VOLUME ` + volDest
+
+	ctx := context.Background()
+	img := build.Do(ctx, t, client, fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile)))
+
+	id := container.Create(ctx, t, client, container.WithImage(img))
+	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
+
+	inspect, err := client.ContainerInspect(ctx, id)
+	assert.NilError(t, err)
+
+	assert.Assert(t, cmp.Len(inspect.Mounts, 1))
+
+	volumeName := inspect.Mounts[0].Name
+	assert.Assert(t, volumeName != "")
+
+	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
+	assert.NilError(t, err)
+
+	pruneReport, err := client.VolumesPrune(ctx, filters.Args{})
+	assert.NilError(t, err)
+	assert.Assert(t, cmp.Contains(pruneReport.VolumesDeleted, volumeName))
 }
