@@ -8,8 +8,7 @@
 [![Coverage Status][9]][10]
 [![Sourcegraph][11]][12]
 [![FOSSA Status][13]][14]
-
-[![GoCenter Kudos][15]][16]
+[![Become my sponsor][15]][16]
 
 [1]: https://travis-ci.org/imdario/mergo.png
 [2]: https://travis-ci.org/imdario/mergo
@@ -25,8 +24,8 @@
 [12]: https://sourcegraph.com/github.com/imdario/mergo?badge
 [13]: https://app.fossa.io/api/projects/git%2Bgithub.com%2Fimdario%2Fmergo.svg?type=shield
 [14]: https://app.fossa.io/projects/git%2Bgithub.com%2Fimdario%2Fmergo?ref=badge_shield
-[15]: https://search.gocenter.io/api/ui/badge/github.com%2Fimdario%2Fmergo
-[16]: https://search.gocenter.io/github.com/imdario/mergo
+[15]: https://img.shields.io/github/sponsors/imdario
+[16]: https://github.com/sponsors/imdario
 
 A helper to merge structs and maps in Golang. Useful for configuration default values, avoiding messy if-statements.
 
@@ -36,11 +35,11 @@ Also a lovely [comune](http://en.wikipedia.org/wiki/Mergo) (municipality) in the
 
 ## Status
 
-It is ready for production use. [It is used in several projects by Docker, Google, The Linux Foundation, VMWare, Shopify, etc](https://github.com/imdario/mergo#mergo-in-the-wild).
+It is ready for production use. [It is used in several projects by Docker, Google, The Linux Foundation, VMWare, Shopify, Microsoft, etc](https://github.com/imdario/mergo#mergo-in-the-wild).
 
 ### Important note
 
-Please keep in mind that a problematic PR broke [0.3.9](//github.com/imdario/mergo/releases/tag/0.3.9). I reverted it in [0.3.10](//github.com/imdario/mergo/releases/tag/0.3.10), and I consider it stable but not bug-free. Also, this version adds suppot for go modules.
+Please keep in mind that a problematic PR broke [0.3.9](//github.com/imdario/mergo/releases/tag/0.3.9). I reverted it in [0.3.10](//github.com/imdario/mergo/releases/tag/0.3.10), and I consider it stable but not bug-free. Also, this version adds support for go modules.
 
 Keep in mind that in [0.3.2](//github.com/imdario/mergo/releases/tag/0.3.2), Mergo changed `Merge()`and `Map()` signatures to support [transformers](#transformers). I added an optional/variadic argument so that it won't break the existing code.
 
@@ -51,12 +50,12 @@ If you were using Mergo before April 6th, 2015, please check your project works 
 If Mergo is useful to you, consider buying me a coffee, a beer, or making a monthly donation to allow me to keep building great free software. :heart_eyes:
 
 <a href='https://ko-fi.com/B0B58839' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://az743702.vo.msecnd.net/cdn/kofi1.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
-[![Beerpay](https://beerpay.io/imdario/mergo/badge.svg)](https://beerpay.io/imdario/mergo)
-[![Beerpay](https://beerpay.io/imdario/mergo/make-wish.svg)](https://beerpay.io/imdario/mergo)
 <a href="https://liberapay.com/dario/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>
+<a href='https://github.com/sponsors/imdario' target='_blank'><img alt="Become my sponsor" src="https://img.shields.io/github/sponsors/imdario?style=for-the-badge" /></a>
 
 ### Mergo in the wild
 
+- [cli/cli](https://github.com/cli/cli)
 - [moby/moby](https://github.com/moby/moby)
 - [kubernetes/kubernetes](https://github.com/kubernetes/kubernetes)
 - [vmware/dispatch](https://github.com/vmware/dispatch)
@@ -98,6 +97,8 @@ If Mergo is useful to you, consider buying me a coffee, a beer, or making a mont
 - [jnuthong/item_search](https://github.com/jnuthong/item_search)
 - [bukalapak/snowboard](https://github.com/bukalapak/snowboard)
 - [containerssh/containerssh](https://github.com/containerssh/containerssh)
+- [goreleaser/goreleaser](https://github.com/goreleaser/goreleaser)
+- [tjpnz/structbot](https://github.com/tjpnz/structbot)
 
 ## Install
 
@@ -168,7 +169,7 @@ func main() {
 
 Note: if test are failing due missing package, please execute:
 
-    go get gopkg.in/yaml.v2
+    go get gopkg.in/yaml.v3
 
 ### Transformers
 
@@ -218,7 +219,6 @@ func main() {
 }
 ```
 
-
 ## Contact me
 
 If I can help you, you have an idea or you are using Mergo in your projects, don't hesitate to drop me a line (or a pull request): [@im_dario](https://twitter.com/im_dario)
@@ -226,18 +226,6 @@ If I can help you, you have an idea or you are using Mergo in your projects, don
 ## About
 
 Written by [Dario Castañé](http://dario.im).
-
-## Top Contributors
-
-[![0](https://sourcerer.io/fame/imdario/imdario/mergo/images/0)](https://sourcerer.io/fame/imdario/imdario/mergo/links/0)
-[![1](https://sourcerer.io/fame/imdario/imdario/mergo/images/1)](https://sourcerer.io/fame/imdario/imdario/mergo/links/1)
-[![2](https://sourcerer.io/fame/imdario/imdario/mergo/images/2)](https://sourcerer.io/fame/imdario/imdario/mergo/links/2)
-[![3](https://sourcerer.io/fame/imdario/imdario/mergo/images/3)](https://sourcerer.io/fame/imdario/imdario/mergo/links/3)
-[![4](https://sourcerer.io/fame/imdario/imdario/mergo/images/4)](https://sourcerer.io/fame/imdario/imdario/mergo/links/4)
-[![5](https://sourcerer.io/fame/imdario/imdario/mergo/images/5)](https://sourcerer.io/fame/imdario/imdario/mergo/links/5)
-[![6](https://sourcerer.io/fame/imdario/imdario/mergo/images/6)](https://sourcerer.io/fame/imdario/imdario/mergo/links/6)
-[![7](https://sourcerer.io/fame/imdario/imdario/mergo/images/7)](https://sourcerer.io/fame/imdario/imdario/mergo/links/7)
-
 
 ## License
 

@@ -539,7 +539,7 @@ github.com/hashicorp/memberlist
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
-# github.com/imdario/mergo v0.3.12
+# github.com/imdario/mergo v0.3.13
 ## explicit; go 1.13
 github.com/imdario/mergo
 # github.com/in-toto/in-toto-golang v0.5.0

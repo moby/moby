@@ -51,7 +51,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/memberlist v0.4.0
 	github.com/hashicorp/serf v0.8.5
-	github.com/imdario/mergo v0.3.12
+	github.com/imdario/mergo v0.3.13
 	github.com/ishidawataru/sctp v0.0.0-20210707070123-9a39160e9062
 	github.com/klauspost/compress v1.15.12
 	github.com/miekg/dns v1.1.43
