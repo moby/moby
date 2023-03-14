@@ -35,7 +35,7 @@ type SetMatrix interface {
 type setMatrix struct {
 	matrix map[string]mapset.Set
 
-	sync.Mutex
+	mu sync.Mutex
 }
 
 // NewSetMatrix creates a new set matrix object
@@ -50,8 +50,8 @@ func (s *setMatrix) init() {
 }
 
 func (s *setMatrix) Get(key string) ([]interface{}, bool) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
 	if !ok {
 		return nil, ok
@@ -60,8 +60,8 @@ func (s *setMatrix) Get(key string) ([]interface{}, bool) {
 }
 
 func (s *setMatrix) Contains(key string, value interface{}) (bool, bool) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
 	if !ok {
 		return false, ok
@@ -70,8 +70,8 @@ func (s *setMatrix) Contains(key string, value interface{}) (bool, bool) {
 }
 
 func (s *setMatrix) Insert(key string, value interface{}) (bool, int) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
 	if !ok {
 		s.matrix[key] = mapset.NewSet()
@@ -83,8 +83,8 @@ func (s *setMatrix) Insert(key string, value interface{}) (bool, int) {
 }
 
 func (s *setMatrix) Remove(key string, value interface{}) (bool, int) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
 	if !ok {
 		return false, 0
@@ -104,8 +104,8 @@ func (s *setMatrix) Remove(key string, value interface{}) (bool, int) {
 }
 
 func (s *setMatrix) Cardinality(key string) (int, bool) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
 	if !ok {
 		return 0, ok
@@ -115,8 +115,8 @@ func (s *setMatrix) Cardinality(key string) (int, bool) {
 }
 
 func (s *setMatrix) String(key string) (string, bool) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	set, ok := s.matrix[key]
 	if !ok {
 		return "", ok
@@ -125,8 +125,8 @@ func (s *setMatrix) String(key string) (string, bool) {
 }
 
 func (s *setMatrix) Keys() []string {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	keys := make([]string, 0, len(s.matrix))
 	for k := range s.matrix {
 		keys = append(keys, k)
