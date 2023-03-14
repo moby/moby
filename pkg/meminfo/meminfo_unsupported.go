@@ -1,7 +1,7 @@
 //go:build !linux && !windows
 // +build !linux,!windows
 
-package sysinfo
+package meminfo
 
 import "errors"
 

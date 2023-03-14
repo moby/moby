@@ -1,7 +1,7 @@
 //go:build linux || freebsd
 // +build linux freebsd
 
-package sysinfo
+package meminfo
 
 import (
 	"strings"
