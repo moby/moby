@@ -513,14 +513,20 @@ func (s *DockerCLIExecSuite) TestExecStartFails(c *testing.T) {
 	runSleepingContainer(c, "-d", "--name", name)
 	assert.NilError(c, waitRun(name))
 
-	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
-	assert.ErrorContains(c, err, "", out)
+	for i := 0; i < 250; i++ {
+		c.Run(fmt.Sprintf("%s_%d", name, i), func(c *testing.T) {
+			c.Parallel()
 
-	expectedMsg := "executable file not found"
-	if runtime.GOOS == "windows" {
-		expectedMsg = "The system cannot find the file specified"
+			out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
+			assert.ErrorContains(c, err, "", out)
+
+			expectedMsg := "executable file not found"
+			if runtime.GOOS == "windows" {
+				expectedMsg = "The system cannot find the file specified"
+			}
+			assert.Assert(c, is.Contains(out, expectedMsg))
+		})
 	}
-	assert.Assert(c, is.Contains(out, expectedMsg))
 }
 
 // Fix regression in https://github.com/docker/docker/pull/26461#issuecomment-250287297

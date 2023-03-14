@@ -2763,11 +2763,19 @@ func (s *DockerCLIRunSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *
 
 func (s *DockerCLIRunSuite) TestRunContainerWithRmFlagCannotStartContainer(c *testing.T) {
 	name := "sparkles"
-	cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "commandNotFound")).Assert(c, icmd.Expected{
-		ExitCode: 127,
-	})
 
-	poll.WaitOn(c, containerRemoved(name))
+	for i := 0; i < 250; i++ {
+		name := fmt.Sprintf("%s_%d", name, i)
+		c.Run(name, func(c *testing.T) {
+			c.Parallel()
+
+			cli.Docker(cli.Args("run", "--name", name, "--rm", "busybox", "commandNotFound")).Assert(c, icmd.Expected{
+				ExitCode: 127,
+			})
+
+			poll.WaitOn(c, containerRemoved(name))
+		})
+	}
 }
 
 func containerRemoved(name string) poll.Check {
