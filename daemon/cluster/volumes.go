@@ -90,6 +90,9 @@ func (c *Cluster) RemoveVolume(nameOrID string, force bool) error {
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		volume, err := getVolume(ctx, state.controlClient, nameOrID)
 		if err != nil {
+			if force && errdefs.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 
