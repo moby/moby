@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/meminfo"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/platform"
@@ -249,11 +250,11 @@ func kernelVersion() string {
 	return kernelVersion
 }
 
-func memInfo() *sysinfo.Memory {
-	memInfo, err := sysinfo.ReadMemInfo()
+func memInfo() *meminfo.Memory {
+	memInfo, err := meminfo.Read()
 	if err != nil {
 		logrus.Errorf("Could not read system memory info: %v", err)
-		memInfo = &sysinfo.Memory{}
+		memInfo = &meminfo.Memory{}
 	}
 	return memInfo
 }

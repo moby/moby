@@ -1,4 +1,4 @@
-package sysinfo
+package meminfo
 
 import (
 	"unsafe"
@@ -26,7 +26,7 @@ type memorystatusex struct {
 	ullAvailExtendedVirtual uint64
 }
 
-// ReadMemInfo retrieves memory statistics of the host system and returns a
+// readMemInfo retrieves memory statistics of the host system and returns a
 // Memory type.
 func readMemInfo() (*Memory, error) {
 	msi := &memorystatusex{

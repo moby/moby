@@ -1,9 +1,11 @@
-package sysinfo
+// Package meminfo provides utilites to retrieve memory statistics of
+// the host system.
+package meminfo
 
-// ReadMemInfo retrieves memory statistics of the host system and returns a
+// Read retrieves memory statistics of the host system and returns a
 // Memory type. It is only supported on Linux and Windows, and returns an
 // error on other platforms.
-func ReadMemInfo() (*Memory, error) {
+func Read() (*Memory, error) {
 	return readMemInfo()
 }
 
