@@ -135,7 +135,7 @@ func TestSetSerialInsertDelete(t *testing.T) {
 	}
 }
 
-func insertDeleteRotuine(ctx context.Context, endCh chan int, s SetMatrix, key, value string) {
+func insertDeleteRotuine(ctx context.Context, endCh chan int, s *SetMatrix, key, value string) {
 	for {
 		select {
 		case <-ctx.Done():
