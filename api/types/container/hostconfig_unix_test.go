@@ -11,16 +11,16 @@ import (
 )
 
 func TestCgroupnsMode(t *testing.T) {
-	modes := map[CgroupnsMode]struct{ private, host, empty, valid bool }{
-		"":                {private: false, host: false, empty: true, valid: true},
-		"something:weird": {private: false, host: false, empty: false, valid: false},
-		"host":            {private: false, host: true, empty: false, valid: true},
+	modes := map[CgroupnsMode]struct{ valid, private, host, empty bool }{
+		"":                {valid: true, private: false, host: false, empty: true},
+		"something:weird": {valid: false, private: false, host: false, empty: false},
+		"host":            {valid: true, private: false, host: true, empty: false},
 		"host:":           {valid: false},
 		"host:name":       {valid: false},
 		":name":           {valid: false},
 		":":               {valid: false},
-		"private":         {private: true, host: false, empty: false, valid: true},
-		"private:name":    {private: false, host: false, empty: false, valid: false},
+		"private":         {valid: true, private: true, host: false, empty: false},
+		"private:name":    {valid: false, private: false, host: false, empty: false},
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
@@ -61,50 +61,50 @@ func TestNetworkMode(t *testing.T) {
 
 func TestIpcMode(t *testing.T) {
 	ipcModes := map[IpcMode]struct {
+		valid     bool
 		private   bool
 		host      bool
 		container bool
 		shareable bool
-		valid     bool
 		ctrName   string
 	}{
 		"":                      {valid: true},
-		"private":               {private: true, valid: true},
-		"something:weird":       {},
-		":weird":                {},
-		"host":                  {host: true, valid: true},
+		"private":               {valid: true, private: true},
+		"something:weird":       {valid: false},
+		":weird":                {valid: false},
+		"host":                  {valid: true, host: true},
 		"host:":                 {valid: false},
 		"host:name":             {valid: false},
 		":name":                 {valid: false},
 		":":                     {valid: false},
-		"container":             {},
-		"container:":            {container: true, valid: true, ctrName: ""},
-		"container:name":        {container: true, valid: true, ctrName: "name"},
-		"container:name1:name2": {container: true, valid: true, ctrName: "name1:name2"},
-		"shareable":             {shareable: true, valid: true},
+		"container":             {valid: false},
+		"container:":            {valid: true, container: true, ctrName: ""},
+		"container:name":        {valid: true, container: true, ctrName: "name"},
+		"container:name1:name2": {valid: true, container: true, ctrName: "name1:name2"},
+		"shareable":             {valid: true, shareable: true},
 	}
 
 	for mode, expected := range ipcModes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
+			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
 			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
 			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
 			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
 			assert.Check(t, is.Equal(mode.IsShareable(), expected.shareable))
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
 			assert.Check(t, is.Equal(mode.Container(), expected.ctrName))
 		})
 	}
 }
 
 func TestUTSMode(t *testing.T) {
-	modes := map[UTSMode]struct{ private, host, valid bool }{
-		"":                {private: true, host: false, valid: true},
-		"something:weird": {private: true, host: false, valid: false},
-		"host":            {private: false, host: true, valid: true},
-		"host:":           {private: true, valid: false},
-		"host:name":       {private: true, valid: false},
-		":name":           {private: true, valid: false},
-		":":               {private: true, valid: false},
+	modes := map[UTSMode]struct{ valid, private, host bool }{
+		"":                {valid: true, private: true, host: false},
+		"something:weird": {valid: false, private: true, host: false},
+		"host":            {valid: true, private: false, host: true},
+		"host:":           {valid: false, private: true},
+		"host:name":       {valid: false, private: true},
+		":name":           {valid: false, private: true},
+		":":               {valid: false, private: true},
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
@@ -117,39 +117,39 @@ func TestUTSMode(t *testing.T) {
 }
 
 func TestUsernsMode(t *testing.T) {
-	modes := map[UsernsMode]struct{ private, host, valid bool }{
-		"":                {private: true, host: false, valid: true},
-		"something:weird": {private: true, host: false, valid: false},
-		"host":            {private: false, host: true, valid: true},
-		"host:":           {private: true, valid: false},
-		"host:name":       {private: true, valid: false},
-		":name":           {private: true, valid: false},
-		":":               {private: true, valid: false},
+	modes := map[UsernsMode]struct{ valid, private, host bool }{
+		"":                {valid: true, private: true, host: false},
+		"something:weird": {valid: false, private: true, host: false},
+		"host":            {valid: true, private: false, host: true},
+		"host:":           {valid: false, private: true},
+		"host:name":       {valid: false, private: true},
+		":name":           {valid: false, private: true},
+		":":               {valid: false, private: true},
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
+			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
 			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
 			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
 		})
 	}
 }
 
 func TestPidMode(t *testing.T) {
-	modes := map[PidMode]struct{ private, host, valid bool }{
-		"":                {private: true, host: false, valid: true},
-		"something:weird": {private: true, host: false, valid: false},
-		"host":            {private: false, host: true, valid: true},
-		"host:":           {private: true, valid: false},
-		"host:name":       {private: true, valid: false},
-		":name":           {private: true, valid: false},
-		":":               {private: true, valid: false},
+	modes := map[PidMode]struct{ valid, private, host bool }{
+		"":                {valid: true, private: true, host: false},
+		"something:weird": {valid: false, private: true, host: false},
+		"host":            {valid: true, private: false, host: true},
+		"host:":           {valid: false, private: true},
+		"host:name":       {valid: false, private: true},
+		":name":           {valid: false, private: true},
+		":":               {valid: false, private: true},
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
+			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
 			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
 			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
 		})
 	}
 }
