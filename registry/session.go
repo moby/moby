@@ -206,10 +206,10 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, &jsonmessage.JSONError{
+		return nil, errdefs.Unknown(&jsonmessage.JSONError{
 			Message: fmt.Sprintf("Unexpected status code %d", res.StatusCode),
 			Code:    res.StatusCode,
-		}
+		})
 	}
 	result := new(registry.SearchResults)
 	return result, errors.Wrap(json.NewDecoder(res.Body).Decode(result), "error decoding registry search results")

@@ -82,7 +82,7 @@ type Daemon struct {
 	configStore           *config.Config
 	statsCollector        *stats.Collector
 	defaultLogConfig      containertypes.LogConfig
-	registryService       registry.Service
+	registryService       *registry.Service
 	EventsService         *events.Events
 	netController         *libnetwork.Controller
 	volumes               *volumesservice.VolumesService
@@ -1457,6 +1457,11 @@ func (daemon *Daemon) IdentityMapping() idtools.IdentityMapping {
 // ImageService returns the Daemon's ImageService
 func (daemon *Daemon) ImageService() ImageService {
 	return daemon.imageService
+}
+
+// RegistryService returns the Daemon's RegistryService
+func (daemon *Daemon) RegistryService() *registry.Service {
+	return daemon.registryService
 }
 
 // BuilderBackend returns the backend used by builder

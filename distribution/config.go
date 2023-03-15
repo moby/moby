@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -35,7 +36,7 @@ type Config struct {
 	ProgressOutput progress.Output
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
-	RegistryService registrypkg.Service
+	RegistryService RegistryResolver
 	// ImageEventLogger notifies events for a given image
 	ImageEventLogger func(id, name, action string)
 	// MetadataStore is the storage backend for distribution-specific
@@ -73,6 +74,13 @@ type ImagePushConfig struct {
 	LayerStores PushLayerProvider
 	// UploadManager dispatches uploads.
 	UploadManager *xfer.LayerUploadManager
+}
+
+// RegistryResolver is used for TLS configuration and endpoint lookup.
+type RegistryResolver interface {
+	LookupPushEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
+	LookupPullEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
+	ResolveRepository(name reference.Named) (*registrypkg.RepositoryInfo, error)
 }
 
 // ImageConfigStore handles storing and getting image configurations
