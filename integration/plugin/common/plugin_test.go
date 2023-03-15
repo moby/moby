@@ -25,7 +25,6 @@ import (
 	"github.com/docker/docker/testutil/request"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
@@ -309,7 +308,7 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 
 	var m v1.Manifest
 	assert.NilError(t, json.NewDecoder(rdr).Decode(&m))
-	assert.Check(t, cmp.Equal(m.MediaType, images.MediaTypeDockerSchema2Manifest))
-	assert.Check(t, cmp.Len(m.Layers, 1))
-	assert.Check(t, cmp.Equal(m.Layers[0].MediaType, images.MediaTypeDockerSchema2LayerGzip))
+	assert.Check(t, is.Equal(m.MediaType, images.MediaTypeDockerSchema2Manifest))
+	assert.Check(t, is.Len(m.Layers, 1))
+	assert.Check(t, is.Equal(m.Layers[0].MediaType, images.MediaTypeDockerSchema2LayerGzip))
 }

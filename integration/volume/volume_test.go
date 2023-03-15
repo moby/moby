@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/testutil/request"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
@@ -303,8 +302,8 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	pruneReport, err = clientOld.VolumesPrune(ctx, filters.Args{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
-	assert.Check(t, cmp.Contains(pruneReport.VolumesDeleted, v.Name))
-	assert.Check(t, cmp.Contains(pruneReport.VolumesDeleted, vNamed.Name))
+	assert.Check(t, is.Contains(pruneReport.VolumesDeleted, v.Name))
+	assert.Check(t, is.Contains(pruneReport.VolumesDeleted, vNamed.Name))
 }
 
 func TestVolumePruneAnonFromImage(t *testing.T) {
@@ -328,7 +327,7 @@ VOLUME ` + volDest
 	inspect, err := client.ContainerInspect(ctx, id)
 	assert.NilError(t, err)
 
-	assert.Assert(t, cmp.Len(inspect.Mounts, 1))
+	assert.Assert(t, is.Len(inspect.Mounts, 1))
 
 	volumeName := inspect.Mounts[0].Name
 	assert.Assert(t, volumeName != "")
@@ -338,5 +337,5 @@ VOLUME ` + volDest
 
 	pruneReport, err := client.VolumesPrune(ctx, filters.Args{})
 	assert.NilError(t, err)
-	assert.Assert(t, cmp.Contains(pruneReport.VolumesDeleted, volumeName))
+	assert.Assert(t, is.Contains(pruneReport.VolumesDeleted, volumeName))
 }
