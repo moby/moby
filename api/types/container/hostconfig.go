@@ -116,6 +116,7 @@ func (n IpcMode) IsEmpty() bool {
 
 // Valid indicates whether the ipc mode is valid.
 func (n IpcMode) Valid() bool {
+	// TODO(thaJeztah): align with PidMode, and consider container-mode without a container name/ID to be invalid.
 	return n.IsEmpty() || n.IsNone() || n.IsPrivate() || n.IsHost() || n.IsShareable() || n.IsContainer()
 }
 
@@ -194,6 +195,7 @@ func (c CgroupSpec) IsContainer() bool {
 
 // Valid indicates whether the cgroup spec is valid.
 func (c CgroupSpec) Valid() bool {
+	// TODO(thaJeztah): align with PidMode, and consider container-mode without a container name/ID to be invalid.
 	return c == "" || c.IsContainer()
 }
 
@@ -242,7 +244,7 @@ func (n PidMode) IsContainer() bool {
 
 // Valid indicates whether the pid namespace is valid.
 func (n PidMode) Valid() bool {
-	return n == "" || n.IsHost() || n.IsContainer()
+	return n == "" || n.IsHost() || validContainer(string(n))
 }
 
 // Container returns the name of the container whose pid namespace is going to be used.
@@ -445,4 +447,11 @@ func containerID(val string) (idOrName string, ok bool) {
 		return "", false
 	}
 	return v, true
+}
+
+// validContainer checks if the given value is a "container:" mode with
+// a non-empty name/ID.
+func validContainer(val string) bool {
+	id, ok := containerID(val)
+	return ok && id != ""
 }

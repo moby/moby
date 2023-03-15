@@ -199,7 +199,7 @@ func TestPidMode(t *testing.T) {
 		"host:":                 {valid: false, private: true},
 		"host:name":             {valid: false, private: true},
 		"container":             {valid: false, private: true},
-		"container:":            {valid: true, private: false, container: true, ctrName: ""},
+		"container:":            {valid: false, private: false, container: true, ctrName: ""},
 		"container:name":        {valid: true, private: false, container: true, ctrName: "name"},
 		"container:name1:name2": {valid: true, private: false, container: true, ctrName: "name1:name2"},
 	}
