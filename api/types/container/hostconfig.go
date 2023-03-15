@@ -101,7 +101,8 @@ func (n IpcMode) IsShareable() bool {
 
 // IsContainer indicates whether the container uses another container's ipc namespace.
 func (n IpcMode) IsContainer() bool {
-	return strings.HasPrefix(string(n), string(IPCModeContainer)+":")
+	_, ok := containerID(string(n))
+	return ok
 }
 
 // IsNone indicates whether container IpcMode is set to "none".
@@ -121,11 +122,9 @@ func (n IpcMode) Valid() bool {
 }
 
 // Container returns the name of the container ipc stack is going to be used.
-func (n IpcMode) Container() string {
-	if n.IsContainer() {
-		return strings.TrimPrefix(string(n), string(IPCModeContainer)+":")
-	}
-	return ""
+func (n IpcMode) Container() (idOrName string) {
+	idOrName, _ = containerID(string(n))
+	return idOrName
 }
 
 // NetworkMode represents the container network stack.
