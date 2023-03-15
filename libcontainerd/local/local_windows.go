@@ -445,12 +445,12 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
-	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
+	newProcess, err := ctr.hcsContainer.CreateProcess(&createProcessParms)
 	if err != nil {
 		logger.WithError(err).Error("CreateProcess() failed")
 		return nil, err
 	}
-	pid := newProcess.Pid()
+
 	defer func() {
 		if retErr != nil {
 			if err := newProcess.Kill(); err != nil {
@@ -466,6 +466,13 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 			}()
 		}
 	}()
+	t := &task{process: process{
+		id:         ctr.id,
+		ctr:        ctr,
+		hcsProcess: newProcess,
+		waitCh:     make(chan struct{}),
+	}}
+	pid := t.Pid()
 	logger.WithField("pid", pid).Debug("init process started")
 
 	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
@@ -479,27 +486,21 @@ func (ctr *container) Start(_ context.Context, _ string, withStdin bool, attachS
 		return nil, err
 	}
 
-	// All fallible operations have succeeded so it is now safe to set the
-	// container's current task.
-	t := &task{process{
-		id:         ctr.id,
-		ctr:        ctr,
-		hcsProcess: newProcess,
-		waitCh:     make(chan struct{}),
-	}}
-	ctr.task = t
-
 	// Spin up a goroutine to notify the backend and clean up resources when
 	// the task exits. Defer until after the start event is sent so that the
 	// exit event is not sent out-of-order.
 	defer func() { go t.reap() }()
+
+	// All fallible operations have succeeded so it is now safe to set the
+	// container's current task.
+	ctr.task = t
 
 	// Generate the associated event
 	ctr.client.eventQ.Append(ctr.id, func() {
 		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
 			ProcessID:   t.id,
-			Pid:         uint32(pid),
+			Pid:         pid,
 		}
 		ctr.client.logger.WithFields(logrus.Fields{
 			"container":  ctr.id,
@@ -565,7 +566,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
-	newProcess, err := hcsContainer.CreateProcess(createProcessParms)
+	newProcess, err := hcsContainer.CreateProcess(&createProcessParms)
 	if err != nil {
 		logger.WithError(err).Errorf("exec's CreateProcess() failed")
 		return nil, err
