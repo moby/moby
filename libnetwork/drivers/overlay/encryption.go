@@ -112,8 +112,8 @@ func (e *encrMap) String() string {
 	return b.String()
 }
 
-func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal, add bool) error {
-	logrus.Debugf("checkEncryption(%.7s, %v, %d, %t)", nid, rIP, vxlanID, isLocal)
+func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) error {
+	logrus.Debugf("checkEncryption(%.7s, %v, %t)", nid, rIP, isLocal)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -148,7 +148,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 
 	if add {
 		for _, rIP := range nodes {
-			if err := setupEncryption(lIP, aIP, rIP, vxlanID, d.secMap, d.keys); err != nil {
+			if err := setupEncryption(lIP, aIP, rIP, d.secMap, d.keys); err != nil {
 				logrus.Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
@@ -163,21 +163,13 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 	return nil
 }
 
-func setupEncryption(localIP, advIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*key) error {
-	logrus.Debugf("Programming encryption for vxlan %d between %s and %s", vni, localIP, remoteIP)
+// setupEncryption programs the encryption parameters for secure communication
+// between the local node and a remote node.
+func setupEncryption(localIP, advIP, remoteIP net.IP, em *encrMap, keys []*key) error {
+	logrus.Debugf("Programming encryption between %s and %s", localIP, remoteIP)
 	rIPs := remoteIP.String()
 
 	indices := make([]*spi, 0, len(keys))
-
-	err := programMangle(vni, true)
-	if err != nil {
-		logrus.Warn(err)
-	}
-
-	err = programInput(vni, true)
-	if err != nil {
-		logrus.Warn(err)
-	}
 
 	for i, k := range keys {
 		spis := &spi{buildSPI(advIP, remoteIP, k.tag), buildSPI(remoteIP, advIP, k.tag)}
@@ -233,37 +225,33 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 	return nil
 }
 
-func programMangle(vni uint32, add bool) (err error) {
+func programMangle(vni uint32, add bool) error {
 	var (
 		p      = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
 		c      = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
 		m      = strconv.FormatUint(mark, 10)
 		chain  = "OUTPUT"
 		rule   = []string{"-p", "udp", "--dport", p, "-m", "u32", "--u32", c, "-j", "MARK", "--set-mark", m}
-		a      = "-A"
+		a      = iptables.Append
 		action = "install"
 	)
 
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
-	if add == iptable.Exists(iptables.Mangle, chain, rule...) {
-		return
-	}
-
 	if !add {
-		a = "-D"
+		a = iptables.Delete
 		action = "remove"
 	}
 
-	if err = iptable.RawCombinedOutput(append([]string{"-t", string(iptables.Mangle), a, chain}, rule...)...); err != nil {
-		logrus.Warnf("could not %s mangle rule: %v", action, err)
+	if err := iptable.ProgramRule(iptables.Mangle, chain, a, rule); err != nil {
+		return fmt.Errorf("could not %s mangle rule: %w", action, err)
 	}
 
-	return
+	return nil
 }
 
-func programInput(vni uint32, add bool) (err error) {
+func programInput(vni uint32, add bool) error {
 	var (
 		port       = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
 		vniMatch   = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
@@ -286,15 +274,15 @@ func programInput(vni uint32, add bool) (err error) {
 
 	// Accept incoming VXLAN datagrams for the VNI which were subjected to IPSec processing.
 	if err := iptable.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
-		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
+		return fmt.Errorf("could not %s input accept rule: %w", msg, err)
 	}
 
 	// Drop incoming VXLAN datagrams for the VNI which were received in cleartext.
 	if err := iptable.ProgramRule(iptables.Filter, chain, action, block); err != nil {
-		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
+		return fmt.Errorf("could not %s input drop rule: %w", msg, err)
 	}
 
-	return
+	return nil
 }
 
 func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, err error) {
