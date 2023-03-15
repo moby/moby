@@ -440,6 +440,9 @@ type HostConfig struct {
 // of the returned, including checking if the value is empty, should be handled
 // by the caller.
 func containerID(val string) (idOrName string, ok bool) {
-	k, idOrName, ok := strings.Cut(val, ":")
-	return idOrName, ok && k == "container"
+	k, v, hasSep := strings.Cut(val, ":")
+	if !hasSep || k != "container" {
+		return "", false
+	}
+	return v, true
 }
