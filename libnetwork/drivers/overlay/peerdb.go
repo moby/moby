@@ -387,7 +387,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
-	if err := d.checkEncryption(nid, vtep, n.vxlanID(s), false, true); err != nil {
+	if err := d.checkEncryption(nid, vtep, false, true); err != nil {
 		logrus.Warn(err)
 	}
 
@@ -447,7 +447,7 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 		return nil
 	}
 
-	if err := d.checkEncryption(nid, vtep, 0, localPeer, false); err != nil {
+	if err := d.checkEncryption(nid, vtep, localPeer, false); err != nil {
 		logrus.Warn(err)
 	}
 

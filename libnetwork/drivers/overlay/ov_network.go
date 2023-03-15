@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -653,6 +654,18 @@ func setDefaultVLAN(sbox osl.Sandbox) error {
 func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
 	brName := n.generateBridgeName(s)
 	vxlanName := n.generateVxlanName(s)
+
+	// Program iptables rules for mandatory encryption of the secure
+	// network, or clean up leftover rules for a stale secure network which
+	// was previously assigned the same VNI.
+	if err := programMangle(s.vni, n.secure); err != nil {
+		return err
+	}
+	if err := programInput(s.vni, n.secure); err != nil {
+		if n.secure {
+			return multierror.Append(err, programMangle(s.vni, false))
+		}
+	}
 
 	if restore {
 		if err := n.restoreSubnetSandbox(s, brName, vxlanName); err != nil {
