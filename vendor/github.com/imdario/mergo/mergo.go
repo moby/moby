@@ -17,7 +17,7 @@ import (
 var (
 	ErrNilArguments                = errors.New("src and dst must not be nil")
 	ErrDifferentArgumentsTypes     = errors.New("src and dst must be of same type")
-	ErrNotSupported                = errors.New("only structs and maps are supported")
+	ErrNotSupported                = errors.New("only structs, maps, and slices are supported")
 	ErrExpectedMapAsDestination    = errors.New("dst was expected to be a map")
 	ErrExpectedStructAsDestination = errors.New("dst was expected to be a struct")
 	ErrNonPointerAgument           = errors.New("dst must be a pointer")
@@ -65,7 +65,7 @@ func resolveValues(dst, src interface{}) (vDst, vSrc reflect.Value, err error) {
 		return
 	}
 	vDst = reflect.ValueOf(dst).Elem()
-	if vDst.Kind() != reflect.Struct && vDst.Kind() != reflect.Map {
+	if vDst.Kind() != reflect.Struct && vDst.Kind() != reflect.Map && vDst.Kind() != reflect.Slice {
 		err = ErrNotSupported
 		return
 	}

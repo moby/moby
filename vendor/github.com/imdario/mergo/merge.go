@@ -79,7 +79,7 @@ func deepMerge(dst, src reflect.Value, visited map[uintptr]*visit, depth int, co
 		visited[h] = &visit{addr, typ, seen}
 	}
 
-	if config.Transformers != nil && !isEmptyValue(dst) {
+	if config.Transformers != nil && !isReflectNil(dst) && dst.IsValid() {
 		if fn := config.Transformers.Transformer(dst.Type()); fn != nil {
 			err = fn(dst, src)
 			return
