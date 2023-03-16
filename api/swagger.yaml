@@ -8226,7 +8226,7 @@ paths:
 
             Available filters:
 
-            - `until=<duration>`: duration relative to daemon's time, during which build cache was not used, in Go's duration format (e.g., '24h')
+            - `until=<timestamp>` remove cache older than `<timestamp>`. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon's local time.
             - `id=<id>`
             - `parent=<id>`
             - `type=<string>`
