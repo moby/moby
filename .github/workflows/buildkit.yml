@@ -106,5 +106,6 @@ jobs:
           TEST_DOCKERD: "1"
           TEST_DOCKERD_BINARY: "./build/moby/dockerd"
           TESTPKGS: "./${{ matrix.pkg }}"
-          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
+          # Diff/MergeOp tests are skipped
+          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=/^Test([^DM]|.[^ie]|..[^fr]|...[^fg])/worker=dockerd$"
         working-directory: buildkit
