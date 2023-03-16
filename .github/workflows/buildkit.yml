@@ -70,6 +70,9 @@ jobs:
         name: Prepare
         run: |
           disabledFeatures="cache_backend_azblob,cache_backend_s3"
+          if [ "${{ matrix.worker }}" = "dockerd" ]; then
+            disabledFeatures="${disabledFeatures},merge_diff"
+          fi
           echo "BUILDKIT_TEST_DISABLE_FEATURES=${disabledFeatures}" >> $GITHUB_ENV
       -
         name: Checkout
