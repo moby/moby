@@ -47,11 +47,16 @@ jobs:
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 120
+    env:
+      BUILDKIT_REPO: moby/buildkit
     needs:
       - build
     strategy:
       fail-fast: false
       matrix:
+        worker:
+          - dockerd
+          - dockerd-containerd
         pkg:
           - client
           - cmd/buildctl
@@ -62,6 +67,11 @@ jobs:
           - integration
     steps:
       -
+        name: Prepare
+        run: |
+          disabledFeatures="cache_backend_azblob,cache_backend_s3"
+          echo "BUILDKIT_TEST_DISABLE_FEATURES=${disabledFeatures}" >> $GITHUB_ENV
+      -
         name: Checkout
         uses: actions/checkout@v3
         with:
@@ -69,8 +79,9 @@ jobs:
       -
         name: BuildKit ref
         run: |
-          echo "BUILDKIT_REPO=moby/buildkit" >> $GITHUB_ENV
-          echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          # FIXME(crazy-max) remove when updating BuildKit to v0.11.5
+          echo "BUILDKIT_REF=237fee9c00877d64a1c757fc5270c98b65a51abf" >> $GITHUB_ENV
+          #echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
@@ -107,5 +118,5 @@ jobs:
           TEST_DOCKERD: "1"
           TEST_DOCKERD_BINARY: "./build/moby/dockerd"
           TESTPKGS: "./${{ matrix.pkg }}"
-          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=dockerd$"
+          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=${{ matrix.worker }}$"
         working-directory: buildkit
