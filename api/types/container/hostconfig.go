@@ -101,7 +101,8 @@ func (n IpcMode) IsShareable() bool {
 
 // IsContainer indicates whether the container uses another container's ipc namespace.
 func (n IpcMode) IsContainer() bool {
-	return strings.HasPrefix(string(n), string(IPCModeContainer)+":")
+	_, ok := containerID(string(n))
+	return ok
 }
 
 // IsNone indicates whether container IpcMode is set to "none".
@@ -116,15 +117,14 @@ func (n IpcMode) IsEmpty() bool {
 
 // Valid indicates whether the ipc mode is valid.
 func (n IpcMode) Valid() bool {
+	// TODO(thaJeztah): align with PidMode, and consider container-mode without a container name/ID to be invalid.
 	return n.IsEmpty() || n.IsNone() || n.IsPrivate() || n.IsHost() || n.IsShareable() || n.IsContainer()
 }
 
 // Container returns the name of the container ipc stack is going to be used.
-func (n IpcMode) Container() string {
-	if n.IsContainer() {
-		return strings.TrimPrefix(string(n), string(IPCModeContainer)+":")
-	}
-	return ""
+func (n IpcMode) Container() (idOrName string) {
+	idOrName, _ = containerID(string(n))
+	return idOrName
 }
 
 // NetworkMode represents the container network stack.
@@ -194,6 +194,7 @@ func (c CgroupSpec) IsContainer() bool {
 
 // Valid indicates whether the cgroup spec is valid.
 func (c CgroupSpec) Valid() bool {
+	// TODO(thaJeztah): align with PidMode, and consider container-mode without a container name/ID to be invalid.
 	return c == "" || c.IsContainer()
 }
 
@@ -242,7 +243,7 @@ func (n PidMode) IsContainer() bool {
 
 // Valid indicates whether the pid namespace is valid.
 func (n PidMode) Valid() bool {
-	return n == "" || n.IsHost() || n.IsContainer()
+	return n == "" || n.IsHost() || validContainer(string(n))
 }
 
 // Container returns the name of the container whose pid namespace is going to be used.
@@ -440,6 +441,16 @@ type HostConfig struct {
 // of the returned, including checking if the value is empty, should be handled
 // by the caller.
 func containerID(val string) (idOrName string, ok bool) {
-	k, idOrName, ok := strings.Cut(val, ":")
-	return idOrName, ok && k == "container"
+	k, v, hasSep := strings.Cut(val, ":")
+	if !hasSep || k != "container" {
+		return "", false
+	}
+	return v, true
+}
+
+// validContainer checks if the given value is a "container:" mode with
+// a non-empty name/ID.
+func validContainer(val string) bool {
+	id, ok := containerID(val)
+	return ok && id != ""
 }
