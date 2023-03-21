@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
@@ -392,13 +393,6 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	var headers = map[string][]string{}
-	for k, v := range r.Header {
-		if strings.HasPrefix(k, "X-Meta-") {
-			headers[k] = v
-		}
-	}
-
 	var limit int
 	if r.Form.Get("limit") != "" {
 		var err error
@@ -415,6 +409,15 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 	// For a search it is not an error if no auth was given. Ignore invalid
 	// AuthConfig to increase compatibility with the existing API.
 	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
+
+	var headers = http.Header{}
+	for k, v := range r.Header {
+		k = http.CanonicalHeaderKey(k)
+		if strings.HasPrefix(k, "X-Meta-") {
+			headers[k] = v
+		}
+	}
+	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx))
 	res, err := ir.searcher.Search(ctx, searchFilters, r.Form.Get("term"), limit, authConfig, headers)
 	if err != nil {
 		return err

@@ -35,13 +35,13 @@ type v1Endpoint struct {
 
 // newV1Endpoint parses the given address to return a registry endpoint.
 // TODO: remove. This is only used by search.
-func newV1Endpoint(index *registry.IndexInfo, userAgent string, metaHeaders http.Header) (*v1Endpoint, error) {
+func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint, error) {
 	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
 	if err != nil {
 		return nil, err
 	}
 
-	endpoint, err := newV1EndpointFromStr(GetAuthConfigKey(index), tlsConfig, userAgent, metaHeaders)
+	endpoint, err := newV1EndpointFromStr(GetAuthConfigKey(index), tlsConfig, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func trimV1Address(address string) (string, error) {
 	return address, nil
 }
 
-func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent string, metaHeaders http.Header) (*v1Endpoint, error) {
+func newV1EndpointFromStr(address string, tlsConfig *tls.Config, headers http.Header) (*v1Endpoint, error) {
 	if !strings.HasPrefix(address, "http://") && !strings.HasPrefix(address, "https://") {
 		address = "https://" + address
 	}
@@ -121,7 +121,7 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 	return &v1Endpoint{
 		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
 		URL:      uri,
-		client:   httpClient(transport.NewTransport(tr, Headers(userAgent, metaHeaders)...)),
+		client:   httpClient(transport.NewTransport(tr, Headers("", headers)...)),
 	}, nil
 }
 
