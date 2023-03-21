@@ -87,6 +87,7 @@ func main() {
 	_, stdout, stderr := term.StdStreams()
 
 	initLogging(stdout, stderr)
+	configureGRPCLog()
 
 	onError := func(err error) {
 		fmt.Fprintf(stderr, "%s\n", err)
