@@ -392,33 +392,33 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 
 	d.args = append(d.args, providedArgs...)
-	d.cmd = exec.Command(dockerdBinary, d.args...)
-	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
-	d.cmd.Env = append(d.cmd.Env, d.extraEnv...)
-	d.cmd.Stdout = out
-	d.cmd.Stderr = out
+	cmd := exec.Command(dockerdBinary, d.args...)
+	cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
+	cmd.Env = append(cmd.Env, d.extraEnv...)
+	cmd.Stdout = out
+	cmd.Stderr = out
 	d.logFile = out
 	if d.rootlessUser != nil {
 		// sudo requires this for propagating signals
-		setsid(d.cmd)
+		setsid(cmd)
 	}
 
-	if err := d.cmd.Start(); err != nil {
+	if err := cmd.Start(); err != nil {
 		return errors.Wrapf(err, "[%s] could not start daemon container", d.id)
 	}
 
 	wait := make(chan error, 1)
+	d.cmd = cmd
+	d.Wait = wait
 
 	go func() {
-		ret := d.cmd.Wait()
+		ret := cmd.Wait()
 		d.log.Logf("[%s] exiting daemon", d.id)
 		// If we send before logging, we might accidentally log _after_ the test is done.
 		// As of Go 1.12, this incurs a panic instead of silently being dropped.
 		wait <- ret
 		close(wait)
 	}()
-
-	d.Wait = wait
 
 	clientConfig, err := d.getClientConfig()
 	if err != nil {
