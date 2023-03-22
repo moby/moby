@@ -17,7 +17,7 @@ import (
 
 func spawnTestRegistrySession(t *testing.T) *session {
 	authConfig := &registry.AuthConfig{}
-	endpoint, err := newV1Endpoint(makeIndex("/v1/"), "", nil)
+	endpoint, err := newV1Endpoint(makeIndex("/v1/"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func spawnTestRegistrySession(t *testing.T) *session {
 func TestPingRegistryEndpoint(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	testPing := func(index *registry.IndexInfo, expectedStandalone bool, assertMessage string) {
-		ep, err := newV1Endpoint(index, "", nil)
+		ep, err := newV1Endpoint(index, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -69,7 +69,7 @@ func TestEndpoint(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	// Simple wrapper to fail test if err != nil
 	expandEndpoint := func(index *registry.IndexInfo) *v1Endpoint {
-		endpoint, err := newV1Endpoint(index, "", nil)
+		endpoint, err := newV1Endpoint(index, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -78,14 +78,14 @@ func TestEndpoint(t *testing.T) {
 
 	assertInsecureIndex := func(index *registry.IndexInfo) {
 		index.Secure = true
-		_, err := newV1Endpoint(index, "", nil)
+		_, err := newV1Endpoint(index, nil)
 		assert.ErrorContains(t, err, "insecure-registry", index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
 	}
 
 	assertSecureIndex := func(index *registry.IndexInfo) {
 		index.Secure = true
-		_, err := newV1Endpoint(index, "", nil)
+		_, err := newV1Endpoint(index, nil)
 		assert.ErrorContains(t, err, "certificate signed by unknown authority", index.Name+": Expected cert error for secure index")
 		index.Secure = false
 	}
@@ -132,7 +132,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	for _, address := range badEndpoints {
 		index.Name = address
-		_, err := newV1Endpoint(index, "", nil)
+		_, err := newV1Endpoint(index, nil)
 		assert.Check(t, err != nil, "Expected error while expanding bad endpoint: %s", address)
 	}
 }

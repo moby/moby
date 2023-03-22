@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
 
 	"github.com/docker/distribution/registry/client/auth"
@@ -52,7 +51,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 		}
 	}
 
-	unfilteredResult, err := s.searchUnfiltered(ctx, term, limit, authConfig, dockerversion.DockerUserAgent(ctx), headers)
+	unfilteredResult, err := s.searchUnfiltered(ctx, term, limit, authConfig, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +79,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 	return filteredResults, nil
 }
 
-func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, userAgent string, headers map[string][]string) (*registry.SearchResults, error) {
+func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, authConfig *registry.AuthConfig, headers http.Header) (*registry.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if hasScheme(term) {
 		return nil, invalidParamf("invalid repository name: repository name (%s) should not have a scheme", term)
@@ -101,7 +100,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		remoteName = strings.TrimPrefix(remoteName, "library/")
 	}
 
-	endpoint, err := newV1Endpoint(index, userAgent, headers)
+	endpoint, err := newV1Endpoint(index, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +115,8 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 			},
 		}
 
-		modifiers := Headers(userAgent, nil)
+		// TODO(thaJeztah); is there a reason not to include other headers here? (originally added in 19d48f0b8ba59eea9f2cac4ad1c7977712a6b7ac)
+		modifiers := Headers(headers.Get("User-Agent"), nil)
 		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
 		if err != nil {
 			return nil, err
