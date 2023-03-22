@@ -40,7 +40,6 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	}
 	v.Runtimes = daemon.configStore.GetAllRuntimes()
 	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
-	v.InitBinary = daemon.configStore.GetInitPath()
 	v.RuncCommit.ID = "N/A"
 	v.ContainerdCommit.ID = "N/A"
 	v.InitCommit.ID = "N/A"
@@ -63,15 +62,17 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		logrus.Warnf("failed to retrieve containerd version: %v", err)
 	}
 
-	defaultInitBinary := daemon.configStore.GetInitPath()
-	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
+	v.InitBinary = daemon.configStore.GetInitPath()
+	if initBinary, err := daemon.configStore.LookupInitPath(); err != nil {
+		logrus.Warnf("failed to find docker-init: %s", err)
+	} else if rv, err := exec.Command(initBinary, "--version").Output(); err == nil {
 		if _, commit, err := parseInitVersion(string(rv)); err != nil {
-			logrus.Warnf("failed to parse %s version: %s", defaultInitBinary, err)
+			logrus.Warnf("failed to parse %s version: %s", initBinary, err)
 		} else {
 			v.InitCommit.ID = commit
 		}
 	} else {
-		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
+		logrus.Warnf("failed to retrieve %s version: %s", initBinary, err)
 	}
 
 	// Set expected and actual commits to the same value to prevent the client
@@ -195,13 +196,14 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 		}
 	}
 
-	defaultInitBinary := daemon.configStore.GetInitPath()
-	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
+	if initBinary, err := daemon.configStore.LookupInitPath(); err != nil {
+		logrus.Warnf("failed to find docker-init: %s", err)
+	} else if rv, err := exec.Command(initBinary, "--version").Output(); err == nil {
 		if ver, commit, err := parseInitVersion(string(rv)); err != nil {
-			logrus.Warnf("failed to parse %s version: %s", defaultInitBinary, err)
+			logrus.Warnf("failed to parse %s version: %s", initBinary, err)
 		} else {
 			v.Components = append(v.Components, types.ComponentVersion{
-				Name:    filepath.Base(defaultInitBinary),
+				Name:    filepath.Base(initBinary),
 				Version: ver,
 				Details: map[string]string{
 					"GitCommit": commit,
@@ -209,7 +211,7 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 			})
 		}
 	} else {
-		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
+		logrus.Warnf("failed to retrieve %s version: %s", initBinary, err)
 	}
 
 	daemon.fillRootlessVersion(v)

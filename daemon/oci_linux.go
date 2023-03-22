@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -748,12 +747,9 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
 				(c.HostConfig.Init == nil && daemon.configStore.Init) {
 				s.Process.Args = append([]string{inContainerInitPath, "--", c.Path}, c.Args...)
-				path := daemon.configStore.InitPath
-				if path == "" {
-					path, err = exec.LookPath(dconfig.DefaultInitBinary)
-					if err != nil {
-						return err
-					}
+				path, err := daemon.configStore.LookupInitPath() // this will fall back to DefaultInitBinary and return an absolute path
+				if err != nil {
+					return err
 				}
 				s.Mounts = append(s.Mounts, specs.Mount{
 					Destination: inContainerInitPath,
