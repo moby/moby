@@ -19,7 +19,7 @@ func (cli *Client) ContainerList(ctx context.Context, options types.ContainerLis
 	}
 
 	if options.Latest {
-		query.Set("latest", "1")
+		query.Set("limit", "1")
 	}
 
 	if options.Limit > 0 {
