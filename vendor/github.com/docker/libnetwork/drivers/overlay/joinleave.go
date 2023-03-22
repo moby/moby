@@ -114,7 +114,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), false, false, true)
 
-	if err = d.checkEncryption(nid, nil, n.vxlanID(s), true, true); err != nil {
+	if err = d.checkEncryption(nid, nil, true, true); err != nil {
 		logrus.Warn(err)
 	}
 
