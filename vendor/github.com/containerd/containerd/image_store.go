@@ -129,6 +129,7 @@ func imagesFromProto(imagespb []imagesapi.Image) []images.Image {
 	var images []images.Image
 
 	for _, image := range imagespb {
+		image := image
 		images = append(images, imageFromProto(&image))
 	}
 
