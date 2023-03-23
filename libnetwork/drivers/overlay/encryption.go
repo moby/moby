@@ -277,29 +277,40 @@ var programMangle = programVXLANRuleFunc(func(matchVXLAN matchVXLANFunc, vni uin
 var programInput = programVXLANRuleFunc(func(matchVXLAN matchVXLANFunc, vni uint32, add bool) error {
 	var (
 		plainVxlan = matchVXLAN(overlayutils.VXLANUDPPort(), vni)
-		ipsecVxlan = append([]string{"-m", "policy", "--dir", "in", "--pol", "ipsec"}, plainVxlan...)
-		block      = append(plainVxlan, "-j", "DROP")
-		accept     = append(ipsecVxlan, "-j", "ACCEPT")
 		chain      = "INPUT"
-		action     = iptables.Append
 		msg        = "add"
 	)
+
+	rule := func(policy, jump string) []string {
+		args := append([]string{"-m", "policy", "--dir", "in", "--pol", policy}, plainVxlan...)
+		return append(args, "-j", jump)
+	}
 
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
 	if !add {
-		action = iptables.Delete
 		msg = "remove"
 	}
 
+	action := func(a iptables.Action) iptables.Action {
+		if !add {
+			return iptables.Delete
+		}
+		return a
+	}
+
 	// Accept incoming VXLAN datagrams for the VNI which were subjected to IPSec processing.
-	if err := iptable.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
+	// Append to the bottom of the chain to give administrator-configured rules precedence.
+	if err := iptable.ProgramRule(iptables.Filter, chain, action(iptables.Append), rule("ipsec", "ACCEPT")); err != nil {
 		return fmt.Errorf("could not %s input accept rule: %w", msg, err)
 	}
 
 	// Drop incoming VXLAN datagrams for the VNI which were received in cleartext.
-	if err := iptable.ProgramRule(iptables.Filter, chain, action, block); err != nil {
+	// Insert at the top of the chain so the packets are dropped even if an
+	// administrator-configured rule exists which would otherwise unconditionally
+	// accept incoming VXLAN traffic.
+	if err := iptable.ProgramRule(iptables.Filter, chain, action(iptables.Insert), rule("none", "DROP")); err != nil {
 		return fmt.Errorf("could not %s input drop rule: %w", msg, err)
 	}
 
