@@ -6,11 +6,14 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/internal/csi/capability"
+	"github.com/moby/swarmkit/v2/log"
 )
 
 // Plugin is the interface for a CSI controller plugin.
@@ -203,6 +206,11 @@ func (p *plugin) DeleteVolume(ctx context.Context, v *api.Volume) error {
 func (p *plugin) PublishVolume(ctx context.Context, v *api.Volume, nodeID string) (map[string]string, error) {
 	if !p.publisher {
 		return nil, nil
+	}
+	csiNodeID := p.swarmToCSI[nodeID]
+	if csiNodeID == "" {
+		log.L.Errorf("CSI node ID not found for given Swarm node ID. Plugin: %s , Swarm node ID: %s", p.name, nodeID)
+		return nil, status.Error(codes.FailedPrecondition, "CSI node ID not found for given Swarm node ID")
 	}
 
 	req := p.makeControllerPublishVolumeRequest(v, nodeID)
