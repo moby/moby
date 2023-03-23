@@ -401,7 +401,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 }
 
 func (s *containerRouter) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	changes, err := s.backend.ContainerChanges(vars["name"])
+	changes, err := s.backend.ContainerChanges(ctx, vars["name"])
 	if err != nil {
 		return err
 	}

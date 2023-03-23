@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/archive"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -60,6 +61,7 @@ type ImageService interface {
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
 	Mount(ctx context.Context, container *container.Container) error
 	Unmount(ctx context.Context, container *container.Container) error
+	Changes(ctx context.Context, container *container.Container) ([]archive.Change, error)
 
 	// Windows specific
 
