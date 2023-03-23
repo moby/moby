@@ -162,6 +162,7 @@ func WriteExtensions(bkt *bolt.Bucket, extensions map[string]types.Any) error {
 	}
 
 	for name, ext := range extensions {
+		ext := ext
 		p, err := proto.Marshal(&ext)
 		if err != nil {
 			return err

@@ -19,9 +19,12 @@ package oci
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/containerd/containerd/containers"
+
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/windows"
 )
 
 // WithWindowsCPUCount sets the `Windows.Resources.CPU.Count` section to the
@@ -88,4 +91,12 @@ func WithWindowsNetworkNamespace(ns string) SpecOpts {
 		s.Windows.Network.NetworkNamespace = ns
 		return nil
 	}
+}
+
+func escapeAndCombineArgs(args []string) string {
+	escaped := make([]string, len(args))
+	for i, a := range args {
+		escaped[i] = windows.EscapeArg(a)
+	}
+	return strings.Join(escaped, " ")
 }
