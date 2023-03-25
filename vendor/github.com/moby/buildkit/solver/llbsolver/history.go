@@ -102,13 +102,13 @@ func (h *HistoryQueue) gc() error {
 	}
 
 	// in order for record to get deleted by gc it exceed both maxentries and maxage criteria
-
 	if len(records) < int(h.CleanConfig.MaxEntries) {
 		return nil
 	}
 
+	// sort array by newest records first
 	sort.Slice(records, func(i, j int) bool {
-		return records[i].CompletedAt.Before(*records[j].CompletedAt)
+		return records[i].CompletedAt.After(*records[j].CompletedAt)
 	})
 
 	h.mu.Lock()

@@ -44,23 +44,20 @@ func (w *runcExecutor) exec(ctx context.Context, id, bundle string, specsProcess
 type runcCall func(ctx context.Context, started chan<- int, io runc.IO) error
 
 func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, process executor.ProcessInfo, started func(), call runcCall) error {
-	runcProcess := &startingProcess{
-		ready: make(chan struct{}),
-	}
+	runcProcess, ctx := runcProcessHandle(ctx, id)
 	defer runcProcess.Release()
 
-	var eg errgroup.Group
-	egCtx, cancel := context.WithCancel(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
 	defer eg.Wait()
-	defer cancel()
+	defer runcProcess.Shutdown()
 
 	startedCh := make(chan int, 1)
 	eg.Go(func() error {
-		return runcProcess.WaitForStart(egCtx, startedCh, started)
+		return runcProcess.WaitForStart(ctx, startedCh, started)
 	})
 
 	eg.Go(func() error {
-		return handleSignals(egCtx, runcProcess, process.Signal)
+		return handleSignals(ctx, runcProcess, process.Signal)
 	})
 
 	if !process.Meta.Tty {
@@ -84,7 +81,7 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 		}
 		pts.Close()
 		ptm.Close()
-		cancel() // this will shutdown resize and signal loops
+		runcProcess.Shutdown()
 		err := eg.Wait()
 		if err != nil {
 			bklog.G(ctx).Warningf("error while shutting down tty io: %s", err)
@@ -119,13 +116,13 @@ func (w *runcExecutor) callWithIO(ctx context.Context, id, bundle string, proces
 	}
 
 	eg.Go(func() error {
-		err := runcProcess.WaitForReady(egCtx)
+		err := runcProcess.WaitForReady(ctx)
 		if err != nil {
 			return err
 		}
 		for {
 			select {
-			case <-egCtx.Done():
+			case <-ctx.Done():
 				return nil
 			case resize := <-process.Resize:
 				err = ptm.Resize(console.WinSize{

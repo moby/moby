@@ -423,15 +423,6 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	if internal {
 		defer j.CloseProgress()
-	} else {
-		rec, err1 := s.recordBuildHistory(ctx, id, req, exp, j)
-		if err != nil {
-			defer j.CloseProgress()
-			return nil, err1
-		}
-		defer func() {
-			err = rec(resProv, descref, err)
-		}()
 	}
 
 	set, err := entitlements.WhiteList(ent, supportedEntitlements(s.entitlements))
@@ -447,14 +438,32 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	j.SessionID = sessionID
 
 	br := s.bridge(j)
+	var fwd gateway.LLBBridgeForwarder
 	if s.gatewayForwarder != nil && req.Definition == nil && req.Frontend == "" {
-		fwd := gateway.NewBridgeForwarder(ctx, br, s.workerController, req.FrontendInputs, sessionID, s.sm)
+		fwd = gateway.NewBridgeForwarder(ctx, br, s.workerController, req.FrontendInputs, sessionID, s.sm)
 		defer fwd.Discard()
+		// Register build before calling s.recordBuildHistory, because
+		// s.recordBuildHistory can block for several seconds on
+		// LeaseManager calls, and there is a fixed 3s timeout in
+		// GatewayForwarder on build registration.
 		if err := s.gatewayForwarder.RegisterBuild(ctx, id, fwd); err != nil {
 			return nil, err
 		}
 		defer s.gatewayForwarder.UnregisterBuild(ctx, id)
+	}
 
+	if !internal {
+		rec, err1 := s.recordBuildHistory(ctx, id, req, exp, j)
+		if err1 != nil {
+			defer j.CloseProgress()
+			return nil, err1
+		}
+		defer func() {
+			err = rec(resProv, descref, err)
+		}()
+	}
+
+	if fwd != nil {
 		var err error
 		select {
 		case <-fwd.Done():

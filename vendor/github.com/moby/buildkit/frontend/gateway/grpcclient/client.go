@@ -927,11 +927,11 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 
 			if msg == nil {
 				// empty message from ctx cancel, so just start shutting down
-				// input, but continue processing more exit/done messages
+				// input
 				closeDoneOnce.Do(func() {
 					close(done)
 				})
-				continue
+				return ctx.Err()
 			}
 
 			if file := msg.GetFile(); file != nil {
