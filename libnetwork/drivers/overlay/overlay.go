@@ -6,7 +6,6 @@ package overlay
 //go:generate protoc -I.:../../Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/docker/libnetwork/drivers/overlay,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. overlay.proto
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -53,8 +52,7 @@ type driver struct {
 	joinOnce         sync.Once
 	localJoinOnce    sync.Once
 	keys             []*key
-	peerOpCh         chan *peerOperation
-	peerOpCancel     context.CancelFunc
+	peerOpMu         sync.Mutex
 	sync.Mutex
 }
 
@@ -69,15 +67,9 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		peerDb: peerNetworkMap{
 			mp: map[string]*peerMap{},
 		},
-		secMap:   &encrMap{nodes: map[string][]*spi{}},
-		config:   config,
-		peerOpCh: make(chan *peerOperation),
+		secMap: &encrMap{nodes: map[string][]*spi{}},
+		config: config,
 	}
-
-	// Launch the go routine for processing peer operations
-	ctx, cancel := context.WithCancel(context.Background())
-	d.peerOpCancel = cancel
-	go d.peerOpRoutine(ctx, d.peerOpCh)
 
 	if data, ok := config[netlabel.GlobalKVClient]; ok {
 		var err error
@@ -165,11 +157,6 @@ func (d *driver) restoreEndpoints() error {
 // Fini cleans up the driver resources
 func Fini(drv driverapi.Driver) {
 	d := drv.(*driver)
-
-	// Notify the peer go routine to return
-	if d.peerOpCancel != nil {
-		d.peerOpCancel()
-	}
 
 	if d.exitCh != nil {
 		waitCh := make(chan struct{})
