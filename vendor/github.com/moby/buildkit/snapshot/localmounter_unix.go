@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/pkg/userns"
+	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
 	"github.com/pkg/errors"
 )
 
@@ -22,6 +24,14 @@ func (lm *localMounter) Mount() (string, error) {
 		}
 		lm.mounts = mounts
 		lm.release = release
+	}
+
+	if userns.RunningInUserNS() {
+		var err error
+		lm.mounts, err = rootlessmountopts.FixUp(lm.mounts)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if len(lm.mounts) == 1 && (lm.mounts[0].Type == "bind" || lm.mounts[0].Type == "rbind") {

@@ -210,6 +210,7 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*pb.Op, visited
 	}
 
 	if !mutated {
+		visited[dgst] = dgst
 		return dgst, nil
 	}
 
@@ -274,7 +275,7 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 
 	for {
 		newDgst, ok := mutatedDigests[lastDgst]
-		if !ok {
+		if !ok || newDgst == lastDgst {
 			break
 		}
 		lastDgst = newDgst

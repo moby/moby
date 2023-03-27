@@ -82,9 +82,7 @@ jobs:
       -
         name: BuildKit ref
         run: |
-          # FIXME(crazy-max) remove when updating BuildKit to v0.11.5
-          echo "BUILDKIT_REF=237fee9c00877d64a1c757fc5270c98b65a51abf" >> $GITHUB_ENV
-          #echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          echo "BUILDKIT_REF=$(./hack/buildkit-ref)" >> $GITHUB_ENV
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}

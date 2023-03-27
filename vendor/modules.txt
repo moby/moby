@@ -575,7 +575,7 @@ github.com/mistifyio/go-zfs
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
-# github.com/moby/buildkit v0.11.4
+# github.com/moby/buildkit v0.11.5
 ## explicit; go 1.18
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -700,10 +700,12 @@ github.com/moby/buildkit/util/resolver
 github.com/moby/buildkit/util/resolver/config
 github.com/moby/buildkit/util/resolver/limited
 github.com/moby/buildkit/util/resolver/retryhandler
+github.com/moby/buildkit/util/rootless/mountopts
 github.com/moby/buildkit/util/rootless/specconv
 github.com/moby/buildkit/util/sshutil
 github.com/moby/buildkit/util/stack
 github.com/moby/buildkit/util/staticfs
+github.com/moby/buildkit/util/strutil
 github.com/moby/buildkit/util/suggest
 github.com/moby/buildkit/util/system
 github.com/moby/buildkit/util/throttle
