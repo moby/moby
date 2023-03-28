@@ -63,6 +63,7 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+		    "akerouanton",
 			"alexellis",
 			"andrewhsu",
 			"bsousaa",
@@ -280,6 +281,11 @@
 	Name = "Aaron Lehmann"
 	Email = "aaron.lehmann@docker.com"
 	GitHub = "aaronlehmann"
+
+	[people.akerouanton]
+	Name = "Albin Kerouanton"
+	Email = "albinker@gmail.com"
+	GitHub = "akerouanton"
 
 	[people.alexellis]
 	Name = "Alex Ellis"
