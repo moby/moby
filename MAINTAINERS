@@ -69,6 +69,7 @@
 			"crazy-max",
 			"fntlnz",
 			"gianarb",
+			"laurazard",
 			"olljanat",
 			"programmerq",
 			"ripcurld",
@@ -409,6 +410,11 @@
 	Name = "Kir Kolyshkin"
 	Email = "kolyshkin@gmail.com"
 	GitHub = "kolyshkin"
+
+	[people.laurazard]
+	Name = "Laura Brehm"
+	Email = "laura.brehm@docker.com"
+	GitHub = "laurazard"
 
 	[people.lk4d4]
 	Name = "Alexander Morozov"
