@@ -118,6 +118,34 @@ func (conf *Config) GetInitPath() string {
 	return DefaultInitBinary
 }
 
+// LookupInitPath returns an absolute path to the "docker-init" binary by searching relevant "libexec" directories (per FHS 3.0 & 2.3) followed by PATH
+func (conf *Config) LookupInitPath() (string, error) {
+	binary := conf.GetInitPath()
+	if filepath.IsAbs(binary) {
+		return binary, nil
+	}
+
+	for _, dir := range []string{
+		// FHS 3.0: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
+		// https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch04s07.html
+		"/usr/local/libexec/docker",
+		"/usr/libexec/docker",
+
+		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
+		// https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
+		"/usr/local/lib/docker",
+		"/usr/lib/docker",
+	} {
+		// exec.LookPath has a fast-path short-circuit for paths that contain "/" (skipping the PATH lookup) that then verifies whether the given path is likely to be an actual executable binary (so we invoke that instead of reimplementing the same checks)
+		if file, err := exec.LookPath(filepath.Join(dir, binary)); err == nil {
+			return file, nil
+		}
+	}
+
+	// if we checked all the "libexec" directories and found no matches, fall back to PATH
+	return exec.LookPath(binary)
+}
+
 // GetResolvConf returns the appropriate resolv.conf
 // Check setupResolvConf on how this is selected
 func (conf *Config) GetResolvConf() string {
