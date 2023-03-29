@@ -6,7 +6,6 @@ package libnetwork
 import (
 	"net"
 
-	"github.com/docker/docker/libnetwork/internal/setmatrix"
 	"github.com/sirupsen/logrus"
 )
 
@@ -144,7 +143,6 @@ func newService(name string, id string, ingressPorts []*PortConfig, serviceAlias
 		ingressPorts:  ingressPorts,
 		loadBalancers: make(map[string]*loadBalancer),
 		aliases:       serviceAliases,
-		ipToEndpoint:  setmatrix.NewSetMatrix(),
 	}
 }
 
@@ -174,7 +172,7 @@ func (c *Controller) cleanupServiceDiscovery(cleanupNID string) {
 	defer c.mu.Unlock()
 	if cleanupNID == "" {
 		logrus.Debugf("cleanupServiceDiscovery for all networks")
-		c.svcRecords = make(map[string]svcInfo)
+		c.svcRecords = make(map[string]*svcInfo)
 		return
 	}
 	logrus.Debugf("cleanupServiceDiscovery for network:%s", cleanupNID)

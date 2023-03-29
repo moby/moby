@@ -60,8 +60,8 @@ func (p *peerEntryDB) UnMarshalDB() peerEntry {
 }
 
 type peerMap struct {
-	// set of peerEntry, note they have to be objects and not pointers to maintain the proper equality checks
-	mp *setmatrix.SetMatrix
+	// set of peerEntry, note the values have to be objects and not pointers to maintain the proper equality checks
+	mp setmatrix.SetMatrix[peerEntryDB]
 	sync.Mutex
 }
 
@@ -122,7 +122,7 @@ func (d *driver) peerDbNetworkWalk(nid string, f func(*peerKey, *peerEntry) bool
 	for _, pKeyStr := range pMap.mp.Keys() {
 		entryDBList, ok := pMap.mp.Get(pKeyStr)
 		if ok {
-			peerEntryDB := entryDBList[0].(peerEntryDB)
+			peerEntryDB := entryDBList[0]
 			mp[pKeyStr] = peerEntryDB.UnMarshalDB()
 		}
 	}
@@ -170,11 +170,8 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
-		d.peerDb.mp[nid] = &peerMap{
-			mp: setmatrix.NewSetMatrix(),
-		}
-
-		pMap = d.peerDb.mp[nid]
+		pMap = &peerMap{}
+		d.peerDb.mp[nid] = pMap
 	}
 	d.peerDb.Unlock()
 

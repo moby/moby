@@ -355,9 +355,9 @@ github.com/creack/pty
 # github.com/cyphar/filepath-securejoin v0.2.3
 ## explicit; go 1.13
 github.com/cyphar/filepath-securejoin
-# github.com/deckarep/golang-set v0.0.0-20141123011944-ef32fa3046d9
-## explicit
-github.com/deckarep/golang-set
+# github.com/deckarep/golang-set/v2 v2.3.0
+## explicit; go 1.18
+github.com/deckarep/golang-set/v2
 # github.com/dimchansky/utfbom v1.1.1
 ## explicit
 github.com/dimchansky/utfbom

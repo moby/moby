@@ -9,7 +9,7 @@ import (
 )
 
 func TestSetSerialInsertDelete(t *testing.T) {
-	s := NewSetMatrix()
+	var s SetMatrix[string]
 
 	b, i := s.Insert("a", "1")
 	if !b || i != 1 {
@@ -135,7 +135,7 @@ func TestSetSerialInsertDelete(t *testing.T) {
 	}
 }
 
-func insertDeleteRotuine(ctx context.Context, endCh chan int, s *SetMatrix, key, value string) {
+func insertDeleteRotuine(ctx context.Context, endCh chan int, s *SetMatrix[string], key, value string) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -158,14 +158,14 @@ func insertDeleteRotuine(ctx context.Context, endCh chan int, s *SetMatrix, key,
 }
 
 func TestSetParallelInsertDelete(t *testing.T) {
-	s := NewSetMatrix()
+	var s SetMatrix[string]
 	parallelRoutines := 6
 	endCh := make(chan int)
 	// Let the routines running and competing for 10s
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	for i := 0; i < parallelRoutines; i++ {
-		go insertDeleteRotuine(ctx, endCh, s, "key-"+strconv.Itoa(i%3), strconv.Itoa(i))
+		go insertDeleteRotuine(ctx, endCh, &s, "key-"+strconv.Itoa(i%3), strconv.Itoa(i))
 	}
 	for parallelRoutines > 0 {
 		v := <-endCh

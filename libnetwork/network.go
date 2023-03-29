@@ -105,9 +105,9 @@ type svcMapEntry struct {
 }
 
 type svcInfo struct {
-	svcMap     *setmatrix.SetMatrix
-	svcIPv6Map *setmatrix.SetMatrix
-	ipMap      *setmatrix.SetMatrix
+	svcMap     setmatrix.SetMatrix[svcMapEntry]
+	svcIPv6Map setmatrix.SetMatrix[svcMapEntry]
+	ipMap      setmatrix.SetMatrix[ipInfo]
 	service    map[string][]servicePorts
 }
 
@@ -1362,7 +1362,7 @@ func (n *network) updateSvcRecord(ep *Endpoint, localEps []*Endpoint, isAdd bool
 	}
 }
 
-func addIPToName(ipMap *setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
+func addIPToName(ipMap *setmatrix.SetMatrix[ipInfo], name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Insert(reverseIP, ipInfo{
 		name:      name,
@@ -1370,7 +1370,7 @@ func addIPToName(ipMap *setmatrix.SetMatrix, name, serviceID string, ip net.IP) 
 	})
 }
 
-func delIPToName(ipMap *setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
+func delIPToName(ipMap *setmatrix.SetMatrix[ipInfo], name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Remove(reverseIP, ipInfo{
 		name:      name,
@@ -1378,7 +1378,7 @@ func delIPToName(ipMap *setmatrix.SetMatrix, name, serviceID string, ip net.IP) 
 	})
 }
 
-func addNameToIP(svcMap *setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
+func addNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID string, epIP net.IP) {
 	// Since DNS name resolution is case-insensitive, Use the lower-case form
 	// of the name as the key into svcMap
 	lowerCaseName := strings.ToLower(name)
@@ -1388,7 +1388,7 @@ func addNameToIP(svcMap *setmatrix.SetMatrix, name, serviceID string, epIP net.I
 	})
 }
 
-func delNameToIP(svcMap *setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
+func delNameToIP(svcMap *setmatrix.SetMatrix[svcMapEntry], name, serviceID string, epIP net.IP) {
 	lowerCaseName := strings.ToLower(name)
 	svcMap.Remove(lowerCaseName, svcMapEntry{
 		ip:        epIP.String(),
@@ -1411,24 +1411,20 @@ func (n *network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP
 
 	sr, ok := c.svcRecords[networkID]
 	if !ok {
-		sr = svcInfo{
-			svcMap:     setmatrix.NewSetMatrix(),
-			svcIPv6Map: setmatrix.NewSetMatrix(),
-			ipMap:      setmatrix.NewSetMatrix(),
-		}
+		sr = &svcInfo{}
 		c.svcRecords[networkID] = sr
 	}
 
 	if ipMapUpdate {
-		addIPToName(sr.ipMap, name, serviceID, epIP)
+		addIPToName(&sr.ipMap, name, serviceID, epIP)
 		if epIPv6 != nil {
-			addIPToName(sr.ipMap, name, serviceID, epIPv6)
+			addIPToName(&sr.ipMap, name, serviceID, epIPv6)
 		}
 	}
 
-	addNameToIP(sr.svcMap, name, serviceID, epIP)
+	addNameToIP(&sr.svcMap, name, serviceID, epIP)
 	if epIPv6 != nil {
-		addNameToIP(sr.svcIPv6Map, name, serviceID, epIPv6)
+		addNameToIP(&sr.svcIPv6Map, name, serviceID, epIPv6)
 	}
 }
 
@@ -1451,17 +1447,17 @@ func (n *network) deleteSvcRecords(eID, name, serviceID string, epIP net.IP, epI
 	}
 
 	if ipMapUpdate {
-		delIPToName(sr.ipMap, name, serviceID, epIP)
+		delIPToName(&sr.ipMap, name, serviceID, epIP)
 
 		if epIPv6 != nil {
-			delIPToName(sr.ipMap, name, serviceID, epIPv6)
+			delIPToName(&sr.ipMap, name, serviceID, epIPv6)
 		}
 	}
 
-	delNameToIP(sr.svcMap, name, serviceID, epIP)
+	delNameToIP(&sr.svcMap, name, serviceID, epIP)
 
 	if epIPv6 != nil {
-		delNameToIP(sr.svcIPv6Map, name, serviceID, epIPv6)
+		delNameToIP(&sr.svcIPv6Map, name, serviceID, epIPv6)
 	}
 }
 
@@ -1480,7 +1476,7 @@ func (n *network) getSvcRecords(ep *Endpoint) []etchosts.Record {
 	n.ctrlr.mu.Lock()
 	defer n.ctrlr.mu.Unlock()
 	sr, ok := n.ctrlr.svcRecords[n.id]
-	if !ok || sr.svcMap == nil {
+	if !ok {
 		return nil
 	}
 
@@ -1503,7 +1499,7 @@ func (n *network) getSvcRecords(ep *Endpoint) []etchosts.Record {
 
 		recs = append(recs, etchosts.Record{
 			Hosts: k,
-			IP:    mapEntryList[0].(svcMapEntry).ip,
+			IP:    mapEntryList[0].ip,
 		})
 	}
 
@@ -2005,9 +2001,9 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 		noDup := make(map[string]bool)
 		var ipLocal []net.IP
 		for _, ip := range ipSet {
-			if _, dup := noDup[ip.(svcMapEntry).ip]; !dup {
-				noDup[ip.(svcMapEntry).ip] = true
-				ipLocal = append(ipLocal, net.ParseIP(ip.(svcMapEntry).ip))
+			if _, dup := noDup[ip.ip]; !dup {
+				noDup[ip.ip] = true
+				ipLocal = append(ipLocal, net.ParseIP(ip.ip))
 			}
 		}
 		return ipLocal, ok
@@ -2058,13 +2054,7 @@ func (n *network) ResolveIP(ip string) string {
 	// network db notifications)
 	// In such cases the resolution will be based on the first element of the set, and can vary
 	// during the system stabilitation
-	elem, ok := elemSet[0].(ipInfo)
-	if !ok {
-		setStr, b := sr.ipMap.String(ip)
-		logrus.Errorf("expected set of ipInfo type for key %s set:%t %s", ip, b, setStr)
-		return ""
-	}
-
+	elem := elemSet[0]
 	if elem.extResolver {
 		return ""
 	}

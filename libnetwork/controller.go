@@ -94,7 +94,7 @@ type Controller struct {
 	extKeyListener   net.Listener
 	watchCh          chan *Endpoint
 	unWatchCh        chan *Endpoint
-	svcRecords       map[string]svcInfo
+	svcRecords       map[string]*svcInfo
 	nmap             map[string]*netWatch
 	serviceBindings  map[serviceKey]*service
 	defOsSbox        osl.Sandbox
@@ -120,7 +120,7 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		id:               stringid.GenerateRandomID(),
 		cfg:              config.New(cfgOptions...),
 		sandboxes:        sandboxTable{},
-		svcRecords:       make(map[string]svcInfo),
+		svcRecords:       make(map[string]*svcInfo),
 		serviceBindings:  make(map[serviceKey]*service),
 		agentInitDone:    make(chan struct{}),
 		networkLocker:    locker.New(),
