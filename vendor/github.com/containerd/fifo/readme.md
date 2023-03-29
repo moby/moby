@@ -1,7 +1,9 @@
 ### fifo
 
-[![Build Status](https://travis-ci.org/containerd/fifo.svg?branch=master)](https://travis-ci.org/containerd/fifo)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/containerd/fifo)](https://pkg.go.dev/github.com/containerd/fifo)
+[![Build Status](https://github.com/containerd/fifo/workflows/CI/badge.svg)](https://github.com/containerd/fifo/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/containerd/fifo/branch/master/graph/badge.svg)](https://codecov.io/gh/containerd/fifo)
+[![Go Report Card](https://goreportcard.com/badge/github.com/containerd/fifo)](https://goreportcard.com/report/github.com/containerd/fifo)
 
 Go package for handling fifos in a sane way.
 
