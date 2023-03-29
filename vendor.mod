@@ -31,7 +31,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/creack/pty v1.1.11
-	github.com/deckarep/golang-set v0.0.0-20141123011944-ef32fa3046d9
+	github.com/deckarep/golang-set/v2 v2.3.0
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c
