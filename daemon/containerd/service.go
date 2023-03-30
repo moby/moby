@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/container"
+	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -27,6 +28,7 @@ type ImageService struct {
 	snapshotter     string
 	registryHosts   RegistryHostsProvider
 	registryService RegistryConfigProvider
+	eventsService   *daemonevents.Events
 }
 
 type RegistryHostsProvider interface {
@@ -37,14 +39,24 @@ type RegistryConfigProvider interface {
 	IsInsecureRegistry(host string) bool
 }
 
+type ImageServiceConfig struct {
+	Client        *containerd.Client
+	Containers    container.Store
+	Snapshotter   string
+	HostsProvider RegistryHostsProvider
+	Registry      RegistryConfigProvider
+	EventsService *daemonevents.Events
+}
+
 // NewService creates a new ImageService.
-func NewService(c *containerd.Client, containers container.Store, snapshotter string, hostsProvider RegistryHostsProvider, registry RegistryConfigProvider) *ImageService {
+func NewService(config ImageServiceConfig) *ImageService {
 	return &ImageService{
-		client:          c,
-		containers:      containers,
-		snapshotter:     snapshotter,
-		registryHosts:   hostsProvider,
-		registryService: registry,
+		client:          config.Client,
+		containers:      config.Containers,
+		snapshotter:     config.Snapshotter,
+		registryHosts:   config.HostsProvider,
+		registryService: config.Registry,
+		eventsService:   config.EventsService,
 	}
 }
 
