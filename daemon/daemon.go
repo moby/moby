@@ -1012,7 +1012,14 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err := configureKernelSecuritySupport(config, driverName); err != nil {
 			return nil, err
 		}
-		d.imageService = ctrd.NewService(d.containerdCli, d.containers, driverName, d, d.registryService)
+		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
+			Client:        d.containerdCli,
+			Containers:    d.containers,
+			Snapshotter:   driverName,
+			HostsProvider: d,
+			Registry:      d.registryService,
+			EventsService: d.EventsService,
+		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:                      config.Root,
