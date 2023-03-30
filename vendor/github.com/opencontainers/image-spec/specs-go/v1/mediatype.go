@@ -54,4 +54,7 @@ const (
 
 	// MediaTypeImageConfig specifies the media type for the image configuration.
 	MediaTypeImageConfig = "application/vnd.oci.image.config.v1+json"
+
+	// MediaTypeArtifactManifest specifies the media type for a content descriptor.
+	MediaTypeArtifactManifest = "application/vnd.oci.artifact.manifest.v1+json"
 )
