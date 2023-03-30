@@ -76,7 +76,6 @@ func setLinux(s *Spec) {
 	}
 }
 
-// nolint
 func setResources(s *Spec) {
 	if s.Linux != nil {
 		if s.Linux.Resources == nil {
@@ -90,7 +89,7 @@ func setResources(s *Spec) {
 	}
 }
 
-// nolint
+//nolint:nolintlint,unused // not used on all platforms
 func setCPU(s *Spec) {
 	setResources(s)
 	if s.Linux != nil {
@@ -229,6 +228,7 @@ func WithProcessArgs(args ...string) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		setProcess(s)
 		s.Process.Args = args
+		s.Process.CommandLine = ""
 		return nil
 	}
 }
@@ -358,17 +358,19 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			return err
 		}
 		var (
-			ociimage v1.Image
-			config   v1.ImageConfig
+			imageConfigBytes []byte
+			ociimage         v1.Image
+			config           v1.ImageConfig
 		)
 		switch ic.MediaType {
 		case v1.MediaTypeImageConfig, images.MediaTypeDockerSchema2Config:
-			p, err := content.ReadBlob(ctx, image.ContentStore(), ic)
+			var err error
+			imageConfigBytes, err = content.ReadBlob(ctx, image.ContentStore(), ic)
 			if err != nil {
 				return err
 			}
 
-			if err := json.Unmarshal(p, &ociimage); err != nil {
+			if err := json.Unmarshal(imageConfigBytes, &ociimage); err != nil {
 				return err
 			}
 			config = ociimage.Config
@@ -404,12 +406,72 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			// even if there is no specified user in the image config
 			return WithAdditionalGIDs("root")(ctx, client, c, s)
 		} else if s.Windows != nil {
+			// imageExtended is a superset of the oci Image struct that changes
+			// the Config type to be imageConfigExtended in order to add the
+			// ability to deserialize `ArgsEscaped` which is not an OCI field,
+			// but is supported by Docker built images.
+			type imageExtended struct {
+				Config struct {
+					ArgsEscaped bool `json:"ArgsEscaped,omitempty"`
+				}
+			}
+			// Deserialize the extended image format for Windows.
+			var ociImageExtended imageExtended
+			if err := json.Unmarshal(imageConfigBytes, &ociImageExtended); err != nil {
+				return err
+			}
+			argsEscaped := ociImageExtended.Config.ArgsEscaped
+
 			s.Process.Env = replaceOrAppendEnvValues(config.Env, s.Process.Env)
+
+			// To support Docker ArgsEscaped on Windows we need to combine the
+			// image Entrypoint & (Cmd Or User Args) while taking into account
+			// if Docker has already escaped them in the image config. When
+			// Docker sets `ArgsEscaped==true` in the config it has pre-escaped
+			// either Entrypoint or Cmd or both. Cmd should always be treated as
+			// arguments appended to Entrypoint unless:
+			//
+			// 1. Entrypoint does not exist, in which case Cmd[0] is the
+			// executable.
+			//
+			// 2. The user overrides the Cmd with User Args when activating the
+			// container in which case those args should be appended to the
+			// Entrypoint if it exists.
+			//
+			// To effectively do this we need to know if the arguments came from
+			// the user or if the arguments came from the image config when
+			// ArgsEscaped==true. In this case we only want to escape the
+			// additional user args when forming the complete CommandLine. This
+			// is safe in both cases of Entrypoint or Cmd being set because
+			// Docker will always escape them to an array of length one. Thus in
+			// both cases it is the "executable" portion of the command.
+			//
+			// In the case ArgsEscaped==false, Entrypoint or Cmd will contain
+			// any number of entries that are all unescaped and can simply be
+			// combined (potentially overwriting Cmd with User Args if present)
+			// and forwarded the container start as an Args array.
 			cmd := config.Cmd
+			cmdFromImage := true
 			if len(args) > 0 {
 				cmd = args
+				cmdFromImage = false
 			}
-			s.Process.Args = append(config.Entrypoint, cmd...)
+
+			cmd = append(config.Entrypoint, cmd...)
+			if len(cmd) == 0 {
+				return errors.New("no arguments specified")
+			}
+
+			if argsEscaped && (len(config.Entrypoint) > 0 || cmdFromImage) {
+				s.Process.Args = nil
+				s.Process.CommandLine = cmd[0]
+				if len(cmd) > 1 {
+					s.Process.CommandLine += " " + escapeAndCombineArgs(cmd[1:])
+				}
+			} else {
+				s.Process.Args = cmd
+				s.Process.CommandLine = ""
+			}
 
 			s.Process.Cwd = config.WorkingDir
 			s.Process.User = specs.User{

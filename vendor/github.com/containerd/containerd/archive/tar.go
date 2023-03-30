@@ -30,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/archive/tarheader"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/continuity/fs"
@@ -554,7 +555,8 @@ func (cw *ChangeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 			}
 		}
 
-		hdr, err := tar.FileInfoHeader(f, link)
+		// Use FileInfoHeaderNoLookups to avoid propagating user names and group names from the host
+		hdr, err := tarheader.FileInfoHeaderNoLookups(f, link)
 		if err != nil {
 			return err
 		}

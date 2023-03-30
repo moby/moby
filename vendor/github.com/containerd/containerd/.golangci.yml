@@ -1,27 +1,55 @@
 linters:
   enable:
-    - structcheck
-    - varcheck
-    - staticcheck
-    - unconvert
+    - exportloopref # Checks for pointers to enclosing loop variables
     - gofmt
     - goimports
-    - revive
+    - gosec
     - ineffassign
-    - vet
-    - unused
     - misspell
+    - nolintlint
+    - revive
+    - staticcheck
+    - tenv # Detects using os.Setenv instead of t.Setenv since Go 1.17
+    - unconvert
+    - unused
+    - vet
+    - dupword # Checks for duplicate words in the source code
   disable:
     - errcheck
 
 issues:
   include:
     - EXC0002
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  # Only using / doesn't work due to https://github.com/golangci/golangci-lint/issues/1398.
+  exclude-rules:
+    - path: 'archive[\\/]tarheader[\\/]'
+      # conversion is necessary on Linux, unnecessary on macOS
+      text: "unnecessary conversion"
+
+linters-settings:
+  gosec:
+    # The following issues surfaced when `gosec` linter
+    # was enabled. They are temporarily excluded to unblock
+    # the existing workflow, but still to be addressed by
+    # future works.
+    excludes:
+      - G204
+      - G305
+      - G306
+      - G402
+      - G404
 
 run:
   timeout: 8m
   skip-dirs:
     - api
+    - cluster
     - design
     - docs
     - docs/man
+    - releases
+    - reports
+    - test # e2e scripts

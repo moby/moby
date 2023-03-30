@@ -336,7 +336,7 @@ type ListImagesRequest struct {
 	// filters. Expanded, images that match the following will be
 	// returned:
 	//
-	//   filters[0] or filters[1] or ... or filters[n-1] or filters[n]
+	//	filters[0] or filters[1] or ... or filters[n-1] or filters[n]
 	//
 	// If filters is zero-length or nil, all items will be returned.
 	Filters              []string `protobuf:"bytes,1,rep,name=filters,proto3" json:"filters,omitempty"`
