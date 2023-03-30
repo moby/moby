@@ -87,14 +87,14 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	}
 
 	layers := append(manifest.Layers, diffLayerDesc)
-	commitManifestDesc, configDigest, err := writeContentsForImage(ctx, i.snapshotter, cs, imageConfig, layers)
+	commitManifestDesc, err := writeContentsForImage(ctx, i.snapshotter, cs, imageConfig, layers)
 	if err != nil {
 		return "", err
 	}
 
 	// image create
 	img := images.Image{
-		Name:      danglingImageName(configDigest.Digest()),
+		Name:      danglingImageName(commitManifestDesc.Digest),
 		Target:    commitManifestDesc,
 		CreatedAt: time.Now(),
 	}
@@ -156,10 +156,10 @@ func generateCommitImageConfig(ctx context.Context, container *containerapi.Conf
 }
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.
-func writeContentsForImage(ctx context.Context, snName string, cs content.Store, newConfig ocispec.Image, layers []ocispec.Descriptor) (ocispec.Descriptor, image.ID, error) {
+func writeContentsForImage(ctx context.Context, snName string, cs content.Store, newConfig ocispec.Image, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
 	newConfigJSON, err := json.Marshal(newConfig)
 	if err != nil {
-		return ocispec.Descriptor{}, "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	configDesc := ocispec.Descriptor{
@@ -184,7 +184,7 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 
 	newMfstJSON, err := json.MarshalIndent(newMfst, "", "    ")
 	if err != nil {
-		return ocispec.Descriptor{}, "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	newMfstDesc := ocispec.Descriptor{
@@ -203,7 +203,7 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 
 	err = content.WriteBlob(ctx, cs, newMfstDesc.Digest.String(), bytes.NewReader(newMfstJSON), newMfstDesc, content.WithLabels(labels))
 	if err != nil {
-		return ocispec.Descriptor{}, "", err
+		return ocispec.Descriptor{}, err
 	}
 
 	// config should reference to snapshotter
@@ -212,10 +212,10 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 	})
 	err = content.WriteBlob(ctx, cs, configDesc.Digest.String(), bytes.NewReader(newConfigJSON), configDesc, labelOpt)
 	if err != nil {
-		return ocispec.Descriptor{}, "", err
+		return ocispec.Descriptor{}, err
 	}
 
-	return newMfstDesc, image.ID(configDesc.Digest), nil
+	return newMfstDesc, nil
 }
 
 // createDiff creates a layer diff into containerd's content store.
