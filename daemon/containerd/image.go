@@ -25,6 +25,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -103,9 +104,22 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			if i.UpdatedAt.After(lastUpdated) {
 				lastUpdated = i.UpdatedAt
 			}
+			if isDanglingImage(i) {
+				if len(tagged) > 1 {
+					// This is unexpected - dangling image should be deleted
+					// as soon as another image with the same target is created.
+					// Log a warning, but don't error out the whole operation.
+					logrus.WithField("refs", tagged).Warn("multiple images have the same target, but one of them is still dangling")
+				}
+				continue
+			}
+
 			name, err := reference.ParseNamed(i.Name)
 			if err != nil {
-				return nil, err
+				// This is inconsistent with `docker image ls` which will
+				// still include the malformed name in RepoTags.
+				logrus.WithField("name", name).WithError(err).Error("failed to parse image name as reference")
+				continue
 			}
 			tags = append(tags, name)
 		}
