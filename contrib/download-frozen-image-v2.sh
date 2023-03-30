@@ -268,10 +268,10 @@ get_target_variant() {
 while [ $# -gt 0 ]; do
 	imageTag="$1"
 	shift
-	image="${imageTag%%[:@]*}"
-	imageTag="${imageTag#*:}"
-	digest="${imageTag##*@}"
-	tag="${imageTag%%@*}"
+	digest="$(echo $imageTag|cut -d@ -sf2-)"
+	imageTag="$(echo $imageTag|cut -d@ -f1)"
+	image="$(echo $imageTag|cut -d: -f1)"
+	tag="$(echo $imageTag|cut -d: -sf2)"
 
 	# add prefix library if passed official image
 	if [[ "$image" != *"/"* ]]; then
