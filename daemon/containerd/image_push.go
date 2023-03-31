@@ -108,15 +108,8 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 		},
 	)
 
-	appendSource, err := docker.AppendDistributionSourceLabel(realStore, targetRef.String())
-	if err != nil {
-		// This shouldn't happen at this point because the reference would have to be invalid
-		// and if it was, then it would error out earlier.
-		return errdefs.Unknown(errors.Wrap(err, "failed to create an handler that appends distribution source label to pushed content"))
-	}
-
 	handlerWrapper := func(h images.Handler) images.Handler {
-		return containerdimages.Handlers(addChildrenToJobs, h, appendSource)
+		return containerdimages.Handlers(addChildrenToJobs, h)
 	}
 
 	err = remotes.PushContent(ctx, pusher, target, store, limiter, platforms.All, handlerWrapper)
@@ -132,7 +125,21 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 					err))
 			}
 		}
+	} else {
+		appendSource, err := docker.AppendDistributionSourceLabel(realStore, targetRef.String())
+		if err != nil {
+			// This shouldn't happen at this point because the reference would have to be invalid
+			// and if it was, then it would error out earlier.
+			return errdefs.Unknown(errors.Wrap(err, "failed to create an handler that appends distribution source label to pushed content"))
+		}
+
+		if err := containerdimages.Dispatch(ctx, appendSource, nil, target); err != nil {
+			// Shouldn't happen, but even if it would fail, then make it only a warning
+			// because it doesn't affect the pushed data.
+			logrus.WithError(err).Warn("failed to append distribution source labels to pushed content")
+		}
 	}
+
 	return err
 }
 
