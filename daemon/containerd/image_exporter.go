@@ -102,8 +102,6 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-//
-// TODO(thaJeztah): produce JSON stream progress response and image events; see https://github.com/moby/moby/issues/43910
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	// TODO(vvoland): Allow user to pass platform
 	platform := cplatforms.All
@@ -153,7 +151,9 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 
 		fmt.Fprintf(progress, "Loaded image: %s\n", name)
+		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), "load")
 	}
+
 	return nil
 }
 
