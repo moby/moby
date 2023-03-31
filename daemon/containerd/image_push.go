@@ -56,10 +56,10 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 	store := i.client.ContentStore()
 
 	resolver, tracker := i.newResolverFromAuthConfig(authConfig)
-	pushProgress := pushProgress{Tracker: tracker}
+	progress := pushProgress{Tracker: tracker}
 	jobs := newJobs()
 	finishProgress := jobs.showProgress(ctx, out, combinedProgress([]progressUpdater{
-		&pushProgress,
+		&progress,
 		pullProgress{ShowExists: false, Store: store},
 	}))
 	defer finishProgress()
@@ -71,7 +71,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 		return err
 	}
 	for dgst := range mountableBlobs {
-		pushProgress.addMountable(dgst)
+		progress.addMountable(dgst)
 	}
 
 	// Create a store which fakes the local existence of possibly mountable blobs.
@@ -201,9 +201,8 @@ func extractDistributionSources(labels map[string]string) []distributionSource {
 	// Check if this blob has a distributionSource label
 	// if yes, read it as source
 	for k, v := range labels {
-		registry := strings.TrimPrefix(k, labelDistributionSource)
-		if registry != k {
-			ref, err := reference.ParseNamed(registry + "/" + v)
+		if reg := strings.TrimPrefix(k, labelDistributionSource); reg != k {
+			ref, err := reference.ParseNamed(reg + "/" + v)
 			if err != nil {
 				continue
 			}
@@ -242,15 +241,15 @@ func canBeMounted(mediaType string, targetRef reference.Named, isInsecureFunc fu
 		return false
 	}
 
-	registry := reference.Domain(targetRef)
+	reg := reference.Domain(targetRef)
 
 	// Cross-repo mount doesn't seem to work with insecure registries.
-	isInsecure := isInsecureFunc(registry)
+	isInsecure := isInsecureFunc(reg)
 	if isInsecure {
 		return false
 	}
 
 	// If the source registry is the same as the one we are pushing to
 	// then the cross-repo mount will work.
-	return registry == reference.Domain(source.registryRef)
+	return reg == reference.Domain(source.registryRef)
 }

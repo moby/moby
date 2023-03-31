@@ -71,14 +71,16 @@ func (j *jobs) showProgress(ctx context.Context, out progress.Output, updater pr
 }
 
 // Add adds a descriptor to be tracked
-func (j *jobs) Add(desc ocispec.Descriptor) {
+func (j *jobs) Add(desc ...ocispec.Descriptor) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	if _, ok := j.descs[desc.Digest]; ok {
-		return
+	for _, d := range desc {
+		if _, ok := j.descs[d.Digest]; ok {
+			continue
+		}
+		j.descs[d.Digest] = d
 	}
-	j.descs[desc.Digest] = desc
 }
 
 // Remove removes a descriptor
