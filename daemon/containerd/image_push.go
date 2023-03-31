@@ -219,14 +219,16 @@ func extractDistributionSources(labels map[string]string) []distributionSource {
 	// if yes, read it as source
 	for k, v := range labels {
 		if reg := strings.TrimPrefix(k, labelDistributionSource); reg != k {
-			ref, err := reference.ParseNamed(reg + "/" + v)
-			if err != nil {
-				continue
-			}
+			for _, repo := range strings.Split(v, ",") {
+				ref, err := reference.ParseNamed(reg + "/" + repo)
+				if err != nil {
+					continue
+				}
 
-			sources = append(sources, distributionSource{
-				registryRef: ref,
-			})
+				sources = append(sources, distributionSource{
+					registryRef: ref,
+				})
+			}
 		}
 	}
 
