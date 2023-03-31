@@ -64,8 +64,8 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 
 	resolver, tracker := i.newResolverFromAuthConfig(authConfig)
 	progress := pushProgress{Tracker: tracker}
-	jobs := newJobs()
-	finishProgress := jobs.showProgress(ctx, out, combinedProgress([]progressUpdater{
+	jobsQueue := newJobs()
+	finishProgress := jobsQueue.showProgress(ctx, out, combinedProgress([]progressUpdater{
 		&progress,
 		pullProgress{ShowExists: false, Store: store},
 	}))
@@ -73,7 +73,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 
 	var limiter *semaphore.Weighted = nil // TODO: Respect max concurrent downloads/uploads
 
-	mountableBlobs, err := findMissingMountable(ctx, store, jobs, target, targetRef, limiter)
+	mountableBlobs, err := findMissingMountable(ctx, store, jobsQueue, target, targetRef, limiter)
 	if err != nil {
 		return err
 	}
@@ -99,10 +99,10 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 				return nil, err
 			}
 			for _, c := range children {
-				jobs.Add(c)
+				jobsQueue.Add(c)
 			}
 
-			jobs.Add(desc)
+			jobsQueue.Add(desc)
 
 			return nil, nil
 		},
@@ -146,7 +146,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 // findMissingMountable will walk the target descriptor recursively and return
 // missing contents with their distribution source which could potentially
 // be cross-repo mounted.
-func findMissingMountable(ctx context.Context, store content.Store, jobs *jobs,
+func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 	target ocispec.Descriptor, targetRef reference.Named, limiter *semaphore.Weighted,
 ) (map[digest.Digest]distributionSource, error) {
 	mountableBlobs := map[digest.Digest]distributionSource{}
@@ -173,7 +173,7 @@ func findMissingMountable(ctx context.Context, store content.Store, jobs *jobs,
 					mutex.Lock()
 					mountableBlobs[desc.Digest] = source
 					mutex.Unlock()
-					jobs.Add(desc)
+					queue.Add(desc)
 					break
 				}
 			}
