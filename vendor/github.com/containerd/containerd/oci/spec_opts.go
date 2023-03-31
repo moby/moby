@@ -406,22 +406,6 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			// even if there is no specified user in the image config
 			return WithAdditionalGIDs("root")(ctx, client, c, s)
 		} else if s.Windows != nil {
-			// imageExtended is a superset of the oci Image struct that changes
-			// the Config type to be imageConfigExtended in order to add the
-			// ability to deserialize `ArgsEscaped` which is not an OCI field,
-			// but is supported by Docker built images.
-			type imageExtended struct {
-				Config struct {
-					ArgsEscaped bool `json:"ArgsEscaped,omitempty"`
-				}
-			}
-			// Deserialize the extended image format for Windows.
-			var ociImageExtended imageExtended
-			if err := json.Unmarshal(imageConfigBytes, &ociImageExtended); err != nil {
-				return err
-			}
-			argsEscaped := ociImageExtended.Config.ArgsEscaped
-
 			s.Process.Env = replaceOrAppendEnvValues(config.Env, s.Process.Env)
 
 			// To support Docker ArgsEscaped on Windows we need to combine the
@@ -462,7 +446,7 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 				return errors.New("no arguments specified")
 			}
 
-			if argsEscaped && (len(config.Entrypoint) > 0 || cmdFromImage) {
+			if config.ArgsEscaped && (len(config.Entrypoint) > 0 || cmdFromImage) {
 				s.Process.Args = nil
 				s.Process.CommandLine = cmd[0]
 				if len(cmd) > 1 {
