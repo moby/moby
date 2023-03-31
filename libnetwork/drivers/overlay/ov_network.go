@@ -4,7 +4,6 @@
 package overlay
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -15,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
@@ -49,16 +47,8 @@ type subnet struct {
 	gwIP      *net.IPNet
 }
 
-type subnetJSON struct {
-	SubnetIP string
-	GwIP     string
-	Vni      uint32
-}
-
 type network struct {
 	id        string
-	dbIndex   uint64
-	dbExists  bool
 	sbox      osl.Sandbox
 	endpoints endpointTable
 	driver    *driver
@@ -703,121 +693,6 @@ func (n *network) sandbox() osl.Sandbox {
 	return n.sbox
 }
 
-func (n *network) Key() []string {
-	return []string{"overlay", "network", n.id}
-}
-
-func (n *network) KeyPrefix() []string {
-	return []string{"overlay", "network"}
-}
-
-func (n *network) Value() []byte {
-	m := map[string]interface{}{}
-
-	netJSON := []*subnetJSON{}
-
-	for _, s := range n.subnets {
-		sj := &subnetJSON{
-			SubnetIP: s.subnetIP.String(),
-			GwIP:     s.gwIP.String(),
-			Vni:      s.vni,
-		}
-		netJSON = append(netJSON, sj)
-	}
-
-	m["secure"] = n.secure
-	m["subnets"] = netJSON
-	m["mtu"] = n.mtu
-	b, err := json.Marshal(m)
-	if err != nil {
-		return []byte{}
-	}
-
-	return b
-}
-
-func (n *network) Index() uint64 {
-	return n.dbIndex
-}
-
-func (n *network) SetIndex(index uint64) {
-	n.dbIndex = index
-	n.dbExists = true
-}
-
-func (n *network) Exists() bool {
-	return n.dbExists
-}
-
-func (n *network) Skip() bool {
-	return false
-}
-
-func (n *network) SetValue(value []byte) error {
-	var (
-		m       map[string]interface{}
-		newNet  bool
-		isMap   = true
-		netJSON = []*subnetJSON{}
-	)
-
-	if err := json.Unmarshal(value, &m); err != nil {
-		err := json.Unmarshal(value, &netJSON)
-		if err != nil {
-			return err
-		}
-		isMap = false
-	}
-
-	if len(n.subnets) == 0 {
-		newNet = true
-	}
-
-	if isMap {
-		if val, ok := m["secure"]; ok {
-			n.secure = val.(bool)
-		}
-		if val, ok := m["mtu"]; ok {
-			n.mtu = int(val.(float64))
-		}
-		bytes, err := json.Marshal(m["subnets"])
-		if err != nil {
-			return err
-		}
-		if err := json.Unmarshal(bytes, &netJSON); err != nil {
-			return err
-		}
-	}
-
-	for _, sj := range netJSON {
-		subnetIPstr := sj.SubnetIP
-		gwIPstr := sj.GwIP
-		vni := sj.Vni
-
-		subnetIP, _ := types.ParseCIDR(subnetIPstr)
-		gwIP, _ := types.ParseCIDR(gwIPstr)
-
-		if newNet {
-			s := &subnet{
-				subnetIP: subnetIP,
-				gwIP:     gwIP,
-				vni:      vni,
-			}
-			n.subnets = append(n.subnets, s)
-		} else {
-			sNet := n.getMatchingSubnet(subnetIP)
-			if sNet != nil {
-				sNet.vni = vni
-			}
-		}
-	}
-	return nil
-}
-
-func (n *network) DataScope() string {
-	return datastore.GlobalScope
-}
-
 // getSubnetforIP returns the subnet to which the given IP belongs
 func (n *network) getSubnetforIP(ip *net.IPNet) *subnet {
 	for _, s := range n.subnets {
@@ -828,25 +703,6 @@ func (n *network) getSubnetforIP(ip *net.IPNet) *subnet {
 			continue
 		}
 		if s.subnetIP.Contains(ip.IP) {
-			return s
-		}
-	}
-	return nil
-}
-
-// getMatchingSubnet return the network's subnet that matches the input
-func (n *network) getMatchingSubnet(ip *net.IPNet) *subnet {
-	if ip == nil {
-		return nil
-	}
-	for _, s := range n.subnets {
-		// first check if the mask lengths are the same
-		i, _ := s.subnetIP.Mask.Size()
-		j, _ := ip.Mask.Size()
-		if i != j {
-			continue
-		}
-		if s.subnetIP.IP.Equal(ip.IP) {
 			return s
 		}
 	}

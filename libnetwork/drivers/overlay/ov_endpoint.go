@@ -4,30 +4,23 @@
 package overlay
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
 
 type endpointTable map[string]*endpoint
 
-const overlayEndpointPrefix = "overlay/endpoint"
-
 type endpoint struct {
-	id       string
-	nid      string
-	ifName   string
-	mac      net.HardwareAddr
-	addr     *net.IPNet
-	dbExists bool
-	dbIndex  uint64
+	id     string
+	nid    string
+	ifName string
+	mac    net.HardwareAddr
+	addr   *net.IPNet
 }
 
 func (n *network) endpoint(eid string) *endpoint {
@@ -132,100 +125,4 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	return make(map[string]interface{}), nil
-}
-
-func (ep *endpoint) DataScope() string {
-	return datastore.LocalScope
-}
-
-func (ep *endpoint) New() datastore.KVObject {
-	return &endpoint{}
-}
-
-func (ep *endpoint) CopyTo(o datastore.KVObject) error {
-	dstep := o.(*endpoint)
-	*dstep = *ep
-	return nil
-}
-
-func (ep *endpoint) Key() []string {
-	return []string{overlayEndpointPrefix, ep.id}
-}
-
-func (ep *endpoint) KeyPrefix() []string {
-	return []string{overlayEndpointPrefix}
-}
-
-func (ep *endpoint) Index() uint64 {
-	return ep.dbIndex
-}
-
-func (ep *endpoint) SetIndex(index uint64) {
-	ep.dbIndex = index
-	ep.dbExists = true
-}
-
-func (ep *endpoint) Exists() bool {
-	return ep.dbExists
-}
-
-func (ep *endpoint) Skip() bool {
-	return false
-}
-
-func (ep *endpoint) Value() []byte {
-	b, err := json.Marshal(ep)
-	if err != nil {
-		return nil
-	}
-	return b
-}
-
-func (ep *endpoint) SetValue(value []byte) error {
-	return json.Unmarshal(value, ep)
-}
-
-func (ep *endpoint) MarshalJSON() ([]byte, error) {
-	epMap := make(map[string]interface{})
-
-	epMap["id"] = ep.id
-	epMap["nid"] = ep.nid
-	if ep.ifName != "" {
-		epMap["ifName"] = ep.ifName
-	}
-	if ep.addr != nil {
-		epMap["addr"] = ep.addr.String()
-	}
-	if len(ep.mac) != 0 {
-		epMap["mac"] = ep.mac.String()
-	}
-
-	return json.Marshal(epMap)
-}
-
-func (ep *endpoint) UnmarshalJSON(value []byte) error {
-	var (
-		err   error
-		epMap map[string]interface{}
-	)
-
-	json.Unmarshal(value, &epMap)
-
-	ep.id = epMap["id"].(string)
-	ep.nid = epMap["nid"].(string)
-	if v, ok := epMap["mac"]; ok {
-		if ep.mac, err = net.ParseMAC(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint interface mac address after json unmarshal: %s", v.(string))
-		}
-	}
-	if v, ok := epMap["addr"]; ok {
-		if ep.addr, err = types.ParseCIDR(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint interface ipv4 address after json unmarshal: %v", err)
-		}
-	}
-	if v, ok := epMap["ifName"]; ok {
-		ep.ifName = v.(string)
-	}
-
-	return nil
 }
