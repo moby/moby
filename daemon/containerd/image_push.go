@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
@@ -136,8 +137,9 @@ func (i *ImageService) findMissingMountable(ctx context.Context, store content.S
 	target ocispec.Descriptor, targetRef reference.Named, limiter *semaphore.Weighted,
 ) (map[digest.Digest]distributionSource, error) {
 	mountableBlobs := map[digest.Digest]distributionSource{}
-	sources, err := getDigestSources(ctx, store, target.Digest)
+	var mutex sync.Mutex
 
+	sources, err := getDigestSources(ctx, store, target.Digest)
 	if err != nil {
 		if !errdefs.IsNotFound(err) {
 			return nil, err
@@ -155,7 +157,9 @@ func (i *ImageService) findMissingMountable(ctx context.Context, store content.S
 
 			for _, source := range sources {
 				if canBeMounted(desc.MediaType, targetRef, i.registryService.IsInsecureRegistry, source) {
+					mutex.Lock()
 					mountableBlobs[desc.Digest] = source
+					mutex.Unlock()
 					jobs.Add(desc)
 					break
 				}
