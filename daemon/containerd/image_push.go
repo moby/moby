@@ -45,7 +45,13 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 	if err != nil {
 		return err
 	}
-	defer release(leasedCtx)
+	defer func() {
+		err := release(leasedCtx)
+		if err != nil && !cerrdefs.IsNotFound(err) {
+			logrus.WithField("image", targetRef).WithError(err).Error("failed to delete lease created for push")
+		}
+	}()
+
 	out := streamformatter.NewJSONProgressOutput(outStream, false)
 
 	img, err := i.client.ImageService().Get(ctx, targetRef.String())
