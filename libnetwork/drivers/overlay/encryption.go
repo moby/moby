@@ -300,12 +300,6 @@ var programInput = programVXLANRuleFunc(func(matchVXLAN matchVXLANFunc, vni uint
 		return a
 	}
 
-	// Accept incoming VXLAN datagrams for the VNI which were subjected to IPSec processing.
-	// Append to the bottom of the chain to give administrator-configured rules precedence.
-	if err := iptable.ProgramRule(iptables.Filter, chain, action(iptables.Append), rule("ipsec", "ACCEPT")); err != nil {
-		return fmt.Errorf("could not %s input accept rule: %w", msg, err)
-	}
-
 	// Drop incoming VXLAN datagrams for the VNI which were received in cleartext.
 	// Insert at the top of the chain so the packets are dropped even if an
 	// administrator-configured rule exists which would otherwise unconditionally
