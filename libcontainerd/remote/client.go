@@ -516,7 +516,7 @@ func (c *container) createIO(fifos *cio.FIFOSet, stdinCloseSync chan containerd.
 					if !ok {
 						return
 					}
-					err = p.CloseIO(context.Background(), containerd.WithStdinCloser)
+					err := p.CloseIO(context.Background(), containerd.WithStdinCloser)
 					if err != nil && strings.Contains(err.Error(), "transport is closing") {
 						err = nil
 					}
