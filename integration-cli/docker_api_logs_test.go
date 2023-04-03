@@ -58,11 +58,11 @@ func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
 func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 	name := "logs_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	_, err = cli.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{})
+	_, err = apiClient.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{})
 	assert.ErrorContains(c, err, "Bad parameters: you must choose at least one stream")
 }
 

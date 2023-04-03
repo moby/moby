@@ -68,14 +68,14 @@ func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 
 	dockerCmd(c, "pause", name)
 
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	config := types.ExecConfig{
 		Cmd: []string{"true"},
 	}
-	_, err = cli.ContainerExecCreate(context.Background(), name, config)
+	_, err = apiClient.ContainerExecCreate(context.Background(), name, config)
 	assert.ErrorContains(c, err, "Container "+name+" is paused, unpause the container before exec", "Expected message when creating exec command with Container %s is paused", name)
 }
 
@@ -150,11 +150,11 @@ func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 		AttachStderr: true,
 	}
 
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	createResp, err := cli.ContainerExecCreate(context.Background(), name, config)
+	createResp, err := apiClient.ContainerExecCreate(context.Background(), name, config)
 	assert.NilError(c, err)
 
 	_, body, err := request.Post(fmt.Sprintf("/exec/%s/start", createResp.ID), request.RawString(`{"Detach": true}`), request.JSON)

@@ -359,11 +359,11 @@ func (s *DockerCLIExecSuite) TestExecInspectID(c *testing.T) {
 	}
 
 	// But we should still be able to query the execID
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	_, err = cli.ContainerExecInspect(context.Background(), execID)
+	_, err = apiClient.ContainerExecInspect(context.Background(), execID)
 	assert.NilError(c, err)
 
 	// Now delete the container and then an 'inspect' on the exec should
@@ -371,7 +371,7 @@ func (s *DockerCLIExecSuite) TestExecInspectID(c *testing.T) {
 	out, ec := dockerCmd(c, "rm", "-f", id)
 	assert.Equal(c, ec, 0, "error removing container: %s", out)
 
-	_, err = cli.ContainerExecInspect(context.Background(), execID)
+	_, err = apiClient.ContainerExecInspect(context.Background(), execID)
 	assert.ErrorContains(c, err, "No such exec instance")
 }
 

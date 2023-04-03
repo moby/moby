@@ -174,9 +174,9 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 	expectTimeout(wc, br, "stdout")
 
 	// Test the client API
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer client.Close()
+	defer apiClient.Close()
 
 	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat")
 	cid = strings.TrimSpace(cid)
@@ -190,7 +190,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 		Logs:   false,
 	}
 
-	resp, err := client.ContainerAttach(context.Background(), cid, attachOpts)
+	resp, err := apiClient.ContainerAttach(context.Background(), cid, attachOpts)
 	assert.NilError(c, err)
 	mediaType, b := resp.MediaType()
 	assert.Check(c, b)
@@ -199,7 +199,7 @@ func (s *DockerAPISuite) TestPostContainersAttach(c *testing.T) {
 
 	// Make sure we do see "hello" if Logs is true
 	attachOpts.Logs = true
-	resp, err = client.ContainerAttach(context.Background(), cid, attachOpts)
+	resp, err = apiClient.ContainerAttach(context.Background(), cid, attachOpts)
 	assert.NilError(c, err)
 
 	defer resp.Conn.Close()
@@ -256,11 +256,11 @@ func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, m
 		return nil, nil, errors.Wrap(err, "configure Transport error")
 	}
 
-	client := http.Client{
+	c := http.Client{
 		Transport: transport,
 	}
 
-	resp, err := client.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "client.Do")
 	}

@@ -17,9 +17,9 @@ import (
 )
 
 func (s *DockerAPISuite) TestAPIImagesFilter(c *testing.T) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	name := "utest:tag1"
 	name2 := "utest/docker:tag2"
@@ -28,13 +28,13 @@ func (s *DockerAPISuite) TestAPIImagesFilter(c *testing.T) {
 		dockerCmd(c, "tag", "busybox", n)
 	}
 	getImages := func(filter string) []types.ImageSummary {
-		filters := filters.NewArgs()
-		filters.Add("reference", filter)
+		fltrs := filters.NewArgs()
+		fltrs.Add("reference", filter)
 		options := types.ImageListOptions{
 			All:     false,
-			Filters: filters,
+			Filters: fltrs,
 		}
-		images, err := cli.ImageList(context.Background(), options)
+		images, err := apiClient.ImageList(context.Background(), options)
 		assert.NilError(c, err)
 
 		return images
@@ -76,9 +76,9 @@ func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	if testEnv.OSType != "windows" {
 		testRequires(c, Network)
@@ -89,20 +89,20 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 
 	dockerCmd(c, "tag", name, "test:tag1")
 
-	_, err = cli.ImageRemove(context.Background(), id, types.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(context.Background(), id, types.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "unable to delete")
 
-	_, err = cli.ImageRemove(context.Background(), "test:noexist", types.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(context.Background(), "test:noexist", types.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "No such image")
 
-	_, err = cli.ImageRemove(context.Background(), "test:tag1", types.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(context.Background(), "test:tag1", types.ImageRemoveOptions{})
 	assert.NilError(c, err)
 }
 
 func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	if testEnv.OSType != "windows" {
 		testRequires(c, Network)
@@ -111,7 +111,7 @@ func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
 	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, name)
 
-	historydata, err := cli.ImageHistory(context.Background(), id)
+	historydata, err := apiClient.ImageHistory(context.Background(), id)
 	assert.NilError(c, err)
 
 	assert.Assert(c, len(historydata) != 0)
