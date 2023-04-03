@@ -76,12 +76,13 @@ var builtinRuntimes = map[string]bool{
 // Use this to differentiate these options
 // with others like the ones in TLSOptions.
 var flatOptions = map[string]bool{
-	"cluster-store-opts": true,
-	"log-opts":           true,
-	"runtimes":           true,
-	"default-ulimits":    true,
-	"features":           true,
-	"builder":            true,
+	"cluster-store-opts":   true,
+	"default-network-opts": true,
+	"log-opts":             true,
+	"runtimes":             true,
+	"default-ulimits":      true,
+	"features":             true,
+	"builder":              true,
 }
 
 // skipValidateOptions contains configuration keys
