@@ -11,7 +11,8 @@ import (
 	"github.com/ishidawataru/sctp"
 )
 
-// constants for the IP address type
+// constants for the IP address type.
+//
 // Deprecated: use the consts defined in github.com/docker/docker/libnetwork/resolvconf
 const (
 	IP = iota // IPv4 and IPv6
