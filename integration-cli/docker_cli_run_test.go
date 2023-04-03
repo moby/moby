@@ -4015,7 +4015,7 @@ func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *testing.T) {
 	name := "test-A"
 	_, err := d.Cmd("run", "--name", name, "-d", "busybox", "top")
 	assert.NilError(c, err)
-	assert.NilError(c, d.WaitRun(name))
+	cli.WaitRun(c, name)
 
 	out, err := d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
 	assert.NilError(c, err)
@@ -4023,7 +4023,7 @@ func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *testing.T) {
 	name = "test-B"
 	_, err = d.Cmd("run", "--name", name, "--ulimit=nofile=42", "-d", "busybox", "top")
 	assert.NilError(c, err)
-	assert.NilError(c, d.WaitRun(name))
+	cli.WaitRun(c, name)
 
 	out, err = d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
 	assert.NilError(c, err)
