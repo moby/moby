@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
+	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"gotest.tools/v3/skip"
@@ -491,7 +492,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	ipToResolve := netutils.ReverseIP("192.168.0.1")
 
-	ipList, _ := n.(*network).ResolveName("service_test", types.IPv4)
+	ipList, _ := n.(*network).ResolveName("service_test", resolvconf.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -511,7 +512,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	// Delete service record for one of the services, the IP should remain because one service is still associated with it
 	n.(*network).deleteSvcRecords("ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	ipList, _ = n.(*network).ResolveName("service_test", resolvconf.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -531,7 +532,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	// Delete again the service using the previous service ID, nothing should happen
 	n.(*network).deleteSvcRecords("ep2", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	ipList, _ = n.(*network).ResolveName("service_test", resolvconf.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
 	}
@@ -551,7 +552,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	// Delete now using the second service ID, now all the entries should be gone
 	n.(*network).deleteSvcRecords("ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	ipList, _ = n.(*network).ResolveName("service_test", types.IPv4)
+	ipList, _ = n.(*network).ResolveName("service_test", resolvconf.IPv4)
 	if len(ipList) != 0 {
 		t.Fatal("All the VIPs should be gone now")
 	}

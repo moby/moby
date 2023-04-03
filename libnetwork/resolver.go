@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -224,8 +224,8 @@ func createRespMsg(query *dns.Msg) *dns.Msg {
 
 func (r *Resolver) handleMXQuery(query *dns.Msg) (*dns.Msg, error) {
 	name := query.Question[0].Name
-	addrv4, _ := r.backend.ResolveName(name, types.IPv4)
-	addrv6, _ := r.backend.ResolveName(name, types.IPv6)
+	addrv4, _ := r.backend.ResolveName(name, resolvconf.IPv4)
+	addrv6, _ := r.backend.ResolveName(name, resolvconf.IPv6)
 
 	if addrv4 == nil && addrv6 == nil {
 		return nil, nil
@@ -263,7 +263,7 @@ func (r *Resolver) handleIPQuery(query *dns.Msg, ipType int) (*dns.Msg, error) {
 	if len(addr) > 1 {
 		addr = shuffleAddr(addr)
 	}
-	if ipType == types.IPv4 {
+	if ipType == resolvconf.IPv4 {
 		for _, ip := range addr {
 			rr := new(dns.A)
 			rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
@@ -355,9 +355,9 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 	switch queryType {
 	case dns.TypeA:
-		resp, err = r.handleIPQuery(query, types.IPv4)
+		resp, err = r.handleIPQuery(query, resolvconf.IPv4)
 	case dns.TypeAAAA:
-		resp, err = r.handleIPQuery(query, types.IPv6)
+		resp, err = r.handleIPQuery(query, resolvconf.IPv6)
 	case dns.TypeMX:
 		resp, err = r.handleMXQuery(query)
 	case dns.TypePTR:

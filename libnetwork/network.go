@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/networkdb"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/sirupsen/logrus"
@@ -1985,7 +1986,7 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 	req = strings.ToLower(req)
 	ipSet, ok := sr.svcMap.Get(req)
 
-	if ipType == types.IPv6 {
+	if ipType == resolvconf.IPv6 {
 		// If the name resolved to v4 address then its a valid name in
 		// the docker network domain. If the network is not v6 enabled
 		// set ipv6Miss to filter the DNS query from going to external
