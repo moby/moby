@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"sync/atomic"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
@@ -29,6 +30,7 @@ type ImageService struct {
 	registryHosts   RegistryHostsProvider
 	registryService RegistryConfigProvider
 	eventsService   *daemonevents.Events
+	pruneRunning    atomic.Bool
 }
 
 type RegistryHostsProvider interface {
