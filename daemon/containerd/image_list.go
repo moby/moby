@@ -3,15 +3,18 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
+	cfilters "github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -23,6 +26,7 @@ import (
 var acceptedImageFilterTags = map[string]bool{
 	"dangling":  true,
 	"label":     true,
+	"label!":    true,
 	"before":    true,
 	"since":     true,
 	"reference": true,
@@ -253,9 +257,14 @@ type imageFilterFunc func(image images.Image) bool
 
 // setupFilters constructs an imageFilterFunc from the given imageFilters.
 //
+// containerdListFilters is a slice of filters which should be passed to ImageService.List()
+// filterFunc is a function that checks whether given image matches the filters.
 // TODO(thaJeztah): reimplement filters using containerd filters: see https://github.com/moby/moby/issues/43845
-func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) ([]string, imageFilterFunc, error) {
+func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (
+	containerdListFilters []string, filterFunc imageFilterFunc, outErr error) {
+
 	var fltrs []imageFilterFunc
+	var listFilters []string
 	err := imageFilters.WalkValues("before", func(value string) error {
 		ref, err := reference.ParseDockerRef(value)
 		if err != nil {
@@ -294,10 +303,12 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, nil, err
 	}
 
-	if imageFilters.Contains("label") {
-		fltrs = append(fltrs, func(image images.Image) bool {
-			return imageFilters.MatchKVList("label", image.Labels)
-		})
+	labelFn, err := setupLabelFilter(i.client.ContentStore(), imageFilters)
+	if err != nil {
+		return nil, nil, err
+	}
+	if labelFn != nil {
+		fltrs = append(fltrs, labelFn)
 	}
 
 	if imageFilters.Contains("dangling") {
@@ -310,7 +321,6 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		})
 	}
 
-	var listFilters []string
 	err = imageFilters.WalkValues("reference", func(value string) error {
 		ref, err := reference.ParseNormalizedNamed(value)
 		if err != nil {
@@ -332,6 +342,117 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		}
 		return true
 	}, nil
+}
+
+// setupLabelFilter parses filter args for "label" and "label!" and returns a
+// filter func which will check if any image config from the given image has
+// labels that match given predicates.
+func setupLabelFilter(store content.Store, args filters.Args) (func(image images.Image) bool, error) {
+	filter, err := buildContainerdKvFilter("label", args)
+	if err != nil {
+		return nil, err
+	}
+	return func(image images.Image) bool {
+		ctx := context.TODO()
+
+		errFoundConfig := errors.New("success, found matching config")
+		err := images.Dispatch(ctx, presentChildrenHandler(store, images.HandlerFunc(
+			func(ctx context.Context, desc v1.Descriptor) (subdescs []v1.Descriptor, err error) {
+				if images.IsConfigType(desc.MediaType) {
+					// Subset of ocispec.Image that only contains Labels
+					var cfg struct {
+						Config struct {
+							Labels map[string]string `json:"Labels,omitempty"`
+						} `json:"Config,omitempty"`
+					}
+					err := readConfig(ctx, store, desc, &cfg)
+					if err != nil {
+						return nil, err
+					}
+
+					match := filter.Match(cfilters.AdapterFunc(func(fieldpath []string) (string, bool) {
+						if len(fieldpath) == 0 {
+							return "", false
+						}
+
+						switch fieldpath[0] {
+						case "label":
+							key := strings.Join(fieldpath[1:], ".")
+							value, has := cfg.Config.Labels[key]
+							return value, has
+						}
+						return "", false
+					}))
+
+					if match {
+						return nil, errFoundConfig
+					}
+					return nil, nil
+				}
+
+				return nil, nil
+			})), nil, image.Target)
+
+		if err == errFoundConfig {
+			return true
+		}
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"image":         image.Name,
+			}).Error("failed to check image labels")
+		}
+
+		return false
+	}, nil
+}
+
+// buildContainerdFilter builds containerd filter from the specified docker
+// filter that use key=value syntax.
+// It handles both normal and negated filter.
+// Currently it only handles the conversion from "=" to "==" and
+// "filter!=key=value" to "filter=key!=value".
+func buildContainerdKvFilter(filter string, args filters.Args) (cfilters.Filter, error) {
+	var fltrs []cfilters.Filter
+
+	for _, fltrName := range []string{filter, filter + "!"} {
+		values := args.Get(fltrName)
+
+		op := "=="
+		// Trim "!" from label! and set the operator to not-equals
+		if strings.HasSuffix(fltrName, "!") {
+			op = "!="
+			fltrName = strings.TrimSuffix(fltrName, "!")
+		}
+
+		for _, l := range values {
+			// This filter will check if the label exists
+			// TODO: Handle not exists in "label!"
+			f := fltrName + "." + l
+
+			k, v, found := strings.Cut(l, "=")
+			if found {
+				op := op
+				// Turn "label!=some.label=value" into "label.some.label!=value"
+				// (this is to avoid it being changed into !==)
+				if strings.HasSuffix(k, "!") {
+					op = "!="
+					k = strings.TrimSuffix(k, "!")
+				}
+				//
+				f = fltrName + "." + k + op + v
+			}
+
+			fltr, err := cfilters.Parse(f)
+			if err != nil {
+				return nil, errdefs.InvalidParameter(err)
+			}
+
+			fltrs = append(fltrs, fltr)
+		}
+	}
+
+	return cfilters.All(fltrs), nil
 }
 
 func computeVirtualSize(chainIDs []digest.Digest, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {
