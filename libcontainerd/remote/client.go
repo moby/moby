@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/libcontainerd/queue"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/hashicorp/go-multierror"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -502,27 +503,43 @@ func (c *container) createIO(fifos *cio.FIFOSet, stdinCloseSync chan containerd.
 
 	if io.Stdin != nil {
 		var (
-			err       error
+			closeErr  error
 			stdinOnce sync.Once
 		)
 		pipe := io.Stdin
 		io.Stdin = ioutils.NewWriteCloserWrapper(pipe, func() error {
 			stdinOnce.Do(func() {
-				err = pipe.Close()
-				// Do the rest in a new routine to avoid a deadlock if the
-				// Exec/Start call failed.
-				go func() {
-					p, ok := <-stdinCloseSync
+				closeErr = pipe.Close()
+
+				select {
+				case p, ok := <-stdinCloseSync:
 					if !ok {
 						return
 					}
-					err = p.CloseIO(context.Background(), containerd.WithStdinCloser)
-					if err != nil && strings.Contains(err.Error(), "transport is closing") {
-						err = nil
+					if err := closeStdin(context.Background(), p); err != nil {
+						if closeErr != nil {
+							closeErr = multierror.Append(closeErr, err)
+						} else {
+							// Avoid wrapping a single error in a multierror.
+							closeErr = err
+						}
 					}
-				}()
+				default:
+					// The process wasn't ready. Close its stdin asynchronously.
+					go func() {
+						p, ok := <-stdinCloseSync
+						if !ok {
+							return
+						}
+						if err := closeStdin(context.Background(), p); err != nil {
+							c.client.logger.WithError(err).
+								WithField("container", c.c8dCtr.ID()).
+								Error("failed to close container stdin")
+						}
+					}()
+				}
 			})
-			return err
+			return closeErr
 		})
 	}
 
@@ -532,6 +549,14 @@ func (c *container) createIO(fifos *cio.FIFOSet, stdinCloseSync chan containerd.
 		io.Close()
 	}
 	return rio, err
+}
+
+func closeStdin(ctx context.Context, p containerd.Process) error {
+	err := p.CloseIO(ctx, containerd.WithStdinCloser)
+	if err != nil && strings.Contains(err.Error(), "transport is closing") {
+		err = nil
+	}
+	return err
 }
 
 func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) {
