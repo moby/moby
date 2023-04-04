@@ -19,7 +19,7 @@ var imagesAcceptedFilters = map[string]bool{
 	"dangling": true,
 	"label":    true,
 	"label!":   true,
-	"until":    false,
+	"until":    true,
 }
 
 // errPruneRunning is returned when a prune request is received while
