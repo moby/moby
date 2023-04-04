@@ -16,12 +16,41 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
+	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
+/*
+Encrypted overlay networks use IPsec in transport mode to encrypt and
+authenticate the VXLAN UDP datagrams. This driver implements a bespoke control
+plane which negotiates the security parameters for each peer-to-peer tunnel.
+
+IPsec Terminology
+
+ - ESP: IPSec Encapsulating Security Payload
+ - SPI: Security Parameter Index
+ - ICV: Integrity Check Value
+ - SA: Security Association https://en.wikipedia.org/wiki/IPsec#Security_association
+
+
+Developer documentation for Linux IPsec is rather sparse online. The following
+slide deck provides a decent overview.
+https://libreswan.org/wiki/images/e/e0/Netdev-0x12-ipsec-flow.pdf
+
+The Linux IPsec stack is part of XFRM, the netlink packet transformation
+interface.
+https://man7.org/linux/man-pages/man8/ip-xfrm.8.html
+*/
+
 const (
-	r            = 0xD0C4E3
+	// Value used to mark outgoing packets which should have our IPsec
+	// processing applied. It is also used as a label to identify XFRM
+	// states (Security Associations) and policies (Security Policies)
+	// programmed by us so we know which ones we can clean up without
+	// disrupting other VPN connections on the system.
+	mark = 0xD0C4E3
+
 	pktExpansion = 26 // SPI(4) + SeqN(4) + IV(8) + PadLength(1) + NextHeader(1) + ICV(8)
 )
 
@@ -31,7 +60,9 @@ const (
 	bidir
 )
 
-var spMark = netlink.XfrmMark{Value: uint32(r), Mask: 0xffffffff}
+// Mark value for matching packets which should have our IPsec security policy
+// applied.
+var spMark = netlink.XfrmMark{Value: mark, Mask: 0xffffffff}
 
 type key struct {
 	value []byte
@@ -45,6 +76,9 @@ func (k *key) String() string {
 	return ""
 }
 
+// Security Parameter Indices for the IPsec flows between local node and a
+// remote peer, which identify the Security Associations (XFRM states) to be
+// applied when encrypting and decrypting packets.
 type spi struct {
 	forward int
 	reverse int
@@ -78,8 +112,8 @@ func (e *encrMap) String() string {
 	return b.String()
 }
 
-func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal, add bool) error {
-	logrus.Debugf("checkEncryption(%.7s, %v, %d, %t)", nid, rIP, vxlanID, isLocal)
+func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) error {
+	logrus.Debugf("checkEncryption(%.7s, %v, %t)", nid, rIP, isLocal)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -114,7 +148,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 
 	if add {
 		for _, rIP := range nodes {
-			if err := setupEncryption(lIP, aIP, rIP, vxlanID, d.secMap, d.keys); err != nil {
+			if err := setupEncryption(lIP, aIP, rIP, d.secMap, d.keys); err != nil {
 				logrus.Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
@@ -129,21 +163,13 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 	return nil
 }
 
-func setupEncryption(localIP, advIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*key) error {
-	logrus.Debugf("Programming encryption for vxlan %d between %s and %s", vni, localIP, remoteIP)
+// setupEncryption programs the encryption parameters for secure communication
+// between the local node and a remote node.
+func setupEncryption(localIP, advIP, remoteIP net.IP, em *encrMap, keys []*key) error {
+	logrus.Debugf("Programming encryption between %s and %s", localIP, remoteIP)
 	rIPs := remoteIP.String()
 
 	indices := make([]*spi, 0, len(keys))
-
-	err := programMangle(vni, true)
-	if err != nil {
-		logrus.Warn(err)
-	}
-
-	err = programInput(vni, true)
-	if err != nil {
-		logrus.Warn(err)
-	}
 
 	for i, k := range keys {
 		spis := &spi{buildSPI(advIP, remoteIP, k.tag), buildSPI(remoteIP, advIP, k.tag)}
@@ -199,67 +225,96 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 	return nil
 }
 
-func programMangle(vni uint32, add bool) (err error) {
+type matchVXLANFunc func(port, vni uint32) []string
+
+// programVXLANRuleFunc returns a function which tries calling programWithMatch
+// with the u32 match, falling back to the BPF match if installing u32 variant
+// of the rules fails.
+func programVXLANRuleFunc(programWithMatch func(matchVXLAN matchVXLANFunc, vni uint32, add bool) error) func(vni uint32, add bool) error {
+	return func(vni uint32, add bool) error {
+		if add {
+			if err := programWithMatch(matchVXLANWithU32, vni, add); err != nil {
+				// That didn't work. Maybe the xt_u32 module isn't available? Try again with xt_bpf.
+				err2 := programWithMatch(matchVXLANWithBPF, vni, add)
+				if err2 != nil {
+					return multierror.Append(err, err2)
+				}
+			}
+		} else {
+			// Delete both flavours.
+			err := programWithMatch(matchVXLANWithU32, vni, add)
+			return multierror.Append(err, programWithMatch(matchVXLANWithBPF, vni, add)).ErrorOrNil()
+		}
+		return nil
+	}
+}
+
+var programMangle = programVXLANRuleFunc(func(matchVXLAN matchVXLANFunc, vni uint32, add bool) error {
 	var (
-		p      = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
-		c      = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
-		m      = strconv.FormatUint(uint64(r), 10)
+		m      = strconv.FormatUint(mark, 10)
 		chain  = "OUTPUT"
-		rule   = []string{"-p", "udp", "--dport", p, "-m", "u32", "--u32", c, "-j", "MARK", "--set-mark", m}
-		a      = "-A"
+		rule   = append(matchVXLAN(overlayutils.VXLANUDPPort(), vni), "-j", "MARK", "--set-mark", m)
+		a      = iptables.Append
 		action = "install"
 	)
 
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
-	if add == iptable.Exists(iptables.Mangle, chain, rule...) {
-		return
-	}
-
 	if !add {
-		a = "-D"
+		a = iptables.Delete
 		action = "remove"
 	}
 
-	if err = iptable.RawCombinedOutput(append([]string{"-t", string(iptables.Mangle), a, chain}, rule...)...); err != nil {
-		logrus.Warnf("could not %s mangle rule: %v", action, err)
+	if err := iptable.ProgramRule(iptables.Mangle, chain, a, rule); err != nil {
+		return fmt.Errorf("could not %s mangle rule: %w", action, err)
 	}
 
-	return
-}
+	return nil
+})
 
-func programInput(vni uint32, add bool) (err error) {
+var programInput = programVXLANRuleFunc(func(matchVXLAN matchVXLANFunc, vni uint32, add bool) error {
 	var (
-		port       = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
-		vniMatch   = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
-		plainVxlan = []string{"-p", "udp", "--dport", port, "-m", "u32", "--u32", vniMatch, "-j"}
-		ipsecVxlan = append([]string{"-m", "policy", "--dir", "in", "--pol", "ipsec"}, plainVxlan...)
-		block      = append(plainVxlan, "DROP")
-		accept     = append(ipsecVxlan, "ACCEPT")
+		plainVxlan = matchVXLAN(overlayutils.VXLANUDPPort(), vni)
 		chain      = "INPUT"
-		action     = iptables.Append
 		msg        = "add"
 	)
+
+	rule := func(policy, jump string) []string {
+		args := append([]string{"-m", "policy", "--dir", "in", "--pol", policy}, plainVxlan...)
+		return append(args, "-j", jump)
+	}
 
 	// TODO IPv6 support
 	iptable := iptables.GetIptable(iptables.IPv4)
 
 	if !add {
-		action = iptables.Delete
 		msg = "remove"
 	}
 
-	if err := iptable.ProgramRule(iptables.Filter, chain, action, accept); err != nil {
-		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
+	action := func(a iptables.Action) iptables.Action {
+		if !add {
+			return iptables.Delete
+		}
+		return a
 	}
 
-	if err := iptable.ProgramRule(iptables.Filter, chain, action, block); err != nil {
-		logrus.Errorf("could not %s input rule: %v. Please do it manually.", msg, err)
+	// Accept incoming VXLAN datagrams for the VNI which were subjected to IPSec processing.
+	// Append to the bottom of the chain to give administrator-configured rules precedence.
+	if err := iptable.ProgramRule(iptables.Filter, chain, action(iptables.Append), rule("ipsec", "ACCEPT")); err != nil {
+		return fmt.Errorf("could not %s input accept rule: %w", msg, err)
 	}
 
-	return
-}
+	// Drop incoming VXLAN datagrams for the VNI which were received in cleartext.
+	// Insert at the top of the chain so the packets are dropped even if an
+	// administrator-configured rule exists which would otherwise unconditionally
+	// accept incoming VXLAN traffic.
+	if err := iptable.ProgramRule(iptables.Filter, chain, action(iptables.Insert), rule("none", "DROP")); err != nil {
+		return fmt.Errorf("could not %s input drop rule: %w", msg, err)
+	}
+
+	return nil
+})
 
 func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, err error) {
 	var (
@@ -279,7 +334,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Proto: netlink.XFRM_PROTO_ESP,
 			Spi:   spi.reverse,
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
-			Reqid: r,
+			Reqid: mark,
 		}
 		if add {
 			rSA.Aead = buildAeadAlgo(k, spi.reverse)
@@ -305,7 +360,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Proto: netlink.XFRM_PROTO_ESP,
 			Spi:   spi.forward,
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
-			Reqid: r,
+			Reqid: mark,
 		}
 		if add {
 			fSA.Aead = buildAeadAlgo(k, spi.forward)
@@ -354,7 +409,7 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 				Proto: netlink.XFRM_PROTO_ESP,
 				Mode:  netlink.XFRM_MODE_TRANSPORT,
 				Spi:   fSA.Spi,
-				Reqid: r,
+				Reqid: mark,
 			},
 		},
 	}
@@ -568,7 +623,7 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, pr
 					Proto: netlink.XFRM_PROTO_ESP,
 					Mode:  netlink.XFRM_MODE_TRANSPORT,
 					Spi:   fSA2.Spi,
-					Reqid: r,
+					Reqid: mark,
 				},
 			},
 		}
@@ -635,7 +690,7 @@ func clearEncryptionStates() {
 		}
 	}
 	for _, sa := range saList {
-		if sa.Reqid == r {
+		if sa.Reqid == mark {
 			if err := nlh.XfrmStateDel(&sa); err != nil {
 				logrus.Warnf("Failed to delete stale SA %s: %v", sa, err)
 				continue
