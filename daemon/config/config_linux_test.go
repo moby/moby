@@ -25,6 +25,11 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 			},
 			"log-opts": {
 				"tag": "test_tag"
+			},
+			"default-network-opts": {
+				"overlay": {
+					"com.docker.network.driver.mtu": "1337"
+				}
 			}
 		}`)
 
@@ -33,6 +38,7 @@ func TestGetConflictFreeConfiguration(t *testing.T) {
 	flags.BoolVarP(&debug, "debug", "D", false, "")
 	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", nil), "default-ulimit", "")
 	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
+	flags.Var(opts.NewNamedMapMapOpts("default-network-opts", nil, nil), "default-network-opt", "")
 
 	cc, err := getConflictFreeConfiguration(configFile, flags)
 	assert.NilError(t, err)
