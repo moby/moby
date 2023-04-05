@@ -681,8 +681,8 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	if n.driver.name == "nat" && !epOption.DisableDNS {
-		logrus.Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
 		endpointStruct.EnableInternalDNS = true
+		logrus.Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
 	}
 
 	endpointStruct.DisableICC = epOption.DisableICC
