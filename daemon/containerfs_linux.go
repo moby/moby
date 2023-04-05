@@ -2,6 +2,8 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,6 +12,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/symlink"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
 	"github.com/docker/docker/api/types"
@@ -102,6 +105,15 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 				writeMode := "ro"
 				if m.Writable {
 					writeMode = "rw"
+					if m.ReadOnlyNonRecursive {
+						return errors.New("options conflict: Writable && ReadOnlyNonRecursive")
+					}
+					if m.ReadOnlyForceRecursive {
+						return errors.New("options conflict: Writable && ReadOnlyForceRecursive")
+					}
+				}
+				if m.ReadOnlyNonRecursive && m.ReadOnlyForceRecursive {
+					return errors.New("options conflict: ReadOnlyNonRecursive && ReadOnlyForceRecursive")
 				}
 
 				// openContainerFS() is called for temporary mounts
@@ -117,6 +129,16 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 				opts := strings.Join([]string{bindMode, writeMode, "rprivate"}, ",")
 				if err := mount.Mount(m.Source, dest, "", opts); err != nil {
 					return err
+				}
+
+				if !m.Writable && !m.ReadOnlyNonRecursive {
+					if err := makeMountRRO(dest); err != nil {
+						if m.ReadOnlyForceRecursive {
+							return err
+						} else {
+							logrus.WithError(err).Debugf("Failed to make %q recursively read-only", dest)
+						}
+					}
 				}
 			}
 
@@ -218,4 +240,22 @@ func (vw *containerFSView) Stat(ctx context.Context, path string) (*types.Contai
 		return nil
 	})
 	return stat, err
+}
+
+// makeMountRRO makes the mount recursively read-only.
+func makeMountRRO(dest string) error {
+	attr := &unix.MountAttr{
+		Attr_set: unix.MOUNT_ATTR_RDONLY,
+	}
+	var err error
+	for {
+		err = unix.MountSetattr(-1, dest, unix.AT_RECURSIVE, attr)
+		if !errors.Is(err, unix.EINTR) {
+			break
+		}
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to apply MOUNT_ATTR_RDONLY with AT_RECURSIVE to %q: %w", dest, err)
+	}
+	return err
 }

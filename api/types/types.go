@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/go-connections/nat"
+	"github.com/opencontainers/runtime-spec/specs-go/features"
 )
 
 const (
@@ -658,7 +659,8 @@ type Runtime struct {
 	Options map[string]interface{} `json:"options,omitempty"`
 
 	// This is exposed here only for internal use
-	ShimConfig *ShimConfig `json:"-"`
+	ShimConfig *ShimConfig        `json:"-"`
+	Features   *features.Features `json:"-"`
 }
 
 // ShimConfig is used by runtime to configure containerd shims

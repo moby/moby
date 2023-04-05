@@ -604,3 +604,7 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
 
 	return err
 }
+
+func (daemon *Daemon) supportsRecursivelyReadOnly(_ string) error {
+	return nil
+}

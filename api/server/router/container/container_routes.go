@@ -588,6 +588,18 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
+	if hostConfig != nil && versions.LessThan(version, "1.44") {
+		for _, m := range hostConfig.Mounts {
+			if m.BindOptions != nil {
+				// Ignore ReadOnlyNonRecursive because it was added in API 1.44.
+				m.BindOptions.ReadOnlyNonRecursive = false
+				if m.BindOptions.ReadOnlyForceRecursive {
+					return errdefs.InvalidParameter(errors.New("BindOptions.ReadOnlyForceRecursive needs API v1.44 or newer"))
+				}
+			}
+		}
+	}
+
 	ccr, err := s.backend.ContainerCreate(ctx, types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,

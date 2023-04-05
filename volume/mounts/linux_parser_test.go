@@ -99,25 +99,30 @@ func TestLinuxParseMountRaw(t *testing.T) {
 
 func TestLinuxParseMountRawSplit(t *testing.T) {
 	cases := []struct {
-		bind      string
-		driver    string
-		expType   mount.Type
-		expDest   string
-		expSource string
-		expName   string
-		expDriver string
-		expRW     bool
-		fail      bool
+		bind        string
+		driver      string
+		expType     mount.Type
+		expDest     string
+		expSource   string
+		expName     string
+		expDriver   string
+		expRW       bool
+		expNonRRO   bool
+		expForceRRO bool
+		fail        bool
 	}{
-		{"/tmp:/tmp1", "", mount.TypeBind, "/tmp1", "/tmp", "", "", true, false},
-		{"/tmp:/tmp2:ro", "", mount.TypeBind, "/tmp2", "/tmp", "", "", false, false},
-		{"/tmp:/tmp3:rw", "", mount.TypeBind, "/tmp3", "/tmp", "", "", true, false},
-		{"/tmp:/tmp4:foo", "", mount.TypeBind, "", "", "", "", false, true},
-		{"name:/named1", "", mount.TypeVolume, "/named1", "", "name", "", true, false},
-		{"name:/named2", "external", mount.TypeVolume, "/named2", "", "name", "external", true, false},
-		{"name:/named3:ro", "local", mount.TypeVolume, "/named3", "", "name", "local", false, false},
-		{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false},
-		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
+		{"/tmp:/tmp1", "", mount.TypeBind, "/tmp1", "/tmp", "", "", true, false, false, false},
+		{"/tmp:/tmp2:ro", "", mount.TypeBind, "/tmp2", "/tmp", "", "", false, false, false, false},
+		{"/tmp:/tmp3:rw", "", mount.TypeBind, "/tmp3", "/tmp", "", "", true, false, false, false},
+		{"/tmp:/tmp4:foo", "", mount.TypeBind, "", "", "", "", false, false, false, true},
+		{"/tmp:/tmp5:ro-non-recursive", "", mount.TypeBind, "/tmp5", "/tmp", "", "", false, true, false, false},
+		{"/tmp:/tmp6:ro-force-recursive,rprivate", "", mount.TypeBind, "/tmp6", "/tmp", "", "", false, false, true, false},
+		{"/tmp:/tmp7:rro", "", mount.TypeBind, "/tmp7", "/tmp", "", "", false, false, true, false},
+		{"name:/named1", "", mount.TypeVolume, "/named1", "", "name", "", true, false, false, false},
+		{"name:/named2", "external", mount.TypeVolume, "/named2", "", "name", "external", true, false, false, false},
+		{"name:/named3:ro", "local", mount.TypeVolume, "/named3", "", "name", "local", false, false, false, false},
+		{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false, false, false},
+		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, false, false, true},
 	}
 
 	parser := NewLinuxParser()
@@ -141,6 +146,13 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 			assert.Equal(t, m.Driver, c.expDriver)
 			assert.Equal(t, m.RW, c.expRW)
 			assert.Equal(t, m.Type, c.expType)
+			var nonRRO, forceRRO bool
+			if m.Spec.BindOptions != nil {
+				nonRRO = m.Spec.BindOptions.ReadOnlyNonRecursive
+				forceRRO = m.Spec.BindOptions.ReadOnlyForceRecursive
+			}
+			assert.Equal(t, nonRRO, c.expNonRRO)
+			assert.Equal(t, forceRRO, c.expForceRRO)
 		})
 	}
 }

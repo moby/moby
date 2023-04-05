@@ -194,7 +194,7 @@ func (p *linuxParser) ReadWrite(mode string) bool {
 	}
 
 	for _, o := range strings.Split(mode, ",") {
-		if o == "ro" {
+		if o == "ro" || strings.HasPrefix(o, "ro-") || o == "rro" {
 			return false
 		}
 	}
@@ -259,6 +259,24 @@ func (p *linuxParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, erro
 	if linuxHasPropagation(mode) {
 		spec.BindOptions = &mount.BindOptions{
 			Propagation: linuxGetPropagation(mode),
+		}
+	}
+
+	for _, m := range strings.Split(mode, ",") {
+		m = strings.TrimSpace(m)
+		if strings.HasPrefix(m, "ro-") || m == "rro" {
+			if spec.Type != mount.TypeBind {
+				return nil, fmt.Errorf("mount mode %q requires a bind mount: %w", mode, errInvalidSpec(raw))
+			}
+			if spec.BindOptions == nil {
+				spec.BindOptions = &mount.BindOptions{}
+			}
+			switch m {
+			case "ro-non-recursive":
+				spec.BindOptions.ReadOnlyNonRecursive = true
+			case "ro-force-recursive", "rro":
+				spec.BindOptions.ReadOnlyForceRecursive = true
+			}
 		}
 	}
 
@@ -328,6 +346,9 @@ func (p *linuxParser) ParseVolumesFrom(spec string) (string, string, error) {
 	}
 	if !linuxValidMountMode(mode) {
 		return "", "", errInvalidMode(mode)
+	}
+	if strings.HasPrefix(mode, "ro-") || mode == "rro" {
+		return "", "", fmt.Errorf("mount mode %q is not supported for volumes-from mounts: %w", mode, errInvalidMode(mode))
 	}
 	// For now don't allow propagation properties while importing
 	// volumes from data container. These volumes will inherit

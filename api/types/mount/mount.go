@@ -29,7 +29,7 @@ type Mount struct {
 	// Source is not supported for tmpfs (must be an empty value)
 	Source      string      `json:",omitempty"`
 	Target      string      `json:",omitempty"`
-	ReadOnly    bool        `json:",omitempty"`
+	ReadOnly    bool        `json:",omitempty"` // attempts recursive read-only if possible
 	Consistency Consistency `json:",omitempty"`
 
 	BindOptions    *BindOptions    `json:",omitempty"`
@@ -85,6 +85,11 @@ type BindOptions struct {
 	Propagation      Propagation `json:",omitempty"`
 	NonRecursive     bool        `json:",omitempty"`
 	CreateMountpoint bool        `json:",omitempty"`
+	// ReadOnlyNonRecursive makes the mount non-recursively read-only, but still leaves the mount recursive
+	// (unless NonRecursive is set to true in conjunction).
+	ReadOnlyNonRecursive bool `json:",omitempty"`
+	// ReadOnlyForceRecursive raises an error if the mount cannot be made recursively read-only.
+	ReadOnlyForceRecursive bool `json:",omitempty"`
 }
 
 // VolumeOptions represents the options for a mount of type volume.

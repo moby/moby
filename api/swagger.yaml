@@ -388,6 +388,16 @@ definitions:
             description: "Create mount point on host if missing"
             type: "boolean"
             default: false
+          ReadOnlyNonRecursive:
+            description: |
+               Make the mount non-recursively read-only, but still leave the mount recursive
+               (unless NonRecursive is set to true in conjunction).
+            type: "boolean"
+            default: false
+          ReadOnlyForceRecursive:
+            description: "Raise an error if the mount cannot be made recursively read-only."
+            type: "boolean"
+            default: false
       VolumeOptions:
         description: "Optional configuration for the `volume` type."
         type: "object"

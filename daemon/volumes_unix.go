@@ -12,6 +12,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	volumemounts "github.com/docker/docker/volume/mounts"
+	"github.com/pkg/errors"
 )
 
 // setupMounts iterates through each of the mount points for a container and
@@ -58,7 +59,18 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				Propagation: string(m.Propagation),
 			}
 			if m.Spec.Type == mounttypes.TypeBind && m.Spec.BindOptions != nil {
+				if !m.Spec.ReadOnly && m.Spec.BindOptions.ReadOnlyNonRecursive {
+					return nil, errors.New("mount options conflict: !ReadOnly && BindOptions.ReadOnlyNonRecursive")
+				}
+				if !m.Spec.ReadOnly && m.Spec.BindOptions.ReadOnlyForceRecursive {
+					return nil, errors.New("mount options conflict: !ReadOnly && BindOptions.ReadOnlyForceRecursive")
+				}
+				if m.Spec.BindOptions.ReadOnlyNonRecursive && m.Spec.BindOptions.ReadOnlyForceRecursive {
+					return nil, errors.New("mount options conflict: ReadOnlyNonRecursive && BindOptions.ReadOnlyForceRecursive")
+				}
 				mnt.NonRecursive = m.Spec.BindOptions.NonRecursive
+				mnt.ReadOnlyNonRecursive = m.Spec.BindOptions.ReadOnlyNonRecursive
+				mnt.ReadOnlyForceRecursive = m.Spec.BindOptions.ReadOnlyForceRecursive
 			}
 			if m.Volume != nil {
 				attributes := map[string]string{

@@ -94,6 +94,13 @@ func WithBind(src, target string) func(*TestContainerConfig) {
 	}
 }
 
+// WithBindRaw sets the bind mount of the container
+func WithBindRaw(s string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.Binds = append(c.HostConfig.Binds, s)
+	}
+}
+
 // WithTmpfs sets a target path in the container to a tmpfs, with optional options
 // (separated with a colon).
 func WithTmpfs(targetAndOpts string) func(config *TestContainerConfig) {
