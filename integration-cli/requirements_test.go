@@ -38,11 +38,11 @@ func MinimumAPIVersion(version string) func() bool {
 }
 
 func OnlyDefaultNetworks() bool {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return false
 	}
-	networks, err := cli.NetworkList(context.TODO(), types.NetworkListOptions{})
+	networks, err := apiClient.NetworkList(context.TODO(), types.NetworkListOptions{})
 	if err != nil || len(networks) > 0 {
 		return false
 	}
@@ -78,11 +78,11 @@ func Network() bool {
 	const timeout = 15 * time.Second
 	const url = "https://hub.docker.com"
 
-	client := http.Client{
+	c := http.Client{
 		Timeout: timeout,
 	}
 
-	resp, err := client.Get(url)
+	resp, err := c.Get(url)
 	if err != nil && strings.Contains(err.Error(), "use of closed network connection") {
 		panic(fmt.Sprintf("Timeout for GET request on %s", url))
 	}

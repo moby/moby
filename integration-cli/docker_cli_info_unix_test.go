@@ -19,10 +19,10 @@ func (s *DockerCLIInfoSuite) TestInfoSecurityOptions(c *testing.T) {
 		c.Skip("test requires Seccomp and/or AppArmor")
 	}
 
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
-	info, err := cli.Info(context.Background())
+	defer apiClient.Close()
+	info, err := apiClient.Info(context.Background())
 	assert.NilError(c, err)
 
 	if Apparmor() {

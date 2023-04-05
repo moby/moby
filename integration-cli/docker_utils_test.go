@@ -245,11 +245,11 @@ func daemonTime(c *testing.T) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	info, err := cli.Info(context.Background())
+	info, err := apiClient.Info(context.Background())
 	assert.NilError(c, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
@@ -324,10 +324,10 @@ func waitInspect(name, expr, expected string, timeout time.Duration) error {
 
 func getInspectBody(c *testing.T, version, id string) []byte {
 	c.Helper()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
+	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
 	assert.NilError(c, err)
-	defer cli.Close()
-	_, body, err := cli.ContainerInspectWithRaw(context.Background(), id, false)
+	defer apiClient.Close()
+	_, body, err := apiClient.ContainerInspectWithRaw(context.Background(), id, false)
 	assert.NilError(c, err)
 	return body
 }
@@ -357,13 +357,13 @@ func minimalBaseImage() string {
 }
 
 func getGoroutineNumber() (int, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return 0, err
 	}
-	defer cli.Close()
+	defer apiClient.Close()
 
-	info, err := cli.Info(context.Background())
+	info, err := apiClient.Info(context.Background())
 	if err != nil {
 		return 0, err
 	}

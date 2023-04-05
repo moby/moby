@@ -262,15 +262,15 @@ func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
 
 func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	expected := "No such container: nonexistent"
 
-	_, err = cli.ContainerStats(context.Background(), "nonexistent", true)
+	_, err = apiClient.ContainerStats(context.Background(), "nonexistent", true)
 	assert.ErrorContains(c, err, expected)
-	_, err = cli.ContainerStats(context.Background(), "nonexistent", false)
+	_, err = apiClient.ContainerStats(context.Background(), "nonexistent", false)
 	assert.ErrorContains(c, err, expected)
 }
 

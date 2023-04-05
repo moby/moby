@@ -454,15 +454,15 @@ func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 	cID := strings.TrimSpace(out)
 	assert.NilError(c, waitRun(cID))
 
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	options := types.ResizeOptions{
 		Height: 80,
 		Width:  24,
 	}
-	err = cli.ContainerResize(context.Background(), cID, options)
+	err = apiClient.ContainerResize(context.Background(), cID, options)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "stop", cID)

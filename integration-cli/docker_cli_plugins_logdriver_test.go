@@ -47,11 +47,11 @@ func (s *DockerCLIPluginLogDriverSuite) TestPluginLogDriverInfoList(c *testing.T
 
 	dockerCmd(c, "plugin", "install", pluginName)
 
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
-	info, err := cli.Info(context.Background())
+	info, err := apiClient.Info(context.Background())
 	assert.NilError(c, err)
 
 	drivers := strings.Join(info.Plugins.Log, " ")

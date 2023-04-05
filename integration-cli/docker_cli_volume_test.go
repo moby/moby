@@ -570,9 +570,9 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 	err := os.MkdirAll("/tmp/data", 0755)
 	assert.NilError(c, err)
 	// Mounts is available in API
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
-	defer cli.Close()
+	defer apiClient.Close()
 
 	config := container.Config{
 		Cmd:   []string{"top"},
@@ -589,7 +589,7 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 			},
 		},
 	}
-	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "app")
+	_, err = apiClient.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, nil, "app")
 
 	assert.NilError(c, err)
 
