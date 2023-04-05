@@ -5,7 +5,7 @@
 
 # This represents the bare minimum required to build and test Docker.
 
-ARG GO_VERSION=1.20.2
+ARG GO_VERSION=1.20.3
 
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
