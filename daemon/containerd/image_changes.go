@@ -40,7 +40,7 @@ func (i *ImageService) Changes(ctx context.Context, container *container.Contain
 		return nil, err
 	}
 
-	snapshotter := i.client.SnapshotService(i.snapshotter)
+	snapshotter := i.client.SnapshotService(container.Driver)
 
 	diffIDs := image.RootFS.DiffIDs
 	parent, err := snapshotter.View(ctx, rnd.String(), identity.ChainID(diffIDs).String())

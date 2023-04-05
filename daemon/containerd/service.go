@@ -128,6 +128,7 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer) error {
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 	var allLayersSize int64
+	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.client.SnapshotService(i.snapshotter)
 	snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
 		usage, err := snapshotter.Usage(ctx, info.Name)
@@ -179,7 +180,7 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 		return 0, 0, err
 	}
 
-	snapshotter := i.client.SnapshotService(i.snapshotter)
+	snapshotter := i.client.SnapshotService(ctr.Driver)
 	usage, err := snapshotter.Usage(ctx, containerID)
 	if err != nil {
 		return 0, 0, err
