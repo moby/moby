@@ -61,7 +61,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 
 	var (
 		differ = i.client.DiffService()
-		sn     = i.client.SnapshotService(i.snapshotter)
+		sn     = i.client.SnapshotService(container.Driver)
 	)
 
 	// Don't gc me and clean the dirty data after 1 hour!
@@ -87,7 +87,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	}
 
 	layers := append(manifest.Layers, diffLayerDesc)
-	commitManifestDesc, err := writeContentsForImage(ctx, i.snapshotter, cs, imageConfig, layers)
+	commitManifestDesc, err := writeContentsForImage(ctx, container.Driver, cs, imageConfig, layers)
 	if err != nil {
 		return "", err
 	}

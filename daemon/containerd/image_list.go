@@ -50,6 +50,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		return nil, err
 	}
 
+	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.client.SnapshotService(i.snapshotter)
 	sizeCache := make(map[digest.Digest]int64)
 	snapshotSizeFn := func(d digest.Digest) (int64, error) {
@@ -177,6 +178,8 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.client.SnapshotService(i.snapshotter)
 	sizeCache := make(map[digest.Digest]int64)
 

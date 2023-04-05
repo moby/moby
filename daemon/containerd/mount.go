@@ -13,7 +13,7 @@ import (
 // Mount mounts the container filesystem in a temporary location, use defer imageService.Unmount
 // to unmount the filesystem when calling this
 func (i *ImageService) Mount(ctx context.Context, container *container.Container) error {
-	snapshotter := i.client.SnapshotService(i.snapshotter)
+	snapshotter := i.client.SnapshotService(container.Driver)
 	mounts, err := snapshotter.Mounts(ctx, container.ID)
 	if err != nil {
 		return err
