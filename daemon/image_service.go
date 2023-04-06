@@ -75,7 +75,7 @@ type ImageService interface {
 
 	GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (distribution.Repository, error)
 	DistributionServices() images.DistributionServices
-	Children(id image.ID) []image.ID
+	Children(ctx context.Context, id image.ID) []image.ID
 	Cleanup() error
 	StorageDriver() string
 	UpdateConfig(maxDownloads, maxUploads int)

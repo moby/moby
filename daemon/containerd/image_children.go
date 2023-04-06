@@ -15,9 +15,7 @@ import (
 // Children returns a slice of image ID which rootfs is a superset of the
 // rootfs of the given image ID, excluding images with exactly the same rootfs.
 // Called from list.go to filter containers.
-func (i *ImageService) Children(id image.ID) []image.ID {
-	ctx := context.TODO()
-
+func (i *ImageService) Children(ctx context.Context, id image.ID) []image.ID {
 	target, err := i.resolveDescriptor(ctx, id.String())
 	if err != nil {
 		logrus.WithError(err).Error("failed to get parent image")
