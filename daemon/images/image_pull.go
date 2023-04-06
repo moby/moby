@@ -8,7 +8,6 @@ import (
 
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/namespaces"
-	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
@@ -132,16 +131,6 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	close(progressChan)
 	<-writesDone
 	return err
-}
-
-// GetRepository returns a repository from the registry.
-func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (dist.Repository, error) {
-	return distribution.GetRepository(ctx, ref, &distribution.ImagePullConfig{
-		Config: distribution.Config{
-			AuthConfig:      authConfig,
-			RegistryService: i.registryService,
-		},
-	})
 }
 
 func tempLease(ctx context.Context, mgr leases.Manager) (context.Context, func(context.Context) error, error) {

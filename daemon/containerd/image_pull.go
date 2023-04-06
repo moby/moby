@@ -2,14 +2,12 @@ package containerd
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
@@ -72,9 +70,4 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 
 	_, err = i.client.Pull(ctx, ref.String(), opts...)
 	return err
-}
-
-// GetRepository returns a repository from the registry.
-func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *registry.AuthConfig) (distribution.Repository, error) {
-	return nil, errdefs.NotImplemented(errors.New("not implemented"))
 }
