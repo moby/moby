@@ -390,18 +390,18 @@ cmd_entrypoint_install() {
 		cli_ctx_create "${CLI_CONTEXT}" "unix://${XDG_RUNTIME_DIR}/docker.sock" "Rootless mode"
 	fi
 
-	INFO "Use CLI context \"${CLI_CONTEXT}\""
+	INFO "Using CLI context \"${CLI_CONTEXT}\""
 	cli_ctx_use "${CLI_CONTEXT}"
 
 	echo
-	INFO "Make sure the following environment variables are set (or add them to ~/.bashrc):"
-	echo
+	INFO "Make sure the following environment variable(s) are set (or add them to ~/.bashrc):"
 	if [ -n "$XDG_RUNTIME_DIR_CREATED" ]; then
 		echo "# WARNING: systemd not found. You have to remove XDG_RUNTIME_DIR manually on every logout."
 		echo "export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}"
 	fi
 	echo "export PATH=${BIN}:\$PATH"
-	echo "Some applications may require the following environment variable too:"
+	echo
+	INFO "Some applications may require the following environment variable too:"
 	echo "export DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock"
 	echo
 
@@ -433,7 +433,7 @@ cmd_entrypoint_uninstall() {
 	unset DOCKER_HOST
 	unset DOCKER_CONTEXT
 	cli_ctx_use "default"
-	INFO 'Configured CLI use the "default" context.'
+	INFO 'Configured CLI to use the "default" context.'
 	INFO
 	INFO 'Make sure to unset or update the environment PATH, DOCKER_HOST, and DOCKER_CONTEXT environment variables if you have added them to `~/.bashrc`.'
 	INFO "This uninstallation tool does NOT remove Docker binaries and data."
