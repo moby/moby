@@ -25,7 +25,7 @@ var acceptedImageFilterTags = map[string]bool{
 	"label":     true,
 	"before":    true,
 	"since":     true,
-	"reference": false, // TODO(thaJeztah): implement "reference" filter: see https://github.com/moby/moby/issues/43847
+	"reference": true,
 }
 
 // Images returns a filtered list of images.
@@ -40,12 +40,12 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		return nil, err
 	}
 
-	filter, err := i.setupFilters(ctx, opts.Filters)
+	listFilters, filter, err := i.setupFilters(ctx, opts.Filters)
 	if err != nil {
 		return nil, err
 	}
 
-	imgs, err := i.client.ImageService().List(ctx)
+	imgs, err := i.client.ImageService().List(ctx, listFilters...)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ type imageFilterFunc func(image images.Image) bool
 // setupFilters constructs an imageFilterFunc from the given imageFilters.
 //
 // TODO(thaJeztah): reimplement filters using containerd filters: see https://github.com/moby/moby/issues/43845
-func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (imageFilterFunc, error) {
+func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) ([]string, imageFilterFunc, error) {
 	var fltrs []imageFilterFunc
 	err := imageFilters.WalkValues("before", func(value string) error {
 		ref, err := reference.ParseDockerRef(value)
@@ -275,7 +275,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = imageFilters.WalkValues("since", func(value string) error {
@@ -294,7 +294,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if imageFilters.Contains("label") {
@@ -306,14 +306,28 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 	if imageFilters.Contains("dangling") {
 		danglingValue, err := imageFilters.GetBoolOrDefault("dangling", false)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		fltrs = append(fltrs, func(image images.Image) bool {
 			return danglingValue == isDanglingImage(image)
 		})
 	}
 
-	return func(image images.Image) bool {
+	var listFilters []string
+	err = imageFilters.WalkValues("reference", func(value string) error {
+		ref, err := reference.ParseNormalizedNamed(value)
+		if err != nil {
+			return err
+		}
+		ref = reference.TagNameOnly(ref)
+		listFilters = append(listFilters, "name=="+ref.String())
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return listFilters, func(image images.Image) bool {
 		for _, filter := range fltrs {
 			if !filter(image) {
 				return false
