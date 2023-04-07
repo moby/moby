@@ -13,7 +13,7 @@ var (
 	procGetSystemInfo = modkernel32.NewProc("GetSystemInfo")
 )
 
-// see http://msdn.microsoft.com/en-us/library/windows/desktop/ms724958(v=vs.85).aspx
+// see https://learn.microsoft.com/en-gb/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
 type systeminfo struct {
 	wProcessorArchitecture      uint16
 	wReserved                   uint16
@@ -28,7 +28,10 @@ type systeminfo struct {
 	wProcessorRevision          uint16
 }
 
-// Constants
+// Windows processor architectures.
+//
+// see https://github.com/microsoft/go-winio/blob/v0.6.0/wim/wim.go#L48-L65
+// see https://learn.microsoft.com/en-gb/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
 const (
 	ProcessorArchitecture64    = 9  // PROCESSOR_ARCHITECTURE_AMD64
 	ProcessorArchitectureIA64  = 6  // PROCESSOR_ARCHITECTURE_IA64
