@@ -37,6 +37,7 @@ import (
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/stats"
+	"github.com/docker/docker/daemon/streams"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
@@ -124,6 +125,8 @@ type Daemon struct {
 	// It stores metadata for the content store (used for manifest caching)
 	// This needs to be closed on daemon exit
 	mdDB *bbolt.DB
+
+	streams *streams.Service
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -953,6 +956,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	d.streams, err = streams.NewService(ctx, filepath.Join(config.Root, "streams"), filepath.Join(d.configStore.ExecRoot, "streams"))
+	if err != nil {
+		return nil, err
+	}
+
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	//
@@ -1272,6 +1280,10 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		daemon.mdDB.Close()
 	}
 
+	if daemon.streams != nil {
+		daemon.streams.Close()
+	}
+
 	return daemon.cleanupMounts()
 }
 
@@ -1490,4 +1502,8 @@ func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 	})
 
 	return daemon.sysInfo
+}
+
+func (daemon *Daemon) StreamService() *streams.Service {
+	return daemon.streams
 }

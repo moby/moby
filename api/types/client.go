@@ -39,6 +39,12 @@ type ContainerAttachOptions struct {
 	Logs       bool
 }
 
+type AttachStreamConfig struct {
+	Stdin  string
+	Stdout string
+	Stderr string
+}
+
 // ContainerCommitOptions holds parameters to commit changes into a container.
 type ContainerCommitOptions struct {
 	Reference string

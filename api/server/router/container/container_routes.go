@@ -692,7 +692,27 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		MuxStreams: true,
 	}
 
-	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {
+	if versions.GreaterThan(httputils.VersionFromContext(ctx), "1.41") {
+		stdinID := r.Form.Get("stdin-stream")
+		stdoutID := r.Form.Get("stdout-stream")
+		stderrID := r.Form.Get("stderr-stream")
+
+		if stdinID != "" || stdoutID != "" || stderrID != "" {
+			if attachConfig.UseStdin || attachConfig.UseStdout || attachConfig.UseStderr {
+				return errdefs.InvalidParameter(errors.Errorf("cannot use stream IDs with stdio bools"))
+			}
+			attachConfig.GetStreams = nil
+			attachConfig.MuxStreams = false
+			attachConfig.Streams = &backend.AttachStreamConfig{
+				StdinID:  stdinID,
+				StdoutID: stdoutID,
+				StderrID: stderrID,
+			}
+		}
+	}
+
+	err = s.backend.ContainerAttach(containerName, attachConfig)
+	if err != nil && attachConfig.Streams == nil {
 		logrus.WithError(err).Errorf("Handler for %s %s returned error", r.Method, r.URL.Path)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
@@ -704,8 +724,9 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 			fmt.Fprintf(conn, "HTTP/1.1 %d %s\r\nContent-Type: %s\r\n\r\n%s\r\n", statusCode, statusText, contentType, err.Error())
 			httputils.CloseStreams(conn)
 		}
+		return nil
 	}
-	return nil
+	return err
 }
 
 func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

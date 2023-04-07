@@ -11,16 +11,32 @@ import (
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
 type ContainerAttachConfig struct {
+	// GetStreams is mutually exclusive with Streams.
 	GetStreams func(multiplexed bool) (io.ReadCloser, io.Writer, io.Writer, error)
-	UseStdin   bool
-	UseStdout  bool
-	UseStderr  bool
+
+	// Use<stream> is mutually exclusive with Streams and should not be true if Streams is not nil.
+	UseStdin  bool
+	UseStdout bool
+	UseStderr bool
+
 	Logs       bool
 	Stream     bool
 	DetachKeys string
 	// Used to signify that streams must be multiplexed by producer as endpoint can't manage multiple streams.
 	// This is typically set by HTTP endpoint, while websocket can transport raw streams
+	// This is mutually exclusive with Streams.
 	MuxStreams bool
+
+	// Streams is an optional field that can be used to specify the stream IDs to use for attach.
+	// This is mutually exclusive with Use<stdio>, MuxStreams, and GetStreams.
+	Streams *AttachStreamConfig
+}
+
+// AttachStreamConfig holds the stream ID's that may be used to attach to a container.
+type AttachStreamConfig struct {
+	StdinID  string
+	StdoutID string
+	StderrID string
 }
 
 // PartialLogMetaData provides meta data for a partial log message. Messages

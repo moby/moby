@@ -23,9 +23,15 @@ func getImplementer(err error) error {
 		return err
 	case causer:
 		return getImplementer(e.Cause())
+	case unwrapper:
+		return getImplementer(e.Unwrap())
 	default:
 		return err
 	}
+}
+
+type unwrapper interface {
+	Unwrap() error
 }
 
 // IsNotFound returns if the passed in error is an ErrNotFound
