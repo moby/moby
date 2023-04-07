@@ -54,6 +54,12 @@ func (e errConflictFilter) Error() string {
 
 func (errConflictFilter) InvalidParameter() {}
 
+type errInvalidFilterValue struct {
+	error
+}
+
+func (errInvalidFilterValue) InvalidParameter() {}
+
 var cacheFields = map[string]bool{
 	"id":          true,
 	"parent":      true,
@@ -629,11 +635,15 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 	case 1:
 		ts, err := timetypes.GetTimestamp(untilValues[0], time.Now())
 		if err != nil {
-			return client.PruneInfo{}, errors.Wrapf(err, "%q filter expects a duration (e.g., '24h') or a timestamp", filterKey)
+			return client.PruneInfo{}, errInvalidFilterValue{
+				errors.Wrapf(err, "%q filter expects a duration (e.g., '24h') or a timestamp", filterKey),
+			}
 		}
 		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
 		if err != nil {
-			return client.PruneInfo{}, errors.Wrapf(err, "failed to parse timestamp %s", ts)
+			return client.PruneInfo{}, errInvalidFilterValue{
+				errors.Wrapf(err, "failed to parse timestamp %q", ts),
+			}
 		}
 
 		until = time.Since(time.Unix(seconds, nanoseconds))
