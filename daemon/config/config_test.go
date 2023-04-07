@@ -165,7 +165,8 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 
 		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile)
 		assert.NilError(t, err)
-		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected,
+			cmpopts.IgnoreUnexported(ipamutils.NetworkToSplit{}))
 	})
 
 	t.Run("config file", func(t *testing.T) {
@@ -175,7 +176,8 @@ func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 
 		config, err := MergeDaemonConfigurations(&conf, flags, configFile)
 		assert.NilError(t, err)
-		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected,
+			cmpopts.IgnoreUnexported(ipamutils.NetworkToSplit{}))
 	})
 
 	t.Run("with conflicting options", func(t *testing.T) {

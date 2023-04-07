@@ -54,7 +54,7 @@ func TestKeyString(t *testing.T) {
 }
 
 func TestAddSubnets(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestAddSubnets(t *testing.T) {
 // TestDoublePoolRelease tests that releasing a pool which has already
 // been released raises an error.
 func TestDoublePoolRelease(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
@@ -130,7 +130,7 @@ func TestDoublePoolRelease(t *testing.T) {
 }
 
 func TestAddReleasePoolID(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	var k0, k1 PoolID
@@ -257,7 +257,7 @@ func TestAddReleasePoolID(t *testing.T) {
 }
 
 func TestPredefinedPool(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	pid, nw, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
@@ -284,7 +284,7 @@ func TestPredefinedPool(t *testing.T) {
 }
 
 func TestRemoveSubnet(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	input := []struct {
@@ -318,7 +318,7 @@ func TestRemoveSubnet(t *testing.T) {
 }
 
 func TestGetSameAddress(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	pid, _, _, err := a.RequestPool(localAddressSpace, "192.168.100.0/24", "", nil, false)
@@ -339,7 +339,7 @@ func TestGetSameAddress(t *testing.T) {
 }
 
 func TestPoolAllocationReuse(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	// First get all pools until they are exhausted to
@@ -376,7 +376,7 @@ func TestPoolAllocationReuse(t *testing.T) {
 }
 
 func TestGetAddressSubPoolEqualPool(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	// Requesting a subpool of same size of the master pool should not cause any problem on ip allocation
@@ -392,7 +392,7 @@ func TestGetAddressSubPoolEqualPool(t *testing.T) {
 }
 
 func TestRequestReleaseAddressFromSubPool(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	poolID, _, _, err := a.RequestPool(localAddressSpace, "172.28.0.0/16", "172.28.30.0/24", nil, false)
@@ -515,7 +515,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 	opts := map[string]string{
 		ipamapi.AllocSerialPrefix: "true"}
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	poolID, _, _, err := a.RequestPool(localAddressSpace, "172.28.0.0/16", "172.28.30.0/24", nil, false)
@@ -654,7 +654,7 @@ func TestRequestSyntaxCheck(t *testing.T) {
 		subPool = "192.168.0.0/24"
 	)
 
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	_, _, _, err = a.RequestPool("", pool, "", nil, false)
@@ -800,7 +800,7 @@ func TestOverlappingRequests(t *testing.T) {
 	}
 
 	for _, tc := range input {
-		a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+		a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 		assert.NilError(t, err)
 
 		// Set up some existing allocations.  This should always succeed.
@@ -837,7 +837,7 @@ func TestUnusualSubnets(t *testing.T) {
 		{"192.168.0.3"},
 	}
 
-	allocator, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	allocator, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -885,7 +885,7 @@ func TestRelease(t *testing.T) {
 		subnet = "192.168.0.0/23"
 	)
 
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
@@ -985,7 +985,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 	)
 
 	lastIP := net.ParseIP(lastExpectedIP)
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	assert.NilError(t, err)
 
 	pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
@@ -1027,7 +1027,7 @@ func BenchmarkRequest(b *testing.B) {
 	for _, subnet := range subnets {
 		name := fmt.Sprintf("%vSubnet", subnet)
 		b.Run(name, func(b *testing.B) {
-			a, _ := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+			a, _ := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 			benchmarkRequest(b, a, subnet)
 		})
 	}
@@ -1041,7 +1041,7 @@ func TestAllocateRandomDeallocate(t *testing.T) {
 }
 
 func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, store bool) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1135,7 +1135,7 @@ func runParallelTests(t *testing.T, instance int) {
 	// The first instance creates the allocator, gives the start
 	// and finally checks the pools each instance was assigned
 	if instance == first {
-		allocator, err = NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+		allocator, err = NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1167,7 +1167,7 @@ func runParallelTests(t *testing.T, instance int) {
 }
 
 func TestRequestReleaseAddressDuplicate(t *testing.T) {
-	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
+	a, err := NewAllocator(ipamutils.GetDefaultLocalScopeSubnetter(), ipamutils.GetDefaultGlobalScopeSubnetter())
 	if err != nil {
 		t.Fatal(err)
 	}

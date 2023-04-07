@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -37,8 +38,11 @@ type addrSpace struct {
 	subnets map[netip.Prefix]*PoolData
 
 	// Predefined pool for the address space
-	predefined           []netip.Prefix
-	predefinedStartIndex int
+	predefined map[ipamutils.IPVersion]*ipamutils.Subnetter
+
+	// reset indicates whether the predefined subnetters can be reset when all subnets
+	// have been enumerated but some have been released.
+	reset map[ipamutils.IPVersion]bool
 
 	sync.Mutex
 }
@@ -155,6 +159,8 @@ func (aSpace *addrSpace) releaseSubnet(nw, sub netip.Prefix) error {
 	} else {
 		p.autoRelease = true
 	}
+
+	aSpace.reset[ipamutils.IPVerFromPrefix(nw)] = true
 
 	if len(p.children) == 0 && p.autoRelease {
 		delete(aSpace.subnets, nw)

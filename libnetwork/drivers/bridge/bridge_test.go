@@ -168,9 +168,21 @@ func compareBindings(a, b []types.PortBinding) bool {
 	return true
 }
 
+func retrieveAllSubnets(s ipamutils.Subnetter) []*net.IPNet {
+	nets := make([]*net.IPNet, 0)
+	for nw, err := s.NextSubnet(); err == nil; nw, err = s.NextSubnet() {
+		nets = append(nets, &net.IPNet{
+			IP:   nw.Addr().AsSlice(),
+			Mask: net.CIDRMask(nw.Bits(), nw.Addr().BitLen()),
+		})
+	}
+
+	return nets
+}
+
 func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
-	nw, err := netutils.FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
+	nw, err := netutils.FindAvailableNetwork(retrieveAllSubnets(ipamutils.GetDefaultLocalScopeSubnetter()))
 	if err != nil {
 		t.Fatal(err)
 	}

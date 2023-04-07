@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/ipbits"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
@@ -25,7 +26,7 @@ type Allocator struct {
 }
 
 // NewAllocator returns an instance of libnetwork ipam
-func NewAllocator(lcAs, glAs []*net.IPNet) (*Allocator, error) {
+func NewAllocator(lcAs, glAs ipamutils.Subnetter) (*Allocator, error) {
 	var (
 		a   Allocator
 		err error
@@ -41,18 +42,14 @@ func NewAllocator(lcAs, glAs []*net.IPNet) (*Allocator, error) {
 	return &a, nil
 }
 
-func newAddrSpace(predefined []*net.IPNet) (*addrSpace, error) {
-	pdf := make([]netip.Prefix, len(predefined))
-	for i, n := range predefined {
-		var ok bool
-		pdf[i], ok = toPrefix(n)
-		if !ok {
-			return nil, fmt.Errorf("network at index %d (%v) is not in canonical form", i, n)
-		}
-	}
+func newAddrSpace(predefined ipamutils.Subnetter) (*addrSpace, error) {
 	return &addrSpace{
-		subnets:    map[netip.Prefix]*PoolData{},
-		predefined: pdf,
+		subnets: map[netip.Prefix]*PoolData{},
+		predefined: map[ipamutils.IPVersion]*ipamutils.Subnetter{
+			ipamutils.IPv4: predefined.V4(),
+			ipamutils.IPv6: predefined.V6(),
+		},
+		reset: map[ipamutils.IPVersion]bool{},
 	}, nil
 }
 
@@ -169,57 +166,42 @@ func newPoolData(pool netip.Prefix) *PoolData {
 	return &PoolData{addrs: h, children: map[netip.Prefix]struct{}{}}
 }
 
-// getPredefineds returns the predefined subnets for the address space.
-//
-// It should not be called concurrently with any other method on the addrSpace.
-func (aSpace *addrSpace) getPredefineds() []netip.Prefix {
-	i := aSpace.predefinedStartIndex
-	// defensive in case the list changed since last update
-	if i >= len(aSpace.predefined) {
-		i = 0
-	}
-	return append(aSpace.predefined[i:], aSpace.predefined[:i]...)
-}
-
-// updatePredefinedStartIndex rotates the predefined subnet list by amt.
-//
-// It should not be called concurrently with any other method on the addrSpace.
-func (aSpace *addrSpace) updatePredefinedStartIndex(amt int) {
-	i := aSpace.predefinedStartIndex + amt
-	if i < 0 || i >= len(aSpace.predefined) {
-		i = 0
-	}
-	aSpace.predefinedStartIndex = i
-}
-
 func (aSpace *addrSpace) allocatePredefinedPool(ipV6 bool) (netip.Prefix, error) {
+	v := ipamutils.IPv4
+	if ipV6 {
+		v = ipamutils.IPv6
+	}
+
 	aSpace.Lock()
 	defer aSpace.Unlock()
 
-	for i, nw := range aSpace.getPredefineds() {
-		if ipV6 != nw.Addr().Is6() {
-			continue
-		}
-		// Checks whether pool has already been allocated
+	s := aSpace.predefined[v]
+	if s.EndReached() && aSpace.reset[v] {
+		s.Reset()
+		aSpace.reset[v] = false
+	}
+
+	for nw, err := s.NextSubnet(); err == nil; nw, err = s.NextSubnet() {
+		// Checks whether sub-pool has already been allocated
 		if _, ok := aSpace.subnets[nw]; ok {
 			continue
 		}
 		// Shouldn't be necessary, but check prevents IP collisions should
 		// predefined pools overlap for any reason.
 		if !aSpace.contains(nw) {
-			aSpace.updatePredefinedStartIndex(i + 1)
 			err := aSpace.allocateSubnetL(nw, netip.Prefix{})
 			if err != nil {
 				return netip.Prefix{}, err
 			}
 			return nw, nil
 		}
+
+		if s.EndReached() && aSpace.reset[v] {
+			s.Reset()
+			aSpace.reset[v] = false
+		}
 	}
 
-	v := 4
-	if ipV6 {
-		v = 6
-	}
 	return netip.Prefix{}, types.NotFoundErrorf("could not find an available, non-overlapping IPv%d address pool among the defaults to assign to the network", v)
 }
 
