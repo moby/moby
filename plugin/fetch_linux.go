@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	c8derrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
@@ -248,7 +248,7 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 
 				s, err := cs.Status(ctx, key)
 				if err != nil {
-					if !c8derrdefs.IsNotFound(err) {
+					if !cerrdefs.IsNotFound(err) {
 						logrus.WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
 						progress.Update(out, id, err.Error())
 						return

@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/containerd/containerd/content"
-	c8derrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
@@ -83,7 +83,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 
 		ra, err := i.content.ReaderAt(ctx, specs.Descriptor{Digest: digest.Digest(r.ID)})
 		if err != nil {
-			if c8derrdefs.IsNotFound(err) {
+			if cerrdefs.IsNotFound(err) {
 				continue
 			}
 			logger.WithError(err).Error("Error looking up referenced manifest list for image")

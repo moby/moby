@@ -10,7 +10,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	"github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
@@ -188,7 +188,7 @@ func TestManifestStore(t *testing.T) {
 	checkIngest := func(t *testing.T, cs content.Store, desc specs.Descriptor) {
 		ingestKey := remotes.MakeRefKey(ctx, desc)
 		_, err := cs.Status(ctx, ingestKey)
-		assert.Check(t, errdefs.IsNotFound(err), err)
+		assert.Check(t, cerrdefs.IsNotFound(err), err)
 	}
 
 	t.Run("no remote or local", func(t *testing.T) {
@@ -323,7 +323,7 @@ func TestManifestStore(t *testing.T) {
 
 			_, err = cs.Info(ctx, desc.Digest)
 			// Nothing here since we couldn't persist
-			assert.Check(t, errdefs.IsNotFound(err), err)
+			assert.Check(t, cerrdefs.IsNotFound(err), err)
 		})
 
 		t.Run("error on commit", func(t *testing.T) {
@@ -342,7 +342,7 @@ func TestManifestStore(t *testing.T) {
 
 			_, err = cs.Info(ctx, desc.Digest)
 			// Nothing here since we couldn't persist
-			assert.Check(t, errdefs.IsNotFound(err), err)
+			assert.Check(t, cerrdefs.IsNotFound(err), err)
 		})
 	})
 }
