@@ -19,6 +19,8 @@ var Architecture string
 
 // OSType holds the runtime operating system type of the process. It is
 // an alias for [runtime.GOOS].
+//
+// Deprecated: use [runtime.GOOS] instead.
 const OSType = runtime.GOOS
 
 func init() {
