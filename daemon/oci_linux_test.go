@@ -131,7 +131,7 @@ func TestSysctlOverride(t *testing.T) {
 		assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], "0")
 	}
 	if sysctlExists("net.ipv4.ping_group_range") {
-		assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "0 2147483647")
+		assert.Equal(t, s.Linux.Sysctl["net.ipv4.ping_group_range"], "1 0")
 	}
 
 	// Set an explicit sysctl.
