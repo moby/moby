@@ -33,25 +33,30 @@ type systeminfo struct {
 // see https://github.com/microsoft/go-winio/blob/v0.6.0/wim/wim.go#L48-L65
 // see https://learn.microsoft.com/en-gb/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
 const (
-	ProcessorArchitecture64    = 9  // PROCESSOR_ARCHITECTURE_AMD64
-	ProcessorArchitectureIA64  = 6  // PROCESSOR_ARCHITECTURE_IA64
-	ProcessorArchitecture32    = 0  // PROCESSOR_ARCHITECTURE_INTEL
-	ProcessorArchitectureArm   = 5  // PROCESSOR_ARCHITECTURE_ARM
-	ProcessorArchitectureArm64 = 12 // PROCESSOR_ARCHITECTURE_ARM64
+	processorArchitecture64    = 9  // PROCESSOR_ARCHITECTURE_AMD64
+	processorArchitectureIA64  = 6  // PROCESSOR_ARCHITECTURE_IA64
+	processorArchitecture32    = 0  // PROCESSOR_ARCHITECTURE_INTEL
+	processorArchitectureArm   = 5  // PROCESSOR_ARCHITECTURE_ARM
+	processorArchitectureArm64 = 12 // PROCESSOR_ARCHITECTURE_ARM64
 )
 
 // runtimeArchitecture gets the name of the current architecture (x86, x86_64, …)
 func runtimeArchitecture() (string, error) {
+	// TODO(thaJeztah): rewrite this to use "GetNativeSystemInfo" instead.
+	// See: https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsysteminfo
+	// See: https://github.com/shirou/gopsutil/blob/v3.23.3/host/host_windows.go#L267-L297
+	// > To retrieve accurate information for an application running on WOW64,
+	// > call the GetNativeSystemInfo function.
 	var sysinfo systeminfo
 	_, _, _ = syscall.SyscallN(procGetSystemInfo.Addr(), uintptr(unsafe.Pointer(&sysinfo)))
 	switch sysinfo.wProcessorArchitecture {
-	case ProcessorArchitecture64, ProcessorArchitectureIA64:
+	case processorArchitecture64, processorArchitectureIA64:
 		return "x86_64", nil
-	case ProcessorArchitecture32:
+	case processorArchitecture32:
 		return "i686", nil
-	case ProcessorArchitectureArm:
+	case processorArchitectureArm:
 		return "arm", nil
-	case ProcessorArchitectureArm64:
+	case processorArchitectureArm64:
 		return "arm64", nil
 	default:
 		return "", fmt.Errorf("unknown processor architecture %+v", sysinfo.wProcessorArchitecture)
