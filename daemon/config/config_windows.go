@@ -12,7 +12,15 @@ const (
 	// default value. On Windows keep this empty so the value is auto-detected
 	// based on other options.
 	StockRuntimeName = ""
+
+	WindowsV1RuntimeName = "com.docker.hcsshim.v1"
+	WindowsV2RuntimeName = "io.containerd.runhcs.v1"
 )
+
+var builtinRuntimes = map[string]bool{
+	WindowsV1RuntimeName: true,
+	WindowsV2RuntimeName: true,
+}
 
 // BridgeConfig stores all the bridge driver specific
 // configuration.

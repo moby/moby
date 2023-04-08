@@ -31,6 +31,11 @@ const (
 	StockRuntimeName = "runc"
 )
 
+var builtinRuntimes = map[string]bool{
+	StockRuntimeName:   true,
+	LinuxV2RuntimeName: true,
+}
+
 // BridgeConfig stores all the bridge driver specific
 // configuration.
 type BridgeConfig struct {
