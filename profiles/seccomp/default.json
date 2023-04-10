@@ -52,6 +52,10 @@
 		{
 			"architecture": "SCMP_ARCH_RISCV64",
 			"subArchitectures": null
+		},
+		{
+			"architecture": "SCMP_ARCH_LOONGARCH64",
+			"subArchitectures": null
 		}
 	],
 	"syscalls": [
