@@ -82,6 +82,7 @@ jobs:
 
   validate:
     runs-on: ubuntu-20.04
+    timeout-minutes: 120
     needs:
       - validate-prepare
       - build-dev
