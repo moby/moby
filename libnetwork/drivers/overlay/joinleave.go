@@ -46,11 +46,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find subnet for endpoint %s", eid)
 	}
 
-	if err := n.obtainVxlanID(s); err != nil {
-		return fmt.Errorf("couldn't get vxlan id for %q: %v", s.subnetIP.String(), err)
-	}
-
-	if err := n.joinSandbox(s, false, true); err != nil {
+	if err := n.joinSandbox(s, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
 
@@ -62,10 +58,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	ep.ifName = containerIfName
-
-	if err = d.writeEndpointToStore(ep); err != nil {
-		return fmt.Errorf("failed to update overlay endpoint %.7s to local data store: %v", ep.id, err)
-	}
 
 	// Set the container interface and its peer MTU to 1450 to allow
 	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
@@ -133,8 +125,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
 		logrus.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
-
-	d.pushLocalEndpointEvent("join", nid, eid)
 
 	return nil
 }
@@ -217,14 +207,6 @@ func (d *driver) Leave(nid, eid string) error {
 
 	if ep == nil {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
-	}
-
-	if d.notifyCh != nil {
-		d.notifyCh <- ovNotify{
-			action: "leave",
-			nw:     n,
-			ep:     ep,
-		}
 	}
 
 	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), true)

@@ -315,11 +315,7 @@ func (d *driver) peerAddOp(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 		return fmt.Errorf("couldn't find the subnet %q in network %q", IP.String(), n.id)
 	}
 
-	if err := n.obtainVxlanID(s); err != nil {
-		return fmt.Errorf("couldn't get vxlan id for %q: %v", s.subnetIP.String(), err)
-	}
-
-	if err := n.joinSandbox(s, false, false); err != nil {
+	if err := n.joinSandbox(s, false); err != nil {
 		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
@@ -432,15 +428,6 @@ func (d *driver) peerFlushOp(nid string) error {
 	}
 	delete(d.peerDb.mp, nid)
 	return nil
-}
-
-func (d *driver) pushLocalDb() {
-	d.peerDbWalk(func(nid string, pKey *peerKey, pEntry *peerEntry) bool {
-		if pEntry.isLocal {
-			d.pushLocalEndpointEvent("join", nid, pEntry.eid)
-		}
-		return false
-	})
 }
 
 func (d *driver) peerDBUpdateSelf() {
