@@ -328,7 +328,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, img.ID(), daemon.imageService.Children)
+			populateImageFilterByParents(ctx, imagesFilter, img.ID(), daemon.imageService.Children)
 			return nil
 		})
 	}
@@ -594,10 +594,10 @@ func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot, f
 	return &c, nil
 }
 
-func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {
+func populateImageFilterByParents(ctx context.Context, ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(context.Context, image.ID) []image.ID) {
 	if !ancestorMap[imageID] {
-		for _, id := range getChildren(imageID) {
-			populateImageFilterByParents(ancestorMap, id, getChildren)
+		for _, id := range getChildren(ctx, imageID) {
+			populateImageFilterByParents(ctx, ancestorMap, id, getChildren)
 		}
 		ancestorMap[imageID] = true
 	}
