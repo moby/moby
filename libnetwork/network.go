@@ -1061,9 +1061,6 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 	}
 
 	n.ipamRelease()
-	if err = c.updateToStore(n); err != nil {
-		logrus.Warnf("Failed to update store after ipam release for network %s (%s): %v", n.Name(), n.ID(), err)
-	}
 
 	// We are about to delete the network. Leave the gossip
 	// cluster for the network to stop all incoming network
