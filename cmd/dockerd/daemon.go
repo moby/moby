@@ -522,7 +522,7 @@ func initRouter(opts routerOptions) {
 		sessionrouter.NewRouter(opts.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
-		distributionrouter.NewRouter(opts.daemon.ImageService()),
+		distributionrouter.NewRouter(opts.daemon.ImageBackend()),
 	}
 
 	if opts.buildBackend != nil {
@@ -729,7 +729,7 @@ func createAndStartCluster(cli *DaemonCli, d *daemon.Daemon) (*cluster.Cluster, 
 		Name:                   name,
 		Backend:                d,
 		VolumeBackend:          d.VolumesService(),
-		ImageBackend:           d.ImageService(),
+		ImageBackend:           d.ImageBackend(),
 		PluginBackend:          d.PluginManager(),
 		NetworkSubnetsProvider: d,
 		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,

@@ -23,12 +23,16 @@ import (
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/remotes/docker"
+	dist "github.com/docker/distribution"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
+	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/config"
 	ctrd "github.com/docker/docker/daemon/containerd"
 	"github.com/docker/docker/daemon/events"
@@ -37,6 +41,7 @@ import (
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/stats"
+	"github.com/docker/docker/distribution"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
@@ -1466,6 +1471,14 @@ func (daemon *Daemon) ImageService() ImageService {
 	return daemon.imageService
 }
 
+// ImageBackend returns an image-backend for Swarm and the distribution router.
+func (daemon *Daemon) ImageBackend() executorpkg.ImageBackend {
+	return &imageBackend{
+		ImageService:    daemon.imageService,
+		registryService: daemon.registryService,
+	}
+}
+
 // RegistryService returns the Daemon's RegistryService
 func (daemon *Daemon) RegistryService() *registry.Service {
 	return daemon.registryService
@@ -1490,4 +1503,22 @@ func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 	})
 
 	return daemon.sysInfo
+}
+
+// imageBackend is used to satisfy the [executorpkg.ImageBackend] and
+// [github.com/docker/docker/api/server/router/distribution.Backend]
+// interfaces.
+type imageBackend struct {
+	ImageService
+	registryService *registry.Service
+}
+
+// GetRepository returns a repository from the registry.
+func (i *imageBackend) GetRepository(ctx context.Context, ref reference.Named, authConfig *registrytypes.AuthConfig) (dist.Repository, error) {
+	return distribution.GetRepository(ctx, ref, &distribution.ImagePullConfig{
+		Config: distribution.Config{
+			AuthConfig:      authConfig,
+			RegistryService: i.registryService,
+		},
+	})
 }
