@@ -3,20 +3,69 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/oci"
+	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+func withResetAdditionalGIDs() oci.SpecOpts {
+	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+		s.Process.User.AdditionalGids = nil
+		return nil
+	}
+}
+
+func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client, ec *container.ExecConfig) (specs.User, error) {
+	ctr, err := containerdCli.LoadContainer(ctx, ec.Container.ID)
+	if err != nil {
+		return specs.User{}, err
+	}
+
+	cinfo, err := ctr.Info(ctx)
+	if err != nil {
+		return specs.User{}, err
+	}
+
+	spec, err := ctr.Spec(ctx)
+	if err != nil {
+		return specs.User{}, err
+	}
+
+	opts := []oci.SpecOpts{
+		coci.WithUser(ec.User),
+		withResetAdditionalGIDs(),
+		coci.WithAdditionalGIDs(ec.User),
+	}
+	for _, opt := range opts {
+		if err := opt(ctx, containerdCli, &cinfo, spec); err != nil {
+			return specs.User{}, err
+		}
+	}
+
+	return spec.Process.User, nil
+}
+
 func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, ec *container.ExecConfig, p *specs.Process) error {
 	if len(ec.User) > 0 {
 		var err error
-		p.User, err = getUser(ec.Container, ec.User)
-		if err != nil {
-			return err
+		if daemon.UsesSnapshotter() {
+			p.User, err = getUserFromContainerd(ctx, daemon.containerdCli, ec)
+			if err != nil {
+				return err
+			}
+		} else {
+			p.User, err = getUser(ec.Container, ec.User)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	if ec.Privileged {
 		p.Capabilities = &specs.LinuxCapabilities{
 			Bounding:  caps.GetAllCapabilities(),
@@ -24,6 +73,7 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, ec *container.Exec
 			Effective: caps.GetAllCapabilities(),
 		}
 	}
+
 	if apparmor.HostSupports() {
 		var appArmorProfile string
 		if ec.Container.AppArmorProfile != "" {
