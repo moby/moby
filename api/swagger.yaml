@@ -8601,28 +8601,36 @@ paths:
                 is_official:
                   type: "boolean"
                 is_automated:
+                  description: |
+                    Whether this repository has automated builds enabled.
+
+                    <p><br /></p>
+
+                    > **Deprecated**: This field is deprecated and will always
+                    > be "false" in future.
                   type: "boolean"
+                  example: false
                 name:
                   type: "string"
                 star_count:
                   type: "integer"
           examples:
             application/json:
-              - description: ""
-                is_official: false
+              - description: "A minimal Docker image based on Alpine Linux with a complete package index and only 5 MB in size!"
+                is_official: true
                 is_automated: false
-                name: "wma55/u1210sshd"
-                star_count: 0
-              - description: ""
-                is_official: false
+                name: "alpine"
+                star_count: 10093
+              - description: "Busybox base image."
+                is_official: true
                 is_automated: false
-                name: "jdswinbank/sshd"
-                star_count: 0
-              - description: ""
-                is_official: false
+                name: "Busybox base image."
+                star_count: 3037
+              - description: "The PostgreSQL object-relational database system provides reliability and data integrity."
+                is_official: true
                 is_automated: false
-                name: "vgauthier/sshd"
-                star_count: 0
+                name: "postgres"
+                star_count: 12408
         500:
           description: "Server error"
           schema:
@@ -8642,9 +8650,13 @@ paths:
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the images list. Available filters:
 
-            - `is-automated=(true|false)`
+            - `is-automated=(true|false)` (deprecated, see below)
             - `is-official=(true|false)`
             - `stars=<number>` Matches images that has at least 'number' stars.
+
+            The `is-automated` filter is deprecated. The `is_automated` field has
+            been deprecated by Docker Hub's search API. Consequently, searching
+            for `is-automated=true` will yield no results.
           type: "string"
       tags: ["Image"]
   /images/prune:

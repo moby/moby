@@ -20,6 +20,14 @@ keywords: "API, Docker, rcli, REST, documentation"
 * The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
   and `GET /system/df` responses is now omitted. Use the `Size` field instead,
   which contains the same information.
+* Deprecated: The `is_automated` field in the `GET /images/search` response has
+  been deprecated and will always be set to false in the future because Docker
+  Hub is deprecating the `is_automated` field in its search API. The deprecation
+  is_ not versioned, and applies to all API versions.
+* Deprecated: The `is-automated` filter for the `GET /images/search` endpoint.
+  The `is_automated` field has been deprecated by Docker Hub's search API.
+  Consequently, searching for `is-automated=true` will yield no results. The
+  deprecation is not versioned, and applies to all API versions.
 * Read-only bind mounts are now made recursively read-only on kernel >= 5.12
   with runtimes which support the feature.
   `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports

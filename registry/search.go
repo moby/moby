@@ -16,7 +16,7 @@ import (
 )
 
 var acceptedSearchFilterTags = map[string]bool{
-	"is-automated": true,
+	"is-automated": true, // Deprecated: the "is_automated" field is deprecated and will always be false in the future.
 	"is-official":  true,
 	"stars":        true,
 }
@@ -28,6 +28,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 		return nil, err
 	}
 
+	// TODO(thaJeztah): the "is-automated" field is deprecated; reset the field for the next release (v26.0.0). Return early when using "is-automated=true", and ignore "is-automated=false".
 	isAutomated, err := searchFilters.GetBoolOrDefault("is-automated", false)
 	if err != nil {
 		return nil, err
@@ -51,6 +52,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 		}
 	}
 
+	// TODO(thaJeztah): the "is-automated" field is deprecated. Reset the field for the next release (v26.0.0) if any "true" values are present.
 	unfilteredResult, err := s.searchUnfiltered(ctx, term, limit, authConfig, headers)
 	if err != nil {
 		return nil, err
@@ -59,7 +61,7 @@ func (s *Service) Search(ctx context.Context, searchFilters filters.Args, term s
 	filteredResults := []registry.SearchResult{}
 	for _, result := range unfilteredResult.Results {
 		if searchFilters.Contains("is-automated") {
-			if isAutomated != result.IsAutomated {
+			if isAutomated != result.IsAutomated { //nolint:staticcheck // ignore SA1019 for old API versions.
 				continue
 			}
 		}

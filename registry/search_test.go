@@ -134,14 +134,14 @@ func TestSearch(t *testing.T) {
 				{
 					Name:        "name",
 					Description: "description",
-					IsAutomated: true,
+					IsAutomated: true, //nolint:staticcheck // ignore SA1019 (field is deprecated).
 				},
 			},
 			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
-					IsAutomated: true,
+					IsAutomated: true, //nolint:staticcheck // ignore SA1019 (field is deprecated).
 				},
 			},
 		},
@@ -152,7 +152,7 @@ func TestSearch(t *testing.T) {
 				{
 					Name:        "name",
 					Description: "description",
-					IsAutomated: true,
+					IsAutomated: true, //nolint:staticcheck // ignore SA1019 (field is deprecated).
 				},
 			},
 			expectedResults: []registry.SearchResult{},
@@ -164,14 +164,12 @@ func TestSearch(t *testing.T) {
 				{
 					Name:        "name",
 					Description: "description",
-					IsAutomated: false,
 				},
 			},
 			expectedResults: []registry.SearchResult{
 				{
 					Name:        "name",
 					Description: "description",
-					IsAutomated: false,
 				},
 			},
 		},
@@ -300,28 +298,27 @@ func TestSearch(t *testing.T) {
 					Description: "description0",
 					StarCount:   0,
 					IsOfficial:  true,
-					IsAutomated: true,
+					IsAutomated: true, //nolint:staticcheck // ignore SA1019 (field is deprecated).
 				},
 				{
 					Name:        "name1",
 					Description: "description1",
 					StarCount:   1,
 					IsOfficial:  false,
-					IsAutomated: true,
+					IsAutomated: true, //nolint:staticcheck // ignore SA1019 (field is deprecated).
 				},
 				{
 					Name:        "name2",
 					Description: "description2",
 					StarCount:   1,
 					IsOfficial:  true,
-					IsAutomated: false,
 				},
 				{
 					Name:        "name3",
 					Description: "description3",
 					StarCount:   2,
 					IsOfficial:  true,
-					IsAutomated: true,
+					IsAutomated: true, //nolint:staticcheck // ignore SA1019 (field is deprecated).
 				},
 			},
 			expectedResults: []registry.SearchResult{
@@ -330,7 +327,7 @@ func TestSearch(t *testing.T) {
 					Description: "description3",
 					StarCount:   2,
 					IsOfficial:  true,
-					IsAutomated: true,
+					IsAutomated: true, //nolint:staticcheck // ignore SA1019 (field is deprecated).
 				},
 			},
 		},
