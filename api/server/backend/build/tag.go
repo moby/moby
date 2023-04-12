@@ -22,14 +22,10 @@ func tagImages(ctx context.Context, ic ImageComponent, stdout io.Writer, imageID
 }
 
 // sanitizeRepoAndTags parses the raw "t" parameter received from the client
-// to a slice of repoAndTag.
-// It also validates each repoName and tag.
-func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
-	var (
-		repoAndTags []reference.Named
-		// This map is used for deduplicating the "-t" parameter.
-		uniqNames = make(map[string]struct{})
-	)
+// to a slice of repoAndTag. It removes duplicates, and validates each name
+// to not contain a digest.
+func sanitizeRepoAndTags(names []string) (repoAndTags []reference.Named, err error) {
+	uniqNames := map[string]struct{}{}
 	for _, repo := range names {
 		if repo == "" {
 			continue
@@ -40,14 +36,12 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 			return nil, err
 		}
 
-		if _, isCanonical := ref.(reference.Canonical); isCanonical {
+		if _, ok := ref.(reference.Digested); ok {
 			return nil, errors.New("build tag cannot contain a digest")
 		}
 
 		ref = reference.TagNameOnly(ref)
-
 		nameWithTag := ref.String()
-
 		if _, exists := uniqNames[nameWithTag]; !exists {
 			uniqNames[nameWithTag] = struct{}{}
 			repoAndTags = append(repoAndTags, ref)
