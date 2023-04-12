@@ -235,6 +235,10 @@ func (daemon *Daemon) fillAPIInfo(v *system.Info, cfg *config.Config) {
          to the 'Docker daemon attack surface' section in the documentation for
          more information: https://docs.docker.com/go/attack-surface/`
 
+	if cfg.CorsHeaders != "" {
+		v.Warnings = append(v.Warnings, `DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option will be removed in the next release. Use a reverse proxy if you need CORS headers.`)
+	}
+
 	for _, host := range cfg.Hosts {
 		// cnf.Hosts is normalized during startup, so should always have a scheme/proto
 		proto, addr, _ := strings.Cut(host, "://")
