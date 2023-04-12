@@ -1,8 +1,9 @@
 package containerd
 
 import (
+	"crypto/tls"
+	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
@@ -72,12 +73,16 @@ type httpFallback struct {
 
 func (f httpFallback) RoundTrip(r *http.Request) (*http.Response, error) {
 	resp, err := f.super.RoundTrip(r)
-	if err != nil {
-		if strings.Contains(err.Error(), "http: server gave HTTP response to HTTPS client") {
-			plain := r.Clone(r.Context())
-			plain.URL.Scheme = "http"
-			return http.DefaultTransport.RoundTrip(plain)
-		}
+	var tlsErr tls.RecordHeaderError
+	if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
+		// server gave HTTP response to HTTPS client
+		plainHttpUrl := *r.URL
+		plainHttpUrl.Scheme = "http"
+
+		plainHttpRequest := *r
+		plainHttpRequest.URL = &plainHttpUrl
+
+		return http.DefaultTransport.RoundTrip(&plainHttpRequest)
 	}
 
 	return resp, err
