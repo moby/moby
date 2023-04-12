@@ -167,7 +167,7 @@ type CommonConfig struct {
 	Root                  string              `json:"data-root,omitempty"`
 	ExecRoot              string              `json:"exec-root,omitempty"`
 	SocketGroup           string              `json:"group,omitempty"`
-	CorsHeaders           string              `json:"api-cors-header,omitempty"`
+	CorsHeaders           string              `json:"api-cors-header,omitempty"` // Deprecated: CORS headers should not be set on the API, and this feature will be removed in the next release.
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
