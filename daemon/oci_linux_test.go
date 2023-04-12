@@ -33,6 +33,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 		configStore:   &config.Config{},
 		linkIndex:     newLinkIndex(),
 		netController: netController,
+		imageService:  &fakeImageService{},
 	}
 
 	c.Root = root
@@ -49,6 +50,14 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	}
 
 	return d
+}
+
+type fakeImageService struct {
+	ImageService
+}
+
+func (i *fakeImageService) StorageDriver() string {
+	return "overlay"
 }
 
 func cleanupFakeContainer(c *container.Container) {
