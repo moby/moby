@@ -14,7 +14,8 @@ pipeline {
     environment {
         DOCKER_BUILDKIT     = '1'
         DOCKER_EXPERIMENTAL = '1'
-        DOCKER_GRAPHDRIVER  = 'overlay2'
+        TEST_INTEGRATION_USE_SNAPSHOTTER = '1'
+        DOCKER_GRAPHDRIVER  = 'overlayfs'
         CHECK_CONFIG_COMMIT = '33a3680e08d1007e72c3b3f1454f823d8e9948ee'
         TESTDEBUG           = '0'
         TIMEOUT             = '120m'

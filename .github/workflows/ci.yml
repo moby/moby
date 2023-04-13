@@ -15,6 +15,7 @@ on:
   pull_request:
 
 env:
+  DOCKER_GRAPHDRIVER: overlayfs
   TEST_INTEGRATION_USE_SNAPSHOTTER: 1
   DESTDIR: ./build
 
