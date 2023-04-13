@@ -3,11 +3,13 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -23,6 +25,7 @@ import (
 var acceptedImageFilterTags = map[string]bool{
 	"dangling":  true,
 	"label":     true,
+	"label!":    true,
 	"before":    true,
 	"since":     true,
 	"reference": true,
@@ -256,8 +259,12 @@ type imageFilterFunc func(image images.Image) bool
 
 // setupFilters constructs an imageFilterFunc from the given imageFilters.
 //
+// containerdListFilters is a slice of filters which should be passed to ImageService.List()
+// filterFunc is a function that checks whether given image matches the filters.
 // TODO(thaJeztah): reimplement filters using containerd filters: see https://github.com/moby/moby/issues/43845
-func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) ([]string, imageFilterFunc, error) {
+func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (
+	containerdListFilters []string, filterFunc imageFilterFunc, outErr error) {
+
 	var fltrs []imageFilterFunc
 	err := imageFilters.WalkValues("before", func(value string) error {
 		ref, err := reference.ParseDockerRef(value)
@@ -297,10 +304,12 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, nil, err
 	}
 
-	if imageFilters.Contains("label") {
-		fltrs = append(fltrs, func(image images.Image) bool {
-			return imageFilters.MatchKVList("label", image.Labels)
-		})
+	labelFn, err := setupLabelFilter(i.client.ContentStore(), imageFilters)
+	if err != nil {
+		return nil, nil, err
+	}
+	if labelFn != nil {
+		fltrs = append(fltrs, labelFn)
 	}
 
 	if imageFilters.Contains("dangling") {
@@ -334,6 +343,112 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 			}
 		}
 		return true
+	}, nil
+}
+
+// setupLabelFilter parses filter args for "label" and "label!" and returns a
+// filter func which will check if any image config from the given image has
+// labels that match given predicates.
+func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image images.Image) bool, error) {
+	type labelCheck struct {
+		key        string
+		value      string
+		onlyExists bool
+		negate     bool
+	}
+
+	var checks []labelCheck
+	for _, fltrName := range []string{"label", "label!"} {
+		for _, l := range fltrs.Get(fltrName) {
+			k, v, found := strings.Cut(l, "=")
+			err := labels.Validate(k, v)
+			if err != nil {
+				return nil, err
+			}
+
+			negate := strings.HasSuffix(fltrName, "!")
+
+			// If filter value is key!=value then flip the above.
+			if strings.HasSuffix(k, "!") {
+				k = strings.TrimSuffix(k, "!")
+				negate = !negate
+			}
+
+			checks = append(checks, labelCheck{
+				key:        k,
+				value:      v,
+				onlyExists: !found,
+				negate:     negate,
+			})
+		}
+	}
+
+	return func(image images.Image) bool {
+		ctx := context.TODO()
+
+		// This is not an error, but a signal to Dispatch that it should stop
+		// processing more content (otherwise it will run for all children).
+		// It will be returned once a matching config is found.
+		errFoundConfig := errors.New("success, found matching config")
+		err := images.Dispatch(ctx, presentChildrenHandler(store, images.HandlerFunc(func(ctx context.Context, desc v1.Descriptor) (subdescs []v1.Descriptor, err error) {
+			if !images.IsConfigType(desc.MediaType) {
+				return nil, nil
+			}
+			// Subset of ocispec.Image that only contains Labels
+			var cfg struct {
+				Config struct {
+					Labels map[string]string `json:"Labels,omitempty"`
+				} `json:"Config,omitempty"`
+			}
+			if err := readConfig(ctx, store, desc, &cfg); err != nil {
+				return nil, err
+			}
+
+			for _, check := range checks {
+				value, exists := cfg.Config.Labels[check.key]
+
+				if check.onlyExists {
+					// label! given without value, check if doesn't exist
+					if check.negate {
+						// Label exists, config doesn't match
+						if exists {
+							return nil, nil
+						}
+					} else {
+						// Label should exist
+						if !exists {
+							// Label doesn't exist, config doesn't match
+							return nil, nil
+						}
+					}
+					continue
+				} else if !exists {
+					// We are checking value and label doesn't exist.
+					return nil, nil
+				}
+
+				valueEquals := value == check.value
+				if valueEquals == check.negate {
+					return nil, nil
+				}
+			}
+
+			// This config matches the filter so we need to shop this image, stop dispatch.
+			return nil, errFoundConfig
+		})), nil, image.Target)
+
+		if err == errFoundConfig {
+			return true
+		}
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"image":         image.Name,
+				"checks":        checks,
+			}).Error("failed to check image labels")
+		}
+
+		return false
 	}, nil
 }
 
