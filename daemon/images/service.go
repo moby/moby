@@ -109,8 +109,8 @@ func (i *ImageService) CountImages() int {
 // Children returns the children image.IDs for a parent image.
 // called from list.go to filter containers
 // TODO: refactor to expose an ancestry for image.ID?
-func (i *ImageService) Children(_ context.Context, id image.ID) []image.ID {
-	return i.imageStore.Children(id)
+func (i *ImageService) Children(_ context.Context, id image.ID) ([]image.ID, error) {
+	return i.imageStore.Children(id), nil
 }
 
 // CreateLayer creates a filesystem layer for a container.

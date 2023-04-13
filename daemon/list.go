@@ -317,7 +317,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 	var ancestorFilter bool
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
-		psFilters.WalkValues("ancestor", func(ancestor string) error {
+		err := psFilters.WalkValues("ancestor", func(ancestor string) error {
 			img, err := daemon.imageService.GetImage(ctx, ancestor, imagetypes.GetImageOpts{})
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
@@ -328,9 +328,12 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(ctx, imagesFilter, img.ID(), daemon.imageService.Children)
-			return nil
+			return populateImageFilterByParents(ctx, imagesFilter, img.ID(), daemon.imageService.Children)
 		})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	publishFilter := map[nat.Port]bool{}
@@ -594,11 +597,18 @@ func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot, f
 	return &c, nil
 }
 
-func populateImageFilterByParents(ctx context.Context, ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(context.Context, image.ID) []image.ID) {
+func populateImageFilterByParents(ctx context.Context, ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(context.Context, image.ID) ([]image.ID, error)) error {
 	if !ancestorMap[imageID] {
-		for _, id := range getChildren(ctx, imageID) {
-			populateImageFilterByParents(ctx, ancestorMap, id, getChildren)
+		children, err := getChildren(ctx, imageID)
+		if err != nil {
+			return err
+		}
+		for _, id := range children {
+			if err := populateImageFilterByParents(ctx, ancestorMap, id, getChildren); err != nil {
+				return err
+			}
 		}
 		ancestorMap[imageID] = true
 	}
+	return nil
 }
