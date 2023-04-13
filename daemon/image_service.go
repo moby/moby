@@ -73,7 +73,7 @@ type ImageService interface {
 	// Other
 
 	DistributionServices() images.DistributionServices
-	Children(ctx context.Context, id image.ID) []image.ID
+	Children(ctx context.Context, id image.ID) ([]image.ID, error)
 	Cleanup() error
 	StorageDriver() string
 	UpdateConfig(maxDownloads, maxUploads int)
