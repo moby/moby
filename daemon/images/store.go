@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/content"
-	c8derrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
@@ -38,7 +38,7 @@ type imageStoreWithLease struct {
 
 func (s *imageStoreWithLease) Delete(id image.ID) ([]layer.Metadata, error) {
 	ctx := namespaces.WithNamespace(context.TODO(), s.ns)
-	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(id.String())}); err != nil && !c8derrdefs.IsNotFound(err) {
+	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(id.String())}); err != nil && !cerrdefs.IsNotFound(err) {
 		return nil, errors.Wrap(err, "error deleting lease")
 	}
 	return s.Store.Delete(id)
@@ -72,7 +72,7 @@ func (s *imageStoreForPull) updateLease(ctx context.Context, dgst digest.Digest)
 	leaseID := imageKey(dgst.String())
 	lease, err := s.leases.Create(ctx, leases.WithID(leaseID))
 	if err != nil {
-		if !c8derrdefs.IsAlreadyExists(err) {
+		if !cerrdefs.IsAlreadyExists(err) {
 			return errors.Wrap(err, "error creating lease")
 		}
 		lease = leases.Lease{ID: leaseID}
@@ -125,7 +125,7 @@ func (c *contentStoreForPull) getDigested() []digest.Digest {
 func (c *contentStoreForPull) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
 	w, err := c.ContentStore.Writer(ctx, opts...)
 	if err != nil {
-		if c8derrdefs.IsAlreadyExists(err) {
+		if cerrdefs.IsAlreadyExists(err) {
 			var cfg content.WriterOpts
 			for _, o := range opts {
 				if err := o(&cfg); err != nil {
@@ -149,7 +149,7 @@ type contentWriter struct {
 
 func (w *contentWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
 	err := w.Writer.Commit(ctx, size, expected, opts...)
-	if err == nil || c8derrdefs.IsAlreadyExists(err) {
+	if err == nil || cerrdefs.IsAlreadyExists(err) {
 		w.cs.addDigested(expected)
 	}
 	return err

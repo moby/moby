@@ -19,7 +19,7 @@ import (
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
-	containerderrors "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
@@ -127,7 +127,7 @@ func (c *client) NewContainer(ctx context.Context, id string, ociSpec *specs.Spe
 
 	ctr, err := c.client.NewContainer(ctx, id, opts...)
 	if err != nil {
-		if containerderrors.IsAlreadyExists(err) {
+		if cerrdefs.IsAlreadyExists(err) {
 			return nil, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
 		return nil, wrapError(err)
@@ -285,7 +285,7 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	})
 	if err != nil {
 		close(stdinCloseSync)
-		if containerderrors.IsAlreadyExists(err) {
+		if cerrdefs.IsAlreadyExists(err) {
 			return nil, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 		}
 		return nil, wrapError(err)
@@ -473,7 +473,7 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 func (c *client) LoadContainer(ctx context.Context, id string) (libcontainerdtypes.Container, error) {
 	ctr, err := c.client.LoadContainer(ctx, id)
 	if err != nil {
-		if containerderrors.IsNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			return nil, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 		}
 		return nil, wrapError(err)
@@ -758,7 +758,7 @@ func wrapError(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case containerderrors.IsNotFound(err):
+	case cerrdefs.IsNotFound(err):
 		return errdefs.NotFound(err)
 	}
 

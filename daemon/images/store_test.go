@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	c8derrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/namespaces"
@@ -117,7 +117,7 @@ func TestContentStoreForPull(t *testing.T) {
 	// Test already exists
 	csP.digested = nil
 	_, err = csP.Writer(ctx, content.WithRef(t.Name()), content.WithDescriptor(desc))
-	assert.Check(t, c8derrdefs.IsAlreadyExists(err))
+	assert.Check(t, cerrdefs.IsAlreadyExists(err))
 	assert.Equal(t, len(csP.digested), 1)
 	assert.Check(t, is.Equal(csP.digested[0], desc.Digest))
 }

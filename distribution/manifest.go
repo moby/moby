@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/distribution"
@@ -124,7 +124,7 @@ func (m *manifestStore) getLocal(ctx context.Context, desc specs.Descriptor, ref
 			}
 
 			if !exists {
-				return nil, errors.Wrapf(errdefs.ErrNotFound, "manifest %v not found", desc.Digest)
+				return nil, errors.Wrapf(cerrdefs.ErrNotFound, "manifest %v not found", desc.Digest)
 			}
 
 		}
@@ -180,7 +180,7 @@ func (m *manifestStore) Get(ctx context.Context, desc specs.Descriptor, ref refe
 		// here. We may not even have the content locally, and this is fine, but
 		// if we do we should determine that.
 		mt, err := m.getMediaType(ctx, desc)
-		if err != nil && !errdefs.IsNotFound(err) {
+		if err != nil && !cerrdefs.IsNotFound(err) {
 			l.WithError(err).Warn("Error looking up media type of content")
 		}
 		desc.MediaType = mt
@@ -193,7 +193,7 @@ func (m *manifestStore) Get(ctx context.Context, desc specs.Descriptor, ref refe
 	// ref count on the content.
 	w, err := m.local.Writer(ctx, content.WithDescriptor(desc), content.WithRef(key))
 	if err != nil {
-		if errdefs.IsAlreadyExists(err) {
+		if cerrdefs.IsAlreadyExists(err) {
 			var manifest distribution.Manifest
 			if manifest, err = m.getLocal(ctx, desc, ref); err == nil {
 				return manifest, nil

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	containerderrdefs "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -64,7 +64,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerPause(ctx, cID)
-	assert.Check(t, is.ErrorContains(err, containerderrdefs.ErrNotImplemented.Error()))
+	assert.Check(t, is.ErrorContains(err, cerrdefs.ErrNotImplemented.Error()))
 }
 
 func TestPauseStopPausedContainer(t *testing.T) {

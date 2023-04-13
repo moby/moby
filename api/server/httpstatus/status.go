@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	containerderrors "github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
@@ -132,17 +132,17 @@ func statusCodeFromDistributionError(err error) int {
 // consumed directly (not through gRPC)
 func statusCodeFromContainerdError(err error) int {
 	switch {
-	case containerderrors.IsInvalidArgument(err):
+	case cerrdefs.IsInvalidArgument(err):
 		return http.StatusBadRequest
-	case containerderrors.IsNotFound(err):
+	case cerrdefs.IsNotFound(err):
 		return http.StatusNotFound
-	case containerderrors.IsAlreadyExists(err):
+	case cerrdefs.IsAlreadyExists(err):
 		return http.StatusConflict
-	case containerderrors.IsFailedPrecondition(err):
+	case cerrdefs.IsFailedPrecondition(err):
 		return http.StatusPreconditionFailed
-	case containerderrors.IsUnavailable(err):
+	case cerrdefs.IsUnavailable(err):
 		return http.StatusServiceUnavailable
-	case containerderrors.IsNotImplemented(err):
+	case cerrdefs.IsNotImplemented(err):
 		return http.StatusNotImplemented
 	default:
 		return http.StatusInternalServerError
