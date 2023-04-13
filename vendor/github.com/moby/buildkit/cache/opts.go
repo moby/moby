@@ -37,3 +37,14 @@ func (m NeedsRemoteProviderError) Error() string {
 }
 
 type ProgressKey struct{}
+
+type Unlazy session.Group
+
+func unlazySessionOf(opts ...RefOption) session.Group {
+	for _, opt := range opts {
+		if opt, ok := opt.(session.Group); ok {
+			return opt
+		}
+	}
+	return nil
+}

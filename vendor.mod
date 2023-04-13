@@ -50,7 +50,7 @@ require (
 	github.com/klauspost/compress v1.15.12
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
-	github.com/moby/buildkit v0.10.7-0.20230306143919-70f2ad56d3e5
+	github.com/moby/buildkit v0.10.7-0.20230412161310-d52b2d584242
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.5.0
