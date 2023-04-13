@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/docker/distribution/reference"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -41,6 +43,7 @@ type RegistryHostsProvider interface {
 
 type RegistryConfigProvider interface {
 	IsInsecureRegistry(host string) bool
+	ResolveRepository(name reference.Named) (*registry.RepositoryInfo, error)
 }
 
 type ImageServiceConfig struct {

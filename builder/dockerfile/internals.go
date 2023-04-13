@@ -63,7 +63,7 @@ func (b *Builder) commitContainer(ctx context.Context, dispatchState *dispatchSt
 	return err
 }
 
-func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
+func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
 	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
@@ -98,7 +98,15 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 		return errors.Wrap(err, "failed to encode image config")
 	}
 
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	// when writing the new image's manifest, we now need to pass in the new layer's digest.
+	// before the containerd store work this was unnecessary since we get the layer id
+	// from the image's RootFS ChainID -- see:
+	// https://github.com/moby/moby/blob/8cf66ed7322fa885ef99c4c044fa23e1727301dc/image/store.go#L162
+	// however, with the containerd store we can't do this. An alternative implementation here
+	// without changing the signature would be to get the layer digest by walking the content store
+	// and filtering the objects to find the layer with the DiffID we want, but that has performance
+	// implications that should be called out/investigated
+	exportedImage, err := b.docker.CreateImage(ctx, config, state.imageID, newLayer.ContentStoreDigest())
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
@@ -170,7 +178,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
-	return b.exportImage(state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
+	return b.exportImage(ctx, state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
 }
 
 func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
