@@ -119,6 +119,5 @@ jobs:
           TEST_DOCKERD: "1"
           TEST_DOCKERD_BINARY: "./build/moby/dockerd"
           TESTPKGS: "./${{ matrix.pkg }}"
-          # Skip buildkit tests checking the digest (see https://github.com/moby/buildkit/pull/3736)
-          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=/^Test([^R]|.[^e]|..[^p]|...[^r]|....[^o]|.....[^S])/worker=${{ matrix.worker }}$"
+          TESTFLAGS: "-v --parallel=1 --timeout=30m --run=//worker=${{ matrix.worker }}$"
         working-directory: buildkit
