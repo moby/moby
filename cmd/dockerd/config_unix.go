@@ -51,7 +51,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVar(&conf.InitPath, "init-path", "", "Path to the docker-init binary")
 	flags.Int64Var(&conf.CPURealtimePeriod, "cpu-rt-period", 0, "Limit the CPU real-time period in microseconds for the parent cgroup for all containers (not supported with cgroups v2)")
 	flags.Int64Var(&conf.CPURealtimeRuntime, "cpu-rt-runtime", 0, "Limit the CPU real-time runtime in microseconds for the parent cgroup for all containers (not supported with cgroups v2)")
-	flags.StringVar(&conf.SeccompProfile, "seccomp-profile", conf.SeccompProfile, `Path to seccomp profile. Use "unconfined" to disable the default seccomp profile`)
+	flags.StringVar(&conf.SeccompProfile, "seccomp-profile", conf.SeccompProfile, `Path to seccomp profile. Set to "unconfined" to disable the default seccomp profile`)
 	flags.Var(&conf.ShmSize, "default-shm-size", "Default shm size for containers")
 	flags.BoolVar(&conf.NoNewPrivileges, "no-new-privileges", false, "Set no-new-privileges by default for new containers")
 	flags.StringVar(&conf.IpcMode, "default-ipc-mode", conf.IpcMode, `Default mode for containers ipc ("shareable" | "private")`)
