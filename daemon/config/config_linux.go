@@ -68,7 +68,7 @@ type Config struct {
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty"`
 	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty"`
-	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
+	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"` // Deprecated: configure the daemon's oom-score-adjust using a process manager instead.
 	Init                 bool                     `json:"init,omitempty"`
 	InitPath             string                   `json:"init-path,omitempty"`
 	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`

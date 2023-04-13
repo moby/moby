@@ -164,6 +164,9 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	if !v.BridgeNfIP6tables {
 		v.Warnings = append(v.Warnings, "WARNING: bridge-nf-call-ip6tables is disabled")
 	}
+	if daemon.configStore.OOMScoreAdjust != 0 {
+		v.Warnings = append(v.Warnings, `DEPRECATED: The "oom-score-adjust" config parameter and the dockerd "--oom-score-adjust" option will be removed in the next release`)
+	}
 }
 
 func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
