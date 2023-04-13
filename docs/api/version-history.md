@@ -23,6 +23,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/json` no longer includes hardcoded `<none>:<none>` and
   `<none>@<none>` in `RepoTags` and`RepoDigests` for untagged images.
   In such cases, empty arrays will be produced instead.
+* `GET /info` now includes `no-new-privileges` in the `SecurityOptions` string
+  list when this option is enabled globally. This change is not versioned, and
+  affects all API versions if the daemon has this patch.
 
 ## v1.42 API changes
 

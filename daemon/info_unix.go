@@ -366,3 +366,7 @@ func (daemon *Daemon) cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo) bool {
 func (daemon *Daemon) Rootless() bool {
 	return daemon.configStore.Rootless
 }
+
+func (daemon *Daemon) noNewPrivileges() bool {
+	return daemon.configStore.NoNewPrivileges
+}

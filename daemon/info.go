@@ -170,6 +170,9 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	if daemon.cgroupNamespacesEnabled(sysInfo) {
 		securityOptions = append(securityOptions, "name=cgroupns")
 	}
+	if daemon.noNewPrivileges() {
+		securityOptions = append(securityOptions, "name=no-new-privileges")
+	}
 
 	v.SecurityOptions = securityOptions
 }
