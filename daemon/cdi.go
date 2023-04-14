@@ -5,7 +5,6 @@ import (
 
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/capabilities"
 	"github.com/hashicorp/go-multierror"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -29,7 +28,6 @@ func RegisterCDIDriver(opts ...cdi.Option) {
 			return fmt.Errorf("CDI device injection failed due to registry initialization failure: %w", err)
 		}
 		driver := &deviceDriver{
-			capset:     capabilities.Set{"cdi": struct{}{}},
 			updateSpec: errorOnUpdateSpec,
 		}
 		registerDeviceDriver("cdi", driver)
@@ -42,7 +40,6 @@ func RegisterCDIDriver(opts ...cdi.Option) {
 	}
 
 	driver := &deviceDriver{
-		capset:     capabilities.Set{"cdi": struct{}{}},
 		updateSpec: c.injectCDIDevices,
 	}
 

@@ -242,9 +242,8 @@ func WithRuntime(name string) func(*TestContainerConfig) {
 func WithCDIDevices(cdiDeviceNames ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		request := containertypes.DeviceRequest{
-			Driver:       "cdi",
-			Capabilities: [][]string{{"cdi"}},
-			DeviceIDs:    cdiDeviceNames,
+			Driver:    "cdi",
+			DeviceIDs: cdiDeviceNames,
 		}
 		c.HostConfig.DeviceRequests = append(c.HostConfig.DeviceRequests, request)
 	}

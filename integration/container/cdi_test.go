@@ -43,9 +43,8 @@ func TestCreateWithCDIDevices(t *testing.T) {
 
 	expectedRequests := []containertypes.DeviceRequest{
 		{
-			Driver:       "cdi",
-			DeviceIDs:    []string{"vendor1.com/device=foo"},
-			Capabilities: [][]string{{"cdi"}},
+			Driver:    "cdi",
+			DeviceIDs: []string{"vendor1.com/device=foo"},
 		},
 	}
 	assert.Check(t, is.DeepEqual(inspect.HostConfig.DeviceRequests, expectedRequests))
