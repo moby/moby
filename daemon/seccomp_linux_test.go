@@ -31,7 +31,7 @@ func TestWithSeccomp(t *testing.T) {
 				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
-				SeccompProfile: dconfig.SeccompProfileUnconfined,
+				SecurityOptions: container.SecurityOptions{SeccompProfile: dconfig.SeccompProfileUnconfined},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
@@ -45,7 +45,7 @@ func TestWithSeccomp(t *testing.T) {
 				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
-				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\" }",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: `{"defaultAction": "SCMP_ACT_LOG"}`},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: true,
 				},
@@ -59,7 +59,7 @@ func TestWithSeccomp(t *testing.T) {
 				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
-				SeccompProfile: "",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: ""},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: true,
 				},
@@ -71,10 +71,10 @@ func TestWithSeccomp(t *testing.T) {
 			comment: "privileged container w/ daemon profile runs unconfined",
 			daemon: &Daemon{
 				sysInfo:        &sysinfo.SysInfo{Seccomp: true},
-				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
+				seccompProfile: []byte(`{"defaultAction": "SCMP_ACT_ERRNO"}`),
 			},
 			c: &container.Container{
-				SeccompProfile: "",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: ""},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: true,
 				},
@@ -88,7 +88,7 @@ func TestWithSeccomp(t *testing.T) {
 				sysInfo: &sysinfo.SysInfo{Seccomp: false},
 			},
 			c: &container.Container{
-				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: `{"defaultAction": "SCMP_ACT_ERRNO"}`},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
@@ -103,7 +103,7 @@ func TestWithSeccomp(t *testing.T) {
 				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
-				SeccompProfile: "",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: ""},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
@@ -122,7 +122,7 @@ func TestWithSeccomp(t *testing.T) {
 				sysInfo: &sysinfo.SysInfo{Seccomp: true},
 			},
 			c: &container.Container{
-				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: `{"defaultAction": "SCMP_ACT_ERRNO"}`},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
@@ -141,10 +141,10 @@ func TestWithSeccomp(t *testing.T) {
 			comment: "load daemon's profile",
 			daemon: &Daemon{
 				sysInfo:        &sysinfo.SysInfo{Seccomp: true},
-				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
+				seccompProfile: []byte(`{"defaultAction": "SCMP_ACT_ERRNO"}`),
 			},
 			c: &container.Container{
-				SeccompProfile: "",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: ""},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},
@@ -163,10 +163,10 @@ func TestWithSeccomp(t *testing.T) {
 			comment: "load prioritise container profile over daemon's",
 			daemon: &Daemon{
 				sysInfo:        &sysinfo.SysInfo{Seccomp: true},
-				seccompProfile: []byte("{ \"defaultAction\": \"SCMP_ACT_ERRNO\" }"),
+				seccompProfile: []byte(`{"defaultAction": "SCMP_ACT_ERRNO"}`),
 			},
 			c: &container.Container{
-				SeccompProfile: "{ \"defaultAction\": \"SCMP_ACT_LOG\" }",
+				SecurityOptions: container.SecurityOptions{SeccompProfile: `{"defaultAction": "SCMP_ACT_LOG"}`},
 				HostConfig: &containertypes.HostConfig{
 					Privileged: false,
 				},

@@ -74,7 +74,7 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 			}
 			t.Run(doc, func(t *testing.T) {
 				c := &container.Container{
-					AppArmorProfile: tc.appArmorProfile,
+					SecurityOptions: container.SecurityOptions{AppArmorProfile: tc.appArmorProfile},
 					HostConfig: &containertypes.HostConfig{
 						Privileged: tc.privileged,
 					},

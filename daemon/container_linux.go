@@ -15,7 +15,7 @@ func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 		return nil // if apparmor is disabled there is nothing to do here.
 	}
 
-	if err := parseSecurityOpt(container, container.HostConfig); err != nil {
+	if err := parseSecurityOpt(&container.SecurityOptions, container.HostConfig); err != nil {
 		return errdefs.InvalidParameter(err)
 	}
 
