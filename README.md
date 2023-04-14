@@ -1,7 +1,13 @@
 The Moby Project
 ================
+[![ci](https://github.com/moby/moby/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/moby/moby/actions/workflows/ci.yml)
+![Latest release](https://img.shields.io/github/v/release/moby/moby)
+![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/moby/moby)](https://goreportcard.com/report/github.com/moby/moby)
 
 ![Moby Project logo](docs/static_files/moby-project-logo.png "The Moby Project")
+
+
 
 Moby is an open-source project created by Docker to enable and accelerate software containerization.
 
