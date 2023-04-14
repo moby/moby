@@ -79,7 +79,11 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 	// Apply filters
 	for name, img := range imagesToPrune {
 		filteredOut := !filterFunc(img)
-		logrus.WithField("image", name).WithField("filteredOut", filteredOut).Debug("filtering image")
+		logrus.WithFields(logrus.Fields{
+			"image":       name,
+			"filteredOut": filteredOut,
+		}).Debug("filtering image")
+
 		if filteredOut {
 			delete(imagesToPrune, name)
 		}
@@ -107,8 +111,6 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		}
 	}
 
-	logrus.WithField("images", imagesToPrune).Debug("pruning")
-
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
 
 	// Workaround for https://github.com/moby/buildkit/issues/3797
@@ -119,6 +121,8 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 	}()
 
 	for _, img := range imagesToPrune {
+		logrus.WithField("image", img).Debug("pruning image")
+
 		blobs := []ocispec.Descriptor{}
 
 		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) {
