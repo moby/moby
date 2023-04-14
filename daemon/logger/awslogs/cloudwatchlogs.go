@@ -73,7 +73,6 @@ type logStream struct {
 	logGroupName       string
 	logCreateGroup     bool
 	logCreateStream    bool
-	logNonBlocking     bool
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
 	client             api
@@ -88,7 +87,6 @@ type logStreamConfig struct {
 	logGroupName       string
 	logCreateGroup     bool
 	logCreateStream    bool
-	logNonBlocking     bool
 	forceFlushInterval time.Duration
 	maxBufferedEvents  int
 	multilinePattern   *regexp.Regexp
@@ -150,12 +148,13 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
+	logNonBlocking := info.Config["mode"] == "non-blocking"
+
 	containerStream := &logStream{
 		logStreamName:      containerStreamConfig.logStreamName,
 		logGroupName:       containerStreamConfig.logGroupName,
 		logCreateGroup:     containerStreamConfig.logCreateGroup,
 		logCreateStream:    containerStreamConfig.logCreateStream,
-		logNonBlocking:     containerStreamConfig.logNonBlocking,
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
 		client:             client,
@@ -163,7 +162,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	creationDone := make(chan bool)
-	if containerStream.logNonBlocking {
+	if logNonBlocking {
 		go func() {
 			backoff := 1
 			maxBackoff := 32
@@ -219,8 +218,6 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		}
 	}
 
-	logNonBlocking := info.Config["mode"] == "non-blocking"
-
 	forceFlushInterval := defaultForceFlushInterval
 	if info.Config[forceFlushIntervalKey] != "" {
 		forceFlushIntervalAsInt, err := strconv.Atoi(info.Config[forceFlushIntervalKey])
@@ -259,7 +256,6 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		logGroupName:       logGroupName,
 		logCreateGroup:     logCreateGroup,
 		logCreateStream:    logCreateStream,
-		logNonBlocking:     logNonBlocking,
 		forceFlushInterval: forceFlushInterval,
 		maxBufferedEvents:  maxBufferedEvents,
 		multilinePattern:   multilinePattern,
@@ -436,14 +432,6 @@ func (l *logStream) Log(msg *logger.Message) error {
 	defer l.lock.RUnlock()
 	if l.closed {
 		return errors.New("awslogs is closed")
-	}
-	if l.logNonBlocking {
-		select {
-		case l.messages <- msg:
-			return nil
-		default:
-			return errors.New("awslogs buffer is full")
-		}
 	}
 	l.messages <- msg
 	return nil
