@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/moby/buildkit/util/attestation"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -29,6 +31,7 @@ var acceptedImageFilterTags = map[string]bool{
 	"before":    true,
 	"since":     true,
 	"reference": true,
+	"until":     true,
 }
 
 // Images returns a filtered list of images.
@@ -298,6 +301,27 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 				return created.Equal(t) || created.Before(t)
 			})
 		}
+		return err
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = imageFilters.WalkValues("until", func(value string) error {
+		ts, err := timetypes.GetTimestamp(value, time.Now())
+		if err != nil {
+			return err
+		}
+		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		if err != nil {
+			return err
+		}
+		until := time.Unix(seconds, nanoseconds)
+
+		fltrs = append(fltrs, func(image images.Image) bool {
+			created := image.CreatedAt
+			return created.Before(until)
+		})
 		return err
 	})
 	if err != nil {
