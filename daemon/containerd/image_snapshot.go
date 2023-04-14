@@ -51,9 +51,6 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, parentIma
 	}
 
 	s := i.client.SnapshotService(i.StorageDriver())
-	if _, err := s.Prepare(ctx, id, parent); err == nil {
-		return err
-	}
-
-	return nil
+	_, err = s.Prepare(ctx, id, parent)
+	return err
 }
