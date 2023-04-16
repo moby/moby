@@ -450,8 +450,8 @@ func testGraphDriver(ctx context.Context, t *testing.T, c client.APIClient, driv
 
 	diffs, err := c.ContainerDiff(ctx, id)
 	assert.NilError(t, err)
-	assert.Check(t, is.Contains(diffs, containertypes.ContainerChangeResponseItem{
-		Kind: archive.ChangeAdd,
+	assert.Check(t, is.Contains(diffs, containertypes.FilesystemChange{
+		Kind: containertypes.ChangeAdd,
 		Path: "/hello",
 	}), "diffs: %v", diffs)
 

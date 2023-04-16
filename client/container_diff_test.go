@@ -31,13 +31,13 @@ func TestContainerDiff(t *testing.T) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
-			b, err := json.Marshal([]container.ContainerChangeResponseItem{
+			b, err := json.Marshal([]container.FilesystemChange{
 				{
-					Kind: 0,
+					Kind: container.ChangeModify,
 					Path: "/path/1",
 				},
 				{
-					Kind: 1,
+					Kind: container.ChangeAdd,
 					Path: "/path/2",
 				},
 			})

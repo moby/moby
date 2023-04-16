@@ -7,7 +7,6 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/pkg/archive"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -25,15 +24,15 @@ func TestDiff(t *testing.T) {
 	// it will take a few seconds to exit. Also there's no way in Windows to
 	// differentiate between an Add or a Modify, and all files are under
 	// a "Files/" prefix.
-	expected := []containertypes.ContainerChangeResponseItem{
-		{Kind: archive.ChangeAdd, Path: "/foo"},
-		{Kind: archive.ChangeAdd, Path: "/foo/bar"},
+	expected := []containertypes.FilesystemChange{
+		{Kind: containertypes.ChangeAdd, Path: "/foo"},
+		{Kind: containertypes.ChangeAdd, Path: "/foo/bar"},
 	}
 	if testEnv.OSType == "windows" {
 		poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
-		expected = []containertypes.ContainerChangeResponseItem{
-			{Kind: archive.ChangeModify, Path: "Files/foo"},
-			{Kind: archive.ChangeModify, Path: "Files/foo/bar"},
+		expected = []containertypes.FilesystemChange{
+			{Kind: containertypes.ChangeModify, Path: "Files/foo"},
+			{Kind: containertypes.ChangeModify, Path: "Files/foo/bar"},
 		}
 	}
 
