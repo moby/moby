@@ -250,7 +250,6 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		RepoDigests: repoDigests,
 		RepoTags:    repoTags,
 		Size:        totalSize,
-		VirtualSize: totalSize, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)
 		// for this, as the JSON representation uses "omitempty", which would

@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.44](https://docs.docker.com/engine/api/v1.44/) documentation
 
+* The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
+  and `GET /system/df` responses is now omitted. Use the `Size` field instead,
+  which contains the same information.
+
 ## v1.43 API changes
 
 [Docker Engine API v1.43](https://docs.docker.com/engine/api/v1.43/) documentation
