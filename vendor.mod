@@ -56,7 +56,7 @@ require (
 	github.com/klauspost/compress v1.16.3
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
-	github.com/moby/buildkit v0.11.6 // IMPORTANT: when updating, also update the version in builder/builder-next/worker/worker.go
+	github.com/moby/buildkit v0.11.6
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.5.0
@@ -87,6 +87,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.2
 	go.etcd.io/bbolt v1.3.7
+	golang.org/x/mod v0.10.0
 	golang.org/x/net v0.8.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.6.0

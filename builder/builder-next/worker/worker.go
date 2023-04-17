@@ -17,6 +17,7 @@ import (
 	distmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/internal/mod"
 	"github.com/docker/docker/layer"
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/moby/buildkit/cache"
@@ -50,7 +51,9 @@ import (
 )
 
 func init() {
-	version.Version = "v0.11.6"
+	if v := mod.Version("github.com/moby/buildkit"); v != "" {
+		version.Version = v
+	}
 }
 
 const labelCreatedAt = "buildkit/createdat"
