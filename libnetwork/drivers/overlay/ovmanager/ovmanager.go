@@ -58,7 +58,7 @@ func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 		networks: networkTable{},
 	}
 
-	d.vxlanIdm, err = idm.New(nil, "vxlan-id", 0, vxlanIDEnd)
+	d.vxlanIdm, err = idm.New(0, vxlanIDEnd)
 	if err != nil {
 		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
 	}
