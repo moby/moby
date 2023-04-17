@@ -61,7 +61,7 @@ func TestDiskUsage(t *testing.T) {
 							ID:          du.Images[0].ID,
 							RepoTags:    []string{"busybox:latest"},
 							Size:        du.LayersSize,
-							VirtualSize: du.LayersSize,
+							VirtualSize: du.LayersSize, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 						},
 					},
 					Containers: []*types.Container{},

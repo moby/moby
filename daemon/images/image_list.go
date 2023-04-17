@@ -261,7 +261,7 @@ func newImageSummary(image *image.Image, size int64) *types.ImageSummary {
 		ID:          image.ID().String(),
 		Created:     image.Created.Unix(),
 		Size:        size,
-		VirtualSize: size,
+		VirtualSize: size, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)
 		// for this, as the JSON representation uses "omitempty", which would

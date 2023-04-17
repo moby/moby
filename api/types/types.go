@@ -123,9 +123,8 @@ type ImageInspect struct {
 	// store images self-contained, and no longer use a parent-chain, making
 	// this field an equivalent of the Size field.
 	//
-	// This field is kept for backward compatibility, but may be removed in
-	// a future version of the API.
-	VirtualSize int64 // TODO(thaJeztah): deprecate this field
+	// Deprecated: Unused in API 1.43 and up, but kept for backward compatibility with older API versions.
+	VirtualSize int64 `json:"VirtualSize,omitempty"`
 
 	// GraphDriver holds information about the storage driver used to store the
 	// container's and image's filesystem.
