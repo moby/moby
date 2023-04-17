@@ -1,8 +1,6 @@
 package cnmallocator
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/libnetwork/idm"
 	"github.com/moby/swarmkit/v2/api"
 )
@@ -118,15 +116,12 @@ func newPortAllocator() (*portAllocator, error) {
 }
 
 func newPortSpace(protocol api.PortConfig_Protocol) (*portSpace, error) {
-	masterName := fmt.Sprintf("%s-master-ports", protocol)
-	dynamicName := fmt.Sprintf("%s-dynamic-ports", protocol)
-
-	master, err := idm.New(nil, masterName, masterPortStart, masterPortEnd)
+	master, err := idm.New(masterPortStart, masterPortEnd)
 	if err != nil {
 		return nil, err
 	}
 
-	dynamic, err := idm.New(nil, dynamicName, dynamicPortStart, dynamicPortEnd)
+	dynamic, err := idm.New(dynamicPortStart, dynamicPortEnd)
 	if err != nil {
 		return nil, err
 	}
