@@ -203,10 +203,14 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		sizeCache[d] = usage.Size
 		return usage.Size, nil
 	}
-	virtualSize, err := computeVirtualSize(chainIDs, snapshotSizeFn)
+	snapshotSize, err := computeSnapshotSize(chainIDs, snapshotSizeFn)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// totalSize is the size of the image's packed layers and snapshots
+	// (unpacked layers) combined.
+	totalSize := size + snapshotSize
 
 	var repoTags, repoDigests []string
 	rawImg := image.Metadata()
@@ -245,8 +249,8 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		Created:     rawImg.CreatedAt.Unix(),
 		RepoDigests: repoDigests,
 		RepoTags:    repoTags,
-		Size:        size,
-		VirtualSize: virtualSize,
+		Size:        totalSize,
+		VirtualSize: totalSize,
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)
 		// for this, as the JSON representation uses "omitempty", which would
@@ -476,16 +480,18 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 	}, nil
 }
 
-func computeVirtualSize(chainIDs []digest.Digest, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {
-	var virtualSize int64
+// computeSnapshotSize calculates the total size consumed by the snapshots
+// for the given chainIDs.
+func computeSnapshotSize(chainIDs []digest.Digest, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {
+	var totalSize int64
 	for _, chainID := range chainIDs {
 		size, err := sizeFn(chainID)
 		if err != nil {
-			return virtualSize, err
+			return totalSize, err
 		}
-		virtualSize += size
+		totalSize += size
 	}
-	return virtualSize, nil
+	return totalSize, nil
 }
 
 func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {

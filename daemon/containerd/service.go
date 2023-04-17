@@ -195,10 +195,11 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 	}
 
 	chainIDs := identity.ChainIDs(img.RootFS.DiffIDs)
-	virtualSize, err := computeVirtualSize(chainIDs, snapshotSizeFn)
+	snapShotSize, err := computeSnapshotSize(chainIDs, snapshotSizeFn)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	return usage.Size, usage.Size + virtualSize, nil
+	// TODO(thaJeztah): include content-store size for the image (similar to "GET /images/json")
+	return usage.Size, usage.Size + snapShotSize, nil
 }
