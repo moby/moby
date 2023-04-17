@@ -4,33 +4,27 @@ package idm
 import (
 	"errors"
 	"fmt"
+	"sync"
 
-	"github.com/docker/docker/libnetwork/bitseq"
-	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/bitmap"
 )
 
-// Idm manages the reservation/release of numerical ids from a contiguous set
+// Idm manages the reservation/release of numerical ids from a contiguous set.
+// Idm is safe for concurrent use.
 type Idm struct {
 	start  uint64
 	end    uint64
-	handle *bitseq.Handle
+	handle *bitmap.Bitmap
+	mu     sync.Mutex
 }
 
 // New returns an instance of id manager for a [start,end] set of numerical ids
-func New(ds datastore.DataStore, id string, start, end uint64) (*Idm, error) {
-	if id == "" {
-		return nil, errors.New("Invalid id")
-	}
+func New(start, end uint64) (*Idm, error) {
 	if end <= start {
 		return nil, fmt.Errorf("Invalid set range: [%d, %d]", start, end)
 	}
 
-	h, err := bitseq.NewHandle("idm", ds, id, 1+end-start)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize bit sequence handler: %s", err.Error())
-	}
-
-	return &Idm{start: start, end: end, handle: h}, nil
+	return &Idm{start: start, end: end, handle: bitmap.New(1 + end - start)}, nil
 }
 
 // GetID returns the first available id in the set
@@ -38,6 +32,8 @@ func (i *Idm) GetID(serial bool) (uint64, error) {
 	if i.handle == nil {
 		return 0, errors.New("ID set is not initialized")
 	}
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	ordinal, err := i.handle.SetAny(serial)
 	return i.start + ordinal, err
 }
@@ -52,6 +48,8 @@ func (i *Idm) GetSpecificID(id uint64) error {
 		return errors.New("Requested id does not belong to the set")
 	}
 
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	return i.handle.Set(id - i.start)
 }
 
@@ -65,6 +63,8 @@ func (i *Idm) GetIDInRange(start, end uint64, serial bool) (uint64, error) {
 		return 0, errors.New("Requested range does not belong to the set")
 	}
 
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	ordinal, err := i.handle.SetAnyInRange(start-i.start, end-i.start, serial)
 
 	return i.start + ordinal, err
@@ -72,5 +72,7 @@ func (i *Idm) GetIDInRange(start, end uint64, serial bool) (uint64, error) {
 
 // Release releases the specified id
 func (i *Idm) Release(id uint64) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	i.handle.Unset(id - i.start)
 }
