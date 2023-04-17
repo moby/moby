@@ -203,3 +203,6 @@ require (
 	k8s.io/klog/v2 v2.80.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+// FIXME(thaJeztah): testing https://github.com/moby/swarmkit/pull/3139
+replace github.com/moby/swarmkit/v2 => github.com/thaJeztah/swarmkit/v2 v2.0.0-20230703154232-e21d93da3789

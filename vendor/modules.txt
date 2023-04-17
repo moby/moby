@@ -777,7 +777,7 @@ github.com/moby/patternmatcher
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.0.0-20230627115642-ad0f3ae162fa
+# github.com/moby/swarmkit/v2 v2.0.0-20230627115642-ad0f3ae162fa => github.com/thaJeztah/swarmkit/v2 v2.0.0-20230703154232-e21d93da3789
 ## explicit; go 1.18
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
@@ -1379,3 +1379,4 @@ resenje.org/singleflight
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/moby/swarmkit/v2 => github.com/thaJeztah/swarmkit/v2 v2.0.0-20230703154232-e21d93da3789
