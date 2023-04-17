@@ -137,7 +137,7 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **--api-cors-header**=""
   Set CORS headers in the Engine API. Default is cors disabled. Give urls like
-  "http://foo, http://bar, ...". Give "*" to allow all.
+  "http://foo, http://bar, ...". Give "\*" to allow all.
 
 **--authorization-plugin**=""
   Set authorization plugins to load
@@ -175,7 +175,7 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **--default-gateway**=""
   IPv4 address of the container default gateway; this address must be part of
-  the bridge subnet (which is defined by \-b or \--bip)
+  the bridge subnet (which is defined by \-b or \-\-bip)
 
 **--default-gateway-v6**=""
   IPv6 address of the container default gateway
@@ -231,7 +231,7 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 **-H**, **--host**=[*unix:///var/run/docker.sock*]: tcp://[host:port] to bind or
 unix://[/path/to/socket] to use.
   The socket(s) to bind to in daemon mode specified using one or more
-  tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
+  tcp://host:port, unix:///path/to/socket, fd://\* or fd://socketfd.
 
 **--help**
   Print usage statement
@@ -463,7 +463,7 @@ Example use:
    $ dockerd \
          --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
 
-#### dm.directlvm_device
+#### dm.directlvm\_device
 
 As an alternative to manually creating a thin pool as above, Docker can
 automatically configure a block device for you.
@@ -473,40 +473,40 @@ Example use:
    $ dockerd \
          --storage-opt dm.directlvm_device=/dev/xvdf
 
-##### dm.thinp_percent
+#### dm.thinp\_percent
 
 Sets the percentage of passed in block device to use for storage.
 
-###### Example:
+Example:
 
    $ sudo dockerd \
         --storage-opt dm.thinp_percent=95
 
-##### `dm.thinp_metapercent`
+#### dm.thinp\_metapercent
 
 Sets the percentage of the passed in block device to use for metadata storage.
 
-###### Example:
+Example:
 
    $ sudo dockerd \
          --storage-opt dm.thinp_metapercent=1
 
-##### dm.thinp_autoextend_threshold
+#### dm.thinp\_autoextend\_threshold
 
 Sets the value of the percentage of space used before `lvm` attempts to
 autoextend the available space [100 = disabled]
 
-###### Example:
+Example:
 
    $ sudo dockerd \
          --storage-opt dm.thinp_autoextend_threshold=80
 
-##### dm.thinp_autoextend_percent
+#### dm.thinp\_autoextend\_percent
 
 Sets the value percentage value to increase the thin pool by when `lvm`
 attempts to autoextend the available space [100 = disabled]
 
-###### Example:
+Example:
 
    $ sudo dockerd \
          --storage-opt dm.thinp_autoextend_percent=20
@@ -559,7 +559,7 @@ Specifies extra mount options used when mounting the thin devices.
 
 Example use: `dockerd --storage-opt dm.mountopt=nodiscard`
 
-#### dm.use_deferred_removal
+#### dm.use\_deferred\_removal
 
 Enables use of deferred device removal if `libdm` and the kernel driver
 support the mechanism.
@@ -577,7 +577,7 @@ busy device.
 
 Example use: `dockerd --storage-opt dm.use_deferred_removal=true`
 
-#### dm.use_deferred_deletion
+#### dm.use\_deferred\_deletion
 
 Enables use of deferred device deletion for thin pool devices. By default,
 thin pool device deletion is synchronous. Before a container is deleted, the
@@ -656,7 +656,7 @@ returned to the system for other use when containers are removed.
 
 Example use: `dockerd --storage-opt dm.blkdiscard=false`
 
-#### dm.override_udev_sync_check
+#### dm.override\_udev\_sync\_check
 
 By default, the devicemapper backend attempts to synchronize with the `udev`
 device manager for the Linux kernel.  This option allows disabling that
@@ -692,7 +692,7 @@ support synchronizing with `udev`. For further discussion on this topic, see
 Otherwise, set this flag for migrating existing Docker daemons to a daemon with
 a supported environment.
 
-#### dm.min_free_space
+#### dm.min\_free\_space
 
 Specifies the min free space percent in a thin pool require for new device
 creation to succeed. This check applies to both free data space as well
@@ -717,7 +717,7 @@ the issue.
 
 Example use:: `dockerd --storage-opt dm.min_free_space=10%`
 
-#### dm.xfs_nospace_max_retries
+#### dm.xfs\_nospace\_max\_retries
 
 Specifies the maximum number of retries XFS should attempt to complete IO when
 ENOSPC (no space) error is returned by underlying storage device.
@@ -731,7 +731,7 @@ Example use:
 
     $ sudo dockerd --storage-opt dm.xfs_nospace_max_retries=0
 
-##### dm.libdm_log_level
+##### dm.libdm\_log\_level
 
 Specifies the maxmimum libdm log level that will be forwarded to the dockerd
 log (as specified by --log-level). This option is primarily intended for
@@ -742,14 +742,14 @@ Values specified must fall within the range of valid libdm log levels. At the
 time of writing, the following is the list of libdm log levels as well as their
 corresponding levels when output by dockerd.
 
-| libdm Level | Value | --log-level |
-| ----------- | -----:| ----------- |
-| _LOG_FATAL  |     2 | error       |
-| _LOG_ERR    |     3 | error       |
-| _LOG_WARN   |     4 | warn        |
-| _LOG_NOTICE |     5 | info        |
-| _LOG_INFO   |     6 | info        |
-| _LOG_DEBUG  |     7 | debug       |
+| libdm Level   | Value | --log-level |
+| ------------- | -----:| ----------- |
+| \_LOG\_FATAL  |     2 | error       |
+| \_LOG\_ERR    |     3 | error       |
+| \_LOG\_WARN   |     4 | warn        |
+| \_LOG\_NOTICE |     5 | info        |
+| \_LOG\_INFO   |     6 | info        |
+| \_LOG\_DEBUG  |     7 | debug       |
 
 Example use:
 
@@ -769,7 +769,7 @@ Example use: `dockerd -s zfs --storage-opt zfs.fsname=zroot/docker`
 
 ## Btrfs options
 
-#### btrfs.min_space
+#### btrfs.min\_space
 
 Specifies the minimum size to use when creating the subvolume which is used for
 containers. If user uses disk quota for btrfs when creating or running a
