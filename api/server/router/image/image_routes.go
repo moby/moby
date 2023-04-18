@@ -299,7 +299,7 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,
 		Size:            img.Details.Size,
-		VirtualSize:     img.Details.Size, // TODO: field unused, deprecate
+		VirtualSize:     img.Details.Size, //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
 		GraphDriver: types.GraphDriverData{
 			Name: img.Details.Driver,
 			Data: img.Details.Metadata,
