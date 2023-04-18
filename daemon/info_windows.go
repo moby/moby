@@ -22,3 +22,7 @@ func (daemon *Daemon) cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo) bool {
 func (daemon *Daemon) Rootless() bool {
 	return false
 }
+
+func (daemon *Daemon) noNewPrivileges() bool {
+	return false
+}
