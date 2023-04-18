@@ -94,14 +94,9 @@ To disable devicemapper:
 export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
 ```
 
-To disable aufs:
-```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
-```
-
 NOTE: if you need to set more than one build tag, space separate them:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_aufs exclude_graphdriver_btrfs'
+export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper exclude_graphdriver_btrfs'
 ```
 
 ## System Dependencies
@@ -137,8 +132,6 @@ the client will even run on alternative platforms such as Mac OS X / Darwin.
 Some of Docker's features are activated by using optional command-line flags or
 by having support for them in the kernel or userspace. A few examples include:
 
-* AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
-  least the "auplink" utility from aufs-tools)
 * BTRFS graph driver (requires suitable kernel headers: `linux/btrfs.h` and `linux/btrfs_tree.h`, present in 4.12+; and BTRFS support enabled in the kernel)
 * ZFS graph driver (requires userspace zfs-utils and a corresponding kernel module)
 * Libseccomp to allow running seccomp profiles with containers
