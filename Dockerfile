@@ -6,7 +6,12 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.2.1
 
 ARG VPNKIT_VERSION=0.5.0
-ARG DOCKERCLI_VERSION=v17.06.2-ce
+
+ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
+ARG DOCKERCLI_VERSION=v24.0.2
+# cli version used for integration-cli tests
+ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
+ARG DOCKERCLI_INTEGRATION_VERSION=v17.06.2-ce
 
 ARG SYSTEMD="false"
 ARG DEBIAN_FRONTEND=noninteractive
@@ -243,34 +248,25 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         GOBIN=/build/ GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
      && /build/shfmt --version
 
-# dockercli
-FROM base AS dockercli-src
-WORKDIR /tmp/dockercli
-RUN git init . && git remote add origin "https://github.com/docker/cli.git"
-ARG DOCKERCLI_VERSION
-RUN git fetch -q --depth 1 origin "${DOCKERCLI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
-RUN [ -d ./components/cli ] && mv ./components/cli /usr/src/dockercli || mv /tmp/dockercli /usr/src/dockercli
-WORKDIR /usr/src/dockercli
-
 FROM base AS dockercli
 WORKDIR /go/src/github.com/docker/cli
+COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
+ARG DOCKERCLI_REPOSITORY
 ARG DOCKERCLI_VERSION
-ARG DOCKERCLI_CHANNEL=stable
 ARG TARGETPLATFORM
-RUN xx-apt-get install -y --no-install-recommends gcc libc6-dev
-RUN --mount=from=dockercli-src,src=/usr/src/dockercli,rw \
-    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM <<EOT
-  set -e
-  DOWNLOAD_URL="https://download.docker.com/linux/static/${DOCKERCLI_CHANNEL}/$(xx-info march)/docker-${DOCKERCLI_VERSION#v}.tgz"
-  if curl --head --silent --fail "${DOWNLOAD_URL}" 1>/dev/null 2>&1; then
-    mkdir /build
-    curl -Ls "${DOWNLOAD_URL}" | tar -xz docker/docker
-    mv docker/docker /build/docker
-  else
-    CGO_ENABLED=0 xx-go build -o /build/docker ./cmd/docker
-  fi
-  xx-verify /build/docker
-EOT
+RUN --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,target=./.git \
+    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
+    /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build
+
+FROM base AS dockercli-integration
+WORKDIR /go/src/github.com/docker/cli
+COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
+ARG DOCKERCLI_INTEGRATION_REPOSITORY
+ARG DOCKERCLI_INTEGRATION_VERSION
+ARG TARGETPLATFORM
+RUN --mount=type=cache,id=dockercli-integration-git-$TARGETPLATFORM,target=./.git \
+    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-integration-build-$TARGETPLATFORM \
+    /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build
 
 # runc
 FROM base AS runc-src
@@ -439,7 +435,6 @@ FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
 
 FROM base AS dev-systemd-false
-COPY --link --from=dockercli     /build/ /usr/local/cli
 COPY --link --from=frozen-images /build/ /docker-frozen-images
 COPY --link --from=swagger       /build/ /usr/local/bin/
 COPY --link --from=delve         /build/ /usr/local/bin/
@@ -464,11 +459,14 @@ COPY --link --from=containerutil /build/ /usr/local/bin/
 COPY --link --from=crun          /build/ /usr/local/bin/
 COPY --link hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
+ENV TEST_CLIENT_BINARY=/usr/local/cli-integration/docker
 ENV CONTAINERD_ADDRESS=/run/docker/containerd/containerd.sock
 ENV CONTAINERD_NAMESPACE=moby
 WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 VOLUME /home/unprivilegeduser/.local/share/docker
+COPY --link --from=dockercli             /build/ /usr/local/cli
+COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
