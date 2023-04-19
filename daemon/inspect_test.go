@@ -22,9 +22,11 @@ func TestGetInspectData(t *testing.T) {
 		linkIndex:   newLinkIndex(),
 		configStore: &config.Config{},
 	}
-
+	if d.UsesSnapshotter() {
+		t.Skip("does not apply to containerd snapshotters, which don't have RWLayer set")
+	}
 	_, err := d.getInspectData(c)
-	assert.Check(t, is.ErrorContains(err, ""))
+	assert.Check(t, is.ErrorContains(err, "RWLayer of container inspect-me is unexpectedly nil"))
 
 	c.Dead = true
 	_, err = d.getInspectData(c)
