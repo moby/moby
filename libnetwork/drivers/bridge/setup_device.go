@@ -16,8 +16,14 @@ import (
 // SetupDevice create a new bridge interface/
 func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	// We only attempt to create the bridge when the requested device name is
-	// the default one.
-	if config.BridgeName != DefaultBridgeName && config.DefaultBridge {
+	// the default one. The default bridge name can be overridden with the
+	// DOCKER_TEST_CREATE_DEFAULT_BRIDGE env var. It should be used only for
+	// test purpose.
+	var defaultBridgeName string
+	if defaultBridgeName = os.Getenv("DOCKER_TEST_CREATE_DEFAULT_BRIDGE"); defaultBridgeName == "" {
+		defaultBridgeName = DefaultBridgeName
+	}
+	if config.BridgeName != defaultBridgeName && config.DefaultBridge {
 		return NonDefaultBridgeExistError(config.BridgeName)
 	}
 
