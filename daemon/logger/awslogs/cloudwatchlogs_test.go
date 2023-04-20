@@ -325,42 +325,16 @@ func TestLogBlocking(t *testing.T) {
 	}
 }
 
-func TestLogNonBlockingBufferEmpty(t *testing.T) {
+func TestLogBufferEmpty(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
-		client:         mockClient,
-		messages:       make(chan *logger.Message, 1),
-		logNonBlocking: true,
+		client:   mockClient,
+		messages: make(chan *logger.Message, 1),
 	}
 	err := stream.Log(&logger.Message{})
 	assert.NilError(t, err)
 }
 
-func TestLogNonBlockingBufferFull(t *testing.T) {
-	mockClient := newMockClient()
-	stream := &logStream{
-		client:         mockClient,
-		messages:       make(chan *logger.Message, 1),
-		logNonBlocking: true,
-	}
-	stream.messages <- &logger.Message{}
-	errorCh := make(chan error, 1)
-	started := make(chan bool)
-	go func() {
-		started <- true
-		err := stream.Log(&logger.Message{})
-		errorCh <- err
-	}()
-	<-started
-	select {
-	case err := <-errorCh:
-		if err == nil {
-			t.Fatal("Expected non-nil error")
-		}
-	case <-time.After(30 * time.Second):
-		t.Fatal("Expected Log call to not block")
-	}
-}
 func TestPublishBatchSuccess(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
