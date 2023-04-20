@@ -234,9 +234,6 @@ func parseOptions(options []string) (*overlayOptions, error) {
 		}
 		key = strings.ToLower(key)
 		switch key {
-		case "overlay2.override_kernel_check":
-			// TODO(thaJeztah): change this to an error, see https://github.com/docker/cli/pull/3806
-			logger.Warn("DEPRECATED: the overlay2.override_kernel_check option is ignored and will be removed in the next release. You can safely remove this option from your configuration.")
 		case "overlay2.size":
 			size, err := units.RAMInBytes(val)
 			if err != nil {
