@@ -356,7 +356,15 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 		if resp.ExpiresIn == 0 {
 			resp.ExpiresIn = defaultExpiration
 		}
-		issuedAt, expires = time.Unix(resp.IssuedAt, 0), int(resp.ExpiresIn)
+		expires = int(resp.ExpiresIn)
+		// We later check issuedAt.isZero, which would return
+		// false if converted from zero Unix time. Therefore,
+		// zero time value in response is handled separately
+		if resp.IssuedAt == 0 {
+			issuedAt = time.Time{}
+		} else {
+			issuedAt = time.Unix(resp.IssuedAt, 0)
+		}
 		token = resp.Token
 		return nil, nil
 	}

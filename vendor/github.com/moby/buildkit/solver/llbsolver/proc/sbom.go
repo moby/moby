@@ -38,6 +38,10 @@ func SBOMProcessor(scannerRef string, useCache bool) llbsolver.Processor {
 			if !ok {
 				return nil, errors.Errorf("could not find ref %s", p.ID)
 			}
+			if ref == nil {
+				continue
+			}
+
 			defop, err := llb.NewDefinitionOp(ref.Definition())
 			if err != nil {
 				return nil, err

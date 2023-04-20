@@ -49,20 +49,23 @@ type runcCall func(ctx context.Context, started chan<- int, io runc.IO) error
 // is only supported for linux, so this really just handles signal propagation
 // to the started runc process.
 func (w *runcExecutor) commonCall(ctx context.Context, id, bundle string, process executor.ProcessInfo, started func(), call runcCall) error {
-	runcProcess, ctx := runcProcessHandle(ctx, id)
+	runcProcess := &startingProcess{
+		ready: make(chan struct{}),
+	}
 	defer runcProcess.Release()
 
-	eg, ctx := errgroup.WithContext(ctx)
+	var eg errgroup.Group
+	egCtx, cancel := context.WithCancel(ctx)
 	defer eg.Wait()
-	defer runcProcess.Shutdown()
+	defer cancel()
 
 	startedCh := make(chan int, 1)
 	eg.Go(func() error {
-		return runcProcess.WaitForStart(ctx, startedCh, started)
+		return runcProcess.WaitForStart(egCtx, startedCh, started)
 	})
 
 	eg.Go(func() error {
-		return handleSignals(ctx, runcProcess, process.Signal)
+		return handleSignals(egCtx, runcProcess, process.Signal)
 	})
 
 	return call(ctx, startedCh, &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr})
