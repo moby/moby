@@ -216,6 +216,25 @@ func (d *driver) DeleteNetwork(nid string) error {
 	doPeerFlush = true
 	delete(d.networks, nid)
 
+	if n.secure {
+		for _, s := range n.subnets {
+			if err := programMangle(s.vni, false); err != nil {
+				logrus.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"network_id":    n.id,
+					"subnet":        s.subnetIP,
+				}).Warn("Failed to clean up iptables rules during overlay network deletion")
+			}
+			if err := programInput(s.vni, false); err != nil {
+				logrus.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"network_id":    n.id,
+					"subnet":        s.subnetIP,
+				}).Warn("Failed to clean up iptables rules during overlay network deletion")
+			}
+		}
+	}
+
 	return nil
 }
 
