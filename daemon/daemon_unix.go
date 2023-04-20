@@ -817,8 +817,8 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 			return nil
 		}
 
-		if driverName == "overlay" || driverName == "overlay2" || driverName == "overlayfs" {
-			// If driver is overlay or overlay2, make sure kernel
+		if driverName == "overlay2" || driverName == "overlayfs" {
+			// If driver is overlay2, make sure kernel
 			// supports selinux with overlay.
 			supported, err := overlaySupportsSelinux()
 			if err != nil {

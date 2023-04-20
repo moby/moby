@@ -116,7 +116,7 @@ func getCleanPatterns(id string) (regexps []*regexp.Regexp) {
 		id = "[0-9a-f]{64}"
 		patterns = append(patterns, "containers/"+id+"/mounts/shm", "containers/"+id+"/shm")
 	}
-	patterns = append(patterns, "overlay2/"+id+"/merged$", "overlay/"+id+"/merged$", "zfs/graph/"+id+"$")
+	patterns = append(patterns, "overlay2/"+id+"/merged$", "zfs/graph/"+id+"$")
 	for _, p := range patterns {
 		r, err := regexp.Compile(p)
 		if err == nil {
