@@ -1000,6 +1000,9 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		}
 
 		ipamV4Conf.SubPool = fCIDR.String()
+		if ipamV4Conf.PreferredPool == "" {
+			ipamV4Conf.PreferredPool = fCIDR.String()
+		}
 	}
 
 	if config.BridgeConfig.DefaultGatewayIPv4 != nil {
