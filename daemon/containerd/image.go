@@ -218,9 +218,18 @@ func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platfo
 // reference or identifier. Returns the descriptor of
 // the image, which could be a manifest list, manifest, or config.
 func (i *ImageService) resolveDescriptor(ctx context.Context, refOrID string) (ocispec.Descriptor, error) {
+	img, err := i.resolveImage(ctx, refOrID)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	return img.Target, nil
+}
+
+func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (containerdimages.Image, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
+		return containerdimages.Image{}, errdefs.InvalidParameter(err)
 	}
 
 	is := i.client.ImageService()
@@ -229,16 +238,25 @@ func (i *ImageService) resolveDescriptor(ctx context.Context, refOrID string) (o
 	if ok {
 		imgs, err := is.List(ctx, "target.digest=="+digested.Digest().String())
 		if err != nil {
-			return ocispec.Descriptor{}, errors.Wrap(err, "failed to lookup digest")
+			return containerdimages.Image{}, errors.Wrap(err, "failed to lookup digest")
 		}
 		if len(imgs) == 0 {
-			return ocispec.Descriptor{}, images.ErrImageDoesNotExist{Ref: parsed}
+			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 
-		return imgs[0].Target, nil
+		return imgs[0], nil
 	}
 
 	ref := reference.TagNameOnly(parsed.(reference.Named)).String()
+	img, err := is.Get(ctx, ref)
+	if err == nil {
+		return img, nil
+	} else {
+		// TODO(containerd): error translation can use common function
+		if !cerrdefs.IsNotFound(err) {
+			return containerdimages.Image{}, err
+		}
+	}
 
 	// If the identifier could be a short ID, attempt to match
 	if truncatedID.MatchString(refOrID) {
@@ -248,37 +266,28 @@ func (i *ImageService) resolveDescriptor(ctx context.Context, refOrID string) (o
 		}
 		imgs, err := is.List(ctx, filters...)
 		if err != nil {
-			return ocispec.Descriptor{}, err
+			return containerdimages.Image{}, err
 		}
 
 		if len(imgs) == 0 {
-			return ocispec.Descriptor{}, images.ErrImageDoesNotExist{Ref: parsed}
+			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 		if len(imgs) > 1 {
 			digests := map[digest.Digest]struct{}{}
 			for _, img := range imgs {
 				if img.Name == ref {
-					return img.Target, nil
+					return img, nil
 				}
 				digests[img.Target.Digest] = struct{}{}
 			}
 
 			if len(digests) > 1 {
-				return ocispec.Descriptor{}, errdefs.NotFound(errors.New("ambiguous reference"))
+				return containerdimages.Image{}, errdefs.NotFound(errors.New("ambiguous reference"))
 			}
 		}
 
-		return imgs[0].Target, nil
+		return imgs[0], nil
 	}
 
-	img, err := is.Get(ctx, ref)
-	if err != nil {
-		// TODO(containerd): error translation can use common function
-		if !cerrdefs.IsNotFound(err) {
-			return ocispec.Descriptor{}, err
-		}
-		return ocispec.Descriptor{}, images.ErrImageDoesNotExist{Ref: parsed}
-	}
-
-	return img.Target, nil
+	return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 }

@@ -44,26 +44,24 @@ import (
 //
 // TODO(thaJeztah): implement ImageDelete "force" options; see https://github.com/moby/moby/issues/43850
 // TODO(thaJeztah): implement ImageDelete "prune" options; see https://github.com/moby/moby/issues/43849
-// TODO(thaJeztah): add support for image delete using image (short)ID; see https://github.com/moby/moby/issues/43854
 // TODO(thaJeztah): image delete should send prometheus counters; see https://github.com/moby/moby/issues/45268
 func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
 	parsedRef, err := reference.ParseNormalizedNamed(imageRef)
 	if err != nil {
 		return nil, err
 	}
-	ref := reference.TagNameOnly(parsedRef)
 
-	desc, err := i.resolveDescriptor(ctx, imageRef)
+	img, err := i.resolveImage(ctx, imageRef)
 	if err != nil {
 		return nil, err
 	}
 
-	imgID := string(desc.Digest)
-	err = i.client.ImageService().Delete(ctx, ref.String(), images.SynchronousDelete())
+	err = i.client.ImageService().Delete(ctx, img.Name, images.SynchronousDelete())
 	if err != nil {
 		return nil, err
 	}
 
+	imgID := string(img.Target.Digest)
 	i.LogImageEvent(imgID, imgID, "untag")
 	i.LogImageEvent(imgID, imgID, "delete")
 
