@@ -272,7 +272,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Prune anonymous volumes
-	pruneReport, err := client.VolumesPrune(ctx, filters.Args{})
+	pruneReport, err := client.VolumesPrune(ctx, volume.PruneOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 1))
 	assert.Check(t, is.Equal(pruneReport.VolumesDeleted[0], v.Name))
@@ -283,8 +283,17 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	// Prune all volumes
 	_, err = client.VolumeCreate(ctx, volume.CreateOptions{})
 	assert.NilError(t, err)
+	pruneReport, err = client.VolumesPrune(ctx, volume.PruneOptions{Filters: filters.NewArgs(filters.Arg("all", "1"))})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
 
-	pruneReport, err = client.VolumesPrune(ctx, filters.NewArgs(filters.Arg("all", "1")))
+	// Create a named volume and an anonymous volume, and prune all
+	_, err = client.VolumeCreate(ctx, volume.CreateOptions{})
+	assert.NilError(t, err)
+	_, err = client.VolumeCreate(ctx, volume.CreateOptions{Name: "test"})
+	assert.NilError(t, err)
+
+	pruneReport, err = client.VolumesPrune(ctx, volume.PruneOptions{All: true})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
 
@@ -299,7 +308,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	vNamed, err = client.VolumeCreate(ctx, volume.CreateOptions{Name: "test-api141"})
 	assert.NilError(t, err)
 
-	pruneReport, err = clientOld.VolumesPrune(ctx, filters.Args{})
+	pruneReport, err = clientOld.VolumesPrune(ctx, volume.PruneOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(pruneReport.VolumesDeleted), 2))
 	assert.Check(t, is.Contains(pruneReport.VolumesDeleted, v.Name))
@@ -334,7 +343,7 @@ VOLUME ` + volDest
 	err = client.ContainerRemove(ctx, id, containertypes.RemoveOptions{})
 	assert.NilError(t, err)
 
-	pruneReport, err := client.VolumesPrune(ctx, filters.Args{})
+	pruneReport, err := client.VolumesPrune(ctx, volume.PruneOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Contains(pruneReport.VolumesDeleted, volumeName))
 }
