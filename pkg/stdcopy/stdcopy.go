@@ -177,7 +177,7 @@ func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error)
 		}
 
 		// If the frame has not been fully written: error
-		if nw != frameSize {
+		if nw < frameSize {
 			return 0, io.ErrShortWrite
 		}
 		written += int64(nw)

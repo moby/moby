@@ -274,6 +274,39 @@ func TestStdCopyReturnsErrorFromSystem(t *testing.T) {
 	}
 }
 
+type customWriter struct {
+	n   int
+	err error
+}
+
+func (f *customWriter) Write(buf []byte) (int, error) {
+	return f.n, f.err
+}
+
+// TestStdCopyWhereWriterWritesLongerThanData tests the StdCopy correctly copies
+// when using a custom writer which adds a prefix (or extra data) to the streams.
+func TestStdCopyWhereWriterWritesLongerThanData(t *testing.T) {
+	// write in the basic messages, just so there's some fluff in there
+	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
+	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
+	buffer, err := getSrcBuffer(stdOutBytes, stdErrBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := &customWriter{
+		n: len(stdOutBytes) + 1,
+	}
+
+	n, err := StdCopy(w, w, buffer)
+	if err != nil {
+		t.Fatalf("expected no error, but got %v", err)
+	}
+	if n != int64(w.n*2) {
+		t.Fatalf("expected %d, but got %d", w.n*2, n)
+	}
+}
+
 func BenchmarkWrite(b *testing.B) {
 	w := NewStdWriter(io.Discard, Stdout)
 	data := []byte("Test line for testing stdwriter performance\n")
