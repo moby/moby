@@ -281,10 +281,22 @@ func TestVolumePruneAnonymous(t *testing.T) {
 	// Prune all volumes
 	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{})
 	assert.NilError(t, err)
+	res, err = apiClient.VolumesPrune(ctx, client.VolumePruneOptions{
+		All: true,
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(res.Report.VolumesDeleted), 2))
+
+	// Create a named volume and an anonymous volume, and prune all
+	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{})
+	assert.NilError(t, err)
+	_, err = apiClient.VolumeCreate(ctx, volume.CreateOptions{Name: "test"})
+	assert.NilError(t, err)
 
 	res, err = apiClient.VolumesPrune(ctx, client.VolumePruneOptions{
-		Filters: make(client.Filters).Add("all", "1"),
+		All: true,
 	})
+
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(res.Report.VolumesDeleted), 2))
 
