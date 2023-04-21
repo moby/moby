@@ -5,17 +5,28 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 // VolumesPrune requests the daemon to delete unused data
-func (cli *Client) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (volume.PruneReport, error) {
+func (cli *Client) VolumesPrune(ctx context.Context, opts volume.PruneOptions) (volume.PruneReport, error) {
 	if err := cli.NewVersionError(ctx, "1.25", "volume prune"); err != nil {
 		return volume.PruneReport{}, err
 	}
 
-	query, err := getFiltersQuery(pruneFilters)
+	if versions.GreaterThanOrEqualTo(cli.version, "1.42") {
+		if opts.All {
+			if opts.Filters.Contains("all") {
+				return report, errdefs.InvalidParameter(errors.New(`conflicting options: cannot specify both "all"" and "all" filter"`))
+			}
+			opts.Filters.Add("all", "true")
+		}
+	}
+
+	query, err := getFiltersQuery(opts.Filters)
 	if err != nil {
 		return volume.PruneReport{}, err
 	}

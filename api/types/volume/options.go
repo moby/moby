@@ -7,6 +7,15 @@ type ListOptions struct {
 	Filters filters.Args
 }
 
+// PruneOptions holds parameters to prune volumes.
+type PruneOptions struct {
+	// All controls whether named volumes should also be pruned.
+	All bool
+
+	// Filters to apply when pruning.
+	Filters filters.Args
+}
+
 // PruneReport contains the response for Engine API:
 // POST "/volumes/prune"
 type PruneReport struct {
