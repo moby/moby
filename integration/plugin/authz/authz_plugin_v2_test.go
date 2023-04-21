@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -118,7 +117,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = c.VolumesPrune(context.Background(), filters.Args{})
+	_, err = c.VolumesPrune(context.Background(), volume.PruneOptions{})
 	assert.Assert(t, err != nil)
 	assert.Assert(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 }
