@@ -28,6 +28,10 @@ func TestMarshalJSONWithEmpty(t *testing.T) {
 	assert.Check(t, err)
 	const expected = `{}`
 	assert.Check(t, is.Equal(string(s), expected))
+
+	s, err = json.Marshal(Args{})
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(string(s), expected))
 }
 
 func TestToJSON(t *testing.T) {

@@ -30,7 +30,7 @@ func Arg(key, value string) KeyValuePair {
 
 // NewArgs returns a new Args populated with the initial args
 func NewArgs(initialArgs ...KeyValuePair) Args {
-	args := Args{fields: map[string]map[string]bool{}}
+	args := Args{}
 	for _, arg := range initialArgs {
 		args.Add(arg.Key, arg.Value)
 	}
@@ -38,7 +38,7 @@ func NewArgs(initialArgs ...KeyValuePair) Args {
 }
 
 // Keys returns all the keys in list of Args
-func (args Args) Keys() []string {
+func (args *Args) Keys() []string {
 	keys := make([]string, 0, len(args.fields))
 	for k := range args.fields {
 		keys = append(keys, k)
@@ -47,7 +47,7 @@ func (args Args) Keys() []string {
 }
 
 // MarshalJSON returns a JSON byte representation of the Args
-func (args Args) MarshalJSON() ([]byte, error) {
+func (args *Args) MarshalJSON() ([]byte, error) {
 	if len(args.fields) == 0 {
 		return []byte("{}"), nil
 	}
@@ -59,7 +59,7 @@ func ToJSON(a Args) (string, error) {
 	if a.Len() == 0 {
 		return "", nil
 	}
-	buf, err := json.Marshal(a)
+	buf, err := json.Marshal(&a)
 	return string(buf), err
 }
 
@@ -83,7 +83,7 @@ func ToParamWithVersion(version string, a Args) (string, error) {
 
 // FromJSON decodes a JSON encoded string into Args
 func FromJSON(p string) (Args, error) {
-	args := NewArgs()
+	args := Args{}
 
 	if p == "" {
 		return args, nil
@@ -106,12 +106,12 @@ func FromJSON(p string) (Args, error) {
 }
 
 // UnmarshalJSON populates the Args from JSON encode bytes
-func (args Args) UnmarshalJSON(raw []byte) error {
+func (args *Args) UnmarshalJSON(raw []byte) error {
 	return json.Unmarshal(raw, &args.fields)
 }
 
 // Get returns the list of values associated with the key
-func (args Args) Get(key string) []string {
+func (args *Args) Get(key string) []string {
 	values := args.fields[key]
 	if values == nil {
 		return make([]string, 0)
@@ -124,7 +124,7 @@ func (args Args) Get(key string) []string {
 }
 
 // Add a new value to the set of values
-func (args Args) Add(key, value string) {
+func (args *Args) Add(key, value string) {
 	if args.fields == nil {
 		args.fields = map[string]map[string]bool{}
 	}
@@ -136,7 +136,7 @@ func (args Args) Add(key, value string) {
 }
 
 // Del removes a value from the set
-func (args Args) Del(key, value string) {
+func (args *Args) Del(key, value string) {
 	if _, ok := args.fields[key]; ok {
 		delete(args.fields[key], value)
 		if len(args.fields[key]) == 0 {
@@ -146,13 +146,13 @@ func (args Args) Del(key, value string) {
 }
 
 // Len returns the number of keys in the mapping
-func (args Args) Len() int {
+func (args *Args) Len() int {
 	return len(args.fields)
 }
 
 // MatchKVList returns true if all the pairs in sources exist as key=value
 // pairs in the mapping at key, or if there are no values at key.
-func (args Args) MatchKVList(key string, sources map[string]string) bool {
+func (args *Args) MatchKVList(key string, sources map[string]string) bool {
 	fieldValues := args.fields[key]
 
 	// do not filter if there is no filter set or cannot determine filter
@@ -180,7 +180,7 @@ func (args Args) MatchKVList(key string, sources map[string]string) bool {
 }
 
 // Match returns true if any of the values at key match the source string
-func (args Args) Match(field, source string) bool {
+func (args *Args) Match(field, source string) bool {
 	if args.ExactMatch(field, source) {
 		return true
 	}
@@ -201,7 +201,7 @@ func (args Args) Match(field, source string) bool {
 // GetBoolOrDefault returns a boolean value of the key if the key is present
 // and is interpretable as a boolean value. Otherwise the default value is returned.
 // Error is not nil only if the filter values are not valid boolean or are conflicting.
-func (args Args) GetBoolOrDefault(key string, defaultValue bool) (bool, error) {
+func (args *Args) GetBoolOrDefault(key string, defaultValue bool) (bool, error) {
 	fieldValues, ok := args.fields[key]
 	if !ok {
 		return defaultValue, nil
@@ -221,7 +221,7 @@ func (args Args) GetBoolOrDefault(key string, defaultValue bool) (bool, error) {
 }
 
 // ExactMatch returns true if the source matches exactly one of the values.
-func (args Args) ExactMatch(key, source string) bool {
+func (args *Args) ExactMatch(key, source string) bool {
 	fieldValues, ok := args.fields[key]
 	// do not filter if there is no filter set or cannot determine filter
 	if !ok || len(fieldValues) == 0 {
@@ -234,7 +234,7 @@ func (args Args) ExactMatch(key, source string) bool {
 
 // UniqueExactMatch returns true if there is only one value and the source
 // matches exactly the value.
-func (args Args) UniqueExactMatch(key, source string) bool {
+func (args *Args) UniqueExactMatch(key, source string) bool {
 	fieldValues := args.fields[key]
 	// do not filter if there is no filter set or cannot determine filter
 	if len(fieldValues) == 0 {
@@ -250,7 +250,7 @@ func (args Args) UniqueExactMatch(key, source string) bool {
 
 // FuzzyMatch returns true if the source matches exactly one value,  or the
 // source has one of the values as a prefix.
-func (args Args) FuzzyMatch(key, source string) bool {
+func (args *Args) FuzzyMatch(key, source string) bool {
 	if args.ExactMatch(key, source) {
 		return true
 	}
@@ -265,14 +265,14 @@ func (args Args) FuzzyMatch(key, source string) bool {
 }
 
 // Contains returns true if the key exists in the mapping
-func (args Args) Contains(field string) bool {
+func (args *Args) Contains(field string) bool {
 	_, ok := args.fields[field]
 	return ok
 }
 
 // Validate compared the set of accepted keys against the keys in the mapping.
 // An error is returned if any mapping keys are not in the accepted set.
-func (args Args) Validate(accepted map[string]bool) error {
+func (args *Args) Validate(accepted map[string]bool) error {
 	for name := range args.fields {
 		if !accepted[name] {
 			return &invalidFilter{name, nil}
@@ -284,7 +284,7 @@ func (args Args) Validate(accepted map[string]bool) error {
 // WalkValues iterates over the list of values for a key in the mapping and calls
 // op() for each value. If op returns an error the iteration stops and the
 // error is returned.
-func (args Args) WalkValues(field string, op func(value string) error) error {
+func (args *Args) WalkValues(field string, op func(value string) error) error {
 	if _, ok := args.fields[field]; !ok {
 		return nil
 	}
@@ -297,7 +297,7 @@ func (args Args) WalkValues(field string, op func(value string) error) error {
 }
 
 // Clone returns a copy of args.
-func (args Args) Clone() (newArgs Args) {
+func (args *Args) Clone() (newArgs Args) {
 	newArgs.fields = make(map[string]map[string]bool, len(args.fields))
 	for k, m := range args.fields {
 		var mm map[string]bool
