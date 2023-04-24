@@ -29,10 +29,8 @@ func TestBuilderGC(t *testing.T) {
 	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.NilError(t, err)
 	assert.Assert(t, cfg.Builder.GC.Enabled)
-	f1 := filters.NewArgs()
-	f1.Add("unused-for", "2200h")
-	f2 := filters.NewArgs()
-	f2.Add("unused-for", "3300h")
+	f1 := filters.NewArgs(filters.Arg("unused-for", "2200h"))
+	f2 := filters.NewArgs(filters.Arg("unused-for", "3300h"))
 	expectedPolicy := []BuilderGCRule{
 		{KeepStorage: "10GB", Filter: BuilderGCFilter(f1)},
 		{KeepStorage: "50GB", Filter: BuilderGCFilter(f2)}, /* parsed from deprecated form */
@@ -40,8 +38,10 @@ func TestBuilderGC(t *testing.T) {
 	}
 	assert.DeepEqual(t, cfg.Builder.GC.Policy, expectedPolicy, cmp.AllowUnexported(BuilderGCFilter{}))
 	// double check to please the skeptics
-	assert.Assert(t, filters.Args(cfg.Builder.GC.Policy[0].Filter).UniqueExactMatch("unused-for", "2200h"))
-	assert.Assert(t, filters.Args(cfg.Builder.GC.Policy[1].Filter).UniqueExactMatch("unused-for", "3300h"))
+	f3 := filters.Args(cfg.Builder.GC.Policy[0].Filter)
+	assert.Assert(t, f3.UniqueExactMatch("unused-for", "2200h"))
+	f4 := filters.Args(cfg.Builder.GC.Policy[1].Filter)
+	assert.Assert(t, f4.UniqueExactMatch("unused-for", "3300h"))
 }
 
 // TestBuilderGCFilterUnmarshal is a regression test for https://github.com/moby/moby/issues/44361,
