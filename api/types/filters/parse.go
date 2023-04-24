@@ -125,6 +125,9 @@ func (args Args) Get(key string) []string {
 
 // Add a new value to the set of values
 func (args Args) Add(key, value string) {
+	if args.fields == nil {
+		args.fields = map[string]map[string]bool{}
+	}
 	if _, ok := args.fields[key]; ok {
 		args.fields[key][value] = true
 	} else {
