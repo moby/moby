@@ -30,9 +30,8 @@ const fileCacheType = "buildkit.file.v0"
 
 type fileOp struct {
 	op          *pb.FileOp
-	md          cache.MetadataStore
 	w           worker.Worker
-	solver      *FileOpSolver
+	refManager  *file.RefManager
 	numInputs   int
 	parallelism *semaphore.Weighted
 }
@@ -41,12 +40,12 @@ func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, parallelism *s
 	if err := opsutils.Validate(&pb.Op{Op: op}); err != nil {
 		return nil, err
 	}
+	refManager := file.NewRefManager(cm, v.Name())
 	return &fileOp{
 		op:          op.File,
-		md:          cm,
-		numInputs:   len(v.Inputs()),
 		w:           w,
-		solver:      NewFileOpSolver(w, &file.Backend{}, file.NewRefManager(cm, v.Name())),
+		refManager:  refManager,
+		numInputs:   len(v.Inputs()),
 		parallelism: parallelism,
 	}, nil
 }
@@ -168,7 +167,8 @@ func (f *fileOp) Exec(ctx context.Context, g session.Group, inputs []solver.Resu
 		inpRefs = append(inpRefs, workerRef.ImmutableRef)
 	}
 
-	outs, err := f.solver.Solve(ctx, inpRefs, f.op.Actions, g)
+	fs := NewFileOpSolver(f.w, &file.Backend{}, f.refManager)
+	outs, err := fs.Solve(ctx, inpRefs, f.op.Actions, g)
 	if err != nil {
 		return nil, err
 	}
