@@ -77,6 +77,9 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 	done := make(chan error)
 	err = unshare.Go(unix.CLONE_NEWNS,
 		func() error {
+			if container.State != nil && container.State.Running && container.Pid != 0 {
+				return mounttree.SwitchRoot(container.BaseFS)
+			}
 			if err := mount.MakeRSlave("/"); err != nil {
 				return err
 			}
