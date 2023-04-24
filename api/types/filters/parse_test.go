@@ -11,11 +11,11 @@ import (
 )
 
 func TestMarshalJSON(t *testing.T) {
-	fields := map[string]map[string]bool{
-		"created":    {"today": true},
-		"image.name": {"ubuntu*": true, "*untu": true},
-	}
-	a := Args{fields: fields}
+	a := NewArgs(
+		Arg("created", "today"),
+		Arg("image.name", "ubuntu*"),
+		Arg("image.name", "*untu"),
+	)
 
 	s, err := a.MarshalJSON()
 	assert.Check(t, err)
@@ -31,11 +31,11 @@ func TestMarshalJSONWithEmpty(t *testing.T) {
 }
 
 func TestToJSON(t *testing.T) {
-	fields := map[string]map[string]bool{
-		"created":    {"today": true},
-		"image.name": {"ubuntu*": true, "*untu": true},
-	}
-	a := Args{fields: fields}
+	a := NewArgs(
+		Arg("created", "today"),
+		Arg("image.name", "ubuntu*"),
+		Arg("image.name", "*untu"),
+	)
 
 	s, err := ToJSON(a)
 	assert.Check(t, err)
@@ -44,11 +44,11 @@ func TestToJSON(t *testing.T) {
 }
 
 func TestToParamWithVersion(t *testing.T) {
-	fields := map[string]map[string]bool{
-		"created":    {"today": true},
-		"image.name": {"ubuntu*": true, "*untu": true},
-	}
-	a := Args{fields: fields}
+	a := NewArgs(
+		Arg("created", "today"),
+		Arg("image.name", "ubuntu*"),
+		Arg("image.name", "*untu"),
+	)
 
 	str1, err := ToParamWithVersion("1.21", a)
 	assert.Check(t, err)
@@ -270,21 +270,22 @@ func TestArgsMatch(t *testing.T) {
 func TestAdd(t *testing.T) {
 	f := NewArgs()
 	f.Add("status", "running")
-	v := f.fields["status"]
-	assert.Check(t, is.Len(v, 1))
-	assert.Check(t, v["running"])
+	v := f.Get("status")
+	assert.Check(t, is.DeepEqual(v, []string{"running"}))
 
 	f.Add("status", "paused")
+	v = f.Get("status")
 	assert.Check(t, is.Len(v, 2))
-	assert.Check(t, v["paused"])
+	assert.Check(t, is.Contains(v, "running"))
+	assert.Check(t, is.Contains(v, "paused"))
 }
 
 func TestDel(t *testing.T) {
 	f := NewArgs()
 	f.Add("status", "running")
 	f.Del("status", "running")
-	v := f.fields["status"]
-	assert.Check(t, !v["running"], "Expected to not include a running status filter")
+	assert.Check(t, is.Equal(f.Len(), 0))
+	assert.Check(t, is.DeepEqual(f.Get("status"), []string{}))
 }
 
 func TestLen(t *testing.T) {
