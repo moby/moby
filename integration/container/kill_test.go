@@ -82,7 +82,6 @@ func TestKillContainer(t *testing.T) {
 }
 
 func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 
@@ -103,6 +102,11 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 		},
 	}
 
+	var pollOpts []poll.SettingOp
+	if runtime.GOOS == "windows" {
+		pollOpts = append(pollOpts, poll.WithTimeout(StopContainerWindowsPollTimeout))
+	}
+
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
@@ -115,13 +119,12 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 			err := client.ContainerKill(ctx, id, "TERM")
 			assert.NilError(t, err)
 
-			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), pollOpts...)
 		})
 	}
 }
 
 func TestKillStoppedContainer(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
