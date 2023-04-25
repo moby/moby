@@ -2,7 +2,6 @@ package service // import "github.com/docker/docker/integration/service"
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -65,9 +64,9 @@ func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 
 func inspectServiceContainer(t *testing.T, client client.APIClient, serviceID string) types.ContainerJSON {
 	t.Helper()
-	filter := filters.NewArgs()
-	filter.Add("label", fmt.Sprintf("com.docker.swarm.service.id=%s", serviceID))
-	containers, err := client.ContainerList(context.Background(), types.ContainerListOptions{Filters: filter})
+	containers, err := client.ContainerList(context.Background(), types.ContainerListOptions{
+		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.service.id="+serviceID)),
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(containers, 1))
 
@@ -426,11 +425,9 @@ func TestCreateServiceSysctls(t *testing.T) {
 		// earlier version of this test had to get container logs and was much
 		// more complex)
 
-		// get all of the tasks of the service, so we can get the container
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
+		// get all tasks of the service, so we can get the container
 		tasks, err := client.TaskList(ctx, types.TaskListOptions{
-			Filters: filter,
+			Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(len(tasks), 1))
@@ -504,11 +501,9 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	// we know that the capabilities is plumbed correctly. everything below that
 	// level has been tested elsewhere.
 
-	// get all of the tasks of the service, so we can get the container
-	filter := filters.NewArgs()
-	filter.Add("service", serviceID)
+	// get all tasks of the service, so we can get the container
 	tasks, err := client.TaskList(ctx, types.TaskListOptions{
-		Filters: filter,
+		Filters: filters.NewArgs(filters.Arg("service", serviceID)),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(tasks), 1))

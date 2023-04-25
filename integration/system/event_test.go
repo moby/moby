@@ -43,12 +43,11 @@ func TestEventsExecDie(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	filters := filters.NewArgs(
-		filters.Arg("container", cID),
-		filters.Arg("event", "exec_die"),
-	)
-	msg, errors := client.Events(ctx, types.EventsOptions{
-		Filters: filters,
+	msg, errs := client.Events(ctx, types.EventsOptions{
+		Filters: filters.NewArgs(
+			filters.Arg("container", cID),
+			filters.Arg("event", "exec_die"),
+		),
 	})
 
 	err = client.ContainerExecStart(ctx, id.ID,
@@ -66,7 +65,7 @@ func TestEventsExecDie(t *testing.T) {
 		assert.Equal(t, m.Action, "exec_die")
 		assert.Equal(t, m.Actor.Attributes["execID"], id.ID)
 		assert.Equal(t, m.Actor.Attributes["exitCode"], "0")
-	case err = <-errors:
+	case err = <-errs:
 		assert.NilError(t, err)
 	case <-time.After(time.Second * 3):
 		t.Fatal("timeout hit")
