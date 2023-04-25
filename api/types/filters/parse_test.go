@@ -17,13 +17,17 @@ func TestMarshalJSON(t *testing.T) {
 	}
 	a := Args{fields: fields}
 
-	_, err := a.MarshalJSON()
+	s, err := a.MarshalJSON()
 	assert.Check(t, err)
+	const expected = `{"created":{"today":true},"image.name":{"*untu":true,"ubuntu*":true}}`
+	assert.Check(t, is.Equal(string(s), expected))
 }
 
 func TestMarshalJSONWithEmpty(t *testing.T) {
-	_, err := json.Marshal(NewArgs())
+	s, err := json.Marshal(NewArgs())
 	assert.Check(t, err)
+	const expected = `{}`
+	assert.Check(t, is.Equal(string(s), expected))
 }
 
 func TestToJSON(t *testing.T) {
@@ -33,8 +37,10 @@ func TestToJSON(t *testing.T) {
 	}
 	a := Args{fields: fields}
 
-	_, err := ToJSON(a)
+	s, err := ToJSON(a)
 	assert.Check(t, err)
+	const expected = `{"created":{"today":true},"image.name":{"*untu":true,"ubuntu*":true}}`
+	assert.Check(t, is.Equal(s, expected))
 }
 
 func TestToParamWithVersion(t *testing.T) {
