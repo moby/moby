@@ -102,14 +102,9 @@ func (d *Daemon) CheckRunningTaskNetworks(c *testing.T) (interface{}, string) {
 	cli := d.NewClientT(c)
 	defer cli.Close()
 
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("desired-state", "running")
-
-	options := types.TaskListOptions{
-		Filters: filterArgs,
-	}
-
-	tasks, err := cli.TaskList(context.Background(), options)
+	tasks, err := cli.TaskList(context.Background(), types.TaskListOptions{
+		Filters: filters.NewArgs(filters.Arg("desired-state", "running")),
+	})
 	assert.NilError(c, err)
 
 	result := make(map[string]int)
@@ -126,14 +121,9 @@ func (d *Daemon) CheckRunningTaskImages(c *testing.T) (interface{}, string) {
 	cli := d.NewClientT(c)
 	defer cli.Close()
 
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("desired-state", "running")
-
-	options := types.TaskListOptions{
-		Filters: filterArgs,
-	}
-
-	tasks, err := cli.TaskList(context.Background(), options)
+	tasks, err := cli.TaskList(context.Background(), types.TaskListOptions{
+		Filters: filters.NewArgs(filters.Arg("desired-state", "running")),
+	})
 	assert.NilError(c, err)
 
 	result := make(map[string]int)

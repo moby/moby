@@ -286,13 +286,9 @@ func isNetworkAvailable(c *testing.T, name string) bool {
 }
 
 func getNetworkIDByName(c *testing.T, name string) string {
-	var (
-		v          = url.Values{}
-		filterArgs = filters.NewArgs()
-	)
-	filterArgs.Add("name", name)
-	filterJSON, err := filters.ToJSON(filterArgs)
+	filterJSON, err := filters.ToJSON(filters.NewArgs(filters.Arg("name", name)))
 	assert.NilError(c, err)
+	v := url.Values{}
 	v.Set("filters", filterJSON)
 
 	resp, body, err := request.Get("/networks?" + v.Encode())
