@@ -197,13 +197,12 @@ func (e *Execution) IsUserNamespaceInKernel() bool {
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
 func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
-	client := e.APIClient()
-	filter := filters.NewArgs()
-	filter.Add("dangling", "false")
-	filter.Add("reference", reference)
-	imageList, err := client.ImageList(context.Background(), types.ImageListOptions{
-		All:     true,
-		Filters: filter,
+	imageList, err := e.APIClient().ImageList(context.Background(), types.ImageListOptions{
+		All: true,
+		Filters: filters.NewArgs(
+			filters.Arg("dangling", "false"),
+			filters.Arg("reference", reference),
+		),
 	})
 	assert.NilError(t, err, "failed to list images")
 

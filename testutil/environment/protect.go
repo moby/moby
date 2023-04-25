@@ -100,11 +100,9 @@ func ProtectImages(t testing.TB, testEnv *Execution) {
 func getExistingImages(t testing.TB, testEnv *Execution) []string {
 	t.Helper()
 	client := testEnv.APIClient()
-	filter := filters.NewArgs()
-	filter.Add("dangling", "false")
 	imageList, err := client.ImageList(context.Background(), types.ImageListOptions{
 		All:     true,
-		Filters: filter,
+		Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 	})
 	assert.NilError(t, err, "failed to list images")
 
