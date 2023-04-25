@@ -21,15 +21,27 @@ func TestMarshalJSON(t *testing.T) {
 	assert.Check(t, err)
 	const expected = `{"created":{"today":true},"image.name":{"*untu":true,"ubuntu*":true}}`
 	assert.Check(t, is.Equal(string(s), expected))
+
+	s, err = json.Marshal(&Args{fields: map[string]map[string]bool{
+		"created":    {"today": true},
+		"image.name": {"*untu": true, "ubuntu*": true},
+	}})
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(string(s), expected))
+
+	s, err = json.Marshal(&a)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(string(s), expected))
 }
 
 func TestMarshalJSONWithEmpty(t *testing.T) {
-	s, err := json.Marshal(NewArgs())
+	a := NewArgs()
+	s, err := json.Marshal(&a)
 	assert.Check(t, err)
 	const expected = `{}`
 	assert.Check(t, is.Equal(string(s), expected))
 
-	s, err = json.Marshal(Args{})
+	s, err = json.Marshal(&Args{})
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(string(s), expected))
 }
