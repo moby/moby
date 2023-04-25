@@ -30,15 +30,7 @@ func TestImageListError(t *testing.T) {
 }
 
 func TestImageList(t *testing.T) {
-	expectedURL := "/images/json"
-
-	noDanglingfilters := filters.NewArgs()
-	noDanglingfilters.Add("dangling", "false")
-
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
-	filters.Add("dangling", "true")
+	const expectedURL = "/images/json"
 
 	listCases := []struct {
 		options             types.ImageListOptions
@@ -54,7 +46,11 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			options: types.ImageListOptions{
-				Filters: filters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+					filters.Arg("dangling", "true"),
+				),
 			},
 			expectedQueryParams: map[string]string{
 				"all":     "",
@@ -64,7 +60,7 @@ func TestImageList(t *testing.T) {
 		},
 		{
 			options: types.ImageListOptions{
-				Filters: noDanglingfilters,
+				Filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			},
 			expectedQueryParams: map[string]string{
 				"all":     "",
@@ -146,11 +142,8 @@ func TestImageListApiBefore125(t *testing.T) {
 		version: "1.24",
 	}
 
-	filters := filters.NewArgs()
-	filters.Add("reference", "image:tag")
-
 	options := types.ImageListOptions{
-		Filters: filters,
+		Filters: filters.NewArgs(filters.Arg("reference", "image:tag")),
 	}
 
 	images, err := client.ImageList(context.Background(), options)

@@ -28,11 +28,7 @@ func TestTaskListError(t *testing.T) {
 }
 
 func TestTaskList(t *testing.T) {
-	expectedURL := "/tasks"
-
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
+	const expectedURL = "/tasks"
 
 	listCases := []struct {
 		options             types.TaskListOptions
@@ -46,7 +42,10 @@ func TestTaskList(t *testing.T) {
 		},
 		{
 			options: types.TaskListOptions{
-				Filters: filters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

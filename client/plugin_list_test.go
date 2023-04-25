@@ -27,14 +27,7 @@ func TestPluginListError(t *testing.T) {
 }
 
 func TestPluginList(t *testing.T) {
-	expectedURL := "/plugins"
-
-	enabledFilters := filters.NewArgs()
-	enabledFilters.Add("enabled", "true")
-
-	capabilityFilters := filters.NewArgs()
-	capabilityFilters.Add("capability", "volumedriver")
-	capabilityFilters.Add("capability", "authz")
+	const expectedURL = "/plugins"
 
 	listCases := []struct {
 		filters             filters.Args
@@ -49,7 +42,7 @@ func TestPluginList(t *testing.T) {
 			},
 		},
 		{
-			filters: enabledFilters,
+			filters: filters.NewArgs(filters.Arg("enabled", "true")),
 			expectedQueryParams: map[string]string{
 				"all":     "",
 				"filter":  "",
@@ -57,7 +50,10 @@ func TestPluginList(t *testing.T) {
 			},
 		},
 		{
-			filters: capabilityFilters,
+			filters: filters.NewArgs(
+				filters.Arg("capability", "volumedriver"),
+				filters.Arg("capability", "authz"),
+			),
 			expectedQueryParams: map[string]string{
 				"all":     "",
 				"filter":  "",
