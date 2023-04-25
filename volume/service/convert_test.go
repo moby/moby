@@ -14,9 +14,10 @@ func TestFilterWithPrune(t *testing.T) {
 	assert.Check(t, cmp.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", AnonymousLabel))
 
-	f = filters.NewArgs()
-	f.Add("label", "foo=bar")
-	f.Add("label", "bar=baz")
+	f = filters.NewArgs(
+		filters.Arg("label", "foo=bar"),
+		filters.Arg("label", "bar=baz"),
+	)
 	assert.NilError(t, withPrune(f))
 
 	assert.Check(t, cmp.Len(f.Get("label"), 3))
@@ -24,40 +25,40 @@ func TestFilterWithPrune(t *testing.T) {
 	assert.Check(t, f.Match("label", "foo=bar"))
 	assert.Check(t, f.Match("label", "bar=baz"))
 
-	f = filters.NewArgs()
-	f.Add("label", "foo=bar")
-	f.Add("all", "1")
+	f = filters.NewArgs(
+		filters.Arg("label", "foo=bar"),
+		filters.Arg("all", "1"),
+	)
 	assert.NilError(t, withPrune(f))
 
 	assert.Check(t, cmp.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", "foo=bar"))
 
-	f = filters.NewArgs()
-	f.Add("label", "foo=bar")
-	f.Add("all", "true")
+	f = filters.NewArgs(
+		filters.Arg("label", "foo=bar"),
+		filters.Arg("all", "true"),
+	)
 	assert.NilError(t, withPrune(f))
 
 	assert.Check(t, cmp.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", "foo=bar"))
 
-	f = filters.NewArgs()
-	f.Add("all", "0")
+	f = filters.NewArgs(filters.Arg("all", "0"))
 	assert.NilError(t, withPrune(f))
 	assert.Check(t, cmp.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", AnonymousLabel))
 
-	f = filters.NewArgs()
-	f.Add("all", "false")
+	f = filters.NewArgs(filters.Arg("all", "false"))
 	assert.NilError(t, withPrune(f))
 	assert.Check(t, cmp.Len(f.Get("label"), 1))
 	assert.Check(t, f.Match("label", AnonymousLabel))
 
-	f = filters.NewArgs()
-	f.Add("all", "")
+	f = filters.NewArgs(filters.Arg("all", ""))
 	assert.ErrorContains(t, withPrune(f), "invalid filter 'all'")
 
-	f = filters.NewArgs()
-	f.Add("all", "1")
-	f.Add("all", "0")
+	f = filters.NewArgs(
+		filters.Arg("all", "1"),
+		filters.Arg("all", "0"),
+	)
 	assert.ErrorContains(t, withPrune(f), "invalid filter 'all")
 }
