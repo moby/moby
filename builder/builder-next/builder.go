@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/builder"
 	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/builder-next/exporter/overrides"
@@ -52,6 +53,12 @@ func (e errConflictFilter) Error() string {
 }
 
 func (errConflictFilter) InvalidParameter() {}
+
+type errInvalidFilterValue struct {
+	error
+}
+
+func (errInvalidFilterValue) InvalidParameter() {}
 
 var cacheFields = map[string]bool{
 	"id":          true,
@@ -626,11 +633,20 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 	case 0:
 		// nothing to do
 	case 1:
-		var err error
-		until, err = time.ParseDuration(untilValues[0])
+		ts, err := timetypes.GetTimestamp(untilValues[0], time.Now())
 		if err != nil {
-			return client.PruneInfo{}, errors.Wrapf(err, "%q filter expects a duration (e.g., '24h')", filterKey)
+			return client.PruneInfo{}, errInvalidFilterValue{
+				errors.Wrapf(err, "%q filter expects a duration (e.g., '24h') or a timestamp", filterKey),
+			}
 		}
+		seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+		if err != nil {
+			return client.PruneInfo{}, errInvalidFilterValue{
+				errors.Wrapf(err, "failed to parse timestamp %q", ts),
+			}
+		}
+
+		until = time.Since(time.Unix(seconds, nanoseconds))
 	default:
 		return client.PruneInfo{}, errMultipleFilterValues{}
 	}
