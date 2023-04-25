@@ -87,10 +87,8 @@ func TestListInvalidFilter(t *testing.T) {
 		containersReplica: db,
 	}
 
-	f := filters.NewArgs(filters.Arg("invalid", "foo"))
-
 	_, err = d.Containers(context.Background(), &types.ContainerListOptions{
-		Filters: f,
+		Filters: filters.NewArgs(filters.Arg("invalid", "foo")),
 	})
 	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
 }

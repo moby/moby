@@ -55,39 +55,6 @@ func TestFilterNetworks(t *testing.T) {
 		},
 	}
 
-	bridgeDriverFilters := filters.NewArgs()
-	bridgeDriverFilters.Add("driver", "bridge")
-
-	overlayDriverFilters := filters.NewArgs()
-	overlayDriverFilters.Add("driver", "overlay")
-
-	nonameDriverFilters := filters.NewArgs()
-	nonameDriverFilters.Add("driver", "noname")
-
-	customDriverFilters := filters.NewArgs()
-	customDriverFilters.Add("type", "custom")
-
-	builtinDriverFilters := filters.NewArgs()
-	builtinDriverFilters.Add("type", "builtin")
-
-	invalidDriverFilters := filters.NewArgs()
-	invalidDriverFilters.Add("type", "invalid")
-
-	localScopeFilters := filters.NewArgs()
-	localScopeFilters.Add("scope", "local")
-
-	swarmScopeFilters := filters.NewArgs()
-	swarmScopeFilters.Add("scope", "swarm")
-
-	globalScopeFilters := filters.NewArgs()
-	globalScopeFilters.Add("scope", "global")
-
-	trueDanglingFilters := filters.NewArgs()
-	trueDanglingFilters.Add("dangling", "true")
-
-	falseDanglingFilters := filters.NewArgs()
-	falseDanglingFilters.Add("dangling", "false")
-
 	testCases := []struct {
 		filter      filters.Args
 		resultCount int
@@ -96,68 +63,68 @@ func TestFilterNetworks(t *testing.T) {
 		results     []string
 	}{
 		{
-			filter:      bridgeDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("driver", "bridge")),
 			resultCount: 1,
 			err:         "",
 			name:        "bridge driver filters",
 		},
 		{
-			filter:      overlayDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("driver", "overlay")),
 			resultCount: 1,
 			err:         "",
 			name:        "overlay driver filters",
 		},
 		{
-			filter:      nonameDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("driver", "noname")),
 			resultCount: 0,
 			err:         "",
 			name:        "no name driver filters",
 		},
 		{
-			filter:      customDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("type", "custom")),
 			resultCount: 4,
 			err:         "",
 			name:        "custom driver filters",
 		},
 		{
-			filter:      builtinDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("type", "builtin")),
 			resultCount: 3,
 			err:         "",
 			name:        "builtin driver filters",
 		},
 		{
-			filter:      invalidDriverFilters,
+			filter:      filters.NewArgs(filters.Arg("type", "invalid")),
 			resultCount: 0,
 			err:         "invalid filter: 'type'='invalid'",
 			name:        "invalid driver filters",
 		},
 		{
-			filter:      localScopeFilters,
+			filter:      filters.NewArgs(filters.Arg("scope", "local")),
 			resultCount: 5,
 			err:         "",
 			name:        "local scope filters",
 		},
 		{
-			filter:      swarmScopeFilters,
+			filter:      filters.NewArgs(filters.Arg("scope", "swarm")),
 			resultCount: 1,
 			err:         "",
 			name:        "swarm scope filters",
 		},
 		{
-			filter:      globalScopeFilters,
+			filter:      filters.NewArgs(filters.Arg("scope", "global")),
 			resultCount: 1,
 			err:         "",
 			name:        "global scope filters",
 		},
 		{
-			filter:      trueDanglingFilters,
+			filter:      filters.NewArgs(filters.Arg("dangling", "true")),
 			resultCount: 3,
 			err:         "",
 			name:        "dangling filter is 'True'",
 			results:     []string{"myoverlay", "mydrivernet", "mykvnet"},
 		},
 		{
-			filter:      falseDanglingFilters,
+			filter:      filters.NewArgs(filters.Arg("dangling", "false")),
 			resultCount: 4,
 			err:         "",
 			name:        "dangling filter is 'False'",
