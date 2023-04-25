@@ -318,7 +318,7 @@ func (n *network) joinSandbox(s *subnet, restore bool, incJoinCount bool) error 
 	defer func() {
 		n.Unlock()
 		if doInitPeerDB {
-			n.driver.initSandboxPeerDB(n.id)
+			go n.driver.initSandboxPeerDB(n.id)
 		}
 	}()
 
