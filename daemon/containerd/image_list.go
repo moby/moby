@@ -61,7 +61,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		layers    map[digest.Digest]int
 	)
 	if opts.SharedSize {
-		root = make([]*[]digest.Digest, len(imgs))
+		root = make([]*[]digest.Digest, 0, len(imgs))
 		layers = make(map[digest.Digest]int)
 	}
 	for n, img := range imgs {
