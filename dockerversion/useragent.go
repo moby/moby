@@ -30,7 +30,7 @@ var (
 	daemonUA     string
 )
 
-// getUserAgentFromContext returns the user-agent to use for requests made by
+// getDaemonUserAgent returns the user-agent to use for requests made by
 // the daemon.
 //
 // It includes;

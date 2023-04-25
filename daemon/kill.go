@@ -178,7 +178,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 	return nil
 }
 
-// killPossibleDeadProcess is a wrapper around killSig() suppressing "no such process" error.
+// killPossiblyDeadProcess is a wrapper around killSig() suppressing "no such process" error.
 func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig syscall.Signal) error {
 	err := daemon.killWithSignal(container, sig)
 	if errdefs.IsNotFound(err) {
