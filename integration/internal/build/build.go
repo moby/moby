@@ -27,7 +27,7 @@ func Do(ctx context.Context, t *testing.T, client client.APIClient, buildCtx *fa
 	return img
 }
 
-// GetImageIDFRommBody reads the image ID from the build response body.
+// GetImageIDFromBody reads the image ID from the build response body.
 func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 	var (
 		jm  jsonmessage.JSONMessage
