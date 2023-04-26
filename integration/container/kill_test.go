@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 
@@ -61,6 +62,11 @@ func TestKillContainer(t *testing.T) {
 		},
 	}
 
+	var pollOpts []poll.SettingOp
+	if runtime.GOOS == "windows" {
+		pollOpts = append(pollOpts, poll.WithTimeout(StopContainerWindowsPollTimeout))
+	}
+
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
@@ -70,7 +76,7 @@ func TestKillContainer(t *testing.T) {
 			err := client.ContainerKill(ctx, id, tc.signal)
 			assert.NilError(t, err)
 
-			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), pollOpts...)
 		})
 	}
 }
