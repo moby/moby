@@ -16,7 +16,8 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/builder"
-	mobyexporter "github.com/docker/docker/builder/builder-next/exporter"
+	"github.com/docker/docker/builder/builder-next/exporter"
+	"github.com/docker/docker/builder/builder-next/exporter/mobyexporter"
 	"github.com/docker/docker/builder/builder-next/exporter/overrides"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
@@ -78,6 +79,7 @@ type Opt struct {
 	SessionManager      *session.Manager
 	Root                string
 	Dist                images.DistributionServices
+	ImageTagger         mobyexporter.ImageTagger
 	NetworkController   *libnetwork.Controller
 	DefaultCgroupParent string
 	RegistryHosts       docker.RegistryHosts
@@ -355,7 +357,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		if b.useSnapshotter {
 			exporterName = client.ExporterImage
 		} else {
-			exporterName = mobyexporter.Moby
+			exporterName = exporter.Moby
 		}
 	} else {
 		// cacheonly is a special type for triggering skipping all exporters
@@ -365,7 +367,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		}
 	}
 
-	if (exporterName == client.ExporterImage || exporterName == mobyexporter.Moby) && len(opt.Options.Tags) > 0 {
+	if (exporterName == client.ExporterImage || exporterName == exporter.Moby) && len(opt.Options.Tags) > 0 {
 		nameAttr, err := overrides.SanitizeRepoAndTags(opt.Options.Tags)
 		if err != nil {
 			return nil, err
@@ -408,7 +410,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		if err != nil {
 			return err
 		}
-		if exporterName != mobyexporter.Moby && exporterName != client.ExporterImage {
+		if exporterName != exporter.Moby && exporterName != client.ExporterImage {
 			return nil
 		}
 		id, ok := resp.ExporterResponse["containerimage.digest"]

@@ -9,7 +9,6 @@ import (
 	distref "github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/opencontainers/go-digest"
@@ -25,11 +24,15 @@ type Differ interface {
 	EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error)
 }
 
+type ImageTagger interface {
+	TagImage(ctx context.Context, imageID image.ID, newTag distref.Named) error
+}
+
 // Opt defines a struct for creating new exporter
 type Opt struct {
-	ImageStore     image.Store
-	ReferenceStore reference.Store
-	Differ         Differ
+	ImageStore  image.Store
+	Differ      Differ
+	ImageTagger ImageTagger
 }
 
 type imageExporter struct {
@@ -168,10 +171,10 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	}
 	_ = configDone(nil)
 
-	if e.opt.ReferenceStore != nil {
+	if e.opt.ImageTagger != nil {
 		for _, targetName := range e.targetNames {
 			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
-			if err := e.opt.ReferenceStore.AddTag(targetName, digest.Digest(id), true); err != nil {
+			if err := e.opt.ImageTagger.TagImage(ctx, image.ID(digest.Digest(id)), targetName); err != nil {
 				return nil, nil, tagDone(err)
 			}
 			_ = tagDone(nil)
