@@ -6,6 +6,9 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -56,9 +59,23 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		return nil, err
 	}
 
+	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
+	if err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, d ocispec.Descriptor) {
+		if images.IsConfigType(d.MediaType) {
+			possiblyDeletedConfigs[d.Digest] = struct{}{}
+		}
+	}); err != nil {
+		return nil, err
+	}
+
 	err = i.client.ImageService().Delete(ctx, img.Name, images.SynchronousDelete())
 	if err != nil {
 		return nil, err
+	}
+
+	// Workaround for: https://github.com/moby/buildkit/issues/3797
+	if err := i.unleaseSnapshotsFromDeletedConfigs(context.Background(), possiblyDeletedConfigs); err != nil {
+		logrus.WithError(err).Warn("failed to unlease snapshots")
 	}
 
 	imgID := string(img.Target.Digest)

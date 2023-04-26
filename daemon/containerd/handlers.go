@@ -9,6 +9,19 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+// walkPresentChildren is a simple wrapper for containerdimages.Walk with
+// presentChildrenHandler wrapping a simple handler that only operates on
+// walked Descriptor and doesn't return any errror.
+// This is only a convenient helper to reduce boilerplate.
+func (i *ImageService) walkPresentChildren(ctx context.Context, target ocispec.Descriptor, f func(context.Context, ocispec.Descriptor)) error {
+	store := i.client.ContentStore()
+	return containerdimages.Walk(ctx, presentChildrenHandler(store, containerdimages.HandlerFunc(
+		func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+			f(ctx, desc)
+			return nil, nil
+		})), target)
+}
+
 // presentChildrenHandler is a handler wrapper which traverses all children
 // descriptors that are present in the store and calls specified handler.
 func presentChildrenHandler(store content.Store, h containerdimages.HandlerFunc) containerdimages.HandlerFunc {
