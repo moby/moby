@@ -30,7 +30,7 @@ require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/typeurl/v2 v2.1.0
 	github.com/coreos/go-systemd/v22 v22.5.0
-	github.com/creack/pty v1.1.11
+	github.com/creack/pty v1.1.18
 	github.com/deckarep/golang-set/v2 v2.3.0
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/go-connections v0.4.0
