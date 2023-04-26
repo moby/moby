@@ -9,9 +9,14 @@ import (
 var initializers = []initializer{
 	{remote.Init, "remote"},
 	{ovmanager.Init, "overlay"},
+	{StubManagerInit("internal"), "internal"},
+	{StubManagerInit("l2bridge"), "l2bridge"},
+	{StubManagerInit("nat"), "nat"},
 }
 
 // PredefinedNetworks returns the list of predefined network structures
 func PredefinedNetworks() []networkallocator.PredefinedNetworkData {
-	return nil
+	return []networkallocator.PredefinedNetworkData{
+		{Name: "nat", Driver: "nat"},
+	}
 }
