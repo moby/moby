@@ -66,18 +66,18 @@ func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
+func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent string, s *defaultService) (string, string, error) {
 	var (
 		endpointStr          = strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 		modifiers            = Headers(userAgent, nil)
-		authTransport        = transport.NewTransport(newTransport(endpoint.TLSConfig), modifiers...)
+		authTransport        = transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
 		credentialAuthConfig = *authConfig
 		creds                = loginCredentialStore{authConfig: &credentialAuthConfig}
 	)
 
 	logrus.Debugf("attempting v2 login to registry endpoint %s", endpointStr)
 
-	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil, s)
 	if err != nil {
 		return "", "", err
 	}
@@ -102,14 +102,28 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	return "", "", errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
 }
 
-func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, error) {
+func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope, s *defaultService) (*http.Client, error) {
 	challengeManager, err := PingV2Registry(endpoint, authTransport)
 	if err != nil {
 		return nil, err
 	}
 
+	hostname := challengeManager.GetHost()
+
+	var newAuthTransport = authTransport
+	if len(hostname) > 0 {
+		tlsConfig, err := NewTLSConfig(hostname, s.config.isSecureIndex(hostname))
+		logrus.Debugf("Loading TLS config for host %s", hostname)
+		if err != nil {
+			logrus.Errorf("TLS config not found for host %s", hostname)
+		} else {
+			logrus.Debugf("TLS config was found for host %s", hostname)
+			newAuthTransport = transport.NewTransport(NewTransport(tlsConfig), modifiers...)
+		}
+	}
+
 	tokenHandlerOptions := auth.TokenHandlerOptions{
-		Transport:     authTransport,
+		Transport:     newAuthTransport,
 		Credentials:   creds,
 		OfflineAccess: true,
 		ClientID:      AuthClientID,

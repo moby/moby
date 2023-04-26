@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -74,7 +75,8 @@ func init() {
 // remote API version.
 func newRepository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
-	metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string,
+	metaHeaders http.Header, authConfig *types.AuthConfig, registryService registry.Service,
+	actions ...string,
 ) (repo distribution.Repository, err error) {
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
@@ -123,9 +125,23 @@ func newRepository(
 			Class:      repoInfo.Class,
 		}
 
+		hostname := challengeManager.GetHost()
+
+		var newAuthTransport = authTransport
+		if len(hostname) > 0 {
+			tlsConfig, err := registry.NewTLSConfig(hostname, registryService.IsSecureIndex(hostname))
+			logrus.Debugf("Loading TLS config for host %s", hostname)
+			if err != nil {
+				logrus.Errorf("TLS config not found for host %s", hostname)
+			} else {
+				logrus.Debugf("TLS config was found for host %s", hostname)
+				newAuthTransport = transport.NewTransport(registry.NewTransport(tlsConfig), modifiers...)
+			}
+		}
+
 		creds := registry.NewStaticCredentialStore(authConfig)
 		tokenHandlerOptions := auth.TokenHandlerOptions{
-			Transport:   authTransport,
+			Transport:   newAuthTransport,
 			Credentials: creds,
 			Scopes:      []auth.Scope{scope},
 			ClientID:    registry.AuthClientID,

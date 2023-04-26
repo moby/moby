@@ -36,7 +36,7 @@ type v1Endpoint struct {
 // newV1Endpoint parses the given address to return a registry endpoint.
 // TODO: remove. This is only used by search.
 func newV1Endpoint(index *registry.IndexInfo, userAgent string, metaHeaders http.Header) (*v1Endpoint, error) {
-	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
+	tlsConfig, err := NewTLSConfig(index.Name, index.Secure)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func newV1EndpointFromStr(address string, tlsConfig *tls.Config, userAgent strin
 	}
 
 	// TODO(tiborvass): make sure a ConnectTimeout transport is used
-	tr := newTransport(tlsConfig)
+	tr := NewTransport(tlsConfig)
 
 	return &v1Endpoint{
 		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,

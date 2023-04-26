@@ -19,7 +19,7 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 			if err != nil {
 				return nil, invalidParam(err)
 			}
-			mirrorTLSConfig, err := newTLSConfig(mirrorURL.Host, s.config.isSecureIndex(mirrorURL.Host))
+			mirrorTLSConfig, err := NewTLSConfig(mirrorURL.Host, s.config.isSecureIndex(mirrorURL.Host))
 			if err != nil {
 				return nil, err
 			}
@@ -44,7 +44,7 @@ func (s *defaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 		return endpoints, nil
 	}
 
-	tlsConfig, err := newTLSConfig(hostname, s.config.isSecureIndex(hostname))
+	tlsConfig, err := NewTLSConfig(hostname, s.config.isSecureIndex(hostname))
 	if err != nil {
 		return nil, err
 	}

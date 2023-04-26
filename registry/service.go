@@ -27,6 +27,7 @@ type Service interface {
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
 	LoadInsecureRegistries([]string) error
+	IsSecureIndex(indexName string) bool
 }
 
 // defaultService is a registry service. It tracks configuration data such as a list
@@ -49,6 +50,11 @@ func (s *defaultService) ServiceConfig() *registry.ServiceConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.config.copy()
+}
+
+// ServiceConfig returns if a host is secured
+func (s *defaultService) IsSecureIndex(indexName string) bool {
+	return s.config.isSecureIndex(indexName)
 }
 
 // LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.
@@ -103,7 +109,7 @@ func (s *defaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	}
 
 	for _, endpoint := range endpoints {
-		status, token, err = loginV2(authConfig, endpoint, userAgent)
+		status, token, err = loginV2(authConfig, endpoint, userAgent, s)
 		if err == nil {
 			return
 		}
@@ -168,7 +174,7 @@ func (s *defaultService) Search(ctx context.Context, term string, limit int, aut
 		}
 
 		modifiers := Headers(userAgent, nil)
-		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
+		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes, s)
 		if err != nil {
 			return nil, err
 		}
