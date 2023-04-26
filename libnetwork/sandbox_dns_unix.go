@@ -4,6 +4,7 @@
 package libnetwork
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
@@ -279,7 +280,8 @@ func (sb *Sandbox) setupDNS() error {
 	}
 
 	// Write hash
-	if err := os.WriteFile(sb.config.resolvConfHashFile, []byte(newRC.Hash), filePerm); err != nil {
+	err = os.WriteFile(sb.config.resolvConfHashFile, newRC.Hash, filePerm)
+	if err != nil {
 		return types.InternalErrorf("failed to write resolv.conf hash file when setting up dns for sandbox %s: %v", sb.ID(), err)
 	}
 
@@ -287,11 +289,6 @@ func (sb *Sandbox) setupDNS() error {
 }
 
 func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
-	var (
-		currHash string
-		hashFile = sb.config.resolvConfHashFile
-	)
-
 	// This is for the host mode networking
 	if sb.config.useDefaultSandBox {
 		return nil
@@ -301,23 +298,20 @@ func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
 		return nil
 	}
 
+	var currHash []byte
 	currRC, err := resolvconf.GetSpecific(sb.config.resolvConfPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
 	} else {
-		h, err := os.ReadFile(hashFile)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return err
-			}
-		} else {
-			currHash = string(h)
+		currHash, err = os.ReadFile(sb.config.resolvConfHashFile)
+		if err != nil && !os.IsNotExist(err) {
+			return err
 		}
 	}
 
-	if currHash != "" && currHash != currRC.Hash {
+	if len(currHash) > 0 && !bytes.Equal(currHash, currRC.Hash) {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
 		// logrus.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
@@ -344,14 +338,14 @@ func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
 		tmpHashFile.Close()
 		return err
 	}
-	_, err = tmpHashFile.Write([]byte(newRC.Hash))
+	_, err = tmpHashFile.Write(newRC.Hash)
 	if err1 := tmpHashFile.Close(); err == nil {
 		err = err1
 	}
 	if err != nil {
 		return err
 	}
-	return os.Rename(tmpHashFile.Name(), hashFile)
+	return os.Rename(tmpHashFile.Name(), sb.config.resolvConfHashFile)
 }
 
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's
