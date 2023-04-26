@@ -117,7 +117,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 
 		// TODO(thaJeztah); is there a reason not to include other headers here? (originally added in 19d48f0b8ba59eea9f2cac4ad1c7977712a6b7ac)
 		modifiers := Headers(headers.Get("User-Agent"), nil)
-		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
+		v2Client, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes, s)
 		if err != nil {
 			return nil, err
 		}

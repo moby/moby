@@ -357,7 +357,7 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	}
 
 	p := newPuller(endpoint, repoInfo, imagePullConfig, nil)
-	p.repo, err = newRepository(context.Background(), p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = newRepository(context.Background(), p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, p.config.RegistryService, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}

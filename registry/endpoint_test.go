@@ -65,7 +65,7 @@ func TestValidateEndpoint(t *testing.T) {
 
 	testEndpoint := v1Endpoint{
 		URL:    testServerURL,
-		client: httpClient(newTransport(nil)),
+		client: httpClient(NewTransport(nil)),
 	}
 
 	if err = validateEndpoint(&testEndpoint); err != nil {

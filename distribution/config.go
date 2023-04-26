@@ -81,6 +81,7 @@ type RegistryResolver interface {
 	LookupPushEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
 	LookupPullEndpoints(hostname string) (endpoints []registrypkg.APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*registrypkg.RepositoryInfo, error)
+	IsInsecureRegistry(indexName string) bool
 }
 
 // ImageConfigStore handles storing and getting image configurations

@@ -25,7 +25,7 @@ func GetRepository(ctx context.Context, ref reference.Named, config *ImagePullCo
 	}
 
 	for _, endpoint := range endpoints {
-		repository, lastError = newRepository(ctx, repoInfo, endpoint, nil, config.AuthConfig, "pull")
+		repository, lastError = newRepository(ctx, repoInfo, endpoint, nil, config.AuthConfig, config.RegistryService, "pull")
 		if lastError == nil {
 			break
 		}

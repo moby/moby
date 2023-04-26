@@ -14,6 +14,7 @@ import (
 )
 
 // Service is a registry service. It tracks configuration data such as a list
+// defaultService is a registry service. It tracks configuration data such as a list
 // of mirrors.
 type Service struct {
 	config *serviceConfig
@@ -87,7 +88,7 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 	}
 
 	for _, endpoint := range endpoints {
-		status, token, err = loginV2(authConfig, endpoint, userAgent)
+		status, token, err = loginV2(authConfig, endpoint, userAgent, s)
 		if err == nil {
 			return
 		}

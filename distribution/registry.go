@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -74,7 +75,7 @@ func init() {
 // remote API version.
 func newRepository(
 	ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint,
-	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, actions ...string,
+	metaHeaders http.Header, authConfig *registrytypes.AuthConfig, registryResolver RegistryResolver, actions ...string,
 ) (repo distribution.Repository, err error) {
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
@@ -100,7 +101,7 @@ func newRepository(
 	modifiers := registry.Headers(dockerversion.DockerUserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
-	challengeManager, err := registry.PingV2Registry(endpoint.URL, authTransport)
+	challengeManager, realmHost, err := registry.PingV2Registry(endpoint.URL, authTransport)
 	if err != nil {
 		transportOK := false
 		if responseErr, ok := err.(registry.PingResponseError); ok {
@@ -123,9 +124,21 @@ func newRepository(
 			Class:      repoInfo.Class,
 		}
 
+		var newAuthTransport = authTransport
+		if len(realmHost) > 0 && registryResolver != nil {
+			tlsConfig, err := registry.NewTLSConfig(realmHost, !registryResolver.IsInsecureRegistry(realmHost))
+			logrus.Debugf("Loading TLS config for host %s", realmHost)
+			if err != nil {
+				logrus.Warnf("TLS config not found for host %s", realmHost)
+			} else {
+				logrus.Debugf("TLS config was found for host %s", realmHost)
+				newAuthTransport = transport.NewTransport(registry.NewTransport(tlsConfig), modifiers...)
+			}
+		}
+
 		creds := registry.NewStaticCredentialStore(authConfig)
 		tokenHandlerOptions := auth.TokenHandlerOptions{
-			Transport:   authTransport,
+			Transport:   newAuthTransport,
 			Credentials: creds,
 			Scopes:      []auth.Scope{scope},
 			ClientID:    registry.AuthClientID,

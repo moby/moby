@@ -21,7 +21,7 @@ func HostCertsDir(hostname string) string {
 }
 
 // newTLSConfig constructs a client TLS configuration based on server defaults
-func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
+func NewTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
 
@@ -159,7 +159,7 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 
 // newTransport returns a new HTTP transport. If tlsConfig is nil, it uses the
 // default TLS configuration.
-func newTransport(tlsConfig *tls.Config) *http.Transport {
+func NewTransport(tlsConfig *tls.Config) *http.Transport {
 	if tlsConfig == nil {
 		tlsConfig = tlsconfig.ServerDefault()
 	}

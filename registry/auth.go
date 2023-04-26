@@ -65,18 +65,18 @@ func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
+func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent string, s *Service) (string, string, error) {
 	var (
 		endpointStr          = strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 		modifiers            = Headers(userAgent, nil)
-		authTransport        = transport.NewTransport(newTransport(endpoint.TLSConfig), modifiers...)
+		authTransport        = transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
 		credentialAuthConfig = *authConfig
 		creds                = loginCredentialStore{authConfig: &credentialAuthConfig}
 	)
 
 	logrus.Debugf("attempting v2 login to registry endpoint %s", endpointStr)
 
-	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil, s)
 	if err != nil {
 		return "", "", err
 	}
@@ -101,14 +101,26 @@ func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent st
 	return "", "", errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
 }
 
-func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, error) {
-	challengeManager, err := PingV2Registry(endpoint, authTransport)
+func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope, s *Service) (*http.Client, error) {
+	challengeManager, realmHost, err := PingV2Registry(endpoint, authTransport)
 	if err != nil {
 		return nil, err
 	}
 
+	var newAuthTransport = authTransport
+	if len(realmHost) > 0 {
+		tlsConfig, err := NewTLSConfig(realmHost, s.config.isSecureIndex(realmHost))
+		logrus.Debugf("Loading TLS config for host %s", realmHost)
+		if err != nil {
+			logrus.Warnf("TLS config not found for host %s", realmHost)
+		} else {
+			logrus.Debugf("TLS config was found for host %s", realmHost)
+			newAuthTransport = transport.NewTransport(NewTransport(tlsConfig), modifiers...)
+		}
+	}
+
 	tokenHandlerOptions := auth.TokenHandlerOptions{
-		Transport:     authTransport,
+		Transport:     newAuthTransport,
 		Credentials:   creds,
 		OfflineAccess: true,
 		ClientID:      AuthClientID,
@@ -169,7 +181,7 @@ func (err PingResponseError) Error() string {
 // PingV2Registry attempts to ping a v2 registry and on success return a
 // challenge manager for the supported authentication types.
 // If a response is received but cannot be interpreted, a PingResponseError will be returned.
-func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, error) {
+func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, string, error) {
 	pingClient := &http.Client{
 		Transport: transport,
 		Timeout:   15 * time.Second,
@@ -177,20 +189,41 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"
 	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	resp, err := pingClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
 	challengeManager := challenge.NewSimpleManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
-		return nil, PingResponseError{
+		return nil, "", PingResponseError{
 			Err: err,
 		}
 	}
 
-	return challengeManager, nil
+	responseUrl := url.URL{
+		Path:   resp.Request.URL.Path,
+		Host:   resp.Request.URL.Host,
+		Scheme: resp.Request.URL.Scheme,
+	}
+
+	challenges, err := challengeManager.GetChallenges(responseUrl)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if len(challenges) == 1 {
+		realm, ok := challenges[0].Parameters["realm"]
+		if ok {
+			realmURL, err := url.Parse(realm)
+			if err == nil {
+				return challengeManager, realmURL.Host, nil
+			}
+		}
+	}
+
+	return challengeManager, "", nil
 }
