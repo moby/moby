@@ -17,7 +17,12 @@ import (
 func (i *ImageService) Changes(ctx context.Context, container *container.Container) ([]archive.Change, error) {
 	cs := i.client.ContentStore()
 
-	imageManifestBytes, err := content.ReadBlob(ctx, cs, *container.ImageManifest)
+	imageManifest, err := getContainerImageManifest(container)
+	if err != nil {
+		return nil, err
+	}
+
+	imageManifestBytes, err := content.ReadBlob(ctx, cs, imageManifest)
 	if err != nil {
 		return nil, err
 	}

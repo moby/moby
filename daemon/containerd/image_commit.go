@@ -40,7 +40,12 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	container := i.containers.Get(cc.ContainerID)
 	cs := i.client.ContentStore()
 
-	imageManifestBytes, err := content.ReadBlob(ctx, cs, *container.ImageManifest)
+	imageManifest, err := getContainerImageManifest(container)
+	if err != nil {
+		return "", err
+	}
+
+	imageManifestBytes, err := content.ReadBlob(ctx, cs, imageManifest)
 	if err != nil {
 		return "", err
 	}
