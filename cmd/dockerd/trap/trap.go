@@ -1,10 +1,11 @@
 package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -22,15 +23,13 @@ const (
 //
 // If SIGINT or SIGTERM are received 3 times, the process is terminated
 // immediately with an exit code of 128 + the signal number.
-func Trap(cleanup func(), logger interface {
-	Info(args ...interface{})
-}) {
+func Trap(cleanup func()) {
 	c := make(chan os.Signal, forceQuitCount)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		var interruptCount int
 		for sig := range c {
-			logger.Info(fmt.Sprintf("Processing signal '%v'", sig))
+			logrus.Infof("Processing signal '%v'", sig)
 			if interruptCount < forceQuitCount {
 				interruptCount++
 				// Initiate the cleanup only once
@@ -40,7 +39,7 @@ func Trap(cleanup func(), logger interface {
 				continue
 			}
 
-			logger.Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
+			logrus.Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
 			os.Exit(128 + int(sig.(syscall.Signal)))
 		}
 	}()

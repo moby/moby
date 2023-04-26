@@ -183,7 +183,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	trap.Trap(func() {
 		cli.stop()
 		<-stopc // wait for daemonCli.start() to return
-	}, logrus.StandardLogger())
+	})
 
 	// Notify that the API is active, but before daemon is set up.
 	preNotifyReady()
