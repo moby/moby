@@ -297,6 +297,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		SessionManager:      sm,
 		Root:                filepath.Join(config.Root, "buildkit"),
 		Dist:                d.DistributionServices(),
+		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: cgroupParent,
 		RegistryHosts:       d.RegistryHosts(),

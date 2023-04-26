@@ -275,9 +275,9 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	}
 
 	exp, err := mobyexporter.New(mobyexporter.Opt{
-		ImageStore:     dist.ImageStore,
-		ReferenceStore: dist.ReferenceStore,
-		Differ:         differ,
+		ImageStore:  dist.ImageStore,
+		Differ:      differ,
+		ImageTagger: opt.ImageTagger,
 	})
 	if err != nil {
 		return nil, err
