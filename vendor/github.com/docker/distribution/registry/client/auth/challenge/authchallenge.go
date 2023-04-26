@@ -35,6 +35,8 @@ type Manager interface {
 	// response was authorized, any challenges for the
 	// endpoint will be cleared.
 	AddResponse(resp *http.Response) error
+
+	GetHost() string
 }
 
 // NewSimpleManager returns an instance of
@@ -84,6 +86,24 @@ func (m *simpleManager) AddResponse(resp *http.Response) error {
 	defer m.Unlock()
 	m.Challenges[urlCopy.String()] = challenges
 	return nil
+}
+
+func (m *simpleManager) GetHost() string {
+	if len(m.Challenges) == 1 {
+		for _, challenges := range m.Challenges {
+			if len(challenges) == 1 {
+				realm, ok := challenges[0].Parameters["realm"]
+				if ok {
+					realmURL, err := url.Parse(realm)
+					if err == nil {
+						return realmURL.Host
+					}
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // Octet types from RFC 2616.

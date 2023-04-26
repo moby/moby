@@ -32,7 +32,7 @@ func HostCertsDir(hostname string) (string, error) {
 	return hostDir, nil
 }
 
-func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
+func NewTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
 

@@ -34,6 +34,7 @@ type Service interface {
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
 	LoadInsecureRegistries([]string) error
+	IsSecureIndex(indexName string) bool
 }
 
 // DefaultService is a registry service. It tracks configuration data such as a list
@@ -77,6 +78,11 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 	servConfig.Mirrors = append(servConfig.Mirrors, s.config.ServiceConfig.Mirrors...)
 
 	return &servConfig
+}
+
+// ServiceConfig returns if a host is secured
+func (s *DefaultService) IsSecureIndex(indexName string) bool {
+	return isSecureIndex(s.config, indexName)
 }
 
 // LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries for Service.
@@ -131,7 +137,7 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	}
 
 	for _, endpoint := range endpoints {
-		status, token, err = loginV2(authConfig, endpoint, userAgent)
+		status, token, err = loginV2(authConfig, endpoint, userAgent, s)
 		if err == nil {
 			return
 		}
@@ -194,7 +200,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 		}
 
 		modifiers := Headers(userAgent, nil)
-		v2Client, foundV2, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
+		v2Client, foundV2, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes, s)
 		if err != nil {
 			if fErr, ok := err.(fallbackError); ok {
 				logrus.Errorf("Cannot use identity token for search, v2 auth not supported: %v", fErr.err)
@@ -258,12 +264,12 @@ func (s *DefaultService) TLSConfig(hostname string) (*tls.Config, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return newTLSConfig(hostname, isSecureIndex(s.config, hostname))
+	return NewTLSConfig(hostname, isSecureIndex(s.config, hostname))
 }
 
 // tlsConfig constructs a client TLS configuration based on server defaults
 func (s *DefaultService) tlsConfig(hostname string) (*tls.Config, error) {
-	return newTLSConfig(hostname, isSecureIndex(s.config, hostname))
+	return NewTLSConfig(hostname, isSecureIndex(s.config, hostname))
 }
 
 func (s *DefaultService) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, error) {

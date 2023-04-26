@@ -163,7 +163,7 @@ func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, a
 			continue
 		}
 
-		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
+		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, i.registryService, "pull")
 		if lastError == nil && confirmedV2 {
 			break
 		}
