@@ -63,7 +63,7 @@ pipeline {
                         beforeAgent true
                         expression { params.unit_validate }
                     }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
+                    agent { label 'amd64 && ubuntu-2004 && overlay2' }
                     environment {
                         // On master ("non-pull-request"), force running some validation checks (vendor, swagger),
                         // even if no files were changed. This allows catching problems caused by pull-requests
@@ -249,7 +249,7 @@ pipeline {
                         beforeAgent true
                         expression { params.amd64 }
                     }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
+                    agent { label 'amd64 && ubuntu-2004 && overlay2' }
 
                     stages {
                         stage("Print info") {
@@ -378,7 +378,7 @@ pipeline {
                         beforeAgent true
                         expression { params.rootless }
                     }
-                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
+                    agent { label 'amd64 && ubuntu-2004 && overlay2' }
                     stages {
                         stage("Print info") {
                             steps {
