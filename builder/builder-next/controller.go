@@ -159,9 +159,9 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 
 	exp, err := containerimageexp.New(containerimageexp.Opt{
-		ImageStore:     dist.ImageStore,
-		ReferenceStore: dist.ReferenceStore,
-		Differ:         differ,
+		ImageStore:  dist.ImageStore,
+		Differ:      differ,
+		ImageTagger: opt.ImageTagger,
 	})
 	if err != nil {
 		return nil, err

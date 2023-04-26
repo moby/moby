@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
+	containerimageexp "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/libnetwork"
@@ -70,6 +71,7 @@ type Opt struct {
 	Root                string
 	Dist                images.DistributionServices
 	NetworkController   libnetwork.NetworkController
+	ImageTagger         containerimageexp.ImageTagger
 	DefaultCgroupParent string
 	RegistryHosts       docker.RegistryHosts
 	BuilderConfig       config.BuilderConfig
