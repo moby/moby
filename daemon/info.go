@@ -44,7 +44,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		OperatingSystem:    operatingSystem(),
 		OSVersion:          osVersion(),
 		IndexServerAddress: registry.IndexServer,
-		OSType:             platform.OSType,
+		OSType:             runtime.GOOS,
 		Architecture:       platform.Architecture,
 		RegistryConfig:     daemon.registryService.ServiceConfig(),
 		NCPU:               sysinfo.NumCPU(),
