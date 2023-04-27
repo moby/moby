@@ -14,9 +14,6 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-// IfaceOption is a function option type to set interface options
-type IfaceOption func(i *nwIface)
-
 type nwIface struct {
 	srcName     string
 	dstName     string

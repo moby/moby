@@ -17,6 +17,9 @@ const (
 	SandboxTypeLoadBalancer = iota
 )
 
+// IfaceOption is a function option type to set interface options.
+type IfaceOption func(i *nwIface)
+
 // Sandbox represents a network sandbox, identified by a specific key.  It
 // holds a list of Interfaces, routes etc, and more can be added dynamically.
 type Sandbox interface {
