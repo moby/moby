@@ -41,3 +41,69 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 		poll.WaitOn(t, container.IsStopped(ctx, client, name), poll.WithDelay(100*time.Millisecond))
 	}
 }
+
+// TestStopContainerWithTimeout checks that ContainerStop with
+// a timeout works as documented, i.e. in case of negative timeout
+// waiting is not limited (issue #35311).
+func TestStopContainerWithTimeout(t *testing.T) {
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	forcefulKillExitCode := 137
+	if testEnv.OSType == "windows" {
+		forcefulKillExitCode = 0x40010004
+	}
+
+	testCmd := container.WithCmd("sleep", "10")
+	testData := []struct {
+		doc              string
+		timeout          int
+		expectedExitCode int
+	}{
+		// In case container is forcefully killed, 137 is returned,
+		// otherwise the exit code from the above script
+		{
+			doc:              "zero timeout: expect forceful container kill",
+			expectedExitCode: forcefulKillExitCode,
+			timeout:          0,
+		},
+		{
+			doc:              "too small timeout: expect forceful container kill",
+			expectedExitCode: forcefulKillExitCode,
+			timeout:          2,
+		},
+		{
+			doc:              "big enough timeout: expect graceful container stop",
+			expectedExitCode: 0,
+			timeout:          20, // longer than "sleep 10" cmd
+		},
+		{
+			doc:              "unlimited timeout: expect graceful container stop",
+			expectedExitCode: 0,
+			timeout:          -1,
+		},
+	}
+
+	var pollOpts []poll.SettingOp
+	if testEnv.OSType == "windows" {
+		pollOpts = append(pollOpts, poll.WithTimeout(StopContainerWindowsPollTimeout))
+	}
+
+	for _, tc := range testData {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			id := container.Run(ctx, t, client, testCmd)
+
+			err := client.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &tc.timeout})
+			assert.NilError(t, err)
+
+			poll.WaitOn(t, container.IsStopped(ctx, client, id), pollOpts...)
+
+			inspect, err := client.ContainerInspect(ctx, id)
+			assert.NilError(t, err)
+			assert.Equal(t, inspect.State.ExitCode, tc.expectedExitCode)
+		})
+	}
+}
