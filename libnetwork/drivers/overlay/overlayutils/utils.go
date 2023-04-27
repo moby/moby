@@ -8,14 +8,10 @@ import (
 
 var (
 	mutex        sync.RWMutex
-	vxlanUDPPort uint32
+	vxlanUDPPort = defaultVXLANUDPPort
 )
 
-const defaultVXLANUDPPort = 4789
-
-func init() {
-	vxlanUDPPort = defaultVXLANUDPPort
-}
+const defaultVXLANUDPPort uint32 = 4789
 
 // ConfigVXLANUDPPort configures the VXLAN UDP port (data path port) number.
 // If no port is set, the default (4789) is returned. Valid port numbers are
