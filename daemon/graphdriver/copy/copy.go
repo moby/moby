@@ -116,7 +116,7 @@ type dirMtimeInfo struct {
 //
 // The copyOpaqueXattrs controls if "trusted.overlay.opaque" xattrs are copied.
 // Passing false disables copying "trusted.overlay.opaque" xattrs.
-func DirCopy(srcDir, dstDir string, copyMode Mode, copyOpaqueXattrs bool) error {
+func DirCopy(srcDir, dstDir string, copyMode Mode, copyOpaqueXattrs bool, allowXattrFailure bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
 
@@ -210,7 +210,9 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyOpaqueXattrs bool) error 
 		}
 
 		if err := copyXattr(srcPath, dstPath, "security.capability"); err != nil {
-			return err
+			if !allowXattrFailure {
+				return err
+			}
 		}
 
 		if copyOpaqueXattrs {

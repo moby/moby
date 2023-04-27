@@ -40,7 +40,7 @@ func TestCopyDir(t *testing.T) {
 	assert.NilError(t, err)
 	defer os.RemoveAll(dstDir)
 
-	assert.Check(t, DirCopy(srcDir, dstDir, Content, false))
+	assert.Check(t, DirCopy(srcDir, dstDir, Content, false, true))
 	assert.NilError(t, filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -146,7 +146,7 @@ func TestCopyHardlink(t *testing.T) {
 	assert.NilError(t, os.WriteFile(srcFile1, []byte{}, 0777))
 	assert.NilError(t, os.Link(srcFile1, srcFile2))
 
-	assert.Check(t, DirCopy(srcDir, dstDir, Content, false))
+	assert.Check(t, DirCopy(srcDir, dstDir, Content, false, true))
 
 	assert.NilError(t, unix.Stat(srcFile1, &srcFile1FileInfo))
 	assert.NilError(t, unix.Stat(srcFile2, &srcFile2FileInfo))
