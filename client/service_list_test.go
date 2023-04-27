@@ -28,11 +28,7 @@ func TestServiceListError(t *testing.T) {
 }
 
 func TestServiceList(t *testing.T) {
-	expectedURL := "/services"
-
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
+	const expectedURL = "/services"
 
 	listCases := []struct {
 		options             types.ServiceListOptions
@@ -46,7 +42,10 @@ func TestServiceList(t *testing.T) {
 		},
 		{
 			options: types.ServiceListOptions{
-				Filters: filters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

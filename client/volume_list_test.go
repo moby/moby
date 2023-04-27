@@ -27,17 +27,7 @@ func TestVolumeListError(t *testing.T) {
 }
 
 func TestVolumeList(t *testing.T) {
-	expectedURL := "/volumes"
-
-	noDanglingFilters := filters.NewArgs()
-	noDanglingFilters.Add("dangling", "false")
-
-	danglingFilters := filters.NewArgs()
-	danglingFilters.Add("dangling", "true")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("label", "label1")
-	labelFilters.Add("label", "label2")
+	const expectedURL = "/volumes"
 
 	listCases := []struct {
 		filters         filters.Args
@@ -47,13 +37,16 @@ func TestVolumeList(t *testing.T) {
 			filters:         filters.NewArgs(),
 			expectedFilters: "",
 		}, {
-			filters:         noDanglingFilters,
+			filters:         filters.NewArgs(filters.Arg("dangling", "false")),
 			expectedFilters: `{"dangling":{"false":true}}`,
 		}, {
-			filters:         danglingFilters,
+			filters:         filters.NewArgs(filters.Arg("dangling", "true")),
 			expectedFilters: `{"dangling":{"true":true}}`,
 		}, {
-			filters:         labelFilters,
+			filters: filters.NewArgs(
+				filters.Arg("label", "label1"),
+				filters.Arg("label", "label2"),
+			),
 			expectedFilters: `{"label":{"label1":true,"label2":true}}`,
 		},
 	}

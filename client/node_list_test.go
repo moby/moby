@@ -28,11 +28,7 @@ func TestNodeListError(t *testing.T) {
 }
 
 func TestNodeList(t *testing.T) {
-	expectedURL := "/nodes"
-
-	filters := filters.NewArgs()
-	filters.Add("label", "label1")
-	filters.Add("label", "label2")
+	const expectedURL = "/nodes"
 
 	listCases := []struct {
 		options             types.NodeListOptions
@@ -46,7 +42,10 @@ func TestNodeList(t *testing.T) {
 		},
 		{
 			options: types.NodeListOptions{
-				Filters: filters,
+				Filters: filters.NewArgs(
+					filters.Arg("label", "label1"),
+					filters.Arg("label", "label2"),
+				),
 			},
 			expectedQueryParams: map[string]string{
 				"filters": `{"label":{"label1":true,"label2":true}}`,

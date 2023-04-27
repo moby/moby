@@ -606,10 +606,8 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 
 func (c *Cluster) listContainerForNode(ctx context.Context, nodeID string) ([]string, error) {
 	var ids []string
-	filters := filters.NewArgs()
-	filters.Add("label", fmt.Sprintf("com.docker.swarm.node.id=%s", nodeID))
 	containers, err := c.config.Backend.Containers(ctx, &apitypes.ContainerListOptions{
-		Filters: filters,
+		Filters: filters.NewArgs(filters.Arg("label", "com.docker.swarm.node.id="+nodeID)),
 	})
 	if err != nil {
 		return []string{}, err

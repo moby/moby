@@ -717,9 +717,9 @@ func (c *containerConfig) applyPrivileges(hc *enginecontainer.HostConfig) {
 }
 
 func (c containerConfig) eventFilter() filters.Args {
-	filter := filters.NewArgs()
-	filter.Add("type", events.ContainerEventType)
-	filter.Add("name", c.name())
-	filter.Add("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.ID))
-	return filter
+	return filters.NewArgs(
+		filters.Arg("type", events.ContainerEventType),
+		filters.Arg("name", c.name()),
+		filters.Arg("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.ID)),
+	)
 }

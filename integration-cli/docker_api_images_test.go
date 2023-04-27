@@ -28,11 +28,9 @@ func (s *DockerAPISuite) TestAPIImagesFilter(c *testing.T) {
 		dockerCmd(c, "tag", "busybox", n)
 	}
 	getImages := func(filter string) []types.ImageSummary {
-		fltrs := filters.NewArgs()
-		fltrs.Add("reference", filter)
 		options := types.ImageListOptions{
 			All:     false,
-			Filters: fltrs,
+			Filters: filters.NewArgs(filters.Arg("reference", filter)),
 		}
 		images, err := apiClient.ImageList(context.Background(), options)
 		assert.NilError(c, err)

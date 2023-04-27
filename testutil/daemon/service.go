@@ -55,9 +55,10 @@ func (d *Daemon) GetServiceTasks(t testing.TB, service string, additionalFilters
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("desired-state", "running")
-	filterArgs.Add("service", service)
+	filterArgs := filters.NewArgs(
+		filters.Arg("desired-state", "running"),
+		filters.Arg("service", service),
+	)
 	for _, filter := range additionalFilters {
 		filterArgs.Add(filter.Key, filter.Value)
 	}

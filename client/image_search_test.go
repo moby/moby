@@ -118,12 +118,8 @@ func TestImageSearchWithPrivilegedFuncNoError(t *testing.T) {
 }
 
 func TestImageSearchWithoutErrors(t *testing.T) {
-	expectedURL := "/images/search"
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("is-automated", "true")
-	filterArgs.Add("stars", "3")
-
-	expectedFilters := `{"is-automated":{"true":true},"stars":{"3":true}}`
+	const expectedURL = "/images/search"
+	const expectedFilters = `{"is-automated":{"true":true},"stars":{"3":true}}`
 
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
@@ -135,9 +131,9 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 			if term != "some-image" {
 				return nil, fmt.Errorf("term not set in URL query properly. Expected 'some-image', got %s", term)
 			}
-			filters := query.Get("filters")
-			if filters != expectedFilters {
-				return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", expectedFilters, filters)
+			fltrs := query.Get("filters")
+			if fltrs != expectedFilters {
+				return nil, fmt.Errorf("filters not set in URL query properly. Expected '%s', got %s", expectedFilters, fltrs)
 			}
 			content, err := json.Marshal([]registry.SearchResult{
 				{
@@ -154,7 +150,10 @@ func TestImageSearchWithoutErrors(t *testing.T) {
 		}),
 	}
 	results, err := client.ImageSearch(context.Background(), "some-image", types.ImageSearchOptions{
-		Filters: filterArgs,
+		Filters: filters.NewArgs(
+			filters.Arg("is-automated", "true"),
+			filters.Arg("stars", "3"),
+		),
 	})
 	if err != nil {
 		t.Fatal(err)

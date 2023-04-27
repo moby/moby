@@ -57,10 +57,8 @@ func TestServiceListWithStatuses(t *testing.T) {
 		// serviceContainerCount function does not do. instead, we'll use a
 		// bespoke closure right here.
 		poll.WaitOn(t, func(log poll.LogT) poll.Result {
-			filter := filters.NewArgs()
-			filter.Add("service", id)
 			tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-				Filters: filter,
+				Filters: filters.NewArgs(filters.Arg("service", id)),
 			})
 
 			running := 0

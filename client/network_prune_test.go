@@ -23,27 +23,14 @@ func TestNetworksPruneError(t *testing.T) {
 		version: "1.25",
 	}
 
-	filters := filters.NewArgs()
-
-	_, err := client.NetworksPrune(context.Background(), filters)
+	_, err := client.NetworksPrune(context.Background(), filters.NewArgs())
 	if !errdefs.IsSystem(err) {
 		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
 	}
 }
 
 func TestNetworksPrune(t *testing.T) {
-	expectedURL := "/v1.25/networks/prune"
-
-	danglingFilters := filters.NewArgs()
-	danglingFilters.Add("dangling", "true")
-
-	noDanglingFilters := filters.NewArgs()
-	noDanglingFilters.Add("dangling", "false")
-
-	labelFilters := filters.NewArgs()
-	labelFilters.Add("dangling", "true")
-	labelFilters.Add("label", "label1=foo")
-	labelFilters.Add("label", "label2!=bar")
+	const expectedURL = "/v1.25/networks/prune"
 
 	listCases := []struct {
 		filters             filters.Args
@@ -58,7 +45,7 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: danglingFilters,
+			filters: filters.NewArgs(filters.Arg("dangling", "true")),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -66,7 +53,7 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: noDanglingFilters,
+			filters: filters.NewArgs(filters.Arg("dangling", "false")),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",
@@ -74,7 +61,11 @@ func TestNetworksPrune(t *testing.T) {
 			},
 		},
 		{
-			filters: labelFilters,
+			filters: filters.NewArgs(
+				filters.Arg("dangling", "true"),
+				filters.Arg("label", "label1=foo"),
+				filters.Arg("label", "label2!=bar"),
+			),
 			expectedQueryParams: map[string]string{
 				"until":   "",
 				"filter":  "",

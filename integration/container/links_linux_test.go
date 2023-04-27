@@ -45,10 +45,8 @@ func TestLinksContainerNames(t *testing.T) {
 	container.Run(ctx, t, client, container.WithName(containerA))
 	container.Run(ctx, t, client, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
 
-	f := filters.NewArgs(filters.Arg("name", containerA))
-
 	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
-		Filters: f,
+		Filters: filters.NewArgs(filters.Arg("name", containerA)),
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(1, len(containers)))
