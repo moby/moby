@@ -132,7 +132,7 @@ func filtersToBy(filter filters.Args, acceptedFilters map[string]bool) (By, erro
 	return by, nil
 }
 
-func withPrune(filter filters.Args) error {
+func withPrune(filter *filters.Args) error {
 	all := filter.Get("all")
 	switch {
 	case len(all) > 1:
