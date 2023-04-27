@@ -165,6 +165,14 @@ func TestParseHostURL(t *testing.T) {
 			host:     "tcp://localhost:2476/path",
 			expected: &url.URL{Scheme: "tcp", Host: "localhost:2476", Path: "/path"},
 		},
+		{
+			host:     "unix:///var/run/docker.sock",
+			expected: &url.URL{Scheme: "unix", Host: "/var/run/docker.sock"},
+		},
+		{
+			host:     "npipe:////./pipe/docker_engine",
+			expected: &url.URL{Scheme: "npipe", Host: "//./pipe/docker_engine"},
+		},
 	}
 
 	for _, testcase := range testcases {

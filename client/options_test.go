@@ -1,31 +1,39 @@
 package client
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestOptionWithHostFromEnv(t *testing.T) {
 	c, err := NewClientWithOpts(WithHostFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
-	assert.Equal(t, c.host, DefaultDockerHost)
-	assert.Equal(t, c.proto, defaultProto)
-	assert.Equal(t, c.addr, defaultAddr)
-	assert.Equal(t, c.basePath, "")
+	assert.Check(t, is.Equal(c.basePath, ""))
+	if runtime.GOOS == "windows" {
+		assert.Check(t, is.Equal(c.host, "npipe:////./pipe/docker_engine"))
+		assert.Check(t, is.Equal(c.proto, "npipe"))
+		assert.Check(t, is.Equal(c.addr, "//./pipe/docker_engine"))
+	} else {
+		assert.Check(t, is.Equal(c.host, "unix:///var/run/docker.sock"))
+		assert.Check(t, is.Equal(c.proto, "unix"))
+		assert.Check(t, is.Equal(c.addr, "/var/run/docker.sock"))
+	}
 
 	t.Setenv("DOCKER_HOST", "tcp://foo.example.com:2376/test/")
 
 	c, err = NewClientWithOpts(WithHostFromEnv())
 	assert.NilError(t, err)
 	assert.Check(t, c.client != nil)
-	assert.Equal(t, c.host, "tcp://foo.example.com:2376/test/")
-	assert.Equal(t, c.proto, "tcp")
-	assert.Equal(t, c.addr, "foo.example.com:2376")
-	assert.Equal(t, c.basePath, "/test/")
+	assert.Check(t, is.Equal(c.basePath, "/test/"))
+	assert.Check(t, is.Equal(c.host, "tcp://foo.example.com:2376/test/"))
+	assert.Check(t, is.Equal(c.proto, "tcp"))
+	assert.Check(t, is.Equal(c.addr, "foo.example.com:2376"))
 }
 
 func TestOptionWithTimeout(t *testing.T) {
