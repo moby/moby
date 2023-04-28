@@ -42,14 +42,12 @@ func initListenerTestPhase1() {
 }
 
 func initListenerTestPhase2() {
-	cli := &DaemonCli{
-		Config: &config.Config{
-			CommonConfig: config.CommonConfig{
-				Hosts: []string{"fd://"},
-			},
+	cfg := &config.Config{
+		CommonConfig: config.CommonConfig{
+			Hosts: []string{"fd://"},
 		},
 	}
-	_, err := loadListeners(cli, nil)
+	_, _, err := loadListeners(cfg, nil)
 	var resp listenerTestResponse
 	if err != nil {
 		resp.Err = err.Error()
