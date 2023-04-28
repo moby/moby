@@ -70,11 +70,6 @@ func setKey() error {
 
 // SetExternalKey provides a convenient way to set an External key to a sandbox
 func SetExternalKey(shortCtlrID string, containerID string, key string, execRoot string) error {
-	keyData := setKeyData{
-		ContainerID: containerID,
-		Key:         key,
-	}
-
 	uds := filepath.Join(execRoot, execSubdir, shortCtlrID+".sock")
 	c, err := net.Dial("unix", uds)
 	if err != nil {
@@ -82,27 +77,14 @@ func SetExternalKey(shortCtlrID string, containerID string, key string, execRoot
 	}
 	defer c.Close()
 
-	if err = sendKey(c, keyData); err != nil {
+	err = json.NewEncoder(c).Encode(setKeyData{
+		ContainerID: containerID,
+		Key:         key,
+	})
+	if err != nil {
 		return fmt.Errorf("sendKey failed with : %v", err)
 	}
 	return processReturn(c)
-}
-
-func sendKey(c net.Conn, data setKeyData) error {
-	var err error
-	defer func() {
-		if err != nil {
-			c.Close()
-		}
-	}()
-
-	var b []byte
-	if b, err = json.Marshal(data); err != nil {
-		return err
-	}
-
-	_, err = c.Write(b)
-	return err
 }
 
 func processReturn(r io.Reader) error {
