@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/containerd/containerd"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/platforms"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
@@ -68,6 +70,23 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 	infoHandler := snapshotters.AppendInfoHandlerWrapper(ref.String())
 	opts = append(opts, containerd.WithImageHandlerWrapper(infoHandler))
 
-	_, err = i.client.Pull(ctx, ref.String(), opts...)
-	return err
+	img, err := i.client.Pull(ctx, ref.String(), opts...)
+	if err != nil {
+		return err
+	}
+
+	logger := logrus.WithFields(logrus.Fields{
+		"digest": img.Target().Digest,
+		"remote": ref.String(),
+	})
+	logger.Info("image pulled")
+
+	// The pull succeeded, so try to remove any dangling image we have for this target
+	err = i.client.ImageService().Delete(context.Background(), danglingImageName(img.Target().Digest))
+	if err != nil && !cerrdefs.IsNotFound(err) {
+		// Image pull succeeded, but cleaning up the dangling image failed. Ignore the
+		// error to not mark the pull as failed.
+		logger.WithError(err).Warn("unexpected error while removing outdated dangling image reference")
+	}
+	return nil
 }
