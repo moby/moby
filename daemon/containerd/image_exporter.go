@@ -103,10 +103,23 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 // complement of ExportImage.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	// TODO(vvoland): Allow user to pass platform
-	platform := cplatforms.All
-	imgs, err := i.client.Import(ctx, inTar, containerd.WithImportPlatform(platform))
+	opts := []containerd.ImportOpt{
+		// TODO(vvoland): Allow user to pass platform
+		containerd.WithImportPlatform(cplatforms.All),
 
+		// Create an additional image with dangling name for imported images...
+		containerd.WithDigestRef(danglingImageName),
+		/// ... but only if they don't have a name or it's invalid.
+		containerd.WithSkipDigestRef(func(nameFromArchive string) bool {
+			if nameFromArchive == "" {
+				return false
+			}
+			_, err := reference.ParseNormalizedNamed(nameFromArchive)
+			return err == nil
+		}),
+	}
+
+	imgs, err := i.client.Import(ctx, inTar, opts...)
 	if err != nil {
 		logrus.WithError(err).Debug("failed to import image to containerd")
 		return errdefs.System(err)
@@ -123,8 +136,13 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 
 		name := img.Name
-		if named, err := reference.ParseNormalizedNamed(img.Name); err == nil {
-			name = reference.FamiliarName(named)
+		loadedMsg := "Loaded image"
+
+		if isDanglingImage(img) {
+			name = img.Target.Digest.String()
+			loadedMsg = "Loaded image ID"
+		} else if named, err := reference.ParseNormalizedNamed(img.Name); err == nil {
+			name = reference.FamiliarName(reference.TagNameOnly(named))
 		}
 
 		for _, platform := range allPlatforms {
@@ -150,7 +168,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")
 		}
 
-		fmt.Fprintf(progress, "Loaded image: %s\n", name)
+		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
 		i.LogImageEvent(img.Target.Digest.String(), img.Target.Digest.String(), "load")
 	}
 
