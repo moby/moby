@@ -60,12 +60,8 @@ func setKey() error {
 	containerID, shortCtlrID := args[0], args[1]
 
 	// We expect specs.State as a json string in <stdin>
-	stateBuf, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return err
-	}
 	var state specs.State
-	if err = json.Unmarshal(stateBuf, &state); err != nil {
+	if err := json.NewDecoder(os.Stdin).Decode(&state); err != nil {
 		return err
 	}
 
