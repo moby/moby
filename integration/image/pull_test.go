@@ -53,13 +53,10 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 	layerDigest := w.Digest()
 	w.Close()
 
-	platform := platforms.DefaultSpec()
-
 	img := ocispec.Image{
-		Architecture: platform.Architecture,
-		OS:           platform.OS,
-		RootFS:       ocispec.RootFS{Type: "layers", DiffIDs: []digest.Digest{layerDigest}},
-		Config:       ocispec.ImageConfig{WorkingDir: "/"},
+		Platform: platforms.DefaultSpec(),
+		RootFS:   ocispec.RootFS{Type: "layers", DiffIDs: []digest.Digest{layerDigest}},
+		Config:   ocispec.ImageConfig{WorkingDir: "/"},
 	}
 	imgJSON, err := json.Marshal(img)
 	assert.NilError(t, err)

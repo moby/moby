@@ -131,11 +131,13 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 	}
 	logrus.Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
 	return ocispec.Image{
-		Architecture: arch,
-		OS:           os,
-		Created:      &createdTime,
-		Author:       opts.Author,
-		Config:       containerConfigToOciImageConfig(opts.Config),
+		Platform: ocispec.Platform{
+			Architecture: arch,
+			OS:           os,
+		},
+		Created: &createdTime,
+		Author:  opts.Author,
+		Config:  containerConfigToOciImageConfig(opts.Config),
 		RootFS: ocispec.RootFS{
 			Type:    "layers",
 			DiffIDs: append(baseConfig.RootFS.DiffIDs, diffID),
