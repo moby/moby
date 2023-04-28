@@ -4,23 +4,22 @@
 package libnetwork
 
 import (
-	"fmt"
+	"errors"
 	"net"
 )
 
-func (c *Controller) cleanupServiceBindings(nid string) {
-}
+func (c *Controller) cleanupServiceDiscovery(cleanupNID string) {}
+
+func (c *Controller) cleanupServiceBindings(nid string) {}
 
 func (c *Controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, aliases []string, ip net.IP) error {
-	return fmt.Errorf("not supported")
+	return errors.New("not supported")
 }
 
 func (c *Controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, aliases []string, ip net.IP) error {
-	return fmt.Errorf("not supported")
+	return errors.New("not supported")
 }
 
-func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
-}
+func (sb *Sandbox) populateLoadBalancers(*Endpoint) {}
 
-func arrangeIngressFilterRule() {
-}
+func arrangeIngressFilterRule() {}
