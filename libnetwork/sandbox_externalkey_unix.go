@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -23,6 +24,16 @@ const (
 	defaultExecRoot = "/run/docker"
 	success         = "success"
 )
+
+func init() {
+	// TODO(thaJeztah): should this actually be registered on FreeBSD, or only on Linux?
+	reexec.Register("libnetwork-setkey", processSetKeyReexec)
+}
+
+type setKeyData struct {
+	ContainerID string
+	Key         string
+}
 
 // processSetKeyReexec is a private function that must be called only on an reexec path
 // It expects 3 args { [0] = "libnetwork-setkey", [1] = <container-id>, [2] = <short-controller-id> }
@@ -65,7 +76,8 @@ func setKey() error {
 func SetExternalKey(shortCtlrID string, containerID string, key string, execRoot string) error {
 	keyData := setKeyData{
 		ContainerID: containerID,
-		Key:         key}
+		Key:         key,
+	}
 
 	uds := filepath.Join(execRoot, execSubdir, shortCtlrID+".sock")
 	c, err := net.Dial("unix", uds)
