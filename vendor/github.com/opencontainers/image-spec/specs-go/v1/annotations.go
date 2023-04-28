@@ -65,7 +65,4 @@ const (
 
 	// AnnotationArtifactDescription is the annotation key for the human readable description for the artifact.
 	AnnotationArtifactDescription = "org.opencontainers.artifact.description"
-
-	// AnnotationReferrersFiltersApplied is the annotation key for the comma separated list of filters applied by the registry in the referrers listing.
-	AnnotationReferrersFiltersApplied = "org.opencontainers.referrers.filtersApplied"
 )
