@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/libnetwork/types"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -24,21 +25,29 @@ const (
 	success         = "success"
 )
 
+func init() {
+	// TODO(thaJeztah): should this actually be registered on FreeBSD, or only on Linux?
+	reexec.Register("libnetwork-setkey", processSetKeyReexec)
+}
+
+type setKeyData struct {
+	ContainerID string
+	Key         string
+}
+
 // processSetKeyReexec is a private function that must be called only on an reexec path
 // It expects 3 args { [0] = "libnetwork-setkey", [1] = <container-id>, [2] = <short-controller-id> }
 // It also expects specs.State as a json string in <stdin>
 // Refer to https://github.com/opencontainers/runc/pull/160/ for more information
 // The docker exec-root can be specified as "-exec-root" flag. The default value is "/run/docker".
 func processSetKeyReexec() {
-	var err error
+	if err := setKey(); err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-	// Return a failure to the calling process via ExitCode
-	defer func() {
-		if err != nil {
-			logrus.Fatalf("%v", err)
-		}
-	}()
-
+func setKey() error {
 	execRoot := flag.String("exec-root", defaultExecRoot, "docker exec root")
 	flag.Parse()
 
@@ -46,30 +55,21 @@ func processSetKeyReexec() {
 	// (i.e. expecting 2 flag.Args())
 	args := flag.Args()
 	if len(args) < 2 {
-		err = fmt.Errorf("Re-exec expects 2 args (after parsing flags), received : %d", len(args))
-		return
+		return fmt.Errorf("re-exec expects 2 args (after parsing flags), received : %d", len(args))
 	}
 	containerID, shortCtlrID := args[0], args[1]
 
 	// We expect specs.State as a json string in <stdin>
-	stateBuf, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return
-	}
 	var state specs.State
-	if err = json.Unmarshal(stateBuf, &state); err != nil {
-		return
+	if err := json.NewDecoder(os.Stdin).Decode(&state); err != nil {
+		return err
 	}
 
-	err = SetExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
+	return SetExternalKey(shortCtlrID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid), *execRoot)
 }
 
 // SetExternalKey provides a convenient way to set an External key to a sandbox
 func SetExternalKey(shortCtlrID string, containerID string, key string, execRoot string) error {
-	keyData := setKeyData{
-		ContainerID: containerID,
-		Key:         key}
-
 	uds := filepath.Join(execRoot, execSubdir, shortCtlrID+".sock")
 	c, err := net.Dial("unix", uds)
 	if err != nil {
@@ -77,27 +77,14 @@ func SetExternalKey(shortCtlrID string, containerID string, key string, execRoot
 	}
 	defer c.Close()
 
-	if err = sendKey(c, keyData); err != nil {
+	err = json.NewEncoder(c).Encode(setKeyData{
+		ContainerID: containerID,
+		Key:         key,
+	})
+	if err != nil {
 		return fmt.Errorf("sendKey failed with : %v", err)
 	}
 	return processReturn(c)
-}
-
-func sendKey(c net.Conn, data setKeyData) error {
-	var err error
-	defer func() {
-		if err != nil {
-			c.Close()
-		}
-	}()
-
-	var b []byte
-	if b, err = json.Marshal(data); err != nil {
-		return err
-	}
-
-	_, err = c.Write(b)
-	return err
 }
 
 func processReturn(r io.Reader) error {
