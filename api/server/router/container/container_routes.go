@@ -53,16 +53,14 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		return errdefs.InvalidParameter(err)
 	}
 
-	commitCfg := &backend.CreateImageConfig{
+	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), &backend.CreateImageConfig{
 		Pause:   pause,
 		Tag:     ref,
 		Author:  r.Form.Get("author"),
 		Comment: r.Form.Get("comment"),
 		Config:  config,
 		Changes: r.Form["changes"],
-	}
-
-	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), commitCfg)
+	})
 	if err != nil {
 		return err
 	}
