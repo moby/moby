@@ -56,8 +56,7 @@ func (p *JSONProgress) String() string {
 	if p.Total <= 0 {
 		switch p.Units {
 		case "":
-			current := units.HumanSize(float64(p.Current))
-			return fmt.Sprintf("%8v", current)
+			return fmt.Sprintf("%8v", units.HumanSize(float64(p.Current)))
 		default:
 			return fmt.Sprintf("%d %s", p.Current, p.Units)
 		}
@@ -112,12 +111,10 @@ func (p *JSONProgress) String() string {
 
 // shim for testing
 func (p *JSONProgress) now() time.Time {
-	if p.nowFunc == nil {
-		p.nowFunc = func() time.Time {
-			return time.Now().UTC()
-		}
+	if p.nowFunc != nil {
+		return p.nowFunc()
 	}
-	return p.nowFunc()
+	return time.Now().UTC()
 }
 
 // shim for testing
