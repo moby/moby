@@ -191,6 +191,8 @@ type Linux struct {
 	IntelRdt *LinuxIntelRdt `json:"intelRdt,omitempty"`
 	// Personality contains configuration for the Linux personality syscall
 	Personality *LinuxPersonality `json:"personality,omitempty"`
+	// TimeOffsets specifies the offset for supporting time namespaces.
+	TimeOffsets map[string]LinuxTimeOffset `json:"timeOffsets,omitempty"`
 }
 
 // LinuxNamespace is the configuration for a Linux namespace
@@ -220,6 +222,8 @@ const (
 	UserNamespace LinuxNamespaceType = "user"
 	// CgroupNamespace for isolating cgroup hierarchies
 	CgroupNamespace LinuxNamespaceType = "cgroup"
+	// TimeNamespace for isolating the clocks
+	TimeNamespace LinuxNamespaceType = "time"
 )
 
 // LinuxIDMapping specifies UID/GID mappings
@@ -232,6 +236,14 @@ type LinuxIDMapping struct {
 	Size uint32 `json:"size"`
 }
 
+// LinuxTimeOffset specifies the offset for Time Namespace
+type LinuxTimeOffset struct {
+	// Secs is the offset of clock (in secs) in the container
+	Secs int64 `json:"secs,omitempty"`
+	// Nanosecs is the additional offset for Secs (in nanosecs)
+	Nanosecs uint32 `json:"nanosecs,omitempty"`
+}
+
 // POSIXRlimit type and restrictions
 type POSIXRlimit struct {
 	// Type of the rlimit to set
@@ -242,12 +254,13 @@ type POSIXRlimit struct {
 	Soft uint64 `json:"soft"`
 }
 
-// LinuxHugepageLimit structure corresponds to limiting kernel hugepages
+// LinuxHugepageLimit structure corresponds to limiting kernel hugepages.
+// Default to reservation limits if supported. Otherwise fallback to page fault limits.
 type LinuxHugepageLimit struct {
-	// Pagesize is the hugepage size
-	// Format: "<size><unit-prefix>B' (e.g. 64KB, 2MB, 1GB, etc.)
+	// Pagesize is the hugepage size.
+	// Format: "<size><unit-prefix>B' (e.g. 64KB, 2MB, 1GB, etc.).
 	Pagesize string `json:"pageSize"`
-	// Limit is the limit of "hugepagesize" hugetlb usage
+	// Limit is the limit of "hugepagesize" hugetlb reservations (if supported) or usage.
 	Limit uint64 `json:"limit"`
 }
 
@@ -382,7 +395,7 @@ type LinuxResources struct {
 	Pids *LinuxPids `json:"pids,omitempty"`
 	// BlockIO restriction configuration
 	BlockIO *LinuxBlockIO `json:"blockIO,omitempty"`
-	// Hugetlb limit (in bytes)
+	// Hugetlb limits (in bytes). Default to reservation limits if supported.
 	HugepageLimits []LinuxHugepageLimit `json:"hugepageLimits,omitempty"`
 	// Network restriction configuration
 	Network *LinuxNetwork `json:"network,omitempty"`

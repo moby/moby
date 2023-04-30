@@ -11,7 +11,7 @@ const (
 	VersionPatch = 0
 
 	// VersionDev indicates development branch. Releases will be empty string.
-	VersionDev = "-rc.1"
+	VersionDev = "-rc.2"
 )
 
 // Version is the specification version that the package types support.
