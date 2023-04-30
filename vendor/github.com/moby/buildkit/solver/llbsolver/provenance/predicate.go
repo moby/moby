@@ -64,12 +64,15 @@ func slsaMaterials(srcs Sources) ([]slsa.ProvenanceMaterial, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, slsa.ProvenanceMaterial{
+		material := slsa.ProvenanceMaterial{
 			URI: uri,
-			Digest: slsa.DigestSet{
+		}
+		if s.Digest != "" {
+			material.Digest = slsa.DigestSet{
 				s.Digest.Algorithm().String(): s.Digest.Hex(),
-			},
-		})
+			}
+		}
+		out = append(out, material)
 	}
 
 	for _, s := range srcs.Git {
@@ -99,12 +102,16 @@ func slsaMaterials(srcs Sources) ([]slsa.ProvenanceMaterial, error) {
 			})
 		}
 		packageurl.NewPackageURL(packageurl.TypeOCI, "", s.Ref, "", q, "")
-		out = append(out, slsa.ProvenanceMaterial{
+
+		material := slsa.ProvenanceMaterial{
 			URI: s.Ref,
-			Digest: slsa.DigestSet{
+		}
+		if s.Digest != "" {
+			material.Digest = slsa.DigestSet{
 				s.Digest.Algorithm().String(): s.Digest.Hex(),
-			},
-		})
+			}
+		}
+		out = append(out, material)
 	}
 	return out, nil
 }
