@@ -383,14 +383,15 @@ func storeJson(ctx context.Context, cs content.Ingester, mt string, obj interfac
 
 func containerConfigToOciImageConfig(cfg *container.Config) ocispec.ImageConfig {
 	ociCfg := ocispec.ImageConfig{
-		User:       cfg.User,
-		Env:        cfg.Env,
-		Entrypoint: cfg.Entrypoint,
-		Cmd:        cfg.Cmd,
-		Volumes:    cfg.Volumes,
-		WorkingDir: cfg.WorkingDir,
-		Labels:     cfg.Labels,
-		StopSignal: cfg.StopSignal,
+		User:        cfg.User,
+		Env:         cfg.Env,
+		Entrypoint:  cfg.Entrypoint,
+		Cmd:         cfg.Cmd,
+		Volumes:     cfg.Volumes,
+		WorkingDir:  cfg.WorkingDir,
+		Labels:      cfg.Labels,
+		StopSignal:  cfg.StopSignal,
+		ArgsEscaped: cfg.ArgsEscaped,
 	}
 	for k, v := range cfg.ExposedPorts {
 		ociCfg.ExposedPorts[string(k)] = v
