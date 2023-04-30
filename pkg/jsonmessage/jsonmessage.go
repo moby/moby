@@ -168,9 +168,6 @@ func cursorDown(out io.Writer, l uint) {
 // entire current line when displaying the progressbar.
 func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
-		if jm.Error.Code == 401 {
-			return fmt.Errorf("authentication is required")
-		}
 		return jm.Error
 	}
 	var endl string
