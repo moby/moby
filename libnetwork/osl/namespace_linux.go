@@ -600,29 +600,29 @@ func (n *networkNamespace) checkLoV6() {
 }
 
 func setIPv6(nspath, iface string, enable bool) error {
-	origns, err := netns.Get()
+	origNS, err := netns.Get()
 	if err != nil {
 		return fmt.Errorf("failed to get current network namespace: %w", err)
 	}
-	defer origns.Close()
+	defer origNS.Close()
 
-	ns, err := netns.GetFromPath(nspath)
+	namespace, err := netns.GetFromPath(nspath)
 	if err != nil {
 		return fmt.Errorf("failed get network namespace %q: %w", nspath, err)
 	}
-	defer ns.Close()
+	defer namespace.Close()
 
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(errCh)
 
 		runtime.LockOSThread()
-		if err = netns.Set(ns); err != nil {
+		if err = netns.Set(namespace); err != nil {
 			errCh <- fmt.Errorf("setting into container netns %q failed: %w", nspath, err)
 			return
 		}
 		defer func() {
-			if err := netns.Set(origns); err != nil {
+			if err := netns.Set(origNS); err != nil {
 				logrus.WithError(err).Error("libnetwork: restoring thread network namespace failed")
 				// The error is only fatal for the current thread. Keep this
 				// goroutine locked to the thread to make the runtime replace it

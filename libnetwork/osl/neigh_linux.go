@@ -20,9 +20,6 @@ func (n NeighborSearchError) Error() string {
 	return fmt.Sprintf("Search neighbor failed for IP %v, mac %v, present in db:%t", n.ip, n.mac, n.present)
 }
 
-// NeighOption is a function option type to set interface options
-type NeighOption func(nh *neigh)
-
 type neigh struct {
 	dstIP    net.IP
 	dstMac   net.HardwareAddr
