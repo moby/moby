@@ -19,7 +19,6 @@ import (
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types/backend"
-	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
@@ -81,10 +80,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 		return "", fmt.Errorf("failed to export layer: %w", err)
 	}
 
-	imageConfig, err := generateCommitImageConfig(ctx, container.Config, ociimage, diffID, cc)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate commit image config: %w", err)
-	}
+	imageConfig := generateCommitImageConfig(ociimage, diffID, cc)
 
 	rootfsID := identity.ChainID(imageConfig.RootFS.DiffIDs).String()
 	if err := applyDiffLayer(ctx, rootfsID, ociimage, sn, differ, diffLayerDesc); err != nil {
@@ -116,14 +112,9 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	return image.ID(img.Target.Digest), nil
 }
 
-// generateCommitImageConfig returns commit oci image config based on the container's image.
-func generateCommitImageConfig(ctx context.Context, container *containerapi.Config, baseConfig ocispec.Image, diffID digest.Digest, opts backend.CommitConfig) (ocispec.Image, error) {
-	if opts.Config.Cmd != nil {
-		baseConfig.Config.Cmd = opts.Config.Cmd
-	}
-	if opts.Config.Entrypoint != nil {
-		baseConfig.Config.Entrypoint = opts.Config.Entrypoint
-	}
+// generateCommitImageConfig generates an OCI Image config based on the
+// container's image and the CommitConfig options.
+func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, opts backend.CommitConfig) ocispec.Image {
 	if opts.Author == "" {
 		opts.Author = baseConfig.Author
 	}
@@ -145,7 +136,7 @@ func generateCommitImageConfig(ctx context.Context, container *containerapi.Conf
 		OS:           os,
 		Created:      &createdTime,
 		Author:       opts.Author,
-		Config:       baseConfig.Config,
+		Config:       containerConfigToOciImageConfig(opts.Config),
 		RootFS: ocispec.RootFS{
 			Type:    "layers",
 			DiffIDs: append(baseConfig.RootFS.DiffIDs, diffID),
@@ -157,7 +148,7 @@ func generateCommitImageConfig(ctx context.Context, container *containerapi.Conf
 			Comment:    opts.Comment,
 			EmptyLayer: diffID == "",
 		}),
-	}, nil
+	}
 }
 
 // writeContentsForImage will commit oci image config and manifest into containerd's content store.
