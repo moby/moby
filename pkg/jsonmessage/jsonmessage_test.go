@@ -216,7 +216,7 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
 	err = jsonMessage.Display(data, true)
-	assert.Check(t, is.Error(err, "authentication is required"))
+	assert.Check(t, is.Error(err, "Anything"))
 }
 
 func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
