@@ -1610,6 +1610,34 @@ definitions:
           "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
         }
 
+  FilesystemChange:
+    description: |
+      Change in the container's filesystem.
+    type: "object"
+    required: [Path, Kind]
+    properties:
+      Path:
+        description: |
+          Path to file or directory that has changed.
+        type: "string"
+        x-nullable: false
+      Kind:
+        $ref: "#/definitions/ChangeType"
+
+  ChangeType:
+    description: |
+      Kind of change
+
+      Can be one of:
+
+      - `0`: Modified ("C")
+      - `1`: Added ("A")
+      - `2`: Deleted ("D")
+    type: "integer"
+    format: "uint8"
+    enum: [0, 1, 2]
+    x-nullable: false
+
   ImageInspect:
     description: |
       Information about an image in the local image cache.
@@ -6873,9 +6901,9 @@ paths:
         Returns which files in a container's filesystem have been added, deleted,
         or modified. The `Kind` of modification can be one of:
 
-        - `0`: Modified
-        - `1`: Added
-        - `2`: Deleted
+        - `0`: Modified ("C")
+        - `1`: Added ("A")
+        - `2`: Deleted ("D")
       operationId: "ContainerChanges"
       produces: ["application/json"]
       responses:
@@ -6884,22 +6912,7 @@ paths:
           schema:
             type: "array"
             items:
-              type: "object"
-              x-go-name: "ContainerChangeResponseItem"
-              title: "ContainerChangeResponseItem"
-              description: "change item in response to ContainerChanges operation"
-              required: [Path, Kind]
-              properties:
-                Path:
-                  description: "Path to file that has changed"
-                  type: "string"
-                  x-nullable: false
-                Kind:
-                  description: "Kind of change"
-                  type: "integer"
-                  format: "uint8"
-                  enum: [0, 1, 2]
-                  x-nullable: false
+              $ref: "#/definitions/FilesystemChange"
           examples:
             application/json:
               - Path: "/dev"
