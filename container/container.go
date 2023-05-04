@@ -79,9 +79,7 @@ type Container struct {
 	Name            string
 	Driver          string
 	OS              string
-	// MountLabel contains the options for the 'mount' command
-	MountLabel               string
-	ProcessLabel             string
+
 	RestartCount             int
 	HasBeenStartedBefore     bool
 	HasBeenManuallyStopped   bool // used for unless-stopped restart policy
@@ -99,18 +97,25 @@ type Container struct {
 	attachContext  *attachContext
 
 	// Fields here are specific to Unix platforms
-	AppArmorProfile string
-	HostnamePath    string
-	HostsPath       string
-	ShmPath         string
-	ResolvConfPath  string
-	SeccompProfile  string
-	NoNewPrivileges bool
+	SecurityOptions
+	HostnamePath   string
+	HostsPath      string
+	ShmPath        string
+	ResolvConfPath string
 
 	// Fields here are specific to Windows
 	NetworkSharedContainerID string            `json:"-"`
 	SharedEndpointList       []string          `json:"-"`
 	LocalLogCacheMeta        localLogCacheMeta `json:",omitempty"`
+}
+
+type SecurityOptions struct {
+	// MountLabel contains the options for the "mount" command.
+	MountLabel      string
+	ProcessLabel    string
+	AppArmorProfile string
+	SeccompProfile  string
+	NoNewPrivileges bool
 }
 
 type localLogCacheMeta struct {

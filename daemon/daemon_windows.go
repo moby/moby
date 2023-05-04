@@ -55,7 +55,7 @@ func getPluginExecRoot(cfg *config.Config) string {
 	return filepath.Join(cfg.Root, "plugins")
 }
 
-func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) parseSecurityOpt(securityOptions *container.SecurityOptions, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 

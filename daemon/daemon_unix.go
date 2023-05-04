@@ -190,12 +190,12 @@ func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeight
 	return blkioWeightDevices, nil
 }
 
-func (daemon *Daemon) parseSecurityOpt(container *container.Container, hostConfig *containertypes.HostConfig) error {
-	container.NoNewPrivileges = daemon.configStore.NoNewPrivileges
-	return parseSecurityOpt(container, hostConfig)
+func (daemon *Daemon) parseSecurityOpt(securityOptions *container.SecurityOptions, hostConfig *containertypes.HostConfig) error {
+	securityOptions.NoNewPrivileges = daemon.configStore.NoNewPrivileges
+	return parseSecurityOpt(securityOptions, hostConfig)
 }
 
-func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
+func parseSecurityOpt(securityOptions *container.SecurityOptions, config *containertypes.HostConfig) error {
 	var (
 		labelOpts []string
 		err       error
@@ -203,7 +203,7 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 
 	for _, opt := range config.SecurityOpt {
 		if opt == "no-new-privileges" {
-			container.NoNewPrivileges = true
+			securityOptions.NoNewPrivileges = true
 			continue
 		}
 		if opt == "disable" {
@@ -227,21 +227,21 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 		case "label":
 			labelOpts = append(labelOpts, v)
 		case "apparmor":
-			container.AppArmorProfile = v
+			securityOptions.AppArmorProfile = v
 		case "seccomp":
-			container.SeccompProfile = v
+			securityOptions.SeccompProfile = v
 		case "no-new-privileges":
 			noNewPrivileges, err := strconv.ParseBool(v)
 			if err != nil {
 				return fmt.Errorf("invalid --security-opt 2: %q", opt)
 			}
-			container.NoNewPrivileges = noNewPrivileges
+			securityOptions.NoNewPrivileges = noNewPrivileges
 		default:
 			return fmt.Errorf("invalid --security-opt 2: %q", opt)
 		}
 	}
 
-	container.ProcessLabel, container.MountLabel, err = label.InitLabels(labelOpts)
+	securityOptions.ProcessLabel, securityOptions.MountLabel, err = label.InitLabels(labelOpts)
 	return err
 }
 
