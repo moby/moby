@@ -663,6 +663,10 @@ func WithUser(userstr string) SpecOpts {
 				return err
 			}
 
+			// Use a read-only mount when trying to get user/group information
+			// from the container's rootfs. Since the option does read operation
+			// only, we append ReadOnly mount option to prevent the Linux kernel
+			// from syncing whole filesystem in umount syscall.
 			return mount.WithReadonlyTempMount(ctx, mounts, f)
 		default:
 			return fmt.Errorf("invalid USER value %s", userstr)
@@ -723,6 +727,10 @@ func WithUserID(uid uint32) SpecOpts {
 			return err
 		}
 
+		// Use a read-only mount when trying to get user/group information
+		// from the container's rootfs. Since the option does read operation
+		// only, we append ReadOnly mount option to prevent the Linux kernel
+		// from syncing whole filesystem in umount syscall.
 		return mount.WithReadonlyTempMount(ctx, mounts, setUser)
 	}
 }
@@ -767,6 +775,10 @@ func WithUsername(username string) SpecOpts {
 				return err
 			}
 
+			// Use a read-only mount when trying to get user/group information
+			// from the container's rootfs. Since the option does read operation
+			// only, we append ReadOnly mount option to prevent the Linux kernel
+			// from syncing whole filesystem in umount syscall.
 			return mount.WithReadonlyTempMount(ctx, mounts, setUser)
 		} else if s.Windows != nil {
 			s.Process.User.Username = username
@@ -845,6 +857,10 @@ func WithAdditionalGIDs(userstr string) SpecOpts {
 			return err
 		}
 
+		// Use a read-only mount when trying to get user/group information
+		// from the container's rootfs. Since the option does read operation
+		// only, we append ReadOnly mount option to prevent the Linux kernel
+		// from syncing whole filesystem in umount syscall.
 		return mount.WithReadonlyTempMount(ctx, mounts, setAdditionalGids)
 	}
 }
@@ -906,6 +922,10 @@ func WithAppendAdditionalGroups(groups ...string) SpecOpts {
 			return err
 		}
 
+		// Use a read-only mount when trying to get user/group information
+		// from the container's rootfs. Since the option does read operation
+		// only, we append ReadOnly mount option to prevent the Linux kernel
+		// from syncing whole filesystem in umount syscall.
 		return mount.WithReadonlyTempMount(ctx, mounts, setAdditionalGids)
 	}
 }
