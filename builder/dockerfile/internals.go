@@ -114,7 +114,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 
 	var chownComment string
 	if inst.chownStr != "" {
-		chownComment = fmt.Sprintf("--chown=%s", inst.chownStr)
+		chownComment = fmt.Sprintf("--chown=%s ", inst.chownStr)
 	}
 	commentStr := fmt.Sprintf("%s %s%s in %s ", inst.cmdName, chownComment, srcHash, inst.dest)
 
