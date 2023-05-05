@@ -39,7 +39,10 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		es, err := tsk.Delete(ctx)
 		cancel()
 		if err != nil {
-			logrus.WithError(err).WithField("container", c.ID).Warnf("failed to delete container from containerd")
+			logrus.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"container":     c.ID,
+			}).Warn("failed to delete container from containerd")
 		} else {
 			exitStatus = container.ExitStatus{
 				ExitCode: int(es.ExitCode()),
@@ -66,14 +69,15 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	execDuration := time.Since(c.StartedAt)
 	restart, wait, err := c.RestartManager().ShouldRestart(uint32(exitStatus.ExitCode), daemonShutdown || c.HasBeenManuallyStopped, execDuration)
 	if err != nil {
-		logrus.WithError(err).
-			WithField("container", c.ID).
-			WithField("restartCount", c.RestartCount).
-			WithField("exitStatus", exitStatus).
-			WithField("daemonShuttingDown", daemonShutdown).
-			WithField("hasBeenManuallyStopped", c.HasBeenManuallyStopped).
-			WithField("execDuration", execDuration).
-			Warn("ShouldRestart failed, container will not be restarted")
+		logrus.WithFields(logrus.Fields{
+			logrus.ErrorKey:          err,
+			"container":              c.ID,
+			"restartCount":           c.RestartCount,
+			"exitStatus":             exitStatus,
+			"daemonShuttingDown":     daemonShutdown,
+			"hasBeenManuallyStopped": c.HasBeenManuallyStopped,
+			"execDuration":           execDuration,
+		}).Warn("ShouldRestart failed, container will not be restarted")
 		restart = false
 	}
 
@@ -85,11 +89,12 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 
 	if restart {
 		c.RestartCount++
-		logrus.WithField("container", c.ID).
-			WithField("restartCount", c.RestartCount).
-			WithField("exitStatus", exitStatus).
-			WithField("manualRestart", c.HasBeenManuallyRestarted).
-			Debug("Restarting container")
+		logrus.WithFields(logrus.Fields{
+			"container":     c.ID,
+			"restartCount":  c.RestartCount,
+			"exitStatus":    exitStatus,
+			"manualRestart": c.HasBeenManuallyRestarted,
+		}).Debug("Restarting container")
 		c.SetRestarting(&exitStatus)
 	} else {
 		c.SetStopped(&exitStatus)
@@ -188,9 +193,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 
 			go func() {
 				if _, err := execConfig.Process.Delete(context.Background()); err != nil {
-					logrus.WithError(err).WithFields(logrus.Fields{
-						"container": ei.ContainerID,
-						"process":   ei.ProcessID,
+					logrus.WithFields(logrus.Fields{
+						logrus.ErrorKey: err,
+						"container":     ei.ContainerID,
+						"process":       ei.ProcessID,
 					}).Warn("failed to delete process")
 				}
 			}()
@@ -211,8 +217,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				if errdefs.IsNotFound(err) {
 					// The container was started by not-docker and so could have been deleted by
 					// not-docker before we got around to loading it from containerd.
-					logrus.WithField("container", c.ID).WithError(err).
-						Debug("could not load containerd container for start event")
+					logrus.WithFields(logrus.Fields{
+						logrus.ErrorKey: err,
+						"container":     c.ID,
+					}).Debug("could not load containerd container for start event")
 					return nil
 				}
 				return err
@@ -220,8 +228,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			tsk, err := ctr.Task(context.Background())
 			if err != nil {
 				if errdefs.IsNotFound(err) {
-					logrus.WithField("container", c.ID).WithError(err).
-						Debug("failed to load task for externally-started container")
+					logrus.WithFields(logrus.Fields{
+						logrus.ErrorKey: err,
+						"container":     c.ID,
+					}).Debug("failed to load task for externally-started container")
 					return nil
 				}
 				return err
@@ -286,5 +296,5 @@ func (daemon *Daemon) autoRemove(c *container.Container) {
 		return
 	}
 
-	logrus.WithError(err).WithField("container", c.ID).Error("error removing container")
+	logrus.WithFields(logrus.Fields{logrus.ErrorKey: err, "container": c.ID}).Error("error removing container")
 }
