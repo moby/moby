@@ -139,6 +139,11 @@ type TaskInfo struct {
 	RootFS []mount.Mount
 	// Options hold runtime specific settings for task creation
 	Options interface{}
+	// RuntimePath is an absolute path that can be used to overwrite path
+	// to a shim runtime binary.
+	RuntimePath string
+
+	// runtime is the runtime name for the container, and cannot be changed.
 	runtime string
 }
 
