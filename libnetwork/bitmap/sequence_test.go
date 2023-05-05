@@ -259,16 +259,22 @@ func TestMergeSequences(t *testing.T) {
 		{&sequence{block: 0xFFFFFFF0, count: 1, next: &sequence{block: 0xFFFFFFF0, count: 8}}, &sequence{block: 0xFFFFFFF0, count: 9}},
 
 		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFE, count: 1, next: &sequence{block: 0xFE, count: 5}}}, &sequence{block: 0xFE, count: 14}},
-		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFE, count: 1, next: &sequence{block: 0xFE, count: 5, next: &sequence{block: 0xFF, count: 1}}}},
-			&sequence{block: 0xFE, count: 14, next: &sequence{block: 0xFF, count: 1}}},
+		{
+			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFE, count: 1, next: &sequence{block: 0xFE, count: 5, next: &sequence{block: 0xFF, count: 1}}}},
+			&sequence{block: 0xFE, count: 14, next: &sequence{block: 0xFF, count: 1}},
+		},
 
 		// No merge
-		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xF8, count: 1, next: &sequence{block: 0xFE, count: 5}}},
-			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xF8, count: 1, next: &sequence{block: 0xFE, count: 5}}}},
+		{
+			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xF8, count: 1, next: &sequence{block: 0xFE, count: 5}}},
+			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xF8, count: 1, next: &sequence{block: 0xFE, count: 5}}},
+		},
 
 		// No merge from head: // Merge function tries to merge from passed head. If it can't merge with next, it does not reattempt with next as head
-		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFF, count: 1, next: &sequence{block: 0xFF, count: 5}}},
-			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFF, count: 6}}},
+		{
+			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFF, count: 1, next: &sequence{block: 0xFF, count: 5}}},
+			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFF, count: 6}},
+		},
 	}
 
 	for n, i := range input {
@@ -299,123 +305,211 @@ func TestPushReservation(t *testing.T) {
 		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 7}}, 0, 1, &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0x0, count: 7, next: nil}}},
 
 		// Create second sequence and fill in 8 addresses starting from address 32
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 6, next: nil}}}, 4, 0,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 1,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 2,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 3,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 4,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 5,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 6,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 7,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 6, next: nil}}}, 4, 0,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 1,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 2,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 3,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 4,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 5,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 6,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 7,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
 		// fill in 8 addresses starting from address 40
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 0,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 1,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 2,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 3,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 4,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 5,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 6,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 7,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFF0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 0,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 1,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 2,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 3,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 4,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 5,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 6,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 7,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFF0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}},
+		},
 
 		// Insert new sequence
-		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x0, count: 6}}, 8, 0,
-			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5}}}},
-		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5}}}, 8, 1,
-			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0x0, count: 5}}}},
+		{
+			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x0, count: 6}}, 8, 0,
+			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5}}}, 8, 1,
+			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0x0, count: 5}}},
+		},
 
 		// Merge affected with next
-		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 2, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
-			&sequence{block: 0xffffffff, count: 8, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffc, count: 1, next: &sequence{block: 0xfffffffe, count: 6}}}, 7, 6,
-			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffe, count: 7}}},
+		{
+			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 2, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 8, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffc, count: 1, next: &sequence{block: 0xfffffffe, count: 6}}}, 7, 6,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffe, count: 7}},
+		},
 
 		// Merge affected with next and next.next
-		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
-			&sequence{block: 0xffffffff, count: 9}},
-		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1}}, 31, 7,
-			&sequence{block: 0xffffffff, count: 8}},
+		{
+			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 9},
+		},
+		{
+			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 8},
+		},
 
 		// Merge affected with previous and next
-		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
-			&sequence{block: 0xffffffff, count: 9}},
+		{
+			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 9},
+		},
 
 		// Redundant push: No change
 		{&sequence{block: 0xffff0000, count: 1}, 0, 0, &sequence{block: 0xffff0000, count: 1}},
 		{&sequence{block: 0xffff0000, count: 7}, 25, 7, &sequence{block: 0xffff0000, count: 7}},
-		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 7, 7,
-			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}},
+		{
+			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 7, 7,
+			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}},
+		},
 
 		// Set last bit
 		{&sequence{block: 0x0, count: 8}, 31, 7, &sequence{block: 0x0, count: 7, next: &sequence{block: 0x1, count: 1}}},
 
 		// Set bit in a middle sequence in the first block, first bit
-		{&sequence{block: 0x40000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 0,
-			&sequence{block: 0x40000000, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5,
-				next: &sequence{block: 0x1, count: 1}}}}},
+		{
+			&sequence{block: 0x40000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 0,
+			&sequence{block: 0x40000000, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{
+				block: 0x0, count: 5,
+				next: &sequence{block: 0x1, count: 1},
+			}}},
+		},
 
 		// Set bit in a middle sequence in the first block, first bit (merge involved)
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 0,
-			&sequence{block: 0x80000000, count: 2, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 1}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 0,
+			&sequence{block: 0x80000000, count: 2, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 1}}},
+		},
 
 		// Set bit in a middle sequence in the first block, last bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 31,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x1, count: 1, next: &sequence{block: 0x0, count: 5,
-				next: &sequence{block: 0x1, count: 1}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x1, count: 1, next: &sequence{
+				block: 0x0, count: 5,
+				next: &sequence{block: 0x1, count: 1},
+			}}},
+		},
 
 		// Set bit in a middle sequence in the first block, middle bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 16,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x8000, count: 1, next: &sequence{block: 0x0, count: 5,
-				next: &sequence{block: 0x1, count: 1}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 16,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x8000, count: 1, next: &sequence{
+				block: 0x0, count: 5,
+				next: &sequence{block: 0x1, count: 1},
+			}}},
+		},
 
 		// Set bit in a middle sequence in a middle block, first bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 0,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{block: 0x80000000, count: 1,
-				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 0,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{
+				block: 0x80000000, count: 1,
+				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}},
+			}}},
+		},
 
 		// Set bit in a middle sequence in a middle block, last bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 31,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{block: 0x1, count: 1,
-				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{
+				block: 0x1, count: 1,
+				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}},
+			}}},
+		},
 
 		// Set bit in a middle sequence in a middle block, middle bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 15,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{block: 0x10000, count: 1,
-				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 15,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{
+				block: 0x10000, count: 1,
+				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}},
+			}}},
+		},
 
 		// Set bit in a middle sequence in the last block, first bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 0,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x80000000, count: 1,
-				next: &sequence{block: 0x1, count: 1}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 0,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{
+				block: 0x80000000, count: 1,
+				next: &sequence{block: 0x1, count: 1},
+			}}},
+		},
 
 		// Set bit in a middle sequence in the last block, last bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x4, count: 1}}}, 24, 31,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 1,
-				next: &sequence{block: 0x4, count: 1}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x4, count: 1}}}, 24, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{
+				block: 0x1, count: 1,
+				next: &sequence{block: 0x4, count: 1},
+			}}},
+		},
 
 		// Set bit in a middle sequence in the last block, last bit (merge involved)
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 31,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 2}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 2}}},
+		},
 
 		// Set bit in a middle sequence in the last block, middle bit
-		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 16,
-			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x8000, count: 1,
-				next: &sequence{block: 0x1, count: 1}}}}},
+		{
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 16,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{
+				block: 0x8000, count: 1,
+				next: &sequence{block: 0x1, count: 1},
+			}}},
+		},
 	}
 
 	for n, i := range input {
@@ -615,7 +709,7 @@ func TestOffsetSetUnset(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	//At this point sequence is (0xffffffff, 9)->(0x7fffffff, 1)->(0xffffffff, 22)->end
+	// At this point sequence is (0xffffffff, 9)->(0x7fffffff, 1)->(0xffffffff, 22)->end
 	o, err := hnd.SetAnyInRange(32, 500, false)
 	if err != nil {
 		t.Fatal(err)
@@ -913,7 +1007,6 @@ func TestAllocateRandomDeallocate(t *testing.T) {
 }
 
 func TestAllocateRandomDeallocateSerialize(t *testing.T) {
-
 	numBlocks := uint32(8)
 	numBits := int(numBlocks * blockLen)
 	hnd := New(uint64(numBits))
@@ -996,7 +1089,7 @@ func testSetRollover(t *testing.T, serial bool) {
 		t.Fatalf("Unexpected free bits: found %d free bits.\nSeed: %d.\n%s", hnd.unselected, seed, hnd)
 	}
 
-	//request to allocate for remaining half of the bits
+	// request to allocate for remaining half of the bits
 	for i := 0; i < numBits/2; i++ {
 		_, err := hnd.SetAny(serial)
 		if err != nil {
@@ -1004,8 +1097,8 @@ func testSetRollover(t *testing.T, serial bool) {
 		}
 	}
 
-	//At this point all the bits must be allocated except the randomly unallocated bits
-	//which were unallocated in the first half of the bit sequence
+	// At this point all the bits must be allocated except the randomly unallocated bits
+	// which were unallocated in the first half of the bit sequence
 	if hnd.Unselected() != uint64(numBits/4) {
 		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), numBits/4)
 	}
@@ -1016,8 +1109,8 @@ func testSetRollover(t *testing.T, serial bool) {
 			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
 		}
 	}
-	//Now requesting to allocate the unallocated random bits (qurter of the number of bits) should
-	//leave no more bits that can be allocated.
+	// Now requesting to allocate the unallocated random bits (qurter of the number of bits) should
+	// leave no more bits that can be allocated.
 	if hnd.Unselected() != 0 {
 		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), 0)
 	}
