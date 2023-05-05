@@ -19,9 +19,12 @@ package oci
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/containerd/containerd/containers"
+
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/windows"
 )
 
 // WithWindowsCPUCount sets the `Windows.Resources.CPU.Count` section to the
@@ -65,6 +68,16 @@ func WithWindowNetworksAllowUnqualifiedDNSQuery() SpecOpts {
 	}
 }
 
+// WithProcessCommandLine replaces the command line on the generated spec
+func WithProcessCommandLine(cmdLine string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		setProcess(s)
+		s.Process.Args = nil
+		s.Process.CommandLine = cmdLine
+		return nil
+	}
+}
+
 // WithHostDevices adds all the hosts device nodes to the container's spec
 //
 // Not supported on windows
@@ -88,4 +101,12 @@ func WithWindowsNetworkNamespace(ns string) SpecOpts {
 		s.Windows.Network.NetworkNamespace = ns
 		return nil
 	}
+}
+
+func escapeAndCombineArgs(args []string) string {
+	escaped := make([]string, len(args))
+	for i, a := range args {
+		escaped[i] = windows.EscapeArg(a)
+	}
+	return strings.Join(escaped, " ")
 }

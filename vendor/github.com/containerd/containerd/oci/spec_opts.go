@@ -76,7 +76,6 @@ func setLinux(s *Spec) {
 	}
 }
 
-// nolint
 func setResources(s *Spec) {
 	if s.Linux != nil {
 		if s.Linux.Resources == nil {
@@ -90,7 +89,7 @@ func setResources(s *Spec) {
 	}
 }
 
-// nolint
+//nolint:nolintlint,unused // not used on all platforms
 func setCPU(s *Spec) {
 	setResources(s)
 	if s.Linux != nil {
@@ -229,6 +228,7 @@ func WithProcessArgs(args ...string) SpecOpts {
 	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
 		setProcess(s)
 		s.Process.Args = args
+		s.Process.CommandLine = ""
 		return nil
 	}
 }
@@ -358,17 +358,19 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			return err
 		}
 		var (
-			ociimage v1.Image
-			config   v1.ImageConfig
+			imageConfigBytes []byte
+			ociimage         v1.Image
+			config           v1.ImageConfig
 		)
 		switch ic.MediaType {
 		case v1.MediaTypeImageConfig, images.MediaTypeDockerSchema2Config:
-			p, err := content.ReadBlob(ctx, image.ContentStore(), ic)
+			var err error
+			imageConfigBytes, err = content.ReadBlob(ctx, image.ContentStore(), ic)
 			if err != nil {
 				return err
 			}
 
-			if err := json.Unmarshal(p, &ociimage); err != nil {
+			if err := json.Unmarshal(imageConfigBytes, &ociimage); err != nil {
 				return err
 			}
 			config = ociimage.Config
@@ -405,11 +407,55 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			return WithAdditionalGIDs("root")(ctx, client, c, s)
 		} else if s.Windows != nil {
 			s.Process.Env = replaceOrAppendEnvValues(config.Env, s.Process.Env)
+
+			// To support Docker ArgsEscaped on Windows we need to combine the
+			// image Entrypoint & (Cmd Or User Args) while taking into account
+			// if Docker has already escaped them in the image config. When
+			// Docker sets `ArgsEscaped==true` in the config it has pre-escaped
+			// either Entrypoint or Cmd or both. Cmd should always be treated as
+			// arguments appended to Entrypoint unless:
+			//
+			// 1. Entrypoint does not exist, in which case Cmd[0] is the
+			// executable.
+			//
+			// 2. The user overrides the Cmd with User Args when activating the
+			// container in which case those args should be appended to the
+			// Entrypoint if it exists.
+			//
+			// To effectively do this we need to know if the arguments came from
+			// the user or if the arguments came from the image config when
+			// ArgsEscaped==true. In this case we only want to escape the
+			// additional user args when forming the complete CommandLine. This
+			// is safe in both cases of Entrypoint or Cmd being set because
+			// Docker will always escape them to an array of length one. Thus in
+			// both cases it is the "executable" portion of the command.
+			//
+			// In the case ArgsEscaped==false, Entrypoint or Cmd will contain
+			// any number of entries that are all unescaped and can simply be
+			// combined (potentially overwriting Cmd with User Args if present)
+			// and forwarded the container start as an Args array.
 			cmd := config.Cmd
+			cmdFromImage := true
 			if len(args) > 0 {
 				cmd = args
+				cmdFromImage = false
 			}
-			s.Process.Args = append(config.Entrypoint, cmd...)
+
+			cmd = append(config.Entrypoint, cmd...)
+			if len(cmd) == 0 {
+				return errors.New("no arguments specified")
+			}
+
+			if config.ArgsEscaped && (len(config.Entrypoint) > 0 || cmdFromImage) {
+				s.Process.Args = nil
+				s.Process.CommandLine = cmd[0]
+				if len(cmd) > 1 {
+					s.Process.CommandLine += " " + escapeAndCombineArgs(cmd[1:])
+				}
+			} else {
+				s.Process.Args = cmd
+				s.Process.CommandLine = ""
+			}
 
 			s.Process.Cwd = config.WorkingDir
 			s.Process.User = specs.User{
@@ -617,8 +663,11 @@ func WithUser(userstr string) SpecOpts {
 				return err
 			}
 
-			mounts = tryReadonlyMounts(mounts)
-			return mount.WithTempMount(ctx, mounts, f)
+			// Use a read-only mount when trying to get user/group information
+			// from the container's rootfs. Since the option does read operation
+			// only, we append ReadOnly mount option to prevent the Linux kernel
+			// from syncing whole filesystem in umount syscall.
+			return mount.WithReadonlyTempMount(ctx, mounts, f)
 		default:
 			return fmt.Errorf("invalid USER value %s", userstr)
 		}
@@ -678,8 +727,11 @@ func WithUserID(uid uint32) SpecOpts {
 			return err
 		}
 
-		mounts = tryReadonlyMounts(mounts)
-		return mount.WithTempMount(ctx, mounts, setUser)
+		// Use a read-only mount when trying to get user/group information
+		// from the container's rootfs. Since the option does read operation
+		// only, we append ReadOnly mount option to prevent the Linux kernel
+		// from syncing whole filesystem in umount syscall.
+		return mount.WithReadonlyTempMount(ctx, mounts, setUser)
 	}
 }
 
@@ -723,8 +775,11 @@ func WithUsername(username string) SpecOpts {
 				return err
 			}
 
-			mounts = tryReadonlyMounts(mounts)
-			return mount.WithTempMount(ctx, mounts, setUser)
+			// Use a read-only mount when trying to get user/group information
+			// from the container's rootfs. Since the option does read operation
+			// only, we append ReadOnly mount option to prevent the Linux kernel
+			// from syncing whole filesystem in umount syscall.
+			return mount.WithReadonlyTempMount(ctx, mounts, setUser)
 		} else if s.Windows != nil {
 			s.Process.User.Username = username
 		} else {
@@ -802,8 +857,11 @@ func WithAdditionalGIDs(userstr string) SpecOpts {
 			return err
 		}
 
-		mounts = tryReadonlyMounts(mounts)
-		return mount.WithTempMount(ctx, mounts, setAdditionalGids)
+		// Use a read-only mount when trying to get user/group information
+		// from the container's rootfs. Since the option does read operation
+		// only, we append ReadOnly mount option to prevent the Linux kernel
+		// from syncing whole filesystem in umount syscall.
+		return mount.WithReadonlyTempMount(ctx, mounts, setAdditionalGids)
 	}
 }
 
@@ -864,8 +922,11 @@ func WithAppendAdditionalGroups(groups ...string) SpecOpts {
 			return err
 		}
 
-		mounts = tryReadonlyMounts(mounts)
-		return mount.WithTempMount(ctx, mounts, setAdditionalGids)
+		// Use a read-only mount when trying to get user/group information
+		// from the container's rootfs. Since the option does read operation
+		// only, we append ReadOnly mount option to prevent the Linux kernel
+		// from syncing whole filesystem in umount syscall.
+		return mount.WithReadonlyTempMount(ctx, mounts, setAdditionalGids)
 	}
 }
 
@@ -1342,22 +1403,4 @@ func WithDevShmSize(kb int64) SpecOpts {
 		}
 		return ErrNoShmMount
 	}
-}
-
-// tryReadonlyMounts is used by the options which are trying to get user/group
-// information from container's rootfs. Since the option does read operation
-// only, this helper will append ReadOnly mount option to prevent linux kernel
-// from syncing whole filesystem in umount syscall.
-//
-// TODO(fuweid):
-//
-// Currently, it only works for overlayfs. I think we can apply it to other
-// kinds of filesystem. Maybe we can return `ro` option by `snapshotter.Mount`
-// API, when the caller passes that experimental annotation
-// `containerd.io/snapshot/readonly.mount` something like that.
-func tryReadonlyMounts(mounts []mount.Mount) []mount.Mount {
-	if len(mounts) == 1 && mounts[0].Type == "overlay" {
-		mounts[0].Options = append(mounts[0].Options, "ro")
-	}
-	return mounts
 }

@@ -48,6 +48,15 @@ type ImageConfig struct {
 
 	// StopSignal contains the system call signal that will be sent to the container to exit.
 	StopSignal string `json:"StopSignal,omitempty"`
+
+	// ArgsEscaped `[Deprecated]` - This field is present only for legacy
+	// compatibility with Docker and should not be used by new image builders.
+	// It is used by Docker for Windows images to indicate that the `Entrypoint`
+	// or `Cmd` or both, contains only a single element array, that is a
+	// pre-escaped, and combined into a single string `CommandLine`. If `true`
+	// the value in `Entrypoint` or `Cmd` should be used as-is to avoid double
+	// escaping.
+	ArgsEscaped bool `json:"ArgsEscaped,omitempty"`
 }
 
 // RootFS describes a layer content addresses

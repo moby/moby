@@ -57,3 +57,7 @@ func WithCPUCFS(quota int64, period uint64) SpecOpts {
 		return nil
 	}
 }
+
+func escapeAndCombineArgs(args []string) string {
+	panic("not supported")
+}
