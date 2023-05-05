@@ -1,5 +1,4 @@
 //go:build !darwin && !windows
-// +build !darwin,!windows
 
 package containerfs // import "github.com/docker/docker/pkg/containerfs"
 

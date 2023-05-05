@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package client // import "github.com/docker/docker/client"
 

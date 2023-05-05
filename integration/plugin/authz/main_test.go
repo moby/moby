@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package authz // import "github.com/docker/docker/integration/plugin/authz"
 

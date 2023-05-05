@@ -1,5 +1,4 @@
 //go:build freebsd
-// +build freebsd
 
 package daemon // import "github.com/docker/docker/testutil/daemon"
 

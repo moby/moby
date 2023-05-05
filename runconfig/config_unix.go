@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package runconfig // import "github.com/docker/docker/runconfig"
 

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package platform // import "github.com/docker/docker/pkg/platform"
 
