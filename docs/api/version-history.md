@@ -23,9 +23,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /images/json` no longer includes hardcoded `<none>:<none>` and
   `<none>@<none>` in `RepoTags` and`RepoDigests` for untagged images.
   In such cases, empty arrays will be produced instead.
-* The `VirtualSize` field in the `GET /images/{name}/json` and `GET /images//json`
-  responses is deprecated and will no longer be included in API v1.44. Use the
-  `Size` field instead, which contains the same information.
+* The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
+  and `GET /system/df` responses is deprecated and will no longer be included
+  in API v1.44. Use the `Size` field instead, which contains the same information.
 * `GET /info` now includes `no-new-privileges` in the `SecurityOptions` string
   list when this option is enabled globally. This change is not versioned, and
   affects all API versions if the daemon has this patch.
