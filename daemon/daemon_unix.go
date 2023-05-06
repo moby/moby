@@ -1415,18 +1415,6 @@ func (daemon *Daemon) setDefaultIsolation() error {
 	return nil
 }
 
-// setupDaemonProcess sets various settings for the daemon's process
-func setupDaemonProcess(config *config.Config) error {
-	// setup the daemons oom_score_adj
-	if err := setupOOMScoreAdj(config.OOMScoreAdjust); err != nil {
-		return err
-	}
-	if err := setMayDetachMounts(); err != nil {
-		logrus.WithError(err).Warn("Could not set may_detach_mounts kernel parameter")
-	}
-	return nil
-}
-
 // This is used to allow removal of mountpoints that may be mounted in other
 // namespaces on RHEL based kernels starting from RHEL 7.4.
 // Without this setting, removals on these RHEL based kernels may fail with
@@ -1453,30 +1441,6 @@ func setMayDetachMounts() error {
 		}
 		return nil
 	}
-	return err
-}
-
-func setupOOMScoreAdj(score int) error {
-	if score == 0 {
-		return nil
-	}
-	f, err := os.OpenFile("/proc/self/oom_score_adj", os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	stringScore := strconv.Itoa(score)
-	_, err = f.WriteString(stringScore)
-	if os.IsPermission(err) {
-		// Setting oom_score_adj does not work in an
-		// unprivileged container. Ignore the error, but log
-		// it if we appear not to be in that situation.
-		if !userns.RunningInUserNS() {
-			logrus.Debugf("Permission denied writing %q to /proc/self/oom_score_adj", stringScore)
-		}
-		return nil
-	}
-
 	return err
 }
 

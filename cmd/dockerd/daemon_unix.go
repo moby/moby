@@ -56,19 +56,6 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts := []supervisor.DaemonOpt{
-		// TODO(thaJeztah) change this to use /proc/self/oom_score_adj instead,
-		// which would allow us to set the correct score even if dockerd's score
-		// was set through other means (such as systemd or "manually").
-		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust), //nolint:staticcheck // ignore SA1019 (WithOOMScore is deprecated); will be removed in the next release.
-	}
-	if cli.Config.OOMScoreAdjust != 0 {
-		logrus.Warn(`DEPRECATED: The "oom-score-adjust" config parameter and the dockerd "--oom-score-adjust" option will be removed in the next release.`)
-	}
-	return opts, nil
-}
-
 // setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -50,10 +49,6 @@ func notifyShutdown(err error) {
 		}
 		service.stopped(err)
 	}
-}
-
-func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	return nil, nil
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
