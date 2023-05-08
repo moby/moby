@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageService is a temporary interface to assist in the migration to the
@@ -26,7 +26,7 @@ import (
 type ImageService interface {
 	// Images
 
-	PullImage(ctx context.Context, name, tag string, platform *v1.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
+	PullImage(ctx context.Context, name, tag string, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	PushImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (builder.Image, error)
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
@@ -37,7 +37,7 @@ type ImageService interface {
 	LogImageEvent(imageID, refName, action string)
 	CountImages() int
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
-	ImportImage(ctx context.Context, ref reference.Named, platform *v1.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
+	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
 	TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error)
 	ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error)
@@ -46,8 +46,8 @@ type ImageService interface {
 
 	// Containerd related methods
 
-	PrepareSnapshot(ctx context.Context, id string, image string, platform *v1.Platform) error
-	GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*v1.Descriptor, error)
+	PrepareSnapshot(ctx context.Context, id string, image string, platform *ocispec.Platform) error
+	GetImageManifest(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*ocispec.Descriptor, error)
 
 	// Layers
 

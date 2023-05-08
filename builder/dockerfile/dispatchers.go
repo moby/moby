@@ -28,7 +28,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/moby/sys/signal"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -158,7 +158,7 @@ func initializeStage(ctx context.Context, d dispatchRequest, cmd *instructions.S
 		return err
 	}
 
-	var platform *specs.Platform
+	var platform *ocispec.Platform
 	if v := cmd.Platform; v != "" {
 		v, err := d.getExpandedString(d.shlex, v)
 		if err != nil {
@@ -232,7 +232,7 @@ func (d *dispatchRequest) getExpandedString(shlex *shell.Lex, str string) (strin
 	return name, nil
 }
 
-func (d *dispatchRequest) getImageOrStage(ctx context.Context, name string, platform *specs.Platform) (builder.Image, error) {
+func (d *dispatchRequest) getImageOrStage(ctx context.Context, name string, platform *ocispec.Platform) (builder.Image, error) {
 	var localOnly bool
 	if im, ok := d.stages.getByName(name); ok {
 		name = im.Image
@@ -266,7 +266,7 @@ func (d *dispatchRequest) getImageOrStage(ctx context.Context, name string, plat
 	return imageMount.Image(), nil
 }
 
-func (d *dispatchRequest) getFromImage(ctx context.Context, shlex *shell.Lex, basename string, platform *specs.Platform) (builder.Image, error) {
+func (d *dispatchRequest) getFromImage(ctx context.Context, shlex *shell.Lex, basename string, platform *ocispec.Platform) (builder.Image, error) {
 	name, err := d.getExpandedString(shlex, basename)
 	if err != nil {
 		return nil, err

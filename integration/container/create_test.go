@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/oci"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -475,7 +475,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 	assert.Assert(t, img.Architecture != "")
 
 	t.Run("different os", func(t *testing.T) {
-		p := specs.Platform{
+		p := ocispec.Platform{
 			OS:           img.Os + "DifferentOS",
 			Architecture: img.Architecture,
 			Variant:      img.Variant,
@@ -484,7 +484,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 		assert.Assert(t, client.IsErrNotFound(err), err)
 	})
 	t.Run("different cpu arch", func(t *testing.T) {
-		p := specs.Platform{
+		p := ocispec.Platform{
 			OS:           img.Os,
 			Architecture: img.Architecture + "DifferentArch",
 			Variant:      img.Variant,

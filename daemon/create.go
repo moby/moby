@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/runconfig"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -74,7 +74,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 		}
 		if img != nil {
 			p := maximumSpec()
-			imgPlat := v1.Platform{
+			imgPlat := ocispec.Platform{
 				OS:           img.OS,
 				Architecture: img.Architecture,
 				Variant:      img.Variant,
@@ -117,7 +117,7 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 	var (
 		ctr         *container.Container
 		img         *image.Image
-		imgManifest *v1.Descriptor
+		imgManifest *ocispec.Descriptor
 		imgID       image.ID
 		err         error
 		os          = runtime.GOOS
@@ -345,7 +345,7 @@ func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 }
 
 // maximumSpec returns the distribution platform with maximum compatibility for the current node.
-func maximumSpec() v1.Platform {
+func maximumSpec() ocispec.Platform {
 	p := platforms.DefaultSpec()
 	if p.Architecture == "amd64" {
 		p.Variant = archvariant.AMD64Variant()

@@ -8,7 +8,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // WithName sets the name of the container
@@ -204,7 +204,7 @@ func WithExtraHost(extraHost string) func(*TestContainerConfig) {
 }
 
 // WithPlatform specifies the desired platform the image should have.
-func WithPlatform(p *specs.Platform) func(*TestContainerConfig) {
+func WithPlatform(p *ocispec.Platform) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.Platform = p
 	}
