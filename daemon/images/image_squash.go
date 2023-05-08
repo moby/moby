@@ -76,10 +76,10 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	}
 
 	newImage.History = append(newImage.History, image.History{
-		Created: now,
+		Created: &now,
 		Comment: historyComment,
 	})
-	newImage.Created = now
+	newImage.Created = &now
 
 	b, err := json.Marshal(&newImage)
 	if err != nil {

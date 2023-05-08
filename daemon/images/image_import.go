@@ -58,7 +58,7 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 			Architecture:  platform.Architecture,
 			Variant:       platform.Variant,
 			OS:            platform.OS,
-			Created:       created,
+			Created:       &created,
 			Comment:       msg,
 		},
 		RootFS: &image.RootFS{
@@ -66,7 +66,7 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 			DiffIDs: []layer.DiffID{l.DiffID()},
 		},
 		History: []image.History{{
-			Created: created,
+			Created: &created,
 			Comment: msg,
 		}},
 	})

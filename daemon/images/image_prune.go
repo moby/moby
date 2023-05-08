@@ -75,7 +75,7 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 			if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
 				continue
 			}
-			if !until.IsZero() && img.Created.After(until) {
+			if !until.IsZero() && (img.Created == nil || img.Created.After(until)) {
 				continue
 			}
 			if img.Config != nil && !matchLabels(pruneFilters, img.Config.Labels) {

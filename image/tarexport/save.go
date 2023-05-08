@@ -379,10 +379,11 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	var layers []digest.Digest
 	var foreignSrcs map[layer.DiffID]distribution.Descriptor
 	for i, diffID := range img.RootFS.DiffIDs {
+		v1ImgCreated := time.Unix(0, 0)
 		v1Img := image.V1Image{
 			// This is for backward compatibility used for
 			// pre v1.9 docker.
-			Created: time.Unix(0, 0),
+			Created: &v1ImgCreated,
 		}
 		if i == len(img.RootFS.DiffIDs)-1 {
 			v1Img = img.V1Image
@@ -422,26 +423,30 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 	if err := os.MkdirAll(blobDir, 0o755); err != nil {
 		return nil, err
 	}
-	if err := system.Chtimes(blobDir, img.Created, img.Created); err != nil {
-		return nil, err
-	}
-	if err := system.Chtimes(filepath.Dir(blobDir), img.Created, img.Created); err != nil {
-		return nil, err
+	if img.Created != nil {
+		if err := system.Chtimes(blobDir, *img.Created, *img.Created); err != nil {
+			return nil, err
+		}
+		if err := system.Chtimes(filepath.Dir(blobDir), *img.Created, *img.Created); err != nil {
+			return nil, err
+		}
 	}
 
 	configFile := filepath.Join(blobDir, dgst.Encoded())
 	if err := os.WriteFile(configFile, img.RawJSON(), 0o644); err != nil {
 		return nil, err
 	}
-	if err := system.Chtimes(configFile, img.Created, img.Created); err != nil {
-		return nil, err
+	if img.Created != nil {
+		if err := system.Chtimes(configFile, *img.Created, *img.Created); err != nil {
+			return nil, err
+		}
 	}
 
 	s.images[id].layers = layers
 	return foreignSrcs, nil
 }
 
-func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, createdTime time.Time) (distribution.Descriptor, error) {
+func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, createdTime *time.Time) (distribution.Descriptor, error) {
 	if _, exists := s.savedLayers[legacyImg.ID]; exists {
 		return distribution.Descriptor{}, nil
 	}
@@ -499,10 +504,12 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 			return distribution.Descriptor{}, err
 		}
 
-		for _, fname := range []string{outDir, configPath, layerPath} {
-			// todo: maybe save layer created timestamp?
-			if err := system.Chtimes(fname, createdTime, createdTime); err != nil {
-				return distribution.Descriptor{}, errors.Wrap(err, "could not set layer timestamp")
+		if createdTime != nil {
+			for _, fname := range []string{outDir, configPath, layerPath} {
+				// todo: maybe save layer created timestamp?
+				if err := system.Chtimes(fname, *createdTime, *createdTime); err != nil {
+					return distribution.Descriptor{}, errors.Wrap(err, "could not set layer timestamp")
+				}
 			}
 		}
 

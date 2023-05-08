@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -53,7 +52,7 @@ type V1Image struct {
 	Comment string `json:"comment,omitempty"`
 
 	// Created is the timestamp at which the image was created
-	Created time.Time `json:"created"`
+	Created *time.Time `json:"created"`
 
 	// Container is the ID of the container that was used to create the image.
 	//
@@ -261,42 +260,19 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 }
 
 // History stores build commands that were used to create an image
-type History struct {
-	// Created is the timestamp at which the image was created
-	Created time.Time `json:"created"`
-	// Author is the name of the author that was specified when committing the
-	// image, or as specified through MAINTAINER (deprecated) in the Dockerfile.
-	Author string `json:"author,omitempty"`
-	// CreatedBy keeps the Dockerfile command used while building the image
-	CreatedBy string `json:"created_by,omitempty"`
-	// Comment is the commit message that was set when committing the image
-	Comment string `json:"comment,omitempty"`
-	// EmptyLayer is set to true if this history item did not generate a
-	// layer. Otherwise, the history item is associated with the next
-	// layer in the RootFS section.
-	EmptyLayer bool `json:"empty_layer,omitempty"`
-}
+type History = ocispec.History
 
 // NewHistory creates a new history struct from arguments, and sets the created
 // time to the current time in UTC
 func NewHistory(author, comment, createdBy string, isEmptyLayer bool) History {
+	now := time.Now().UTC()
 	return History{
 		Author:     author,
-		Created:    time.Now().UTC(),
+		Created:    &now,
 		CreatedBy:  createdBy,
 		Comment:    comment,
 		EmptyLayer: isEmptyLayer,
 	}
-}
-
-// Equal compares two history structs for equality
-func (h History) Equal(i History) bool {
-	if !h.Created.Equal(i.Created) {
-		return false
-	}
-	i.Created = h.Created
-
-	return reflect.DeepEqual(h, i)
 }
 
 // Exporter provides interface for loading and saving images

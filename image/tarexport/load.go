@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 
 	"github.com/docker/distribution"
@@ -396,8 +397,16 @@ func checkValidParent(img, parent *image.Image) bool {
 	if len(img.History)-len(parent.History) != 1 {
 		return false
 	}
-	for i, h := range parent.History {
-		if !h.Equal(img.History[i]) {
+	for i, hP := range parent.History {
+		hC := img.History[i]
+		if (hP.Created == nil) != (hC.Created == nil) {
+			return false
+		}
+		if hP.Created != nil && !hP.Created.Equal(*hC.Created) {
+			return false
+		}
+		hC.Created = hP.Created
+		if !reflect.DeepEqual(hP, hC) {
 			return false
 		}
 	}
