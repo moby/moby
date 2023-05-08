@@ -402,6 +402,18 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		exposedPorts[string(k)] = v
 	}
 
+	var ociHistory []ocispec.History
+	for _, history := range imgToCreate.History {
+		created := history.Created
+		ociHistory = append(ociHistory, ocispec.History{
+			Created:    &created,
+			CreatedBy:  history.CreatedBy,
+			Author:     history.Author,
+			Comment:    history.Comment,
+			EmptyLayer: history.EmptyLayer,
+		})
+	}
+
 	// make an ocispec.Image from the docker/image.Image
 	ociImgToCreate := ocispec.Image{
 		Created:      &imgToCreate.Created,
@@ -422,9 +434,8 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 			Labels:       imgToCreate.Config.Labels,
 			StopSignal:   imgToCreate.Config.StopSignal,
 		},
-		RootFS: rootfs,
-		// TODO(laurazard)
-		History: []ocispec.History{},
+		RootFS:  rootfs,
+		History: ociHistory,
 	}
 
 	var layers []ocispec.Descriptor
@@ -457,6 +468,14 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		},
 	)
 
+	// necessary to prevent the contents from being GC'd
+	// between writing them here and creating an image
+	ctx, done, err := i.client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	defer done(ctx)
+
 	commitManifestDesc, err := writeContentsForImage(ctx, i.snapshotter, i.client.ContentStore(), ociImgToCreate, layers)
 	if err != nil {
 		return nil, err
@@ -487,5 +506,6 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 	newImage := dimage.NewImage(dimage.ID(createdImage.Target.Digest))
 	newImage.V1Image = imgToCreate.V1Image
 	newImage.V1Image.ID = string(createdImage.Target.Digest)
+	newImage.History = imgToCreate.History
 	return newImage, nil
 }

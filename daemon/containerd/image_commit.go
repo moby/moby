@@ -141,10 +141,11 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 			DiffIDs: append(baseConfig.RootFS.DiffIDs, diffID),
 		},
 		History: append(baseConfig.History, ocispec.History{
-			Created:    &createdTime,
-			CreatedBy:  strings.Join(opts.ContainerConfig.Cmd, " "),
-			Author:     opts.Author,
-			Comment:    opts.Comment,
+			Created:   &createdTime,
+			CreatedBy: strings.Join(opts.ContainerConfig.Cmd, " "),
+			Author:    opts.Author,
+			Comment:   opts.Comment,
+			// TODO(laurazard): this check might be incorrect
 			EmptyLayer: diffID == "",
 		}),
 	}
