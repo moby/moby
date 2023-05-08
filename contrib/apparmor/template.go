@@ -149,9 +149,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   }
   # xz works via pipes, so we do not need access to the filesystem.
   profile /usr/bin/xz (complain) {
-{{if ge .Version 209000}}
     signal (receive) peer=/usr/bin/docker,
-{{end}}
     /etc/ld.so.cache r,
     /lib/** rm,
     /usr/bin/xz rm,
