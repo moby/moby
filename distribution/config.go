@@ -19,7 +19,7 @@ import (
 	refstore "github.com/docker/docker/reference"
 	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -60,7 +60,7 @@ type ImagePullConfig struct {
 	// types is used.
 	Schema2Types []string
 	// Platform is the requested platform of the image being pulled
-	Platform *specs.Platform
+	Platform *ocispec.Platform
 }
 
 // ImagePushConfig stores push configuration.
@@ -141,7 +141,7 @@ func rootFSFromConfig(c []byte) (*image.RootFS, error) {
 	return unmarshalledConfig.RootFS, nil
 }
 
-func platformFromConfig(c []byte) (*specs.Platform, error) {
+func platformFromConfig(c []byte) (*ocispec.Platform, error) {
 	var unmarshalledConfig image.Image
 	if err := json.Unmarshal(c, &unmarshalledConfig); err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func platformFromConfig(c []byte) (*specs.Platform, error) {
 	if !system.IsOSSupported(os) {
 		return nil, errors.Wrapf(system.ErrNotSupportedOperatingSystem, "image operating system %q cannot be used on this platform", os)
 	}
-	return &specs.Platform{
+	return &ocispec.Platform{
 		OS:           os,
 		Architecture: unmarshalledConfig.Architecture,
 		Variant:      unmarshalledConfig.Variant,

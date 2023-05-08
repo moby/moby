@@ -21,7 +21,7 @@ import (
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/websocket"
@@ -566,7 +566,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.Annotations = nil
 	}
 
-	var platform *specs.Platform
+	var platform *ocispec.Platform
 	if versions.GreaterThanOrEqualTo(version, "1.41") {
 		if v := r.Form.Get("platform"); v != "" {
 			p, err := platforms.Parse(v)

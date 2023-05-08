@@ -31,7 +31,7 @@ import (
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	archvariant "github.com/tonistiigi/go-archvariant"
@@ -348,7 +348,7 @@ func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	_ = ld.metadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoInfo.Name.Name()})
 }
 
-func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *specs.Platform) (tagUpdated bool, err error) {
+func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform) (tagUpdated bool, err error) {
 	var (
 		tagOrDigest string // Used for logging/progress only
 		dgst        digest.Digest
@@ -381,7 +381,7 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *spe
 			"remote": ref,
 		}))
 
-	desc := specs.Descriptor{
+	desc := ocispec.Descriptor{
 		MediaType: mt,
 		Digest:    dgst,
 		Size:      size,
@@ -519,7 +519,7 @@ func (p *puller) validateMediaType(mediaType string) error {
 	return invalidManifestClassError{mediaType, configClass}
 }
 
-func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+func (p *puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
 	if platform != nil {
 		// Early bath if the requested OS doesn't match that of the configuration.
 		// This avoids doing the download, only to potentially fail later.
@@ -616,7 +616,7 @@ func checkSupportedMediaType(mediaType string) error {
 	return unsupportedMediaTypeError{MediaType: mediaType}
 }
 
-func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *specs.Platform) (id digest.Digest, err error) {
+func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *ocispec.Platform) (id digest.Digest, err error) {
 	if _, err := p.config.ImageStore.Get(ctx, target.Digest); err == nil {
 		// If the image already exists locally, no need to pull
 		// anything.
@@ -669,11 +669,11 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	}()
 
 	var (
-		configJSON       []byte          // raw serialized image config
-		downloadedRootFS *image.RootFS   // rootFS from registered layers
-		configRootFS     *image.RootFS   // rootFS from configuration
-		release          func()          // release resources from rootFS download
-		configPlatform   *specs.Platform // for LCOW when registering downloaded layers
+		configJSON       []byte            // raw serialized image config
+		downloadedRootFS *image.RootFS     // rootFS from registered layers
+		configRootFS     *image.RootFS     // rootFS from configuration
+		release          func()            // release resources from rootFS download
+		configPlatform   *ocispec.Platform // for LCOW when registering downloaded layers
 	)
 
 	layerStoreOS := runtime.GOOS
@@ -798,7 +798,7 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 	return imageID, nil
 }
 
-func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
 	manifestDigest, err = schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
@@ -807,7 +807,7 @@ func (p *puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *sch
 	return id, manifestDigest, err
 }
 
-func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *specs.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
+func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocischema.DeserializedManifest, platform *ocispec.Platform) (id digest.Digest, manifestDigest digest.Digest, err error) {
 	manifestDigest, err = schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
@@ -816,7 +816,7 @@ func (p *puller) pullOCI(ctx context.Context, ref reference.Named, mfst *ocische
 	return id, manifestDigest, err
 }
 
-func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, *specs.Platform, error) {
+func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, *ocispec.Platform, error) {
 	select {
 	case configJSON := <-configChan:
 		rootfs, err := rootFSFromConfig(configJSON)
@@ -837,13 +837,13 @@ func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, *ima
 
 // pullManifestList handles "manifest lists" which point to various
 // platform-specific manifests.
-func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *specs.Platform) (id digest.Digest, manifestListDigest digest.Digest, err error) {
+func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, pp *ocispec.Platform) (id digest.Digest, manifestListDigest digest.Digest, err error) {
 	manifestListDigest, err = schema2ManifestDigest(ref, mfstList)
 	if err != nil {
 		return "", "", err
 	}
 
-	var platform specs.Platform
+	var platform ocispec.Platform
 	if pp != nil {
 		platform = *pp
 	}
@@ -856,7 +856,7 @@ func (p *puller) pullManifestList(ctx context.Context, ref reference.Named, mfst
 			return "", "", err
 		}
 
-		desc := specs.Descriptor{
+		desc := ocispec.Descriptor{
 			Digest:    match.Digest,
 			Size:      match.Size,
 			MediaType: match.MediaType,
@@ -942,7 +942,7 @@ func (p *puller) pullSchema2Config(ctx context.Context, dgst digest.Digest) (con
 }
 
 type noMatchesErr struct {
-	platform specs.Platform
+	platform ocispec.Platform
 }
 
 func (e noMatchesErr) Error() string {
@@ -1081,13 +1081,13 @@ func createDownloadFile() (*os.File, error) {
 	return os.CreateTemp("", "GetImageBlob")
 }
 
-func toOCIPlatform(p manifestlist.PlatformSpec) *specs.Platform {
+func toOCIPlatform(p manifestlist.PlatformSpec) *ocispec.Platform {
 	// distribution pkg does define platform as pointer so this hack for empty struct
 	// is necessary. This is temporary until correct OCI image-spec package is used.
 	if p.OS == "" && p.Architecture == "" && p.Variant == "" && p.OSVersion == "" && p.OSFeatures == nil && p.Features == nil {
 		return nil
 	}
-	return &specs.Platform{
+	return &ocispec.Platform{
 		OS:           p.OS,
 		Architecture: p.Architecture,
 		Variant:      p.Variant,
@@ -1097,7 +1097,7 @@ func toOCIPlatform(p manifestlist.PlatformSpec) *specs.Platform {
 }
 
 // maximumSpec returns the distribution platform with maximum compatibility for the current node.
-func maximumSpec() specs.Platform {
+func maximumSpec() ocispec.Platform {
 	p := platforms.DefaultSpec()
 	if p.Architecture == "amd64" {
 		p.Variant = archvariant.AMD64Variant()

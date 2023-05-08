@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -91,10 +91,10 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 				}, nil
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				b, err := json.Marshal(registrytypes.DistributionInspect{
-					Descriptor: v1.Descriptor{
+					Descriptor: ocispec.Descriptor{
 						Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96",
 					},
-					Platforms: []v1.Platform{
+					Platforms: []ocispec.Platform{
 						{
 							Architecture: "amd64",
 							OS:           "linux",
@@ -171,7 +171,7 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 			} else if strings.HasPrefix(req.URL.Path, "/v1.30/distribution/") {
 				// resolvable images
 				b, err := json.Marshal(registrytypes.DistributionInspect{
-					Descriptor: v1.Descriptor{
+					Descriptor: ocispec.Descriptor{
 						Digest: digest.Digest(dgst),
 					},
 				})

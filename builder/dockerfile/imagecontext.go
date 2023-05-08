@@ -8,12 +8,12 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	dockerimage "github.com/docker/docker/image"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-type getAndMountFunc func(context.Context, string, bool, *specs.Platform) (builder.Image, builder.ROLayer, error)
+type getAndMountFunc func(context.Context, string, bool, *ocispec.Platform) (builder.Image, builder.ROLayer, error)
 
 // imageSources mounts images and provides a cache for mounted images. It tracks
 // all images so they can be unmounted at the end of the build.
@@ -24,7 +24,7 @@ type imageSources struct {
 }
 
 func newImageSources(options builderOptions) *imageSources {
-	getAndMount := func(ctx context.Context, idOrRef string, localOnly bool, platform *specs.Platform) (builder.Image, builder.ROLayer, error) {
+	getAndMount := func(ctx context.Context, idOrRef string, localOnly bool, platform *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
 		pullOption := backend.PullOptionNoPull
 		if !localOnly {
 			if options.Options.PullParent {
@@ -47,7 +47,7 @@ func newImageSources(options builderOptions) *imageSources {
 	}
 }
 
-func (m *imageSources) Get(ctx context.Context, idOrRef string, localOnly bool, platform *specs.Platform) (*imageMount, error) {
+func (m *imageSources) Get(ctx context.Context, idOrRef string, localOnly bool, platform *ocispec.Platform) (*imageMount, error) {
 	if im, ok := m.byImageID[idOrRef]; ok {
 		return im, nil
 	}
@@ -71,7 +71,7 @@ func (m *imageSources) Unmount() (retErr error) {
 	return
 }
 
-func (m *imageSources) Add(im *imageMount, platform *specs.Platform) {
+func (m *imageSources) Add(im *imageMount, platform *ocispec.Platform) {
 	switch im.image {
 	case nil:
 		// Set the platform for scratch images

@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -41,7 +41,7 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		comment     = r.Form.Get("message")
 		progressErr error
 		output      = ioutils.NewWriteFlusher(w)
-		platform    *specs.Platform
+		platform    *ocispec.Platform
 	)
 	defer output.Close()
 

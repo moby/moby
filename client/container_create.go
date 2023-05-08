@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type configWrapper struct {
@@ -20,7 +20,7 @@ type configWrapper struct {
 
 // ContainerCreate creates a new container based on the given configuration.
 // It can be associated with a name, but it's not mandatory.
-func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error) {
 	var response container.CreateResponse
 
 	if err := cli.NewVersionError("1.25", "stop timeout"); config != nil && config.StopTimeout != nil && err != nil {
@@ -75,7 +75,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 // Similar to containerd's platforms.Format(), but does allow components to be
 // omitted (e.g. pass "architecture" only, without "os":
 // https://github.com/containerd/containerd/blob/v1.5.2/platforms/platforms.go#L243-L263
-func formatPlatform(platform *specs.Platform) string {
+func formatPlatform(platform *ocispec.Platform) string {
 	if platform == nil {
 		return ""
 	}

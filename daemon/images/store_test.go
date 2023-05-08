@@ -14,7 +14,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"go.etcd.io/bbolt"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -96,7 +96,7 @@ func TestContentStoreForPull(t *testing.T) {
 	}
 
 	data := []byte(`{}`)
-	desc := v1.Descriptor{
+	desc := ocispec.Descriptor{
 		Digest: digest.Canonical.FromBytes(data),
 		Size:   int64(len(data)),
 	}
