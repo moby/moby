@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	imagetype "github.com/docker/docker/api/types/image"
@@ -30,54 +31,57 @@ type imageCache struct {
 
 func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID string, err error) {
 	ctx := context.TODO()
-	cfgCpy := *cfg
-	i, err := ic.c.GetImage(ctx, parentID, imagetype.GetImageOpts{})
+	parent, err := ic.c.GetImage(ctx, parentID, imagetype.GetImageOpts{})
 	if err != nil {
-		for _, ii := range ic.images {
-			if ii.ID().String() == parentID {
-				if compare(ii.RunConfig(), &cfgCpy) {
-					return ii.ID().String(), nil
-				}
-			}
+		return "", err
+	}
+
+	for _, localCachedImage := range ic.images {
+		if isMatch(localCachedImage, parent, cfg) {
+			return localCachedImage.ID().String(), nil
 		}
-	} else {
-		children, err := ic.c.Children(ctx, i.ID())
+	}
+
+	children, err := ic.c.Children(ctx, parent.ID())
+	if err != nil {
+		return "", err
+	}
+
+	for _, children := range children {
+		childImage, err := ic.c.GetImage(ctx, children.String(), imagetype.GetImageOpts{})
 		if err != nil {
 			return "", err
 		}
-		for _, ch := range children {
-			childImage, err := ic.c.GetImage(context.TODO(), ch.String(), imagetype.GetImageOpts{})
-			if err != nil {
-				return "", err
-			}
-			// this implementation looks correct but it's currently not working
-			// with the containerd store as we're not storing the image ContainerConfig
-			// and so intermediate images with ContainerConfigs such as
-			// #(nop) COPY file:c6ab44934e83eeb07289a211582c6faa25dea7d06dae077b6ef76029e92400ce in ...
-			// are not getting a hit
-			if compare(&childImage.ContainerConfig, &cfgCpy) {
-				return ch.String(), nil
-			}
+
+		if isMatch(childImage, parent, cfg) {
+			return children.String(), nil
 		}
 	}
+
 	return "", nil
 }
 
-// compare two Config structs. Do not consider the "Hostname" field as it
-// defaults to the randomly generated short container ID or "Image" as it
-// represents the name of the image as it was passed in (symbolic) and does
-// not provide any meaningful information about whether the image is usable
-// as cache.
-// If OpenStdin is set, then it differs
-func compare(a, b *container.Config) bool {
-	if a == nil || b == nil ||
-		a.OpenStdin || b.OpenStdin {
+// isMatch checks whether a given target can be used as cache for the given
+// parent image/config combination.
+// A target can only be an immediate child of the given parent image. For
+// a parent image with `n` history entries, a valid target must have `n+1`
+// entries and the extra entry must match the provided config
+func isMatch(target, parent *image.Image, cfg *container.Config) bool {
+	if target == nil || parent == nil || cfg == nil {
 		return false
 	}
 
-	a.Image = ""
-	a.Hostname = ""
-	b.Image = ""
-	b.Hostname = ""
-	return reflect.DeepEqual(a, b)
+	if len(target.History) != len(parent.History)+1 ||
+		len(target.RootFS.DiffIDs) != len(parent.RootFS.DiffIDs)+1 {
+		return false
+	}
+
+	for i := range parent.History {
+		if !reflect.DeepEqual(parent.History[i], target.History[i]) {
+			return false
+		}
+	}
+
+	childCreatedBy := target.History[len(target.History)-1].CreatedBy
+	return childCreatedBy == strings.Join(cfg.Cmd, " ")
 }
