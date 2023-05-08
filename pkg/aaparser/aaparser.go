@@ -13,6 +13,8 @@ const (
 )
 
 // GetVersion returns the major and minor version of apparmor_parser.
+//
+// Deprecated: no longer used, and will be removed in the next release.
 func GetVersion() (int, error) {
 	output, err := cmd("", "--version")
 	if err != nil {
