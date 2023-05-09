@@ -617,12 +617,6 @@ func checkSupportedMediaType(mediaType string) error {
 }
 
 func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Descriptor, layers []distribution.Descriptor, platform *specs.Platform) (id digest.Digest, err error) {
-	if _, err := p.config.ImageStore.Get(ctx, target.Digest); err == nil {
-		// If the image already exists locally, no need to pull
-		// anything.
-		return target.Digest, nil
-	}
-
 	if err := checkSupportedMediaType(target.MediaType); err != nil {
 		return "", err
 	}
@@ -647,6 +641,21 @@ func (p *puller) pullSchema2Layers(ctx context.Context, target distribution.Desc
 		}
 
 		descriptors = append(descriptors, layerDescriptor)
+	}
+
+	if configJSON, err := p.config.ImageStore.Get(ctx, target.Digest); err == nil {
+		// If the image already exists locally, no need to pull
+		// anything.
+		if configRootFS, err := rootFSFromConfig(configJSON); err == nil {
+			for i, descriptor := range descriptors {
+				// make sure all these descriptors are registered so they're usable as blob mount sources from this registry
+				// (we pull "foo:bar" and then "example.com/foo:bar" and then build something on top and push it to "example.com/baz:buzz" and it should blob mount layers from "example.com/foo:bar")
+				diffID := configRootFS.DiffIDs[i]
+				descriptor.(*layerDescriptor).diffID = diffID
+				descriptor.(*layerDescriptor).Registered(diffID)
+			}
+		}
+		return target.Digest, nil
 	}
 
 	configChan := make(chan []byte, 1)
