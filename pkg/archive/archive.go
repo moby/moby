@@ -70,6 +70,12 @@ type (
 		// replaced with the matching name from this map.
 		RebaseNames map[string]string
 		InUserNS    bool
+		// Allow unpacking to succeed in spite of failures to set extended
+		// attributes on the unpacked files due to the destination filesystem
+		// not supporting them or a lack of permissions. Extended attributes
+		// were probably in the archive for a reason, so set this option at
+		// your own peril.
+		BestEffortXattrs bool
 	}
 )
 
@@ -666,7 +672,19 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.Identity, inUserns bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, opts *TarOptions) error {
+	var (
+		Lchown                     = true
+		inUserns, bestEffortXattrs bool
+		chownOpts                  *idtools.Identity
+	)
+	if opts != nil {
+		Lchown = !opts.NoLchown
+		inUserns = opts.InUserNS
+		chownOpts = opts.ChownOpts
+		bestEffortXattrs = opts.BestEffortXattrs
+	}
+
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -760,11 +778,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	var xattrErrs []string
 	for key, value := range hdr.Xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
-			if errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
-				// We ignore errors here because not all graphdrivers support
-				// xattrs *cough* old versions of AUFS *cough*. However only
-				// ENOTSUP should be emitted in that case, otherwise we still
-				// bail.
+			if bestEffortXattrs && errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
 				// EPERM occurs if modifying xattrs is not allowed. This can
 				// happen when running in userns with restrictions (ChromeOS).
 				xattrErrs = append(xattrErrs, err.Error())
@@ -1158,7 +1172,7 @@ loop:
 			}
 		}
 
-		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, options.ChownOpts, options.InUserNS); err != nil {
+		if err := createTarFile(path, dest, hdr, trBuf, options); err != nil {
 			return err
 		}
 
