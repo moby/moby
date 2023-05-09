@@ -34,6 +34,8 @@ linters-settings:
       # own errdefs package (or vice-versa).
       - pkg: github.com/containerd/containerd/errdefs
         alias: cerrdefs
+      - pkg: github.com/opencontainers/image-spec/specs-go/v1
+        alias: ocispec
 
   govet:
     check-shadowing: false

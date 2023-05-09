@@ -29,7 +29,7 @@ import (
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-multierror"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -439,12 +439,12 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
-	var index v1.Index
+	var index ocispec.Index
 	if err := json.Unmarshal(b, &index); err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to decode checkpoint data"))
 	}
 
-	var cpDesc *v1.Descriptor
+	var cpDesc *ocispec.Descriptor
 	for _, m := range index.Manifests {
 		m := m
 		if m.MediaType == images.MediaTypeContainerd1Checkpoint {

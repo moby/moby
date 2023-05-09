@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -194,7 +194,7 @@ func TestValidateManifest(t *testing.T) {
 }
 
 func TestFormatPlatform(t *testing.T) {
-	var platform specs.Platform
+	var platform ocispec.Platform
 	var result = formatPlatform(platform)
 	if strings.HasPrefix(result, "unknown") {
 		t.Fatal("expected formatPlatform to show a known platform")

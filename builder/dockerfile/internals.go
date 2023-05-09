@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -74,7 +74,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 		return errors.Errorf("unexpected image type")
 	}
 
-	platform := &specs.Platform{
+	platform := &ocispec.Platform{
 		OS:           parentImage.OS,
 		Architecture: parentImage.Architecture,
 		Variant:      parentImage.Variant,

@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -74,7 +74,7 @@ type copier struct {
 	source      builder.Source
 	pathCache   pathCache
 	download    sourceDownloader
-	platform    *specs.Platform
+	platform    *ocispec.Platform
 	// for cleanup. TODO: having copier.cleanup() is error prone and hard to
 	// follow. Code calling performCopy should manage the lifecycle of its params.
 	// Copier should take override source as input, not imageMount.
@@ -86,7 +86,7 @@ func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, i
 	platform := req.builder.platform
 	if platform == nil {
 		// May be nil if not explicitly set in API/dockerfile
-		platform = &specs.Platform{}
+		platform = &ocispec.Platform{}
 	}
 	if platform.OS == "" {
 		// Default to the dispatch requests operating system if not explicit in API/dockerfile
