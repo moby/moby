@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -143,7 +144,7 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 		},
 		History: append(baseConfig.History, ocispec.History{
 			Created:    &createdTime,
-			CreatedBy:  "", // FIXME(ndeloof) ?
+			CreatedBy:  strings.Join(opts.ContainerConfig.Cmd, " "),
 			Author:     opts.Author,
 			Comment:    opts.Comment,
 			EmptyLayer: diffID == "",
