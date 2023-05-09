@@ -5,17 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/testutil/environment"
 )
 
 var (
 	testEnv *environment.Execution
 )
-
-func init() {
-	reexec.Init() // This is required for external graphdriver tests
-}
 
 func TestMain(m *testing.M) {
 	var err error

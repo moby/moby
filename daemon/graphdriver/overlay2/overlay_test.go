@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
 )
 
 func init() {
@@ -18,8 +17,6 @@ func init() {
 	// errors or hangs to be debugged directly from the test process.
 	untar = archive.UntarUncompressed
 	graphdriver.ApplyUncompressedLayer = archive.ApplyUncompressedLayer
-
-	reexec.Init()
 }
 
 func skipIfNaive(t *testing.T) {

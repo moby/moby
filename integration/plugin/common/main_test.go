@@ -5,16 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/testutil/environment"
 )
 
 var testEnv *environment.Execution
 
 func TestMain(m *testing.M) {
-	if reexec.Init() {
-		return
-	}
 	var err error
 	testEnv, err = environment.New()
 	if err != nil {

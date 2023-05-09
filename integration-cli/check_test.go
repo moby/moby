@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
 	"github.com/docker/docker/internal/test/suite"
-	"github.com/docker/docker/pkg/reexec"
 	testdaemon "github.com/docker/docker/testutil/daemon"
 	ienv "github.com/docker/docker/testutil/environment"
 	"github.com/docker/docker/testutil/fakestorage"
@@ -49,8 +48,6 @@ var (
 
 func init() {
 	var err error
-
-	reexec.Init() // This is required for external graphdriver tests
 
 	testEnv, err = environment.New()
 	if err != nil {
