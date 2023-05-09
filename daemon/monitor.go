@@ -78,7 +78,8 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	}
 
 	attributes := map[string]string{
-		"exitCode": strconv.Itoa(exitStatus.ExitCode),
+		"exitCode":     strconv.Itoa(exitStatus.ExitCode),
+		"execDuration": strconv.Itoa(int(execDuration.Seconds())),
 	}
 	daemon.Cleanup(c)
 
