@@ -68,6 +68,21 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		exposedPorts[nat.Port(k)] = v
 	}
 
+	var imgHistory []image.History
+	for _, h := range ociimage.History {
+		var created time.Time
+		if h.Created != nil {
+			created = *h.Created
+		}
+		imgHistory = append(imgHistory, image.History{
+			Created:    created,
+			Author:     h.Author,
+			CreatedBy:  h.CreatedBy,
+			Comment:    h.Comment,
+			EmptyLayer: h.EmptyLayer,
+		})
+	}
+
 	img := image.NewImage(image.ID(desc.Digest))
 	img.V1Image = image.V1Image{
 		ID:           string(desc.Digest),
@@ -87,6 +102,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	}
 
 	img.RootFS = rootfs
+	img.History = imgHistory
 
 	if options.Details {
 		lastUpdated := time.Unix(0, 0)
