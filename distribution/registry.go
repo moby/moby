@@ -126,9 +126,11 @@ func newRepository(
 
 		var newAuthTransport = authTransport
 		if len(realmHost) > 0 && registryResolver != nil {
+			//trying to load a new TLS config for the auth challenge
 			tlsConfig, err := registry.NewTLSConfig(realmHost, !registryResolver.IsInsecureRegistry(realmHost))
 			logrus.Debugf("Loading TLS config for host %s", realmHost)
 			if err != nil {
+				//if no TLS config was found for the auth challenge, keep the previous TLS config
 				logrus.Warnf("TLS config not found for host %s", realmHost)
 			} else {
 				logrus.Debugf("TLS config was found for host %s", realmHost)
