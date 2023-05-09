@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -380,13 +379,6 @@ func TestLiveRestore(t *testing.T) {
 	if err := setInterfaceIP(nlh, linkA, iface); err == nil {
 		t.Fatalf("Expected route conflict error, but succeeded for IPV4 ")
 	}
-}
-
-func TestMain(m *testing.M) {
-	if reexec.Init() {
-		return
-	}
-	os.Exit(m.Run())
 }
 
 func TestSandboxCreate(t *testing.T) {
