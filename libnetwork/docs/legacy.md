@@ -1,5 +1,5 @@
 
-This document provides a TLD&R version of https://docs.docker.com/v1.6/articles/networking/.
+This document provides a TL;DR version of https://github.com/moby/moby/blob/v1.6.0/docs/sources/articles/networking.md.
 If more interested in detailed operational design, please refer to this link.
 
 ## Docker Networking design as of Docker v1.6
