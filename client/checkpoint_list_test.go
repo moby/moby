@@ -12,6 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCheckpointListError(t *testing.T) {
@@ -20,9 +22,7 @@ func TestCheckpointListError(t *testing.T) {
 	}
 
 	_, err := client.CheckpointList(context.Background(), "container_id", types.CheckpointListOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestCheckpointList(t *testing.T) {
@@ -63,7 +63,5 @@ func TestCheckpointListContainerNotFound(t *testing.T) {
 	}
 
 	_, err := client.CheckpointList(context.Background(), "unknown", types.CheckpointListOptions{})
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a containerNotFound error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }

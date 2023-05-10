@@ -33,9 +33,7 @@ func TestSecretInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestSecretInspectSecretNotFound(t *testing.T) {
@@ -45,9 +43,7 @@ func TestSecretInspectSecretNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a secretNotFoundError error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestSecretInspectWithEmptyID(t *testing.T) {
@@ -57,9 +53,7 @@ func TestSecretInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "")
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestSecretInspect(t *testing.T) {

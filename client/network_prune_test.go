@@ -24,9 +24,7 @@ func TestNetworksPruneError(t *testing.T) {
 	}
 
 	_, err := client.NetworksPrune(context.Background(), filters.NewArgs())
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNetworksPrune(t *testing.T) {

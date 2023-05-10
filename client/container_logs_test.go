@@ -23,9 +23,7 @@ func TestContainerLogsNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
-	if !IsErrNotFound(err) {
-		t.Fatalf("expected a not found error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerLogsError(t *testing.T) {
@@ -33,9 +31,8 @@ func TestContainerLogsError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
 	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})

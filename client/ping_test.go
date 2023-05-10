@@ -34,7 +34,7 @@ func TestPingFail(t *testing.T) {
 	}
 
 	ping, err := client.Ping(context.Background())
-	assert.ErrorContains(t, err, "some error with the server")
+	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
 	var si *swarm.Status
@@ -42,7 +42,7 @@ func TestPingFail(t *testing.T) {
 
 	withHeader = true
 	ping2, err := client.Ping(context.Background())
-	assert.ErrorContains(t, err, "some error with the server")
+	assert.Check(t, is.ErrorContains(err, "some error with the server"))
 	assert.Check(t, is.Equal(true, ping2.Experimental))
 	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
 	assert.Check(t, is.Equal(swarm.Status{NodeState: "inactive"}, *ping2.SwarmStatus))
@@ -64,7 +64,7 @@ func TestPingWithError(t *testing.T) {
 	}
 
 	ping, err := client.Ping(context.Background())
-	assert.ErrorContains(t, err, "some error")
+	assert.Check(t, is.ErrorContains(err, "some error"))
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
 	var si *swarm.Status

@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerInspectError(t *testing.T) {
@@ -21,9 +23,7 @@ func TestContainerInspectError(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerInspectContainerNotFound(t *testing.T) {
@@ -32,9 +32,7 @@ func TestContainerInspectContainerNotFound(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "unknown")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected a containerNotFound error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerInspectWithEmptyID(t *testing.T) {
@@ -44,9 +42,7 @@ func TestContainerInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ContainerInspectWithRaw(context.Background(), "", true)
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerInspect(t *testing.T) {

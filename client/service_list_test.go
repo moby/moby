@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceListError(t *testing.T) {
@@ -22,9 +24,7 @@ func TestServiceListError(t *testing.T) {
 	}
 
 	_, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestServiceList(t *testing.T) {

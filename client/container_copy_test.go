@@ -13,6 +13,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerStatPathError(t *testing.T) {
@@ -20,9 +22,7 @@ func TestContainerStatPathError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerStatPathNotFoundError(t *testing.T) {
@@ -30,9 +30,7 @@ func TestContainerStatPathNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
-	if !IsErrNotFound(err) {
-		t.Fatalf("expected a not found error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerStatPathNoHeaderError(t *testing.T) {
@@ -100,9 +98,7 @@ func TestCopyToContainerError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestCopyToContainerNotFoundError(t *testing.T) {
@@ -110,9 +106,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	err := client.CopyToContainer(context.Background(), "container_id", "path/to/file", bytes.NewReader([]byte("")), types.CopyToContainerOptions{})
-	if !IsErrNotFound(err) {
-		t.Fatalf("expected a not found error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 // TestCopyToContainerEmptyResponse verifies that no error is returned when a
@@ -178,9 +172,7 @@ func TestCopyFromContainerError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestCopyFromContainerNotFoundError(t *testing.T) {
@@ -188,9 +180,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
 	}
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
-	if !IsErrNotFound(err) {
-		t.Fatalf("expected a not found error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 // TestCopyFromContainerEmptyResponse verifies that no error is returned when a

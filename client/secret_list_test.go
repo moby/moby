@@ -34,9 +34,7 @@ func TestSecretListError(t *testing.T) {
 	}
 
 	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestSecretList(t *testing.T) {

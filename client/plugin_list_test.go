@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPluginListError(t *testing.T) {
@@ -21,9 +23,7 @@ func TestPluginListError(t *testing.T) {
 	}
 
 	_, err := client.PluginList(context.Background(), filters.NewArgs())
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestPluginList(t *testing.T) {

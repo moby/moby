@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageInspectError(t *testing.T) {
@@ -22,9 +24,7 @@ func TestImageInspectError(t *testing.T) {
 	}
 
 	_, _, err := client.ImageInspectWithRaw(context.Background(), "nothing")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImageInspectImageNotFound(t *testing.T) {
@@ -33,9 +33,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ImageInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrNotFound(err) {
-		t.Fatalf("expected an imageNotFound error, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestImageInspectWithEmptyID(t *testing.T) {
@@ -45,9 +43,7 @@ func TestImageInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, _, err := client.ImageInspectWithRaw(context.Background(), "")
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestImageInspect(t *testing.T) {
