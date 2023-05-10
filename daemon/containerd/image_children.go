@@ -127,3 +127,71 @@ func isRootfsChildOf(child ocispec.RootFS, parent ocispec.RootFS) bool {
 
 	return true
 }
+
+// parents returns a slice of image IDs whose entire rootfs contents match,
+// in order, the childs first layers, excluding images with the exact same
+// rootfs.
+//
+// Called from image_delete.go to prune dangling parents.
+func (i *ImageService) parents(ctx context.Context, id image.ID) ([]imageWithRootfs, error) {
+	target, err := i.resolveDescriptor(ctx, id.String())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get child image")
+	}
+
+	cs := i.client.ContentStore()
+
+	allPlatforms, err := containerdimages.Platforms(ctx, cs, target)
+	if err != nil {
+		return nil, errdefs.System(errors.Wrap(err, "failed to list platforms supported by image"))
+	}
+
+	var childRootFS []ocispec.RootFS
+	for _, platform := range allPlatforms {
+		rootfs, err := platformRootfs(ctx, cs, target, platform)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				continue
+			}
+			return nil, errdefs.System(errors.Wrap(err, "failed to get platform-specific rootfs"))
+		}
+
+		childRootFS = append(childRootFS, rootfs)
+	}
+
+	imgs, err := i.client.ImageService().List(ctx)
+	if err != nil {
+		return nil, errdefs.System(errors.Wrap(err, "failed to list all images"))
+	}
+
+	var parents []imageWithRootfs
+	for _, img := range imgs {
+	nextImage:
+		for _, platform := range allPlatforms {
+			rootfs, err := platformRootfs(ctx, cs, img.Target, platform)
+			if err != nil {
+				if cerrdefs.IsNotFound(err) {
+					continue
+				}
+				return nil, errdefs.System(errors.Wrap(err, "failed to get platform-specific rootfs"))
+			}
+
+			for _, childRoot := range childRootFS {
+				if isRootfsChildOf(childRoot, rootfs) {
+					parents = append(parents, imageWithRootfs{
+						img:    img,
+						rootfs: rootfs,
+					})
+					break nextImage
+				}
+			}
+		}
+	}
+
+	return parents, nil
+}
+
+type imageWithRootfs struct {
+	img    containerdimages.Image
+	rootfs ocispec.RootFS
+}
