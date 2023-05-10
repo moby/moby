@@ -362,7 +362,7 @@ github.com/deckarep/golang-set/v2
 # github.com/dimchansky/utfbom v1.1.1
 ## explicit
 github.com/dimchansky/utfbom
-# github.com/docker/distribution v2.8.1+incompatible
+# github.com/docker/distribution v2.8.2+incompatible
 ## explicit
 github.com/docker/distribution
 github.com/docker/distribution/digestset
