@@ -74,7 +74,7 @@ func deleteAllContainers(t testing.TB, apiclient client.ContainerAPIClient, prot
 			Force:         true,
 			RemoveVolumes: true,
 		})
-		if err == nil || client.IsErrNotFound(err) || alreadyExists.MatchString(err.Error()) || isErrNotFoundSwarmClassic(err) {
+		if err == nil || errdefs.IsNotFound(err) || alreadyExists.MatchString(err.Error()) || isErrNotFoundSwarmClassic(err) {
 			continue
 		}
 		assert.Check(t, err, "failed to remove %s", container.ID)
@@ -115,7 +115,7 @@ func removeImage(ctx context.Context, t testing.TB, apiclient client.ImageAPICli
 	_, err := apiclient.ImageRemove(ctx, ref, types.ImageRemoveOptions{
 		Force: true,
 	})
-	if client.IsErrNotFound(err) {
+	if errdefs.IsNotFound(err) {
 		return
 	}
 	assert.Check(t, err, "failed to remove image %s", ref)
