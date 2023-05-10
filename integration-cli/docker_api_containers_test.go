@@ -2153,7 +2153,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 			// anonymous volumes are removed
 			default:
 				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name)
-				assert.Check(c, client.IsErrNotFound(err))
+				assert.Check(c, is.ErrorType(err, errdefs.IsNotFound))
 			}
 		})
 	}
