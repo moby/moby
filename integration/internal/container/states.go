@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/poll"
 )
@@ -63,7 +64,7 @@ func IsRemoved(ctx context.Context, cli client.APIClient, containerID string) fu
 	return func(log poll.LogT) poll.Result {
 		inspect, err := cli.ContainerInspect(ctx, containerID)
 		if err != nil {
-			if client.IsErrNotFound(err) {
+			if errdefs.IsNotFound(err) {
 				return poll.Success()
 			}
 			return poll.Error(err)
