@@ -90,13 +90,16 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 			return nil, err
 		}
 
-		tags := make([]string, len(tagged))
-		for i, t := range tagged {
+		var tags []string
+		for _, t := range tagged {
+			if isDanglingImage(t) {
+				continue
+			}
 			name, err := reference.ParseNamed(t.Name)
 			if err != nil {
 				return nil, err
 			}
-			tags[i] = reference.FamiliarString(name)
+			tags = append(tags, reference.FamiliarString(name))
 		}
 		history[0].Tags = tags
 	}
