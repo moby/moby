@@ -125,6 +125,7 @@ func newRepository(
 		}
 
 		var newAuthTransport = authTransport
+		//TODO: Support multiple challenges for loading TLS configs
 		if len(realmHost) > 0 && registryResolver != nil {
 			//trying to load a new TLS config for the auth challenge
 			tlsConfig, err := registry.NewTLSConfig(realmHost, !registryResolver.IsInsecureRegistry(realmHost))

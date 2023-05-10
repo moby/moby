@@ -215,7 +215,9 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 		return nil, "", err
 	}
 
-	if len(challenges) == 1 {
+	challengesCount := len(challenges)
+
+	if challengesCount == 1 {
 		realm, ok := challenges[0].Parameters["realm"]
 		if ok {
 			realmURL, err := url.Parse(realm)
@@ -223,6 +225,9 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 				return challengeManager, realmURL.Host, nil
 			}
 		}
+	} else if challengesCount > 1 {
+		//TODO: Support multiple challenges for loading TLS configs
+		logrus.Warnf("Multiple challenges are not yet supported for loading TLS configs")
 	}
 
 	return challengeManager, "", nil
