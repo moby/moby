@@ -21,8 +21,11 @@ type dispatchTestCase struct {
 	files               map[string]string
 }
 
-func init() {
-	reexec.Init()
+func TestMain(m *testing.M) {
+	if reexec.Init() {
+		return
+	}
+	os.Exit(m.Run())
 }
 
 func TestDispatch(t *testing.T) {

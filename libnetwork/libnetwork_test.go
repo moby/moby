@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/libnetwork"
@@ -23,19 +22,9 @@ import (
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/pkg/reexec"
-	"github.com/sirupsen/logrus"
 )
 
 func TestMain(m *testing.M) {
-	if runtime.GOOS == "windows" {
-		logrus.Info("Test suite does not currently support windows")
-		os.Exit(0)
-	}
-	if reexec.Init() {
-		return
-	}
-
 	// Cleanup local datastore file
 	_ = os.Remove(datastore.DefaultScope("").Client.Address)
 

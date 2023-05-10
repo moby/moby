@@ -8,14 +8,9 @@ import (
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/pkg/reexec"
 )
 
 func main() {
-	if reexec.Init() {
-		return
-	}
-
 	// Select and configure the network driver
 	networkType := "bridge"
 
