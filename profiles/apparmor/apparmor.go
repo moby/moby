@@ -14,10 +14,8 @@ import (
 	"github.com/docker/docker/pkg/aaparser"
 )
 
-var (
-	// profileDirectory is the file store for apparmor profiles and macros.
-	profileDirectory = "/etc/apparmor.d"
-)
+// profileDirectory is the file store for apparmor profiles and macros.
+const profileDirectory = "/etc/apparmor.d"
 
 // profileData holds information about the given profile for generation.
 type profileData struct {
@@ -29,8 +27,6 @@ type profileData struct {
 	Imports []string
 	// InnerImports defines the apparmor functions to import in the profile.
 	InnerImports []string
-	// Version is the {major, minor, patch} version of apparmor_parser as a single number.
-	Version int
 }
 
 // generateDefault creates an apparmor profile from ProfileData.
@@ -49,12 +45,6 @@ func (p *profileData) generateDefault(out io.Writer) error {
 	if macroExists("abstractions/base") {
 		p.InnerImports = append(p.InnerImports, "#include <abstractions/base>")
 	}
-
-	ver, err := aaparser.GetVersion()
-	if err != nil {
-		return err
-	}
-	p.Version = ver
 
 	return compiled.Execute(out, p)
 }
