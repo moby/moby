@@ -23,19 +23,10 @@ func SetCapabilities(s *specs.Spec, caplist []string) error {
 	if s.Process == nil {
 		s.Process = &specs.Process{}
 	}
-	// setUser has already been executed here
-	if s.Process.User.UID == 0 {
-		s.Process.Capabilities = &specs.LinuxCapabilities{
-			Effective: caplist,
-			Bounding:  caplist,
-			Permitted: caplist,
-		}
-	} else {
-		// Do not set Effective and Permitted capabilities for non-root users,
-		// to match what execve does.
-		s.Process.Capabilities = &specs.LinuxCapabilities{
-			Bounding: caplist,
-		}
+	s.Process.Capabilities = &specs.LinuxCapabilities{
+		Effective: caplist,
+		Bounding:  caplist,
+		Permitted: caplist,
 	}
 	return nil
 }
