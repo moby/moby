@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -29,8 +29,8 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 	cid := container.Create(ctx, t, apiclient)
 
 	_, _, err := apiclient.CopyFromContainer(ctx, cid, "/dne")
-	assert.Check(t, client.IsErrNotFound(err))
-	assert.ErrorContains(t, err, "Could not find the file /dne in container "+cid)
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorContains(err, "Could not find the file /dne in container "+cid))
 }
 
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
@@ -58,8 +58,8 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 	cid := container.Create(ctx, t, apiclient)
 
 	err := apiclient.CopyToContainer(ctx, cid, "/dne", nil, types.CopyToContainerOptions{})
-	assert.Check(t, client.IsErrNotFound(err))
-	assert.ErrorContains(t, err, "Could not find the file /dne in container "+cid)
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
+	assert.Check(t, is.ErrorContains(err, "Could not find the file /dne in container "+cid))
 }
 
 func TestCopyEmptyFile(t *testing.T) {
@@ -115,7 +115,7 @@ func TestCopyToContainerPathIsNotDir(t *testing.T) {
 		path = "c:/windows/system32/drivers/etc/hosts/"
 	}
 	err := apiclient.CopyToContainer(ctx, cid, path, nil, types.CopyToContainerOptions{})
-	assert.Assert(t, is.ErrorContains(err, "not a directory"))
+	assert.Check(t, is.ErrorContains(err, "not a directory"))
 }
 
 func TestCopyFromContainer(t *testing.T) {

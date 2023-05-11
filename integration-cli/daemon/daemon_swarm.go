@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
 )
 
@@ -68,7 +68,7 @@ func (d *Daemon) CheckPluginRunning(plugin string) func(c *testing.T) (interface
 	return func(c *testing.T) (interface{}, string) {
 		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(c, err)
@@ -81,7 +81,7 @@ func (d *Daemon) CheckPluginImage(plugin string) func(c *testing.T) (interface{}
 	return func(c *testing.T) (interface{}, string) {
 		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return false, fmt.Sprintf("%v", err)
 		}
 		assert.NilError(c, err)

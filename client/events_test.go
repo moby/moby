@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestEventsErrorInOptions(t *testing.T) {
@@ -52,9 +54,7 @@ func TestEventsErrorFromServer(t *testing.T) {
 	}
 	_, errs := client.Events(context.Background(), types.EventsOptions{})
 	err := <-errs
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestEvents(t *testing.T) {

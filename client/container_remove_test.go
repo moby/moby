@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestContainerRemoveError(t *testing.T) {
@@ -19,9 +20,7 @@ func TestContainerRemoveError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestContainerRemoveNotFoundError(t *testing.T) {
@@ -29,8 +28,8 @@ func TestContainerRemoveNotFoundError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "no such container: container_id")),
 	}
 	err := client.ContainerRemove(context.Background(), "container_id", types.ContainerRemoveOptions{})
-	assert.ErrorContains(t, err, "no such container: container_id")
-	assert.Check(t, IsErrNotFound(err))
+	assert.Check(t, is.ErrorContains(err, "no such container: container_id"))
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestContainerRemove(t *testing.T) {

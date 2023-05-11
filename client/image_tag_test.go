@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageTagError(t *testing.T) {
@@ -18,9 +20,7 @@ func TestImageTagError(t *testing.T) {
 	}
 
 	err := client.ImageTag(context.Background(), "image_id", "repo:tag")
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 // Note: this is not testing all the InvalidReference as it's the responsibility

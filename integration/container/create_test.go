@@ -13,7 +13,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/oci"
@@ -481,7 +480,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Variant:      img.Variant,
 		}
 		_, err := c.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
-		assert.Assert(t, client.IsErrNotFound(err), err)
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 	t.Run("different cpu arch", func(t *testing.T) {
 		p := ocispec.Platform{
@@ -490,7 +489,7 @@ func TestCreateDifferentPlatform(t *testing.T) {
 			Variant:      img.Variant,
 		}
 		_, err := c.ContainerCreate(ctx, &containertypes.Config{Image: "busybox:latest"}, &containertypes.HostConfig{}, nil, &p, "")
-		assert.Assert(t, client.IsErrNotFound(err), err)
+		assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	})
 }
 

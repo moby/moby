@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -26,7 +27,5 @@ func TestDistributionInspectWithEmptyID(t *testing.T) {
 		}),
 	}
 	_, err := client.DistributionInspect(context.Background(), "", "")
-	if !IsErrNotFound(err) {
-		t.Fatalf("Expected NotFoundError, got %v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }

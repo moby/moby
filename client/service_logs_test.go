@@ -23,9 +23,8 @@ func TestServiceLogsError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ServiceLogs(context.Background(), "service_id", types.ContainerLogsOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
+
 	_, err = client.ServiceLogs(context.Background(), "service_id", types.ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})

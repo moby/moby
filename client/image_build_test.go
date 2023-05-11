@@ -15,6 +15,8 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImageBuildError(t *testing.T) {
@@ -22,9 +24,7 @@ func TestImageBuildError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ImageBuild(context.Background(), nil, types.ImageBuildOptions{})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestImageBuild(t *testing.T) {

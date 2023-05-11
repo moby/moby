@@ -11,6 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestNodeRemoveError(t *testing.T) {
@@ -19,9 +21,7 @@ func TestNodeRemoveError(t *testing.T) {
 	}
 
 	err := client.NodeRemove(context.Background(), "node_id", types.NodeRemoveOptions{Force: false})
-	if !errdefs.IsSystem(err) {
-		t.Fatalf("expected a Server Error, got %[1]T: %[1]v", err)
-	}
+	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
 func TestNodeRemove(t *testing.T) {

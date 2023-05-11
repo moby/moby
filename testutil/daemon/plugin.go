@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/poll"
 )
 
@@ -33,7 +34,7 @@ func (d *Daemon) PluginIsNotRunning(t testing.TB, name string) func(poll.LogT) p
 func (d *Daemon) PluginIsNotPresent(t testing.TB, name string) func(poll.LogT) poll.Result {
 	return withClient(t, d, func(c client.APIClient, t poll.LogT) poll.Result {
 		_, _, err := c.PluginInspectWithRaw(context.Background(), name)
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return poll.Success()
 		}
 		if err != nil {
@@ -56,7 +57,7 @@ func (d *Daemon) PluginReferenceIs(t testing.TB, name, expectedRef string) func(
 func withPluginInspect(name string, f func(*types.Plugin, poll.LogT) poll.Result) func(client.APIClient, poll.LogT) poll.Result {
 	return func(c client.APIClient, t poll.LogT) poll.Result {
 		plugin, _, err := c.PluginInspectWithRaw(context.Background(), name)
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return poll.Continue("plugin %q not found", name)
 		}
 		if err != nil {
