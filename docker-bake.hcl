@@ -153,6 +153,30 @@ target "all-cross" {
 }
 
 #
+# bin image
+#
+
+target "bin-image" {
+  inherits = ["all"]
+  tags = ["moby-bin:local"]
+  output = ["type=docker"]
+}
+
+target "bin-image-cross" {
+  inherits = ["bin-image"]
+  output = ["type=image"]
+  platforms = [
+    "linux/amd64",
+    "linux/arm/v6",
+    "linux/arm/v7",
+    "linux/arm64",
+    "linux/ppc64le",
+    "linux/s390x",
+    "windows/amd64"
+  ]
+}
+
+#
 # dev
 #
 
