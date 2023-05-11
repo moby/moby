@@ -18,3 +18,10 @@ run:
   deadline: 2m
   skip-dirs:
     - vendor
+
+issues:
+  exclude-rules:
+    # io/ioutil is deprecated, but won't be removed until Go v2. It's safe to ignore for the release/2.8 branch.
+    - text: "SA1019: \"io/ioutil\" has been deprecated since Go 1.16"
+      linters:
+        - staticcheck
