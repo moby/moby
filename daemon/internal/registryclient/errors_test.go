@@ -102,3 +102,18 @@ func TestHandleErrorResponseUnexpectedStatusCode501(t *testing.T) {
 		t.Errorf("Expected \"%s\", got: \"%s\"", expectedMsg, err.Error())
 	}
 }
+
+func TestHandleErrorResponseInsufficientPrivileges403(t *testing.T) {
+	json := `{"details":"requesting higher privileges than access token allows"}`
+	response := &http.Response{
+		Status:     "403 Forbidden",
+		StatusCode: 403,
+		Body:       nopCloser{bytes.NewBufferString(json)},
+	}
+	err := HandleErrorResponse(response)
+
+	expectedMsg := "denied: requesting higher privileges than access token allows"
+	if !strings.Contains(err.Error(), expectedMsg) {
+		t.Errorf("Expected \"%s\", got: \"%s\"", expectedMsg, err.Error())
+	}
+}
