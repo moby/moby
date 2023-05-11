@@ -51,7 +51,7 @@ func hostsWrapper(hostsFn docker.RegistryHosts, authConfig *registrytypes.AuthCo
 
 func authorizationCredsFromAuthConfig(authConfig registrytypes.AuthConfig) docker.AuthorizerOpt {
 	cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
-	if cfgHost == registry.IndexHostname {
+	if cfgHost == "" || cfgHost == registry.IndexHostname {
 		cfgHost = registry.DefaultRegistryHost
 	}
 
