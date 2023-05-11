@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -20,7 +19,6 @@ import (
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
@@ -143,10 +141,11 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 			DiffIDs: append(baseConfig.RootFS.DiffIDs, diffID),
 		},
 		History: append(baseConfig.History, ocispec.History{
-			Created:    &createdTime,
-			CreatedBy:  strings.Join(opts.ContainerConfig.Cmd, " "),
-			Author:     opts.Author,
-			Comment:    opts.Comment,
+			Created:   &createdTime,
+			CreatedBy: strings.Join(opts.ContainerConfig.Cmd, " "),
+			Author:    opts.Author,
+			Comment:   opts.Comment,
+			// TODO(laurazard): this check might be incorrect
 			EmptyLayer: diffID == "",
 		}),
 	}
@@ -298,5 +297,13 @@ func uniquePart() string {
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
 func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
-	return "", errdefs.NotImplemented(errors.New("not implemented"))
+	ctr := i.containers.Get(c.ContainerID)
+	if ctr == nil {
+		// TODO: use typed error
+		return "", fmt.Errorf("container not found: %s", c.ContainerID)
+	}
+	c.ContainerMountLabel = ctr.MountLabel
+	c.ContainerOS = ctr.OS
+	c.ParentImageID = string(ctr.ImageID)
+	return i.CommitImage(ctx, c)
 }

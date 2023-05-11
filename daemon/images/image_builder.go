@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	registrypkg "github.com/docker/docker/registry"
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -28,6 +29,10 @@ type roLayer struct {
 	released   bool
 	layerStore layer.Store
 	roLayer    layer.Layer
+}
+
+func (l *roLayer) ContentStoreDigest() digest.Digest {
+	return ""
 }
 
 func (l *roLayer) DiffID() layer.DiffID {
@@ -241,7 +246,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent string, _ digest.Digest) (builder.Image, error) {
 	id, err := i.imageStore.Create(config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create image")
