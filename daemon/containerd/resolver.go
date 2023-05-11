@@ -24,7 +24,15 @@ func (i *ImageService) newResolverFromAuthConfig(authConfig *registrytypes.AuthC
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, authConfig *registrytypes.AuthConfig, regService RegistryConfigProvider) docker.RegistryHosts {
+func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, regService RegistryConfigProvider) docker.RegistryHosts {
+	var authorizer docker.Authorizer
+	if optAuthConfig != nil {
+		auth := *optAuthConfig
+		if auth != (registrytypes.AuthConfig{}) {
+			authorizer = docker.NewDockerAuthorizer(authorizationCredsFromAuthConfig(auth))
+		}
+	}
+
 	return func(n string) ([]docker.RegistryHost, error) {
 		hosts, err := hostsFn(n)
 		if err != nil {
@@ -33,12 +41,7 @@ func hostsWrapper(hostsFn docker.RegistryHosts, authConfig *registrytypes.AuthCo
 
 		for i := range hosts {
 			if hosts[i].Authorizer == nil {
-				var opts []docker.AuthorizerOpt
-				if authConfig != nil {
-					opts = append(opts, authorizationCredsFromAuthConfig(*authConfig))
-				}
-				hosts[i].Authorizer = docker.NewDockerAuthorizer(opts...)
-
+				hosts[i].Authorizer = authorizer
 				isInsecure := regService.IsInsecureRegistry(hosts[i].Host)
 				if hosts[i].Client.Transport != nil && isInsecure {
 					hosts[i].Client.Transport = httpFallback{super: hosts[i].Client.Transport}
@@ -57,7 +60,10 @@ func authorizationCredsFromAuthConfig(authConfig registrytypes.AuthConfig) docke
 
 	return docker.WithAuthCreds(func(host string) (string, string, error) {
 		if cfgHost != host {
-			logrus.WithField("host", host).WithField("cfgHost", cfgHost).Warn("Host doesn't match")
+			logrus.WithFields(logrus.Fields{
+				"host":    host,
+				"cfgHost": cfgHost,
+			}).Warn("Host doesn't match")
 			return "", "", nil
 		}
 		if authConfig.IdentityToken != "" {
