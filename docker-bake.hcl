@@ -59,6 +59,11 @@ variable "GITHUB_SHA" {
   default = ""
 }
 
+# Special target: https://github.com/docker/metadata-action#bake-definition
+target "docker-metadata-action" {
+  tags = ["moby-bin:local"]
+}
+
 # Defines the output folder
 variable "DESTDIR" {
   default = ""
@@ -150,6 +155,29 @@ target "all" {
 
 target "all-cross" {
   inherits = ["all", "_platforms"]
+}
+
+#
+# bin image
+#
+
+target "bin-image" {
+  inherits = ["all", "docker-metadata-action"]
+  output = ["type=docker"]
+}
+
+target "bin-image-cross" {
+  inherits = ["bin-image"]
+  output = ["type=image"]
+  platforms = [
+    "linux/amd64",
+    "linux/arm/v6",
+    "linux/arm/v7",
+    "linux/arm64",
+    "linux/ppc64le",
+    "linux/s390x",
+    "windows/amd64"
+  ]
 }
 
 #
