@@ -14,13 +14,8 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/reexec"
 	"gotest.tools/v3/skip"
 )
-
-func init() {
-	reexec.Init()
-}
 
 var chrootArchiver = NewArchiver(idtools.IdentityMapping{})
 

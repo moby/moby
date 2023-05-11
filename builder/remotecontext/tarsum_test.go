@@ -17,8 +17,11 @@ const (
 	contents = "contents test"
 )
 
-func init() {
-	reexec.Init()
+func TestMain(m *testing.M) {
+	if reexec.Init() {
+		return
+	}
+	os.Exit(m.Run())
 }
 
 func TestCloseRootDirectory(t *testing.T) {
