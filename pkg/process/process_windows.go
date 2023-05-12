@@ -43,10 +43,3 @@ func Kill(pid int) error {
 	}
 	return nil
 }
-
-// Zombie is not supported on Windows.
-//
-// TODO(thaJeztah): remove once we remove the stubs from pkg/system.
-func Zombie(_ int) (bool, error) {
-	return false, nil
-}

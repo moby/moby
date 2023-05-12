@@ -548,7 +548,7 @@ func (daemon *Daemon) setDefaultIsolation() error {
 	return nil
 }
 
-func setupDaemonProcess(config *config.Config) error {
+func setMayDetachMounts() error {
 	return nil
 }
 

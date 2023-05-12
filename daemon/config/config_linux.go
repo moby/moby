@@ -184,6 +184,9 @@ func verifyDefaultCgroupNsMode(mode string) error {
 
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func (conf *Config) ValidatePlatformConfig() error {
+	if conf.OOMScoreAdjust != 0 {
+		return errors.New(`DEPRECATED: The "oom-score-adjust" config parameter and the dockerd "--oom-score-adjust" options have been removed.`)
+	}
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
 	}

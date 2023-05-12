@@ -629,11 +629,7 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 }
 
 func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
-	opts, err := cli.getPlatformContainerdDaemonOpts()
-	if err != nil {
-		return nil, err
-	}
-
+	var opts []supervisor.DaemonOpt
 	if cli.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
 	} else {
