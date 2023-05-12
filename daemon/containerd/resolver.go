@@ -27,10 +27,7 @@ func (i *ImageService) newResolverFromAuthConfig(authConfig *registrytypes.AuthC
 func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, regService RegistryConfigProvider) docker.RegistryHosts {
 	var authorizer docker.Authorizer
 	if optAuthConfig != nil {
-		auth := *optAuthConfig
-		if auth != (registrytypes.AuthConfig{}) {
-			authorizer = docker.NewDockerAuthorizer(authorizationCredsFromAuthConfig(auth))
-		}
+		authorizer = docker.NewDockerAuthorizer(authorizationCredsFromAuthConfig(*optAuthConfig))
 	}
 
 	return func(n string) ([]docker.RegistryHost, error) {
