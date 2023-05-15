@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -27,10 +26,6 @@ import (
 )
 
 func main() {
-	if reexec.Init() {
-		return
-	}
-
 	// Select and configure the network driver
 	networkType := "bridge"
 
@@ -82,7 +77,7 @@ func main() {
 
 	macAddress, ok := epInfo[netlabel.MacAddress]
 	if !ok {
-		log.Fatalf("failed to get mac address from endpoint info")
+		log.Fatal("failed to get mac address from endpoint info")
 	}
 
 	fmt.Printf("Joined endpoint %s (%s) to sandbox %s (%s)\n", ep.Name(), macAddress, sbx.ContainerID(), sbx.Key())
