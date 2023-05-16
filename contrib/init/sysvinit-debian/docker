@@ -44,14 +44,6 @@ if [ ! -x $DOCKERD ]; then
 	exit 1
 fi
 
-check_init() {
-	# see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
-	if [ -x /sbin/initctl ] && /sbin/initctl version 2> /dev/null | grep -q upstart; then
-		log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
-		exit 1
-	fi
-}
-
 fail_unless_root() {
 	if [ "$(id -u)" != '0' ]; then
 		log_failure_msg "$DOCKER_DESC must be run as root"
@@ -59,36 +51,9 @@ fail_unless_root() {
 	fi
 }
 
-cgroupfs_mount() {
-	# see also https://github.com/tianon/cgroupfs-mount/blob/master/cgroupfs-mount
-	if grep -v '^#' /etc/fstab | grep -q cgroup \
-		|| [ ! -e /proc/cgroups ] \
-		|| [ ! -d /sys/fs/cgroup ]; then
-		return
-	fi
-	if ! mountpoint -q /sys/fs/cgroup; then
-		mount -t tmpfs -o uid=0,gid=0,mode=0755 cgroup /sys/fs/cgroup
-	fi
-	(
-		cd /sys/fs/cgroup
-		for sys in $(awk '!/^#/ { if ($4 == 1) print $1 }' /proc/cgroups); do
-			mkdir -p $sys
-			if ! mountpoint -q $sys; then
-				if ! mount -n -t cgroup -o $sys cgroup $sys; then
-					rmdir $sys || true
-				fi
-			fi
-		done
-	)
-}
-
 case "$1" in
 	start)
-		check_init
-
 		fail_unless_root
-
-		cgroupfs_mount
 
 		touch "$DOCKER_LOGFILE"
 		chgrp docker "$DOCKER_LOGFILE"
@@ -117,7 +82,6 @@ case "$1" in
 		;;
 
 	stop)
-		check_init
 		fail_unless_root
 		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
 			log_begin_msg "Stopping $DOCKER_DESC: $BASE"
@@ -129,7 +93,6 @@ case "$1" in
 		;;
 
 	restart)
-		check_init
 		fail_unless_root
 		docker_pid=$(cat "$DOCKER_SSD_PIDFILE" 2> /dev/null || true)
 		[ -n "$docker_pid" ] \
@@ -139,13 +102,11 @@ case "$1" in
 		;;
 
 	force-reload)
-		check_init
 		fail_unless_root
 		$0 restart
 		;;
 
 	status)
-		check_init
 		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
 		;;
 
