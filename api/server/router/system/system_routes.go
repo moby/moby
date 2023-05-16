@@ -185,6 +185,11 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 			b.Parent = "" //nolint:staticcheck // ignore SA1019 (Parent field is deprecated)
 		}
 	}
+	if versions.LessThan(version, "1.44") {
+		for _, b := range systemDiskUsage.Images {
+			b.VirtualSize = b.Size //nolint:staticcheck // ignore SA1019: field is deprecated, but still set on API < v1.44.
+		}
+	}
 
 	du := types.DiskUsage{
 		BuildCache:  buildCache,
