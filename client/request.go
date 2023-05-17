@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -54,11 +55,17 @@ func (cli *Client) put(ctx context.Context, path string, query url.Values, obj i
 	if err != nil {
 		return serverResponse{}, err
 	}
-	return cli.sendRequest(ctx, http.MethodPut, path, query, body, headers)
+	return cli.putRaw(ctx, path, query, body, headers)
 }
 
 // putRaw sends an http request to the docker API using the method PUT.
 func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
+	// PUT requests are expected to always have a body (apparently)
+	// so explicitly pass an empty body to sendRequest to signal that
+	// it should set the Content-Type header if not already present.
+	if body == nil {
+		body = http.NoBody
+	}
 	return cli.sendRequest(ctx, http.MethodPut, path, query, body, headers)
 }
 
@@ -71,6 +78,12 @@ type headers map[string][]string
 
 func encodeBody(obj interface{}, headers headers) (io.Reader, headers, error) {
 	if obj == nil {
+		return nil, headers, nil
+	}
+	// encoding/json encodes a nil pointer as the JSON document `null`,
+	// irrespective of whether the type implements json.Marshaler or encoding.TextMarshaler.
+	// That is almost certainly not what the caller intended as the request body.
+	if reflect.TypeOf(obj).Kind() == reflect.Ptr && reflect.ValueOf(obj).IsNil() {
 		return nil, headers, nil
 	}
 
@@ -86,11 +99,6 @@ func encodeBody(obj interface{}, headers headers) (io.Reader, headers, error) {
 }
 
 func (cli *Client) buildRequest(method, path string, body io.Reader, headers headers) (*http.Request, error) {
-	expectedPayload := (method == http.MethodPost || method == http.MethodPut)
-	if expectedPayload && body == nil {
-		body = bytes.NewReader([]byte{})
-	}
-
 	req, err := http.NewRequest(method, path, body)
 	if err != nil {
 		return nil, err
@@ -106,7 +114,7 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
 
-	if expectedPayload && req.Header.Get("Content-Type") == "" {
+	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
 	}
 	return req, nil
