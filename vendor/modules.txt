@@ -279,7 +279,7 @@ github.com/cyphar/filepath-securejoin
 # github.com/deckarep/golang-set v0.0.0-20141123011944-ef32fa3046d9
 ## explicit
 github.com/deckarep/golang-set
-# github.com/docker/distribution v2.8.1+incompatible
+# github.com/docker/distribution v2.8.2+incompatible
 ## explicit
 github.com/docker/distribution
 github.com/docker/distribution/digestset

@@ -55,6 +55,8 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 		switch statusCode {
 		case http.StatusUnauthorized:
 			return errcode.ErrorCodeUnauthorized.WithMessage(detailsErr.Details)
+		case http.StatusForbidden:
+			return errcode.ErrorCodeDenied.WithMessage(detailsErr.Details)
 		case http.StatusTooManyRequests:
 			return errcode.ErrorCodeTooManyRequests.WithMessage(detailsErr.Details)
 		default:
