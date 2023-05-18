@@ -131,6 +131,11 @@ type Daemon struct {
 	mdDB *bbolt.DB
 }
 
+// ID returns the daemon id
+func (daemon *Daemon) ID() string {
+	return daemon.id
+}
+
 // StoreHosts stores the addresses the daemon is listening on
 func (daemon *Daemon) StoreHosts(hosts []string) {
 	if daemon.hosts == nil {

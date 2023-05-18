@@ -351,6 +351,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 	bk, err := buildkit.New(ctx, buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(config.Root, "buildkit"),
+		EngineID:            d.ID(),
 		Dist:                d.DistributionServices(),
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
