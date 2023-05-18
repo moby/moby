@@ -12,6 +12,9 @@ on:
       - '[0-9]+.[0-9]+'
   pull_request:
 
+permissions:
+  contents: read
+
 env:
   DESTDIR: ./build
 

@@ -6,6 +6,9 @@ name: .dco
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 env:
   ALPINE_VERSION: 3.16
 

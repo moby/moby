@@ -14,6 +14,9 @@ on:
       - 'v*'
   pull_request:
 
+permissions:
+  contents: read
+
 env:
   GO_VERSION: "1.20.4"
   GOTESTLIST_VERSION: v0.3.1
