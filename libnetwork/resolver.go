@@ -449,7 +449,6 @@ func (r *Resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error
 }
 
 func (r *Resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
-	queryName, queryType := query.Question[0].Name, query.Question[0].Qtype
 	for _, extDNS := range r.extDNSList {
 		if extDNS.IPStr == "" {
 			break
@@ -477,20 +476,7 @@ func (r *Resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 		case dns.RcodeServerFailure, dns.RcodeRefused:
 			// Server returned FAILURE: continue with the next external DNS server
 			// Server returned REFUSED: this can be a transitional status, so continue with the next external DNS server
-			logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), queryName)
-			continue
-		case dns.RcodeNameError:
-			// Server returned NXDOMAIN. Stop resolution if it's an authoritative answer (see RFC 8020: https://tools.ietf.org/html/rfc8020#section-2)
-			logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), queryName)
-			if resp.Authoritative {
-				break
-			}
-			continue
-		case dns.RcodeSuccess:
-			// All is well
-		default:
-			// Server gave some error. Log the error, and continue with the next external DNS server
-			logrus.Debugf("[resolver] external DNS %s:%s responded with %s (code %d) for %q", proto, extDNS.IPStr, statusString(resp.Rcode), resp.Rcode, queryName)
+			logrus.Debugf("[resolver] external DNS %s:%s returned failure:\n%s", proto, extDNS.IPStr, resp)
 			continue
 		}
 		answers := 0
@@ -509,8 +495,8 @@ func (r *Resolver) forwardExtDNS(proto string, query *dns.Msg) *dns.Msg {
 				r.backend.HandleQueryResp(h.Name, ip)
 			}
 		}
-		if resp.Answer == nil || answers == 0 {
-			logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, dns.TypeToString[queryType], queryName)
+		if len(resp.Answer) == 0 {
+			logrus.Debugf("[resolver] external DNS %s:%s returned response with no answers:\n%s", proto, extDNS.IPStr, resp)
 		}
 		resp.Compress = true
 		return resp
@@ -557,11 +543,4 @@ func (r *Resolver) exchange(proto string, extDNS extDNSEntry, query *dns.Msg) *d
 		log.Error("[resolver] external DNS returned empty response")
 	}
 	return resp
-}
-
-func statusString(responseCode int) string {
-	if s, ok := dns.RcodeToString[responseCode]; ok {
-		return s
-	}
-	return "UNKNOWN"
 }
