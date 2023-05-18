@@ -63,7 +63,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 		// we allow the image to have a non-matching architecture. The code
 		// below checks for this situation, and returns a warning to the client,
 		// as well as logging it to the daemon logs.
-		img, err := i.GetImage(ctx, image, imagetypes.GetImageOpts{Platform: platform})
+		img, err := i.GetImage(ctx, ref.String(), imagetypes.GetImageOpts{Platform: platform})
 
 		// Note that this is a special case where GetImage returns both an image
 		// and an error: https://github.com/docker/docker/blob/v20.10.7/daemon/images/image.go#L175-L183
