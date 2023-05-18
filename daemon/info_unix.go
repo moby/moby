@@ -273,14 +273,6 @@ func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
 
 func fillDriverWarnings(v *types.Info) {
 	for _, pair := range v.DriverStatus {
-		if pair[0] == "Data loop file" {
-			msg := fmt.Sprintf("WARNING: %s: usage of loopback devices is "+
-				"strongly discouraged for production use.\n         "+
-				"Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.", v.Driver)
-
-			v.Warnings = append(v.Warnings, msg)
-			continue
-		}
 		if pair[0] == "Extended file attributes" && pair[1] == "best-effort" {
 			msg := fmt.Sprintf("WARNING: %s: extended file attributes from container images "+
 				"will be silently discarded if the backing filesystem does not support them.\n"+
