@@ -30,6 +30,12 @@ jobs:
       - validate-dco
     steps:
       -
+        # FIXME: remove when we implement build distribution across runners for each platform
+        name: Free up disk space
+        run: |
+          #sudo du -h -S / | sort -rh
+          sudo rm -rf /opt/hostedtoolcache /usr/local/lib/android/sdk /usr/share/dotnet
+      -
         name: Checkout
         uses: actions/checkout@v3
         with:
