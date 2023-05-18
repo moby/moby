@@ -286,6 +286,14 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		comment = img.History[len(img.History)-1].Comment
 	}
 
+	// Make sure we output empty arrays instead of nil.
+	if repoTags == nil {
+		repoTags = []string{}
+	}
+	if repoDigests == nil {
+		repoDigests = []string{}
+	}
+
 	return &types.ImageInspect{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
