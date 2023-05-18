@@ -44,7 +44,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 	}
 
 	config, _, _, err := s.decoder.DecodeConfig(r.Body)
-	if err != nil && err != io.EOF { // Do not fail if body is empty.
+	if err != nil && !errors.Is(err, io.EOF) { // Do not fail if body is empty.
 		return err
 	}
 
@@ -486,6 +486,9 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	config, hostConfig, networkingConfig, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return errdefs.InvalidParameter(errors.New("invalid JSON: got EOF while reading request body"))
+		}
 		return err
 	}
 	version := httputils.VersionFromContext(ctx)
