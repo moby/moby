@@ -13,6 +13,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -456,4 +457,61 @@ type badSRVDNSBackend struct{ noopDNSBackend }
 
 func (badSRVDNSBackend) ResolveService(name string) ([]*net.SRV, []net.IP) {
 	return []*net.SRV{nil, nil, nil}, nil // Mismatched slice lengths
+}
+
+func TestProxyNXDOMAIN(t *testing.T) {
+	mockSOA, err := dns.NewRR(".	86367	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2023051800 1800 900 604800 86400\n")
+	assert.NilError(t, err)
+	assert.Assert(t, mockSOA != nil)
+
+	serveStarted := make(chan struct{})
+	srv := &dns.Server{
+		Net:  "udp",
+		Addr: "127.0.0.1:0",
+		Handler: dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
+			msg := new(dns.Msg).SetRcode(r, dns.RcodeNameError)
+			msg.Ns = append(msg.Ns, dns.Copy(mockSOA))
+			w.WriteMsg(msg)
+		}),
+		NotifyStartedFunc: func() { close(serveStarted) },
+	}
+	serveDone := make(chan error, 1)
+	go func() {
+		defer close(serveDone)
+		serveDone <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serveDone:
+		t.Fatal(err)
+	case <-serveStarted:
+	}
+
+	defer func() {
+		if err := srv.Shutdown(); err != nil {
+			t.Error(err)
+		}
+		<-serveDone
+	}()
+
+	srvAddr := srv.PacketConn.LocalAddr().(*net.UDPAddr)
+	rsv := NewResolver("", true, noopDNSBackend{})
+	rsv.SetExtServers([]extDNSEntry{
+		{IPStr: srvAddr.IP.String(), port: uint16(srvAddr.Port), HostLoopback: true},
+	})
+
+	// The resolver logs lots of valuable info at level debug. Redirect it
+	// to t.Log() so the log spew is emitted only if the test fails.
+	defer redirectLogrusTo(t)()
+
+	w := &tstwriter{localAddr: srv.PacketConn.LocalAddr()}
+	q := new(dns.Msg).SetQuestion("example.net.", dns.TypeA)
+	rsv.serveDNS(w, q)
+	resp := w.GetResponse()
+	checkNonNullResponse(t, resp)
+	t.Log("Response:\n" + resp.String())
+	checkDNSResponseCode(t, resp, dns.RcodeNameError)
+	assert.Assert(t, is.Len(resp.Answer, 0))
+	assert.Assert(t, is.Len(resp.Ns, 1))
+	assert.Equal(t, resp.Ns[0].String(), mockSOA.String())
 }
