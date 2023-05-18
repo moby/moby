@@ -77,10 +77,7 @@ func decodeContainerConfig(src io.Reader, si *sysinfo.SysInfo) (*container.Confi
 func loadJSON(src io.Reader, out interface{}) error {
 	dec := json.NewDecoder(src)
 	if err := dec.Decode(&out); err != nil {
-		if err == io.EOF {
-			return validationError("invalid JSON: got EOF while reading request body")
-		}
-		return validationError("invalid JSON: " + err.Error())
+		return invalidJSONError{Err: err}
 	}
 	if dec.More() {
 		return validationError("unexpected content after JSON")

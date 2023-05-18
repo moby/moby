@@ -40,3 +40,17 @@ func (e validationError) Error() string {
 }
 
 func (e validationError) InvalidParameter() {}
+
+type invalidJSONError struct {
+	Err error
+}
+
+func (e invalidJSONError) Error() string {
+	return "invalid JSON: " + e.Err.Error()
+}
+
+func (e invalidJSONError) Unwrap() error {
+	return e.Err
+}
+
+func (e invalidJSONError) InvalidParameter() {}
