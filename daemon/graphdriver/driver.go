@@ -196,9 +196,6 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 		if err := checkRemoved(name); err != nil {
 			return nil, err
 		}
-		if isDeprecated(name) {
-			logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated and will be removed in a future release; visit https://docs.docker.com/go/storage-driver/ for more information", name)
-		}
 		return GetDriver(name, pg, config)
 	}
 
@@ -217,11 +214,6 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 				// something changed and needs attention. Otherwise the daemon's
 				// images would just "disappear".
 				logrus.Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
-				return nil, err
-			}
-			if isDeprecated(name) {
-				err = errors.Errorf("prior storage driver %s is deprecated and will be removed in a future release; update the the daemon configuration and explicitly choose this storage driver to continue using it; visit https://docs.docker.com/go/storage-driver/ for more information", name)
-				logrus.Errorf("[graphdriver] %v", err)
 				return nil, err
 			}
 
@@ -246,11 +238,6 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 	// If no prior state was found, continue with automatic selection, and pick
 	// the first supported, non-deprecated, storage driver (in order of priorityList).
 	for _, name := range priorityList {
-		if isDeprecated(name) {
-			// Deprecated storage-drivers are skipped in automatic selection, but
-			// can be selected through configuration.
-			continue
-		}
 		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.IDMap)
 		if err != nil {
 			if IsDriverNotSupported(err) {
@@ -263,11 +250,6 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 
 	// Check all registered drivers if no priority driver is found
 	for name, initFunc := range drivers {
-		if isDeprecated(name) {
-			// Deprecated storage-drivers are skipped in automatic selection, but
-			// can be selected through configuration.
-			continue
-		}
 		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.IDMap)
 		if err != nil {
 			if IsDriverNotSupported(err) {
@@ -314,20 +296,10 @@ func isEmptyDir(name string) bool {
 	return false
 }
 
-// isDeprecated checks if a storage-driver is marked "deprecated"
-func isDeprecated(name string) bool {
-	switch name {
-	// NOTE: when deprecating a driver, update daemon.fillDriverInfo() accordingly
-	case "devicemapper":
-		return true
-	}
-	return false
-}
-
 // checkRemoved checks if a storage-driver has been deprecated (and removed)
 func checkRemoved(name string) error {
 	switch name {
-	case "aufs", "overlay":
+	case "aufs", "devicemapper", "overlay":
 		return NotSupportedError(fmt.Sprintf("[graphdriver] ERROR: the %s storage-driver has been deprecated and removed; visit https://docs.docker.com/go/storage-driver/ for more information", name))
 	}
 	return nil

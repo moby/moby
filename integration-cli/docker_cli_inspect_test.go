@@ -27,12 +27,6 @@ func (s *DockerCLIInspectSuite) OnTimeout(c *testing.T) {
 	s.ds.OnTimeout(c)
 }
 
-func checkValidGraphDriver(c *testing.T, name string) {
-	if name != "devicemapper" && name != "overlay" && name != "vfs" && name != "zfs" && name != "btrfs" && name != "aufs" {
-		c.Fatalf("%v is not a valid graph driver name", name)
-	}
-}
-
 func (s *DockerCLIInspectSuite) TestInspectImage(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
@@ -175,49 +169,6 @@ func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
 	inspectResult, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
 	assert.NilError(c, err)
 	assert.Equal(c, inspectResult, true)
-}
-
-func (s *DockerCLIInspectSuite) TestInspectImageGraphDriver(c *testing.T) {
-	testRequires(c, DaemonIsLinux, Devicemapper)
-	imageTest := "emptyfs"
-	name := inspectField(c, imageTest, "GraphDriver.Name")
-
-	checkValidGraphDriver(c, name)
-
-	deviceID := inspectField(c, imageTest, "GraphDriver.Data.DeviceId")
-
-	_, err := strconv.Atoi(deviceID)
-	assert.Assert(c, err == nil, "failed to inspect DeviceId of the image: %s, %v", deviceID, err)
-
-	deviceSize := inspectField(c, imageTest, "GraphDriver.Data.DeviceSize")
-
-	_, err = strconv.ParseUint(deviceSize, 10, 64)
-	assert.Assert(c, err == nil, "failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
-}
-
-func (s *DockerCLIInspectSuite) TestInspectContainerGraphDriver(c *testing.T) {
-	testRequires(c, DaemonIsLinux, Devicemapper)
-
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-	out = strings.TrimSpace(out)
-
-	name := inspectField(c, out, "GraphDriver.Name")
-
-	checkValidGraphDriver(c, name)
-
-	imageDeviceID := inspectField(c, "busybox", "GraphDriver.Data.DeviceId")
-
-	deviceID := inspectField(c, out, "GraphDriver.Data.DeviceId")
-
-	assert.Assert(c, imageDeviceID != deviceID)
-
-	_, err := strconv.Atoi(deviceID)
-	assert.Assert(c, err == nil, "failed to inspect DeviceId of the image: %s, %v", deviceID, err)
-
-	deviceSize := inspectField(c, out, "GraphDriver.Data.DeviceSize")
-
-	_, err = strconv.ParseUint(deviceSize, 10, 64)
-	assert.Assert(c, err == nil, "failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
 }
 
 func (s *DockerCLIInspectSuite) TestInspectBindMountPoint(c *testing.T) {

@@ -6586,7 +6586,7 @@ paths:
                 StopSignal: "SIGTERM"
                 StopTimeout: 10
               Created: "2015-01-06T15:47:31.485331387Z"
-              Driver: "devicemapper"
+              Driver: "overlay2"
               ExecIDs:
                 - "b35395de42bc8abd327f9dd65d913b9ba28c74d2f0734eeeae84fa1c616a0fca"
                 - "3fc1232e5cd20c8de182ed81178503dc6437f4e7ef12b52cc5e8de020652f1c4"

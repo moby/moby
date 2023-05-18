@@ -89,14 +89,14 @@ To disable btrfs:
 export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs'
 ```
 
-To disable devicemapper:
+To disable zfs:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
+export DOCKER_BUILDTAGS='exclude_graphdriver_zfs'
 ```
 
 NOTE: if you need to set more than one build tag, space separate them:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper exclude_graphdriver_btrfs'
+export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs exclude_graphdriver_zfs'
 ```
 
 ## System Dependencies

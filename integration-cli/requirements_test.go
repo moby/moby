@@ -100,10 +100,6 @@ func Apparmor() bool {
 	return err == nil && len(buf) > 1 && buf[0] == 'Y'
 }
 
-func Devicemapper() bool {
-	return strings.HasPrefix(testEnv.DaemonInfo.Driver, "devicemapper")
-}
-
 // containerdSnapshotterEnabled checks if the daemon in the test-environment is
 // configured with containerd-snapshotters enabled.
 func containerdSnapshotterEnabled() bool {
