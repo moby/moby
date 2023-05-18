@@ -24,16 +24,19 @@ jobs:
   validate-dco:
     uses: ./.github/workflows/.dco.yml
 
-  build:
+  prepare:
     runs-on: ubuntu-20.04
-    needs:
-      - validate-dco
+    outputs:
+      platforms: ${{ steps.platforms.outputs.matrix }}
     steps:
       -
         name: Checkout
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      -
+        name: Create platforms matrix
+        id: platforms
+        run: |
+          echo "matrix=$(docker buildx bake bin-image-cross --print | jq -cr '.target."bin-image-cross".platforms')" >>${GITHUB_OUTPUT}
       -
         name: Docker meta
         id: meta
@@ -55,6 +58,40 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
       -
+        name: Rename meta bake definition file
+        run: |
+          mv "${{ steps.meta.outputs.bake-file }}" "/tmp/bake-meta.json"
+      -
+        name: Upload meta bake definition
+        uses: actions/upload-artifact@v3
+        with:
+          name: bake-meta
+          path: /tmp/bake-meta.json
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+      - prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      -
+        name: Download meta bake definition
+        uses: actions/download-artifact@v3
+        with:
+          name: bake-meta
+          path: /tmp
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       -
@@ -66,7 +103,8 @@ jobs:
         with:
           files: |
             ./docker-bake.hcl
-            ${{ steps.meta.outputs.bake-file }}
-          targets: bin-image-cross
+            /tmp/bake-meta.json
+          targets: bin-image
           set: |
+            *.platform=${{ matrix.platform }}
             *.output=type=cacheonly
