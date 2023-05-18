@@ -191,7 +191,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 
 	wopt := mobyworker.Opt{
-		ID:                "moby",
+		ID:                opt.EngineID,
 		ContentStore:      store,
 		CacheManager:      cm,
 		GCPolicy:          gcPolicy,
