@@ -4307,6 +4307,9 @@ definitions:
               - "updating"
               - "paused"
               - "completed"
+              - "rollback_started"
+              - "rollback_paused"
+              - "rollback_completed"
           StartedAt:
             type: "string"
             format: "dateTime"
@@ -4595,6 +4598,16 @@ definitions:
       Spec:
         $ref: "#/definitions/SecretSpec"
 
+  SecretCreateResponse:
+    description: "Contains the information returned to a client on the creation of a new secret."
+    type: "object"
+    required: ["ID"]
+    properties:
+      ID:
+        description: "The id of the newly created secret"
+        type: "string"
+        x-nullable: false
+
   ConfigSpec:
     type: "object"
     properties:
@@ -4634,6 +4647,16 @@ definitions:
         format: "dateTime"
       Spec:
         $ref: "#/definitions/ConfigSpec"
+
+  ConfigCreateResponse:
+    description: "Contains the information returned to a client on the creation of a new config."
+    type: "object"
+    required: ["ID"]
+    properties:
+      ID:
+        description: "The id of the newly created config"
+        type: "string"
+        x-nullable: false
 
   ContainerState:
     description: |
@@ -11738,7 +11761,7 @@ paths:
         201:
           description: "no error"
           schema:
-            $ref: "#/definitions/IdResponse"
+            $ref: "#/definitions/SecretCreateResponse"
         409:
           description: "name conflicts with an existing object"
           schema:
@@ -11945,7 +11968,7 @@ paths:
         201:
           description: "no error"
           schema:
-            $ref: "#/definitions/IdResponse"
+            $ref: "#/definitions/ConfigCreateResponse"
         409:
           description: "name conflicts with an existing object"
           schema:
