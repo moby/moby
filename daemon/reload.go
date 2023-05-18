@@ -63,10 +63,10 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	if err := daemon.reloadAllowNondistributableArtifacts(conf, attributes); err != nil {
 		return err
 	}
-	if err := daemon.reloadInsecureRegistries(conf, attributes); err != nil {
+	if err := daemon.reloadRegistryMirrors(conf, attributes); err != nil {
 		return err
 	}
-	if err := daemon.reloadRegistryMirrors(conf, attributes); err != nil {
+	if err := daemon.reloadInsecureRegistries(conf, attributes); err != nil {
 		return err
 	}
 	if err := daemon.reloadLiveRestore(conf, attributes); err != nil {
