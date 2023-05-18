@@ -238,13 +238,19 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		"docker3.example.com", // this will be newly added
 	}
 
+	mirrors := []string{
+		"https://mirror.test.example.com",
+	}
+
 	valuesSets := make(map[string]interface{})
 	valuesSets["insecure-registries"] = insecureRegistries
+	valuesSets["registry-mirrors"] = mirrors
 
 	newConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
 			ServiceOptions: registry.ServiceOptions{
 				InsecureRegistries: insecureRegistries,
+				Mirrors:            mirrors,
 			},
 			ValuesSet: valuesSets,
 		},
