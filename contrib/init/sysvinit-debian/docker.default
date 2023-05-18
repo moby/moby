@@ -1,4 +1,4 @@
-# Docker Upstart and SysVinit configuration file
+# Docker SysVinit configuration file
 
 #
 # THIS FILE DOES NOT APPLY TO SYSTEMD
