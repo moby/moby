@@ -273,26 +273,6 @@ func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
 
 func fillDriverWarnings(v *types.Info) {
 	for _, pair := range v.DriverStatus {
-		if pair[0] == "Data loop file" {
-			msg := fmt.Sprintf("WARNING: %s: usage of loopback devices is "+
-				"strongly discouraged for production use.\n         "+
-				"Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.", v.Driver)
-
-			v.Warnings = append(v.Warnings, msg)
-			continue
-		}
-		if pair[0] == "Supports d_type" && pair[1] == "false" {
-			backingFs := getBackingFs(v)
-
-			msg := fmt.Sprintf("WARNING: %s: the backing %s filesystem is formatted without d_type support, which leads to incorrect behavior.\n", v.Driver, backingFs)
-			if backingFs == "xfs" {
-				msg += "         Reformat the filesystem with ftype=1 to enable d_type support.\n"
-			}
-			msg += "         Running without d_type support will not be supported in future releases."
-
-			v.Warnings = append(v.Warnings, msg)
-			continue
-		}
 		if pair[0] == "Extended file attributes" && pair[1] == "best-effort" {
 			msg := fmt.Sprintf("WARNING: %s: extended file attributes from container images "+
 				"will be silently discarded if the backing filesystem does not support them.\n"+
@@ -303,15 +283,6 @@ func fillDriverWarnings(v *types.Info) {
 			continue
 		}
 	}
-}
-
-func getBackingFs(v *types.Info) string {
-	for _, pair := range v.DriverStatus {
-		if pair[0] == "Backing Filesystem" {
-			return pair[1]
-		}
-	}
-	return ""
 }
 
 // parseInitVersion parses a Tini version string, and extracts the "version"
