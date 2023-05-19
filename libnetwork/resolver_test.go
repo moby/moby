@@ -494,6 +494,13 @@ func TestProxyNXDOMAIN(t *testing.T) {
 		<-serveDone
 	}()
 
+	// This test, by virtue of running a server and client in different
+	// not-locked-to-thread goroutines, happens to be a good canary for
+	// whether we are leaking unlocked OS threads set to the wrong network
+	// namespace. Make a best-effort attempt to detect that situation so we
+	// are not left chasing ghosts next time.
+	testutils.AssertSocketSameNetNS(t, srv.PacketConn.(*net.UDPConn))
+
 	srvAddr := srv.PacketConn.LocalAddr().(*net.UDPAddr)
 	rsv := NewResolver("", true, noopDNSBackend{})
 	rsv.SetExtServers([]extDNSEntry{
