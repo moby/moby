@@ -69,6 +69,7 @@ var cacheFields = map[string]bool{
 type Opt struct {
 	SessionManager      *session.Manager
 	Root                string
+	EngineID            string
 	Dist                images.DistributionServices
 	NetworkController   libnetwork.NetworkController
 	ImageTagger         containerimageexp.ImageTagger
