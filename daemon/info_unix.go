@@ -293,6 +293,15 @@ func fillDriverWarnings(v *types.Info) {
 			v.Warnings = append(v.Warnings, msg)
 			continue
 		}
+		if pair[0] == "Extended file attributes" && pair[1] == "best-effort" {
+			msg := fmt.Sprintf("WARNING: %s: extended file attributes from container images "+
+				"will be silently discarded if the backing filesystem does not support them.\n"+
+				"         CONTAINERS MAY MALFUNCTION IF EXTENDED ATTRIBUTES ARE MISSING.\n"+
+				"         This is an UNSUPPORTABLE configuration for which no bug reports will be accepted.\n", v.Driver)
+
+			v.Warnings = append(v.Warnings, msg)
+			continue
+		}
 	}
 }
 

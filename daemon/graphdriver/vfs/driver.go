@@ -16,6 +16,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	xattrsStorageOpt         = "vfs.xattrs"
+	bestEffortXattrsOptValue = "i_want_broken_containers"
+)
+
 var (
 	// CopyDir defines the copy method to use.
 	CopyDir = dirCopy
@@ -51,7 +56,11 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		return nil, quota.ErrQuotaNotSupported
 	}
 
-	return graphdriver.NewNaiveDiffDriver(d, d.idMapping), nil
+	return &graphdriver.NaiveDiffDriver{
+		ProtoDriver:      d,
+		IDMap:            d.idMapping,
+		BestEffortXattrs: d.bestEffortXattrs,
+	}, nil
 }
 
 // Driver holds information about the driver, home directory of the driver.
@@ -60,16 +69,24 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 // Driver must be wrapped in NaiveDiffDriver to be used as a graphdriver.Driver
 type Driver struct {
 	driverQuota
-	home      string
-	idMapping idtools.IdentityMapping
+	home             string
+	idMapping        idtools.IdentityMapping
+	bestEffortXattrs bool
 }
 
 func (d *Driver) String() string {
 	return "vfs"
 }
 
-// Status is used for implementing the graphdriver.ProtoDriver interface. VFS does not currently have any status information.
+// Status is used for implementing the graphdriver.ProtoDriver interface.
 func (d *Driver) Status() [][2]string {
+	if d.bestEffortXattrs {
+		return [][2]string{
+			// These strings are looked for in daemon/info_unix.go:fillDriverWarnings()
+			// because plumbing is hard and temporary is forever. Forgive me.
+			{"Extended file attributes", "best-effort"},
+		}
+	}
 	return nil
 }
 
@@ -98,6 +115,11 @@ func (d *Driver) parseOptions(options []string) error {
 			if err = d.setQuotaOpt(uint64(size)); err != nil {
 				return errdefs.InvalidParameter(errors.Wrap(err, "failed to set option size for vfs"))
 			}
+		case xattrsStorageOpt:
+			if val != bestEffortXattrsOptValue {
+				return errdefs.InvalidParameter(errors.Errorf("do not set the " + xattrsStorageOpt + " option unless you are willing to accept the consequences"))
+			}
+			d.bestEffortXattrs = true
 		default:
 			return errdefs.InvalidParameter(errors.Errorf("unknown option %s for vfs", key))
 		}
