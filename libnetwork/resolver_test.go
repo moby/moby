@@ -19,16 +19,22 @@ import (
 
 // a simple/null address type that will be used to fake a local address for unit testing
 type tstaddr struct {
+	network string
 }
 
-func (a *tstaddr) Network() string { return "tcp" }
+func (a *tstaddr) Network() string {
+	if a.network != "" {
+		return a.network
+	}
+	return "tcp"
+}
 
-func (a *tstaddr) String() string { return "127.0.0.1" }
+func (a *tstaddr) String() string { return "(fake)" }
 
 // a simple writer that implements dns.ResponseWriter for unit testing purposes
 type tstwriter struct {
-	localAddr net.Addr
-	msg       *dns.Msg
+	network string
+	msg     *dns.Msg
 }
 
 func (w *tstwriter) WriteMsg(m *dns.Msg) (err error) {
@@ -39,13 +45,12 @@ func (w *tstwriter) WriteMsg(m *dns.Msg) (err error) {
 func (w *tstwriter) Write(m []byte) (int, error) { return 0, nil }
 
 func (w *tstwriter) LocalAddr() net.Addr {
-	if w.localAddr != nil {
-		return w.localAddr
-	}
-	return new(tstaddr)
+	return &tstaddr{network: w.network}
 }
 
-func (w *tstwriter) RemoteAddr() net.Addr { return new(tstaddr) }
+func (w *tstwriter) RemoteAddr() net.Addr {
+	return &tstaddr{network: w.network}
+}
 
 func (w *tstwriter) TsigStatus() error { return nil }
 
@@ -380,7 +385,7 @@ func TestOversizedDNSReply(t *testing.T) {
 	// to t.Log() so the log spew is emitted only if the test fails.
 	defer redirectLogrusTo(t)()
 
-	w := &tstwriter{localAddr: srv.LocalAddr()}
+	w := &tstwriter{network: srvAddr.Network()}
 	q := new(dns.Msg).SetQuestion("s3.amazonaws.com.", dns.TypeA)
 	rsv.serveDNS(w, q)
 	resp := w.GetResponse()
@@ -504,7 +509,7 @@ func TestProxyNXDOMAIN(t *testing.T) {
 	// to t.Log() so the log spew is emitted only if the test fails.
 	defer redirectLogrusTo(t)()
 
-	w := &tstwriter{localAddr: srv.PacketConn.LocalAddr()}
+	w := &tstwriter{network: srvAddr.Network()}
 	q := new(dns.Msg).SetQuestion("example.net.", dns.TypeA)
 	rsv.serveDNS(w, q)
 	resp := w.GetResponse()
