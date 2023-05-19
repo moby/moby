@@ -86,8 +86,8 @@ func TestXattrUnsupportedByBackingFS(t *testing.T) {
 			expectErrIs: syscall.EOPNOTSUPP,
 		},
 		{
-			name: "xattrs=i_want_broken_containers",
-			opts: []string{"xattrs=i_want_broken_containers"},
+			name: "vfs.xattrs=i_want_broken_containers",
+			opts: []string{"vfs.xattrs=i_want_broken_containers"},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
