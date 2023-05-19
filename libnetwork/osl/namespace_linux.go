@@ -600,24 +600,29 @@ func (n *networkNamespace) checkLoV6() {
 }
 
 func setIPv6(nspath, iface string, enable bool) error {
-	origNS, err := netns.Get()
-	if err != nil {
-		return fmt.Errorf("failed to get current network namespace: %w", err)
-	}
-	defer origNS.Close()
-
-	namespace, err := netns.GetFromPath(nspath)
-	if err != nil {
-		return fmt.Errorf("failed get network namespace %q: %w", nspath, err)
-	}
-	defer namespace.Close()
-
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(errCh)
 
+		namespace, err := netns.GetFromPath(nspath)
+		if err != nil {
+			errCh <- fmt.Errorf("failed get network namespace %q: %w", nspath, err)
+			return
+		}
+		defer namespace.Close()
+
 		runtime.LockOSThread()
+
+		origNS, err := netns.Get()
+		if err != nil {
+			runtime.UnlockOSThread()
+			errCh <- fmt.Errorf("failed to get current network namespace: %w", err)
+			return
+		}
+		defer origNS.Close()
+
 		if err = netns.Set(namespace); err != nil {
+			runtime.UnlockOSThread()
 			errCh <- fmt.Errorf("setting into container netns %q failed: %w", nspath, err)
 			return
 		}
