@@ -377,13 +377,12 @@ func TestOversizedDNSReply(t *testing.T) {
 
 	srvAddr := srv.LocalAddr().(*net.UDPAddr)
 	rsv := NewResolver("", true, noopDNSBackend{})
+	// The resolver logs lots of valuable info at level debug. Redirect it
+	// to t.Log() so the log spew is emitted only if the test fails.
+	rsv.logger = testLogger(t)
 	rsv.SetExtServers([]extDNSEntry{
 		{IPStr: srvAddr.IP.String(), port: uint16(srvAddr.Port), HostLoopback: true},
 	})
-
-	// The resolver logs lots of valuable info at level debug. Redirect it
-	// to t.Log() so the log spew is emitted only if the test fails.
-	defer redirectLogrusTo(t)()
 
 	w := &tstwriter{network: srvAddr.Network()}
 	q := new(dns.Msg).SetQuestion("s3.amazonaws.com.", dns.TypeA)
@@ -396,14 +395,11 @@ func TestOversizedDNSReply(t *testing.T) {
 	checkDNSRRType(t, resp.Answer[0].Header().Rrtype, dns.TypeA)
 }
 
-func redirectLogrusTo(t *testing.T) func() {
-	oldLevel, oldOut := logrus.StandardLogger().Level, logrus.StandardLogger().Out
-	logrus.StandardLogger().SetLevel(logrus.DebugLevel)
-	logrus.SetOutput(tlogWriter{t})
-	return func() {
-		logrus.StandardLogger().SetLevel(oldLevel)
-		logrus.StandardLogger().SetOutput(oldOut)
-	}
+func testLogger(t *testing.T) *logrus.Logger {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	logger.SetOutput(tlogWriter{t})
+	return logger
 }
 
 type tlogWriter struct{ t *testing.T }
@@ -445,9 +441,8 @@ func TestReplySERVFAIL(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			defer redirectLogrusTo(t)
-
 			rsv := NewResolver("", tt.proxyDNS, badSRVDNSBackend{})
+			rsv.logger = testLogger(t)
 			w := &tstwriter{}
 			rsv.serveDNS(w, tt.q)
 			resp := w.GetResponse()
@@ -507,7 +502,7 @@ func TestProxyNXDOMAIN(t *testing.T) {
 
 	// The resolver logs lots of valuable info at level debug. Redirect it
 	// to t.Log() so the log spew is emitted only if the test fails.
-	defer redirectLogrusTo(t)()
+	rsv.logger = testLogger(t)
 
 	w := &tstwriter{network: srvAddr.Network()}
 	q := new(dns.Msg).SetQuestion("example.net.", dns.TypeA)
