@@ -524,9 +524,12 @@ func getManifestPlatform(ctx context.Context, store content.Provider, manifestDe
 	return platforms.Normalize(platform), nil
 }
 
-// isImageManifest returns true if the manifest has any layer that is a known image layer.
+// isImageManifest returns true if the manifest has no layers or any of its layers is a known image layer.
 // Some manifests use the image media type for compatibility, even if they are not a real image.
 func isImageManifest(mfst ocispec.Manifest) bool {
+	if len(mfst.Layers) == 0 {
+		return true
+	}
 	for _, l := range mfst.Layers {
 		if images.IsLayerType(l.MediaType) {
 			return true
