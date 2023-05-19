@@ -549,7 +549,7 @@ github.com/in-toto/in-toto-golang/in_toto
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.1
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2
-# github.com/inconshreveable/mousetrap v1.0.1
+# github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
 # github.com/ishidawataru/sctp v0.0.0-20230406120618-7ff4192f6ff2
@@ -908,7 +908,7 @@ github.com/spdx/tools-golang/json
 github.com/spdx/tools-golang/spdx/common
 github.com/spdx/tools-golang/spdx/v2_2
 github.com/spdx/tools-golang/spdx/v2_3
-# github.com/spf13/cobra v1.6.1
+# github.com/spf13/cobra v1.7.0
 ## explicit; go 1.15
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
