@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 // Shim for the Host Network Service (HNS) to manage networking for
 // Windows Server containers and Hyper-V containers. This module

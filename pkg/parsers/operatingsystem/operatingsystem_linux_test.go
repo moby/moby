@@ -1,5 +1,4 @@
 //go:build linux || freebsd
-// +build linux freebsd
 
 package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
 

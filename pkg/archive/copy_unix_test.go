@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 // TODO Windows: Some of these tests may be salvageable and portable to Windows.
 

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package registry // import "github.com/docker/docker/registry"
 

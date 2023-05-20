@@ -1,5 +1,4 @@
 //go:build !linux
-// +build !linux
 
 package homedir // import "github.com/docker/docker/pkg/homedir"
 

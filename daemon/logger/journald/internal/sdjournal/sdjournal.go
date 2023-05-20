@@ -1,5 +1,4 @@
 //go:build linux && cgo && !static_build && journald
-// +build linux,cgo,!static_build,journald
 
 package sdjournal // import "github.com/docker/docker/daemon/logger/journald/internal/sdjournal"
 
