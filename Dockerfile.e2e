@@ -71,8 +71,8 @@ RUN apk --no-cache add \
     tar \
     xz
 
-COPY hack/test/e2e-run.sh       /scripts/run.sh
-COPY hack/make/.ensure-emptyfs  /scripts/ensure-emptyfs.sh
+COPY hack/test/e2e-run.sh           /scripts/run.sh
+COPY hack/make/.build-empty-images  /scripts/build-empty-images.sh
 
 COPY integration/testdata       /tests/integration/testdata
 COPY integration/build/testdata /tests/integration/build/testdata
