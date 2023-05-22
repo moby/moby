@@ -81,5 +81,5 @@ set_platform_timeout() {
 	fi
 }
 
-sh /scripts/ensure-emptyfs.sh
+sh /scripts/build-empty-images.sh
 run_test_integration
