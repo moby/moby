@@ -316,7 +316,12 @@ COPY --from=swagger       /build/ /usr/local/bin/
 COPY --from=tomlv         /build/ /usr/local/bin/
 COPY --from=tini          /build/ /usr/local/bin/
 COPY --from=registry      /build/ /usr/local/bin/
-COPY --from=criu          /build/ /usr/local/
+
+# Skip the CRIU stage for now, as the opensuse package repository is sometimes
+# unstable, and we're currently not using it in CI.
+#
+# FIXME(thaJeztah): re-enable this stage when https://github.com/moby/moby/issues/38963 is resolved (see https://github.com/moby/moby/pull/38984)
+# COPY --from=criu          /build/ /usr/local/
 COPY --from=vndr          /build/ /usr/local/bin/
 COPY --from=gotestsum     /build/ /usr/local/bin/
 COPY --from=golangci_lint /build/ /usr/local/bin/
