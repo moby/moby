@@ -21,7 +21,6 @@ type command struct {
 }
 
 func (c *command) Run(arg ...string) ([][]string, error) {
-
 	cmd := exec.Command(c.Command, arg...)
 
 	var stdout, stderr bytes.Buffer
@@ -34,24 +33,24 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 
 	if c.Stdin != nil {
 		cmd.Stdin = c.Stdin
-
 	}
 	cmd.Stderr = &stderr
 
 	id := uuid.New().String()
-	joinedArgs := strings.Join(cmd.Args, " ")
+	joinedArgs := cmd.Path
+	if len(cmd.Args) > 1 {
+		joinedArgs = strings.Join(append([]string{cmd.Path}, cmd.Args[1:]...), " ")
+	}
 
 	logger.Log([]string{"ID:" + id, "START", joinedArgs})
-	err := cmd.Run()
-	logger.Log([]string{"ID:" + id, "FINISH"})
-
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return nil, &Error{
 			Err:    err,
-			Debug:  strings.Join([]string{cmd.Path, joinedArgs[1:]}, " "),
+			Debug:  joinedArgs,
 			Stderr: stderr.String(),
 		}
 	}
+	logger.Log([]string{"ID:" + id, "FINISH"})
 
 	// assume if you passed in something for stdout, that you know what to do with it
 	if c.Stdout != nil {
@@ -60,12 +59,12 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 
 	lines := strings.Split(stdout.String(), "\n")
 
-	//last line is always blank
+	// last line is always blank
 	lines = lines[0 : len(lines)-1]
 	output := make([][]string, len(lines))
 
 	for i, l := range lines {
-		output[i] = strings.Fields(l)
+		output[i] = strings.Split(l, "\t")
 	}
 
 	return output, nil
@@ -92,33 +91,33 @@ func setUint(field *uint64, value string) error {
 	return nil
 }
 
-func (ds *Dataset) parseLine(line []string) error {
+func (d *Dataset) parseLine(line []string) error {
 	var err error
 
 	if len(line) != len(dsPropList) {
-		return errors.New("Output does not match what is expected on this platform")
+		return errors.New("output does not match what is expected on this platform")
 	}
-	setString(&ds.Name, line[0])
-	setString(&ds.Origin, line[1])
+	setString(&d.Name, line[0])
+	setString(&d.Origin, line[1])
 
-	if err = setUint(&ds.Used, line[2]); err != nil {
+	if err = setUint(&d.Used, line[2]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Avail, line[3]); err != nil {
+	if err = setUint(&d.Avail, line[3]); err != nil {
 		return err
 	}
 
-	setString(&ds.Mountpoint, line[4])
-	setString(&ds.Compression, line[5])
-	setString(&ds.Type, line[6])
+	setString(&d.Mountpoint, line[4])
+	setString(&d.Compression, line[5])
+	setString(&d.Type, line[6])
 
-	if err = setUint(&ds.Volsize, line[7]); err != nil {
+	if err = setUint(&d.Volsize, line[7]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Quota, line[8]); err != nil {
+	if err = setUint(&d.Quota, line[8]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Referenced, line[9]); err != nil {
+	if err = setUint(&d.Referenced, line[9]); err != nil {
 		return err
 	}
 
@@ -126,17 +125,13 @@ func (ds *Dataset) parseLine(line []string) error {
 		return nil
 	}
 
-	if err = setUint(&ds.Written, line[10]); err != nil {
+	if err = setUint(&d.Written, line[10]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Logicalused, line[11]); err != nil {
+	if err = setUint(&d.Logicalused, line[11]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Usedbydataset, line[12]); err != nil {
-		return err
-	}
-
-	return nil
+	return setUint(&d.Usedbydataset, line[12])
 }
 
 /*
@@ -156,12 +151,12 @@ func unescapeFilepath(path string) (string, error) {
 	for i := 0; i < llen; {
 		if path[i] == '\\' {
 			if llen < i+4 {
-				return "", fmt.Errorf("Invalid octal code: too short")
+				return "", fmt.Errorf("invalid octal code: too short")
 			}
 			octalCode := path[(i + 1):(i + 4)]
 			val, err := strconv.ParseUint(octalCode, 8, 8)
 			if err != nil {
-				return "", fmt.Errorf("Invalid octal code: %v", err)
+				return "", fmt.Errorf("invalid octal code: %w", err)
 			}
 			buf = append(buf, byte(val))
 			i += 4
@@ -179,6 +174,7 @@ var changeTypeMap = map[string]ChangeType{
 	"M": Modified,
 	"R": Renamed,
 }
+
 var inodeTypeMap = map[string]InodeType{
 	"B": BlockDevice,
 	"C": CharacterDevice,
@@ -191,51 +187,51 @@ var inodeTypeMap = map[string]InodeType{
 	"F": File,
 }
 
-// matches (+1) or (-1)
-var referenceCountRegex = regexp.MustCompile("\\(([+-]\\d+?)\\)")
+// matches (+1) or (-1).
+var referenceCountRegex = regexp.MustCompile(`\(([+-]\d+?)\)`)
 
 func parseReferenceCount(field string) (int, error) {
 	matches := referenceCountRegex.FindStringSubmatch(field)
 	if matches == nil {
-		return 0, fmt.Errorf("Regexp does not match")
+		return 0, fmt.Errorf("regexp does not match")
 	}
 	return strconv.Atoi(matches[1])
 }
 
 func parseInodeChange(line []string) (*InodeChange, error) {
-	llen := len(line)
+	llen := len(line) // nolint:ifshort // llen *is* actually used
 	if llen < 1 {
-		return nil, fmt.Errorf("Empty line passed")
+		return nil, fmt.Errorf("empty line passed")
 	}
 
 	changeType := changeTypeMap[line[0]]
 	if changeType == 0 {
-		return nil, fmt.Errorf("Unknown change type '%s'", line[0])
+		return nil, fmt.Errorf("unknown change type '%s'", line[0])
 	}
 
 	switch changeType {
 	case Renamed:
 		if llen != 4 {
-			return nil, fmt.Errorf("Mismatching number of fields: expect 4, got: %d", llen)
+			return nil, fmt.Errorf("mismatching number of fields: expect 4, got: %d", llen)
 		}
 	case Modified:
 		if llen != 4 && llen != 3 {
-			return nil, fmt.Errorf("Mismatching number of fields: expect 3..4, got: %d", llen)
+			return nil, fmt.Errorf("mismatching number of fields: expect 3..4, got: %d", llen)
 		}
 	default:
 		if llen != 3 {
-			return nil, fmt.Errorf("Mismatching number of fields: expect 3, got: %d", llen)
+			return nil, fmt.Errorf("mismatching number of fields: expect 3, got: %d", llen)
 		}
 	}
 
 	inodeType := inodeTypeMap[line[1]]
 	if inodeType == 0 {
-		return nil, fmt.Errorf("Unknown inode type '%s'", line[1])
+		return nil, fmt.Errorf("unknown inode type '%s'", line[1])
 	}
 
 	path, err := unescapeFilepath(line[2])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse filename: %v", err)
+		return nil, fmt.Errorf("failed to parse filename: %w", err)
 	}
 
 	var newPath string
@@ -244,13 +240,13 @@ func parseInodeChange(line []string) (*InodeChange, error) {
 	case Renamed:
 		newPath, err = unescapeFilepath(line[3])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse filename: %v", err)
+			return nil, fmt.Errorf("failed to parse filename: %w", err)
 		}
 	case Modified:
 		if llen == 4 {
 			referenceCount, err = parseReferenceCount(line[3])
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse reference count: %v", err)
+				return nil, fmt.Errorf("failed to parse reference count: %w", err)
 			}
 		}
 	default:
@@ -266,18 +262,19 @@ func parseInodeChange(line []string) (*InodeChange, error) {
 	}, nil
 }
 
-// example input
-//M       /       /testpool/bar/
-//+       F       /testpool/bar/hello.txt
-//M       /       /testpool/bar/hello.txt (+1)
-//M       /       /testpool/bar/hello-hardlink
+// example input for parseInodeChanges
+// M       /       /testpool/bar/
+// +       F       /testpool/bar/hello.txt
+// M       /       /testpool/bar/hello.txt (+1)
+// M       /       /testpool/bar/hello-hardlink
+
 func parseInodeChanges(lines [][]string) ([]*InodeChange, error) {
 	changes := make([]*InodeChange, len(lines))
 
 	for i, line := range lines {
 		c, err := parseInodeChange(line)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse line %d of zfs diff: %v, got: '%s'", i, err, line)
+			return nil, fmt.Errorf("failed to parse line %d of zfs diff: %w, got: '%s'", i, err, line)
 		}
 		changes[i] = c
 	}
@@ -290,7 +287,7 @@ func listByType(t, filter string) ([]*Dataset, error) {
 	if filter != "" {
 		args = append(args, filter)
 	}
-	out, err := zfs(args...)
+	out, err := zfsOutput(args...)
 	if err != nil {
 		return nil, err
 	}
