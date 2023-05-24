@@ -152,7 +152,7 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 		} else if p.ShowExists {
 			out.WriteProgress(progress.Progress{
 				ID:         stringid.TruncateID(j.Digest.Encoded()),
-				Action:     "Exists",
+				Action:     "Already exists",
 				HideCounts: true,
 				LastUpdate: true,
 			})
