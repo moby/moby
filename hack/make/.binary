@@ -82,6 +82,18 @@ hash_files() {
 		esac
 	fi
 
+	# XXX: Disable netgo on Windows and use Window's system resolver instead.
+	#
+	# go1.19 and newer added support for netgo on Windows (https://go.dev/doc/go1.19#net),
+	# which won't ask Windows for DNS results, and hence may be ignoring
+	# custom "C:\Windows\System32\drivers\etc\hosts".
+	# See https://github.com/moby/moby/issues/45251#issuecomment-1561001817
+	# https://github.com/moby/moby/issues/45251, and
+	# https://go-review.googlesource.com/c/go/+/467335
+	if [ "$(go env GOOS)" = "windows" ]; then
+		BUILDFLAGS=("${BUILDFLAGS[@]/netgo/}")
+	fi
+
 	echo "Building: $DEST/$BINARY_FULLNAME"
 	echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
 	go build \
