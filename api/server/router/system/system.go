@@ -12,11 +12,11 @@ type systemRouter struct {
 	cluster  ClusterBackend
 	routes   []router.Route
 	builder  *buildkit.Builder
-	features *map[string]bool
+	features func() map[string]bool
 }
 
 // NewRouter initializes a new system router
-func NewRouter(b Backend, c ClusterBackend, builder *buildkit.Builder, features *map[string]bool) router.Router {
+func NewRouter(b Backend, c ClusterBackend, builder *buildkit.Builder, features func() map[string]bool) router.Router {
 	r := &systemRouter{
 		backend:  b,
 		cluster:  c,

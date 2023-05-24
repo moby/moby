@@ -154,8 +154,14 @@ func (daemon *Daemon) HasExperimental() bool {
 }
 
 // Features returns the features map from configStore
-func (daemon *Daemon) Features() *map[string]bool {
-	return &daemon.configStore.Features
+func (daemon *Daemon) Features() map[string]bool {
+	daemon.configStore.Lock()
+	defer daemon.configStore.Unlock()
+	f := make(map[string]bool, len(daemon.configStore.Features))
+	for k, v := range daemon.configStore.Features {
+		f[k] = v
+	}
+	return f
 }
 
 // UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
