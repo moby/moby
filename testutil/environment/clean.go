@@ -98,6 +98,9 @@ func deleteAllImages(t testing.TB, apiclient client.ImageAPIClient, protectedIma
 	ctx := context.Background()
 	for _, image := range images {
 		tags := tagsFromImageSummary(image)
+		if _, ok := protectedImages[image.ID]; ok {
+			continue
+		}
 		if len(tags) == 0 {
 			removeImage(ctx, t, apiclient, image.ID)
 			continue

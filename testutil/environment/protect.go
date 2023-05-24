@@ -95,6 +95,7 @@ func ProtectImages(t testing.TB, testEnv *Execution) {
 		images = append(images, frozenImages...)
 	}
 	testEnv.ProtectImage(t, images...)
+	testEnv.ProtectImage(t, DanglingImageIdGraphDriver, DanglingImageIdSnapshotter)
 }
 
 func getExistingImages(t testing.TB, testEnv *Execution) []string {
