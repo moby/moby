@@ -7,6 +7,7 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -32,8 +33,8 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 		danglingImage := img
 
 		danglingImage.Name = danglingImageName(img.Target.Digest)
-		delete(danglingImage.Labels, "io.containerd.image.name")
-		delete(danglingImage.Labels, "org.opencontainers.image.ref.name")
+		delete(danglingImage.Labels, containerdimages.AnnotationImageName)
+		delete(danglingImage.Labels, ocispec.AnnotationRefName)
 
 		_, err = is.Create(context.Background(), danglingImage)
 
