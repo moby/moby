@@ -129,6 +129,8 @@ type Daemon struct {
 	// It stores metadata for the content store (used for manifest caching)
 	// This needs to be closed on daemon exit
 	mdDB *bbolt.DB
+
+	usesSnapshotter bool
 }
 
 // ID returns the daemon id
@@ -158,16 +160,7 @@ func (daemon *Daemon) Features() *map[string]bool {
 
 // UsesSnapshotter returns true if feature flag to use containerd snapshotter is enabled
 func (daemon *Daemon) UsesSnapshotter() bool {
-	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
-	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
-		return true
-	}
-	if daemon.configStore.Features != nil {
-		if b, ok := daemon.configStore.Features["containerd-snapshotter"]; ok {
-			return b
-		}
-	}
-	return false
+	return daemon.usesSnapshotter
 }
 
 // RegistryHosts returns registry configuration in containerd resolvers format
@@ -799,6 +792,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		configStore: config,
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
+	}
+
+	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
+	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
+		d.usesSnapshotter = true
+	} else {
+		d.usesSnapshotter = config.Features["containerd-snapshotter"]
 	}
 
 	// Ensure the daemon is properly shutdown if there is a failure during
