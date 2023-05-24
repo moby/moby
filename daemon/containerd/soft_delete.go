@@ -19,10 +19,10 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 
 	// If the image already exists, persist it as dangling image
 	// but only if no other image has the same target.
-	digest := img.Target.Digest.String()
-	imgs, err := is.List(ctx, "target.digest=="+digest)
+	dgst := img.Target.Digest.String()
+	imgs, err := is.List(ctx, "target.digest=="+dgst)
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to check if there are images targeting digest %s", digest))
+		return errdefs.System(errors.Wrapf(err, "failed to check if there are images targeting digest %s", dgst))
 	}
 
 	// From this point explicitly ignore the passed context
