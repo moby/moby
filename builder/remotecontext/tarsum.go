@@ -15,7 +15,9 @@ type hashed interface {
 	Digest() digest.Digest
 }
 
-// CachableSource is a source that contains cache records for its contents
+// CachableSource is a source that contains cache records for its contents.
+//
+// Deprecated: this type was used for the experimental "stream" support for the classic builder, which is no longer supported.
 type CachableSource struct {
 	mu   sync.Mutex
 	root string
@@ -23,7 +25,9 @@ type CachableSource struct {
 	txn  *iradix.Txn
 }
 
-// NewCachableSource creates new CachableSource
+// NewCachableSource creates new CachableSource.
+//
+// Deprecated: this type was used for the experimental "stream" support for the classic builder, which is no longer supported.
 func NewCachableSource(root string) *CachableSource {
 	ts := &CachableSource{
 		tree: iradix.New(),
