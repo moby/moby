@@ -60,6 +60,10 @@ type container struct {
 type task struct {
 	containerd.Task
 	ctr *container
+
+	// Workaround for https://github.com/containerd/containerd/issues/8557.
+	// See also https://github.com/moby/moby/issues/45595.
+	serializeExecStartsWorkaround sync.Mutex
 }
 
 type process struct {
@@ -296,7 +300,12 @@ func (t *task) Exec(ctx context.Context, processID string, spec *specs.Process, 
 	// the stdin of exec process will be created after p.Start in containerd
 	defer func() { stdinCloseSync <- p }()
 
-	if err = p.Start(ctx); err != nil {
+	err = func() error {
+		t.serializeExecStartsWorkaround.Lock()
+		defer t.serializeExecStartsWorkaround.Unlock()
+		return p.Start(ctx)
+	}()
+	if err != nil {
 		// use new context for cleanup because old one may be cancelled by user, but leave a timeout to make sure
 		// we are not waiting forever if containerd is unresponsive or to work around fifo cancelling issues in
 		// older containerd-shim
