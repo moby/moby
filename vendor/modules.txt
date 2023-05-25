@@ -311,8 +311,8 @@ github.com/containerd/fifo
 # github.com/containerd/go-cni v1.1.6
 ## explicit; go 1.17
 github.com/containerd/go-cni
-# github.com/containerd/go-runc v1.0.0
-## explicit; go 1.13
+# github.com/containerd/go-runc v1.1.0
+## explicit; go 1.18
 github.com/containerd/go-runc
 # github.com/containerd/nydus-snapshotter v0.3.1
 ## explicit; go 1.17
@@ -849,6 +849,7 @@ github.com/opencontainers/runc/libcontainer/userns
 # github.com/opencontainers/runtime-spec v1.1.0-rc.2
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
+github.com/opencontainers/runtime-spec/specs-go/features
 # github.com/opencontainers/selinux v1.11.0
 ## explicit; go 1.19
 github.com/opencontainers/selinux/go-selinux
