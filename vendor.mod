@@ -57,7 +57,7 @@ require (
 	github.com/klauspost/compress v1.16.3
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs/v3 v3.0.1
-	github.com/moby/buildkit v0.11.6
+	github.com/moby/buildkit v0.11.7-0.20230525183624-798ad6b0ce9f
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.5.0
@@ -155,8 +155,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
-	github.com/onsi/ginkgo/v2 v2.1.4 // indirect
-	github.com/onsi/gomega v1.20.1 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/package-url/packageurl-go v0.1.1-0.20220428063043-89078438f170 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
