@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-if ! docker image inspect emptyfs > /dev/null; then
+function imageNotPresent {
+	local img="$1"
+	! docker image inspect "$img" > /dev/null 2> /dev/null
+}
+
+if imageNotPresent "emptyfs"; then
 	# build a "docker save" tarball for "emptyfs"
 	# see https://github.com/docker/docker/pull/5262
 	# and also https://github.com/docker/docker/issues/4242
@@ -23,4 +28,28 @@ if ! docker image inspect emptyfs > /dev/null; then
 		tar -cC "$dir" . | docker load
 	)
 	rm -rf "$dir"
+fi
+
+# without c8d image store, image id is the config's id
+dangling_cfg=0df1207206e5288f4a989a2f13d1f5b3c4e70467702c1d5d21dfc9f002b7bd43
+# with c8d image store, image id is the id of manifest/manifest list.
+dangling_mfst=16d365089e5c10e1673ee82ab5bba38ade9b763296ad918bd24b42a1156c5456
+if imageNotPresent "$dangling_cfg" && imageNotPresent "$dangling_mfst"; then
+	dir="$DEST/dangling"
+	mkdir -p "$dir"
+	(
+		cd "$dir"
+		printf '{"schemaVersion":2,"manifests":[{"mediaType":"application/vnd.docker.distribution.manifest.v2+json","digest":"sha256:16d365089e5c10e1673ee82ab5bba38ade9b763296ad918bd24b42a1156c5456","size":264,"annotations":{"org.opencontainers.image.created":"2023-05-19T08:00:44Z"},"platform":{"architecture":"amd64","os":"linux"}}]}' > index.json
+		printf '[{"Config":"blobs/sha256/0df1207206e5288f4a989a2f13d1f5b3c4e70467702c1d5d21dfc9f002b7bd43","RepoTags":null,"Layers":null}]' > manifest.json
+		mkdir -p blobs/sha256
+		printf '{"schemaVersion":2,"mediaType":"application/vnd.docker.distribution.manifest.v2+json","config":{"mediaType":"application/vnd.docker.container.image.v1+json","digest":"sha256:0df1207206e5288f4a989a2f13d1f5b3c4e70467702c1d5d21dfc9f002b7bd43","size":390},"layers":[]}' > blobs/sha256/$dangling_mfst
+		printf '{"architecture":"amd64","config":{"Env":["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],"WorkingDir":"/","Labels":{"org.mobyproject.test.specialimage":"1"},"OnBuild":null},"created":null,"history":[{"created_by":"LABEL org.mobyproject.test.specialimage=1","comment":"buildkit.dockerfile.v0","empty_layer":true}],"os":"linux","rootfs":{"type":"layers","diff_ids":null}}' > blobs/sha256/$dangling_cfg
+		tar -cf layer.tar --files-from /dev/null
+	)
+	(
+		[ -n "$TESTDEBUG" ] && set -x
+		tar -cC "$dir" . | docker load
+	)
+	rm -rf "$dir"
+
 fi

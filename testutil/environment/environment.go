@@ -193,6 +193,13 @@ func (e *Execution) IsUserNamespaceInKernel() bool {
 	return true
 }
 
+// UsingSnapshotter returns whether containerd snapshotters are used for the
+// tests by checking if the "TEST_INTEGRATION_USE_SNAPSHOTTER" is set to a
+// non-empty value.
+func (e *Execution) UsingSnapshotter() bool {
+	return os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != ""
+}
+
 // HasExistingImage checks whether there is an image with the given reference.
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
