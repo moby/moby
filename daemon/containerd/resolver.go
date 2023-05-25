@@ -16,9 +16,8 @@ import (
 
 func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
-	hostsFn := i.registryHosts.RegistryHosts()
 
-	hosts := hostsWrapper(hostsFn, authConfig, i.registryService)
+	hosts := hostsWrapper(i.registryHosts, authConfig, i.registryService)
 	headers := http.Header{}
 	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx))
 

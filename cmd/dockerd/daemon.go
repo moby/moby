@@ -369,7 +369,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: cgroupParent,
-		RegistryHosts:       d.RegistryHosts(),
+		RegistryHosts:       d.RegistryHosts,
 		BuilderConfig:       config.Builder,
 		Rootless:            d.Rootless(),
 		IdentityMapping:     d.IdentityMapping(),

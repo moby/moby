@@ -169,15 +169,20 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
 }
 
-// RegistryHosts returns registry configuration in containerd resolvers format
-func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
+// RegistryHosts returns the registry hosts configuration for the host component
+// of a distribution image reference.
+func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
+	daemon.configStore.Lock()
+	serviceOpts := daemon.configStore.ServiceOptions
+	daemon.configStore.Unlock()
+
 	var (
 		registryKey = "docker.io"
-		mirrors     = make([]string, len(daemon.configStore.Mirrors))
+		mirrors     = make([]string, len(serviceOpts.Mirrors))
 		m           = map[string]resolverconfig.RegistryConfig{}
 	)
 	// must trim "https://" or "http://" prefix
-	for i, v := range daemon.configStore.Mirrors {
+	for i, v := range serviceOpts.Mirrors {
 		if uri, err := url.Parse(v); err == nil {
 			v = uri.Host
 		}
@@ -186,7 +191,7 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	// set mirrors for default registry
 	m[registryKey] = resolverconfig.RegistryConfig{Mirrors: mirrors}
 
-	for _, v := range daemon.configStore.InsecureRegistries {
+	for _, v := range serviceOpts.InsecureRegistries {
 		u, err := url.Parse(v)
 		if err != nil && !strings.HasPrefix(v, "http://") && !strings.HasPrefix(v, "https://") {
 			originalErr := err
@@ -224,7 +229,7 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 		}
 	}
 
-	return resolver.NewRegistryConfig(m)
+	return resolver.NewRegistryConfig(m)(host)
 }
 
 // layerAccessor may be implemented by ImageService
@@ -1032,7 +1037,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			Client:        d.containerdCli,
 			Containers:    d.containers,
 			Snapshotter:   driverName,
-			HostsProvider: d,
+			RegistryHosts: d.RegistryHosts,
 			Registry:      d.registryService,
 			EventsService: d.EventsService,
 		})

@@ -31,14 +31,10 @@ type ImageService struct {
 	client          *containerd.Client
 	containers      container.Store
 	snapshotter     string
-	registryHosts   RegistryHostsProvider
+	registryHosts   docker.RegistryHosts
 	registryService RegistryConfigProvider
 	eventsService   *daemonevents.Events
 	pruneRunning    atomic.Bool
-}
-
-type RegistryHostsProvider interface {
-	RegistryHosts() docker.RegistryHosts
 }
 
 type RegistryConfigProvider interface {
@@ -50,7 +46,7 @@ type ImageServiceConfig struct {
 	Client        *containerd.Client
 	Containers    container.Store
 	Snapshotter   string
-	HostsProvider RegistryHostsProvider
+	RegistryHosts docker.RegistryHosts
 	Registry      RegistryConfigProvider
 	EventsService *daemonevents.Events
 }
@@ -61,7 +57,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		client:          config.Client,
 		containers:      config.Containers,
 		snapshotter:     config.Snapshotter,
-		registryHosts:   config.HostsProvider,
+		registryHosts:   config.RegistryHosts,
 		registryService: config.Registry,
 		eventsService:   config.EventsService,
 	}
