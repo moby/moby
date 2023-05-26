@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -112,6 +113,23 @@ func TestInfoInsecureRegistries(t *testing.T) {
 	assert.Assert(t, is.Contains(cidrs, "127.0.0.0/8"))
 	assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs["docker.io"], registry.IndexInfo{Name: "docker.io", Mirrors: []string{}, Secure: true, Official: true})
 	assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs[registryHost], registry.IndexInfo{Name: registryHost, Mirrors: []string{}, Secure: false, Official: false})
+}
+
+func TestInfoListeners(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test starts daemon with -H unix://.....")
+
+	d := daemon.New(t)
+	d.Start(t, "-H=127.0.0.1:5732", "-H=[::1]:5733")
+	defer d.Stop(t)
+
+	info := d.Info(t)
+	expected := []system.ListenerInfo{
+		{Address: d.Sock(), Insecure: false},
+		{Address: "http://127.0.0.1:5732", Insecure: true},
+		{Address: "http://[::1]:5733", Insecure: true},
+	}
+	assert.DeepEqual(t, info.Listeners, expected)
 }
 
 func TestInfoRegistryMirrors(t *testing.T) {

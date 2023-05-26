@@ -5316,6 +5316,10 @@ definitions:
               description: "The network pool size"
               type: "integer"
               example: "24"
+      Listeners:
+        type: "array"
+        items:
+          $ref: "#/definitions/ListenerInfo"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or
@@ -5582,6 +5586,24 @@ definitions:
           Commit ID of external tool expected by dockerd as set at build time.
         type: "string"
         example: "2d41c047c83e09a6d61d464906feb2a2f3c52aa4"
+
+  ListenerInfo:
+    description: |
+      ListenerInfo provides information about an address that the API is listening on.
+    type: "object"
+    properties:
+      Address:
+        description: |
+          Address is the address that the daemon API is listening on.
+        type: "string"
+        example: "unix:///var/run/docker.sock"
+      Insecure:
+        description: |
+          Insecure indicates if the address is insecure, which could be either
+          if the daemon is configured without TLS client verification, or if
+          TLS verify is disabled.
+        type: "boolean"
+        example: false
 
   SwarmInfo:
     description: |

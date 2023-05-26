@@ -2,13 +2,14 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
@@ -207,20 +208,31 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info) {
          more information: https://docs.docker.com/go/attack-surface/`
 
 	cfg := daemon.configStore
+	v.Listeners = make([]system.ListenerInfo, 0, len(cfg.Hosts))
 	for _, host := range cfg.Hosts {
 		// cnf.Hosts is normalized during startup, so should always have a scheme/proto
-		proto, addr, _ := strings.Cut(host, "://")
-		if proto != "tcp" {
+		addr, err := url.Parse(host)
+		if err != nil {
+			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: Unable to parse host: %s", host))
+			continue
+		}
+		if addr.Scheme != "tcp" {
+			v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String()})
 			continue
 		}
 		if cfg.TLS == nil || !*cfg.TLS {
-			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on http://%s without encryption.%s", addr, warn))
+			addr.Scheme = "http"
+			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on %s without encryption.%s", addr, warn))
+			v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String(), Insecure: true})
 			continue
 		}
+		addr.Scheme = "https"
 		if cfg.TLSVerify == nil || !*cfg.TLSVerify {
-			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on https://%s without TLS client verification.%s", addr, warn))
+			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: API is accessible on %s without TLS client verification.%s", addr, warn))
+			v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String(), Insecure: true})
 			continue
 		}
+		v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String()})
 	}
 }
 
