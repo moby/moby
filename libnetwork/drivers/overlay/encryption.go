@@ -375,8 +375,8 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 		Src:     &net.IPNet{IP: s, Mask: fullMask},
 		Dst:     &net.IPNet{IP: d, Mask: fullMask},
 		Dir:     netlink.XFRM_DIR_OUT,
-		Proto:   17,
-		DstPort: 4789,
+		Proto:   syscall.IPPROTO_UDP,
+		DstPort: int(overlayutils.VXLANUDPPort()),
 		Mark:    &spMark,
 		Tmpls: []netlink.XfrmPolicyTmpl{
 			{
@@ -589,8 +589,8 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, pr
 			Src:     &net.IPNet{IP: s, Mask: fullMask},
 			Dst:     &net.IPNet{IP: d, Mask: fullMask},
 			Dir:     netlink.XFRM_DIR_OUT,
-			Proto:   17,
-			DstPort: 4789,
+			Proto:   syscall.IPPROTO_UDP,
+			DstPort: int(overlayutils.VXLANUDPPort()),
 			Mark:    &spMark,
 			Tmpls: []netlink.XfrmPolicyTmpl{
 				{
