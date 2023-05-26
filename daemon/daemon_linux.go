@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork/ns"
@@ -17,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 // On Linux, plugins use a static path for storing execution state,
@@ -181,4 +183,77 @@ func ifaceAddrs(linkName string) (v4, v6 []*net.IPNet, err error) {
 		return nil, nil, err
 	}
 	return v4, v6, nil
+}
+
+var (
+	kernelSupportsRROOnce sync.Once
+	kernelSupportsRROErr  error
+)
+
+func kernelSupportsRecursivelyReadOnly() error {
+	fn := func() error {
+		tmpMnt, err := os.MkdirTemp("", "moby-detect-rro")
+		if err != nil {
+			return fmt.Errorf("failed to create a temp directory: %w", err)
+		}
+		for {
+			err = unix.Mount("", tmpMnt, "tmpfs", 0, "")
+			if !errors.Is(err, unix.EINTR) {
+				break
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("failed to mount tmpfs on %q: %w", tmpMnt, err)
+		}
+		defer func() {
+			var umErr error
+			for {
+				umErr = unix.Unmount(tmpMnt, 0)
+				if !errors.Is(umErr, unix.EINTR) {
+					break
+				}
+			}
+			if umErr != nil {
+				logrus.WithError(umErr).Warnf("Failed to unmount %q", tmpMnt)
+			}
+		}()
+		attr := &unix.MountAttr{
+			Attr_set: unix.MOUNT_ATTR_RDONLY,
+		}
+		for {
+			err = unix.MountSetattr(-1, tmpMnt, unix.AT_RECURSIVE, attr)
+			if !errors.Is(err, unix.EINTR) {
+				break
+			}
+		}
+		// ENOSYS on kernel < 5.12
+		if err != nil {
+			return fmt.Errorf("failed to call mount_setattr: %w", err)
+		}
+		return nil
+	}
+
+	kernelSupportsRROOnce.Do(func() {
+		kernelSupportsRROErr = fn()
+	})
+	return kernelSupportsRROErr
+}
+
+func (daemon *Daemon) supportsRecursivelyReadOnly(runtime string) error {
+	if err := kernelSupportsRecursivelyReadOnly(); err != nil {
+		return fmt.Errorf("rro is not supported: %w (kernel is older than 5.12?)", err)
+	}
+	if runtime == "" {
+		runtime = daemon.configStore.GetDefaultRuntimeName()
+	}
+	rt := daemon.configStore.GetRuntime(runtime)
+	if rt.Features == nil {
+		return fmt.Errorf("rro is not supported by runtime %q: OCI features struct is not available", runtime)
+	}
+	for _, s := range rt.Features.MountOptions {
+		if s == "rro" {
+			return nil
+		}
+	}
+	return fmt.Errorf("rro is not supported by runtime %q", runtime)
 }

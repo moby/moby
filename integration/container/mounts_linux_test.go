@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"gotest.tools/v3/assert"
@@ -427,4 +428,88 @@ func TestContainerCopyLeaksMounts(t *testing.T) {
 	mountsAfter := getMounts()
 
 	assert.Equal(t, mountsBefore, mountsAfter)
+}
+
+func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
+
+	defer setupTest(t)()
+
+	// 0o777 for allowing rootless containers to write to this directory
+	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0o777),
+		fs.WithDir("mnt", fs.WithMode(0o777)))
+	defer tmpDir1.Remove()
+	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt")
+	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0o777),
+		fs.WithFile("file", "should not be writable when recursively read only", fs.WithMode(0o666)))
+	defer tmpDir2.Remove()
+
+	if err := mount.Mount(tmpDir2.Path(), tmpDir1Mnt, "none", "bind"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := mount.Unmount(tmpDir1Mnt); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	rroSupported := kernel.CheckKernelVersion(5, 12, 0)
+
+	nonRecursiveVerifier := []string{`/bin/sh`, `-xc`, `touch /foo/mnt/file; [ $? = 0 ]`}
+	forceRecursiveVerifier := []string{`/bin/sh`, `-xc`, `touch /foo/mnt/file; [ $? != 0 ]`}
+
+	// ro (recursive if kernel >= 5.12)
+	ro := mounttypes.Mount{
+		Type:     mounttypes.TypeBind,
+		Source:   tmpDir1.Path(),
+		Target:   "/foo",
+		ReadOnly: true,
+		BindOptions: &mounttypes.BindOptions{
+			Propagation: mounttypes.PropagationRPrivate,
+		},
+	}
+	roAsStr := ro.Source + ":" + ro.Target + ":ro,rprivate"
+	roVerifier := nonRecursiveVerifier
+	if rroSupported {
+		roVerifier = forceRecursiveVerifier
+	}
+
+	// Non-recursive
+	nonRecursive := ro
+	nonRecursive.BindOptions = &mounttypes.BindOptions{
+		ReadOnlyNonRecursive: true,
+		Propagation:          mounttypes.PropagationRPrivate,
+	}
+	nonRecursiveAsStr := nonRecursive.Source + ":" + nonRecursive.Target + ":ro-non-recursive,rprivate"
+
+	// Force recursive
+	forceRecursive := ro
+	forceRecursive.BindOptions = &mounttypes.BindOptions{
+		ReadOnlyForceRecursive: true,
+		Propagation:            mounttypes.PropagationRPrivate,
+	}
+	forceRecursiveAsStr := forceRecursive.Source + ":" + forceRecursive.Target + ":ro-force-recursive,rprivate"
+
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	containers := []string{
+		container.Run(ctx, t, client, container.WithMount(ro), container.WithCmd(roVerifier...)),
+		container.Run(ctx, t, client, container.WithBindRaw(roAsStr), container.WithCmd(roVerifier...)),
+
+		container.Run(ctx, t, client, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
+		container.Run(ctx, t, client, container.WithBindRaw(nonRecursiveAsStr), container.WithCmd(nonRecursiveVerifier...)),
+	}
+
+	if rroSupported {
+		containers = append(containers,
+			container.Run(ctx, t, client, container.WithMount(forceRecursive), container.WithCmd(forceRecursiveVerifier...)),
+			container.Run(ctx, t, client, container.WithBindRaw(forceRecursiveAsStr), container.WithCmd(forceRecursiveVerifier...)),
+		)
+	}
+
+	for _, c := range containers {
+		poll.WaitOn(t, container.IsSuccessful(ctx, client, c), poll.WithDelay(100*time.Millisecond))
+	}
 }

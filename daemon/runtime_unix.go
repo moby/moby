@@ -3,6 +3,8 @@
 package daemon
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +16,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/shimopts"
+	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -109,6 +112,19 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 				}
 			}
 			rt.ShimConfig = defaultV2ShimConfig(daemon.configStore, daemon.rewriteRuntimePath(name, rt.Path, rt.Args))
+			var featuresStderr bytes.Buffer
+			featuresCmd := exec.Command(rt.Path, append(rt.Args, "features")...)
+			featuresCmd.Stderr = &featuresStderr
+			if featuresB, err := featuresCmd.Output(); err != nil {
+				logrus.WithError(err).Warnf("Failed to run %v: %q", featuresCmd.Args, featuresStderr.String())
+			} else {
+				var features features.Features
+				if jsonErr := json.Unmarshal(featuresB, &features); jsonErr != nil {
+					logrus.WithError(err).Warnf("Failed to unmarshal the output of %v as a JSON", featuresCmd.Args)
+				} else {
+					rt.Features = &features
+				}
+			}
 		} else {
 			if len(rt.Args) > 0 {
 				return errors.Errorf("runtime %s: args cannot be used with a runtimeType runtime", name)

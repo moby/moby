@@ -645,7 +645,24 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			}
 			opts := []string{bindMode}
 			if !m.Writable {
-				opts = append(opts, "ro")
+				rro := true
+				if m.ReadOnlyNonRecursive {
+					rro = false
+					if m.ReadOnlyForceRecursive {
+						return errors.New("mount options conflict: ReadOnlyNonRecursive && ReadOnlyForceRecursive")
+					}
+				}
+				if rroErr := daemon.supportsRecursivelyReadOnly(c.HostConfig.Runtime); rroErr != nil {
+					rro = false
+					if m.ReadOnlyForceRecursive {
+						return rroErr
+					}
+				}
+				if rro {
+					opts = append(opts, "rro")
+				} else {
+					opts = append(opts, "ro")
+				}
 			}
 			if pFlag != 0 {
 				opts = append(opts, mountPropagationReverseMap[pFlag])

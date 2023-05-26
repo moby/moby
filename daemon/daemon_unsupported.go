@@ -17,3 +17,7 @@ func setupResolvConf(_ *interface{}) {}
 func getSysInfo(_ *Daemon) *sysinfo.SysInfo {
 	return sysinfo.New()
 }
+
+func (daemon *Daemon) supportsRecursivelyReadOnly(_ string) error {
+	return nil
+}

@@ -20,6 +20,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * The `VirtualSize` field in the `GET /images/{name}/json`, `GET /images/json`,
   and `GET /system/df` responses is now omitted. Use the `Size` field instead,
   which contains the same information.
+* Read-only bind mounts are now made recursively read-only on kernel >= 5.12
+  with runtimes which support the feature.
+  `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
+  `BindOptions.ReadOnlyNonRecursive` and `BindOptions.ReadOnlyForceRecursive` to customize the behavior.
 
 ## v1.43 API changes
 
