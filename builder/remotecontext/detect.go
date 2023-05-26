@@ -102,7 +102,7 @@ func newURLRemote(url string, dockerfilePath string, progressReader func(in io.R
 	defer content.Close()
 
 	switch contentType {
-	case mimeTypes.TextPlain:
+	case mimeTypeTextPlain:
 		res, err := parser.Parse(progressReader(content))
 		return nil, res, errdefs.InvalidParameter(err)
 	default:
