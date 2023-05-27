@@ -500,8 +500,8 @@ func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
 			capability[versionOffset] = vfsCapRevision2
 			length = xattrCapsSz2
 		}
-		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability[:length])
+		hdr.PAXRecords = make(map[string]string)
+		hdr.PAXRecords["security.capability"] = string(capability[:length])
 	}
 	return nil
 }
@@ -776,7 +776,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	}
 
 	var xattrErrs []string
-	for key, value := range hdr.Xattrs {
+	for key, value := range hdr.PAXRecords {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
 			if bestEffortXattrs && errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
 				// EPERM occurs if modifying xattrs is not allowed. This can

@@ -42,8 +42,8 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 			return nil, err
 		}
 		if len(opaque) == 1 && opaque[0] == 'y' {
-			if hdr.Xattrs != nil {
-				delete(hdr.Xattrs, "trusted.overlay.opaque")
+			if hdr.PAXRecords != nil {
+				delete(hdr.PAXRecords, "trusted.overlay.opaque")
 			}
 
 			// create a header for the whiteout file
