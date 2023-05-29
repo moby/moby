@@ -633,7 +633,8 @@ func initMiddlewares(s *apiserver.Server, cfg *config.Config, pluginStore plugin
 	s.UseMiddleware(vm)
 
 	if cfg.CorsHeaders != "" {
-		c := middleware.NewCORSMiddleware(cfg.CorsHeaders)
+		logrus.Warnf(`DEPRECATED: The "api-cors-header" config parameter and the dockerd "--api-cors-header" option will be removed in the next release. Use a reverse proxy if you need CORS headers`)
+		c := middleware.NewCORSMiddleware(cfg.CorsHeaders) //nolint:staticcheck // ignore SA1019 (NewCORSMiddleware is deprecated); will be removed in the next release.
 		s.UseMiddleware(c)
 	}
 
