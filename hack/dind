@@ -3,7 +3,7 @@ set -e
 
 # DinD: a wrapper script which allows docker to be run inside a docker container.
 # Original version by Jerome Petazzoni <jerome@docker.com>
-# See the blog post: https://blog.docker.com/2013/09/docker-can-now-run-within-docker/
+# See the blog post: https://www.docker.com/blog/docker-can-now-run-within-docker/
 #
 # This script should be executed inside a docker container in privileged mode
 # ('docker run --privileged', introduced in docker 0.6).
