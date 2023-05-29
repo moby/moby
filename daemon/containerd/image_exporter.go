@@ -145,6 +145,15 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 				"manifest": platformImg.Target().Digest,
 			})
 
+			if isPseudo, err := platformImg.IsPseudoImage(ctx); isPseudo || err != nil {
+				if err != nil {
+					logger.WithError(err).Warn("failed to read manifest")
+				} else {
+					logger.Debug("don't unpack non-image manifest")
+				}
+				return nil
+			}
+
 			unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
 			if err != nil {
 				logger.WithError(err).Warn("failed to check if image is unpacked")
