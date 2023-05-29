@@ -73,7 +73,7 @@ jobs:
         name: Create matrix
         id: scripts
         run: |
-          scripts=$(jq -ncR '[inputs]' <<< "$(ls -I .validate -I all -I default -I dco -I golangci-lint.yml -I yamllint.yaml -A ./hack/validate/)")
+          scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco"] | map(select(test("[.]")|not)) + ["generate-files"]' --args *)
           echo "matrix=$scripts" >> $GITHUB_OUTPUT
       -
         name: Show matrix
