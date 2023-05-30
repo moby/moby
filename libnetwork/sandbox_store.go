@@ -260,7 +260,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 		// reconstruct osl sandbox field
 		if !sb.config.useDefaultSandBox {
 			if err := sb.restoreOslSandbox(); err != nil {
-				logrus.Errorf("failed to populate fields for osl sandbox %s", sb.ID())
+				logrus.Errorf("failed to populate fields for osl sandbox %s: %v", sb.ID(), err)
 				continue
 			}
 		} else {
