@@ -396,15 +396,21 @@ func removeIPChains(version iptables.IPVersion) {
 }
 
 func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert bool) error {
-	var (
-		inDropRule  = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
-		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
-	)
+	var version iptables.IPVersion
+	var inDropRule, outDropRule iptRule
 
-	version := iptables.IPv4
-
-	if addr.IP.To4() == nil {
+	if addr.IP.To4() != nil {
+		version = iptables.IPv4
+		inDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
+			"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
+		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
+			"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
+	} else {
 		version = iptables.IPv6
+		inDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
+			"-i", bridgeIface, "!", "-o", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
+		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain1, args: []string{
+			"!", "-i", bridgeIface, "-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
 	}
 
 	if err := programChainRule(version, inDropRule, "DROP INCOMING", insert); err != nil {
@@ -413,6 +419,7 @@ func setupInternalNetworkRules(bridgeIface string, addr *net.IPNet, icc, insert 
 	if err := programChainRule(version, outDropRule, "DROP OUTGOING", insert); err != nil {
 		return err
 	}
+
 	// Set Inter Container Communication.
 	return setIcc(version, bridgeIface, icc, insert)
 }
