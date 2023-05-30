@@ -765,7 +765,7 @@ func (sb *Sandbox) restoreOslSandbox() error {
 	var routes []*types.StaticRoute
 
 	// restore osl sandbox
-	Ifaces := make(map[string][]osl.IfaceOption)
+	Ifaces := make(map[osl.Iface][]osl.IfaceOption)
 	for _, ep := range sb.endpoints {
 		ep.mu.Lock()
 		joinInfo := ep.joinInfo
@@ -790,7 +790,7 @@ func (sb *Sandbox) restoreOslSandbox() error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
 		}
-		Ifaces[i.srcName+i.dstPrefix] = ifaceOptions
+		Ifaces[osl.Iface{SrcName: i.srcName, DstPrefix: i.dstPrefix}] = ifaceOptions
 		if joinInfo != nil {
 			routes = append(routes, joinInfo.StaticRoutes...)
 		}

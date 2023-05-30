@@ -470,16 +470,10 @@ func (n *networkNamespace) Destroy() error {
 }
 
 // Restore restore the network namespace
-func (n *networkNamespace) Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
+func (n *networkNamespace) Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error {
 	// restore interfaces
 	for name, opts := range ifsopt {
-		if !strings.Contains(name, "+") {
-			return fmt.Errorf("wrong iface name in restore osl sandbox interface: %s", name)
-		}
-		seps := strings.Split(name, "+")
-		srcName := seps[0]
-		dstPrefix := seps[1]
-		i := &nwIface{srcName: srcName, dstName: dstPrefix, ns: n}
+		i := &nwIface{srcName: name.SrcName, dstName: name.DstPrefix, ns: n}
 		i.processInterfaceOptions(opts...)
 		if i.master != "" {
 			i.dstMaster = n.findDst(i.master, true)
@@ -531,7 +525,7 @@ func (n *networkNamespace) Restore(ifsopt map[string][]IfaceOption, routes []*ty
 			}
 
 			var index int
-			indexStr := strings.TrimPrefix(i.dstName, dstPrefix)
+			indexStr := strings.TrimPrefix(i.dstName, name.DstPrefix)
 			if indexStr != "" {
 				index, err = strconv.Atoi(indexStr)
 				if err != nil {
@@ -540,8 +534,8 @@ func (n *networkNamespace) Restore(ifsopt map[string][]IfaceOption, routes []*ty
 			}
 			index++
 			n.Lock()
-			if index > n.nextIfIndex[dstPrefix] {
-				n.nextIfIndex[dstPrefix] = index
+			if index > n.nextIfIndex[name.DstPrefix] {
+				n.nextIfIndex[name.DstPrefix] = index
 			}
 			n.iFaces = append(n.iFaces, i)
 			n.Unlock()
