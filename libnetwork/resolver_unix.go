@@ -37,8 +37,7 @@ func (r *Resolver) setupIPTable() error {
 		iptable := iptables.GetIptable(iptables.IPv4)
 
 		// insert outputChain and postroutingchain
-		err := iptable.RawCombinedOutputNative("-t", "nat", "-C", "OUTPUT", "-d", resolverIP, "-j", outputChain)
-		if err == nil {
+		if iptable.ExistsNative("nat", "OUTPUT", "-d", resolverIP, "-j", outputChain) {
 			if err := iptable.RawCombinedOutputNative("-t", "nat", "-F", outputChain); err != nil {
 				setupErr = err
 				return
@@ -54,8 +53,7 @@ func (r *Resolver) setupIPTable() error {
 			}
 		}
 
-		err = iptable.RawCombinedOutputNative("-t", "nat", "-C", "POSTROUTING", "-d", resolverIP, "-j", postroutingChain)
-		if err == nil {
+		if iptable.ExistsNative("nat", "POSTROUTING", "-d", resolverIP, "-j", postroutingChain) {
 			if err := iptable.RawCombinedOutputNative("-t", "nat", "-F", postroutingChain); err != nil {
 				setupErr = err
 				return
