@@ -17,6 +17,10 @@ const (
 	SandboxTypeLoadBalancer = iota
 )
 
+type Iface struct {
+	SrcName, DstPrefix string
+}
+
 // IfaceOption is a function option type to set interface options.
 type IfaceOption func(i *nwIface)
 
@@ -89,7 +93,7 @@ type Sandbox interface {
 	Destroy() error
 
 	// Restore restores the sandbox.
-	Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
+	Restore(ifsopt map[Iface][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
 
 	// ApplyOSTweaks applies operating system specific knobs on the sandbox.
 	ApplyOSTweaks([]SandboxType)
