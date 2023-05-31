@@ -355,11 +355,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	exporterName := ""
 	exporterAttrs := map[string]string{}
 	if len(opt.Options.Outputs) == 0 {
-		if b.useSnapshotter {
-			exporterName = client.ExporterImage
-		} else {
-			exporterName = exporter.Moby
-		}
+		exporterName = exporter.Moby
 	} else {
 		// cacheonly is a special type for triggering skipping all exporters
 		if opt.Options.Outputs[0].Type != "cacheonly" {
