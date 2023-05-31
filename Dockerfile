@@ -439,30 +439,30 @@ FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
 
 FROM base AS dev-systemd-false
-COPY --from=dockercli     /build/ /usr/local/cli
-COPY --from=frozen-images /build/ /docker-frozen-images
-COPY --from=swagger       /build/ /usr/local/bin/
-COPY --from=delve         /build/ /usr/local/bin/
-COPY --from=tomll         /build/ /usr/local/bin/
-COPY --from=gowinres      /build/ /usr/local/bin/
-COPY --from=tini          /build/ /usr/local/bin/
-COPY --from=registry      /build/ /usr/local/bin/
+COPY --link --from=dockercli     /build/ /usr/local/cli
+COPY --link --from=frozen-images /build/ /docker-frozen-images
+COPY --link --from=swagger       /build/ /usr/local/bin/
+COPY --link --from=delve         /build/ /usr/local/bin/
+COPY --link --from=tomll         /build/ /usr/local/bin/
+COPY --link --from=gowinres      /build/ /usr/local/bin/
+COPY --link --from=tini          /build/ /usr/local/bin/
+COPY --link --from=registry      /build/ /usr/local/bin/
 
 # Skip the CRIU stage for now, as the opensuse package repository is sometimes
 # unstable, and we're currently not using it in CI.
 #
 # FIXME(thaJeztah): re-enable this stage when https://github.com/moby/moby/issues/38963 is resolved (see https://github.com/moby/moby/pull/38984)
-# COPY --from=criu          /build/ /usr/local/bin/
-COPY --from=gotestsum     /build/ /usr/local/bin/
-COPY --from=golangci_lint /build/ /usr/local/bin/
-COPY --from=shfmt         /build/ /usr/local/bin/
-COPY --from=runc          /build/ /usr/local/bin/
-COPY --from=containerd    /build/ /usr/local/bin/
-COPY --from=rootlesskit   /build/ /usr/local/bin/
-COPY --from=vpnkit        /       /usr/local/bin/
-COPY --from=containerutil /build/ /usr/local/bin/
-COPY --from=crun          /build/ /usr/local/bin/
-COPY hack/dockerfile/etc/docker/  /etc/docker/
+# COPY --link --from=criu          /build/ /usr/local/bin/
+COPY --link --from=gotestsum     /build/ /usr/local/bin/
+COPY --link --from=golangci_lint /build/ /usr/local/bin/
+COPY --link --from=shfmt         /build/ /usr/local/bin/
+COPY --link --from=runc          /build/ /usr/local/bin/
+COPY --link --from=containerd    /build/ /usr/local/bin/
+COPY --link --from=rootlesskit   /build/ /usr/local/bin/
+COPY --link --from=vpnkit        /       /usr/local/bin/
+COPY --link --from=containerutil /build/ /usr/local/bin/
+COPY --link --from=crun          /build/ /usr/local/bin/
+COPY --link hack/dockerfile/etc/docker/  /etc/docker/
 ENV PATH=/usr/local/cli:$PATH
 ENV CONTAINERD_ADDRESS=/run/docker/containerd/containerd.sock
 ENV CONTAINERD_NAMESPACE=moby
@@ -620,13 +620,13 @@ COPY --from=build /build/ /
 # usage:
 # > docker buildx bake all
 FROM scratch AS all
-COPY --from=tini          /build/ /
-COPY --from=runc          /build/ /
-COPY --from=containerd    /build/ /
-COPY --from=rootlesskit   /build/ /
-COPY --from=containerutil /build/ /
-COPY --from=vpnkit        /       /
-COPY --from=build         /build  /
+COPY --link --from=tini          /build/ /
+COPY --link --from=runc          /build/ /
+COPY --link --from=containerd    /build/ /
+COPY --link --from=rootlesskit   /build/ /
+COPY --link --from=containerutil /build/ /
+COPY --link --from=vpnkit        /       /
+COPY --link --from=build         /build  /
 
 # smoke tests
 # usage:
