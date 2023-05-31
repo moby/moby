@@ -303,11 +303,7 @@ func (vs *volumeSet) checkVolume(id string, info *NodeInfo, readOnly bool) bool 
 	// then, do the quick check of whether this volume is in the topology.  if
 	// the volume has an AccessibleTopology, and it does not lie within the
 	// node's topology, then this volume won't fit.
-	if !IsInTopology(top, vi.volume.VolumeInfo.AccessibleTopology) {
-		return false
-	}
-
-	return true
+	return IsInTopology(top, vi.volume.VolumeInfo.AccessibleTopology)
 }
 
 // hasWriter is a helper function that returns true if at least one task is
