@@ -74,3 +74,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 	}
 	return nil
 }
+
+func (daemon *Daemon) warnExposedHostPorts(ctr *container.Container) bool {
+	return false
+}

@@ -90,10 +90,10 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
-
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
+
 	err = daemon.adaptContainerSettings(opts.params.HostConfig, opts.params.AdjustCPUShares)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
@@ -104,6 +104,11 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 		return containertypes.CreateResponse{Warnings: warnings}, err
 	}
 	containerActions.WithValues("create").UpdateSince(start)
+
+	const hostPortWarning = `Container is created with host port mappings which may bypass firewall rules and give access to the container from the outside world.`
+	if daemon.warnExposedHostPorts(ctr) {
+		warnings = append(warnings, hostPortWarning)
+	}
 
 	if warnings == nil {
 		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
