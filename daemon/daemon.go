@@ -7,8 +7,10 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -65,6 +67,7 @@ import (
 	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/moby/buildkit/util/resolver"
 	resolverconfig "github.com/moby/buildkit/util/resolver/config"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -163,6 +166,30 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 	return daemon.usesSnapshotter
 }
 
+// testHookHostCertsDir overrides the behavior of registryHostCertsDir if it is non-nil.
+//
+// Functions assigned to this variable are expected to return a string representing a
+// path to a directory which the process may read and list (execute), which SHOULD contain
+// some combination of readable files `ca.crt`, `client.cert`, and `client.key` compliant with
+// the behavior documented at https://docs.docker.com/engine/security/certificates/.
+var testHookHostCertsDir func(string) string
+
+// registryHostCertsDir is an alias of registry.HostCertsDir that can be overridden.
+//
+// Its behavior is identical to that of registry.HostCertsDir if and only if
+// `testHookHostCertsDir` is `nil`. Otherwise, the function assigned to
+// `testHookHostCertsDir` overrides the behavior of `registry.HostCertsDir`.
+//
+// The intent of this method is to avoid the global, mutable state that is the
+// filesystem, isolating tests from each other and from one's actual host certificate
+// configuration.
+func registryHostCertsDir(host string) string {
+	if testHookHostCertsDir != nil {
+		return testHookHostCertsDir(host)
+	}
+	return registry.HostCertsDir(host)
+}
+
 // RegistryHosts returns registry configuration in containerd resolvers format
 func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	var (
@@ -203,22 +230,59 @@ func (daemon *Daemon) RegistryHosts() docker.RegistryHosts {
 	}
 
 	for k, v := range m {
-		v.TLSConfigDir = []string{registry.HostCertsDir(k)}
+		v.TLSConfigDir = []string{registryHostCertsDir(k)}
 		m[k] = v
 	}
 
-	certsDir := registry.CertsDir()
-	if fis, err := os.ReadDir(certsDir); err == nil {
-		for _, fi := range fis {
-			if _, ok := m[fi.Name()]; !ok {
-				m[fi.Name()] = resolverconfig.RegistryConfig{
-					TLSConfigDir: []string{filepath.Join(certsDir, fi.Name())},
-				}
-			}
+	resolverConfig := resolver.NewRegistryConfig(m)
+	return func(host string) ([]docker.RegistryHost, error) {
+		if _, ok := m[host]; ok {
+			return resolverConfig(host)
 		}
-	}
 
-	return resolver.NewRegistryConfig(m)
+		tc := new(tls.Config)
+		err := registry.ReadCertsDirectory(tc, registryHostCertsDir(host))
+		if err != nil {
+			return resolverConfig(host)
+		}
+
+		transport := newDefaultTransport()
+		transport.TLSClientConfig = tc
+
+		return []docker.RegistryHost{{
+			Scheme: "https",
+			Client: &http.Client{
+				Transport: tracing.NewTransport(transport),
+			},
+			Host:         host,
+			Path:         "/v2",
+			Capabilities: docker.HostCapabilityPush | docker.HostCapabilityPull | docker.HostCapabilityResolve,
+		}}, nil
+	}
+}
+
+// newDefaultTransport is for pull or push client
+//
+// NOTE: For push, there must disable http2 for https because the flow control
+// will limit data transfer. The net/http package doesn't provide http2 tunable
+// settings which limits push performance.
+//
+// REF: https://github.com/golang/go/issues/14077
+// REF: https://github.com/moby/buildkit/blob/v0.11.2/util/resolver/resolver.go#L185
+func newDefaultTransport() *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 60 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          30,
+		IdleConnTimeout:       120 * time.Second,
+		MaxIdleConnsPerHost:   4,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 5 * time.Second,
+		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+	}
 }
 
 // layerAccessor may be implemented by ImageService
