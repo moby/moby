@@ -61,7 +61,7 @@ require (
 	github.com/moby/locker v1.0.1
 	github.com/moby/patternmatcher v0.5.0
 	github.com/moby/pubsub v1.0.0
-	github.com/moby/swarmkit/v2 v2.0.0-20230406225228-75e92ce14ff7
+	github.com/moby/swarmkit/v2 v2.0.0-20230531205928-01bb7a41396b
 	github.com/moby/sys/mount v0.3.3
 	github.com/moby/sys/mountinfo v0.6.2
 	github.com/moby/sys/sequential v0.5.0
