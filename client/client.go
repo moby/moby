@@ -76,6 +76,11 @@ type Client struct {
 	client *http.Client
 	// version of the server to talk to.
 	version string
+	// userAgent is the User-Agent header to use for HTTP requests. It takes
+	// precedence over User-Agent headers set in customHTTPHeaders, and other
+	// header variables. When set to an empty string, the User-Agent header
+	// is removed, and no header is sent.
+	userAgent *string
 	// custom http headers configured by users.
 	customHTTPHeaders map[string]string
 	// manualOverride is set to true when the version was set by users.

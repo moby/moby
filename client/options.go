@@ -104,6 +104,16 @@ func WithTimeout(timeout time.Duration) Opt {
 	}
 }
 
+// WithUserAgent configures the User-Agent header to use for HTTP requests.
+// It overrides any User-Agent set in headers. When set to an empty string,
+// the User-Agent header is removed, and no header is sent.
+func WithUserAgent(ua string) Opt {
+	return func(c *Client) error {
+		c.userAgent = &ua
+		return nil
+	}
+}
+
 // WithHTTPHeaders overrides the client default http headers
 func WithHTTPHeaders(headers map[string]string) Opt {
 	return func(c *Client) error {

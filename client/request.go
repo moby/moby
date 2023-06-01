@@ -107,7 +107,10 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 
 	if cli.proto == "unix" || cli.proto == "npipe" {
 		// For local communications, it doesn't matter what the host is. We just
-		// need a valid and meaningful host name. (See #189)
+		// need a valid and meaningful host name. For details, see:
+		//
+		// - https://github.com/docker/engine-api/issues/189
+		// - https://github.com/golang/go/issues/13624
 		req.Host = "docker"
 	}
 
@@ -262,6 +265,14 @@ func (cli *Client) addHeaders(req *http.Request, headers headers) *http.Request 
 
 	for k, v := range headers {
 		req.Header[http.CanonicalHeaderKey(k)] = v
+	}
+
+	if cli.userAgent != nil {
+		if *cli.userAgent == "" {
+			req.Header.Del("User-Agent")
+		} else {
+			req.Header.Set("User-Agent", *cli.userAgent)
+		}
 	}
 	return req
 }
