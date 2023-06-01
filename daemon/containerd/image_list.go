@@ -19,7 +19,7 @@ import (
 	"github.com/moby/buildkit/util/attestation"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -87,7 +87,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 			continue
 		}
 
-		err := images.Walk(ctx, images.HandlerFunc(func(ctx context.Context, desc v1.Descriptor) ([]v1.Descriptor, error) {
+		err := images.Walk(ctx, images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 			if images.IsIndexType(desc.MediaType) {
 				return images.Children(ctx, contentStore, desc)
 			}
@@ -418,7 +418,7 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 		// processing more content (otherwise it will run for all children).
 		// It will be returned once a matching config is found.
 		errFoundConfig := errors.New("success, found matching config")
-		err := images.Dispatch(ctx, presentChildrenHandler(store, images.HandlerFunc(func(ctx context.Context, desc v1.Descriptor) (subdescs []v1.Descriptor, err error) {
+		err := images.Dispatch(ctx, presentChildrenHandler(store, images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
 			if !images.IsConfigType(desc.MediaType) {
 				return nil, nil
 			}
@@ -511,8 +511,8 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 
 // getManifestPlatform returns a platform specified by the manifest descriptor
 // or reads it from its config.
-func getManifestPlatform(ctx context.Context, store content.Provider, manifestDesc, configDesc v1.Descriptor) (v1.Platform, error) {
-	var platform v1.Platform
+func getManifestPlatform(ctx context.Context, store content.Provider, manifestDesc, configDesc ocispec.Descriptor) (ocispec.Platform, error) {
+	var platform ocispec.Platform
 	if manifestDesc.Platform != nil {
 		platform = *manifestDesc.Platform
 	} else {
@@ -527,7 +527,7 @@ func getManifestPlatform(ctx context.Context, store content.Provider, manifestDe
 
 // isImageManifest returns true if the manifest has no layers or any of its layers is a known image layer.
 // Some manifests use the image media type for compatibility, even if they are not a real image.
-func isImageManifest(mfst v1.Manifest) bool {
+func isImageManifest(mfst ocispec.Manifest) bool {
 	if len(mfst.Layers) == 0 {
 		return true
 	}
@@ -540,7 +540,7 @@ func isImageManifest(mfst v1.Manifest) bool {
 }
 
 // readConfig reads content pointed by the descriptor and unmarshals it into a specified output.
-func readConfig(ctx context.Context, store content.Provider, desc v1.Descriptor, out interface{}) error {
+func readConfig(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out interface{}) error {
 	data, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read config content")

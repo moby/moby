@@ -20,7 +20,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -128,12 +128,12 @@ func (w *testingContentWriterWrapper) Commit(ctx context.Context, size int64, dg
 }
 
 func TestManifestStore(t *testing.T) {
-	ociManifest := &specs.Manifest{}
+	ociManifest := &ocispec.Manifest{}
 	serialized, err := json.Marshal(ociManifest)
 	assert.NilError(t, err)
 	dgst := digest.Canonical.FromBytes(serialized)
 
-	setupTest := func(t *testing.T) (reference.Named, specs.Descriptor, *mockManifestGetter, *manifestStore, content.Store, func(*testing.T)) {
+	setupTest := func(t *testing.T) (reference.Named, ocispec.Descriptor, *mockManifestGetter, *manifestStore, content.Store, func(*testing.T)) {
 		root, err := os.MkdirTemp("", strings.ReplaceAll(t.Name(), "/", "_"))
 		assert.NilError(t, err)
 		defer func() {
@@ -147,7 +147,7 @@ func TestManifestStore(t *testing.T) {
 
 		mg := &mockManifestGetter{manifests: make(map[digest.Digest]distribution.Manifest)}
 		store := &manifestStore{local: cs, remote: mg}
-		desc := specs.Descriptor{Digest: dgst, MediaType: specs.MediaTypeImageManifest, Size: int64(len(serialized))}
+		desc := ocispec.Descriptor{Digest: dgst, MediaType: ocispec.MediaTypeImageManifest, Size: int64(len(serialized))}
 
 		ref, err := reference.Parse("foo/bar")
 		assert.NilError(t, err)
@@ -159,10 +159,10 @@ func TestManifestStore(t *testing.T) {
 
 	ctx := context.Background()
 
-	m, _, err := distribution.UnmarshalManifest(specs.MediaTypeImageManifest, serialized)
+	m, _, err := distribution.UnmarshalManifest(ocispec.MediaTypeImageManifest, serialized)
 	assert.NilError(t, err)
 
-	writeManifest := func(t *testing.T, cs ContentStore, desc specs.Descriptor, opts ...content.Opt) {
+	writeManifest := func(t *testing.T, cs ContentStore, desc ocispec.Descriptor, opts ...content.Opt) {
 		ingestKey := remotes.MakeRefKey(ctx, desc)
 		w, err := cs.Writer(ctx, content.WithDescriptor(desc), content.WithRef(ingestKey))
 		assert.NilError(t, err)
@@ -185,7 +185,7 @@ func TestManifestStore(t *testing.T) {
 	}
 
 	// All tests should end up with no active ingest
-	checkIngest := func(t *testing.T, cs content.Store, desc specs.Descriptor) {
+	checkIngest := func(t *testing.T, cs content.Store, desc ocispec.Descriptor) {
 		ingestKey := remotes.MakeRefKey(ctx, desc)
 		_, err := cs.Status(ctx, ingestKey)
 		assert.Check(t, cerrdefs.IsNotFound(err), err)
@@ -354,9 +354,9 @@ func TestDetectManifestBlobMediaType(t *testing.T) {
 	}
 	cases := map[string]testCase{
 		"mediaType is set":   {[]byte(`{"mediaType": "bananas"}`), "bananas"},
-		"oci manifest":       {[]byte(`{"config": {}}`), specs.MediaTypeImageManifest},
+		"oci manifest":       {[]byte(`{"config": {}}`), ocispec.MediaTypeImageManifest},
 		"schema1":            {[]byte(`{"fsLayers": []}`), schema1.MediaTypeManifest},
-		"oci index fallback": {[]byte(`{}`), specs.MediaTypeImageIndex},
+		"oci index fallback": {[]byte(`{}`), ocispec.MediaTypeImageIndex},
 		// Make sure we prefer mediaType
 		"mediaType and config set":   {[]byte(`{"mediaType": "bananas", "config": {}}`), "bananas"},
 		"mediaType and fsLayers set": {[]byte(`{"mediaType": "bananas", "fsLayers": []}`), "bananas"},
@@ -394,7 +394,7 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 			`media-type: "application/vnd.docker.distribution.manifest.v2+json" should not have "manifests" or "fsLayers"`,
 		},
 		"oci manifest mediaType with manifests": {
-			[]byte(`{"mediaType": "` + specs.MediaTypeImageManifest + `","manifests":[]}`),
+			[]byte(`{"mediaType": "` + ocispec.MediaTypeImageManifest + `","manifests":[]}`),
 			`media-type: "application/vnd.oci.image.manifest.v1+json" should not have "manifests" or "fsLayers"`,
 		},
 		"manifest list mediaType with fsLayers": {
@@ -402,11 +402,11 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 			`media-type: "application/vnd.docker.distribution.manifest.list.v2+json" should not have "config", "layers", or "fsLayers"`,
 		},
 		"index mediaType with layers": {
-			[]byte(`{"mediaType": "` + specs.MediaTypeImageIndex + `","layers":[]}`),
+			[]byte(`{"mediaType": "` + ocispec.MediaTypeImageIndex + `","layers":[]}`),
 			`media-type: "application/vnd.oci.image.index.v1+json" should not have "config", "layers", or "fsLayers"`,
 		},
 		"index mediaType with config": {
-			[]byte(`{"mediaType": "` + specs.MediaTypeImageIndex + `","config":{}}`),
+			[]byte(`{"mediaType": "` + ocispec.MediaTypeImageIndex + `","config":{}}`),
 			`media-type: "application/vnd.oci.image.index.v1+json" should not have "config", "layers", or "fsLayers"`,
 		},
 		"config and manifests": {

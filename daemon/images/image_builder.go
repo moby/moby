@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	registrypkg "github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -149,7 +149,7 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]registry.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]registry.AuthConfig, output io.Writer, platform *ocispec.Platform) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 
 	img, err := i.GetImage(ctx, name, imagetypes.GetImageOpts{Platform: platform})
 	if errdefs.IsNotFound(err) && img != nil && platform != nil {
-		imgPlat := specs.Platform{
+		imgPlat := ocispec.Platform{
 			OS:           img.OS,
 			Architecture: img.BaseImgArch(),
 			Variant:      img.BaseImgVariant(),

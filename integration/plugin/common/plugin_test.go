@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/docker/docker/testutil/registry"
 	"github.com/docker/docker/testutil/request"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -306,7 +306,7 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 	assert.NilError(t, err)
 	defer rdr.Close()
 
-	var m v1.Manifest
+	var m ocispec.Manifest
 	assert.NilError(t, json.NewDecoder(rdr).Decode(&m))
 	assert.Check(t, is.Equal(m.MediaType, images.MediaTypeDockerSchema2Manifest))
 	assert.Check(t, is.Len(m.Layers, 1))

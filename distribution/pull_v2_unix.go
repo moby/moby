@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,7 +19,7 @@ func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekClose
 	return blobs.Open(ctx, ld.digest)
 }
 
-func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platform) []manifestlist.ManifestDescriptor {
+func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Platform) []manifestlist.ManifestDescriptor {
 	p = platforms.Normalize(withDefault(p))
 	m := platforms.Only(p)
 	var matches []manifestlist.ManifestDescriptor
@@ -53,7 +53,7 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 	return nil
 }
 
-func withDefault(p specs.Platform) specs.Platform {
+func withDefault(p ocispec.Platform) ocispec.Platform {
 	def := maximumSpec()
 	if p.OS == "" {
 		p.OS = def.OS
@@ -65,7 +65,7 @@ func withDefault(p specs.Platform) specs.Platform {
 	return p
 }
 
-func formatPlatform(platform specs.Platform) string {
+func formatPlatform(platform ocispec.Platform) string {
 	if platform.OS == "" {
 		platform = platforms.DefaultSpec()
 	}

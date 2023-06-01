@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/testutil/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
-	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -36,7 +36,7 @@ func TestImagePullPlatformInvalid(t *testing.T) {
 	assert.Assert(t, errdefs.IsInvalidParameter(err))
 }
 
-func createTestImage(ctx context.Context, t testing.TB, store content.Store) imagespec.Descriptor {
+func createTestImage(ctx context.Context, t testing.TB, store content.Store) ocispec.Descriptor {
 	w, err := store.Writer(ctx, content.WithRef("layer"))
 	assert.NilError(t, err)
 	defer w.Close()
@@ -55,11 +55,11 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) ima
 
 	platform := platforms.DefaultSpec()
 
-	img := imagespec.Image{
+	img := ocispec.Image{
 		Architecture: platform.Architecture,
 		OS:           platform.OS,
-		RootFS:       imagespec.RootFS{Type: "layers", DiffIDs: []digest.Digest{layerDigest}},
-		Config:       imagespec.ImageConfig{WorkingDir: "/"},
+		RootFS:       ocispec.RootFS{Type: "layers", DiffIDs: []digest.Digest{layerDigest}},
+		Config:       ocispec.ImageConfig{WorkingDir: "/"},
 	}
 	imgJSON, err := json.Marshal(img)
 	assert.NilError(t, err)
@@ -77,17 +77,17 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) ima
 	info, err := store.Info(ctx, layerDigest)
 	assert.NilError(t, err)
 
-	manifest := imagespec.Manifest{
+	manifest := ocispec.Manifest{
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
 		MediaType: images.MediaTypeDockerSchema2Manifest,
-		Config: imagespec.Descriptor{
+		Config: ocispec.Descriptor{
 			MediaType: images.MediaTypeDockerSchema2Config,
 			Digest:    configDigest,
 			Size:      int64(len(imgJSON)),
 		},
-		Layers: []imagespec.Descriptor{{
+		Layers: []ocispec.Descriptor{{
 			MediaType: images.MediaTypeDockerSchema2Layer,
 			Digest:    layerDigest,
 			Size:      info.Size,
@@ -107,7 +107,7 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) ima
 	manifestDigest := w.Digest()
 	w.Close()
 
-	return imagespec.Descriptor{
+	return ocispec.Descriptor{
 		MediaType: images.MediaTypeDockerSchema2Manifest,
 		Digest:    manifestDigest,
 		Size:      int64(len(manifestJSON)),
