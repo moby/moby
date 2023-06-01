@@ -646,4 +646,4 @@ EOT
 # > make shell
 # > SYSTEMD=true make shell
 FROM dev-base AS dev
-COPY . .
+COPY --link . .
