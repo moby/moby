@@ -17,8 +17,8 @@ type UAStringKey struct{}
 // In accordance with RFC 7231 (5.5.3) is of the form:
 //
 //	[docker client's UA] UpstreamClient([upstream client's UA])
-func DockerUserAgent(ctx context.Context) string {
-	ua := getDaemonUserAgent()
+func DockerUserAgent(ctx context.Context, extraVersions ...useragent.VersionInfo) string {
+	ua := useragent.AppendVersions(getDaemonUserAgent(), extraVersions...)
 	if upstreamUA := getUpstreamUserAgent(ctx); upstreamUA != "" {
 		ua += " " + upstreamUA
 	}
