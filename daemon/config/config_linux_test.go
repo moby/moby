@@ -3,10 +3,8 @@ package config // import "github.com/docker/docker/daemon/config"
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
-	"github.com/imdario/mergo"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -121,34 +119,6 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 
 	expectedValue := 1 * 1024 * 1024 * 1024
 	assert.Check(t, is.Equal(int64(expectedValue), cc.ShmSize.Value()))
-}
-
-func TestUnixValidateConfigurationErrors(t *testing.T) {
-	testCases := []struct {
-		doc         string
-		config      *Config
-		expectedErr string
-	}{
-		{
-			doc: `cannot override the stock runtime`,
-			config: &Config{
-				Runtimes: map[string]types.Runtime{
-					StockRuntimeName: {},
-				},
-			},
-			expectedErr: `runtime name 'runc' is reserved`,
-		},
-	}
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.doc, func(t *testing.T) {
-			cfg, err := New()
-			assert.NilError(t, err)
-			assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
-			err = Validate(cfg)
-			assert.ErrorContains(t, err, tc.expectedErr)
-		})
-	}
 }
 
 func TestUnixGetInitPath(t *testing.T) {

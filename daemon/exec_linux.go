@@ -9,6 +9,7 @@ import (
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -50,7 +51,7 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 	return spec.Process.User, nil
 }
 
-func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, ec *container.ExecConfig, p *specs.Process) error {
+func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.Config, ec *container.ExecConfig, p *specs.Process) error {
 	if len(ec.User) > 0 {
 		var err error
 		if daemon.UsesSnapshotter() {
@@ -100,5 +101,5 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, ec *container.Exec
 		p.ApparmorProfile = appArmorProfile
 	}
 	s := &specs.Spec{Process: p}
-	return WithRlimits(daemon, ec.Container)(ctx, nil, nil, s)
+	return withRlimits(daemon, daemonCfg, ec.Container)(ctx, nil, nil, s)
 }

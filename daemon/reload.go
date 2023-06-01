@@ -5,12 +5,58 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/docker/daemon/config"
+	"github.com/hashicorp/go-multierror"
+	"github.com/mitchellh/copystructure"
 	"github.com/sirupsen/logrus"
+
+	"github.com/docker/docker/daemon/config"
 )
 
-// Reload reads configuration changes and modifies the
-// daemon according to those changes.
+// reloadTxn is used to defer side effects of a config reload.
+type reloadTxn struct {
+	onCommit, onRollback []func() error
+}
+
+// OnCommit defers a function to be called when a config reload is being finalized.
+// The error returned from cb is purely informational.
+func (tx *reloadTxn) OnCommit(cb func() error) {
+	tx.onCommit = append(tx.onCommit, cb)
+}
+
+// OnRollback defers a function to be called when a config reload is aborted.
+// The error returned from cb is purely informational.
+func (tx *reloadTxn) OnRollback(cb func() error) {
+	tx.onCommit = append(tx.onRollback, cb)
+}
+
+func (tx *reloadTxn) run(cbs []func() error) error {
+	tx.onCommit = nil
+	tx.onRollback = nil
+
+	var res *multierror.Error
+	for _, cb := range cbs {
+		res = multierror.Append(res, cb())
+	}
+	return res.ErrorOrNil()
+}
+
+// Commit calls all functions registered with OnCommit.
+// Any errors returned by the functions are collated into a
+// *github.com/hashicorp/go-multierror.Error value.
+func (tx *reloadTxn) Commit() error {
+	return tx.run(tx.onCommit)
+}
+
+// Rollback calls all functions registered with OnRollback.
+// Any errors returned by the functions are collated into a
+// *github.com/hashicorp/go-multierror.Error value.
+func (tx *reloadTxn) Rollback() error {
+	return tx.run(tx.onRollback)
+}
+
+// Reload modifies the live daemon configuration from conf.
+// conf is assumed to be a validated configuration.
+//
 // These are the settings that Reload changes:
 // - Platform runtime
 // - Daemon debug log level
@@ -23,256 +69,229 @@ import (
 // - Insecure registries
 // - Registry mirrors
 // - Daemon live restore
-func (daemon *Daemon) Reload(conf *config.Config) (err error) {
-	daemon.configStore.Lock()
+func (daemon *Daemon) Reload(conf *config.Config) error {
+	daemon.configReload.Lock()
+	defer daemon.configReload.Unlock()
+	copied, err := copystructure.Copy(daemon.config().Config)
+	if err != nil {
+		return err
+	}
+	newCfg := &configStore{
+		Config: copied.(config.Config),
+	}
+
 	attributes := map[string]string{}
 
-	defer func() {
-		if err == nil {
-			jsonString, _ := json.Marshal(&struct {
-				*config.Config
-				config.Proxies `json:"proxies"`
-			}{
-				Config: daemon.configStore,
-				Proxies: config.Proxies{
-					HTTPProxy:  config.MaskCredentials(daemon.configStore.HTTPProxy),
-					HTTPSProxy: config.MaskCredentials(daemon.configStore.HTTPSProxy),
-					NoProxy:    config.MaskCredentials(daemon.configStore.NoProxy),
-				},
-			})
-			logrus.Infof("Reloaded configuration: %s", jsonString)
-		}
-		daemon.configStore.Unlock()
-		if err == nil {
-			daemon.LogDaemonEventWithAttributes("reload", attributes)
-		}
-	}()
+	// Ideally reloading should be transactional: the reload either completes
+	// successfully, or the daemon config and state are left untouched. We use a
+	// two-phase commit protocol to achieve this. Any fallible reload operation is
+	// split into two phases. The first phase performs all the fallible operations
+	// and mutates the newCfg copy. The second phase atomically swaps newCfg into
+	// the live daemon configuration and executes any commit functions the first
+	// phase registered to apply the side effects. If any first-phase returns an
+	// error, the reload transaction is rolled back by discarding newCfg and
+	// executing any registered rollback functions.
 
-	if err := daemon.reloadPlatform(conf, attributes); err != nil {
-		return err
+	var txn reloadTxn
+	for _, reload := range []func(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error{
+		daemon.reloadPlatform,
+		daemon.reloadDebug,
+		daemon.reloadMaxConcurrentDownloadsAndUploads,
+		daemon.reloadMaxDownloadAttempts,
+		daemon.reloadShutdownTimeout,
+		daemon.reloadFeatures,
+		daemon.reloadLabels,
+		daemon.reloadRegistryConfig,
+		daemon.reloadLiveRestore,
+		daemon.reloadNetworkDiagnosticPort,
+	} {
+		if err := reload(&txn, newCfg, conf, attributes); err != nil {
+			if rollbackErr := txn.Rollback(); rollbackErr != nil {
+				return multierror.Append(nil, err, rollbackErr)
+			}
+			return err
+		}
 	}
-	daemon.reloadDebug(conf, attributes)
-	daemon.reloadMaxConcurrentDownloadsAndUploads(conf, attributes)
-	daemon.reloadMaxDownloadAttempts(conf, attributes)
-	daemon.reloadShutdownTimeout(conf, attributes)
-	daemon.reloadFeatures(conf, attributes)
 
-	if err := daemon.reloadLabels(conf, attributes); err != nil {
-		return err
+	jsonString, _ := json.Marshal(&struct {
+		*config.Config
+		config.Proxies `json:"proxies"`
+	}{
+		Config: &newCfg.Config,
+		Proxies: config.Proxies{
+			HTTPProxy:  config.MaskCredentials(newCfg.HTTPProxy),
+			HTTPSProxy: config.MaskCredentials(newCfg.HTTPSProxy),
+			NoProxy:    config.MaskCredentials(newCfg.NoProxy),
+		},
+	})
+	logrus.Infof("Reloaded configuration: %s", jsonString)
+	daemon.configStore.Store(newCfg)
+	daemon.LogDaemonEventWithAttributes("reload", attributes)
+	return txn.Commit()
+}
+
+func marshalAttributeSlice(v []string) string {
+	if v == nil {
+		return "[]"
 	}
-	if err := daemon.reloadAllowNondistributableArtifacts(conf, attributes); err != nil {
-		return err
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err) // Should never happen as the input type is fixed.
 	}
-	if err := daemon.reloadRegistryMirrors(conf, attributes); err != nil {
-		return err
-	}
-	if err := daemon.reloadInsecureRegistries(conf, attributes); err != nil {
-		return err
-	}
-	if err := daemon.reloadLiveRestore(conf, attributes); err != nil {
-		return err
-	}
-	return daemon.reloadNetworkDiagnosticPort(conf, attributes)
+	return string(b)
 }
 
 // reloadDebug updates configuration with Debug option
 // and updates the passed attributes
-func (daemon *Daemon) reloadDebug(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadDebug(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("debug") {
-		daemon.configStore.Debug = conf.Debug
+		newCfg.Debug = conf.Debug
 	}
 	// prepare reload event attributes with updatable configurations
-	attributes["debug"] = strconv.FormatBool(daemon.configStore.Debug)
+	attributes["debug"] = strconv.FormatBool(newCfg.Debug)
+	return nil
 }
 
 // reloadMaxConcurrentDownloadsAndUploads updates configuration with max concurrent
 // download and upload options and updates the passed attributes
-func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// We always "reset" as the cost is lightweight and easy to maintain.
-	daemon.configStore.MaxConcurrentDownloads = config.DefaultMaxConcurrentDownloads
-	daemon.configStore.MaxConcurrentUploads = config.DefaultMaxConcurrentUploads
+	newCfg.MaxConcurrentDownloads = config.DefaultMaxConcurrentDownloads
+	newCfg.MaxConcurrentUploads = config.DefaultMaxConcurrentUploads
 
 	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads != 0 {
-		daemon.configStore.MaxConcurrentDownloads = conf.MaxConcurrentDownloads
+		newCfg.MaxConcurrentDownloads = conf.MaxConcurrentDownloads
 	}
 	if conf.IsValueSet("max-concurrent-uploads") && conf.MaxConcurrentUploads != 0 {
-		daemon.configStore.MaxConcurrentUploads = conf.MaxConcurrentUploads
+		newCfg.MaxConcurrentUploads = conf.MaxConcurrentUploads
 	}
-	if daemon.imageService != nil {
-		daemon.imageService.UpdateConfig(
-			daemon.configStore.MaxConcurrentDownloads,
-			daemon.configStore.MaxConcurrentUploads,
-		)
-	}
+	txn.OnCommit(func() error {
+		if daemon.imageService != nil {
+			daemon.imageService.UpdateConfig(
+				newCfg.MaxConcurrentDownloads,
+				newCfg.MaxConcurrentUploads,
+			)
+		}
+		return nil
+	})
 
 	// prepare reload event attributes with updatable configurations
-	attributes["max-concurrent-downloads"] = strconv.Itoa(daemon.configStore.MaxConcurrentDownloads)
-	attributes["max-concurrent-uploads"] = strconv.Itoa(daemon.configStore.MaxConcurrentUploads)
+	attributes["max-concurrent-downloads"] = strconv.Itoa(newCfg.MaxConcurrentDownloads)
+	attributes["max-concurrent-uploads"] = strconv.Itoa(newCfg.MaxConcurrentUploads)
 	logrus.Debug("Reset Max Concurrent Downloads: ", attributes["max-concurrent-downloads"])
 	logrus.Debug("Reset Max Concurrent Uploads: ", attributes["max-concurrent-uploads"])
+	return nil
 }
 
 // reloadMaxDownloadAttempts updates configuration with max concurrent
 // download attempts when a connection is lost and updates the passed attributes
-func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadMaxDownloadAttempts(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// We always "reset" as the cost is lightweight and easy to maintain.
-	daemon.configStore.MaxDownloadAttempts = config.DefaultDownloadAttempts
+	newCfg.MaxDownloadAttempts = config.DefaultDownloadAttempts
 	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != 0 {
-		daemon.configStore.MaxDownloadAttempts = conf.MaxDownloadAttempts
+		newCfg.MaxDownloadAttempts = conf.MaxDownloadAttempts
 	}
 
 	// prepare reload event attributes with updatable configurations
-	attributes["max-download-attempts"] = strconv.Itoa(daemon.configStore.MaxDownloadAttempts)
+	attributes["max-download-attempts"] = strconv.Itoa(newCfg.MaxDownloadAttempts)
 	logrus.Debug("Reset Max Download Attempts: ", attributes["max-download-attempts"])
+	return nil
 }
 
 // reloadShutdownTimeout updates configuration with daemon shutdown timeout option
 // and updates the passed attributes
-func (daemon *Daemon) reloadShutdownTimeout(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadShutdownTimeout(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("shutdown-timeout") {
-		daemon.configStore.ShutdownTimeout = conf.ShutdownTimeout
-		logrus.Debugf("Reset Shutdown Timeout: %d", daemon.configStore.ShutdownTimeout)
+		newCfg.ShutdownTimeout = conf.ShutdownTimeout
+		logrus.Debugf("Reset Shutdown Timeout: %d", newCfg.ShutdownTimeout)
 	}
 
 	// prepare reload event attributes with updatable configurations
-	attributes["shutdown-timeout"] = strconv.Itoa(daemon.configStore.ShutdownTimeout)
+	attributes["shutdown-timeout"] = strconv.Itoa(newCfg.ShutdownTimeout)
+	return nil
 }
 
 // reloadLabels updates configuration with engine labels
 // and updates the passed attributes
-func (daemon *Daemon) reloadLabels(conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadLabels(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("labels") {
-		daemon.configStore.Labels = conf.Labels
+		newCfg.Labels = conf.Labels
 	}
 
 	// prepare reload event attributes with updatable configurations
-	if daemon.configStore.Labels != nil {
-		labels, err := json.Marshal(daemon.configStore.Labels)
-		if err != nil {
-			return err
-		}
-		attributes["labels"] = string(labels)
-	} else {
-		attributes["labels"] = "[]"
-	}
-
+	attributes["labels"] = marshalAttributeSlice(newCfg.Labels)
 	return nil
 }
 
-// reloadAllowNondistributableArtifacts updates the configuration with allow-nondistributable-artifacts options
+// reloadRegistryConfig updates the configuration with registry options
 // and updates the passed attributes.
-func (daemon *Daemon) reloadAllowNondistributableArtifacts(conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadRegistryConfig(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// Update corresponding configuration.
 	if conf.IsValueSet("allow-nondistributable-artifacts") {
-		daemon.configStore.AllowNondistributableArtifacts = conf.AllowNondistributableArtifacts
-		if err := daemon.registryService.LoadAllowNondistributableArtifacts(conf.AllowNondistributableArtifacts); err != nil {
-			return err
-		}
+		newCfg.ServiceOptions.AllowNondistributableArtifacts = conf.AllowNondistributableArtifacts
 	}
-
-	// Prepare reload event attributes with updatable configurations.
-	if daemon.configStore.AllowNondistributableArtifacts != nil {
-		v, err := json.Marshal(daemon.configStore.AllowNondistributableArtifacts)
-		if err != nil {
-			return err
-		}
-		attributes["allow-nondistributable-artifacts"] = string(v)
-	} else {
-		attributes["allow-nondistributable-artifacts"] = "[]"
-	}
-
-	return nil
-}
-
-// reloadInsecureRegistries updates configuration with insecure registry option
-// and updates the passed attributes
-func (daemon *Daemon) reloadInsecureRegistries(conf *config.Config, attributes map[string]string) error {
-	// update corresponding configuration
 	if conf.IsValueSet("insecure-registries") {
-		daemon.configStore.InsecureRegistries = conf.InsecureRegistries
-		if err := daemon.registryService.LoadInsecureRegistries(conf.InsecureRegistries); err != nil {
-			return err
-		}
+		newCfg.ServiceOptions.InsecureRegistries = conf.InsecureRegistries
 	}
-
-	// prepare reload event attributes with updatable configurations
-	if daemon.configStore.InsecureRegistries != nil {
-		insecureRegistries, err := json.Marshal(daemon.configStore.InsecureRegistries)
-		if err != nil {
-			return err
-		}
-		attributes["insecure-registries"] = string(insecureRegistries)
-	} else {
-		attributes["insecure-registries"] = "[]"
-	}
-
-	return nil
-}
-
-// reloadRegistryMirrors updates configuration with registry mirror options
-// and updates the passed attributes
-func (daemon *Daemon) reloadRegistryMirrors(conf *config.Config, attributes map[string]string) error {
-	// update corresponding configuration
 	if conf.IsValueSet("registry-mirrors") {
-		daemon.configStore.Mirrors = conf.Mirrors
-		if err := daemon.registryService.LoadMirrors(conf.Mirrors); err != nil {
-			return err
-		}
+		newCfg.ServiceOptions.Mirrors = conf.Mirrors
 	}
 
-	// prepare reload event attributes with updatable configurations
-	if daemon.configStore.Mirrors != nil {
-		mirrors, err := json.Marshal(daemon.configStore.Mirrors)
-		if err != nil {
-			return err
-		}
-		attributes["registry-mirrors"] = string(mirrors)
-	} else {
-		attributes["registry-mirrors"] = "[]"
+	commit, err := daemon.registryService.ReplaceConfig(newCfg.ServiceOptions)
+	if err != nil {
+		return err
 	}
+	txn.OnCommit(func() error { commit(); return nil })
+
+	attributes["allow-nondistributable-artifacts"] = marshalAttributeSlice(newCfg.ServiceOptions.AllowNondistributableArtifacts)
+	attributes["insecure-registries"] = marshalAttributeSlice(newCfg.ServiceOptions.InsecureRegistries)
+	attributes["registry-mirrors"] = marshalAttributeSlice(newCfg.ServiceOptions.Mirrors)
 
 	return nil
 }
 
 // reloadLiveRestore updates configuration with live restore option
 // and updates the passed attributes
-func (daemon *Daemon) reloadLiveRestore(conf *config.Config, attributes map[string]string) error {
+func (daemon *Daemon) reloadLiveRestore(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	if conf.IsValueSet("live-restore") {
-		daemon.configStore.LiveRestoreEnabled = conf.LiveRestoreEnabled
+		newCfg.LiveRestoreEnabled = conf.LiveRestoreEnabled
 	}
 
 	// prepare reload event attributes with updatable configurations
-	attributes["live-restore"] = strconv.FormatBool(daemon.configStore.LiveRestoreEnabled)
+	attributes["live-restore"] = strconv.FormatBool(newCfg.LiveRestoreEnabled)
 	return nil
 }
 
 // reloadNetworkDiagnosticPort updates the network controller starting the diagnostic if the config is valid
-func (daemon *Daemon) reloadNetworkDiagnosticPort(conf *config.Config, attributes map[string]string) error {
-	if conf == nil || daemon.netController == nil || !conf.IsValueSet("network-diagnostic-port") ||
-		conf.NetworkDiagnosticPort < 1 || conf.NetworkDiagnosticPort > 65535 {
-		// If there is no config make sure that the diagnostic is off
-		if daemon.netController != nil {
-			daemon.netController.StopDiagnostic()
+func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
+	txn.OnCommit(func() error {
+		if conf == nil || daemon.netController == nil || !conf.IsValueSet("network-diagnostic-port") ||
+			conf.NetworkDiagnosticPort < 1 || conf.NetworkDiagnosticPort > 65535 {
+			// If there is no config make sure that the diagnostic is off
+			if daemon.netController != nil {
+				daemon.netController.StopDiagnostic()
+			}
+			return nil
 		}
+		// Enable the network diagnostic if the flag is set with a valid port within the range
+		logrus.WithFields(logrus.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
+		daemon.netController.StartDiagnostic(conf.NetworkDiagnosticPort)
 		return nil
-	}
-	// Enable the network diagnostic if the flag is set with a valid port within the range
-	logrus.WithFields(logrus.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
-	daemon.netController.StartDiagnostic(conf.NetworkDiagnosticPort)
-
+	})
 	return nil
 }
 
 // reloadFeatures updates configuration with enabled/disabled features
-func (daemon *Daemon) reloadFeatures(conf *config.Config, attributes map[string]string) {
+func (daemon *Daemon) reloadFeatures(txn *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
 	// note that we allow features option to be entirely unset
-	daemon.configStore.Features = conf.Features
+	newCfg.Features = conf.Features
 
 	// prepare reload event attributes with updatable configurations
-	attributes["features"] = fmt.Sprintf("%v", daemon.configStore.Features)
+	attributes["features"] = fmt.Sprintf("%v", newCfg.Features)
+	return nil
 }

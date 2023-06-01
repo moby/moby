@@ -30,6 +30,7 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
+	cfg := daemon.config()
 
 	v := &types.Info{
 		ID:                 daemon.id,
@@ -50,27 +51,27 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           memInfo().MemTotal,
 		GenericResources:   daemon.genericResources,
-		DockerRootDir:      daemon.configStore.Root,
-		Labels:             daemon.configStore.Labels,
-		ExperimentalBuild:  daemon.configStore.Experimental,
+		DockerRootDir:      cfg.Root,
+		Labels:             cfg.Labels,
+		ExperimentalBuild:  cfg.Experimental,
 		ServerVersion:      dockerversion.Version,
-		HTTPProxy:          config.MaskCredentials(getConfigOrEnv(daemon.configStore.HTTPProxy, "HTTP_PROXY", "http_proxy")),
-		HTTPSProxy:         config.MaskCredentials(getConfigOrEnv(daemon.configStore.HTTPSProxy, "HTTPS_PROXY", "https_proxy")),
-		NoProxy:            getConfigOrEnv(daemon.configStore.NoProxy, "NO_PROXY", "no_proxy"),
-		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
+		HTTPProxy:          config.MaskCredentials(getConfigOrEnv(cfg.HTTPProxy, "HTTP_PROXY", "http_proxy")),
+		HTTPSProxy:         config.MaskCredentials(getConfigOrEnv(cfg.HTTPSProxy, "HTTPS_PROXY", "https_proxy")),
+		NoProxy:            getConfigOrEnv(cfg.NoProxy, "NO_PROXY", "no_proxy"),
+		LiveRestoreEnabled: cfg.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
 	}
 
 	daemon.fillContainerStates(v)
 	daemon.fillDebugInfo(v)
-	daemon.fillAPIInfo(v)
+	daemon.fillAPIInfo(v, &cfg.Config)
 	// Retrieve platform specific info
-	daemon.fillPlatformInfo(v, sysInfo)
+	daemon.fillPlatformInfo(v, sysInfo, cfg)
 	daemon.fillDriverInfo(v)
-	daemon.fillPluginsInfo(v)
-	daemon.fillSecurityOptions(v, sysInfo)
+	daemon.fillPluginsInfo(v, &cfg.Config)
+	daemon.fillSecurityOptions(v, sysInfo, &cfg.Config)
 	daemon.fillLicense(v)
-	daemon.fillDefaultAddressPools(v)
+	daemon.fillDefaultAddressPools(v, &cfg.Config)
 
 	return v
 }
@@ -80,6 +81,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_version"))()
 
 	kernelVersion := kernelVersion()
+	cfg := daemon.config()
 
 	v := types.Version{
 		Components: []types.ComponentVersion{
@@ -95,7 +97,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 					"Arch":          runtime.GOARCH,
 					"BuildTime":     dockerversion.BuildTime,
 					"KernelVersion": kernelVersion,
-					"Experimental":  fmt.Sprintf("%t", daemon.configStore.Experimental),
+					"Experimental":  fmt.Sprintf("%t", cfg.Experimental),
 				},
 			},
 		},
@@ -110,12 +112,12 @@ func (daemon *Daemon) SystemVersion() types.Version {
 		Arch:          runtime.GOARCH,
 		BuildTime:     dockerversion.BuildTime,
 		KernelVersion: kernelVersion,
-		Experimental:  daemon.configStore.Experimental,
+		Experimental:  cfg.Experimental,
 	}
 
 	v.Platform.Name = dockerversion.PlatformName
 
-	daemon.fillPlatformVersion(&v)
+	daemon.fillPlatformVersion(&v, cfg)
 	return v
 }
 
@@ -135,19 +137,19 @@ WARNING: The %s storage-driver is deprecated, and will be removed in a future re
 	fillDriverWarnings(v)
 }
 
-func (daemon *Daemon) fillPluginsInfo(v *types.Info) {
+func (daemon *Daemon) fillPluginsInfo(v *types.Info, cfg *config.Config) {
 	v.Plugins = types.PluginsInfo{
 		Volume:  daemon.volumes.GetDriverList(),
 		Network: daemon.GetNetworkDriverList(),
 
 		// The authorization plugins are returned in the order they are
 		// used as they constitute a request/response modification chain.
-		Authorization: daemon.configStore.AuthorizationPlugins,
+		Authorization: cfg.AuthorizationPlugins,
 		Log:           logger.ListDrivers(),
 	}
 }
 
-func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInfo) {
+func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
 	var securityOptions []string
 	if sysInfo.AppArmor {
 		securityOptions = append(securityOptions, "name=apparmor")
@@ -164,13 +166,13 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	if rootIDs := daemon.idMapping.RootPair(); rootIDs.UID != 0 || rootIDs.GID != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}
-	if daemon.Rootless() {
+	if Rootless(cfg) {
 		securityOptions = append(securityOptions, "name=rootless")
 	}
-	if daemon.cgroupNamespacesEnabled(sysInfo) {
+	if cgroupNamespacesEnabled(sysInfo, cfg) {
 		securityOptions = append(securityOptions, "name=cgroupns")
 	}
-	if daemon.noNewPrivileges() {
+	if noNewPrivileges(cfg) {
 		securityOptions = append(securityOptions, "name=no-new-privileges")
 	}
 
@@ -200,13 +202,12 @@ func (daemon *Daemon) fillDebugInfo(v *types.Info) {
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
 }
 
-func (daemon *Daemon) fillAPIInfo(v *types.Info) {
+func (daemon *Daemon) fillAPIInfo(v *types.Info, cfg *config.Config) {
 	const warn string = `
          Access to the remote API is equivalent to root access on the host. Refer
          to the 'Docker daemon attack surface' section in the documentation for
          more information: https://docs.docker.com/go/attack-surface/`
 
-	cfg := daemon.configStore
 	for _, host := range cfg.Hosts {
 		// cnf.Hosts is normalized during startup, so should always have a scheme/proto
 		proto, addr, _ := strings.Cut(host, "://")
@@ -224,8 +225,8 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info) {
 	}
 }
 
-func (daemon *Daemon) fillDefaultAddressPools(v *types.Info) {
-	for _, pool := range daemon.configStore.DefaultAddressPools.Value() {
+func (daemon *Daemon) fillDefaultAddressPools(v *types.Info, cfg *config.Config) {
+	for _, pool := range cfg.DefaultAddressPools.Value() {
 		v.DefaultAddressPools = append(v.DefaultAddressPools, types.NetworkAddressPool{
 			Base: pool.Base,
 			Size: pool.Size,

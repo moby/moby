@@ -55,7 +55,7 @@ func getPluginExecRoot(cfg *config.Config) string {
 	return filepath.Join(cfg.Root, "plugins")
 }
 
-func (daemon *Daemon) parseSecurityOpt(securityOptions *container.SecurityOptions, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) parseSecurityOpt(daemonCfg *config.Config, securityOptions *container.SecurityOptions, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 
@@ -65,7 +65,7 @@ func setupInitLayer(idMapping idtools.IdentityMapping) func(string) error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
+func (daemon *Daemon) adaptContainerSettings(daemonCfg *config.Config, hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
 	return nil
 }
 
@@ -171,7 +171,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, isHyp
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}
@@ -232,8 +232,8 @@ func configureMaxThreads(config *config.Config) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface{}) error {
-	netOptions, err := daemon.networkOptions(nil, nil)
+func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]interface{}) error {
+	netOptions, err := daemon.networkOptions(daemonCfg, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -396,9 +396,9 @@ func (daemon *Daemon) initNetworkController(activeSandboxes map[string]interface
 		}
 	}
 
-	if !daemon.configStore.DisableBridge {
+	if !daemonCfg.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(daemon.netController, daemon.configStore); err != nil {
+		if err := initBridgeDriver(daemon.netController, daemonCfg); err != nil {
 			return err
 		}
 	}
@@ -452,7 +452,7 @@ func (daemon *Daemon) cleanupMountsByID(in string) error {
 	return nil
 }
 
-func (daemon *Daemon) cleanupMounts() error {
+func (daemon *Daemon) cleanupMounts(*config.Config) error {
 	return nil
 }
 
@@ -512,7 +512,7 @@ func driverOptions(_ *config.Config) nwconfig.Option {
 
 // setDefaultIsolation determine the default isolation mode for the
 // daemon to run in. This is only applicable on Windows
-func (daemon *Daemon) setDefaultIsolation() error {
+func (daemon *Daemon) setDefaultIsolation(config *config.Config) error {
 	// On client SKUs, default to Hyper-V. @engine maintainers. This
 	// should not be removed. Ping Microsoft folks is there are PRs to
 	// to change this.
@@ -521,7 +521,7 @@ func (daemon *Daemon) setDefaultIsolation() error {
 	} else {
 		daemon.defaultIsolation = containertypes.IsolationProcess
 	}
-	for _, option := range daemon.configStore.ExecOptions {
+	for _, option := range config.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
 			return err
@@ -552,26 +552,22 @@ func setMayDetachMounts() error {
 	return nil
 }
 
-func (daemon *Daemon) setupSeccompProfile() error {
-	return nil
-}
-
-func (daemon *Daemon) loadRuntimes() error {
+func (daemon *Daemon) setupSeccompProfile(*config.Config) error {
 	return nil
 }
 
 func setupResolvConf(config *config.Config) {}
 
-func getSysInfo(daemon *Daemon) *sysinfo.SysInfo {
+func getSysInfo(*config.Config) *sysinfo.SysInfo {
 	return sysinfo.New()
 }
 
-func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
+func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config) error {
 	var err error
 
-	rt := daemon.configStore.GetDefaultRuntimeName()
+	rt := cfg.DefaultRuntime
 	if rt == "" {
-		if daemon.configStore.ContainerdAddr == "" {
+		if cfg.ContainerdAddr == "" {
 			rt = windowsV1RuntimeName
 		} else {
 			rt = windowsV2RuntimeName
@@ -583,19 +579,19 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
 		daemon.containerd, err = local.NewClient(
 			ctx,
 			daemon.containerdCli,
-			filepath.Join(daemon.configStore.ExecRoot, "containerd"),
-			daemon.configStore.ContainerdNamespace,
+			filepath.Join(cfg.ExecRoot, "containerd"),
+			cfg.ContainerdNamespace,
 			daemon,
 		)
 	case windowsV2RuntimeName:
-		if daemon.configStore.ContainerdAddr == "" {
+		if cfg.ContainerdAddr == "" {
 			return fmt.Errorf("cannot use the specified runtime %q without containerd", rt)
 		}
 		daemon.containerd, err = remote.NewClient(
 			ctx,
 			daemon.containerdCli,
-			filepath.Join(daemon.configStore.ExecRoot, "containerd"),
-			daemon.configStore.ContainerdNamespace,
+			filepath.Join(cfg.ExecRoot, "containerd"),
+			cfg.ContainerdNamespace,
 			daemon,
 		)
 	default:
@@ -603,8 +599,4 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
 	}
 
 	return err
-}
-
-func (daemon *Daemon) supportsRecursivelyReadOnly(_ string) error {
-	return nil
 }

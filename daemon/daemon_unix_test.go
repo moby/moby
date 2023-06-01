@@ -68,30 +68,31 @@ func TestAdjustCPUShares(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
+	cfg := &config.Config{}
 	muteLogs()
 
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != linuxMinCPUShares {
 		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != linuxMaxCPUShares {
 		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares)
 	}
 
 	hostConfig.CPUShares = 0
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	daemon.adaptContainerSettings(hostConfig, true)
+	daemon.adaptContainerSettings(cfg, hostConfig, true)
 	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
@@ -108,29 +109,30 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
+	cfg := &config.Config{}
 
 	hostConfig := &containertypes.HostConfig{
 		Resources: containertypes.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != linuxMinCPUShares-1 {
 		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares-1)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != linuxMaxCPUShares+1 {
 		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares+1)
 	}
 
 	hostConfig.CPUShares = 0
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	daemon.adaptContainerSettings(hostConfig, false)
+	daemon.adaptContainerSettings(cfg, hostConfig, false)
 	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CPUShares to be unchanged")
 	}
@@ -243,16 +245,16 @@ func TestParseSecurityOpt(t *testing.T) {
 }
 
 func TestParseNNPSecurityOptions(t *testing.T) {
-	daemon := &Daemon{
-		configStore: &config.Config{NoNewPrivileges: true},
-	}
+	daemonCfg := &configStore{Config: config.Config{NoNewPrivileges: true}}
+	daemon := &Daemon{}
+	daemon.configStore.Store(daemonCfg)
 	opts := &container.SecurityOptions{}
 	cfg := &containertypes.HostConfig{}
 
 	// test NNP when "daemon:true" and "no-new-privileges=false""
 	cfg.SecurityOpt = []string{"no-new-privileges=false"}
 
-	if err := daemon.parseSecurityOpt(opts, cfg); err != nil {
+	if err := daemon.parseSecurityOpt(&daemonCfg.Config, opts, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
 	if opts.NoNewPrivileges {
@@ -260,10 +262,10 @@ func TestParseNNPSecurityOptions(t *testing.T) {
 	}
 
 	// test NNP when "daemon:false" and "no-new-privileges=true""
-	daemon.configStore.NoNewPrivileges = false
+	daemonCfg.NoNewPrivileges = false
 	cfg.SecurityOpt = []string{"no-new-privileges=true"}
 
-	if err := daemon.parseSecurityOpt(opts, cfg); err != nil {
+	if err := daemon.parseSecurityOpt(&daemonCfg.Config, opts, cfg); err != nil {
 		t.Fatalf("Unexpected daemon.parseSecurityOpt error: %v", err)
 	}
 	if !opts.NoNewPrivileges {

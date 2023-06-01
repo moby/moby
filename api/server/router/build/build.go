@@ -9,18 +9,16 @@ import (
 
 // buildRouter is a router to talk with the build controller
 type buildRouter struct {
-	backend  Backend
-	daemon   experimentalProvider
-	routes   []router.Route
-	features *map[string]bool
+	backend Backend
+	daemon  experimentalProvider
+	routes  []router.Route
 }
 
 // NewRouter initializes a new build router
-func NewRouter(b Backend, d experimentalProvider, features *map[string]bool) router.Router {
+func NewRouter(b Backend, d experimentalProvider) router.Router {
 	r := &buildRouter{
-		backend:  b,
-		daemon:   d,
-		features: features,
+		backend: b,
+		daemon:  d,
 	}
 	r.initRoutes()
 	return r

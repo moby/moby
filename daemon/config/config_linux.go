@@ -81,25 +81,6 @@ type Config struct {
 	Rootless   bool   `json:"rootless,omitempty"`
 }
 
-// GetRuntime returns the runtime path and arguments for a given
-// runtime name
-func (conf *Config) GetRuntime(name string) *types.Runtime {
-	conf.Lock()
-	defer conf.Unlock()
-	if rt, ok := conf.Runtimes[name]; ok {
-		return &rt
-	}
-	return nil
-}
-
-// GetAllRuntimes returns a copy of the runtimes map
-func (conf *Config) GetAllRuntimes() map[string]types.Runtime {
-	conf.Lock()
-	rts := conf.Runtimes
-	conf.Unlock()
-	return rts
-}
-
 // GetExecRoot returns the user configured Exec-root
 func (conf *Config) GetExecRoot() string {
 	return conf.ExecRoot
@@ -107,8 +88,6 @@ func (conf *Config) GetExecRoot() string {
 
 // GetInitPath returns the configured docker-init path
 func (conf *Config) GetInitPath() string {
-	conf.Lock()
-	defer conf.Unlock()
 	if conf.InitPath != "" {
 		return conf.InitPath
 	}

@@ -19,15 +19,24 @@ func muteLogs() {
 	logrus.SetLevel(logrus.ErrorLevel)
 }
 
-func TestDaemonReloadLabels(t *testing.T) {
+func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
+	t.Helper()
 	daemon := &Daemon{
-		configStore: &config.Config{
-			CommonConfig: config.CommonConfig{
-				Labels: []string{"foo:bar"},
-			},
-		},
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
+	var err error
+	daemon.registryService, err = registry.NewService(registry.ServiceOptions{})
+	assert.Assert(t, err)
+	daemon.configStore.Store(&configStore{Config: *cfg})
+	return daemon
+}
+
+func TestDaemonReloadLabels(t *testing.T) {
+	daemon := newDaemonForReloadT(t, &config.Config{
+		CommonConfig: config.CommonConfig{
+			Labels: []string{"foo:bar"},
+		},
+	})
 	muteLogs()
 
 	valuesSets := make(map[string]interface{})
@@ -43,17 +52,14 @@ func TestDaemonReloadLabels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	label := daemon.configStore.Labels[0]
+	label := daemon.config().Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
 }
 
 func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
-	daemon := &Daemon{
-		configStore:  &config.Config{},
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
+	daemon := newDaemonForReloadT(t, &config.Config{})
 	muteLogs()
 
 	var err error
@@ -124,8 +130,6 @@ func TestDaemonReloadMirrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	daemon.configStore = &config.Config{}
 
 	type pair struct {
 		valid   bool
@@ -228,8 +232,6 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon.configStore = &config.Config{}
-
 	insecureRegistries := []string{
 		"127.0.0.0/8",         // this will be kept
 		"10.10.1.11:5000",     // this will be kept
@@ -308,17 +310,13 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 }
 
 func TestDaemonReloadNotAffectOthers(t *testing.T) {
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-	}
-	muteLogs()
-
-	daemon.configStore = &config.Config{
+	daemon := newDaemonForReloadT(t, &config.Config{
 		CommonConfig: config.CommonConfig{
 			Labels: []string{"foo:bar"},
 			Debug:  true,
 		},
-	}
+	})
+	muteLogs()
 
 	valuesSets := make(map[string]interface{})
 	valuesSets["labels"] = "foo:baz"
@@ -333,11 +331,11 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	label := daemon.configStore.Labels[0]
+	label := daemon.config().Labels[0]
 	if label != "foo:baz" {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
-	debug := daemon.configStore.Debug
+	debug := daemon.config().Debug
 	if !debug {
 		t.Fatal("Expected debug 'enabled', got 'disabled'")
 	}
@@ -347,10 +345,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("root required")
 	}
-	daemon := &Daemon{
-		imageService: images.NewImageService(images.ImageServiceConfig{}),
-		configStore:  &config.Config{},
-	}
+	daemon := newDaemonForReloadT(t, &config.Config{})
 
 	enableConfig := &config.Config{
 		CommonConfig: config.CommonConfig{
@@ -361,7 +356,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		},
 	}
 
-	netOptions, err := daemon.networkOptions(nil, nil)
+	netOptions, err := daemon.networkOptions(&config.Config{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

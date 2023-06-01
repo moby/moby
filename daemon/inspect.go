@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
@@ -40,7 +41,7 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 
 	ctr.Lock()
 
-	base, err := daemon.getInspectData(ctr)
+	base, err := daemon.getInspectData(&daemon.config().Config, ctr)
 	if err != nil {
 		ctr.Unlock()
 		return nil, err
@@ -105,7 +106,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	ctr.Lock()
 	defer ctr.Unlock()
 
-	base, err := daemon.getInspectData(ctr)
+	base, err := daemon.getInspectData(&daemon.config().Config, ctr)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +125,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *container.Container) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(daemonCfg *config.Config, container *container.Container) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
@@ -135,7 +136,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	}
 
 	// We merge the Ulimits from hostConfig with daemon default
-	daemon.mergeUlimits(&hostConfig)
+	daemon.mergeUlimits(&hostConfig, daemonCfg)
 
 	var containerHealth *types.Health
 	if container.State.Health != nil {

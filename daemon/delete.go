@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -24,6 +25,10 @@ import (
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
 func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
+	return daemon.containerRm(&daemon.config().Config, name, config)
+}
+
+func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *types.ContainerRmConfig) error {
 	start := time.Now()
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
@@ -42,17 +47,17 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return nil
 	}
 
-	if config.RemoveLink {
-		return daemon.rmLink(ctr, name)
+	if opts.RemoveLink {
+		return daemon.rmLink(cfg, ctr, name)
 	}
 
-	err = daemon.cleanupContainer(ctr, *config)
+	err = daemon.cleanupContainer(ctr, *opts)
 	containerActions.WithValues("delete").UpdateSince(start)
 
 	return err
 }
 
-func (daemon *Daemon) rmLink(container *container.Container, name string) error {
+func (daemon *Daemon) rmLink(cfg *config.Config, container *container.Container, name string) error {
 	if name[0] != '/' {
 		name = "/" + name
 	}
@@ -71,7 +76,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 	parentContainer, _ := daemon.GetContainer(pe)
 	if parentContainer != nil {
 		daemon.linkIndex.unlink(name, container, parentContainer)
-		if err := daemon.updateNetwork(parentContainer); err != nil {
+		if err := daemon.updateNetwork(cfg, parentContainer); err != nil {
 			logrus.Debugf("Could not update network to remove link %s: %v", n, err)
 		}
 	}

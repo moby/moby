@@ -17,7 +17,8 @@ import (
 
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
-	if checkpoint != "" && !daemon.HasExperimental() {
+	daemonCfg := daemon.config()
+	if checkpoint != "" && !daemonCfg.Experimental {
 		return errdefs.InvalidParameter(errors.New("checkpoint is only supported in experimental mode"))
 	}
 
@@ -55,7 +56,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 		if hostConfig != nil {
 			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and has been removed in Docker 1.12")
 			oldNetworkMode := ctr.HostConfig.NetworkMode
-			if err := daemon.setSecurityOptions(ctr, hostConfig); err != nil {
+			if err := daemon.setSecurityOptions(&daemonCfg.Config, ctr, hostConfig); err != nil {
 				return errdefs.InvalidParameter(err)
 			}
 			if err := daemon.mergeAndVerifyLogConfig(&hostConfig.LogConfig); err != nil {
@@ -83,24 +84,24 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(ctr.HostConfig, nil, false); err != nil {
+	if _, err = daemon.verifyContainerSettings(daemonCfg, ctr.HostConfig, nil, false); err != nil {
 		return errdefs.InvalidParameter(err)
 	}
 	// Adapt for old containers in case we have updates in this function and
 	// old containers never have chance to call the new function in create stage.
 	if hostConfig != nil {
-		if err := daemon.adaptContainerSettings(ctr.HostConfig, false); err != nil {
+		if err := daemon.adaptContainerSettings(&daemonCfg.Config, ctr.HostConfig, false); err != nil {
 			return errdefs.InvalidParameter(err)
 		}
 	}
-	return daemon.containerStart(ctx, ctr, checkpoint, checkpointDir, true)
+	return daemon.containerStart(ctx, daemonCfg, ctr, checkpoint, checkpointDir, true)
 }
 
 // containerStart prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (daemon *Daemon) containerStart(ctx context.Context, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
+func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore, container *container.Container, checkpoint string, checkpointDir string, resetRestartManager bool) (retErr error) {
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
@@ -136,7 +137,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
-				if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				if err := daemon.containerRm(&daemonCfg.Config, container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", container.ID, err)
 				}
 				container.Lock()
@@ -148,11 +149,11 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 		return err
 	}
 
-	if err := daemon.initializeNetworking(container); err != nil {
+	if err := daemon.initializeNetworking(&daemonCfg.Config, container); err != nil {
 		return err
 	}
 
-	spec, err := daemon.createSpec(ctx, container)
+	spec, err := daemon.createSpec(ctx, daemonCfg, container)
 	if err != nil {
 		return errdefs.System(err)
 	}
@@ -173,7 +174,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, container *container.C
 		}
 	}
 
-	shim, createOptions, err := daemon.getLibcontainerdCreateOptions(container)
+	shim, createOptions, err := daemon.getLibcontainerdCreateOptions(daemonCfg, container)
 	if err != nil {
 		return err
 	}

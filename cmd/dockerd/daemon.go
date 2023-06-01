@@ -337,7 +337,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 type routerOptions struct {
 	sessionManager *session.Manager
 	buildBackend   *buildbackend.Backend
-	features       *map[string]bool
+	features       func() map[string]bool
 	buildkit       *buildkit.Builder
 	daemon         *daemon.Daemon
 	cluster        *cluster.Cluster
@@ -357,7 +357,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 	cgroupParent := newCgroupParent(config)
 	ro := routerOptions{
 		sessionManager: sm,
-		features:       d.Features(),
+		features:       d.Features,
 		daemon:         d,
 	}
 
@@ -369,9 +369,9 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: cgroupParent,
-		RegistryHosts:       d.RegistryHosts(),
+		RegistryHosts:       d.RegistryHosts,
 		BuilderConfig:       config.Builder,
-		Rootless:            d.Rootless(),
+		Rootless:            daemon.Rootless(config),
 		IdentityMapping:     d.IdentityMapping(),
 		DNSConfig:           config.DNSConfig,
 		ApparmorProfile:     daemon.DefaultApparmorProfile(),
@@ -397,17 +397,20 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 
 func (cli *DaemonCli) reloadConfig() {
 	reload := func(c *config.Config) {
-		// Revalidate and reload the authorization plugins
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 			logrus.Fatalf("Error validating authorization plugin: %v", err)
 			return
 		}
-		cli.authzMiddleware.SetPlugins(c.AuthorizationPlugins)
 
 		if err := cli.d.Reload(c); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
+
+		// Apply our own configuration only after the daemon reload has succeeded. We
+		// don't want to partially apply the config if the daemon is unhappy with it.
+
+		cli.authzMiddleware.SetPlugins(c.AuthorizationPlugins)
 
 		if c.IsValueSet("debug") {
 			debugEnabled := debug.IsEnabled()
@@ -593,9 +596,9 @@ func (opts routerOptions) Build() []router.Router {
 			opts.daemon.ImageService().DistributionServices().ImageStore,
 			opts.daemon.ImageService().DistributionServices().LayerStore,
 		),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.features),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.daemon.Features),
 		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
-		build.NewRouter(opts.buildBackend, opts.daemon, opts.features),
+		build.NewRouter(opts.buildBackend, opts.daemon),
 		sessionrouter.NewRouter(opts.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),

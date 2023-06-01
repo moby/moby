@@ -29,7 +29,7 @@ func (daemon *Daemon) containerInspectPre120(ctx context.Context, name string) (
 	ctr.Lock()
 	defer ctr.Unlock()
 
-	base, err := daemon.getInspectData(ctr)
+	base, err := daemon.getInspectData(&daemon.config().Config, ctr)
 	if err != nil {
 		return nil, err
 	}
