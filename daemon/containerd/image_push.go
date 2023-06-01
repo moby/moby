@@ -62,7 +62,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 	target := img.Target
 	store := i.client.ContentStore()
 
-	resolver, tracker := i.newResolverFromAuthConfig(authConfig)
+	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig)
 	progress := pushProgress{Tracker: tracker}
 	jobsQueue := newJobs()
 	finishProgress := jobsQueue.showProgress(ctx, out, combinedProgress([]progressUpdater{
