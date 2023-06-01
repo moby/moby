@@ -69,8 +69,10 @@ func getUserAgentFromContext(ctx context.Context) string {
 	return upstreamUA
 }
 
+const charsToEscape = `();\`
+
 // escapeStr returns s with every rune in charsToEscape escaped by a backslash
-func escapeStr(s string, charsToEscape string) string {
+func escapeStr(s string) string {
 	var ret string
 	for _, currRune := range s {
 		appended := false
@@ -93,7 +95,5 @@ func escapeStr(s string, charsToEscape string) string {
 //
 //	$dockerUA UpstreamClient($upstreamUA)
 func insertUpstreamUserAgent(upstreamUA string, dockerUA string) string {
-	charsToEscape := `();\`
-	upstreamUAEscaped := escapeStr(upstreamUA, charsToEscape)
-	return fmt.Sprintf("%s UpstreamClient(%s)", dockerUA, upstreamUAEscaped)
+	return fmt.Sprintf("%s UpstreamClient(%s)", dockerUA, escapeStr(upstreamUA))
 }
