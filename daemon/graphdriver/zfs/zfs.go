@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
-	zfs "github.com/mistifyio/go-zfs"
+	zfs "github.com/mistifyio/go-zfs/v3"
 	"github.com/moby/locker"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"

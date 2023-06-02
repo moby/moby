@@ -1,12 +1,12 @@
-# Go Wrapper for ZFS #
+# Go Wrapper for ZFS
 
 Simple wrappers for ZFS command line tools.
 
 [![GoDoc](https://godoc.org/github.com/mistifyio/go-zfs?status.svg)](https://godoc.org/github.com/mistifyio/go-zfs)
 
-## Requirements ##
+## Requirements
 
-You need a working ZFS setup.  To use on Ubuntu 14.04, setup ZFS:
+You need a working ZFS setup. To use on Ubuntu 14.04, setup ZFS:
 
     sudo apt-get install python-software-properties
     sudo apt-add-repository ppa:zfs-native/stable
@@ -17,13 +17,13 @@ Developed using Go 1.3, but currently there isn't anything 1.3 specific. Don't u
 
 Generally you need root privileges to use anything zfs related.
 
-## Status ##
+## Status
 
 This has been only been tested on Ubuntu 14.04
 
 In the future, we hope to work directly with libzfs.
 
-# Hacking #
+# Hacking
 
 The tests have decent examples for most functions.
 
@@ -48,7 +48,6 @@ err := f.Destroy()
 
 ```
 
-# Contributing #
+# Contributing
 
 See the [contributing guidelines](./CONTRIBUTING.md)
-
