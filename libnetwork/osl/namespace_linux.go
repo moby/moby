@@ -300,7 +300,7 @@ func createNetworkNamespace(path string, osCreate bool) error {
 	}
 
 	do := func() error {
-		return mountNetworkNamespace(fmt.Sprintf("/proc/self/task/%d/ns/net", unix.Gettid()), path)
+		return mountNetworkNamespace("/proc/thread-self/ns/net", path)
 	}
 	if osCreate {
 		return unshare.Go(unix.CLONE_NEWNET, do, nil)
