@@ -15,6 +15,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	errNotManifestOrIndex = errdefs.InvalidParameter(errors.New("descriptor is neither a manifest or index"))
+	errNotManifest        = errdefs.InvalidParameter(errors.New("descriptor isn't a manifest"))
+)
+
 // walkImageManifests calls the handler for each locally present manifest in
 // the image. The image implements the containerd.Image interface, but all
 // operations act on the specific manifest instead of the index.
@@ -24,23 +29,23 @@ func (i *ImageService) walkImageManifests(ctx context.Context, img containerdima
 	handleManifest := func(ctx context.Context, d ocispec.Descriptor) error {
 		platformImg, err := i.NewImageManifest(ctx, img, d)
 		if err != nil {
+			if err == errNotManifest {
+				return nil
+			}
 			return err
 		}
 		return handler(platformImg)
 	}
 
-	if containerdimages.IsIndexType(desc.MediaType) {
-		store := i.client.ContentStore()
-		return containerdimages.Walk(ctx, presentChildrenHandler(store, containerdimages.HandlerFunc(
-			func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-				if containerdimages.IsManifestType(desc.MediaType) {
-					return nil, handleManifest(ctx, desc)
-				}
-				return nil, nil
-			})), desc)
+	if containerdimages.IsManifestType(desc.MediaType) {
+		return handleManifest(ctx, desc)
 	}
 
-	return handleManifest(ctx, desc)
+	if containerdimages.IsIndexType(desc.MediaType) {
+		return i.walkPresentChildren(ctx, desc, handleManifest)
+	}
+
+	return errNotManifestOrIndex
 }
 
 type ImageManifest struct {
@@ -54,7 +59,7 @@ type ImageManifest struct {
 
 func (i *ImageService) NewImageManifest(ctx context.Context, img containerdimages.Image, manifestDesc ocispec.Descriptor) (*ImageManifest, error) {
 	if !containerdimages.IsManifestType(manifestDesc.MediaType) {
-		return nil, errdefs.InvalidParameter(errors.New("descriptor isn't a manifest"))
+		return nil, errNotManifest
 	}
 
 	parent := img.Target
