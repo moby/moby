@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -125,16 +126,9 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		return errdefs.System(err)
 	}
 
-	store := i.client.ContentStore()
 	progress := streamformatter.NewStdoutWriter(outStream)
 
 	for _, img := range imgs {
-		allPlatforms, err := containerdimages.Platforms(ctx, store, img.Target)
-		if err != nil {
-			logrus.WithError(err).WithField("image", img.Name).Debug("failed to get image platforms")
-			return errdefs.Unknown(err)
-		}
-
 		name := img.Name
 		loadedMsg := "Loaded image"
 
@@ -145,17 +139,25 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 			name = reference.FamiliarName(reference.TagNameOnly(named))
 		}
 
-		for _, platform := range allPlatforms {
+		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
 			logger := logrus.WithFields(logrus.Fields{
-				"platform": platform,
 				"image":    name,
+				"manifest": platformImg.Target().Digest,
 			})
-			platformImg := containerd.NewImageWithPlatform(i.client, img, cplatforms.OnlyStrict(platform))
+
+			if isPseudo, err := platformImg.IsPseudoImage(ctx); isPseudo || err != nil {
+				if err != nil {
+					logger.WithError(err).Warn("failed to read manifest")
+				} else {
+					logger.Debug("don't unpack non-image manifest")
+				}
+				return nil
+			}
 
 			unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
 			if err != nil {
-				logger.WithError(err).Debug("failed to check if image is unpacked")
-				continue
+				logger.WithError(err).Warn("failed to check if image is unpacked")
+				return nil
 			}
 
 			if !unpacked {
@@ -166,6 +168,10 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 				}
 			}
 			logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")
+			return nil
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to unpack loaded image")
 		}
 
 		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)

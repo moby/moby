@@ -124,10 +124,11 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 
 	// Workaround for: https://github.com/moby/buildkit/issues/3797
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
-	err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, d ocispec.Descriptor) {
+	err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, d ocispec.Descriptor) error {
 		if images.IsConfigType(d.MediaType) {
 			possiblyDeletedConfigs[d.Digest] = struct{}{}
 		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
