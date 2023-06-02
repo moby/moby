@@ -17,12 +17,12 @@ type UAStringKey struct{}
 // In accordance with RFC 7231 (5.5.3) is of the form:
 //
 //	[docker client's UA] UpstreamClient([upstream client's UA])
-func DockerUserAgent(ctx context.Context) string {
-	daemonUA := getDaemonUserAgent()
-	if upstreamUA := getUserAgentFromContext(ctx); len(upstreamUA) > 0 {
-		return insertUpstreamUserAgent(upstreamUA, daemonUA)
+func DockerUserAgent(ctx context.Context, extraVersions ...useragent.VersionInfo) string {
+	ua := useragent.AppendVersions(getDaemonUserAgent(), extraVersions...)
+	if upstreamUA := getUpstreamUserAgent(ctx); upstreamUA != "" {
+		ua += " " + upstreamUA
 	}
-	return daemonUA
+	return ua
 }
 
 var (
@@ -57,20 +57,29 @@ func getDaemonUserAgent() string {
 	return daemonUA
 }
 
-// getUserAgentFromContext returns the previously saved user-agent context stored in ctx, if one exists
-func getUserAgentFromContext(ctx context.Context) string {
+// getUpstreamUserAgent returns the previously saved user-agent context stored
+// in ctx, if one exists, and formats it as:
+//
+//	UpstreamClient(<upstream user agent string>)
+//
+// It returns an empty string if no user-agent is present in the context.
+func getUpstreamUserAgent(ctx context.Context) string {
 	var upstreamUA string
 	if ctx != nil {
-		var ki interface{} = ctx.Value(UAStringKey{})
-		if ki != nil {
+		if ki := ctx.Value(UAStringKey{}); ki != nil {
 			upstreamUA = ctx.Value(UAStringKey{}).(string)
 		}
 	}
-	return upstreamUA
+	if upstreamUA == "" {
+		return ""
+	}
+	return fmt.Sprintf("UpstreamClient(%s)", escapeStr(upstreamUA))
 }
 
+const charsToEscape = `();\`
+
 // escapeStr returns s with every rune in charsToEscape escaped by a backslash
-func escapeStr(s string, charsToEscape string) string {
+func escapeStr(s string) string {
 	var ret string
 	for _, currRune := range s {
 		appended := false
@@ -86,14 +95,4 @@ func escapeStr(s string, charsToEscape string) string {
 		}
 	}
 	return ret
-}
-
-// insertUpstreamUserAgent adds the upstream client useragent to create a user-agent
-// string of the form:
-//
-//	$dockerUA UpstreamClient($upstreamUA)
-func insertUpstreamUserAgent(upstreamUA string, dockerUA string) string {
-	charsToEscape := `();\`
-	upstreamUAEscaped := escapeStr(upstreamUA, charsToEscape)
-	return fmt.Sprintf("%s UpstreamClient(%s)", dockerUA, upstreamUAEscaped)
 }
