@@ -125,11 +125,12 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 
 		blobs := []ocispec.Descriptor{}
 
-		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) {
+		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
 			blobs = append(blobs, desc)
 			if containerdimages.IsConfigType(desc.MediaType) {
 				possiblyDeletedConfigs[desc.Digest] = struct{}{}
 			}
+			return nil
 		})
 		if err != nil {
 			errs = multierror.Append(errs, err)
@@ -186,10 +187,11 @@ func (i *ImageService) unleaseSnapshotsFromDeletedConfigs(ctx context.Context, p
 
 	var errs error
 	for _, img := range all {
-		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) {
+		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
 			if containerdimages.IsConfigType(desc.MediaType) {
 				delete(possiblyDeletedConfigs, desc.Digest)
 			}
+			return nil
 		})
 		if err != nil {
 			errs = multierror.Append(errs, err)
