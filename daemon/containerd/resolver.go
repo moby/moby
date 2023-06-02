@@ -8,8 +8,10 @@ import (
 
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/version"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/useragent"
 	"github.com/docker/docker/registry"
 	"github.com/sirupsen/logrus"
 )
@@ -19,7 +21,7 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 
 	hosts := hostsWrapper(i.registryHosts, authConfig, i.registryService)
 	headers := http.Header{}
-	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx))
+	headers.Set("User-Agent", dockerversion.DockerUserAgent(ctx, useragent.VersionInfo{Name: "containerd-client", Version: version.Version}, useragent.VersionInfo{Name: "storage-driver", Version: i.snapshotter}))
 
 	return docker.NewResolver(docker.ResolverOptions{
 		Hosts:   hosts,
