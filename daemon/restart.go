@@ -52,6 +52,7 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 	if container.IsRunning() {
 		container.Lock()
 		container.HasBeenManuallyRestarted = true
+		container.State.Restarting = true
 		container.Unlock()
 
 		err := daemon.containerStop(ctx, container, options)
