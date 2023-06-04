@@ -197,7 +197,7 @@ flags=(
 	KEYS
 	VETH BRIDGE BRIDGE_NETFILTER
 	IP_NF_FILTER IP_NF_TARGET_MASQUERADE
-	NETFILTER_XT_MATCH_{ADDRTYPE,BPF,CONNTRACK,IPVS}
+	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK,IPVS}
 	NETFILTER_XT_MARK
 	IP_NF_NAT NF_NAT
 
@@ -324,7 +324,7 @@ echo "  - \"$(wrap_color 'overlay' blue)\":"
 check_flags VXLAN BRIDGE_VLAN_FILTERING | sed 's/^/    /'
 echo '      Optional (for encrypted networks):'
 check_flags CRYPTO CRYPTO_AEAD CRYPTO_GCM CRYPTO_SEQIV CRYPTO_GHASH \
-	XFRM XFRM_USER XFRM_ALGO INET_ESP | sed 's/^/      /'
+	XFRM XFRM_USER XFRM_ALGO INET_ESP NETFILTER_XT_MATCH_BPF | sed 's/^/      /'
 if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 3 ]; then
 	check_flags INET_XFRM_MODE_TRANSPORT | sed 's/^/      /'
 fi
