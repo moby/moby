@@ -973,13 +973,11 @@ func WithResources(c *container.Container) coci.SpecOpts {
 		if err != nil {
 			return err
 		}
-		blkioWeight := r.BlkioWeight
 
 		specResources := &specs.LinuxResources{
 			Memory: memoryRes,
 			CPU:    cpuRes,
 			BlockIO: &specs.LinuxBlockIO{
-				Weight:                  &blkioWeight,
 				WeightDevice:            weightDevices,
 				ThrottleReadBpsDevice:   readBpsDevice,
 				ThrottleWriteBpsDevice:  writeBpsDevice,
@@ -987,6 +985,10 @@ func WithResources(c *container.Container) coci.SpecOpts {
 				ThrottleWriteIOPSDevice: writeIOpsDevice,
 			},
 			Pids: getPidsLimit(r),
+		}
+		if r.BlkioWeight != 0 {
+			w := r.BlkioWeight
+			specResources.BlockIO.Weight = &w
 		}
 
 		if s.Linux.Resources != nil && len(s.Linux.Resources.Devices) > 0 {
