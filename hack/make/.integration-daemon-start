@@ -5,9 +5,11 @@
 base="$ABS_DEST/.."
 export PATH="$base/dynbinary-daemon:$base/binary-daemon:$PATH"
 
-export TEST_CLIENT_BINARY=docker
-
+if [ -z "$TEST_CLIENT_BINARY" ]; then
+	export TEST_CLIENT_BINARY=docker
+fi
 if [ -n "$DOCKER_CLI_PATH" ]; then
+	# /usr/local/cli is a bind mount to the base dir of DOCKER_CLI_PATH (if used)
 	export TEST_CLIENT_BINARY=/usr/local/cli/$(basename "$DOCKER_CLI_PATH")
 fi
 
