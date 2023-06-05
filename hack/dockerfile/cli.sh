@@ -13,7 +13,7 @@ if curl --head --silent --fail "${DOWNLOAD_URL}" 1> /dev/null 2>&1; then
 	mv docker/docker "${outdir}/docker"
 else
 	git init -q .
-	git remote remove origin || true
+	git remote remove origin 2> /dev/null || true
 	git remote add origin "${repository}"
 	git fetch -q --depth 1 origin "${version}" +refs/tags/*:refs/tags/*
 	git checkout -fq "${version}"

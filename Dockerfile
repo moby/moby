@@ -469,8 +469,6 @@ ENV CONTAINERD_NAMESPACE=moby
 WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 VOLUME /home/unprivilegeduser/.local/share/docker
-COPY --link --from=dockercli             /build/ /usr/local/cli
-COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
@@ -551,6 +549,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libsecret-1-dev \
             libsystemd-dev \
             libudev-dev
+COPY --link --from=dockercli             /build/ /usr/local/cli
+COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 
 FROM base AS build
 COPY --from=gowinres /build/ /usr/local/bin/
