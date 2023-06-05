@@ -11,6 +11,8 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -213,4 +215,39 @@ func TestGetSourceMount(t *testing.T) {
 	assert.NilError(t, err)
 	_, _, err = getSourceMount(cwd)
 	assert.NilError(t, err)
+}
+
+func TestDefaultResources(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root") // TODO: is this actually true? I'm guilty of following the cargo cult here.
+
+	c := &container.Container{
+		HostConfig: &containertypes.HostConfig{
+			IpcMode: containertypes.IPCModeNone,
+		},
+	}
+	d := setupFakeDaemon(t, c)
+
+	s, err := d.createSpec(context.Background(), c)
+	assert.NilError(t, err)
+	checkResourcesAreUnset(t, s.Linux.Resources)
+}
+
+func checkResourcesAreUnset(t *testing.T, r *specs.LinuxResources) {
+	t.Helper()
+
+	if r != nil {
+		if r.Memory != nil {
+			assert.Check(t, is.DeepEqual(r.Memory, &specs.LinuxMemory{}))
+		}
+		if r.CPU != nil {
+			assert.Check(t, is.DeepEqual(r.CPU, &specs.LinuxCPU{}))
+		}
+		assert.Check(t, is.Nil(r.Pids))
+		if r.BlockIO != nil {
+			assert.Check(t, is.DeepEqual(r.BlockIO, &specs.LinuxBlockIO{}, cmpopts.EquateEmpty()))
+		}
+		if r.Network != nil {
+			assert.Check(t, is.DeepEqual(r.Network, &specs.LinuxNetwork{}, cmpopts.EquateEmpty()))
+		}
+	}
 }

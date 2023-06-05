@@ -11,15 +11,19 @@ import (
 func toContainerdResources(resources container.Resources) *libcontainerdtypes.Resources {
 	var r libcontainerdtypes.Resources
 
-	r.BlockIO = &specs.LinuxBlockIO{
-		Weight: &resources.BlkioWeight,
+	if resources.BlkioWeight != 0 {
+		r.BlockIO = &specs.LinuxBlockIO{
+			Weight: &resources.BlkioWeight,
+		}
 	}
 
-	shares := uint64(resources.CPUShares)
-	r.CPU = &specs.LinuxCPU{
-		Shares: &shares,
-		Cpus:   resources.CpusetCpus,
-		Mems:   resources.CpusetMems,
+	cpu := specs.LinuxCPU{
+		Cpus: resources.CpusetCpus,
+		Mems: resources.CpusetMems,
+	}
+	if resources.CPUShares != 0 {
+		shares := uint64(resources.CPUShares)
+		cpu.Shares = &shares
 	}
 
 	var (
@@ -37,17 +41,33 @@ func toContainerdResources(resources container.Resources) *libcontainerdtypes.Re
 		period = uint64(resources.CPUPeriod)
 	}
 
-	r.CPU.Period = &period
-	r.CPU.Quota = &quota
-
-	r.Memory = &specs.LinuxMemory{
-		Limit:       &resources.Memory,
-		Reservation: &resources.MemoryReservation,
-		Kernel:      &resources.KernelMemory,
+	if period != 0 {
+		cpu.Period = &period
+	}
+	if quota != 0 {
+		cpu.Quota = &quota
 	}
 
+	if cpu != (specs.LinuxCPU{}) {
+		r.CPU = &cpu
+	}
+
+	var memory specs.LinuxMemory
+	if resources.Memory != 0 {
+		memory.Limit = &resources.Memory
+	}
+	if resources.MemoryReservation != 0 {
+		memory.Reservation = &resources.MemoryReservation
+	}
+	if resources.KernelMemory != 0 {
+		memory.Kernel = &resources.KernelMemory
+	}
 	if resources.MemorySwap > 0 {
-		r.Memory.Swap = &resources.MemorySwap
+		memory.Swap = &resources.MemorySwap
+	}
+
+	if memory != (specs.LinuxMemory{}) {
+		r.Memory = &memory
 	}
 
 	r.Pids = getPidsLimit(resources)

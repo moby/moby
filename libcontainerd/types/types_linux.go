@@ -27,7 +27,7 @@ func InterfaceToStats(read time.Time, v interface{}) *Stats {
 }
 
 // Resources defines updatable container resource values. TODO: it must match containerd upcoming API
-type Resources specs.LinuxResources
+type Resources = specs.LinuxResources
 
 // Checkpoints contains the details of a checkpoint
 type Checkpoints struct{}
