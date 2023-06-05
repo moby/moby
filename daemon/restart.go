@@ -3,6 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -30,9 +31,9 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, container *container.Container, options containertypes.StopOptions) error {
+func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, cnt *container.Container, options containertypes.StopOptions) error {
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
-	actualIsolation := container.HostConfig.Isolation
+	actualIsolation := cnt.HostConfig.Isolation
 	if containertypes.Isolation.IsDefault(actualIsolation) {
 		actualIsolation = daemon.defaultIsolation
 	}
@@ -44,28 +45,32 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 	// access to mount the containers filesystem inside the utility
 	// VM.
 	if !containertypes.Isolation.IsHyperV(actualIsolation) {
-		if err := daemon.Mount(container); err == nil {
-			defer daemon.Unmount(container)
+		if err := daemon.Mount(cnt); err == nil {
+			defer daemon.Unmount(cnt)
 		}
 	}
 
-	if container.IsRunning() {
-		container.Lock()
-		container.HasBeenManuallyRestarted = true
-		container.State.Restarting = true
-		container.Unlock()
+	if cnt.IsRunning() {
+		cnt.Lock()
+		cnt.HasBeenManuallyRestarted = true
+		cnt.Unlock()
 
-		err := daemon.containerStop(ctx, container, options)
+		cnt.State.Lock()
+		cnt.State.Restarting = true
+		cnt.State.FinishedAt = time.Now().UTC()
+		cnt.State.Unlock()
+
+		err := daemon.containerStop(ctx, cnt, options)
 
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := daemon.containerStart(ctx, daemonCfg, container, "", "", true); err != nil {
+	if err := daemon.containerStart(ctx, daemonCfg, cnt, "", "", true); err != nil {
 		return err
 	}
 
-	daemon.LogContainerEvent(container, "restart")
+	daemon.LogContainerEvent(cnt, "restart")
 	return nil
 }
