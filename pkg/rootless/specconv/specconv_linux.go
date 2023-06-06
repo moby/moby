@@ -40,11 +40,13 @@ func getCurrentOOMScoreAdj() int {
 
 func toRootless(spec *specs.Spec, v2Controllers []string, currentOOMScoreAdj int) error {
 	if len(v2Controllers) == 0 {
-		// Remove cgroup settings.
-		spec.Linux.Resources = nil
-		spec.Linux.CgroupsPath = ""
+		if spec.Linux != nil {
+			// Remove cgroup settings.
+			spec.Linux.Resources = nil
+			spec.Linux.CgroupsPath = ""
+		}
 	} else {
-		if spec.Linux.Resources != nil {
+		if spec.Linux != nil && spec.Linux.Resources != nil {
 			m := make(map[string]struct{})
 			for _, s := range v2Controllers {
 				m[s] = struct{}{}
@@ -77,7 +79,7 @@ func toRootless(spec *specs.Spec, v2Controllers []string, currentOOMScoreAdj int
 		}
 	}
 
-	if spec.Process.OOMScoreAdj != nil && *spec.Process.OOMScoreAdj < currentOOMScoreAdj {
+	if spec.Process != nil && spec.Process.OOMScoreAdj != nil && *spec.Process.OOMScoreAdj < currentOOMScoreAdj {
 		*spec.Process.OOMScoreAdj = currentOOMScoreAdj
 	}
 
@@ -109,6 +111,9 @@ func toRootless(spec *specs.Spec, v2Controllers []string, currentOOMScoreAdj int
 func isHostNS(spec *specs.Spec, nsType specs.LinuxNamespaceType) (bool, error) {
 	if strings.Contains(string(nsType), string(os.PathSeparator)) {
 		return false, fmt.Errorf("unexpected namespace type %q", nsType)
+	}
+	if spec.Linux == nil {
+		return false, nil
 	}
 	for _, ns := range spec.Linux.Namespaces {
 		if ns.Type == nsType {
@@ -144,15 +149,17 @@ func bindMountHostProcfs(spec *specs.Spec) error {
 		}
 	}
 
-	// Remove ReadonlyPaths for /proc/*
-	newROP := spec.Linux.ReadonlyPaths[:0]
-	for _, s := range spec.Linux.ReadonlyPaths {
-		s = path.Clean(s)
-		if !strings.HasPrefix(s, "/proc/") {
-			newROP = append(newROP, s)
+	if spec.Linux != nil {
+		// Remove ReadonlyPaths for /proc/*
+		newROP := spec.Linux.ReadonlyPaths[:0]
+		for _, s := range spec.Linux.ReadonlyPaths {
+			s = path.Clean(s)
+			if !strings.HasPrefix(s, "/proc/") {
+				newROP = append(newROP, s)
+			}
 		}
+		spec.Linux.ReadonlyPaths = newROP
 	}
-	spec.Linux.ReadonlyPaths = newROP
 
 	return nil
 }
