@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/profiles/seccomp"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,6 +31,9 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			logrus.Warn("seccomp is not enabled in your kernel, running container without default profile")
 			c.SeccompProfile = dconfig.SeccompProfileUnconfined
 			return nil
+		}
+		if s.Linux == nil {
+			s.Linux = &specs.Linux{}
 		}
 		var err error
 		switch {
