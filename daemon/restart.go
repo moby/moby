@@ -31,9 +31,9 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, cnt *container.Container, options containertypes.StopOptions) error {
+func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, ctr *container.Container, options containertypes.StopOptions) error {
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
-	actualIsolation := cnt.HostConfig.Isolation
+	actualIsolation := ctr.HostConfig.Isolation
 	if containertypes.Isolation.IsDefault(actualIsolation) {
 		actualIsolation = daemon.defaultIsolation
 	}
@@ -45,32 +45,32 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 	// access to mount the containers filesystem inside the utility
 	// VM.
 	if !containertypes.Isolation.IsHyperV(actualIsolation) {
-		if err := daemon.Mount(cnt); err == nil {
-			defer daemon.Unmount(cnt)
+		if err := daemon.Mount(ctr); err == nil {
+			defer daemon.Unmount(ctr)
 		}
 	}
 
-	if cnt.IsRunning() {
-		cnt.Lock()
-		cnt.HasBeenManuallyRestarted = true
-		cnt.Unlock()
+	if ctr.IsRunning() {
+		ctr.Lock()
+		ctr.HasBeenManuallyRestarted = true
+		ctr.Unlock()
 
-		cnt.State.Lock()
-		cnt.State.Restarting = true
-		cnt.State.FinishedAt = time.Now().UTC()
-		cnt.State.Unlock()
+		ctr.State.Lock()
+		ctr.State.Restarting = true
+		ctr.State.FinishedAt = time.Now().UTC()
+		ctr.State.Unlock()
 
-		err := daemon.containerStop(ctx, cnt, options)
+		err := daemon.containerStop(ctx, ctr, options)
 
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := daemon.containerStart(ctx, daemonCfg, cnt, "", "", true); err != nil {
+	if err := daemon.containerStart(ctx, daemonCfg, ctr, "", "", true); err != nil {
 		return err
 	}
 
-	daemon.LogContainerEvent(cnt, "restart")
+	daemon.LogContainerEvent(ctr, "restart")
 	return nil
 }
