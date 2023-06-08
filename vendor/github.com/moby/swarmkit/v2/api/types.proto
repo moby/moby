@@ -289,6 +289,13 @@ message Mount {
 		Propagation propagation = 1;
 		// allows non-recursive bind-mount, i.e. mount(2) with "bind" rather than "rbind".
 		bool nonrecursive = 2 [(gogoproto.customname) = "NonRecursive"];
+		// Create the mount point
+		bool createmountpoint = 3 [(gogoproto.customname) = "CreateMountpoint"];
+		// ReadOnlyNonRecursive makes the mount non-recursively read-only, but still leaves the mount recursive
+		// (unless NonRecursive is set to true in conjunction).
+		bool readonlynonrecursive = 4 [(gogoproto.customname) = "ReadOnlyNonRecursive"];
+		// ReadOnlyForceRecursive raises an error if the mount cannot be made recursively read-only.
+		bool readonlyforcerecursive = 5 [(gogoproto.customname) = "ReadOnlyForceRecursive"];
 	}
 
 	// VolumeOptions contains parameters for mounting the volume.
