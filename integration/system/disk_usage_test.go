@@ -2,12 +2,14 @@ package system // import "github.com/docker/docker/integration/system"
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil/daemon"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -61,6 +63,7 @@ func TestDiskUsage(t *testing.T) {
 							ID:       du.Images[0].ID,
 							RepoTags: []string{"busybox:latest"},
 							Size:     du.LayersSize,
+							Platform: &ocispec.Platform{Architecture: runtime.GOARCH, OS: runtime.GOOS},
 						},
 					},
 					Containers: []*types.Container{},

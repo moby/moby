@@ -1952,6 +1952,8 @@ definitions:
         x-nullable: false
         type: "integer"
         example: 2
+      Platform:
+        $ref: "#/definitions/OCIPlatform"
 
   AuthConfig:
     type: "object"

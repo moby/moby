@@ -7,7 +7,6 @@ swagger generate model -f api/swagger.yaml \
 	-n GraphDriverData \
 	-n IdResponse \
 	-n ImageDeleteResponseItem \
-	-n ImageSummary \
 	-n Plugin \
 	-n PluginDevice \
 	-n PluginMount \

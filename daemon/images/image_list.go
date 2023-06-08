@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -267,6 +268,13 @@ func newImageSummary(image *image.Image, size int64) *types.ImageSummary {
 		// consider both "0" and "nil" to be "empty".
 		SharedSize: -1,
 		Containers: -1,
+		Platform: &ocispec.Platform{
+			OS:           image.OS,
+			Architecture: image.Architecture,
+			OSVersion:    image.OSVersion,
+			OSFeatures:   image.OSFeatures,
+			Variant:      image.Variant,
+		},
 	}
 	if image.Config != nil {
 		summary.Labels = image.Config.Labels

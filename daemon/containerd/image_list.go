@@ -209,6 +209,11 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		}
 	}
 
+	var platform *ocispec.Platform
+	if image.Image.Target().Platform != nil {
+		platform = image.Image.Target().Platform
+	}
+
 	summary := &types.ImageSummary{
 		ParentID:    "",
 		ID:          target.String(),
@@ -222,6 +227,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		// consider both "0" and "nil" to be "empty".
 		SharedSize: -1,
 		Containers: -1,
+		Platform:   platform,
 	}
 
 	return summary, chainIDs, nil
