@@ -949,7 +949,7 @@ github.com/secure-systems-lab/go-securesystemslib/dsse
 # github.com/shibumi/go-pathspec v1.3.0
 ## explicit; go 1.17
 github.com/shibumi/go-pathspec
-# github.com/sirupsen/logrus v1.9.2
+# github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
 # github.com/spdx/tools-golang v0.3.1-0.20230104082527-d6f58551be3f
