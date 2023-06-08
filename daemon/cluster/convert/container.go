@@ -81,8 +81,11 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 
 		if m.BindOptions != nil {
 			mount.BindOptions = &mounttypes.BindOptions{
-				Propagation:  mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
-				NonRecursive: m.BindOptions.NonRecursive,
+				Propagation:            mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				NonRecursive:           m.BindOptions.NonRecursive,
+				CreateMountpoint:       m.BindOptions.CreateMountpoint,
+				ReadOnlyNonRecursive:   m.BindOptions.ReadOnlyNonRecursive,
+				ReadOnlyForceRecursive: m.BindOptions.ReadOnlyForceRecursive,
 			}
 		}
 
