@@ -18,9 +18,6 @@ env:
   GO_VERSION: "1.20.4"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.3
-  WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
-  WINDOWS_BASE_TAG_2019: ltsc2019
-  WINDOWS_BASE_TAG_2022: ltsc2022
   TEST_IMAGE_NAME: moby:test
   TEST_CTN_NAME: moby
   DOCKER_BUILDKIT: 0
@@ -51,11 +48,6 @@ jobs:
         run: |
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          }
       -
         name: Cache
         uses: actions/cache@v3
@@ -75,8 +67,6 @@ jobs:
       -
         name: Build base image
         run: |
-          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
-          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
           docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
       -
         name: Build binaries
@@ -128,11 +118,6 @@ jobs:
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
           New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          }
       -
         name: Cache
         uses: actions/cache@v3
@@ -152,8 +137,6 @@ jobs:
       -
         name: Build base image
         run: |
-          docker pull ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }}
-          docker tag ${{ env.WINDOWS_BASE_IMAGE }}:${{ env.WINDOWS_BASE_IMAGE_TAG }} microsoft/windowsservercore
           docker build --build-arg GO_VERSION -t ${{ env.TEST_IMAGE_NAME }} -f Dockerfile.windows .
       -
         name: Test
@@ -279,11 +262,6 @@ jobs:
         name: Init
         run: |
           New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ inputs.os }}" -eq "windows-2019") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2019 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
-            echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          }
           Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       -
         # removes docker service that is currently installed on the runner. we
@@ -377,8 +355,6 @@ jobs:
         name: Building contrib/busybox
         run: |
           & "${{ env.BIN_OUT }}\docker" build -t busybox `
-            --build-arg WINDOWS_BASE_IMAGE `
-            --build-arg WINDOWS_BASE_IMAGE_TAG `
             .\contrib\busybox\
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
