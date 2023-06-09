@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	runtimeoptions_v1 "github.com/containerd/containerd/pkg/runtimeoptions/v1"
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/imdario/mergo"
@@ -211,6 +212,17 @@ func TestGetRuntime(t *testing.T) {
 	const configuredShimByPathName = "shimwithpath"
 	configuredShimByPath := types.Runtime{Type: "/path/to/my/shim"}
 
+	// A runtime configured with the generic 'runtimeoptions/v1.Options' shim configuration options.
+	// https://gvisor.dev/docs/user_guide/containerd/configuration/#:~:text=to%20the%20shim.-,Containerd%201.3%2B,-Starting%20in%201.3
+	const gvisorName = "gvisor"
+	gvisorRuntime := types.Runtime{
+		Type: "io.containerd.runsc.v1",
+		Options: map[string]interface{}{
+			"TypeUrl":    "io.containerd.runsc.v1.options",
+			"ConfigPath": "/path/to/runsc.toml",
+		},
+	}
+
 	cfg, err := config.New()
 	assert.NilError(t, err)
 
@@ -221,6 +233,7 @@ func TestGetRuntime(t *testing.T) {
 		shimWithOptsName:         shimWithOpts,
 		shimAliasName:            shimAlias,
 		configuredShimByPathName: configuredShimByPath,
+		gvisorName:               gvisorRuntime,
 	}
 	assert.NilError(t, initRuntimesDir(cfg))
 	runtimes, err := setupRuntimes(cfg)
@@ -303,6 +316,17 @@ func TestGetRuntime(t *testing.T) {
 			name:    "ConfiguredShimByPath",
 			runtime: configuredShimByPathName,
 			want:    &shimConfig{Shim: configuredShimByPath.Type},
+		},
+		{
+			name:    "ConfiguredShimWithRuntimeoptionsShimConfig",
+			runtime: gvisorName,
+			want: &shimConfig{
+				Shim: gvisorRuntime.Type,
+				Opts: &runtimeoptions_v1.Options{
+					TypeUrl:    gvisorRuntime.Options["TypeUrl"].(string),
+					ConfigPath: gvisorRuntime.Options["ConfigPath"].(string),
+				},
+			},
 		},
 	} {
 		tt := tt
