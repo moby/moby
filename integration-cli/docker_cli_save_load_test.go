@@ -1,24 +1,15 @@
 package main
 
 import (
-	"archive/tar"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
-	"regexp"
-	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 )
 
@@ -108,25 +99,6 @@ func (s *DockerCLISaveLoadSuite) TestSaveSingleTag(c *testing.T) {
 	assert.NilError(c, err, "failed to save repo with image ID and 'repositories' file: %s, %v", out, err)
 }
 
-func (s *DockerCLISaveLoadSuite) TestSaveCheckTimes(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	repoName := "busybox:latest"
-	out, _ := dockerCmd(c, "inspect", repoName)
-	var data []struct {
-		ID      string
-		Created time.Time
-	}
-	err := json.Unmarshal([]byte(out), &data)
-	assert.NilError(c, err, "failed to marshal from %q: err %v", repoName, err)
-	assert.Assert(c, len(data) != 0, "failed to marshal the data from %q", repoName)
-	tarTvTimeFormat := "2006-01-02 15:04"
-	out, err = RunCommandPipelineWithOutput(
-		exec.Command(dockerBinary, "save", repoName),
-		exec.Command("tar", "tv"),
-		exec.Command("grep", "-E", fmt.Sprintf("%s %s", data[0].Created.Format(tarTvTimeFormat), digest.Digest(data[0].ID).Encoded())))
-	assert.NilError(c, err, "failed to save repo with image ID and 'repositories' file: %s, %v", out, err)
-}
-
 func (s *DockerCLISaveLoadSuite) TestSaveImageId(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-image-id-test"
@@ -213,129 +185,6 @@ func (s *DockerCLISaveLoadSuite) TestSaveMultipleNames(c *testing.T) {
 		exec.Command("grep", "-q", "-E", "(-one|-two)"),
 	)
 	assert.NilError(c, err, "failed to save multiple repos: %s, %v", out, err)
-}
-
-func (s *DockerCLISaveLoadSuite) TestSaveRepoWithMultipleImages(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	makeImage := func(from string, tag string) string {
-		var (
-			out string
-		)
-		out, _ = dockerCmd(c, "run", "-d", from, "true")
-		cleanedContainerID := strings.TrimSpace(out)
-
-		out, _ = dockerCmd(c, "commit", cleanedContainerID, tag)
-		imageID := strings.TrimSpace(out)
-		return imageID
-	}
-
-	repoName := "foobar-save-multi-images-test"
-	tagFoo := repoName + ":foo"
-	tagBar := repoName + ":bar"
-
-	idFoo := makeImage("busybox:latest", tagFoo)
-	idBar := makeImage("busybox:latest", tagBar)
-
-	deleteImages(repoName)
-
-	// create the archive
-	out, err := RunCommandPipelineWithOutput(
-		exec.Command(dockerBinary, "save", repoName, "busybox:latest"),
-		exec.Command("tar", "t"))
-	assert.NilError(c, err, "failed to save multiple images: %s, %v", out, err)
-
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	var actual []string
-	for _, l := range lines {
-		if regexp.MustCompile(`^[a-f0-9]{64}\.json$`).Match([]byte(l)) {
-			actual = append(actual, strings.TrimSuffix(l, ".json"))
-		}
-	}
-
-	// make the list of expected layers
-	out = inspectField(c, "busybox:latest", "Id")
-	expected := []string{strings.TrimSpace(out), idFoo, idBar}
-
-	// prefixes are not in tar
-	for i := range expected {
-		expected[i] = digest.Digest(expected[i]).Encoded()
-	}
-
-	sort.Strings(actual)
-	sort.Strings(expected)
-	assert.Assert(c, is.DeepEqual(actual, expected), "archive does not contains the right layers: got %v, expected %v, output: %q", actual, expected, out)
-}
-
-// Issue #6722 #5892 ensure directories are included in changes
-func (s *DockerCLISaveLoadSuite) TestSaveDirectoryPermissions(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	layerEntries := []string{"opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
-	layerEntriesAUFS := []string{"./", ".wh..wh.aufs", ".wh..wh.orph/", ".wh..wh.plnk/", "opt/", "opt/a/", "opt/a/b/", "opt/a/b/c"}
-
-	name := "save-directory-permissions"
-	tmpDir, err := os.MkdirTemp("", "save-layers-with-directories")
-	assert.Assert(c, err == nil, "failed to create temporary directory: %s", err)
-	extractionDirectory := filepath.Join(tmpDir, "image-extraction-dir")
-	os.Mkdir(extractionDirectory, 0777)
-
-	defer os.RemoveAll(tmpDir)
-	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
-	RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
-	RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`))
-
-	out, err := RunCommandPipelineWithOutput(
-		exec.Command(dockerBinary, "save", name),
-		exec.Command("tar", "-xf", "-", "-C", extractionDirectory),
-	)
-	assert.NilError(c, err, "failed to save and extract image: %s", out)
-
-	dirs, err := os.ReadDir(extractionDirectory)
-	assert.NilError(c, err, "failed to get a listing of the layer directories: %s", err)
-
-	found := false
-	for _, entry := range dirs {
-		var entriesSansDev []string
-		if entry.IsDir() {
-			layerPath := filepath.Join(extractionDirectory, entry.Name(), "layer.tar")
-
-			f, err := os.Open(layerPath)
-			assert.NilError(c, err, "failed to open %s: %s", layerPath, err)
-
-			defer f.Close()
-
-			entries, err := listTar(f)
-			for _, e := range entries {
-				if !strings.Contains(e, "dev/") {
-					entriesSansDev = append(entriesSansDev, e)
-				}
-			}
-			assert.NilError(c, err, "encountered error while listing tar entries: %s", err)
-
-			if reflect.DeepEqual(entriesSansDev, layerEntries) || reflect.DeepEqual(entriesSansDev, layerEntriesAUFS) {
-				found = true
-				break
-			}
-		}
-	}
-
-	assert.Assert(c, found, "failed to find the layer with the right content listing")
-}
-
-func listTar(f io.Reader) ([]string, error) {
-	tr := tar.NewReader(f)
-	var entries []string
-
-	for {
-		th, err := tr.Next()
-		if err == io.EOF {
-			// end of tar archive
-			return entries, nil
-		}
-		if err != nil {
-			return entries, err
-		}
-		entries = append(entries, th.Name)
-	}
 }
 
 // Test loading a weird image where one of the layers is of zero size.

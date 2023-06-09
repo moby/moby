@@ -358,6 +358,9 @@ github.com/coreos/go-systemd/v22/activation
 github.com/coreos/go-systemd/v22/daemon
 github.com/coreos/go-systemd/v22/dbus
 github.com/coreos/go-systemd/v22/journal
+# github.com/cpuguy83/tar2go v0.3.1
+## explicit; go 1.19
+github.com/cpuguy83/tar2go
 # github.com/creack/pty v1.1.18
 ## explicit; go 1.13
 github.com/creack/pty
