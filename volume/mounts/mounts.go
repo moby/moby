@@ -97,30 +97,26 @@ func (m *MountPoint) Cleanup() error {
 // configured, or creating the source directory if supplied.
 // The, optional, checkFun parameter allows doing additional checking
 // before creating the source directory on the host.
-func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, err error) {
+func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, retErr error) {
 	if m.SkipMountpointCreation {
 		return m.Source, nil
 	}
 
 	defer func() {
-		if err != nil || !label.RelabelNeeded(m.Mode) {
+		if retErr != nil || !label.RelabelNeeded(m.Mode) {
 			return
 		}
 
-		var sourcePath string
-		sourcePath, err = filepath.EvalSymlinks(m.Source)
+		sourcePath, err := filepath.EvalSymlinks(m.Source)
 		if err != nil {
 			path = ""
-			err = errors.Wrapf(err, "error evaluating symlinks from mount source %q", m.Source)
+			retErr = errors.Wrapf(err, "error evaluating symlinks from mount source %q", m.Source)
 			return
 		}
 		err = label.Relabel(sourcePath, mountLabel, label.IsShared(m.Mode))
-		if errors.Is(err, syscall.ENOTSUP) {
-			err = nil
-		}
-		if err != nil {
+		if err != nil && !errors.Is(err, syscall.ENOTSUP) {
 			path = ""
-			err = errors.Wrapf(err, "error setting label on mount source '%s'", sourcePath)
+			retErr = errors.Wrapf(err, "error setting label on mount source '%s'", sourcePath)
 		}
 	}()
 
@@ -129,14 +125,14 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		if id == "" {
 			id = stringid.GenerateRandomID()
 		}
-		path, err := m.Volume.Mount(id)
+		volumePath, err := m.Volume.Mount(id)
 		if err != nil {
 			return "", errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
 		}
 
 		m.ID = id
 		m.active++
-		return path, nil
+		return volumePath, nil
 	}
 
 	if len(m.Source) == 0 {
