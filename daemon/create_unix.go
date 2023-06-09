@@ -12,9 +12,12 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
+	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
@@ -85,10 +88,41 @@ func (daemon *Daemon) populateVolumes(c *container.Container) error {
 			continue
 		}
 
-		log.G(context.TODO()).Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, mnt.Name)
-		if err := c.CopyImagePathContent(mnt.Volume, mnt.Destination); err != nil {
+		if err := daemon.populateVolume(c, mnt); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func (daemon *Daemon) populateVolume(c *container.Container, mnt *volumemounts.MountPoint) error {
+	ctrDestPath, err := c.GetResourcePath(mnt.Destination)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(ctrDestPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	volumePath, cleanup, err := mnt.Setup(c.MountLabel, daemon.idMapping.RootPair(), nil)
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return nil
+		}
+		log.G(context.TODO()).WithError(err).Debugf("can't copy data from %s:%s, to %s", c.ID, mnt.Destination, volumePath)
+		return errors.Wrapf(err, "failed to populate volume")
+	}
+	defer mnt.Cleanup()
+	defer cleanup()
+
+	log.G(context.TODO()).Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, volumePath)
+	if err := c.CopyImagePathContent(volumePath, ctrDestPath); err != nil {
+		return err
+	}
+
 	return nil
 }
