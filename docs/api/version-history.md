@@ -17,6 +17,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.45](https://docs.docker.com/engine/api/v1.45/) documentation
 
+* `POST /containers/create` now supports `VolumeOptions.Subpath` which allows a
+  subpath of a named volume to be mounted.
+
 ## v1.44 API changes
 
 [Docker Engine API v1.44](https://docs.docker.com/engine/api/v1.44/) documentation

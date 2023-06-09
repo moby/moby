@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/internal/safepath"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
@@ -74,12 +75,32 @@ type MountPoint struct {
 	// Specifically needed for containers which are running and calls to `docker cp`
 	// because both these actions require mounting the volumes.
 	active int
+
+	// SafePaths created by Setup that should be cleaned up before unmounting
+	// the volume.
+	safePaths []*safepath.SafePath
 }
 
-// Cleanup frees resources used by the mountpoint
+// Cleanup frees resources used by the mountpoint and cleans up all the paths
+// returned by Setup that hasn't been cleaned up by the caller.
 func (m *MountPoint) Cleanup() error {
 	if m.Volume == nil || m.ID == "" {
 		return nil
+	}
+
+	for _, p := range m.safePaths {
+		if !p.IsValid() {
+			continue
+		}
+
+		err := p.Close()
+		base, sub := p.SourcePath()
+		log.G(context.TODO()).WithFields(log.Fields{
+			"error":         err,
+			"path":          p.Path(),
+			"sourceBase":    base,
+			"sourceSubpath": sub,
+		}).Warn("cleaning up SafePath that hasn't been cleaned up by the caller")
 	}
 
 	if err := m.Volume.Unmount(m.ID); err != nil {
@@ -97,9 +118,17 @@ func (m *MountPoint) Cleanup() error {
 // configured, or creating the source directory if supplied.
 // The, optional, checkFun parameter allows doing additional checking
 // before creating the source directory on the host.
-func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, retErr error) {
+//
+// The returned path can be a temporary path, caller is responsible to
+// call the returned cleanup function as soon as the path is not needed.
+// Cleanup doesn't unmount the underlying volumes (if any), it only
+// frees up the resources that were needed to guarantee that the path
+// still points to the same target (to avoid TOCTOU attack).
+//
+// Cleanup function doesn't need to be called when error is returned.
+func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, cleanup func() error, retErr error) {
 	if m.SkipMountpointCreation {
-		return m.Source, nil
+		return m.Source, noCleanup, nil
 	}
 
 	defer func() {
@@ -107,16 +136,24 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 			return
 		}
 
-		sourcePath, err := filepath.EvalSymlinks(m.Source)
+		sourcePath, err := filepath.EvalSymlinks(path)
 		if err != nil {
 			path = ""
 			retErr = errors.Wrapf(err, "error evaluating symlinks from mount source %q", m.Source)
+			if cleanupErr := cleanup(); cleanupErr != nil {
+				log.G(context.TODO()).WithError(cleanupErr).Warn("failed to cleanup after error")
+			}
+			cleanup = noCleanup
 			return
 		}
 		err = label.Relabel(sourcePath, mountLabel, label.IsShared(m.Mode))
 		if err != nil && !errors.Is(err, syscall.ENOTSUP) {
 			path = ""
 			retErr = errors.Wrapf(err, "error setting label on mount source '%s'", sourcePath)
+			if cleanupErr := cleanup(); cleanupErr != nil {
+				log.G(context.TODO()).WithError(cleanupErr).Warn("failed to cleanup after error")
+			}
+			cleanup = noCleanup
 		}
 	}()
 
@@ -127,16 +164,34 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		}
 		volumePath, err := m.Volume.Mount(id)
 		if err != nil {
-			return "", errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
+			return "", noCleanup, errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
 		}
 
 		m.ID = id
+		clean := noCleanup
+		if m.Spec.VolumeOptions != nil && m.Spec.VolumeOptions.Subpath != "" {
+			subpath := m.Spec.VolumeOptions.Subpath
+
+			safePath, err := safepath.Join(volumePath, subpath)
+			if err != nil {
+				if err := m.Volume.Unmount(id); err != nil {
+					log.G(context.TODO()).WithError(err).Error("failed to unmount after safepath.Join failed")
+				}
+				return "", noCleanup, err
+			}
+			m.safePaths = append(m.safePaths, safePath)
+			log.G(context.TODO()).Debugf("mounting (%s|%s) via %s", volumePath, subpath, safePath.Path())
+
+			clean = safePath.Close
+			volumePath = safePath.Path()
+		}
+
 		m.active++
-		return volumePath, nil
+		return volumePath, clean, nil
 	}
 
 	if len(m.Source) == 0 {
-		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+		return "", noCleanup, fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 
 	if m.Type == mounttypes.TypeBind {
@@ -145,7 +200,7 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		// the process of shutting down.
 		if checkFun != nil {
 			if err := checkFun(m); err != nil {
-				return "", err
+				return "", noCleanup, err
 			}
 		}
 
@@ -154,12 +209,12 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		if err := idtools.MkdirAllAndChownNew(m.Source, 0o755, rootIDs); err != nil {
 			if perr, ok := err.(*os.PathError); ok {
 				if perr.Err != syscall.ENOTDIR {
-					return "", errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
+					return "", noCleanup, errors.Wrapf(err, "error while creating mount source path '%s'", m.Source)
 				}
 			}
 		}
 	}
-	return m.Source, nil
+	return m.Source, noCleanup, nil
 }
 
 func (m *MountPoint) LiveRestore(ctx context.Context) error {
@@ -202,4 +257,9 @@ func errInvalidMode(mode string) error {
 
 func errInvalidSpec(spec string) error {
 	return errors.Errorf("invalid volume specification: '%s'", spec)
+}
+
+// noCleanup is a no-op cleanup function.
+func noCleanup() error {
+	return nil
 }

@@ -63,11 +63,12 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 		}
 	}()
 
-	mounts, err := daemon.setupMounts(container)
+	mounts, cleanup, err := daemon.setupMounts(container)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
+		cleanup()
 		if err != nil {
 			_ = container.UnmountVolumes(daemon.LogVolumeEvent)
 		}
