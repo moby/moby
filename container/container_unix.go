@@ -419,9 +419,13 @@ func copyExistingContents(source, destination string) error {
 		return err
 	}
 	if len(dstList) != 0 {
-		// destination is not empty, do not copy
+		log.G(context.TODO()).WithFields(log.Fields{
+			"source":      source,
+			"destination": destination,
+		}).Debug("destination is not empty, do not copy")
 		return nil
 	}
+
 	return fs.CopyDir(destination, source, ignoreUnsupportedXAttrs())
 }
 
