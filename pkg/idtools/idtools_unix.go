@@ -167,7 +167,10 @@ func callGetent(database, key string) (io.Reader, error) {
 	if getentCmd == "" {
 		return nil, fmt.Errorf("unable to find getent command")
 	}
-	out, err := exec.Command(getentCmd, database, key).CombinedOutput()
+	command := exec.Command(getentCmd, database, key)
+	// we run getent within container filesystem, but without /dev so /dev/null is not available for exec to mock stdin
+	command.Stdin = io.NopCloser(bytes.NewReader(nil))
+	out, err := command.CombinedOutput()
 	if err != nil {
 		exitCode, errC := getExitCode(err)
 		if errC != nil {
