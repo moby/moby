@@ -4,21 +4,26 @@ package listeners // import "github.com/docker/docker/daemon/listeners"
 
 import (
 	"fmt"
+	"os/user"
 	"strconv"
-
-	"github.com/docker/docker/pkg/idtools"
 )
 
 const defaultSocketGroup = "docker"
 
 func lookupGID(name string) (int, error) {
-	group, err := idtools.LookupGroup(name)
-	if err == nil {
-		return group.Gid, nil
-	}
-	gid, err := strconv.Atoi(name)
-	if err == nil {
+	group, err := user.LookupGroup(name)
+	if err != nil {
+		gid, err := strconv.Atoi(name)
+		if err != nil {
+			return -1, fmt.Errorf("group %s not found", name)
+		}
 		return gid, nil
 	}
-	return -1, fmt.Errorf("group %s not found", name)
+	gid, err := strconv.Atoi(group.Gid)
+	if err != nil {
+		// group.Gid is documented to always be numeric on POSIX
+		// systems.
+		panic(fmt.Errorf("gid is not numeric: %w", err))
+	}
+	return gid, nil
 }

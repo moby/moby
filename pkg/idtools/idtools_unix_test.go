@@ -434,43 +434,6 @@ func TestNewIDMappings(t *testing.T) {
 	assert.Check(t, err, "Unable to access %s directory with user UID:%d and GID:%d:\n%s", dirName, rootUID, rootGID, string(out))
 }
 
-func TestLookupUserAndGroup(t *testing.T) {
-	RequiresRoot(t)
-	uid, gid, err := AddNamespaceRangesUser(tempUser)
-	assert.Check(t, err)
-	defer delUser(t, tempUser)
-
-	fetchedUser, err := LookupUser(tempUser)
-	assert.Check(t, err)
-
-	fetchedUserByID, err := LookupUID(uid)
-	assert.Check(t, err)
-	assert.Check(t, is.DeepEqual(fetchedUserByID, fetchedUser))
-
-	fetchedGroup, err := LookupGroup(tempUser)
-	assert.Check(t, err)
-
-	fetchedGroupByID, err := LookupGID(gid)
-	assert.Check(t, err)
-	assert.Check(t, is.DeepEqual(fetchedGroupByID, fetchedGroup))
-}
-
-func TestLookupUserAndGroupThatDoesNotExist(t *testing.T) {
-	fakeUser := "fakeuser"
-	_, err := LookupUser(fakeUser)
-	assert.Check(t, is.Error(err, "getent unable to find entry \""+fakeUser+"\" in passwd database"))
-
-	_, err = LookupUID(-1)
-	assert.Check(t, is.ErrorContains(err, ""))
-
-	fakeGroup := "fakegroup"
-	_, err = LookupGroup(fakeGroup)
-	assert.Check(t, is.Error(err, "getent unable to find entry \""+fakeGroup+"\" in group database"))
-
-	_, err = LookupGID(-1)
-	assert.Check(t, is.ErrorContains(err, ""))
-}
-
 // TestMkdirIsNotDir checks that mkdirAs() function (used by MkdirAll...)
 // returns a correct error in case a directory which it is about to create
 // already exists but is a file (rather than a directory).
