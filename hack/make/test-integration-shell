@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 bundle .integration-daemon-start
-bundle .integration-daemon-setup
 
 export ABS_DEST
 bash +e

@@ -12,7 +12,6 @@ fi
 	env
 	build_test_suite_binaries
 	bundle .integration-daemon-start
-	bundle .integration-daemon-setup
 
 	testexit=0
 	(repeat run_test_integration) || testexit=$?

@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# required by https://github.com/AkihiroSuda/kube-moby-integration
-set -e
-
-source hack/make/.integration-test-helpers
-
-build_test_suite_binaries
