@@ -1,6 +1,8 @@
 package client
 
 import (
+	"context"
+	"net/http"
 	"runtime"
 	"testing"
 	"time"
@@ -58,4 +60,79 @@ func TestOptionWithVersionFromEnv(t *testing.T) {
 	assert.Check(t, c.client != nil)
 	assert.Equal(t, c.version, "2.9999")
 	assert.Equal(t, c.manualOverride, true)
+}
+
+func TestWithUserAgent(t *testing.T) {
+	const userAgent = "Magic-Client/v1.2.3"
+	t.Run("user-agent", func(t *testing.T) {
+		c, err := NewClientWithOpts(
+			WithUserAgent(userAgent),
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), userAgent))
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			})),
+		)
+		assert.Check(t, err)
+		_, err = c.Ping(context.Background())
+		assert.Check(t, err)
+		assert.Check(t, c.Close())
+	})
+	t.Run("user-agent and custom headers", func(t *testing.T) {
+		c, err := NewClientWithOpts(
+			WithUserAgent(userAgent),
+			WithHTTPHeaders(map[string]string{"User-Agent": "should-be-ignored/1.0.0", "Other-Header": "hello-world"}),
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), userAgent))
+				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			})),
+		)
+		assert.Check(t, err)
+		_, err = c.Ping(context.Background())
+		assert.Check(t, err)
+		assert.Check(t, c.Close())
+	})
+	t.Run("custom headers", func(t *testing.T) {
+		c, err := NewClientWithOpts(
+			WithHTTPHeaders(map[string]string{"User-Agent": "from-custom-headers/1.0.0", "Other-Header": "hello-world"}),
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), "from-custom-headers/1.0.0"))
+				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			})),
+		)
+		assert.Check(t, err)
+		_, err = c.Ping(context.Background())
+		assert.Check(t, err)
+		assert.Check(t, c.Close())
+	})
+	t.Run("no user-agent set", func(t *testing.T) {
+		c, err := NewClientWithOpts(
+			WithHTTPHeaders(map[string]string{"Other-Header": "hello-world"}),
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), ""))
+				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			})),
+		)
+		assert.Check(t, err)
+		_, err = c.Ping(context.Background())
+		assert.Check(t, err)
+		assert.Check(t, c.Close())
+	})
+	t.Run("reset custom user-agent", func(t *testing.T) {
+		c, err := NewClientWithOpts(
+			WithUserAgent(""),
+			WithHTTPHeaders(map[string]string{"User-Agent": "from-custom-headers/1.0.0", "Other-Header": "hello-world"}),
+			WithHTTPClient(newMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), ""))
+				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			})),
+		)
+		assert.Check(t, err)
+		_, err = c.Ping(context.Background())
+		assert.Check(t, err)
+		assert.Check(t, c.Close())
+	})
 }
