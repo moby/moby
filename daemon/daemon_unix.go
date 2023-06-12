@@ -104,7 +104,10 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 		memory.KernelTCP = &config.KernelMemoryTCP
 	}
 
-	return &memory
+	if memory != (specs.LinuxMemory{}) {
+		return &memory
+	}
+	return nil
 }
 
 func getPidsLimit(config containertypes.Resources) *specs.LinuxPids {
@@ -126,7 +129,7 @@ func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
 	if config.CPUShares < 0 {
 		return nil, fmt.Errorf("shares: invalid argument")
 	}
-	if config.CPUShares >= 0 {
+	if config.CPUShares > 0 {
 		shares := uint64(config.CPUShares)
 		cpu.Shares = &shares
 	}
@@ -167,7 +170,10 @@ func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
 		cpu.RealtimeRuntime = &c
 	}
 
-	return &cpu, nil
+	if cpu != (specs.LinuxCPU{}) {
+		return &cpu, nil
+	}
+	return nil, nil
 }
 
 func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeightDevice, error) {
