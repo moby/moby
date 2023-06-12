@@ -5,6 +5,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
+	rkclient "github.com/rootless-containers/rootlesskit/pkg/api/client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -218,7 +220,7 @@ func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
 	if !rootless.RunningWithRootlessKit() {
 		return
 	}
-	rlc, err := rootless.GetRootlessKitClient()
+	rlc, err := getRootlessKitClient()
 	if err != nil {
 		logrus.Warnf("failed to create RootlessKit client: %v", err)
 		return
@@ -266,6 +268,16 @@ func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
 			logrus.Warnf("failed to retrieve vpnkit version: %v", err)
 		}
 	}
+}
+
+// getRootlessKitClient returns RootlessKit client
+func getRootlessKitClient() (rkclient.Client, error) {
+	stateDir := os.Getenv("ROOTLESSKIT_STATE_DIR")
+	if stateDir == "" {
+		return nil, errors.New("environment variable `ROOTLESSKIT_STATE_DIR` is not set")
+	}
+	apiSock := filepath.Join(stateDir, "api.sock")
+	return rkclient.New(apiSock)
 }
 
 func fillDriverWarnings(v *types.Info) {
