@@ -67,7 +67,21 @@ func TestMain(m *testing.M) {
 	}
 
 	testEnv.Print()
+	printCliVersion()
 	os.Exit(m.Run())
+}
+
+func printCliVersion() {
+	// Print output of "docker version"
+	cli.SetTestEnvironment(testEnv)
+	cmd := cli.Docker(cli.Args("version"))
+	if cmd.Error != nil {
+		fmt.Printf("WARNING: Failed to run \"docker version\": %+v\n", cmd.Error)
+		return
+	}
+
+	fmt.Println("INFO: Testing with docker cli version:")
+	fmt.Println(cmd.Stdout())
 }
 
 func ensureTestEnvSetup(t *testing.T) {
