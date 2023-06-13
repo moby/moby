@@ -38,6 +38,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   specifications directories. The use of the applied setting requires the daemon
   to have expermental enabled, and for non-experimental daemons an empty list is
   always returned.
+* `POST /networks/create` now returns a 400 if the `IPAMConfig` has invalid
+  values. Note that this change is _unversioned_ and applied to all API
+  versions on daemon that support version 1.44.
 
 ## v1.43 API changes
 
