@@ -25,6 +25,18 @@ func TestNameRetries(t *testing.T) {
 	}
 }
 
+func TestIsRandomName(t *testing.T) {
+	name := GetRandomName(0)
+	if !IsRandomName(name) {
+		t.Fatalf("Generated name %s is not detected", name)
+	}
+
+	name = GetRandomName(1)
+	if !IsRandomName(name) {
+		t.Fatalf("Generated name %s is not detected", name)
+	}
+}
+
 func BenchmarkGetRandomName(b *testing.B) {
 	b.ReportAllocs()
 	var out string

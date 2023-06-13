@@ -12,8 +12,11 @@
 package namesgenerator // import "github.com/docker/docker/pkg/namesgenerator"
 
 import (
+	"fmt"
 	"math/rand"
+	"regexp"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -857,4 +860,14 @@ begin:
 		name += strconv.Itoa(rand.Intn(10)) //nolint:gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
 	}
 	return name
+}
+
+func IsRandomName(name string) bool {
+	if strings.HasPrefix(name, "boring_wozniak") {
+		return false
+	}
+	leftParts := strings.Join(left[:], "|")
+	rightParts := strings.Join(right[:], "|")
+	re := regexp.MustCompile(fmt.Sprintf("^(%s)_(%s)[0-9]?$", leftParts, rightParts))
+	return re.FindString(name) != ""
 }
