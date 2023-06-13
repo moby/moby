@@ -478,6 +478,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.Debug = opts.Debug
 	conf.Hosts = opts.Hosts
 	conf.LogLevel = opts.LogLevel
+	conf.LogFormat = opts.LogFormat
 
 	if flags.Changed(FlagTLS) {
 		conf.TLS = &opts.TLS
@@ -655,6 +656,10 @@ func (cli *DaemonCli) getContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) 
 		opts = append(opts, supervisor.WithLogLevel("debug"))
 	} else {
 		opts = append(opts, supervisor.WithLogLevel(cli.LogLevel))
+	}
+
+	if logFormat := cli.Config.LogFormat; logFormat != "" {
+		opts = append(opts, supervisor.WithLogFormat(logFormat))
 	}
 
 	if !cli.CriContainerd {
@@ -867,11 +872,26 @@ func configureDaemonLogs(conf *config.Config) {
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
-	logrus.SetFormatter(&logrus.TextFormatter{
-		TimestampFormat: jsonmessage.RFC3339NanoFixed,
-		DisableColors:   conf.RawLogs,
-		FullTimestamp:   true,
-	})
+	logFormat := conf.LogFormat
+	if logFormat == "" {
+		logFormat = log.TextFormat
+	}
+	var formatter logrus.Formatter
+	switch logFormat {
+	case log.JSONFormat:
+		formatter = &logrus.JSONFormatter{
+			TimestampFormat: jsonmessage.RFC3339NanoFixed,
+		}
+	case log.TextFormat:
+		formatter = &logrus.TextFormatter{
+			TimestampFormat: jsonmessage.RFC3339NanoFixed,
+			DisableColors:   conf.RawLogs,
+			FullTimestamp:   true,
+		}
+	default:
+		panic("unsupported log format " + logFormat)
+	}
+	logrus.SetFormatter(formatter)
 }
 
 func configureProxyEnv(conf *config.Config) {

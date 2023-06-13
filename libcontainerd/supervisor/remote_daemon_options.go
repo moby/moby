@@ -13,6 +13,15 @@ func WithLogLevel(lvl string) DaemonOpt {
 	}
 }
 
+// WithLogFormat defines the containerd log format.
+// This only makes sense if WithStartDaemon() was set to true.
+func WithLogFormat(format string) DaemonOpt {
+	return func(r *remote) error {
+		r.Debug.Format = format
+		return nil
+	}
+}
+
 // WithCRIDisabled disables the CRI plugin.
 func WithCRIDisabled() DaemonOpt {
 	return func(r *remote) error {
