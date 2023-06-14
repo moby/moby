@@ -21,6 +21,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var _ volume.LiveRestorer = (*volumeWrapper)(nil)
+
 type mounts []container.Mount
 
 // Len returns the number of mounts. Used in sorting.
@@ -257,6 +259,7 @@ func (daemon *Daemon) VolumesService() *service.VolumesService {
 type volumeMounter interface {
 	Mount(ctx context.Context, v *volumetypes.Volume, ref string) (string, error)
 	Unmount(ctx context.Context, v *volumetypes.Volume, ref string) error
+	LiveRestoreVolume(ctx context.Context, v *volumetypes.Volume, ref string) error
 }
 
 type volumeWrapper struct {
@@ -290,4 +293,8 @@ func (v *volumeWrapper) CreatedAt() (time.Time, error) {
 
 func (v *volumeWrapper) Status() map[string]interface{} {
 	return v.v.Status
+}
+
+func (v *volumeWrapper) LiveRestoreVolume(ctx context.Context, ref string) error {
+	return v.s.LiveRestoreVolume(ctx, v.v, ref)
 }
