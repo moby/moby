@@ -607,6 +607,9 @@ var (
 		// Maryam Mirzakhani - an Iranian mathematician and the first woman to win the Fields Medal. https://en.wikipedia.org/wiki/Maryam_Mirzakhani
 		"mirzakhani",
 
+		// Firouz Naderi - an accomplished Iranian  NASA scientist, is renowned for his significant contributions to the field of space exploration - https://en.wikipedia.org/wiki/Firouz_Naderi
+		"naderi",
+
 		// Rita Levi-Montalcini - Won Nobel Prize in Physiology or Medicine jointly with colleague Stanley Cohen for the discovery of nerve growth factor (https://en.wikipedia.org/wiki/Rita_Levi-Montalcini)
 		"montalcini",
 
