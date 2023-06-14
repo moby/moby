@@ -165,7 +165,7 @@ FROM microsoft/windowsservercore
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GO_VERSION=1.20.4
+ARG GO_VERSION=1.20.5
 ARG GOTESTSUM_VERSION=v1.8.2
 ARG GOWINRES_VERSION=v0.3.0
 ARG CONTAINERD_VERSION=v1.7.1
