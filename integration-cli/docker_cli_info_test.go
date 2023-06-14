@@ -46,7 +46,7 @@ func (s *DockerCLIInfoSuite) TestInfoEnsureSucceeds(c *testing.T) {
 		"Live Restore Enabled:",
 	}
 
-	if testEnv.OSType == "linux" {
+	if testEnv.DaemonInfo.OSType == "linux" {
 		stringsToCheck = append(stringsToCheck, "Init Binary:", "Security Options:", "containerd version:", "runc version:", "init version:")
 	}
 

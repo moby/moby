@@ -27,7 +27,7 @@ func delInterface(t *testing.T, ifName string) {
 }
 
 func TestDaemonRestartWithLiveRestore(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
@@ -56,7 +56,7 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 }
 
 func TestDaemonDefaultNetworkPools(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	// Remove docker0 bridge and the start daemon defining the predefined address pools
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
@@ -99,7 +99,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 }
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
@@ -133,7 +133,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 }
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
@@ -184,7 +184,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 }
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
@@ -209,7 +209,7 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 }
 
 func TestServiceWithPredefinedNetwork(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
@@ -242,7 +242,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	t.Skip("FLAKY_TEST")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
 
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -330,7 +330,7 @@ func noServices(ctx context.Context, client client.ServiceAPIClient) func(log po
 }
 
 func TestServiceWithDataPathPortInit(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "DataPathPort was added in API v1.40")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
 	defer setupTest(t)()
@@ -398,7 +398,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 }
 
 func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv,

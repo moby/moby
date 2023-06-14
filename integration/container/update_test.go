@@ -33,7 +33,7 @@ func TestUpdateRestartPolicy(t *testing.T) {
 	assert.NilError(t, err)
 
 	timeout := 60 * time.Second
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		timeout = 180 * time.Second
 	}
 

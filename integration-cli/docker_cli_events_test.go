@@ -657,7 +657,7 @@ func (s *DockerCLIEventSuite) TestEventsContainerRestart(c *testing.T) {
 
 	// wait until test2 is auto removed.
 	waitTime := 10 * time.Second
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		// Windows takes longer...
 		waitTime = 90 * time.Second
 	}

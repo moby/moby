@@ -21,7 +21,7 @@ func (e *Execution) Clean(t testing.TB) {
 	t.Helper()
 	apiClient := e.APIClient()
 
-	platform := e.OSType
+	platform := e.DaemonInfo.OSType
 	if (platform != "windows") || (platform == "windows" && e.DaemonInfo.Isolation == "hyperv") {
 		unpauseAllContainers(t, apiClient)
 	}

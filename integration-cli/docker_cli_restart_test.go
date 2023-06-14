@@ -299,7 +299,7 @@ func (s *DockerCLIRestartSuite) TestRestartContainerwithRestartPolicy(c *testing
 	id1 := strings.TrimSpace(out1)
 	id2 := strings.TrimSpace(out2)
 	waitTimeout := 15 * time.Second
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		waitTimeout = 150 * time.Second
 	}
 	err := waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)

@@ -13,7 +13,7 @@ import (
 )
 
 func TestDiskUsage(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows") // d.Start fails on Windows with `protocol not available`
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
 
 	t.Parallel()
 

@@ -70,7 +70,7 @@ func TestKillContainer(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			skip.If(t, testEnv.OSType == tc.skipOs, "Windows does not support SIGWINCH")
+			skip.If(t, testEnv.DaemonInfo.OSType == tc.skipOs, "Windows does not support SIGWINCH")
 			ctx := context.Background()
 			id := container.Run(ctx, t, client)
 			err := client.ContainerKill(ctx, id, tc.signal)
@@ -82,7 +82,7 @@ func TestKillContainer(t *testing.T) {
 }
 
 func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 
@@ -121,7 +121,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 }
 
 func TestKillStoppedContainer(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
@@ -132,7 +132,7 @@ func TestKillStoppedContainer(t *testing.T) {
 }
 
 func TestKillStoppedContainerAPIPre120(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
@@ -143,7 +143,7 @@ func TestKillStoppedContainerAPIPre120(t *testing.T) {
 
 func TestKillDifferentUserContainer(t *testing.T) {
 	// TODO Windows: Windows does not yet support -u (Feb 2016).
-	skip.If(t, testEnv.OSType == "windows", "User containers (container.Config.User) are not yet supported on %q platform", testEnv.OSType)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "User containers (container.Config.User) are not yet supported on %q platform", testEnv.DaemonInfo.OSType)
 
 	defer setupTest(t)()
 	ctx := context.Background()

@@ -65,7 +65,7 @@ func TestNetworkCreateDelete(t *testing.T) {
 // ID is removed, and not the network with the given name.
 func TestDockerNetworkDeletePreferID(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.34"), "broken in earlier versions")
-	skip.If(t, testEnv.OSType == "windows",
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows",
 		"FIXME. Windows doesn't run DinD and uses networks shared between control daemon and daemon under test")
 	defer setupTest(t)()
 	client := testEnv.APIClient()

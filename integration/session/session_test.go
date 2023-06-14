@@ -12,7 +12,7 @@ import (
 )
 
 func TestSessionCreate(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
 
 	defer setupTest(t)()
@@ -33,7 +33,7 @@ func TestSessionCreate(t *testing.T) {
 }
 
 func TestSessionCreateWithBadUpgrade(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "experimental in older versions")
 
 	defer setupTest(t)()

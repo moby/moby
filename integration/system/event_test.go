@@ -29,7 +29,7 @@ import (
 
 func TestEventsExecDie(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.36"), "broken in earlier versions")
-	skip.If(t, testEnv.OSType == "windows", "FIXME. Suspect may need to wait until container is running before exec")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Suspect may need to wait until container is running before exec")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
@@ -77,7 +77,7 @@ func TestEventsExecDie(t *testing.T) {
 // backward compatibility so old `JSONMessage` could still be used.
 // This test verifies that backward compatibility maintains.
 func TestEventsBackwardsCompatible(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "Windows doesn't support back-compat messages")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows doesn't support back-compat messages")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
@@ -128,7 +128,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 // TestEventsVolumeCreate verifies that volume create events are only fired
 // once: when creating the volume, and not when attaching to a container.
 func TestEventsVolumeCreate(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME: Windows doesn't trigger the events? Could be a race")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: Windows doesn't trigger the events? Could be a race")
 
 	defer setupTest(t)()
 	ctx, cancel := context.WithCancel(context.Background())

@@ -25,7 +25,7 @@ func (s *DockerCLITopSuite) TestTopMultipleArgs(c *testing.T) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	var expected icmd.Expected
-	switch testEnv.OSType {
+	switch testEnv.DaemonInfo.OSType {
 	case "windows":
 		expected = icmd.Expected{ExitCode: 1, Err: "Windows does not support arguments to top"}
 	default:
@@ -46,7 +46,7 @@ func (s *DockerCLITopSuite) TestTopNonPrivileged(c *testing.T) {
 	// Windows will list the name of the launched executable which in this case is busybox.exe, without the parameters.
 	// Linux will display the command executed in the container
 	var lookingFor string
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		lookingFor = "busybox.exe"
 	} else {
 		lookingFor = "top"

@@ -201,7 +201,7 @@ func (s *DockerCLICreateSuite) TestCreateLabelFromImage(c *testing.T) {
 func (s *DockerCLICreateSuite) TestCreateHostnameWithNumber(c *testing.T) {
 	image := "busybox"
 	// Busybox on Windows does not implement hostname command
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		image = testEnv.PlatformDefaults.BaseImage
 	}
 	out, _ := dockerCmd(c, "run", "-h", "web.0", image, "hostname")
@@ -284,7 +284,7 @@ func (s *DockerCLICreateSuite) TestCreateWithWorkdir(c *testing.T) {
 
 	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
 	// Windows does not create the workdir until the container is started
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		dockerCmd(c, "start", name)
 		if testEnv.DaemonInfo.Isolation.IsHyperV() {
 			// Hyper-V isolated containers do not allow file-operations on a

@@ -4,7 +4,7 @@ package main
 // the command is for a sleeping container based on the daemon platform.
 // The Windows busybox image does not have a `top` command.
 func sleepCommandForDaemonPlatform() []string {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		return []string{"sleep", "240"}
 	}
 	return []string{"top"}

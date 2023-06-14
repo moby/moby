@@ -40,13 +40,13 @@ func (s *DockerAPISuite) TestAPIGetEnabledCORS(c *testing.T) {
 	body.Close()
 	// TODO: @runcom incomplete tests, why old integration tests had this headers
 	// and here none of the headers below are in the response?
-	//c.Log(res.Header)
-	//assert.Equal(c, res.Header.Get("Access-Control-Allow-Origin"), "*")
-	//assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
+	// c.Log(res.Header)
+	// assert.Equal(c, res.Header.Get("Access-Control-Allow-Origin"), "*")
+	// assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
 }
 
 func (s *DockerAPISuite) TestAPIClientVersionOldNotSupported(c *testing.T) {
-	if testEnv.OSType != runtime.GOOS {
+	if testEnv.DaemonInfo.OSType != runtime.GOOS {
 		c.Skip("Daemon platform doesn't match test platform")
 	}
 	if api.MinVersion == api.DefaultVersion {

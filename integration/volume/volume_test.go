@@ -32,7 +32,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 
 	name := t.Name()
 	// Windows file system is case insensitive
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		name = strings.ToLower(name)
 	}
 	vol, err := client.VolumeCreate(ctx, volume.CreateOptions{
@@ -112,7 +112,7 @@ func TestVolumesRemove(t *testing.T) {
 // Regression test for https://github.com/docker/cli/issues/4082
 func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows", "TODO enable on windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "TODO enable on windows")
 	t.Parallel()
 	defer setupTest(t)()
 
@@ -249,7 +249,7 @@ func TestVolumesInvalidJSON(t *testing.T) {
 }
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		return "c:", `\`
 	}
 	return "", "/"
@@ -311,7 +311,7 @@ func TestVolumePruneAnonFromImage(t *testing.T) {
 	client := testEnv.APIClient()
 
 	volDest := "/foo"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		volDest = `c:\\foo`
 	}
 

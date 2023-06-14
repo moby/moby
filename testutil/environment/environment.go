@@ -21,7 +21,6 @@ import (
 type Execution struct {
 	client            client.APIClient
 	DaemonInfo        types.Info
-	OSType            string
 	PlatformDefaults  PlatformDefaults
 	protectedElements protectedElements
 }
@@ -53,7 +52,6 @@ func FromClient(c *client.Client) (*Execution, error) {
 	return &Execution{
 		client:            c,
 		DaemonInfo:        info,
-		OSType:            info.OSType,
 		PlatformDefaults:  getPlatformDefaults(info),
 		protectedElements: newProtectedElements(),
 	}, nil
@@ -208,7 +206,7 @@ func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
 // EnsureFrozenImagesLinux loads frozen test images into the daemon
 // if they aren't already loaded
 func EnsureFrozenImagesLinux(testEnv *Execution) error {
-	if testEnv.OSType == "linux" {
+	if testEnv.DaemonInfo.OSType == "linux" {
 		err := load.FrozenImagesLinux(testEnv.APIClient(), frozenImages...)
 		if err != nil {
 			return errors.Wrap(err, "error loading frozen images")

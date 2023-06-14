@@ -72,7 +72,7 @@ func (s *DockerCLIInspectSuite) TestInspectStatus(c *testing.T) {
 
 	// Windows does not support pause/unpause on Windows Server Containers.
 	// (RS1 does for Hyper-V Containers, but production CI is not setup for that)
-	if testEnv.OSType != "windows" {
+	if testEnv.DaemonInfo.OSType != "windows" {
 		dockerCmd(c, "pause", out)
 		inspectOut = inspectField(c, out, "State.Status")
 		assert.Equal(c, inspectOut, "paused")
@@ -174,7 +174,7 @@ func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
 func (s *DockerCLIInspectSuite) TestInspectBindMountPoint(c *testing.T) {
 	modifier := ",z"
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		modifier = ""
 		// Linux creates the host directory if it doesn't exist. Windows does not.
 		os.Mkdir(`c:\data`, os.ModeDir)
@@ -197,7 +197,7 @@ func (s *DockerCLIInspectSuite) TestInspectBindMountPoint(c *testing.T) {
 	assert.Equal(c, m.Driver, "")
 	assert.Equal(c, m.Source, prefix+slash+"data")
 	assert.Equal(c, m.Destination, prefix+slash+"data")
-	if testEnv.OSType != "windows" { // Windows does not set mode
+	if testEnv.DaemonInfo.OSType != "windows" { // Windows does not set mode
 		assert.Equal(c, m.Mode, "ro"+modifier)
 	}
 	assert.Equal(c, m.RW, false)
