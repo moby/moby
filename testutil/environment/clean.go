@@ -19,18 +19,18 @@ import (
 // depend on each others.
 func (e *Execution) Clean(t testing.TB) {
 	t.Helper()
-	client := e.APIClient()
+	apiClient := e.APIClient()
 
 	platform := e.OSType
 	if (platform != "windows") || (platform == "windows" && e.DaemonInfo.Isolation == "hyperv") {
-		unpauseAllContainers(t, client)
+		unpauseAllContainers(t, apiClient)
 	}
-	deleteAllContainers(t, client, e.protectedElements.containers)
-	deleteAllImages(t, client, e.protectedElements.images)
-	deleteAllVolumes(t, client, e.protectedElements.volumes)
-	deleteAllNetworks(t, client, platform, e.protectedElements.networks)
+	deleteAllContainers(t, apiClient, e.protectedElements.containers)
+	deleteAllImages(t, apiClient, e.protectedElements.images)
+	deleteAllVolumes(t, apiClient, e.protectedElements.volumes)
+	deleteAllNetworks(t, apiClient, platform, e.protectedElements.networks)
 	if platform == "linux" {
-		deleteAllPlugins(t, client, e.protectedElements.plugins)
+		deleteAllPlugins(t, apiClient, e.protectedElements.plugins)
 	}
 }
 
