@@ -50,31 +50,20 @@ func FromClient(c *client.Client) (*Execution, error) {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
 
-	osType := getOSType(info)
-
 	return &Execution{
 		client:            c,
 		DaemonInfo:        info,
-		OSType:            osType,
-		PlatformDefaults:  getPlatformDefaults(info, osType),
+		OSType:            info.OSType,
+		PlatformDefaults:  getPlatformDefaults(info),
 		protectedElements: newProtectedElements(),
 	}, nil
 }
 
-func getOSType(info types.Info) string {
-	// Docker EE does not set the OSType so allow the user to override this value.
-	userOsType := os.Getenv("TEST_OSTYPE")
-	if userOsType != "" {
-		return userOsType
-	}
-	return info.OSType
-}
-
-func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
+func getPlatformDefaults(info types.Info) PlatformDefaults {
 	volumesPath := filepath.Join(info.DockerRootDir, "volumes")
 	containersPath := filepath.Join(info.DockerRootDir, "containers")
 
-	switch osType {
+	switch info.OSType {
 	case "linux":
 		return PlatformDefaults{
 			BaseImage:            "scratch",
@@ -96,12 +85,12 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 			ContainerStoragePath: filepath.FromSlash(containersPath),
 		}
 	default:
-		panic(fmt.Sprintf("unknown OSType for daemon: %s", osType))
+		panic(fmt.Sprintf("unknown OSType for daemon: %s", info.OSType))
 	}
 }
 
 // Make sure in context of daemon, not the local platform. Note we can't
-// use filepath.FromSlash or ToSlash here as they are a no-op on Unix.
+// use filepath.ToSlash here as that is a no-op on Unix.
 func toSlash(path string) string {
 	return strings.ReplaceAll(path, `\`, `/`)
 }
