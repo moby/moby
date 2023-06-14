@@ -255,3 +255,9 @@ func WithCDIDevices(cdiDeviceNames ...string) func(*TestContainerConfig) {
 		c.HostConfig.DeviceRequests = append(c.HostConfig.DeviceRequests, request)
 	}
 }
+
+func WithMacAddress(addr string) func(config *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.MacAddress = addr
+	}
+}

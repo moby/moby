@@ -71,3 +71,12 @@ func Run(ctx context.Context, t *testing.T, client client.APIClient, ops ...func
 
 	return id
 }
+
+func Inspect(ctx context.Context, t *testing.T, cli client.APIClient, cid string) types.ContainerJSON {
+	t.Helper()
+
+	c, err := cli.ContainerInspect(ctx, cid)
+	assert.NilError(t, err)
+
+	return c
+}
