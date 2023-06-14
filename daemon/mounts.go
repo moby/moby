@@ -5,15 +5,27 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	volumesservice "github.com/docker/docker/volume/service"
+	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
+	alive := container.IsRunning()
 	for _, config := range container.MountPoints {
 		if err := daemon.lazyInitializeVolume(container.ID, config); err != nil {
 			return err
+		}
+		if alive {
+			log.G(context.TODO()).WithFields(logrus.Fields{
+				"container": container.ID,
+				"volume":    config.Volume.Name(),
+			}).Debug("Live-restoring volume for alive container")
+			if err := config.LiveRestore(context.TODO()); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
