@@ -53,8 +53,8 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		}
 		// Resolve multiple values to the oldest image,
 		// equivalent to ANDing all the values together.
-		if beforeFilter.IsZero() || beforeFilter.After(img.Created) {
-			beforeFilter = img.Created
+		if img.Created != nil && (beforeFilter.IsZero() || beforeFilter.After(*img.Created)) {
+			beforeFilter = *img.Created
 		}
 		return nil
 	})
@@ -69,8 +69,8 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		}
 		// Resolve multiple values to the newest image,
 		// equivalent to ANDing all the values together.
-		if sinceFilter.Before(img.Created) {
-			sinceFilter = img.Created
+		if img.Created != nil && sinceFilter.Before(*img.Created) {
+			sinceFilter = *img.Created
 		}
 		return nil
 	})
@@ -97,10 +97,10 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		default:
 		}
 
-		if !beforeFilter.IsZero() && !img.Created.Before(beforeFilter) {
+		if !beforeFilter.IsZero() && (img.Created == nil || !img.Created.Before(beforeFilter)) {
 			continue
 		}
-		if !sinceFilter.IsZero() && !img.Created.After(sinceFilter) {
+		if !sinceFilter.IsZero() && (img.Created == nil || !img.Created.After(sinceFilter)) {
 			continue
 		}
 
@@ -256,10 +256,14 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 }
 
 func newImageSummary(image *image.Image, size int64) *types.ImageSummary {
+	var created int64
+	if image.Created != nil {
+		created = image.Created.Unix()
+	}
 	summary := &types.ImageSummary{
 		ParentID: image.Parent.String(),
 		ID:       image.ID().String(),
-		Created:  image.Created.Unix(),
+		Created:  created,
 		Size:     size,
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)

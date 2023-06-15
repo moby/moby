@@ -402,21 +402,9 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		exposedPorts[string(k)] = v
 	}
 
-	var ociHistory []ocispec.History
-	for _, history := range imgToCreate.History {
-		created := history.Created
-		ociHistory = append(ociHistory, ocispec.History{
-			Created:    &created,
-			CreatedBy:  history.CreatedBy,
-			Author:     history.Author,
-			Comment:    history.Comment,
-			EmptyLayer: history.EmptyLayer,
-		})
-	}
-
 	// make an ocispec.Image from the docker/image.Image
 	ociImgToCreate := ocispec.Image{
-		Created: &imgToCreate.Created,
+		Created: imgToCreate.Created,
 		Author:  imgToCreate.Author,
 		Platform: ocispec.Platform{
 			Architecture: imgToCreate.Architecture,
@@ -437,7 +425,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 			StopSignal:   imgToCreate.Config.StopSignal,
 		},
 		RootFS:  rootfs,
-		History: ociHistory,
+		History: imgToCreate.History,
 	}
 
 	var layers []ocispec.Descriptor

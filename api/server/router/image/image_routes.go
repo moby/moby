@@ -294,13 +294,18 @@ func (ir *imageRouter) toImageInspect(img *image.Image) (*types.ImageInspect, er
 		repoDigests = []string{}
 	}
 
+	var created string
+	if img.Created != nil {
+		created = img.Created.Format(time.RFC3339Nano)
+	}
+
 	return &types.ImageInspect{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
 		RepoDigests:     repoDigests,
 		Parent:          img.Parent.String(),
 		Comment:         comment,
-		Created:         img.Created.Format(time.RFC3339Nano),
+		Created:         created,
 		Container:       img.Container,
 		ContainerConfig: &img.ContainerConfig,
 		DockerVersion:   img.DockerVersion,
