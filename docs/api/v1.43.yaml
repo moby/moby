@@ -5574,7 +5574,7 @@ definitions:
       or `runC`.
     type: "object"
     properties:
-      ID:
+      Id:
         description: "Actual commit ID of external tool."
         type: "string"
         example: "cfb82a876ecc11b5ca0977d1733adbe58599088a"
