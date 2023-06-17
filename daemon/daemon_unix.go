@@ -1394,19 +1394,13 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
-	if !daemon.UsesSnapshotter() {
-		return daemon.Mount(container)
-	}
-	return nil
+	return daemon.Mount(container)
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
-	if !daemon.UsesSnapshotter() {
-		return daemon.Unmount(container)
-	}
-	return nil
+	return daemon.Unmount(container)
 }
 
 // setDefaultIsolation determines the default isolation mode for the
