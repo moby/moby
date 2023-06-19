@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/builder/builder-next/exporter/mobyexporter"
 	"github.com/docker/docker/builder/builder-next/imagerefchecker"
 	mobyworker "github.com/docker/docker/builder/builder-next/worker"
+	wlabel "github.com/docker/docker/builder/builder-next/worker/label"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/graphdriver"
 	units "github.com/docker/go-units"
@@ -95,6 +96,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 	wo.GCPolicy = policy
 	wo.RegistryHosts = opt.RegistryHosts
+	wo.Labels = getLabels(opt, wo.Labels)
 
 	exec, err := newExecutor(opt.Root, opt.DefaultCgroupParent, opt.NetworkController, dns, opt.Rootless, opt.IdentityMapping, opt.ApparmorProfile)
 	if err != nil {
@@ -325,6 +327,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		Layers:            layers,
 		Platforms:         archutil.SupportedPlatforms(true),
 		LeaseManager:      lm,
+		Labels:            getLabels(opt, nil),
 	}
 
 	wc := &worker.Controller{}
@@ -410,4 +413,12 @@ func getEntitlements(conf config.BuilderConfig) []string {
 		ents = append(ents, string(entitlements.EntitlementSecurityInsecure))
 	}
 	return ents
+}
+
+func getLabels(opt Opt, labels map[string]string) map[string]string {
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[wlabel.HostGatewayIP] = opt.DNSConfig.HostGatewayIP.String()
+	return labels
 }
