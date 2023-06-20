@@ -14,7 +14,7 @@ import (
 const mountsDir = "rootfs"
 
 // List of known filesystems that can't be re-mounted or have shared layers
-var refCountedFileSystems = []string{"overlayfs", "zfs", "fuse-overlayfs"}
+var refCountedFileSystems = []string{"fuse-overlayfs", "overlayfs", "stargz", "zfs"}
 
 // Mounter handles mounting/unmounting things coming in from a snapshotter
 // with optional reference counting if needed by the filesystem
