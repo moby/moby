@@ -22,7 +22,7 @@ func Key() string {
 //
 // If needing to do nss lookups, do not disable cgo or set osusergo.
 func Get() string {
-	home := os.Getenv(Key())
+	home, _ := os.UserHomeDir()
 	if home == "" {
 		if u, err := user.Current(); err == nil {
 			return u.HomeDir
