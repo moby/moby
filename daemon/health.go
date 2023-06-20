@@ -160,7 +160,6 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		info.Lock()
 		defer info.Unlock()
 		if info.ExitCode == nil {
-			info.Unlock()
 			return 0, fmt.Errorf("healthcheck for container %s has no exit code", cntr.ID)
 		}
 		return *info.ExitCode, nil
