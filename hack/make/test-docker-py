@@ -9,6 +9,12 @@ source hack/make/.integration-test-helpers
 #: exit status 128
 : "${DOCKER_PY_COMMIT:=4.4.1}"
 
+# The version (and variant) of the python image to use for the tests;
+# see https://github.com/docker/docker-py/blob/5.0.3/tests/Dockerfile#L1C5-L3
+#
+# TODO remove once https://github.com/docker/docker-py/pull/3145 is merged.
+: "${PYTHON_VERSION:=3.7-bullseye}"
+
 # custom options to pass py.test
 #
 # This option can be used to temporarily skip flaky tests (using the `--deselect`
@@ -48,7 +54,7 @@ source hack/make/.integration-test-helpers
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
 			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
 			# shellcheck disable=SC2086
-			exec docker build ${build_opts} -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
+			exec docker build ${build_opts} --build-arg PYTHON_VERSION="${PYTHON_VERSION}" -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
 	fi
 
