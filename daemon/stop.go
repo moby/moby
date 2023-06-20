@@ -36,7 +36,13 @@ func (daemon *Daemon) ContainerStop(ctx context.Context, name string, options co
 }
 
 // containerStop sends a stop signal, waits, sends a kill signal.
-func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Container, options containertypes.StopOptions) (retErr error) {
+func (daemon *Daemon) containerStop(_ context.Context, ctr *container.Container, options containertypes.StopOptions) (retErr error) {
+	// Deliberately using a local context here, because cancelling the
+	// request should not cancel the stop.
+	//
+	// TODO(thaJeztah): pass context, and use context.WithoutCancel() once available: https://github.com/golang/go/issues/40221
+	ctx := context.Background()
+
 	if !ctr.IsRunning() {
 		return nil
 	}
