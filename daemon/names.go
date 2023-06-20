@@ -26,11 +26,12 @@ func (daemon *Daemon) registerName(container *container.Container) error {
 		return err
 	}
 	if container.Name == "" {
-		name, err := daemon.generateNewName(container.ID)
+		name, err := daemon.generateAndReserveName(container.ID)
 		if err != nil {
 			return err
 		}
 		container.Name = name
+		return nil
 	}
 	return daemon.containersReplica.ReserveName(container.Name, container.ID)
 }
@@ -42,7 +43,7 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 	)
 
 	if name == "" {
-		if name, err = daemon.generateNewName(id); err != nil {
+		if name, err = daemon.generateAndReserveName(id); err != nil {
 			return "", "", err
 		}
 		return id, name, nil
@@ -81,7 +82,7 @@ func (daemon *Daemon) releaseName(name string) {
 	daemon.containersReplica.ReleaseName(name)
 }
 
-func (daemon *Daemon) generateNewName(id string) (string, error) {
+func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
 	var name string
 	for i := 0; i < 6; i++ {
 		name = namesgenerator.GetRandomName(i)
