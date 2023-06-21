@@ -16,7 +16,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/moby/swarmkit/v2/api"
-	pb "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/state"
 	"github.com/moby/swarmkit/v2/watch"
 )
@@ -855,8 +854,8 @@ func (tx readTx) find(table string, by By, checkType func(By) error, appendResul
 }
 
 // Save serializes the data in the store.
-func (s *MemoryStore) Save(tx ReadTx) (*pb.StoreSnapshot, error) {
-	var snapshot pb.StoreSnapshot
+func (s *MemoryStore) Save(tx ReadTx) (*api.StoreSnapshot, error) {
+	var snapshot api.StoreSnapshot
 	for _, os := range objectStorers {
 		if err := os.Save(tx, &snapshot); err != nil {
 			return nil, err
@@ -868,7 +867,7 @@ func (s *MemoryStore) Save(tx ReadTx) (*pb.StoreSnapshot, error) {
 
 // Restore sets the contents of the store to the serialized data in the
 // argument.
-func (s *MemoryStore) Restore(snapshot *pb.StoreSnapshot) error {
+func (s *MemoryStore) Restore(snapshot *api.StoreSnapshot) error {
 	return s.updateLocal(func(tx Tx) error {
 		for _, os := range objectStorers {
 			if err := os.Restore(tx, snapshot); err != nil {
