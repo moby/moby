@@ -718,21 +718,19 @@ func sysctlExists(s string) bool {
 // WithCommonOptions sets common docker options
 func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if c.BaseFS == "" && !daemon.UsesSnapshotter() {
+		if c.BaseFS == "" {
 			return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly empty")
 		}
 		linkedEnv, err := daemon.setupLinkedContainers(c)
 		if err != nil {
 			return err
 		}
-		if !daemon.UsesSnapshotter() {
-			s.Root = &specs.Root{
-				Path:     c.BaseFS,
-				Readonly: c.HostConfig.ReadonlyRootfs,
-			}
-			if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
-				return err
-			}
+		s.Root = &specs.Root{
+			Path:     c.BaseFS,
+			Readonly: c.HostConfig.ReadonlyRootfs,
+		}
+		if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
+			return err
 		}
 		cwd := c.Config.WorkingDir
 		if len(cwd) == 0 {
@@ -1023,20 +1021,8 @@ func (daemon *Daemon) createSpec(ctx context.Context, c *container.Container) (r
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
 		coci.WithAnnotations(c.HostConfig.Annotations),
+		WithUser(c),
 	)
-	if daemon.UsesSnapshotter() {
-		s.Root = &specs.Root{
-			Path: "rootfs",
-		}
-		if c.Config.User != "" {
-			opts = append(opts, coci.WithUser(c.Config.User))
-		}
-		if c.Config.WorkingDir != "" {
-			opts = append(opts, coci.WithProcessCwd(c.Config.WorkingDir))
-		}
-	} else {
-		opts = append(opts, WithUser(c))
-	}
 
 	if c.NoNewPrivileges {
 		opts = append(opts, coci.WithNoNewPrivileges)

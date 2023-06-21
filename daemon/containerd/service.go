@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -35,6 +36,7 @@ type ImageService struct {
 	registryService RegistryConfigProvider
 	eventsService   *daemonevents.Events
 	pruneRunning    atomic.Bool
+	refCountMounter snapshotter.Mounter
 }
 
 type RegistryHostsProvider interface {
@@ -47,12 +49,13 @@ type RegistryConfigProvider interface {
 }
 
 type ImageServiceConfig struct {
-	Client        *containerd.Client
-	Containers    container.Store
-	Snapshotter   string
-	HostsProvider RegistryHostsProvider
-	Registry      RegistryConfigProvider
-	EventsService *daemonevents.Events
+	Client          *containerd.Client
+	Containers      container.Store
+	Snapshotter     string
+	HostsProvider   RegistryHostsProvider
+	Registry        RegistryConfigProvider
+	EventsService   *daemonevents.Events
+	RefCountMounter snapshotter.Mounter
 }
 
 // NewService creates a new ImageService.
@@ -64,6 +67,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		registryHosts:   config.HostsProvider,
 		registryService: config.Registry,
 		eventsService:   config.EventsService,
+		refCountMounter: config.RefCountMounter,
 	}
 }
 

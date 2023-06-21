@@ -40,6 +40,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	dlogger "github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/daemon/snapshotter"
 	"github.com/docker/docker/daemon/stats"
 	"github.com/docker/docker/distribution"
 	dmetadata "github.com/docker/docker/distribution/metadata"
@@ -1023,12 +1024,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			return nil, err
 		}
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
-			Client:        d.containerdCli,
-			Containers:    d.containers,
-			Snapshotter:   driverName,
-			HostsProvider: d,
-			Registry:      d.registryService,
-			EventsService: d.EventsService,
+			Client:          d.containerdCli,
+			Containers:      d.containers,
+			Snapshotter:     driverName,
+			HostsProvider:   d,
+			Registry:        d.registryService,
+			EventsService:   d.EventsService,
+			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
 		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
