@@ -24,17 +24,10 @@ import (
 func (s *DockerAPISuite) TestBuildAPIDockerFileRemote(c *testing.T) {
 	testRequires(c, NotUserNamespace)
 
-	var testD string
-	if testEnv.OSType == "windows" {
-		testD = `FROM busybox
-RUN find / -name ba*
-RUN find /tmp/`
-	} else {
-		// -xdev is required because sysfs can cause EPERM
-		testD = `FROM busybox
+	// -xdev is required because sysfs can cause EPERM
+	testD := `FROM busybox
 RUN find / -xdev -name ba*
 RUN find /tmp/`
-	}
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{"testD": testD}))
 	defer server.Close()
 
