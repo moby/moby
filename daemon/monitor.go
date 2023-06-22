@@ -175,7 +175,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			// Remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected. Remove it
 			// before mutating execConfig to maintain the invariant that
-			// c.ExecCommands only contain execs in the Running state.
+			// c.ExecCommands only contains execs that have not exited.
 			c.ExecCommands.Delete(execConfig.ID)
 
 			execConfig.ExitCode = &ec
@@ -191,15 +191,25 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 
 			exitCode = ec
 
-			go func() {
-				if _, err := execConfig.Process.Delete(context.Background()); err != nil {
-					logrus.WithFields(logrus.Fields{
-						logrus.ErrorKey: err,
-						"container":     ei.ContainerID,
-						"process":       ei.ProcessID,
-					}).Warn("failed to delete process")
-				}
-			}()
+			// If the exec failed at start in such a way that containerd
+			// publishes an exit event for it, we will race processing the event
+			// with daemon.ContainerExecStart() removing the exec from
+			// c.ExecCommands. If we win the race, we will find that there is no
+			// process to clean up. (And ContainerExecStart will clobber the
+			// exit code we set.) Prevent a nil-dereferenc panic in that
+			// situation to restore the status quo where this is merely a
+			// logical race condition.
+			if execConfig.Process != nil {
+				go func() {
+					if _, err := execConfig.Process.Delete(context.Background()); err != nil {
+						logrus.WithFields(logrus.Fields{
+							logrus.ErrorKey: err,
+							"container":     ei.ContainerID,
+							"process":       ei.ProcessID,
+						}).Warn("failed to delete process")
+					}
+				}()
+			}
 		}
 		attributes := map[string]string{
 			"execID":   ei.ProcessID,
