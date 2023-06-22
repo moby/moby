@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG GO_VERSION=1.21.3
-ARG BASE_DEBIAN_DISTRO="bullseye"
+ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.2.1
 
@@ -40,7 +40,7 @@ FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
 COPY --from=xx / /
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
-RUN test -n "$APT_MIRROR" && sed -ri "s#(httpredir|deb|security).debian.org#${APT_MIRROR}#g" /etc/apt/sources.list || true
+RUN test -n "$APT_MIRROR" && sed -ri "s#(httpredir|deb|security).debian.org#${APT_MIRROR}#g" /etc/apt/sources.list.d/debian.sources || true
 ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
@@ -213,7 +213,10 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-containerd-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-containerd-aptcache,target=/var/cache/apt \
         apt-get update && xx-apt-get install -y --no-install-recommends \
-            gcc libbtrfs-dev libsecret-1-dev
+            gcc \
+            libbtrfs-dev \
+            libsecret-1-dev \
+            pkg-config
 ARG DOCKER_STATIC
 RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=containerd-build-$TARGETPLATFORM <<EOT
@@ -296,7 +299,11 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-runc-aptcache,target=/var/cache/apt \
         apt-get update && xx-apt-get install -y --no-install-recommends \
-            dpkg-dev gcc libc6-dev libseccomp-dev
+            dpkg-dev \
+            gcc \
+            libc6-dev \
+            libseccomp-dev \
+            pkg-config
 ARG DOCKER_STATIC
 RUN --mount=from=runc-src,src=/usr/src/runc,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=runc-build-$TARGETPLATFORM <<EOT
@@ -331,7 +338,9 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-tini-aptcache,target=/var/cache/apt \
         xx-apt-get install -y --no-install-recommends \
-            gcc libc6-dev
+            gcc \
+            libc6-dev \
+            pkg-config
 RUN --mount=from=tini-src,src=/usr/src/tini,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=tini-build-$TARGETPLATFORM <<EOT
   set -e
@@ -361,7 +370,9 @@ ARG TARGETPLATFORM
 RUN --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptcache,target=/var/cache/apt \
         apt-get update && xx-apt-get install -y --no-install-recommends \
-            gcc libc6-dev
+            gcc \
+            libc6-dev \
+            pkg-config
 ENV GO111MODULE=on
 ARG DOCKER_STATIC
 RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
@@ -429,7 +440,11 @@ RUN git fetch -q --depth 1 origin "${CONTAINERUTILITY_VERSION}" +refs/tags/*:ref
 FROM base AS containerutil-build
 WORKDIR /usr/src/containerutil
 ARG TARGETPLATFORM
-RUN xx-apt-get install -y --no-install-recommends gcc g++ libc6-dev
+RUN xx-apt-get install -y --no-install-recommends \
+        gcc \
+        g++ \
+        libc6-dev \
+        pkg-config
 RUN --mount=from=containerutil-src,src=/usr/src/containerutil,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=containerutil-build-$TARGETPLATFORM <<EOT
   set -e
@@ -529,9 +544,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             net-tools \
             patch \
             pigz \
-            python3-pip \
-            python3-setuptools \
-            python3-wheel \
             sudo \
             systemd-journal-remote \
             thin-provisioning-tools \
@@ -547,8 +559,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
 RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
  && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
  && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
-ARG YAMLLINT_VERSION=1.27.1
-RUN pip3 install yamllint==${YAMLLINT_VERSION}
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install --no-install-recommends -y \
@@ -559,7 +569,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
-            libudev-dev
+            libudev-dev \
+            yamllint
 COPY --link --from=dockercli             /build/ /usr/local/cli
 COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 
@@ -586,7 +597,8 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
             libseccomp-dev \
             libsecret-1-dev \
             libsystemd-dev \
-            libudev-dev
+            libudev-dev \
+            pkg-config
 ARG DOCKER_BUILDTAGS
 ARG DOCKER_DEBUG
 ARG DOCKER_GITCOMMIT=HEAD
