@@ -11,17 +11,20 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/libnetwork"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
 func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
-	root, err := os.MkdirTemp("", "oci_linux_test-root")
-	assert.NilError(t, err)
+	t.Helper()
+	root := t.TempDir()
 
 	rootfs := filepath.Join(root, "rootfs")
-	err = os.MkdirAll(rootfs, 0755)
+	err := os.MkdirAll(rootfs, 0755)
 	assert.NilError(t, err)
 
 	netController, err := libnetwork.New()
@@ -49,6 +52,18 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 		c.NetworkSettings = &network.Settings{Networks: make(map[string]*network.EndpointSettings)}
 	}
 
+	// HORRIBLE HACK: clean up shm mounts leaked by some tests. Otherwise the
+	// offending tests would fail due to the mounts blocking the temporary
+	// directory from being cleaned up.
+	t.Cleanup(func() {
+		if c.ShmPath != "" {
+			var err error
+			for err == nil { // Some tests over-mount over the same path multiple times.
+				err = unix.Unmount(c.ShmPath, unix.MNT_DETACH)
+			}
+		}
+	})
+
 	return d
 }
 
@@ -58,10 +73,6 @@ type fakeImageService struct {
 
 func (i *fakeImageService) StorageDriver() string {
 	return "overlay"
-}
-
-func cleanupFakeContainer(c *container.Container) {
-	_ = os.RemoveAll(c.Root)
 }
 
 // TestTmpfsDevShmNoDupMount checks that a user-specified /dev/shm tmpfs
@@ -81,7 +92,6 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 		},
 	}
 	d := setupFakeDaemon(t, c)
-	defer cleanupFakeContainer(c)
 
 	_, err := d.createSpec(context.TODO(), c)
 	assert.Check(t, err)
@@ -100,7 +110,6 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 		},
 	}
 	d := setupFakeDaemon(t, c)
-	defer cleanupFakeContainer(c)
 
 	s, err := d.createSpec(context.TODO(), c)
 	assert.Check(t, err)
@@ -129,7 +138,6 @@ func TestSysctlOverride(t *testing.T) {
 		},
 	}
 	d := setupFakeDaemon(t, c)
-	defer cleanupFakeContainer(c)
 
 	// Ensure that the implicit sysctl is set correctly.
 	s, err := d.createSpec(context.TODO(), c)
@@ -181,7 +189,6 @@ func TestSysctlOverrideHost(t *testing.T) {
 		},
 	}
 	d := setupFakeDaemon(t, c)
-	defer cleanupFakeContainer(c)
 
 	// Ensure that the implicit sysctl is not set
 	s, err := d.createSpec(context.TODO(), c)
@@ -208,4 +215,39 @@ func TestGetSourceMount(t *testing.T) {
 	assert.NilError(t, err)
 	_, _, err = getSourceMount(cwd)
 	assert.NilError(t, err)
+}
+
+func TestDefaultResources(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root") // TODO: is this actually true? I'm guilty of following the cargo cult here.
+
+	c := &container.Container{
+		HostConfig: &containertypes.HostConfig{
+			IpcMode: containertypes.IPCModeNone,
+		},
+	}
+	d := setupFakeDaemon(t, c)
+
+	s, err := d.createSpec(context.Background(), c)
+	assert.NilError(t, err)
+	checkResourcesAreUnset(t, s.Linux.Resources)
+}
+
+func checkResourcesAreUnset(t *testing.T, r *specs.LinuxResources) {
+	t.Helper()
+
+	if r != nil {
+		if r.Memory != nil {
+			assert.Check(t, is.DeepEqual(r.Memory, &specs.LinuxMemory{}))
+		}
+		if r.CPU != nil {
+			assert.Check(t, is.DeepEqual(r.CPU, &specs.LinuxCPU{}))
+		}
+		assert.Check(t, is.Nil(r.Pids))
+		if r.BlockIO != nil {
+			assert.Check(t, is.DeepEqual(r.BlockIO, &specs.LinuxBlockIO{}, cmpopts.EquateEmpty()))
+		}
+		if r.Network != nil {
+			assert.Check(t, is.DeepEqual(r.Network, &specs.LinuxNetwork{}, cmpopts.EquateEmpty()))
+		}
+	}
 }

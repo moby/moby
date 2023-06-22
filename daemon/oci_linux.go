@@ -53,6 +53,9 @@ func WithRlimits(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			})
 		}
 
+		if s.Process == nil {
+			s.Process = &specs.Process{}
+		}
 		s.Process.Rlimits = rlimits
 		return nil
 	}
@@ -113,6 +116,9 @@ func WithRootless(daemon *Daemon) coci.SpecOpts {
 // WithOOMScore sets the oom score
 func WithOOMScore(score *int) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		if s.Process == nil {
+			s.Process = &specs.Process{}
+		}
 		s.Process.OOMScoreAdj = score
 		return nil
 	}
@@ -121,6 +127,12 @@ func WithOOMScore(score *int) coci.SpecOpts {
 // WithSelinux sets the selinux labels
 func WithSelinux(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		if s.Process == nil {
+			s.Process = &specs.Process{}
+		}
+		if s.Linux == nil {
+			s.Linux = &specs.Linux{}
+		}
 		s.Process.SelinuxLabel = c.GetProcessLabel()
 		s.Linux.MountLabel = c.MountLabel
 		return nil
@@ -150,6 +162,9 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 				if err := ensureDefaultAppArmorProfile(); err != nil {
 					return err
 				}
+			}
+			if s.Process == nil {
+				s.Process = &specs.Process{}
 			}
 			s.Process.ApparmorProfile = appArmorProfile
 		}
@@ -213,6 +228,10 @@ func getUser(c *container.Container, username string) (specs.User, error) {
 }
 
 func setNamespace(s *specs.Spec, ns specs.LinuxNamespace) {
+	if s.Linux == nil {
+		s.Linux = &specs.Linux{}
+	}
+
 	for i, n := range s.Linux.Namespaces {
 		if n.Type == ns.Type {
 			s.Linux.Namespaces[i] = ns
@@ -606,6 +625,9 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				}
 				rootpg := mountPropagationMap[s.Linux.RootfsPropagation]
 				if rootpg != mount.SHARED && rootpg != mount.RSHARED {
+					if s.Linux == nil {
+						s.Linux = &specs.Linux{}
+					}
 					s.Linux.RootfsPropagation = mountPropagationReverseMap[mount.SHARED]
 				}
 			case mount.SLAVE, mount.RSLAVE:
@@ -634,6 +656,9 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				if !fallback {
 					rootpg := mountPropagationMap[s.Linux.RootfsPropagation]
 					if rootpg != mount.SHARED && rootpg != mount.RSHARED && rootpg != mount.SLAVE && rootpg != mount.RSLAVE {
+						if s.Linux == nil {
+							s.Linux = &specs.Linux{}
+						}
 						s.Linux.RootfsPropagation = mountPropagationReverseMap[mount.RSLAVE]
 					}
 				}
@@ -689,8 +714,10 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 					clearReadOnly(&s.Mounts[i])
 				}
 			}
-			s.Linux.ReadonlyPaths = nil
-			s.Linux.MaskedPaths = nil
+			if s.Linux != nil {
+				s.Linux.ReadonlyPaths = nil
+				s.Linux.MaskedPaths = nil
+			}
 		}
 
 		// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
@@ -735,6 +762,9 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		cwd := c.Config.WorkingDir
 		if len(cwd) == 0 {
 			cwd = "/"
+		}
+		if s.Process == nil {
+			s.Process = &specs.Process{}
 		}
 		s.Process.Args = append([]string{c.Path}, c.Args...)
 
@@ -811,6 +841,9 @@ func WithCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			logrus.Debugf("createSpec: cgroupsPath: %s", cgroupsPath)
 		} else {
 			cgroupsPath = filepath.Join(parent, c.ID)
+		}
+		if s.Linux == nil {
+			s.Linux = &specs.Linux{}
 		}
 		s.Linux.CgroupsPath = cgroupsPath
 
@@ -912,8 +945,14 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			}
 		}
 
+		if s.Linux == nil {
+			s.Linux = &specs.Linux{}
+		}
+		if s.Linux.Resources == nil {
+			s.Linux.Resources = &specs.LinuxResources{}
+		}
 		s.Linux.Devices = append(s.Linux.Devices, devs...)
-		s.Linux.Resources.Devices = devPermissions
+		s.Linux.Resources.Devices = append(s.Linux.Resources.Devices, devPermissions...)
 
 		for _, req := range c.HostConfig.DeviceRequests {
 			if err := daemon.handleDevice(req, s); err != nil {
@@ -954,27 +993,28 @@ func WithResources(c *container.Container) coci.SpecOpts {
 		if err != nil {
 			return err
 		}
-		blkioWeight := r.BlkioWeight
 
-		specResources := &specs.LinuxResources{
-			Memory: memoryRes,
-			CPU:    cpuRes,
-			BlockIO: &specs.LinuxBlockIO{
-				Weight:                  &blkioWeight,
-				WeightDevice:            weightDevices,
-				ThrottleReadBpsDevice:   readBpsDevice,
-				ThrottleWriteBpsDevice:  writeBpsDevice,
-				ThrottleReadIOPSDevice:  readIOpsDevice,
-				ThrottleWriteIOPSDevice: writeIOpsDevice,
-			},
-			Pids: getPidsLimit(r),
+		if s.Linux == nil {
+			s.Linux = &specs.Linux{}
 		}
-
-		if s.Linux.Resources != nil && len(s.Linux.Resources.Devices) > 0 {
-			specResources.Devices = s.Linux.Resources.Devices
+		if s.Linux.Resources == nil {
+			s.Linux.Resources = &specs.LinuxResources{}
 		}
+		s.Linux.Resources.Memory = memoryRes
+		s.Linux.Resources.CPU = cpuRes
+		s.Linux.Resources.BlockIO = &specs.LinuxBlockIO{
+			WeightDevice:            weightDevices,
+			ThrottleReadBpsDevice:   readBpsDevice,
+			ThrottleWriteBpsDevice:  writeBpsDevice,
+			ThrottleReadIOPSDevice:  readIOpsDevice,
+			ThrottleWriteIOPSDevice: writeIOpsDevice,
+		}
+		if r.BlkioWeight != 0 {
+			w := r.BlkioWeight
+			s.Linux.Resources.BlockIO.Weight = &w
+		}
+		s.Linux.Resources.Pids = getPidsLimit(r)
 
-		s.Linux.Resources = specResources
 		return nil
 	}
 }
@@ -982,6 +1022,15 @@ func WithResources(c *container.Container) coci.SpecOpts {
 // WithSysctls sets the container's sysctls
 func WithSysctls(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		if len(c.HostConfig.Sysctls) == 0 {
+			return nil
+		}
+		if s.Linux == nil {
+			s.Linux = &specs.Linux{}
+		}
+		if s.Linux.Sysctl == nil {
+			s.Linux.Sysctl = make(map[string]string)
+		}
 		// We merge the sysctls injected above with the HostConfig (latter takes
 		// precedence for backwards-compatibility reasons).
 		for k, v := range c.HostConfig.Sysctls {
@@ -994,6 +1043,9 @@ func WithSysctls(c *container.Container) coci.SpecOpts {
 // WithUser sets the container's user
 func WithUser(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		if s.Process == nil {
+			s.Process = &specs.Process{}
+		}
 		var err error
 		s.Process.User, err = getUser(c, c.Config.User)
 		return err

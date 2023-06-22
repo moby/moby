@@ -21,9 +21,7 @@ func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 }
 
 func (t *task) UpdateResources(ctx context.Context, resources *libcontainerdtypes.Resources) error {
-	// go doesn't like the alias in 1.8, this means this need to be
-	// platform specific
-	return t.Update(ctx, containerd.WithResources((*specs.LinuxResources)(resources)))
+	return t.Update(ctx, containerd.WithResources(resources))
 }
 
 func hostIDFromMap(id uint32, mp []specs.LinuxIDMapping) int {
