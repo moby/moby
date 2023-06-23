@@ -152,12 +152,11 @@ func (s *DockerCLICreateSuite) TestCreateEchoStdout(c *testing.T) {
 
 func (s *DockerCLICreateSuite) TestCreateVolumesCreated(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	name := "test_create_volume"
-	dockerCmd(c, "create", "--name", name, "-v", prefix+slash+"foo", "busybox")
+	dockerCmd(c, "create", "--name", name, "-v", dPath("/foo"), "busybox")
 
-	dir, err := inspectMountSourceField(name, prefix+slash+"foo")
+	dir, err := inspectMountSourceField(name, dPath("/foo"))
 	assert.Assert(c, err == nil, "Error getting volume host path: %q", err)
 
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
@@ -278,9 +277,7 @@ func (s *DockerCLICreateSuite) TestCreateStopSignal(c *testing.T) {
 
 func (s *DockerCLICreateSuite) TestCreateWithWorkdir(c *testing.T) {
 	name := "foo"
-
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	dir := prefix + slash + "home" + slash + "foo" + slash + "bar"
+	dir := dPath("/home/foo/bar")
 
 	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
 	// Windows does not create the workdir until the container is started
@@ -295,7 +292,7 @@ func (s *DockerCLICreateSuite) TestCreateWithWorkdir(c *testing.T) {
 		}
 	}
 	// TODO: rewrite this test to not use `docker cp` for verifying that the WORKDIR was created
-	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), prefix+slash+"tmp")
+	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), dPath("/tmp"))
 }
 
 func (s *DockerCLICreateSuite) TestCreateWithInvalidLogOpts(c *testing.T) {

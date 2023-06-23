@@ -620,9 +620,7 @@ func (s *DockerCLIPsSuite) TestPsNotShowPortsOfStoppedContainer(c *testing.T) {
 func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	existingContainers := ExistingContainerNames(c)
 
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
-	mp := prefix + slash + "test"
+	mp := dPath("/test")
 
 	dockerCmd(c, "volume", "create", "ps-volume-test")
 	// volume mount containers
@@ -713,7 +711,7 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	assert.Equal(c, fields[1], bindMountSource)
 
 	// empty results filtering by unknown mount point
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
+	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+dPath("/this-path-was-never-mounted"))
 	assert.Equal(c, len(strings.TrimSpace(out)), 0)
 }
 

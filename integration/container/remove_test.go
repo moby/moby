@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,11 +18,13 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
+// dPath converts linux absolute paths to Windows absolute paths if the daemon
+// is running on Windows
+func dPath(path string) string {
 	if testEnv.OSType == "windows" {
-		return "c:", `\`
+		return `c:` + strings.ReplaceAll(path, "/", `\`)
 	}
-	return "", "/"
+	return path
 }
 
 // Test case for #5244: `docker rm` fails if bind dir doesn't exist anymore
@@ -32,12 +35,10 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
 	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0755))
 	defer tempDir.Remove()
 
-	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
+	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(tempDir.Path(), dPath("/test")))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	err := os.RemoveAll(tempDir.Path())
@@ -58,9 +59,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
-	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
+	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithVolume(dPath("/srv")))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	insp, _, err := client.ContainerInspectWithRaw(ctx, cID, true)

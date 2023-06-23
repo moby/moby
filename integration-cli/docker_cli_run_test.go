@@ -502,24 +502,23 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromInReadWriteMode(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestVolumesFromGetsProperMode(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	hostpath := RandomTmpDirPath("test", testEnv.OSType)
 	if err := os.MkdirAll(hostpath, 0755); err != nil {
 		c.Fatalf("Failed to create %s: %q", hostpath, err)
 	}
 	defer os.RemoveAll(hostpath)
 
-	dockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
+	dockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+dPath("/test")+":ro", "busybox", "true")
 
 	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
-	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", dPath("/test/file")); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
 
-	dockerCmd(c, "run", "--name", "parent2", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
+	dockerCmd(c, "run", "--name", "parent2", "-v", hostpath+":"+dPath("/test")+":ro", "busybox", "true")
 
 	// Expect this to be read-only since both are "ro"
-	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", dPath("/test/file")); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `ro`")
 	}
 }
@@ -1887,8 +1886,6 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 		testRequires(c, DaemonIsLinux, NotUserNamespace)
 	}
 
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-
 	tmpDir, err := os.MkdirTemp("", "docker-test-container")
 	if err != nil {
 		c.Fatal(err)
@@ -1898,22 +1895,22 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
 	// Test reading from a read-only bind mount
-	out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s/tmpx:ro", tmpDir, prefix), "busybox", "ls", prefix+"/tmpx")
+	out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s:ro", tmpDir, dPath("/tmpx")), "busybox", "ls", dPath("/tmpx"))
 	if !strings.Contains(out, "touch-me") {
 		c.Fatal("Container failed to read from bind mount")
 	}
 
 	// test writing to bind mount
 	if testEnv.OSType == "windows" {
-		dockerCmd(c, "run", "-v", fmt.Sprintf(`%s:c:\tmp:rw`, tmpDir), "busybox", "touch", "c:/tmp/holla")
+		dockerCmd(c, "run", "-v", tmpDir+`:c:\tmp:rw`, "busybox", "touch", "c:/tmp/holla")
 	} else {
-		dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "busybox", "touch", "/tmp/holla")
+		dockerCmd(c, "run", "-v", tmpDir+`:/tmp:rw`, "busybox", "touch", "/tmp/holla")
 	}
 
 	readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	_, _, err = dockerCmdWithError("run", "-v", fmt.Sprintf("%s:.", tmpDir), "busybox", "ls", ".")
+	_, _, err = dockerCmdWithError("run", "-v", tmpDir+":.", "busybox", "ls", ".")
 	if err == nil {
 		c.Fatal("Container bind mounted illegal directory")
 	}
@@ -1921,7 +1918,7 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 	// Windows does not (and likely never will) support mounting a single file
 	if testEnv.OSType != "windows" {
 		// test mount a file
-		dockerCmd(c, "run", "-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "busybox", "sh", "-c", "echo -n 'yotta' > /tmp/holla")
+		dockerCmd(c, "run", "-v", tmpDir+"/holla:/tmp/holla:rw", "busybox", "sh", "-c", "echo -n 'yotta' > /tmp/holla")
 		content := readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
 		expected := "yotta"
 		if content != expected {
@@ -1989,10 +1986,10 @@ func (s *DockerCLIRunSuite) TestRunSetMacAddress(c *testing.T) {
 	mac := "12:34:56:78:9a:bc"
 	var out string
 	if testEnv.OSType == "windows" {
-		out, _ = dockerCmd(c, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "sh", "-c", "ipconfig /all | grep 'Physical Address' | awk '{print $12}'")
+		out, _ = dockerCmd(c, "run", "-i", "--rm", "--mac-address="+mac, "busybox", "sh", "-c", "ipconfig /all | grep 'Physical Address' | awk '{print $12}'")
 		mac = strings.ReplaceAll(strings.ToUpper(mac), ":", "-") // To Windows-style MACs
 	} else {
-		out, _ = dockerCmd(c, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "/bin/sh", "-c", "ip link show eth0 | tail -1 | awk '{print $2}'")
+		out, _ = dockerCmd(c, "run", "-i", "--rm", "--mac-address="+mac, "busybox", "/bin/sh", "-c", "ip link show eth0 | tail -1 | awk '{print $2}'")
 	}
 
 	actualMac := strings.TrimSpace(out)
@@ -2031,7 +2028,7 @@ func (s *DockerCLIRunSuite) TestRunDeallocatePortOnMissingIptablesRule(c *testin
 
 	id := strings.TrimSpace(out)
 	ip := inspectField(c, id, "NetworkSettings.Networks.bridge.IPAddress")
-	icmd.RunCommand("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
+	icmd.RunCommand("iptables", "-D", "DOCKER", "-d", ip+"/32",
 		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT").Assert(c, icmd.Success)
 
 	cli.DockerCmd(c, "rm", "-fv", id)
@@ -2081,7 +2078,6 @@ func (s *DockerCLIRunSuite) TestRunAllocatePortInReservedRange(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 	// TODO Windows: Post RS1. Windows does not support nested mounts.
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	tmpDir, err := os.MkdirTemp("", "docker_nested_mount_test")
 	if err != nil {
@@ -2101,32 +2097,32 @@ func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 		c.Fatalf("failed to mkdir at %s - %s", fooDir, err)
 	}
 
-	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", fooDir), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(fooDir, "touch-me"), []byte{}, 0644); err != nil {
 		c.Fatal(err)
 	}
 
-	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "touch-me"), []byte{}, 0644); err != nil {
 		c.Fatal(err)
 	}
 
-	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir2), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir2, "touch-me"), []byte{}, 0644); err != nil {
 		c.Fatal(err)
 	}
 
 	dockerCmd(c, "run",
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp", tmpDir),
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/foo", fooDir),
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/tmp2", tmpDir2),
-		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/tmp2/foo", fooDir),
+		"-v", tmpDir+":"+dPath("/tmp"),
+		"-v", fooDir+":"+dPath("/tmp/foo"),
+		"-v", tmpDir2+":"+dPath("/tmp/tmp2"),
+		"-v", fooDir+":"+dPath("/tmp/tmp2/foo"),
 		"busybox:latest", "sh", "-c",
-		"ls "+prefix+"/tmp/touch-me && ls "+prefix+"/tmp/foo/touch-me && ls "+prefix+"/tmp/tmp2/touch-me && ls "+prefix+"/tmp/tmp2/foo/touch-me")
+		"ls "+dPath("/tmp/touch-me")+" "+dPath("/tmp/foo/touch-me")+" "+dPath("/tmp/tmp2/touch-me")+" "+dPath("/tmp/tmp2/foo/touch-me"),
+	)
 }
 
 // Regression test for https://github.com/docker/docker/issues/8259
 func (s *DockerCLIRunSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	// Not applicable on Windows as Windows does not support volumes
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, NotUserNamespace)
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	tmpDir, err := os.MkdirTemp(os.TempDir(), "testlink")
 	if err != nil {
@@ -2141,11 +2137,11 @@ func (s *DockerCLIRunSuite) TestRunReuseBindVolumeThatIsSymlink(c *testing.T) {
 	defer os.RemoveAll(linkPath)
 
 	// Create first container
-	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+prefix+"/tmp/test", linkPath), "busybox", "ls", prefix+"/tmp/test")
+	dockerCmd(c, "run", "-v", linkPath+":"+dPath("/tmp/test"), "busybox", "ls", dPath("/tmp/test"))
 
 	// Create second container with same symlinked path
 	// This will fail if the referenced issue is hit with a "Volume exists" error
-	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+prefix+"/tmp/test", linkPath), "busybox", "ls", prefix+"/tmp/test")
+	dockerCmd(c, "run", "-v", linkPath+":"+dPath("/tmp/test"), "busybox", "ls", dPath("/tmp/test"))
 }
 
 // GH#10604: Test an "/etc" volume doesn't overlay special bind mounts in container
@@ -2174,11 +2170,10 @@ func (s *DockerCLIRunSuite) TestVolumesNoCopyData(c *testing.T) {
 	// TODO Windows (Post RS1). Windows does not support volumes which
 	// are pre-populated such as is built in the dockerfile used in this test.
 	testRequires(c, DaemonIsLinux)
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	buildImageSuccessfully(c, "dataimage", build.WithDockerfile(`FROM busybox
 		RUN ["mkdir", "-p", "/foo"]
 		RUN ["touch", "/foo/bar"]`))
-	dockerCmd(c, "run", "--name", "test", "-v", prefix+slash+"foo", "busybox")
+	dockerCmd(c, "run", "--name", "test", "-v", dPath("/foo"), "busybox")
 
 	if out, _, err := dockerCmdWithError("run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
@@ -2205,31 +2200,37 @@ func (s *DockerCLIRunSuite) TestRunNoOutputFromPullInStdout(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunVolumesCleanPaths(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+
+	// use forward slashes in Dockerfile
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	buildImageSuccessfully(c, "run_volumes_clean_paths", build.WithDockerfile(`FROM busybox
 		VOLUME `+prefix+`/foo/`))
-	dockerCmd(c, "run", "-v", prefix+"/foo", "-v", prefix+"/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
+	dockerCmd(c, "run", "-v", dPath("/foo"), "-v", dPath("/bar/"), "--name", "dark_helmet", "run_volumes_clean_paths")
 
-	out, err := inspectMountSourceField("dark_helmet", prefix+slash+"foo"+slash)
+	p := dPath("/foo/")
+	out, err := inspectMountSourceField("dark_helmet", p)
 	if err != errMountNotFound {
-		c.Fatalf("Found unexpected volume entry for '%s/foo/' in volumes\n%q", prefix, out)
+		c.Fatalf("Found unexpected volume entry for '%s' in volumes\n%q", p, out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", prefix+slash+`foo`)
+	p = dPath("/foo")
+	out, err = inspectMountSourceField("dark_helmet", p)
 	assert.NilError(c, err)
 	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
-		c.Fatalf("Volume was not defined for %s/foo\n%q", prefix, out)
+		c.Fatalf("Volume was not defined for %s\n%q", p, out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar"+slash)
+	p = dPath("/bar/")
+	out, err = inspectMountSourceField("dark_helmet", p)
 	if err != errMountNotFound {
-		c.Fatalf("Found unexpected volume entry for '%s/bar/' in volumes\n%q", prefix, out)
+		c.Fatalf("Found unexpected volume entry for '%s' in volumes\n%q", p, out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar")
+	p = dPath("/bar")
+	out, err = inspectMountSourceField("dark_helmet", p)
 	assert.NilError(c, err)
 	if !strings.Contains(strings.ToLower(out), strings.ToLower(testEnv.PlatformDefaults.VolumesConfigPath)) {
-		c.Fatalf("Volume was not defined for %s/bar\n%q", prefix, out)
+		c.Fatalf("Volume was not defined for %s\n%q", p, out)
 	}
 }
 
@@ -2329,7 +2330,7 @@ func (s *DockerCLIRunSuite) TestRunModeIpcContainerNotRunning(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "busybox")
 
 	id := strings.TrimSpace(out)
-	out, _, err := dockerCmdWithError("run", fmt.Sprintf("--ipc=container:%s", id), "busybox")
+	out, _, err := dockerCmdWithError("run", "--ipc=container:"+id, "busybox")
 	if err == nil {
 		c.Fatalf("Run container with ipc mode container should fail with non running container: %s\n%s", out, err)
 	}
@@ -2348,12 +2349,12 @@ func (s *DockerCLIRunSuite) TestRunModePIDContainer(c *testing.T) {
 	}
 	pid1 := inspectField(c, id, "State.Pid")
 
-	parentContainerPid, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/pid", pid1))
+	parentContainerPid, err := os.Readlink(path.Join("/proc", pid1, "ns/pid"))
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	out, _ = dockerCmd(c, "run", fmt.Sprintf("--pid=container:%s", id), "busybox", "readlink", "/proc/self/ns/pid")
+	out, _ = dockerCmd(c, "run", "--pid=container:"+id, "busybox", "readlink", "/proc/self/ns/pid")
 	out = strings.Trim(out, "\n")
 	if parentContainerPid != out {
 		c.Fatalf("PID different with --pid=container:%s %s != %s\n", id, parentContainerPid, out)
@@ -2376,7 +2377,7 @@ func (s *DockerCLIRunSuite) TestRunModePIDContainerNotRunning(c *testing.T) {
 	out, _ := dockerCmd(c, "create", "busybox")
 
 	id := strings.TrimSpace(out)
-	out, _, err := dockerCmdWithError("run", fmt.Sprintf("--pid=container:%s", id), "busybox")
+	out, _, err := dockerCmdWithError("run", "--pid=container:"+id, "busybox")
 	if err == nil {
 		c.Fatalf("Run container with pid mode container should fail with non running container: %s\n%s", out, err)
 	}
@@ -2415,12 +2416,12 @@ func (s *DockerCLIRunSuite) TestContainerNetworkMode(c *testing.T) {
 	assert.NilError(c, waitRun(id))
 	pid1 := inspectField(c, id, "State.Pid")
 
-	parentContainerNet, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/net", pid1))
+	parentContainerNet, err := os.Readlink(path.Join("/proc", pid1, "ns/net"))
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	out, _ = dockerCmd(c, "run", fmt.Sprintf("--net=container:%s", id), "busybox", "readlink", "/proc/self/ns/net")
+	out, _ = dockerCmd(c, "run", "--net=container:"+id, "busybox", "readlink", "/proc/self/ns/net")
 	out = strings.Trim(out, "\n")
 	if parentContainerNet != out {
 		c.Fatalf("NET different with --net=container:%s %s != %s\n", id, parentContainerNet, out)
@@ -2740,8 +2741,7 @@ func (s *DockerCLIRunSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c 
 }
 
 func (s *DockerCLIRunSuite) TestRunVolumesFromRestartAfterRemoved(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	runSleepingContainer(c, "--name=voltest", "-v", prefix+"/foo")
+	runSleepingContainer(c, "--name=voltest", "-v", dPath("/foo"))
 	runSleepingContainer(c, "--name=restarter", "--volumes-from", "voltest")
 
 	// Remove the main volume container and restart the consuming container
@@ -2873,7 +2873,7 @@ func (s *DockerCLIRunSuite) TestRunReadFilteredProc(c *testing.T) {
 	}
 	for i, filePath := range testReadPaths {
 		name := fmt.Sprintf("procsieve-%d", i)
-		shellCmd := fmt.Sprintf("exec 3<%s", filePath)
+		shellCmd := "exec 3<" + filePath
 
 		out, exitCode, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
 		if exitCode != 0 {
@@ -2996,22 +2996,20 @@ func (s *DockerCLIRunSuite) TestRunCapAddCHOWN(c *testing.T) {
 
 // https://github.com/docker/docker/pull/14498
 func (s *DockerCLIRunSuite) TestVolumeFromMixedRWOptions(c *testing.T) {
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
-	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "true")
+	dockerCmd(c, "run", "--name", "parent", "-v", dPath("/test"), "busybox", "true")
 
 	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
 
 	if testEnv.OSType != "windows" {
-		mRO, err := inspectMountPoint("test-volumes-1", prefix+slash+"test")
+		mRO, err := inspectMountPoint("test-volumes-1", dPath("/test"))
 		assert.NilError(c, err, "failed to inspect mount point")
 		if mRO.RW {
 			c.Fatalf("Expected RO volume was RW")
 		}
 	}
 
-	mRW, err := inspectMountPoint("test-volumes-2", prefix+slash+"test")
+	mRW, err := inspectMountPoint("test-volumes-2", dPath("/test"))
 	assert.NilError(c, err, "failed to inspect mount point")
 	if !mRW.RW {
 		c.Fatalf("Expected RW volume was RO")
@@ -3034,7 +3032,7 @@ func (s *DockerCLIRunSuite) TestRunWriteFilteredProc(c *testing.T) {
 	for i, filePath := range testWritePaths {
 		name := fmt.Sprintf("writeprocsieve-%d", i)
 
-		shellCmd := fmt.Sprintf("exec 3>%s", filePath)
+		shellCmd := "exec 3>" + filePath
 		out, code, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor=docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
 		if code != 0 {
 			return
@@ -3129,7 +3127,7 @@ func (s *DockerCLIRunSuite) TestPtraceContainerProcsFromHost(c *testing.T) {
 	assert.NilError(c, waitRun(id))
 	pid1 := inspectField(c, id, "State.Pid")
 
-	_, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/net", pid1))
+	_, err := os.Readlink(path.Join("/proc", pid1, "ns/net"))
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -3187,18 +3185,17 @@ func (s *DockerCLIRunSuite) TestRunCreateContainerFailedCleanUp(c *testing.T) {
 
 	containerID, err := inspectFieldWithError(name, "Id")
 	assert.Assert(c, err != nil, "Expected not to have this container: %s!", containerID)
-	assert.Equal(c, containerID, "", fmt.Sprintf("Expected not to have this container: %s!", containerID))
+	assert.Equal(c, containerID, "", "Expected not to have this container: %s!", containerID)
 }
 
 func (s *DockerCLIRunSuite) TestRunNamedVolume(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
+	dockerCmd(c, "run", "--name=test", "-v", "testing:"+dPath("/foo"), "busybox", "sh", "-c", "echo hello > "+dPath("/foo/bar"))
 
-	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
+	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+dPath("/foo/bar"))
 	assert.Equal(c, strings.TrimSpace(out), "hello")
 
-	out, _ = dockerCmd(c, "run", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
+	out, _ = dockerCmd(c, "run", "-v", "testing:"+dPath("/foo"), "busybox", "sh", "-c", "cat "+dPath("/foo/bar"))
 	assert.Equal(c, strings.TrimSpace(out), "hello")
 }
 
@@ -3768,16 +3765,14 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumeCopyImageData(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunNamedVolumeNotRemoved(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-
 	dockerCmd(c, "volume", "create", "test")
 
-	dockerCmd(c, "run", "--rm", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	dockerCmd(c, "run", "--rm", "-v", "test:"+dPath("/foo"), "-v", dPath("/bar"), "busybox", "true")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
 	assert.Assert(c, strings.Contains(out, "test"))
 
-	dockerCmd(c, "run", "--name=test", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	dockerCmd(c, "run", "--name=test", "-v", "test:"+dPath("/foo"), "-v", dPath("/bar"), "busybox", "true")
 	dockerCmd(c, "rm", "-fv", "test")
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
@@ -3785,10 +3780,8 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumeNotRemoved(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-
 	dockerCmd(c, "volume", "create", "test")
-	cid, _ := dockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	cid, _ := dockerCmd(c, "run", "-d", "--name=parent", "-v", "test:"+dPath("/foo"), "-v", dPath("/bar"), "busybox", "true")
 	dockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
@@ -3836,7 +3829,7 @@ func (s *DockerCLIRunSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 		strings.Contains(outLowerCase, "were not connected because a duplicate name exists") ||
 		strings.Contains(outLowerCase, "the specified port already exists") ||
 		strings.Contains(outLowerCase, "hns failed with error : failed to create endpoint") ||
-		strings.Contains(outLowerCase, "hns failed with error : the object already exists"), fmt.Sprintf("Output: %s", out))
+		strings.Contains(outLowerCase, "hns failed with error : the object already exists"), "Output: "+out)
 	dockerCmd(c, "rm", "-f", "test")
 
 	// NGoroutines is not updated right away, so we need to wait before failing
@@ -4207,7 +4200,7 @@ func (s *DockerCLIRunSuite) TestRunMountReadOnlyDevShm(c *testing.T) {
 	assert.NilError(c, err)
 	defer os.RemoveAll(emptyDir)
 	out, _, err := dockerCmdWithError("run", "--rm", "--read-only",
-		"-v", fmt.Sprintf("%s:/dev/shm:ro", emptyDir),
+		"-v", emptyDir+":/dev/shm:ro",
 		"busybox", "touch", "/dev/shm/foo")
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, strings.Contains(out, "Read-only file system"))
@@ -4321,7 +4314,7 @@ func (s *DockerCLIRunSuite) TestRunMount(c *testing.T) {
 				},
 				{
 					"--read-only",
-					"--volume", fmt.Sprintf("%s:/foo", mnt1),
+					"--volume", mnt1 + ":/foo",
 					"--mount", "type=volume,dst=/bar",
 				},
 			},
@@ -4346,7 +4339,7 @@ func (s *DockerCLIRunSuite) TestRunMount(c *testing.T) {
 					"--mount", fmt.Sprintf("type=bind,src=%s,target=/foo", mnt2),
 				},
 				{
-					"--volume", fmt.Sprintf("%s:/foo", mnt1),
+					"--volume", mnt1 + ":/foo",
 					"--mount", fmt.Sprintf("type=bind,src=%s,target=/foo", mnt2),
 				},
 			},
@@ -4355,7 +4348,7 @@ func (s *DockerCLIRunSuite) TestRunMount(c *testing.T) {
 		{
 			equivalents: [][]string{
 				{
-					"--volume", fmt.Sprintf("%s:/foo", mnt1),
+					"--volume", mnt1 + ":/foo",
 					"--mount", fmt.Sprintf("type=volume,src=%s,target=/foo", mnt2),
 				},
 			},
@@ -4421,7 +4414,7 @@ func (s *DockerCLIRunSuite) TestRunAddDeviceCgroupRule(c *testing.T) {
 		c.Fatalf("%s shouldn't been in the device.list", deviceRule)
 	}
 
-	out, _ = dockerCmd(c, "run", "--rm", fmt.Sprintf("--device-cgroup-rule=%s", deviceRule), "busybox", "grep", deviceRule, "/sys/fs/cgroup/devices/devices.list")
+	out, _ = dockerCmd(c, "run", "--rm", "--device-cgroup-rule="+deviceRule, "busybox", "grep", deviceRule, "/sys/fs/cgroup/devices/devices.list")
 	assert.Equal(c, strings.TrimSpace(out), deviceRule)
 }
 
