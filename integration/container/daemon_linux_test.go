@@ -2,10 +2,8 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/assert/opt"
 	"gotest.tools/v3/skip"
 )
 
@@ -204,21 +203,10 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 
 	d.Stop(t)
 
-	configPath := filepath.Join(d.Root, "containers", id, "config.v2.json")
-	configBytes, err := os.ReadFile(configPath)
-	assert.NilError(t, err)
-
-	var c realcontainer.Container
-
-	assert.NilError(t, json.Unmarshal(configBytes, &c))
-
-	c.State = realcontainer.NewState()
-	c.SetRestarting(&realcontainer.ExitStatus{ExitCode: 1})
-	c.HasBeenStartedBefore = true
-
-	configBytes, err = json.Marshal(&c)
-	assert.NilError(t, err)
-	assert.NilError(t, os.WriteFile(configPath, configBytes, 0600))
+	d.TamperWithContainerConfig(t, id, func(c *realcontainer.Container) {
+		c.SetRestarting(&realcontainer.ExitStatus{ExitCode: 1})
+		c.HasBeenStartedBefore = true
+	})
 
 	d.Start(t)
 
@@ -230,4 +218,72 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	case err := <-chErr:
 		assert.NilError(t, err)
 	}
+}
+
+// TestHardRestartWhenContainerIsRunning simulates a case where dockerd is
+// killed while a container is running, and the container's task no longer
+// exists when dockerd starts back up. This can happen if the system is
+// hard-rebooted, for example.
+//
+// Regression test for moby/moby#45788
+func TestHardRestartWhenContainerIsRunning(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	t.Parallel()
+
+	d := daemon.New(t)
+	defer d.Cleanup(t)
+
+	d.StartWithBusybox(t, "--iptables=false")
+	defer d.Stop(t)
+
+	ctx := context.Background()
+	client := d.NewClientT(t)
+
+	// Just create the containers, no need to start them.
+	// We really want to make sure there is no process running when docker starts back up.
+	// We will manipulate the on disk state later.
+	nopolicy := container.Create(ctx, t, client, container.WithCmd("/bin/sh", "-c", "exit 1"))
+	onfailure := container.Create(ctx, t, client, container.WithRestartPolicy("on-failure"), container.WithCmd("/bin/sh", "-c", "sleep 60"))
+
+	d.Stop(t)
+
+	for _, id := range []string{nopolicy, onfailure} {
+		d.TamperWithContainerConfig(t, id, func(c *realcontainer.Container) {
+			c.SetRunning(nil, nil, true)
+			c.HasBeenStartedBefore = true
+		})
+	}
+
+	d.Start(t)
+
+	t.Run("RestartPolicy=none", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		inspect, err := client.ContainerInspect(ctx, nopolicy)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.State.Status, "exited"))
+		assert.Check(t, is.Equal(inspect.State.ExitCode, 255))
+		finishedAt, err := time.Parse(time.RFC3339Nano, inspect.State.FinishedAt)
+		if assert.Check(t, err) {
+			assert.Check(t, is.DeepEqual(finishedAt, time.Now(), opt.TimeWithThreshold(time.Minute)))
+		}
+	})
+
+	t.Run("RestartPolicy=on-failure", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		inspect, err := client.ContainerInspect(ctx, onfailure)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.State.Status, "running"))
+		assert.Check(t, is.Equal(inspect.State.ExitCode, 0))
+		finishedAt, err := time.Parse(time.RFC3339Nano, inspect.State.FinishedAt)
+		if assert.Check(t, err) {
+			assert.Check(t, is.DeepEqual(finishedAt, time.Now(), opt.TimeWithThreshold(time.Minute)))
+		}
+
+		stopTimeout := 0
+		assert.Assert(t, client.ContainerStop(ctx, onfailure, containerapi.StopOptions{Timeout: &stopTimeout}))
+	})
 }
