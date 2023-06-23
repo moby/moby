@@ -1,6 +1,7 @@
 package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,9 +67,11 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		return err
 	}
 
-	var parentLinks []parentLink
-	var imageIDsStr string
-	var imageRefCount int
+	var (
+		parentLinks   []parentLink
+		imageIDsStr   bytes.Buffer
+		imageRefCount int
+	)
 
 	for _, m := range manifest {
 		configPath, err := safePath(tmpDir, m.Config)
@@ -118,7 +121,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err != nil {
 			return err
 		}
-		imageIDsStr += fmt.Sprintf("Loaded image ID: %s\n", imgID)
+		imageIDsStr.WriteString("Loaded image ID: " + imgID.String() + "\n")
 
 		imageRefCount = 0
 		for _, repoTag := range m.RepoTags {
@@ -131,7 +134,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
 			l.setLoadedTag(ref, imgID.Digest(), outStream)
-			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", reference.FamiliarString(ref))))
+			io.WriteString(outStream, "Loaded image: "+reference.FamiliarString(ref)+"\n")
 			imageRefCount++
 		}
 
@@ -148,7 +151,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	}
 
 	if imageRefCount == 0 {
-		outStream.Write([]byte(imageIDsStr))
+		outStream.Write(imageIDsStr.Bytes())
 	}
 
 	return nil
