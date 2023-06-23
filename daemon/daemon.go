@@ -447,6 +447,8 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 					if es != nil {
 						ces.ExitCode = int(es.ExitCode())
 						ces.ExitedAt = es.ExitTime()
+					} else {
+						ces.ExitCode = 255
 					}
 					c.SetStopped(&ces)
 					daemon.Cleanup(c)

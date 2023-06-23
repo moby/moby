@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/testutil/request"
@@ -823,6 +824,23 @@ func (d *Daemon) Info(t testing.TB) types.Info {
 	assert.NilError(t, err)
 	assert.NilError(t, c.Close())
 	return info
+}
+
+// TamperWithContainerConfig modifies the on-disk config of a container.
+func (d *Daemon) TamperWithContainerConfig(t testing.TB, containerID string, tamper func(*container.Container)) {
+	t.Helper()
+
+	configPath := filepath.Join(d.Root, "containers", containerID, "config.v2.json")
+	configBytes, err := os.ReadFile(configPath)
+	assert.NilError(t, err)
+
+	var c container.Container
+	assert.NilError(t, json.Unmarshal(configBytes, &c))
+	c.State = container.NewState()
+	tamper(&c)
+	configBytes, err = json.Marshal(&c)
+	assert.NilError(t, err)
+	assert.NilError(t, os.WriteFile(configPath, configBytes, 0600))
 }
 
 // cleanupRaftDir removes swarmkit wal files if present
