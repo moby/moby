@@ -1,16 +1,17 @@
 package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // pluginAdapter takes a plugin and implements the Logger interface for logger
@@ -69,10 +70,10 @@ func (a *pluginAdapter) Close() error {
 	}
 
 	if err := a.stream.Close(); err != nil {
-		logrus.WithError(err).Error("error closing plugin fifo")
+		log.G(context.TODO()).WithError(err).Error("error closing plugin fifo")
 	}
 	if err := os.Remove(a.fifoPath); err != nil && !os.IsNotExist(err) {
-		logrus.WithError(err).Error("error cleaning up plugin fifo")
+		log.G(context.TODO()).WithError(err).Error("error cleaning up plugin fifo")
 	}
 
 	// may be nil, especially for unit tests

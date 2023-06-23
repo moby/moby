@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/symlink"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
 	"github.com/docker/docker/api/types"
@@ -136,7 +136,7 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 						if m.ReadOnlyForceRecursive {
 							return err
 						} else {
-							logrus.WithError(err).Debugf("Failed to make %q recursively read-only", dest)
+							log.G(context.TODO()).WithError(err).Debugf("Failed to make %q recursively read-only", dest)
 						}
 					}
 				}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
@@ -21,7 +22,6 @@ import (
 	"github.com/moby/term"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) registerExecCommand(container *container.Container, config *container.ExecConfig) {
@@ -174,7 +174,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Running = true
 	ec.Unlock()
 
-	logrus.Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
+	log.G(ctx).Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
 	attributes := map[string]string{
 		"execID": ec.ID,
 	}
@@ -188,7 +188,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			exitCode := 126
 			ec.ExitCode = &exitCode
 			if err := ec.CloseStreams(); err != nil {
-				logrus.Errorf("failed to cleanup exec %s streams: %s", ec.Container.ID, err)
+				log.G(ctx).Errorf("failed to cleanup exec %s streams: %s", ec.Container.ID, err)
 			}
 			ec.Unlock()
 		}
@@ -198,7 +198,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		r, w := io.Pipe()
 		go func() {
 			defer w.Close()
-			defer logrus.Debug("Closing buffered stdin pipe")
+			defer log.G(ctx).Debug("Closing buffered stdin pipe")
 			pools.Copy(w, options.Stdin)
 		}()
 		cStdin = r
@@ -295,7 +295,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 
 	select {
 	case <-ctx.Done():
-		log := logrus.
+		log := log.G(ctx).
 			WithField("container", ec.Container.ID).
 			WithField("exec", ec.ID)
 		log.Debug("Sending KILL signal to container process")
@@ -339,7 +339,7 @@ func (daemon *Daemon) execCommandGC() {
 			}
 		}
 		if cleaned > 0 {
-			logrus.Debugf("clean %d unused exec commands", cleaned)
+			log.G(context.TODO()).Debugf("clean %d unused exec commands", cleaned)
 		}
 	}
 }

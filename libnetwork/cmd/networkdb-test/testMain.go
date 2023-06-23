@@ -1,12 +1,14 @@
 package main
 
 import (
-	"log"
+	"context"
 	"os"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dbclient"
 	"github.com/docker/docker/libnetwork/cmd/networkdb-test/dbserver"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -14,9 +16,9 @@ func main() {
 		FullTimestamp: true,
 	}
 	logrus.SetFormatter(formatter)
-	logrus.Infof("Starting the image with these args: %v", os.Args)
+	log.G(context.TODO()).Infof("Starting the image with these args: %v", os.Args)
 	if len(os.Args) < 1 {
-		log.Fatal("You need at least 1 argument [client/server]")
+		log.G(context.TODO()).Fatal("You need at least 1 argument [client/server]")
 	}
 
 	switch os.Args[1] {

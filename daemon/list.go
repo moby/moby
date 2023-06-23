@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var acceptedPsFilterTags = map[string]bool{
@@ -320,7 +320,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 		err := psFilters.WalkValues("ancestor", func(ancestor string) error {
 			img, err := daemon.imageService.GetImage(ctx, ancestor, imagetypes.GetImageOpts{})
 			if err != nil {
-				logrus.Warnf("Error while looking up for image %v", ancestor)
+				log.G(ctx).Warnf("Error while looking up for image %v", ancestor)
 				return nil
 			}
 			if imagesFilter[img.ID()] {

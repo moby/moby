@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -25,7 +26,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -113,7 +113,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 					// This is unexpected - dangling image should be deleted
 					// as soon as another image with the same target is created.
 					// Log a warning, but don't error out the whole operation.
-					logrus.WithField("refs", tagged).Warn("multiple images have the same target, but one of them is still dangling")
+					log.G(ctx).WithField("refs", tagged).Warn("multiple images have the same target, but one of them is still dangling")
 				}
 				continue
 			}
@@ -122,7 +122,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			if err != nil {
 				// This is inconsistent with `docker image ls` which will
 				// still include the malformed name in RepoTags.
-				logrus.WithField("name", name).WithError(err).Error("failed to parse image name as reference")
+				log.G(ctx).WithField("name", name).WithError(err).Error("failed to parse image name as reference")
 				continue
 			}
 			refs = append(refs, name)
@@ -132,7 +132,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 				// This could only happen if digest is invalid, but considering that
 				// we get it from the Descriptor it's highly unlikely.
 				// Log error just in case.
-				logrus.WithError(err).Error("failed to create digested reference")
+				log.G(ctx).WithError(err).Error("failed to create digested reference")
 				continue
 			}
 			refs = append(refs, digested)

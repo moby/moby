@@ -1,11 +1,13 @@
 package networkdb
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/diagnostic"
 	"github.com/docker/docker/libnetwork/internal/caller"
 	"github.com/sirupsen/logrus"
@@ -37,7 +39,7 @@ func dbJoin(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("join cluster")
 
 	if len(r.Form["members"]) < 1 {
@@ -70,7 +72,7 @@ func dbPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("network peers")
 
 	if len(r.Form["nid"]) < 1 {
@@ -104,7 +106,7 @@ func dbClusterPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("cluster peers")
 
 	nDB, ok := ctx.(*NetworkDB)
@@ -127,7 +129,7 @@ func dbCreateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	unsafe, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("create entry")
 
 	if len(r.Form["tname"]) < 1 ||
@@ -176,7 +178,7 @@ func dbUpdateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	unsafe, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("update entry")
 
 	if len(r.Form["tname"]) < 1 ||
@@ -224,7 +226,7 @@ func dbDeleteEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("delete entry")
 
 	if len(r.Form["tname"]) < 1 ||
@@ -261,7 +263,7 @@ func dbGetEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	unsafe, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("get entry")
 
 	if len(r.Form["tname"]) < 1 ||
@@ -307,7 +309,7 @@ func dbJoinNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("join network")
 
 	if len(r.Form["nid"]) < 1 {
@@ -339,7 +341,7 @@ func dbLeaveNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("leave network")
 
 	if len(r.Form["nid"]) < 1 {
@@ -371,7 +373,7 @@ func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	unsafe, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("get table")
 
 	if len(r.Form["tname"]) < 1 ||
@@ -419,7 +421,7 @@ func dbNetworkStats(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := diagnostic.ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("network stats")
 
 	if len(r.Form["nid"]) < 1 {

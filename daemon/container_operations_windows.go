@@ -1,9 +1,11 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
@@ -22,7 +24,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	}
 
 	localPath := c.ConfigsDirPath()
-	logrus.Debugf("configs: setting up config dir: %s", localPath)
+	log.G(context.TODO()).Debugf("configs: setting up config dir: %s", localPath)
 
 	// create local config root
 	if err := system.MkdirAllWithACL(localPath, 0, system.SddlAdministratorsLocalSystem); err != nil {
@@ -32,7 +34,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	defer func() {
 		if setupErr != nil {
 			if err := os.RemoveAll(localPath); err != nil {
-				logrus.Errorf("error cleaning up config dir: %s", err)
+				log.G(context.TODO()).Errorf("error cleaning up config dir: %s", err)
 			}
 		}
 	}()
@@ -48,7 +50,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 			// a valid type of config so we should not error when we encounter
 			// one.
 			if configRef.Runtime == nil {
-				logrus.Error("config target type is not a file or runtime target")
+				log.G(context.TODO()).Error("config target type is not a file or runtime target")
 			}
 			// However, in any case, this isn't a file config, so we have no
 			// further work to do
@@ -59,7 +61,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return errors.Wrap(err, "error getting config file path for container")
 		}
-		log := logrus.WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
+		log := log.G(context.TODO()).WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
 
 		log.Debug("injecting config")
 		config, err := c.DependencyStore.Configs().Get(configRef.ConfigID)
@@ -97,7 +99,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
+	log.G(context.TODO()).Debugf("secrets: setting up secret dir: %s", localMountPath)
 
 	// create local secret root
 	if err := system.MkdirAllWithACL(localMountPath, 0, system.SddlAdministratorsLocalSystem); err != nil {
@@ -107,7 +109,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	defer func() {
 		if setupErr != nil {
 			if err := os.RemoveAll(localMountPath); err != nil {
-				logrus.Errorf("error cleaning up secret mount: %s", err)
+				log.G(context.TODO()).Errorf("error cleaning up secret mount: %s", err)
 			}
 		}
 	}()
@@ -119,7 +121,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	for _, s := range c.SecretReferences {
 		// TODO (ehazlett): use type switch when more are supported
 		if s.File == nil {
-			logrus.Error("secret target type is not a file target")
+			log.G(context.TODO()).Error("secret target type is not a file target")
 			continue
 		}
 
@@ -129,7 +131,7 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err != nil {
 			return err
 		}
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(logrus.Fields{
 			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")

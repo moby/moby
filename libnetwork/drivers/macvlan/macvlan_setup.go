@@ -4,12 +4,13 @@
 package macvlan
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -102,7 +103,7 @@ func createVlanLink(parentName string) error {
 		if err := ns.NlHandle().LinkSetUp(vlanLink); err != nil {
 			return fmt.Errorf("failed to enable %s the macvlan parent link %v", vlanLink.Name, err)
 		}
-		logrus.Debugf("Added a vlan tagged netlink subinterface: %s with a vlan id: %d", parentName, vidInt)
+		log.G(context.TODO()).Debugf("Added a vlan tagged netlink subinterface: %s with a vlan id: %d", parentName, vidInt)
 		return nil
 	}
 
@@ -129,7 +130,7 @@ func delVlanLink(linkName string) error {
 		if err := ns.NlHandle().LinkDel(vlanLink); err != nil {
 			return fmt.Errorf("failed to delete  %s link: %v", linkName, err)
 		}
-		logrus.Debugf("Deleted a vlan tagged netlink subinterface: %s", linkName)
+		log.G(context.TODO()).Debugf("Deleted a vlan tagged netlink subinterface: %s", linkName)
 	}
 	// if the subinterface doesn't parse to iface.vlan_id leave the interface in
 	// place since it could be a user specified name not created by the driver.
@@ -195,7 +196,7 @@ func delDummyLink(linkName string) error {
 	if err := ns.NlHandle().LinkDel(dummyLink); err != nil {
 		return fmt.Errorf("failed to delete the dummy %s link: %v", linkName, err)
 	}
-	logrus.Debugf("Deleted a dummy parent link: %s", linkName)
+	log.G(context.TODO()).Debugf("Deleted a dummy parent link: %s", linkName)
 
 	return nil
 }

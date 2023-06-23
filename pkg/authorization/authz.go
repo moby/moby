@@ -3,14 +3,15 @@ package authorization // import "github.com/docker/docker/pkg/authorization"
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime"
 	"net/http"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/sirupsen/logrus"
 )
 
 const maxBodySize = 1048576 // 1MB
@@ -85,7 +86,7 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	for _, plugin := range ctx.plugins {
-		logrus.Debugf("AuthZ request using plugin %s", plugin.Name())
+		log.G(context.TODO()).Debugf("AuthZ request using plugin %s", plugin.Name())
 
 		authRes, err := plugin.AuthZRequest(ctx.authReq)
 		if err != nil {
@@ -110,7 +111,7 @@ func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 	}
 
 	for _, plugin := range ctx.plugins {
-		logrus.Debugf("AuthZ response using plugin %s", plugin.Name())
+		log.G(context.TODO()).Debugf("AuthZ response using plugin %s", plugin.Name())
 
 		authRes, err := plugin.AuthZResponse(ctx.authReq)
 		if err != nil {
@@ -135,7 +136,7 @@ func drainBody(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
 	data, err := bufReader.Peek(maxBodySize)
 	// Body size exceeds max body size
 	if err == nil {
-		logrus.Warnf("Request body is larger than: '%d' skipping body", maxBodySize)
+		log.G(context.TODO()).Warnf("Request body is larger than: '%d' skipping body", maxBodySize)
 		return nil, newBody, nil
 	}
 	// Body size is less than maximum size

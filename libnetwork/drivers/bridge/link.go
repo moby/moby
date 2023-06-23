@@ -3,12 +3,13 @@
 package bridge
 
 import (
+	"context"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 type link struct {
@@ -45,7 +46,7 @@ func (l *link) Disable() {
 	// -D == iptables delete flag
 	err := linkContainers("-D", l.parentIP, l.childIP, l.ports, l.bridge, true)
 	if err != nil {
-		logrus.Errorf("Error removing IPTables rules for a link %s due to %s", l.String(), err.Error())
+		log.G(context.TODO()).Errorf("Error removing IPTables rules for a link %s due to %s", l.String(), err.Error())
 	}
 	// Return proper error once we move to use a proper iptables package
 	// that returns typed errors

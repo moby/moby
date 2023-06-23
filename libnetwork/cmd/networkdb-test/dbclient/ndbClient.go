@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -13,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 var servicePort string
@@ -28,14 +27,14 @@ type resultTuple struct {
 func httpGetFatalError(ip, port, path string) {
 	body, err := httpGet(ip, port, path)
 	if err != nil || !strings.Contains(string(body), "OK") {
-		log.Fatalf("[%s] error %s %s", path, err, body)
+		log.G(context.TODO()).Fatalf("[%s] error %s %s", path, err, body)
 	}
 }
 
 func httpGet(ip, port, path string) ([]byte, error) {
 	resp, err := http.Get("http://" + ip + ":" + port + path)
 	if err != nil {
-		logrus.Errorf("httpGet error:%s", err)
+		log.G(context.TODO()).Errorf("httpGet error:%s", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -81,7 +80,7 @@ func clusterPeersNumber(ip, port string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/clusterpeers")
 
 	if err != nil {
-		logrus.Errorf("clusterPeers %s there was an error: %s", ip, err)
+		log.G(context.TODO()).Errorf("clusterPeers %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
@@ -95,7 +94,7 @@ func networkPeersNumber(ip, port, networkName string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/networkpeers?nid="+networkName)
 
 	if err != nil {
-		logrus.Errorf("networkPeersNumber %s there was an error: %s", ip, err)
+		log.G(context.TODO()).Errorf("networkPeersNumber %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
@@ -109,7 +108,7 @@ func dbTableEntriesNumber(ip, port, networkName, tableName string, doneCh chan r
 	body, err := httpGet(ip, port, "/gettable?nid="+networkName+"&tname="+tableName)
 
 	if err != nil {
-		logrus.Errorf("tableEntriesNumber %s there was an error: %s", ip, err)
+		log.G(context.TODO()).Errorf("tableEntriesNumber %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
@@ -122,7 +121,7 @@ func dbQueueLength(ip, port, networkName string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/networkstats?nid="+networkName)
 
 	if err != nil {
-		logrus.Errorf("queueLength %s there was an error: %s", ip, err)
+		log.G(context.TODO()).Errorf("queueLength %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
@@ -142,7 +141,7 @@ func clientTableEntriesNumber(ip, port, networkName, tableName string, doneCh ch
 	body, err := httpGet(ip, port, "/watchedtableentries?nid="+networkName+"&tname="+tableName)
 
 	if err != nil {
-		logrus.Errorf("clientTableEntriesNumber %s there was an error: %s", ip, err)
+		log.G(context.TODO()).Errorf("clientTableEntriesNumber %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
@@ -253,12 +252,12 @@ func checkTable(ctx context.Context, ips []string, port, networkName, tableName 
 			// Validate test success, if the time is set means that all the tables are empty
 			if successTime != 0 {
 				opTime = time.Duration(successTime-startTime) / time.Millisecond
-				logrus.Infof("Check table passed, the cluster converged in %d msec", opTime)
+				log.G(ctx).Infof("Check table passed, the cluster converged in %d msec", opTime)
 				return
 			}
-			log.Fatal("Test failed, there is still entries in the tables of the nodes")
+			log.G(ctx).Fatal("Test failed, there is still entries in the tables of the nodes")
 		default:
-			logrus.Infof("Checking table %s expected %d", tableName, expectedEntries)
+			log.G(ctx).Infof("Checking table %s expected %d", tableName, expectedEntries)
 			doneCh := make(chan resultTuple, len(ips))
 			for _, ip := range ips {
 				go fn(ip, servicePort, networkName, tableName, doneCh)
@@ -267,7 +266,7 @@ func checkTable(ctx context.Context, ips []string, port, networkName, tableName 
 			nodesWithCorrectEntriesNum := 0
 			for i := len(ips); i > 0; i-- {
 				tableEntries := <-doneCh
-				logrus.Infof("Node %s has %d entries", tableEntries.id, tableEntries.result)
+				log.G(ctx).Infof("Node %s has %d entries", tableEntries.id, tableEntries.result)
 				if tableEntries.result == expectedEntries {
 					nodesWithCorrectEntriesNum++
 				}
@@ -276,7 +275,7 @@ func checkTable(ctx context.Context, ips []string, port, networkName, tableName 
 			if nodesWithCorrectEntriesNum == len(ips) {
 				if successTime == 0 {
 					successTime = time.Now().UnixNano()
-					logrus.Infof("Success after %d msec", time.Duration(successTime-startTime)/time.Millisecond)
+					log.G(ctx).Infof("Success after %d msec", time.Duration(successTime-startTime)/time.Millisecond)
 				}
 			} else {
 				successTime = 0
@@ -290,18 +289,18 @@ func waitWriters(parallelWriters int, mustWrite bool, doneCh chan resultTuple) m
 	var totalKeys int
 	resultTable := make(map[string]int)
 	for i := 0; i < parallelWriters; i++ {
-		logrus.Infof("Waiting for %d workers", parallelWriters-i)
+		log.G(context.TODO()).Infof("Waiting for %d workers", parallelWriters-i)
 		workerReturn := <-doneCh
 		totalKeys += workerReturn.result
 		if mustWrite && workerReturn.result == 0 {
-			log.Fatalf("The worker %s did not write any key %d == 0", workerReturn.id, workerReturn.result)
+			log.G(context.TODO()).Fatalf("The worker %s did not write any key %d == 0", workerReturn.id, workerReturn.result)
 		}
 		if !mustWrite && workerReturn.result != 0 {
-			log.Fatalf("The worker %s was supposed to return 0 instead %d != 0", workerReturn.id, workerReturn.result)
+			log.G(context.TODO()).Fatalf("The worker %s was supposed to return 0 instead %d != 0", workerReturn.id, workerReturn.result)
 		}
 		if mustWrite {
 			resultTable[workerReturn.id] = workerReturn.result
-			logrus.Infof("The worker %s wrote %d keys", workerReturn.id, workerReturn.result)
+			log.G(context.TODO()).Infof("The worker %s wrote %d keys", workerReturn.id, workerReturn.result)
 		}
 	}
 	resultTable[totalWrittenKeys] = totalKeys
@@ -355,9 +354,9 @@ func doClusterPeers(ips []string, args []string) {
 			if node.result != expectedPeers {
 				failed = true
 				if retry == maxRetry-1 {
-					log.Fatalf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
+					log.G(context.TODO()).Fatalf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				} else {
-					logrus.Warnf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
+					log.G(context.TODO()).Warnf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				}
 				time.Sleep(1 * time.Second)
 			}
@@ -416,9 +415,9 @@ func doNetworkPeers(ips []string, args []string) {
 			if node.result != expectedPeers {
 				failed = true
 				if retry == maxRetry-1 {
-					log.Fatalf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
+					log.G(context.TODO()).Fatalf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				} else {
-					logrus.Warnf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
+					log.G(context.TODO()).Warnf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				}
 				time.Sleep(1 * time.Second)
 			}
@@ -450,14 +449,14 @@ func doNetworkStatsQueue(ips []string, args []string) {
 		switch comparison {
 		case "lt":
 			if node.result > size {
-				log.Fatalf("Expected queue size from %s to be %d < %d", node.id, node.result, size)
+				log.G(context.TODO()).Fatalf("Expected queue size from %s to be %d < %d", node.id, node.result, size)
 			}
 		case "gt":
 			if node.result < size {
-				log.Fatalf("Expected queue size from %s to be %d > %d", node.id, node.result, size)
+				log.G(context.TODO()).Fatalf("Expected queue size from %s to be %d > %d", node.id, node.result, size)
 			}
 		default:
-			log.Fatal("unknown comparison operator")
+			log.G(context.TODO()).Fatal("unknown comparison operator")
 		}
 		avgQueueSize += node.result
 	}
@@ -484,13 +483,13 @@ func doWriteKeys(ips []string, args []string) {
 	defer close(doneCh)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(context.TODO()).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeKeysNumber(ips[i], servicePort, networkName, tableName, key, numberOfKeys, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
+	log.G(context.TODO()).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// check table entries for 2 minutes
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -517,13 +516,13 @@ func doDeleteKeys(ips []string, args []string) {
 	defer close(doneCh)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(context.TODO()).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go deleteKeysNumber(ips[i], servicePort, networkName, tableName, key, numberOfKeys, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
+	log.G(context.TODO()).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// check table entries for 2 minutes
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -550,14 +549,14 @@ func doWriteDeleteUniqueKeys(ips []string, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeDeleteUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
 	cancel()
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
+	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// check table entries for 2 minutes
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
@@ -588,14 +587,14 @@ func doWriteUniqueKeys(ips []string, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
 	cancel()
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
+	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// check table entries for 2 minutes
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
@@ -617,14 +616,14 @@ func doWriteDeleteLeaveJoin(ips []string, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeDeleteLeaveJoin(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
 	cancel()
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap["totalKeys"])
+	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap["totalKeys"])
 
 	// check table entries for 2 minutes
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Minute)
@@ -646,18 +645,18 @@ func doWriteDeleteWaitLeaveJoin(ips []string, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeDeleteUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
 	cancel()
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
+	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// The writers will leave the network
 	for i := 0; i < parallelWriters; i++ {
-		logrus.Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
 		go leaveNetwork(ips[i], servicePort, networkName, doneCh)
 	}
 	waitWriters(parallelWriters, false, doneCh)
@@ -667,7 +666,7 @@ func doWriteDeleteWaitLeaveJoin(ips []string, args []string) {
 
 	// The writers will join the network
 	for i := 0; i < parallelWriters; i++ {
-		logrus.Infof("worker joinNetwork: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("worker joinNetwork: %d on IP:%s", i, ips[i])
 		go joinNetwork(ips[i], servicePort, networkName, doneCh)
 	}
 	waitWriters(parallelWriters, false, doneCh)
@@ -692,18 +691,18 @@ func doWriteWaitLeave(ips []string, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
 	cancel()
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
+	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// The writers will leave the network
 	for i := 0; i < parallelWriters; i++ {
-		logrus.Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
 		go leaveNetwork(ips[i], servicePort, networkName, doneCh)
 	}
 	waitWriters(parallelWriters, false, doneCh)
@@ -729,19 +728,19 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
 	for i := 0; i < parallelWriters; i++ {
 		key := "key-" + strconv.Itoa(i) + "-"
-		logrus.Infof("Spawn worker: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
 	}
 
 	// Sync with all the writers
 	keyMap := waitWriters(parallelWriters, true, doneCh)
 	cancel()
-	logrus.Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
+	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	keysExpected := keyMap[totalWrittenKeys]
 	// The Leavers will leave the network
 	for i := 0; i < parallelLeaver; i++ {
-		logrus.Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
 		go leaveNetwork(ips[i], servicePort, networkName, doneCh)
 		// Once a node leave all the keys written previously will be deleted, so the expected keys will consider that as removed
 		keysExpected -= keyMap[ips[i]]
@@ -753,7 +752,7 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 
 	// The writers will join the network
 	for i := 0; i < parallelLeaver; i++ {
-		logrus.Infof("worker joinNetwork: %d on IP:%s", i, ips[i])
+		log.G(ctx).Infof("worker joinNetwork: %d on IP:%s", i, ips[i])
 		go joinNetwork(ips[i], servicePort, networkName, doneCh)
 	}
 	waitWriters(parallelLeaver, false, doneCh)
@@ -780,11 +779,11 @@ var cmdArgChec = map[string]int{
 
 // Client is a client
 func Client(args []string) {
-	logrus.Infof("[CLIENT] Starting with arguments %v", args)
+	log.G(context.TODO()).Infof("[CLIENT] Starting with arguments %v", args)
 	command := args[0]
 
 	if len(args) < cmdArgChec[command] {
-		log.Fatalf("Command %s requires %d arguments, passed %d, aborting...", command, cmdArgChec[command], len(args))
+		log.G(context.TODO()).Fatalf("Command %s requires %d arguments, passed %d, aborting...", command, cmdArgChec[command], len(args))
 	}
 
 	switch command {
@@ -792,18 +791,18 @@ func Client(args []string) {
 		time.Sleep(1 * time.Hour)
 		os.Exit(0)
 	case "fail":
-		log.Fatalf("Test error condition with message: error error error")
+		log.G(context.TODO()).Fatalf("Test error condition with message: error error error")
 	}
 
 	serviceName := args[1]
 	ips, _ := net.LookupHost("tasks." + serviceName)
-	logrus.Infof("got the ips %v", ips)
+	log.G(context.TODO()).Infof("got the ips %v", ips)
 	if len(ips) == 0 {
-		log.Fatalf("Cannot resolve any IP for the service tasks.%s", serviceName)
+		log.G(context.TODO()).Fatalf("Cannot resolve any IP for the service tasks.%s", serviceName)
 	}
 	servicePort = args[2]
 	commandArgs := args[3:]
-	logrus.Infof("Executing %s with args:%v", command, commandArgs)
+	log.G(context.TODO()).Infof("Executing %s with args:%v", command, commandArgs)
 	switch command {
 	case "ready":
 		doReady(ips)
@@ -856,6 +855,6 @@ func Client(args []string) {
 		// write-wait-leave networkName tableName numParallelWriters writeTimeSec
 		doWriteWaitLeaveJoin(ips, commandArgs)
 	default:
-		log.Fatalf("Command %s not recognized", command)
+		log.G(context.TODO()).Fatalf("Command %s not recognized", command)
 	}
 }

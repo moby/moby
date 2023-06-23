@@ -4,14 +4,15 @@ package bridge
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
-	"github.com/sirupsen/logrus"
 )
 
 func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
@@ -46,7 +47,7 @@ func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, cont
 			if err := n.allocatePort(&bIPv4, ulPxyEnabled); err != nil {
 				// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
 				if cuErr := n.releasePortsInternal(bs); cuErr != nil {
-					logrus.Warnf("allocation failure for %v, failed to clear previously allocated ipv4 port bindings: %v", bIPv4, cuErr)
+					log.G(context.TODO()).Warnf("allocation failure for %v, failed to clear previously allocated ipv4 port bindings: %v", bIPv4, cuErr)
 				}
 				return nil, err
 			}
@@ -72,7 +73,7 @@ func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, cont
 			if err := n.allocatePort(&bIPv6, ulPxyEnabled); err != nil {
 				// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
 				if cuErr := n.releasePortsInternal(bs); cuErr != nil {
-					logrus.Warnf("allocation failure for %v, failed to clear previously allocated ipv6 port bindings: %v", bIPv6, cuErr)
+					log.G(context.TODO()).Warnf("allocation failure for %v, failed to clear previously allocated ipv6 port bindings: %v", bIPv6, cuErr)
 				}
 				return nil, err
 			}
@@ -159,10 +160,10 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, ulPxyEnabled bool) 
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
 		if bnd.HostPort != 0 {
-			logrus.Warnf("Failed to allocate and map port %d-%d: %s", bnd.HostPort, bnd.HostPortEnd, err)
+			log.G(context.TODO()).Warnf("Failed to allocate and map port %d-%d: %s", bnd.HostPort, bnd.HostPortEnd, err)
 			break
 		}
-		logrus.Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
+		log.G(context.TODO()).Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
 	}
 	if err != nil {
 		return err
@@ -235,7 +236,7 @@ func IsV6Listenable() bool {
 			// When the kernel was booted with `ipv6.disable=1`,
 			// we get err "listen tcp6 [::1]:0: socket: address family not supported by protocol"
 			// https://github.com/moby/moby/issues/42288
-			logrus.Debugf("port_mapping: v6Listenable=false (%v)", err)
+			log.G(context.TODO()).Debugf("port_mapping: v6Listenable=false (%v)", err)
 		} else {
 			v6ListenableCached = true
 			ln.Close()

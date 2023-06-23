@@ -1,9 +1,11 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -11,7 +13,6 @@ import (
 	v2 "github.com/docker/docker/plugin/v2"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // allowV1PluginsFallback determines daemon's support for V1 plugins.
@@ -259,7 +260,7 @@ func (ps *Store) resolvePluginID(idOrName string) (string, error) {
 		return "", errors.WithStack(errNotFound(idOrName))
 	}
 	if _, ok := ref.(reference.Canonical); ok {
-		logrus.Warnf("canonical references cannot be resolved: %v", reference.FamiliarString(ref))
+		log.G(context.TODO()).Warnf("canonical references cannot be resolved: %v", reference.FamiliarString(ref))
 		return "", errors.WithStack(errNotFound(idOrName))
 	}
 

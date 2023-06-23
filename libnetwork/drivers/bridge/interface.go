@@ -3,10 +3,11 @@
 package bridge
 
 import (
+	"context"
 	"fmt"
 	"net"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"github.com/vishvananda/netlink"
 )
 
@@ -42,7 +43,7 @@ func newInterface(nlh *netlink.Handle, config *networkConfiguration) (*bridgeInt
 	// Attempt to find an existing bridge named with the specified name.
 	i.Link, err = nlh.LinkByName(config.BridgeName)
 	if err != nil {
-		logrus.Debugf("Did not find any interface with name %s: %v", config.BridgeName, err)
+		log.G(context.TODO()).Debugf("Did not find any interface with name %s: %v", config.BridgeName, err)
 	} else if _, ok := i.Link.(*netlink.Bridge); !ok {
 		return nil, fmt.Errorf("existing interface %s is not a bridge", i.Link.Attrs().Name)
 	}

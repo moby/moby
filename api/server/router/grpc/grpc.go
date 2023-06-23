@@ -4,11 +4,11 @@ import (
 	"context"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/router"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/buildkit/util/tracing/detect"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -33,7 +33,7 @@ var propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceCon
 func NewRouter(backends ...Backend) router.Router {
 	tp, err := detect.TracerProvider()
 	if err != nil {
-		logrus.WithError(err).Error("failed to detect trace provider")
+		log.G(context.TODO()).WithError(err).Error("failed to detect trace provider")
 	}
 
 	opts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor), grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor)}

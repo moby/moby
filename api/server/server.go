@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 )
 
 // versionMatcher defines a variable matcher to be parsed by the router
@@ -53,7 +53,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			statusCode := httpstatus.FromError(err)
 			if statusCode >= 500 {
-				logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
+				log.G(ctx).Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			}
 			makeErrorHandler(err)(w, r)
 		}
@@ -72,12 +72,12 @@ func (pageNotFoundError) NotFound() {}
 func (s *Server) CreateMux(routers ...router.Router) *mux.Router {
 	m := mux.NewRouter()
 
-	logrus.Debug("Registering routers")
+	log.G(context.TODO()).Debug("Registering routers")
 	for _, apiRouter := range routers {
 		for _, r := range apiRouter.Routes() {
 			f := s.makeHTTPHandler(r.Handler())
 
-			logrus.Debugf("Registering %s, %s", r.Method(), r.Path())
+			log.G(context.TODO()).Debugf("Registering %s, %s", r.Method(), r.Path())
 			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
 			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}

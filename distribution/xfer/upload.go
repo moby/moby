@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/sirupsen/logrus"
 )
 
 const maxUploadAttempts = 5
@@ -141,12 +141,12 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) doFun
 
 				retries++
 				if _, isDNR := err.(DoNotRetry); isDNR || retries == maxUploadAttempts {
-					logrus.Errorf("Upload failed: %v", err)
+					log.G(context.TODO()).Errorf("Upload failed: %v", err)
 					u.err = err
 					return
 				}
 
-				logrus.Errorf("Upload failed, retrying: %v", err)
+				log.G(context.TODO()).Errorf("Upload failed, retrying: %v", err)
 				delay := retries * 5
 				ticker := time.NewTicker(lum.waitDuration)
 

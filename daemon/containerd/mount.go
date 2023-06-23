@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/container"
-	"github.com/sirupsen/logrus"
 )
 
 // Mount mounts the container filesystem in a temporary location, use defer imageService.Unmount
@@ -22,7 +22,7 @@ func (i *ImageService) Mount(ctx context.Context, container *container.Container
 		return fmt.Errorf("failed to mount %s: %w", root, err)
 	}
 
-	logrus.WithField("container", container.ID).Debugf("container mounted via snapshotter: %v", root)
+	log.G(ctx).WithField("container", container.ID).Debugf("container mounted via snapshotter: %v", root)
 
 	container.BaseFS = root
 	return nil
@@ -33,7 +33,7 @@ func (i *ImageService) Unmount(ctx context.Context, container *container.Contain
 	root := container.BaseFS
 
 	if err := i.refCountMounter.Unmount(root); err != nil {
-		logrus.WithField("container", container.ID).WithError(err).Error("error unmounting container")
+		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
 		return fmt.Errorf("failed to unmount %s: %w", root, err)
 	}
 

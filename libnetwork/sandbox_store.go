@@ -1,12 +1,13 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/osl"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -176,13 +177,13 @@ func (sb *Sandbox) storeDelete() error {
 func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 	store := c.getStore()
 	if store == nil {
-		logrus.Error("Could not find local scope store while trying to cleanup sandboxes")
+		log.G(context.TODO()).Error("Could not find local scope store while trying to cleanup sandboxes")
 		return
 	}
 
 	kvol, err := store.List(datastore.Key(sandboxPrefix), &sbState{c: c})
 	if err != nil && err != datastore.ErrKeyNotFound {
-		logrus.Errorf("failed to get sandboxes for scope %s: %v", store.Scope(), err)
+		log.G(context.TODO()).Errorf("failed to get sandboxes for scope %s: %v", store.Scope(), err)
 		return
 	}
 
@@ -220,7 +221,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 		}
 		sb.osSbox, err = osl.NewSandbox(sb.Key(), create, isRestore)
 		if err != nil {
-			logrus.Errorf("failed to create osl sandbox while trying to restore sandbox %.7s%s: %v", sb.ID(), msg, err)
+			log.G(context.TODO()).Errorf("failed to create osl sandbox while trying to restore sandbox %.7s%s: %v", sb.ID(), msg, err)
 			continue
 		}
 
@@ -232,27 +233,27 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			n, err := c.getNetworkFromStore(eps.Nid)
 			var ep *Endpoint
 			if err != nil {
-				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
+				log.G(context.TODO()).Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
 				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}, persist: true}
 				ep = &Endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
 				if err != nil {
-					logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
+					log.G(context.TODO()).Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
 					ep = &Endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 				}
 			}
 			if _, ok := activeSandboxes[sb.ID()]; ok && err != nil {
-				logrus.Errorf("failed to restore endpoint %s in %s for container %s due to %v", eps.Eid, eps.Nid, sb.ContainerID(), err)
+				log.G(context.TODO()).Errorf("failed to restore endpoint %s in %s for container %s due to %v", eps.Eid, eps.Nid, sb.ContainerID(), err)
 				continue
 			}
 			sb.addEndpoint(ep)
 		}
 
 		if _, ok := activeSandboxes[sb.ID()]; !ok {
-			logrus.Infof("Removing stale sandbox %s (%s)", sb.id, sb.containerID)
+			log.G(context.TODO()).Infof("Removing stale sandbox %s (%s)", sb.id, sb.containerID)
 			if err := sb.delete(true); err != nil {
-				logrus.Errorf("Failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
+				log.G(context.TODO()).Errorf("Failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
 			}
 			continue
 		}
@@ -260,7 +261,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 		// reconstruct osl sandbox field
 		if !sb.config.useDefaultSandBox {
 			if err := sb.restoreOslSandbox(); err != nil {
-				logrus.Errorf("failed to populate fields for osl sandbox %s: %v", sb.ID(), err)
+				log.G(context.TODO()).Errorf("failed to populate fields for osl sandbox %s: %v", sb.ID(), err)
 				continue
 			}
 		} else {

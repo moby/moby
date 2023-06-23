@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/volume"
-	"github.com/sirupsen/logrus"
 )
 
 // convertOpts are used to pass options to `volumeToAPI`
@@ -69,7 +69,7 @@ func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volu
 			}
 			sz, err := directory.Size(ctx, p)
 			if err != nil {
-				logrus.WithError(err).WithField("volume", v.Name()).Warnf("Failed to determine size of volume")
+				log.G(ctx).WithError(err).WithField("volume", v.Name()).Warnf("Failed to determine size of volume")
 				sz = -1
 			}
 			apiV.UsageData = &volumetypes.UsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}

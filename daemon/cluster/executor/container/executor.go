@@ -160,7 +160,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		if na == nil || na.Network == nil || len(na.Addresses) == 0 {
 			// this should not happen, but we got a panic here and don't have a
 			// good idea about what the underlying data structure looks like.
-			logrus.WithField("NetworkAttachment", fmt.Sprintf("%#v", na)).
+			log.G(ctx).WithField("NetworkAttachment", fmt.Sprintf("%#v", na)).
 				Warnf("skipping nil or malformed node network attachment entry")
 			continue
 		}
@@ -192,7 +192,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			// same thing as above, check sanity of the attachments so we don't
 			// get a panic.
 			if na == nil || na.Network == nil || len(na.Addresses) == 0 {
-				logrus.WithField("NetworkAttachment", fmt.Sprintf("%#v", na)).
+				log.G(ctx).WithField("NetworkAttachment", fmt.Sprintf("%#v", na)).
 					Warnf("skipping nil or malformed node network attachment entry")
 				continue
 			}
@@ -301,7 +301,7 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 	var ctlr exec.Controller
 	switch r := t.Spec.GetRuntime().(type) {
 	case *api.TaskSpec_Generic:
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(logrus.Fields{
 			"kind":     r.Generic.Kind,
 			"type_url": r.Generic.Payload.TypeUrl,
 		}).Debug("custom runtime requested")

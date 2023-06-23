@@ -1,6 +1,7 @@
 package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -9,9 +10,9 @@ import (
 
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/cgroups/v3/cgroup1"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/seccomp"
 	"github.com/moby/sys/mountinfo"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -107,7 +108,7 @@ func newV1() *SysInfo {
 
 	sysInfo.cgMounts, err = findCgroupV1Mountpoints()
 	if err != nil {
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 	} else {
 		ops = append(ops,
 			applyMemoryCgroupInfo,

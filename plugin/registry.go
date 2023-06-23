@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/dockerversion"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // scope builds the correct auth scope for the registry client to authorize against
@@ -69,7 +69,7 @@ func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool)
 			// pass to it.
 			// So it is the callers responsibility to retry with this flag set.
 			if httpFallback && ep.URL.Scheme != "http" {
-				logrus.WithField("registryHost", hostname).WithField("endpoint", ep).Debugf("Skipping non-http endpoint")
+				log.G(context.TODO()).WithField("registryHost", hostname).WithField("endpoint", ep).Debugf("Skipping non-http endpoint")
 				continue
 			}
 
@@ -101,7 +101,7 @@ func (pm *Manager) registryHostsFn(auth *registry.AuthConfig, httpFallback bool)
 				),
 			})
 		}
-		logrus.WithField("registryHost", hostname).WithField("hosts", hosts).Debug("Resolved registry hosts")
+		log.G(context.TODO()).WithField("registryHost", hostname).WithField("hosts", hosts).Debug("Resolved registry hosts")
 
 		return hosts, nil
 	}

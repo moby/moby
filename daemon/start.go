@@ -5,13 +5,13 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerStart starts a container.
@@ -53,7 +53,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 		// This is kept for backward compatibility - hostconfig should be passed when
 		// creating a container, not during start.
 		if hostConfig != nil {
-			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and has been removed in Docker 1.12")
+			log.G(ctx).Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and has been removed in Docker 1.12")
 			oldNetworkMode := ctr.HostConfig.NetworkMode
 			if err := daemon.setSecurityOptions(&daemonCfg.Config, ctr, hostConfig); err != nil {
 				return errdefs.InvalidParameter(err)
@@ -128,7 +128,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 				container.SetExitCode(exitUnknown)
 			}
 			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
-				logrus.Errorf("%s: failed saving state on start failure: %v", container.ID, err)
+				log.G(ctx).Errorf("%s: failed saving state on start failure: %v", container.ID, err)
 			}
 			container.Reset(false)
 
@@ -137,7 +137,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
 				if err := daemon.containerRm(&daemonCfg.Config, container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-					logrus.Errorf("can't remove container %s: %v", container.ID, err)
+					log.G(ctx).Errorf("can't remove container %s: %v", container.ID, err)
 				}
 				container.Lock()
 			}
@@ -189,7 +189,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		container.InitializeStdio)
 	if err != nil {
 		if err := ctr.Delete(context.Background()); err != nil {
-			logrus.WithError(err).WithField("container", container.ID).
+			log.G(ctx).WithError(err).WithField("container", container.ID).
 				Error("failed to delete failed start container")
 		}
 		return setExitCodeFromError(container.SetExitCode, err)
@@ -203,7 +203,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	daemon.initHealthMonitor(container)
 
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
-		logrus.WithError(err).WithField("container", container.ID).
+		log.G(ctx).WithError(err).WithField("container", container.ID).
 			Errorf("failed to store container")
 	}
 
@@ -220,14 +220,14 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 	// released while the container still exists.
 	if ctr, ok := container.C8dContainer(); ok {
 		if err := ctr.Delete(context.Background()); err != nil {
-			logrus.Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
+			log.G(context.TODO()).Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
 		}
 	}
 
 	daemon.releaseNetwork(container)
 
 	if err := container.UnmountIpcMount(); err != nil {
-		logrus.Warnf("%s cleanup: failed to unmount IPC: %s", container.ID, err)
+		log.G(context.TODO()).Warnf("%s cleanup: failed to unmount IPC: %s", container.ID, err)
 	}
 
 	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {
@@ -239,11 +239,11 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 	}
 
 	if err := container.UnmountSecrets(); err != nil {
-		logrus.Warnf("%s cleanup: failed to unmount secrets: %s", container.ID, err)
+		log.G(context.TODO()).Warnf("%s cleanup: failed to unmount secrets: %s", container.ID, err)
 	}
 
 	if err := recursiveUnmount(container.Root); err != nil {
-		logrus.WithError(err).WithField("container", container.ID).Warn("Error while cleaning up container resource mounts.")
+		log.G(context.TODO()).WithError(err).WithField("container", container.ID).Warn("Error while cleaning up container resource mounts.")
 	}
 
 	for _, eConfig := range container.ExecCommands.Commands() {
@@ -252,7 +252,7 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 
 	if container.BaseFS != "" {
 		if err := container.UnmountVolumes(daemon.LogVolumeEvent); err != nil {
-			logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
+			log.G(context.TODO()).Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
 		}
 	}
 

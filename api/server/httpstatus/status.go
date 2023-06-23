@@ -1,10 +1,12 @@
 package httpstatus // import "github.com/docker/docker/api/server/httpstatus"
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
@@ -19,7 +21,7 @@ type causer interface {
 // FromError retrieves status code from error message.
 func FromError(err error) int {
 	if err == nil {
-		logrus.WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
+		log.G(context.TODO()).WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
 		return http.StatusInternalServerError
 	}
 
@@ -65,7 +67,7 @@ func FromError(err error) int {
 			return FromError(e.Cause())
 		}
 
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(logrus.Fields{
 			"module":     "api",
 			"error_type": fmt.Sprintf("%T", err),
 		}).Debugf("FIXME: Got an API for which error does not match any expected type!!!: %+v", err)

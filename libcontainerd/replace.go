@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/log"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/types"
@@ -23,7 +23,7 @@ func ReplaceContainer(ctx context.Context, client types.Client, id string, spec 
 		return ctr, err
 	}
 
-	log := logrus.WithContext(ctx).WithField("container", id)
+	log := log.G(ctx).WithContext(ctx).WithField("container", id)
 	log.Debug("A container already exists with the same ID. Attempting to clean up the old container.")
 	ctr, err = client.LoadContainer(ctx, id)
 	if err != nil {

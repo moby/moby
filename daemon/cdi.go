@@ -1,14 +1,15 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/hashicorp/go-multierror"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type cdiHandler struct {
@@ -20,7 +21,7 @@ type cdiHandler struct {
 func RegisterCDIDriver(opts ...cdi.Option) {
 	cache, err := cdi.NewCache(opts...)
 	if err != nil {
-		logrus.WithError(err).Error("CDI registry initialization failed")
+		log.G(context.TODO()).WithError(err).Error("CDI registry initialization failed")
 		// We create a spec updater that always returns an error.
 		// This error will be returned only when a CDI device is requested.
 		// This ensures that daemon startup is not blocked by a CDI registry initialization failure.
@@ -66,7 +67,7 @@ func (c *cdiHandler) injectCDIDevices(s *specs.Spec, dev *deviceInstance) error 
 			// We log the errors that may have been generated while refreshing the CDI registry.
 			// These may be due to malformed specifications or device name conflicts that could be
 			// the cause of an injection failure.
-			logrus.WithError(rerrs).Warning("Refreshing the CDI registry generated errors")
+			log.G(context.TODO()).WithError(rerrs).Warning("Refreshing the CDI registry generated errors")
 		}
 
 		return fmt.Errorf("CDI device injection failed: %w", err)

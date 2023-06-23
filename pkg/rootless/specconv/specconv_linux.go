@@ -1,6 +1,7 @@
 package specconv // import "github.com/docker/docker/pkg/rootless/specconv"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -8,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 )
 
 // ToRootless converts spec to be compatible with "rootless" runc.
@@ -26,13 +27,13 @@ func ToRootless(spec *specs.Spec, v2Controllers []string) error {
 func getCurrentOOMScoreAdj() int {
 	b, err := os.ReadFile("/proc/self/oom_score_adj")
 	if err != nil {
-		logrus.WithError(err).Warn("failed to read /proc/self/oom_score_adj")
+		log.G(context.TODO()).WithError(err).Warn("failed to read /proc/self/oom_score_adj")
 		return 0
 	}
 	s := string(b)
 	i, err := strconv.Atoi(strings.TrimSpace(s))
 	if err != nil {
-		logrus.WithError(err).Warnf("failed to parse /proc/self/oom_score_adj (%q)", s)
+		log.G(context.TODO()).WithError(err).Warnf("failed to parse /proc/self/oom_score_adj (%q)", s)
 		return 0
 	}
 	return i

@@ -11,6 +11,7 @@ import (
 
 	cdcgroups "github.com/containerd/cgroups/v3"
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/log"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/containerd/containerd/pkg/userns"
@@ -30,7 +31,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -651,7 +651,7 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container) 
 						return err
 					}
 					fallback = true
-					logrus.WithField("container", c.ID).WithField("source", m.Source).Warn("Falling back to default propagation for bind source in daemon root")
+					log.G(ctx).WithField("container", c.ID).WithField("source", m.Source).Warn("Falling back to default propagation for bind source in daemon root")
 				}
 				if !fallback {
 					rootpg := mountPropagationMap[s.Linux.RootfsPropagation]
@@ -855,7 +855,7 @@ func withCgroups(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Contain
 
 		if useSystemd {
 			cgroupsPath = parent + ":" + scopePrefix + ":" + c.ID
-			logrus.Debugf("createSpec: cgroupsPath: %s", cgroupsPath)
+			log.G(ctx).Debugf("createSpec: cgroupsPath: %s", cgroupsPath)
 		} else {
 			cgroupsPath = filepath.Join(parent, c.ID)
 		}
@@ -925,11 +925,11 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			for _, deviceMapping := range c.HostConfig.Devices {
 				// issue a warning that custom cgroup permissions are ignored in privileged mode
 				if deviceMapping.CgroupPermissions != "rwm" {
-					logrus.WithField("container", c.ID).Warnf("custom %s permissions for device %s are ignored in privileged mode", deviceMapping.CgroupPermissions, deviceMapping.PathOnHost)
+					log.G(ctx).WithField("container", c.ID).Warnf("custom %s permissions for device %s are ignored in privileged mode", deviceMapping.CgroupPermissions, deviceMapping.PathOnHost)
 				}
 				// issue a warning that the device path already exists via /dev mounting in privileged mode
 				if deviceMapping.PathOnHost == deviceMapping.PathInContainer {
-					logrus.WithField("container", c.ID).Warnf("path in container %s already exists in privileged mode", deviceMapping.PathInContainer)
+					log.G(ctx).WithField("container", c.ID).Warnf("path in container %s already exists in privileged mode", deviceMapping.PathInContainer)
 					continue
 				}
 				d, _, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, "rwm")

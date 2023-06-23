@@ -1,12 +1,14 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -23,7 +25,6 @@ import (
 	"github.com/moby/sys/signal"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // GetContainer looks for a container using the provided information, which could be
@@ -59,7 +60,7 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 		// or consistent w.r.t. the live daemon.containers Store so
 		// while reaching this code path may be indicative of a bug,
 		// it is not _necessarily_ the case.
-		logrus.WithField("prefixOrName", prefixOrName).
+		log.G(context.TODO()).WithField("prefixOrName", prefixOrName).
 			WithField("id", containerID).
 			Debugf("daemon.GetContainer: container is known to daemon.containersReplica but not daemon.containers")
 		return nil, containerNotFound(prefixOrName)
@@ -247,7 +248,7 @@ func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig
 	// Now do platform-specific verification
 	warnings, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, update)
 	for _, w := range warnings {
-		logrus.Warn(w)
+		log.G(context.TODO()).Warn(w)
 	}
 	return warnings, err
 }

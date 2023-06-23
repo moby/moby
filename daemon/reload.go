@@ -1,10 +1,12 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 
+	"github.com/containerd/containerd/log"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/copystructure"
 	"github.com/sirupsen/logrus"
@@ -124,7 +126,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 			NoProxy:    config.MaskCredentials(newCfg.NoProxy),
 		},
 	})
-	logrus.Infof("Reloaded configuration: %s", jsonString)
+	log.G(context.TODO()).Infof("Reloaded configuration: %s", jsonString)
 	daemon.configStore.Store(newCfg)
 	daemon.LogDaemonEventWithAttributes("reload", attributes)
 	return txn.Commit()
@@ -179,8 +181,8 @@ func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(txn *reloadTxn, new
 	// prepare reload event attributes with updatable configurations
 	attributes["max-concurrent-downloads"] = strconv.Itoa(newCfg.MaxConcurrentDownloads)
 	attributes["max-concurrent-uploads"] = strconv.Itoa(newCfg.MaxConcurrentUploads)
-	logrus.Debug("Reset Max Concurrent Downloads: ", attributes["max-concurrent-downloads"])
-	logrus.Debug("Reset Max Concurrent Uploads: ", attributes["max-concurrent-uploads"])
+	log.G(context.TODO()).Debug("Reset Max Concurrent Downloads: ", attributes["max-concurrent-downloads"])
+	log.G(context.TODO()).Debug("Reset Max Concurrent Uploads: ", attributes["max-concurrent-uploads"])
 	return nil
 }
 
@@ -195,7 +197,7 @@ func (daemon *Daemon) reloadMaxDownloadAttempts(txn *reloadTxn, newCfg *configSt
 
 	// prepare reload event attributes with updatable configurations
 	attributes["max-download-attempts"] = strconv.Itoa(newCfg.MaxDownloadAttempts)
-	logrus.Debug("Reset Max Download Attempts: ", attributes["max-download-attempts"])
+	log.G(context.TODO()).Debug("Reset Max Download Attempts: ", attributes["max-download-attempts"])
 	return nil
 }
 
@@ -205,7 +207,7 @@ func (daemon *Daemon) reloadShutdownTimeout(txn *reloadTxn, newCfg *configStore,
 	// update corresponding configuration
 	if conf.IsValueSet("shutdown-timeout") {
 		newCfg.ShutdownTimeout = conf.ShutdownTimeout
-		logrus.Debugf("Reset Shutdown Timeout: %d", newCfg.ShutdownTimeout)
+		log.G(context.TODO()).Debugf("Reset Shutdown Timeout: %d", newCfg.ShutdownTimeout)
 	}
 
 	// prepare reload event attributes with updatable configurations
@@ -278,7 +280,7 @@ func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg *config
 			return nil
 		}
 		// Enable the network diagnostic if the flag is set with a valid port within the range
-		logrus.WithFields(logrus.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
+		log.G(context.TODO()).WithFields(logrus.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
 		daemon.netController.StartDiagnostic(conf.NetworkDiagnosticPort)
 		return nil
 	})

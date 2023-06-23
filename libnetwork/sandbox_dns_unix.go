@@ -4,6 +4,7 @@ package libnetwork
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -12,10 +13,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/etchosts"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -41,19 +42,19 @@ func (sb *Sandbox) startResolver(restore bool) {
 		if !restore {
 			err = sb.rebuildDNS()
 			if err != nil {
-				logrus.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
+				log.G(context.TODO()).Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
 				return
 			}
 		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
 		if err = sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err != nil {
-			logrus.Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
+			log.G(context.TODO()).Errorf("Resolver Setup function failed for container %s, %q", sb.ContainerID(), err)
 			return
 		}
 
 		if err = sb.resolver.Start(); err != nil {
-			logrus.Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+			log.G(context.TODO()).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	})
 }
@@ -130,13 +131,13 @@ func (sb *Sandbox) updateHostsFile(ifaceIPs []string) error {
 
 func (sb *Sandbox) addHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Add(sb.config.hostsPath, recs); err != nil {
-		logrus.Warnf("Failed adding service host entries to the running container: %v", err)
+		log.G(context.TODO()).Warnf("Failed adding service host entries to the running container: %v", err)
 	}
 }
 
 func (sb *Sandbox) deleteHostsEntries(recs []etchosts.Record) {
 	if err := etchosts.Delete(sb.config.hostsPath, recs); err != nil {
-		logrus.Warnf("Failed deleting service host entries to the running container: %v", err)
+		log.G(context.TODO()).Warnf("Failed deleting service host entries to the running container: %v", err)
 	}
 }
 
@@ -213,7 +214,7 @@ func (sb *Sandbox) setupDNS() error {
 			if !os.IsNotExist(err) {
 				return fmt.Errorf("could not copy source resolv.conf file %s to %s: %v", sb.config.originResolvConfPath, sb.config.resolvConfPath, err)
 			}
-			logrus.Infof("%s does not exist, we create an empty resolv.conf for container", sb.config.originResolvConfPath)
+			log.G(context.TODO()).Infof("%s does not exist, we create an empty resolv.conf for container", sb.config.originResolvConfPath)
 			if err := createFile(sb.config.resolvConfPath); err != nil {
 				return err
 			}
@@ -232,7 +233,7 @@ func (sb *Sandbox) setupDNS() error {
 			return err
 		}
 		// No /etc/resolv.conf found: we'll use the default resolvers (Google's Public DNS).
-		logrus.WithField("path", originResolvConfPath).Infof("no resolv.conf found, falling back to defaults")
+		log.G(context.TODO()).WithField("path", originResolvConfPath).Infof("no resolv.conf found, falling back to defaults")
 	}
 
 	var newRC *resolvconf.File
@@ -313,7 +314,7 @@ func (sb *Sandbox) updateDNS(ipv6Enabled bool) error {
 	if len(currHash) > 0 && !bytes.Equal(currHash, currRC.Hash) {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
-		// logrus.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
+		// log.G(ctx).Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
 		return nil
 	}
 

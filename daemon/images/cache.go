@@ -3,11 +3,11 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 
+	"github.com/containerd/containerd/log"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image/cache"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // MakeImageCache creates a stateful image cache.
@@ -24,7 +24,7 @@ func (i *ImageService) MakeImageCache(ctx context.Context, sourceRefs []string) 
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, err
 			}
-			logrus.Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
+			log.G(ctx).Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
 			continue
 		}
 		cache.Populate(img)

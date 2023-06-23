@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
-	"github.com/sirupsen/logrus"
 )
 
 // Service is a registry service. It tracks configuration data such as a list
@@ -85,7 +85,7 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 			// Failed to authenticate; don't continue with (non-TLS) endpoints.
 			return status, token, err
 		}
-		logrus.WithError(err).Infof("Error logging in to endpoint, trying next endpoint")
+		log.G(ctx).WithError(err).Infof("Error logging in to endpoint, trying next endpoint")
 	}
 
 	return "", "", err

@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
@@ -24,7 +26,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
-	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) getDNSSearchSettings(cfg *config.Config, container *container.Container) []string {
@@ -224,7 +225,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		}
 
 		_, alias = path.Split(alias)
-		logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", parent.ID, alias, bridgeSettings.IPAddress)
+		log.G(context.TODO()).Debugf("Update /etc/hosts of %s for alias %s with ip %s", parent.ID, alias, bridgeSettings.IPAddress)
 		sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(
 			parent.ID,
 			alias,
@@ -415,7 +416,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		if err != nil {
 			if daemon.clusterProvider != nil {
 				if err := daemon.clusterProvider.DetachNetwork(id, container.ID); err != nil {
-					logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
+					log.G(context.TODO()).Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
 				}
 			}
 
@@ -532,7 +533,7 @@ func (daemon *Daemon) allocateNetwork(cfg *config.Config, container *container.C
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
 	if err := controller.SandboxDestroy(container.ID); err != nil {
-		logrus.WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
+		log.G(context.TODO()).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
 	}
 
 	if container.Config.NetworkDisabled || container.HostConfig.NetworkMode.IsContainer() {
@@ -780,7 +781,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 	defer func() {
 		if err != nil {
 			if e := ep.Delete(false); e != nil {
-				logrus.Warnf("Could not rollback container connection to network %s", idOrName)
+				log.G(context.TODO()).Warnf("Could not rollback container connection to network %s", idOrName)
 			}
 		}
 	}()
@@ -935,9 +936,9 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n li
 func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network libnetwork.Network, container *container.Container) {
 	if daemon.clusterProvider != nil && network.Info().Dynamic() && !container.Managed {
 		if err := daemon.clusterProvider.DetachNetwork(network.Name(), container.ID); err != nil {
-			logrus.Warnf("error detaching from network %s: %v", network.Name(), err)
+			log.G(context.TODO()).Warnf("error detaching from network %s: %v", network.Name(), err)
 			if err := daemon.clusterProvider.DetachNetwork(network.ID(), container.ID); err != nil {
-				logrus.Warnf("error detaching from network %s: %v", network.ID(), err)
+				log.G(context.TODO()).Warnf("error detaching from network %s: %v", network.ID(), err)
 			}
 		}
 	}
@@ -1033,12 +1034,12 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	sb, err := daemon.netController.SandboxByID(sid)
 	if err != nil {
-		logrus.Warnf("error locating sandbox id %s: %v", sid, err)
+		log.G(context.TODO()).Warnf("error locating sandbox id %s: %v", sid, err)
 		return
 	}
 
 	if err := sb.Delete(); err != nil {
-		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
+		log.G(context.TODO()).Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
 	}
 
 	for _, nw := range networks {
@@ -1149,7 +1150,7 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 	sb := daemon.getNetworkSandbox(ctr)
 	if sb == nil {
 		// If the network sandbox is not found, then there is nothing to deactivate
-		logrus.Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
+		log.G(context.TODO()).Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
 		return nil
 	}
 	return sb.DisableService()

@@ -3,14 +3,15 @@
 package bridge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -43,7 +44,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 					return fmt.Errorf("failed to remove current ip address from bridge: %v", err)
 				}
 			}
-			logrus.Debugf("Assigning address to bridge interface %s: %s", config.BridgeName, config.AddressIPv4)
+			log.G(context.TODO()).Debugf("Assigning address to bridge interface %s: %s", config.BridgeName, config.AddressIPv4)
 			if err := i.nlh.AddrAdd(i.Link, &netlink.Addr{IPNet: config.AddressIPv4}); err != nil {
 				return &IPv4AddrAddError{IP: config.AddressIPv4, Err: err}
 			}

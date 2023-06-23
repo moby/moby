@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/version"
@@ -63,7 +64,7 @@ func authorizationCredsFromAuthConfig(authConfig registrytypes.AuthConfig) docke
 
 	return docker.WithAuthCreds(func(host string) (string, string, error) {
 		if cfgHost != host {
-			logrus.WithFields(logrus.Fields{
+			log.G(context.TODO()).WithFields(logrus.Fields{
 				"host":    host,
 				"cfgHost": cfgHost,
 			}).Warn("Host doesn't match")

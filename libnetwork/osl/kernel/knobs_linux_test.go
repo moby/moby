@@ -1,9 +1,10 @@
 package kernel
 
 import (
+	"context"
 	"testing"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -17,7 +18,7 @@ func TestReadWriteKnobs(t *testing.T) {
 		// Check if the test is able to read the value
 		v, err := readSystemProperty(k)
 		if err != nil {
-			logrus.WithError(err).Warnf("Path %v not readable", k)
+			log.G(context.TODO()).WithError(err).Warnf("Path %v not readable", k)
 			// the path is not there, skip this key
 			continue
 		}

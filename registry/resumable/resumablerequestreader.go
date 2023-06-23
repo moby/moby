@@ -1,12 +1,13 @@
 package resumable // import "github.com/docker/docker/registry/resumable"
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 type requestReader struct {
@@ -75,7 +76,7 @@ func (r *requestReader) Read(p []byte) (n int, err error) {
 		r.cleanUpResponse()
 	}
 	if err != nil && err != io.EOF {
-		logrus.Infof("encountered error during pull and clearing it before resume: %s", err)
+		log.G(context.TODO()).Infof("encountered error during pull and clearing it before resume: %s", err)
 		err = nil
 	}
 	return n, err

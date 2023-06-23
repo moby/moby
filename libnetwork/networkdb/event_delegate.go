@@ -1,11 +1,12 @@
 package networkdb
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/hashicorp/memberlist"
-	"github.com/sirupsen/logrus"
 )
 
 type eventDelegate struct {
@@ -17,12 +18,12 @@ func (e *eventDelegate) broadcastNodeEvent(addr net.IP, op opType) {
 	if err == nil {
 		e.nDB.broadcaster.Write(makeEvent(op, NodeTable, "", "", value))
 	} else {
-		logrus.Errorf("Error marshalling node broadcast event %s", addr.String())
+		log.G(context.TODO()).Errorf("Error marshalling node broadcast event %s", addr.String())
 	}
 }
 
 func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
-	logrus.Infof("Node %s/%s, joined gossip cluster", mn.Name, mn.Addr)
+	log.G(context.TODO()).Infof("Node %s/%s, joined gossip cluster", mn.Name, mn.Addr)
 	e.broadcastNodeEvent(mn.Addr, opCreate)
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
@@ -39,11 +40,11 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	e.nDB.purgeReincarnation(mn)
 
 	e.nDB.nodes[mn.Name] = &node{Node: *mn}
-	logrus.Infof("Node %s/%s, added to nodes list", mn.Name, mn.Addr)
+	log.G(context.TODO()).Infof("Node %s/%s, added to nodes list", mn.Name, mn.Addr)
 }
 
 func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
-	logrus.Infof("Node %s/%s, left gossip cluster", mn.Name, mn.Addr)
+	log.G(context.TODO()).Infof("Node %s/%s, left gossip cluster", mn.Name, mn.Addr)
 	e.broadcastNodeEvent(mn.Addr, opDelete)
 
 	e.nDB.Lock()
@@ -51,7 +52,7 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 
 	n, currState, _ := e.nDB.findNode(mn.Name)
 	if n == nil {
-		logrus.Errorf("Node %s/%s not found in the node lists", mn.Name, mn.Addr)
+		log.G(context.TODO()).Errorf("Node %s/%s not found in the node lists", mn.Name, mn.Addr)
 		return
 	}
 	// if the node was active means that did not send the leave cluster message, so it's probable that
@@ -59,11 +60,11 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	if currState == nodeActiveState {
 		moved, err := e.nDB.changeNodeState(mn.Name, nodeFailedState)
 		if err != nil {
-			logrus.WithError(err).Errorf("impossible condition, node %s/%s not present in the list", mn.Name, mn.Addr)
+			log.G(context.TODO()).WithError(err).Errorf("impossible condition, node %s/%s not present in the list", mn.Name, mn.Addr)
 			return
 		}
 		if moved {
-			logrus.Infof("Node %s/%s, added to failed nodes list", mn.Name, mn.Addr)
+			log.G(context.TODO()).Infof("Node %s/%s, added to failed nodes list", mn.Name, mn.Addr)
 		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/server/httpstatus"
 	"github.com/docker/docker/api/server/httputils"
@@ -23,7 +24,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/websocket"
 )
 
@@ -706,11 +706,11 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	}
 
 	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {
-		logrus.WithError(err).Errorf("Handler for %s %s returned error", r.Method, r.URL.Path)
+		log.G(ctx).WithError(err).Errorf("Handler for %s %s returned error", r.Method, r.URL.Path)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
 		if errHijack != nil {
-			logrus.WithError(err).Errorf("Handler for %s %s: unable to close stream; error when hijacking connection", r.Method, r.URL.Path)
+			log.G(ctx).WithError(err).Errorf("Handler for %s %s: unable to close stream; error when hijacking connection", r.Method, r.URL.Path)
 		} else {
 			statusCode := httpstatus.FromError(err)
 			statusText := http.StatusText(statusCode)
@@ -780,9 +780,9 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	select {
 	case <-started:
 		if err != nil {
-			logrus.Errorf("Error attaching websocket: %s", err)
+			log.G(ctx).Errorf("Error attaching websocket: %s", err)
 		} else {
-			logrus.Debug("websocket connection was closed by client")
+			log.G(ctx).Debug("websocket connection was closed by client")
 		}
 		return nil
 	default:

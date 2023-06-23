@@ -10,6 +10,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -19,7 +20,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -52,7 +52,7 @@ func (i *ImageService) PrepareSnapshot(ctx context.Context, id string, image str
 }
 
 func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.Image, platform ocispec.Platform) (bool, error) {
-	logger := logrus.WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
+	logger := log.G(ctx).WithField("image", img.ID).WithField("desiredPlatform", platforms.Format(platform))
 
 	ls, leaseErr := i.leases.ListResources(ctx, leases.Lease{ID: imageKey(img.ID().String())})
 	if leaseErr != nil {

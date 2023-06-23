@@ -1,10 +1,12 @@
 package image // import "github.com/docker/docker/image"
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
@@ -68,7 +70,7 @@ func NewImageStore(fs StoreBackend, lss LayerGetReleaser) (Store, error) {
 
 func (is *store) restore() error {
 	// As the code below is run when restoring all images (which can be "many"),
-	// constructing the "logrus.WithFields" is deliberately not "DRY", as the
+	// constructing the "log.G(ctx).WithFields" is deliberately not "DRY", as the
 	// logger is only used for error-cases, and we don't want to do allocations
 	// if we don't need it. The "f" type alias is here is just for convenience,
 	// and to make the code _slightly_ more DRY. See the discussion on GitHub;
@@ -77,19 +79,19 @@ func (is *store) restore() error {
 	err := is.fs.Walk(func(dgst digest.Digest) error {
 		img, err := is.Get(ID(dgst))
 		if err != nil {
-			logrus.WithFields(f{"digest": dgst, "err": err}).Error("invalid image")
+			log.G(context.TODO()).WithFields(f{"digest": dgst, "err": err}).Error("invalid image")
 			return nil
 		}
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
 			if !system.IsOSSupported(img.OperatingSystem()) {
-				logrus.WithFields(f{"chainID": chainID, "os": img.OperatingSystem()}).Error("not restoring image with unsupported operating system")
+				log.G(context.TODO()).WithFields(f{"chainID": chainID, "os": img.OperatingSystem()}).Error("not restoring image with unsupported operating system")
 				return nil
 			}
 			l, err = is.lss.Get(chainID)
 			if err != nil {
 				if errors.Is(err, layer.ErrLayerDoesNotExist) {
-					logrus.WithFields(f{"chainID": chainID, "os": img.OperatingSystem(), "err": err}).Error("not restoring image")
+					log.G(context.TODO()).WithFields(f{"chainID": chainID, "os": img.OperatingSystem(), "err": err}).Error("not restoring image")
 					return nil
 				}
 				return err
@@ -246,7 +248,7 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	}
 
 	if err := is.digestSet.Remove(id.Digest()); err != nil {
-		logrus.Errorf("error removing %s from digest set: %q", id, err)
+		log.G(context.TODO()).Errorf("error removing %s from digest set: %q", id, err)
 	}
 	delete(is.images, id)
 	is.fs.Delete(id.Digest())
@@ -332,7 +334,7 @@ func (is *store) imagesMap(all bool) map[ID]*Image {
 		}
 		img, err := is.Get(id)
 		if err != nil {
-			logrus.Errorf("invalid image access: %q, error: %q", id, err)
+			log.G(context.TODO()).Errorf("invalid image access: %q, error: %q", id, err)
 			continue
 		}
 		images[id] = img

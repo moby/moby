@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func (b *Builder) getArchiver() *archive.Archiver {
@@ -348,7 +348,7 @@ func (b *Builder) probeAndCreate(ctx context.Context, dispatchState *dispatchSta
 }
 
 func (b *Builder) create(ctx context.Context, runConfig *container.Config) (string, error) {
-	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
+	log.G(ctx).Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
 	hostConfig := hostConfigFromOptions(b.options)
 	container, err := b.containerManager.Create(ctx, runConfig, hostConfig)

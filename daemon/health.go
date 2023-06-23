@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -130,7 +130,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	select {
 	case <-tm.C:
 		cancelProbe()
-		logrus.WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
+		log.G(ctx).WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
 		// Wait for probe to exit (it might take some time to call containerd to kill
 		// the process and we don't want dying probes to pile up).
 		<-execErr
@@ -235,7 +235,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	if err := c.CheckpointTo(d.containersReplica); err != nil {
 		// queries will be inconsistent until the next probe runs or other state mutations
 		// checkpoint the container
-		logrus.Errorf("Error replicating health state for container %s: %v", c.ID, err)
+		log.G(context.TODO()).Errorf("Error replicating health state for container %s: %v", c.ID, err)
 	}
 
 	current := h.Status()
@@ -257,10 +257,10 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 
 		select {
 		case <-stop:
-			logrus.Debugf("Stop healthcheck monitoring for container %s (received while idle)", c.ID)
+			log.G(context.TODO()).Debugf("Stop healthcheck monitoring for container %s (received while idle)", c.ID)
 			return
 		case <-intervalTimer.C:
-			logrus.Debugf("Running health check for container %s ...", c.ID)
+			log.G(context.TODO()).Debugf("Running health check for container %s ...", c.ID)
 			startTime := time.Now()
 			ctx, cancelProbe := context.WithCancel(context.Background())
 			results := make(chan *types.HealthcheckResult, 1)
@@ -269,7 +269,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 				result, err := probe.run(ctx, d, c)
 				if err != nil {
 					healthChecksFailedCounter.Inc()
-					logrus.Warnf("Health check for container %s error: %v", c.ID, err)
+					log.G(ctx).Warnf("Health check for container %s error: %v", c.ID, err)
 					results <- &types.HealthcheckResult{
 						ExitCode: -1,
 						Output:   err.Error(),
@@ -278,14 +278,14 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 					}
 				} else {
 					result.Start = startTime
-					logrus.Debugf("Health check for container %s done (exitCode=%d)", c.ID, result.ExitCode)
+					log.G(ctx).Debugf("Health check for container %s done (exitCode=%d)", c.ID, result.ExitCode)
 					results <- result
 				}
 				close(results)
 			}()
 			select {
 			case <-stop:
-				logrus.Debugf("Stop healthcheck monitoring for container %s (received while probing)", c.ID)
+				log.G(ctx).Debugf("Stop healthcheck monitoring for container %s (received while probing)", c.ID)
 				cancelProbe()
 				// Wait for probe to exit (it might take a while to respond to the TERM
 				// signal and we don't want dying probes to pile up).
@@ -314,7 +314,7 @@ func getProbe(c *container.Container) probe {
 	case "NONE":
 		return nil
 	default:
-		logrus.Warnf("Unknown healthcheck type '%s' (expected 'CMD') in container %s", config.Test[0], c.ID)
+		log.G(context.TODO()).Warnf("Unknown healthcheck type '%s' (expected 'CMD') in container %s", config.Test[0], c.ID)
 		return nil
 	}
 }

@@ -3,7 +3,9 @@
 package platform // import "github.com/docker/docker/pkg/platform"
 
 import (
-	"github.com/sirupsen/logrus"
+	"context"
+
+	"github.com/containerd/containerd/log"
 )
 
 // Architecture holds the runtime architecture of the process.
@@ -19,6 +21,6 @@ func init() {
 	var err error
 	Architecture, err = runtimeArchitecture()
 	if err != nil {
-		logrus.WithError(err).Error("Could not read system architecture info")
+		log.G(context.TODO()).WithError(err).Error("Could not read system architecture info")
 	}
 }

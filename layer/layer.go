@@ -10,13 +10,14 @@
 package layer // import "github.com/docker/docker/layer"
 
 import (
+	"context"
 	"errors"
 	"io"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -212,7 +213,7 @@ func createChainIDFromParent(parent ChainID, dgsts ...DiffID) ChainID {
 func ReleaseAndLog(ls Store, l Layer) {
 	metadata, err := ls.Release(l)
 	if err != nil {
-		logrus.Errorf("Error releasing layer %s: %v", l.ChainID(), err)
+		log.G(context.TODO()).Errorf("Error releasing layer %s: %v", l.ChainID(), err)
 	}
 	LogReleaseMetadata(metadata)
 }
@@ -221,6 +222,6 @@ func ReleaseAndLog(ls Store, l Layer) {
 // ensure consistent logging for release metadata
 func LogReleaseMetadata(metadatas []Metadata) {
 	for _, metadata := range metadatas {
-		logrus.Infof("Layer %s cleaned up", metadata.ChainID)
+		log.G(context.TODO()).Infof("Layer %s cleaned up", metadata.ChainID)
 	}
 }

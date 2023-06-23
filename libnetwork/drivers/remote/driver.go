@@ -1,9 +1,11 @@
 package remote
 
 import (
+	"context"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -12,7 +14,6 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type driver struct {
@@ -44,11 +45,11 @@ func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {
 		d := newDriver(name, client)
 		c, err := d.(*driver).getCapabilities()
 		if err != nil {
-			logrus.Errorf("error getting capability for %s due to %v", name, err)
+			log.G(context.TODO()).Errorf("error getting capability for %s due to %v", name, err)
 			return
 		}
 		if err = r.RegisterDriver(name, d, *c); err != nil {
-			logrus.Errorf("error registering driver for %s due to %v", name, err)
+			log.G(context.TODO()).Errorf("error registering driver for %s due to %v", name, err)
 		}
 	}
 

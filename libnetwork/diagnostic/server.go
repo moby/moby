@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/internal/caller"
 	"github.com/docker/docker/pkg/stack"
 	"github.com/sirupsen/logrus"
@@ -89,11 +90,11 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 	s.port = port
 
 	if s.enable == 1 {
-		logrus.Info("The server is already up and running")
+		log.G(context.TODO()).Info("The server is already up and running")
 		return
 	}
 
-	logrus.Infof("Starting the diagnostic server listening on %d for commands", port)
+	log.G(context.TODO()).Infof("Starting the diagnostic server listening on %d for commands", port)
 	srv := &http.Server{
 		Addr:              net.JoinHostPort(ip, strconv.Itoa(port)),
 		Handler:           s,
@@ -104,7 +105,7 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 	go func(n *Server) {
 		// Ignore ErrServerClosed that is returned on the Shutdown call
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logrus.Errorf("ListenAndServe error: %s", err)
+			log.G(context.TODO()).Errorf("ListenAndServe error: %s", err)
 			atomic.SwapInt32(&n.enable, 0)
 		}
 	}(s)
@@ -118,7 +119,7 @@ func (s *Server) DisableDiagnostic() {
 	s.srv.Shutdown(context.Background()) //nolint:errcheck
 	s.srv = nil
 	s.enable = 0
-	logrus.Info("Disabling the diagnostic server")
+	log.G(context.TODO()).Info("Disabling the diagnostic server")
 }
 
 // IsDiagnosticEnabled returns true when the debug is enabled
@@ -134,7 +135,7 @@ func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	rsp := WrongCommand("not implemented", fmt.Sprintf("URL path: %s no method implemented check /help\n", r.URL.Path))
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("command not implemented done")
 
 	HTTPReply(w, rsp, json) //nolint:errcheck
@@ -145,7 +146,7 @@ func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("help done")
 
 	n, ok := ctx.(*Server)
@@ -163,7 +164,7 @@ func ready(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("ready done")
 	HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), json) //nolint:errcheck
 }
@@ -173,7 +174,7 @@ func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
+	log := log.G(context.TODO()).WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("stack trace")
 
 	path, err := stack.DumpToFile("/tmp/")
@@ -189,7 +190,7 @@ func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 // DebugHTTPForm helper to print the form url parameters
 func DebugHTTPForm(r *http.Request) {
 	for k, v := range r.Form {
-		logrus.Debugf("Form[%q] = %q\n", k, v)
+		log.G(context.TODO()).Debugf("Form[%q] = %q\n", k, v)
 	}
 }
 

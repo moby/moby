@@ -3,12 +3,14 @@ package libnetwork
 //go:generate protoc -I=. -I=../vendor/ --gogofaster_out=import_path=github.com/docker/docker/libnetwork:. agent.proto
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"sort"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
@@ -17,7 +19,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/go-events"
 	"github.com/gogo/protobuf/proto"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -102,7 +103,7 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 
 	a := c.getAgent()
 	if a == nil {
-		logrus.Debug("Skipping key change as agent is nil")
+		log.G(context.TODO()).Debug("Skipping key change as agent is nil")
 		return nil
 	}
 
@@ -183,16 +184,16 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		err := driver.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc)
 		if err != nil {
-			logrus.Warnf("Failed to update datapath keys in driver %s: %v", name, err)
+			log.G(context.TODO()).Warnf("Failed to update datapath keys in driver %s: %v", name, err)
 			// Attempt to reconfigure keys in case of a update failure
 			// which can arise due to a mismatch of keys
 			// if worker nodes get temporarily disconnected
-			logrus.Warnf("Reconfiguring datapath keys for  %s", name)
+			log.G(context.TODO()).Warnf("Reconfiguring datapath keys for  %s", name)
 			drvCfgEnc := discoverapi.DriverEncryptionConfig{}
 			drvCfgEnc.Keys, drvCfgEnc.Tags = c.getKeys(subsysIPSec)
 			err = driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvCfgEnc)
 			if err != nil {
-				logrus.Warnf("Failed to reset datapath keys in driver %s: %v", name, err)
+				log.G(context.TODO()).Warnf("Failed to reset datapath keys in driver %s: %v", name, err)
 			}
 		}
 		return false
@@ -222,11 +223,11 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 	listen := clusterProvider.GetListenAddress()
 	listenAddr, _, _ := net.SplitHostPort(listen)
 
-	logrus.Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v MTU=%d",
+	log.G(context.TODO()).Infof("Initializing Libnetwork Agent Listen-Addr=%s Local-addr=%s Adv-addr=%s Data-addr=%s Remote-addr-list=%v MTU=%d",
 		listenAddr, bindAddr, advAddr, dataAddr, remoteAddrList, c.Config().NetworkControlPlaneMTU)
 	if advAddr != "" && agent == nil {
 		if err := c.agentInit(listenAddr, bindAddr, advAddr, dataAddr); err != nil {
-			logrus.Errorf("error in agentInit: %v", err)
+			log.G(context.TODO()).Errorf("error in agentInit: %v", err)
 			return err
 		}
 		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -239,7 +240,7 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 
 	if len(remoteAddrList) > 0 {
 		if err := c.agentJoin(remoteAddrList); err != nil {
-			logrus.Errorf("Error in joining gossip cluster : %v(join will be retried in background)", err)
+			log.G(context.TODO()).Errorf("Error in joining gossip cluster : %v(join will be retried in background)", err)
 		}
 	}
 
@@ -299,7 +300,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 		// Consider the MTU remove the IP hdr (IPv4 or IPv6) and the TCP/UDP hdr.
 		// To be on the safe side let's cut 100 bytes
 		netDBConf.PacketBufferSize = (c.Config().NetworkControlPlaneMTU - 100)
-		logrus.Debugf("Control plane MTU: %d will initialize NetworkDB with: %d",
+		log.G(context.TODO()).Debugf("Control plane MTU: %d will initialize NetworkDB with: %d",
 			c.Config().NetworkControlPlaneMTU, netDBConf.PacketBufferSize)
 	}
 	nDB, err := networkdb.New(netDBConf)
@@ -338,7 +339,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
 		if err != nil {
-			logrus.Warnf("Failed to set datapath keys in driver %s: %v", name, err)
+			log.G(context.TODO()).Warnf("Failed to set datapath keys in driver %s: %v", name, err)
 		}
 		return false
 	})
@@ -367,7 +368,7 @@ func (c *Controller) agentDriverNotify(d driverapi.Driver) {
 		BindAddress: agent.bindAddr,
 		Self:        true,
 	}); err != nil {
-		logrus.Warnf("Failed the node discovery in driver: %v", err)
+		log.G(context.TODO()).Warnf("Failed the node discovery in driver: %v", err)
 	}
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}
@@ -376,7 +377,7 @@ func (c *Controller) agentDriverNotify(d driverapi.Driver) {
 	drvEnc.Tags = tags
 
 	if err := d.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc); err != nil {
-		logrus.Warnf("Failed to set datapath keys in driver: %v", err)
+		log.G(context.TODO()).Warnf("Failed to set datapath keys in driver: %v", err)
 	}
 }
 
@@ -452,7 +453,7 @@ func (n *network) Services() map[string]ServiceInfo {
 		var epRec EndpointRecord
 		nid := n.ID()
 		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
-			logrus.Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nid, err)
+			log.G(context.TODO()).Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nid, err)
 			continue
 		}
 		i := n.getController().getLBIndex(epRec.ServiceID, nid, epRec.IngressPorts)
@@ -467,7 +468,7 @@ func (n *network) Services() map[string]ServiceInfo {
 	// relevant info about the endpoint.
 	d, err := n.driver(true)
 	if err != nil {
-		logrus.Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, n.ID(), err)
+		log.G(context.TODO()).Errorf("Could not resolve driver for network %s/%s while fetching services: %v", n.networkType, n.ID(), err)
 		return nil
 	}
 	for _, table := range n.driverTables {
@@ -478,7 +479,7 @@ func (n *network) Services() map[string]ServiceInfo {
 		for key, value := range entries {
 			epID, info := d.DecodeTableEntry(table.name, key, value.Value)
 			if ep, ok := eps[epID]; !ok {
-				logrus.Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
+				log.G(context.TODO()).Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
 			} else {
 				ep.info = info
 				eps[epID] = ep
@@ -607,7 +608,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 
 	sb.service.Lock()
 	defer sb.service.Unlock()
-	logrus.Debugf("addServiceInfoToCluster START for %s %s", ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("addServiceInfoToCluster START for %s %s", ep.svcName, ep.ID())
 
 	// Check that the endpoint is still present on the sandbox before adding it to the service discovery.
 	// This is to handle a race between the EnableService and the sbLeave
@@ -621,7 +622,7 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 	// removed from the list, in this situation the delete will bail out not finding any data to cleanup
 	// and the add will bail out not finding the endpoint on the sandbox.
 	if e := sb.getEndpoint(ep.ID()); e == nil {
-		logrus.Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
+		log.G(context.TODO()).Warnf("addServiceInfoToCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
 
@@ -667,12 +668,12 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 
 	if agent != nil {
 		if err := agent.networkDB.CreateEntry(libnetworkEPTable, n.ID(), ep.ID(), buf); err != nil {
-			logrus.Warnf("addServiceInfoToCluster NetworkDB CreateEntry failed for %s %s err:%s", ep.id, n.id, err)
+			log.G(context.TODO()).Warnf("addServiceInfoToCluster NetworkDB CreateEntry failed for %s %s err:%s", ep.id, n.id, err)
 			return err
 		}
 	}
 
-	logrus.Debugf("addServiceInfoToCluster END for %s %s", ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("addServiceInfoToCluster END for %s %s", ep.svcName, ep.ID())
 
 	return nil
 }
@@ -689,14 +690,14 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 
 	sb.service.Lock()
 	defer sb.service.Unlock()
-	logrus.Debugf("deleteServiceInfoFromCluster from %s START for %s %s", method, ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("deleteServiceInfoFromCluster from %s START for %s %s", method, ep.svcName, ep.ID())
 
 	// Avoid a race w/ with a container that aborts preemptively.  This would
 	// get caught in disableServceInNetworkDB, but we check here to make the
 	// nature of the condition more clear.
 	// See comment in addServiceInfoToCluster()
 	if e := sb.getEndpoint(ep.ID()); e == nil {
-		logrus.Warnf("deleteServiceInfoFromCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
+		log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster suppressing service resolution ep is not anymore in the sandbox %s", ep.ID())
 		return nil
 	}
 
@@ -712,7 +713,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 		// First update the networkDB then locally
 		if fullRemove {
 			if err := agent.networkDB.DeleteEntry(libnetworkEPTable, n.ID(), ep.ID()); err != nil {
-				logrus.Warnf("deleteServiceInfoFromCluster NetworkDB DeleteEntry failed for %s %s err:%s", ep.id, n.id, err)
+				log.G(context.TODO()).Warnf("deleteServiceInfoFromCluster NetworkDB DeleteEntry failed for %s %s err:%s", ep.id, n.id, err)
 			}
 		} else {
 			disableServiceInNetworkDB(agent, n, ep)
@@ -737,7 +738,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 		}
 	}
 
-	logrus.Debugf("deleteServiceInfoFromCluster from %s END for %s %s", method, ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("deleteServiceInfoFromCluster from %s END for %s %s", method, ep.svcName, ep.ID())
 
 	return nil
 }
@@ -745,29 +746,29 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 func disableServiceInNetworkDB(a *agent, n *network, ep *Endpoint) {
 	var epRec EndpointRecord
 
-	logrus.Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())
+	log.G(context.TODO()).Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())
 
 	// Update existing record to indicate that the service is disabled
 	inBuf, err := a.networkDB.GetEntry(libnetworkEPTable, n.ID(), ep.ID())
 	if err != nil {
-		logrus.Warnf("disableServiceInNetworkDB GetEntry failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Warnf("disableServiceInNetworkDB GetEntry failed for %s %s err:%s", ep.id, n.id, err)
 		return
 	}
 	// Should never fail
 	if err := proto.Unmarshal(inBuf, &epRec); err != nil {
-		logrus.Errorf("disableServiceInNetworkDB unmarshal failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Errorf("disableServiceInNetworkDB unmarshal failed for %s %s err:%s", ep.id, n.id, err)
 		return
 	}
 	epRec.ServiceDisabled = true
 	// Should never fail
 	outBuf, err := proto.Marshal(&epRec)
 	if err != nil {
-		logrus.Errorf("disableServiceInNetworkDB marshalling failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Errorf("disableServiceInNetworkDB marshalling failed for %s %s err:%s", ep.id, n.id, err)
 		return
 	}
 	// Send update to the whole cluster
 	if err := a.networkDB.UpdateEntry(libnetworkEPTable, n.ID(), ep.ID(), outBuf); err != nil {
-		logrus.Warnf("disableServiceInNetworkDB UpdateEntry failed for %s %s err:%s", ep.id, n.id, err)
+		log.G(context.TODO()).Warnf("disableServiceInNetworkDB UpdateEntry failed for %s %s err:%s", ep.id, n.id, err)
 	}
 }
 
@@ -789,7 +790,7 @@ func (n *network) addDriverWatches() {
 		go c.handleTableEvents(ch, n.handleDriverTableEvent)
 		d, err := n.driver(false)
 		if err != nil {
-			logrus.Errorf("Could not resolve driver %s while walking driver tabl: %v", n.networkType, err)
+			log.G(context.TODO()).Errorf("Could not resolve driver %s while walking driver tabl: %v", n.networkType, err)
 			return
 		}
 
@@ -802,7 +803,7 @@ func (n *network) addDriverWatches() {
 			return false
 		})
 		if err != nil {
-			logrus.WithError(err).Warn("Error while walking networkdb")
+			log.G(context.TODO()).WithError(err).Warn("Error while walking networkdb")
 		}
 	}
 }
@@ -841,7 +842,7 @@ func (c *Controller) handleTableEvents(ch *events.Channel, fn func(events.Event)
 func (n *network) handleDriverTableEvent(ev events.Event) {
 	d, err := n.driver(false)
 	if err != nil {
-		logrus.Errorf("Could not resolve driver %s while handling driver table event: %v", n.networkType, err)
+		log.G(context.TODO()).Errorf("Could not resolve driver %s while handling driver table event: %v", n.networkType, err)
 		return
 	}
 
@@ -886,12 +887,12 @@ func (c *Controller) handleNodeTableEvent(ev events.Event) {
 	case networkdb.DeleteEvent:
 		value = event.Value
 	case networkdb.UpdateEvent:
-		logrus.Errorf("Unexpected update node table event = %#v", event)
+		log.G(context.TODO()).Errorf("Unexpected update node table event = %#v", event)
 	}
 
 	err := json.Unmarshal(value, &nodeAddr)
 	if err != nil {
-		logrus.Errorf("Error unmarshalling node table event %v", err)
+		log.G(context.TODO()).Errorf("Error unmarshalling node table event %v", err)
 		return
 	}
 	c.processNodeDiscovery([]net.IP{nodeAddr.Addr}, isAdd)
@@ -919,13 +920,13 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 		eid = event.Key
 		value = event.Value
 	default:
-		logrus.Errorf("Unexpected update service table event = %#v", event)
+		log.G(context.TODO()).Errorf("Unexpected update service table event = %#v", event)
 		return
 	}
 
 	err := proto.Unmarshal(value, &epRec)
 	if err != nil {
-		logrus.Errorf("Failed to unmarshal service table value: %v", err)
+		log.G(context.TODO()).Errorf("Failed to unmarshal service table value: %v", err)
 		return
 	}
 
@@ -939,51 +940,51 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 	taskAliases := epRec.TaskAliases
 
 	if containerName == "" || ip == nil {
-		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
+		log.G(context.TODO()).Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
 		return
 	}
 
 	switch ev.(type) {
 	case networkdb.CreateEvent:
-		logrus.Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
+		log.G(context.TODO()).Debugf("handleEpTableEvent ADD %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.addServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed adding service binding for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed adding service binding for %s epRec:%v err:%v", eid, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.addContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed adding container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed adding container name resolution for %s epRec:%v err:%v", eid, epRec, err)
 			}
 		}
 
 	case networkdb.DeleteEvent:
-		logrus.Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
+		log.G(context.TODO()).Debugf("handleEpTableEvent DEL %s R:%v", eid, epRec)
 		if svcID != "" {
 			// This is a remote task part of a service
 			if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, true); err != nil {
-				logrus.Errorf("failed removing service binding for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed removing service binding for %s epRec:%v err:%v", eid, epRec, err)
 				return
 			}
 		} else {
 			// This is a remote container simply attached to an attachable network
 			if err := c.delContainerNameResolution(nid, eid, containerName, taskAliases, ip, "handleEpTableEvent"); err != nil {
-				logrus.Errorf("failed removing container name resolution for %s epRec:%v err:%v", eid, epRec, err)
+				log.G(context.TODO()).Errorf("failed removing container name resolution for %s epRec:%v err:%v", eid, epRec, err)
 			}
 		}
 	case networkdb.UpdateEvent:
-		logrus.Debugf("handleEpTableEvent UPD %s R:%v", eid, epRec)
+		log.G(context.TODO()).Debugf("handleEpTableEvent UPD %s R:%v", eid, epRec)
 		// We currently should only get these to inform us that an endpoint
 		// is disabled.  Report if otherwise.
 		if svcID == "" || !epRec.ServiceDisabled {
-			logrus.Errorf("Unexpected update table event for %s epRec:%v", eid, epRec)
+			log.G(context.TODO()).Errorf("Unexpected update table event for %s epRec:%v", eid, epRec)
 			return
 		}
 		// This is a remote task that is part of a service that is now disabled
 		if err := c.rmServiceBinding(svcName, svcID, nid, eid, containerName, vip, ingressPorts, serviceAliases, taskAliases, ip, "handleEpTableEvent", true, false); err != nil {
-			logrus.Errorf("failed disabling service binding for %s epRec:%v err:%v", eid, epRec, err)
+			log.G(context.TODO()).Errorf("failed disabling service binding for %s epRec:%v err:%v", eid, epRec, err)
 			return
 		}
 	}

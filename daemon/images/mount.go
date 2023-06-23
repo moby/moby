@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Mount sets container.BaseFS
@@ -20,7 +20,7 @@ func (i *ImageService) Mount(ctx context.Context, container *container.Container
 	if err != nil {
 		return err
 	}
-	logrus.WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
+	log.G(ctx).WithField("container", container.ID).Debugf("container mounted via layerStore: %v", dir)
 
 	if container.BaseFS != "" && container.BaseFS != dir {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
@@ -42,7 +42,7 @@ func (i *ImageService) Unmount(ctx context.Context, container *container.Contain
 		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
 	}
 	if err := container.RWLayer.Unmount(); err != nil {
-		logrus.WithField("container", container.ID).WithError(err).Error("error unmounting container")
+		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
 		return err
 	}
 

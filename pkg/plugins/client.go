@@ -9,11 +9,11 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -116,7 +116,7 @@ func (c *Client) CallWithOptions(serviceMethod string, args interface{}, ret int
 	defer body.Close()
 	if ret != nil {
 		if err := json.NewDecoder(body).Decode(&ret); err != nil {
-			logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
+			log.G(context.TODO()).Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
 			return err
 		}
 	}
@@ -140,7 +140,7 @@ func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{})
 	}
 	defer body.Close()
 	if err := json.NewDecoder(body).Decode(&ret); err != nil {
-		logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
+		log.G(context.TODO()).Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
 		return err
 	}
 	return nil
@@ -180,7 +180,7 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool,
 				return nil, err
 			}
 			retries++
-			logrus.Warnf("Unable to connect to plugin: %s%s: %v, retrying in %v", req.URL.Host, req.URL.Path, err, timeOff)
+			log.G(context.TODO()).Warnf("Unable to connect to plugin: %s%s: %v, retrying in %v", req.URL.Host, req.URL.Path, err, timeOff)
 			time.Sleep(timeOff)
 			continue
 		}

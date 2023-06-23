@@ -2,17 +2,18 @@ package container // import "github.com/docker/docker/container"
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -387,7 +388,7 @@ func (v *View) transform(container *Container) *Snapshot {
 		for port, bindings := range container.NetworkSettings.Ports {
 			p, err := nat.ParsePort(port.Port())
 			if err != nil {
-				logrus.WithError(err).Warn("invalid port map")
+				log.G(context.TODO()).WithError(err).Warn("invalid port map")
 				continue
 			}
 			if len(bindings) == 0 {
@@ -400,7 +401,7 @@ func (v *View) transform(container *Container) *Snapshot {
 			for _, binding := range bindings {
 				h, err := nat.ParsePort(binding.HostPort)
 				if err != nil {
-					logrus.WithError(err).Warn("invalid host port map")
+					log.G(context.TODO()).WithError(err).Warn("invalid host port map")
 					continue
 				}
 				snapshot.Ports = append(snapshot.Ports, types.Port{

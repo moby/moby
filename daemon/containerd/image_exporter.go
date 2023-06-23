@@ -9,6 +9,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
@@ -84,14 +85,14 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 			ref = reference.TagNameOnly(ref)
 			opts = append(opts, archive.WithManifest(target, ref.String()))
 
-			logrus.WithFields(logrus.Fields{
+			log.G(ctx).WithFields(logrus.Fields{
 				"target": target,
 				"name":   ref.String(),
 			}).Debug("export image")
 		} else {
 			opts = append(opts, archive.WithManifest(target))
 
-			logrus.WithFields(logrus.Fields{
+			log.G(ctx).WithFields(logrus.Fields{
 				"target": target,
 			}).Debug("export image without name")
 		}
@@ -122,7 +123,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 
 	imgs, err := i.client.Import(ctx, inTar, opts...)
 	if err != nil {
-		logrus.WithError(err).Debug("failed to import image to containerd")
+		log.G(ctx).WithError(err).Debug("failed to import image to containerd")
 		return errdefs.System(err)
 	}
 
@@ -140,7 +141,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 
 		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
-			logger := logrus.WithFields(logrus.Fields{
+			logger := log.G(ctx).WithFields(logrus.Fields{
 				"image":    name,
 				"manifest": platformImg.Target().Digest,
 			})
@@ -213,16 +214,16 @@ func (i *ImageService) getBestDescriptorForExport(ctx context.Context, indexDesc
 			available, _, _, missing, err := containerdimages.Check(ctx, store, mfst, nil)
 			if err != nil {
 				hasMissingManifests = true
-				logrus.WithField("manifest", mfst.Digest).Warn("failed to check manifest's blob availability, won't export")
+				log.G(ctx).WithField("manifest", mfst.Digest).Warn("failed to check manifest's blob availability, won't export")
 				continue
 			}
 
 			if available && len(missing) == 0 {
 				presentManifests = append(presentManifests, mfst)
-				logrus.WithField("manifest", mfst.Digest).Debug("manifest content present, will export")
+				log.G(ctx).WithField("manifest", mfst.Digest).Debug("manifest content present, will export")
 			} else {
 				hasMissingManifests = true
-				logrus.WithFields(logrus.Fields{
+				log.G(ctx).WithFields(logrus.Fields{
 					"manifest": mfst.Digest,
 					"missing":  missing,
 				}).Debug("manifest is missing, won't export")

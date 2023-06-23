@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -135,7 +135,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 	}
 	defer func() {
 		if err := i.unleaseSnapshotsFromDeletedConfigs(context.Background(), possiblyDeletedConfigs); err != nil {
-			logrus.WithError(err).Warn("failed to unlease snapshots")
+			log.G(ctx).WithError(err).Warn("failed to unlease snapshots")
 		}
 	}()
 
@@ -145,7 +145,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 	if prune {
 		parents, err = i.parents(ctx, image.ID(imgID))
 		if err != nil {
-			logrus.WithError(err).Warn("failed to get image parents")
+			log.G(ctx).WithError(err).Warn("failed to get image parents")
 		}
 		sortParentsByAffinity(parents)
 	}
@@ -168,7 +168,7 @@ func (i *ImageService) deleteAll(ctx context.Context, img images.Image, force, p
 		}
 		err = i.imageDeleteHelper(ctx, parent.img, &records, false)
 		if err != nil {
-			logrus.WithError(err).Warn("failed to remove image parent")
+			log.G(ctx).WithError(err).Warn("failed to remove image parent")
 			break
 		}
 		parentID := parent.img.Target.Digest.String()

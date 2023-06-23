@@ -16,6 +16,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/api/types/backend"
@@ -24,7 +25,6 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 /*
@@ -122,14 +122,14 @@ func generateCommitImageConfig(baseConfig ocispec.Image, diffID digest.Digest, o
 	arch := baseConfig.Architecture
 	if arch == "" {
 		arch = runtime.GOARCH
-		logrus.Warnf("assuming arch=%q", arch)
+		log.G(context.TODO()).Warnf("assuming arch=%q", arch)
 	}
 	os := baseConfig.OS
 	if os == "" {
 		os = runtime.GOOS
-		logrus.Warnf("assuming os=%q", os)
+		log.G(context.TODO()).Warnf("assuming os=%q", os)
 	}
-	logrus.Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
+	log.G(context.TODO()).Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
 	return ocispec.Image{
 		Platform: ocispec.Platform{
 			Architecture: arch,
@@ -262,7 +262,7 @@ func applyDiffLayer(ctx context.Context, name string, baseImg ocispec.Image, sn 
 			// NOTE: the snapshotter should be hold by lease. Even
 			// if the cleanup fails, the containerd gc can delete it.
 			if err := sn.Remove(ctx, key); err != nil {
-				logrus.Warnf("failed to cleanup aborted apply %s: %s", key, err)
+				log.G(ctx).Warnf("failed to cleanup aborted apply %s: %s", key, err)
 			}
 		}
 	}()

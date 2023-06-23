@@ -1,14 +1,15 @@
 package cache // import "github.com/docker/docker/daemon/logger/loggerutils/cache"
 
 import (
+	"context"
 	"strconv"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/local"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -91,7 +92,7 @@ func (l *loggerWithCache) ReadLogs(config logger.ReadConfig) *logger.LogWatcher 
 func (l *loggerWithCache) Close() error {
 	err := l.l.Close()
 	if err := l.cache.Close(); err != nil {
-		logrus.WithError(err).Warn("error while shutting cache logger")
+		log.G(context.TODO()).WithError(err).Warn("error while shutting cache logger")
 	}
 	return err
 }

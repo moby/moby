@@ -1,10 +1,11 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
-	"github.com/sirupsen/logrus"
 )
 
 // Health holds the current container health-check state
@@ -59,7 +60,7 @@ func (s *Health) OpenMonitorChannel() chan struct{} {
 	defer s.mu.Unlock()
 
 	if s.stop == nil {
-		logrus.Debug("OpenMonitorChannel")
+		log.G(context.TODO()).Debug("OpenMonitorChannel")
 		s.stop = make(chan struct{})
 		return s.stop
 	}
@@ -72,11 +73,11 @@ func (s *Health) CloseMonitorChannel() {
 	defer s.mu.Unlock()
 
 	if s.stop != nil {
-		logrus.Debug("CloseMonitorChannel: waiting for probe to stop")
+		log.G(context.TODO()).Debug("CloseMonitorChannel: waiting for probe to stop")
 		close(s.stop)
 		s.stop = nil
 		// unhealthy when the monitor has stopped for compatibility reasons
 		s.Health.Status = types.Unhealthy
-		logrus.Debug("CloseMonitorChannel done")
+		log.G(context.TODO()).Debug("CloseMonitorChannel done")
 	}
 }

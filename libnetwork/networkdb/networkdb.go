@@ -11,13 +11,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -269,7 +269,7 @@ func New(c *Config) (*NetworkDB, error) {
 	nDB.indexes[byTable] = iradix.New()
 	nDB.indexes[byNetwork] = iradix.New()
 
-	logrus.Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
+	log.G(context.TODO()).Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
 	if err := nDB.clusterInit(); err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func New(c *Config) (*NetworkDB, error) {
 func (nDB *NetworkDB) Join(members []string) error {
 	nDB.Lock()
 	nDB.bootStrapIP = append([]string(nil), members...)
-	logrus.Infof("The new bootstrap node list is:%v", nDB.bootStrapIP)
+	log.G(context.TODO()).Infof("The new bootstrap node list is:%v", nDB.bootStrapIP)
 	nDB.Unlock()
 	return nDB.clusterJoin(members)
 }
@@ -291,7 +291,7 @@ func (nDB *NetworkDB) Join(members []string) error {
 // stopping timers, canceling goroutines etc.
 func (nDB *NetworkDB) Close() {
 	if err := nDB.clusterLeave(); err != nil {
-		logrus.Errorf("%v(%v) Could not close DB: %v", nDB.config.Hostname, nDB.config.NodeID, err)
+		log.G(context.TODO()).Errorf("%v(%v) Could not close DB: %v", nDB.config.Hostname, nDB.config.NodeID, err)
 	}
 
 	//Avoid (*Broadcaster).run goroutine leak
@@ -640,9 +640,9 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		return fmt.Errorf("failed to send leave network event for %s: %v", nid, err)
 	}
 
-	logrus.Debugf("%v(%v): joined network %s", nDB.config.Hostname, nDB.config.NodeID, nid)
+	log.G(context.TODO()).Debugf("%v(%v): joined network %s", nDB.config.Hostname, nDB.config.NodeID, nid)
 	if _, err := nDB.bulkSync(networkNodes, true); err != nil {
-		logrus.Errorf("Error bulk syncing while joining network %s: %v", nid, err)
+		log.G(context.TODO()).Errorf("Error bulk syncing while joining network %s: %v", nid, err)
 	}
 
 	// Mark the network as being synced
@@ -685,7 +685,7 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 		return fmt.Errorf("could not find network %s while trying to leave", nid)
 	}
 
-	logrus.Debugf("%v(%v): leaving network %s", nDB.config.Hostname, nDB.config.NodeID, nid)
+	log.G(context.TODO()).Debugf("%v(%v): leaving network %s", nDB.config.Hostname, nDB.config.NodeID, nid)
 	n.ltime = ltime
 	n.reapTime = nDB.config.reapNetworkInterval
 	n.leaving = true

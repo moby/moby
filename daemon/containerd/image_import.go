@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
@@ -40,7 +41,7 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	if ref != nil {
 		refString = ref.String()
 	}
-	logger := logrus.WithField("ref", refString)
+	logger := log.G(ctx).WithField("ref", refString)
 
 	ctx, release, err := i.client.WithLease(ctx)
 	if err != nil {

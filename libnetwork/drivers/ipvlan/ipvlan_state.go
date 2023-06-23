@@ -4,10 +4,11 @@
 package ipvlan
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 func (d *driver) network(nid string) *network {
@@ -15,7 +16,7 @@ func (d *driver) network(nid string) *network {
 	n, ok := d.networks[nid]
 	d.Unlock()
 	if !ok {
-		logrus.Errorf("network id %s not found", nid)
+		log.G(context.TODO()).Errorf("network id %s not found", nid)
 	}
 
 	return n

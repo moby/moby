@@ -1,8 +1,8 @@
 package networkdb
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
@@ -67,7 +68,7 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 
 func closeNetworkDBInstances(t *testing.T, dbs []*NetworkDB) {
 	t.Helper()
-	log.Print("Closing DB instances...")
+	log.G(context.TODO()).Print("Closing DB instances...")
 	for _, db := range dbs {
 		db.Close()
 	}
@@ -861,7 +862,7 @@ func TestNetworkDBIslands(t *testing.T) {
 
 	// Now the 3 bootstrap nodes will cleanly leave, and will be properly removed from the other 2 nodes
 	for i := 0; i < 3; i++ {
-		logrus.Infof("node %d leaving", i)
+		log.G(context.TODO()).Infof("node %d leaving", i)
 		dbs[i].Close()
 	}
 
@@ -896,7 +897,7 @@ func TestNetworkDBIslands(t *testing.T) {
 
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := 0; i < 3; i++ {
-		logrus.Infof("node %d coming back", i)
+		log.G(context.TODO()).Infof("node %d coming back", i)
 		conf := *dbs[i].config
 		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		dbs[i] = launchNode(t, conf)

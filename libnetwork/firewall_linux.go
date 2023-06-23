@@ -1,8 +1,10 @@
 package libnetwork
 
 import (
+	"context"
+
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
-	"github.com/sirupsen/logrus"
 )
 
 const userChain = "DOCKER-USER"
@@ -43,18 +45,18 @@ func arrangeUserFilterRule() {
 		iptable := iptables.GetIptable(ipVer)
 		_, err := iptable.NewChain(userChain, iptables.Filter, false)
 		if err != nil {
-			logrus.WithError(err).Warnf("Failed to create %s %v chain", userChain, ipVer)
+			log.G(context.TODO()).WithError(err).Warnf("Failed to create %s %v chain", userChain, ipVer)
 			return
 		}
 
 		if err = iptable.AddReturnRule(userChain); err != nil {
-			logrus.WithError(err).Warnf("Failed to add the RETURN rule for %s %v", userChain, ipVer)
+			log.G(context.TODO()).WithError(err).Warnf("Failed to add the RETURN rule for %s %v", userChain, ipVer)
 			return
 		}
 
 		err = iptable.EnsureJumpRule("FORWARD", userChain)
 		if err != nil {
-			logrus.WithError(err).Warnf("Failed to ensure the jump rule for %s %v", userChain, ipVer)
+			log.G(context.TODO()).WithError(err).Warnf("Failed to ensure the jump rule for %s %v", userChain, ipVer)
 		}
 	}
 }

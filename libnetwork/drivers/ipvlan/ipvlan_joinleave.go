@@ -4,14 +4,15 @@
 package ipvlan
 
 import (
+	"context"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 type staticRoute struct {
@@ -63,7 +64,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			if err := jinfo.AddStaticRoute(defaultRoute.Destination, defaultRoute.RouteType, defaultRoute.NextHop); err != nil {
 				return fmt.Errorf("failed to set an ipvlan l3/l3s mode ipv4 default gateway: %v", err)
 			}
-			logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
+			log.G(context.TODO()).Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
 				ep.addr.IP.String(), n.config.IpvlanMode, n.config.Parent)
 			// If the endpoint has a v6 address, set a v6 default route
 			if ep.addrv6 != nil {
@@ -74,7 +75,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 				if err = jinfo.AddStaticRoute(default6Route.Destination, default6Route.RouteType, default6Route.NextHop); err != nil {
 					return fmt.Errorf("failed to set an ipvlan l3/l3s mode ipv6 default gateway: %v", err)
 				}
-				logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
+				log.G(context.TODO()).Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
 					ep.addrv6.IP.String(), n.config.IpvlanMode, n.config.Parent)
 			}
 		case modeL2:
@@ -92,7 +93,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 				if err != nil {
 					return err
 				}
-				logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
+				log.G(context.TODO()).Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
 					ep.addr.IP.String(), v4gw.String(), n.config.IpvlanMode, n.config.Parent)
 			}
 			// parse and correlate the endpoint v6 address with the available v6 subnets
@@ -109,17 +110,17 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 				if err != nil {
 					return err
 				}
-				logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
+				log.G(context.TODO()).Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
 					ep.addrv6.IP.String(), v6gw.String(), n.config.IpvlanMode, n.config.Parent)
 			}
 		}
 	} else {
 		if len(n.config.Ipv4Subnets) > 0 {
-			logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, IpVlan_Mode: %s, Parent: %s",
+			log.G(context.TODO()).Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, IpVlan_Mode: %s, Parent: %s",
 				ep.addr.IP.String(), n.config.IpvlanMode, n.config.Parent)
 		}
 		if len(n.config.Ipv6Subnets) > 0 {
-			logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s IpVlan_Mode: %s, Parent: %s",
+			log.G(context.TODO()).Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s IpVlan_Mode: %s, Parent: %s",
 				ep.addrv6.IP.String(), n.config.IpvlanMode, n.config.Parent)
 		}
 	}

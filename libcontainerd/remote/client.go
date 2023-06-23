@@ -22,6 +22,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl/v2"
 	"github.com/docker/docker/errdefs"
@@ -75,7 +76,7 @@ func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string,
 	c := &client{
 		client:   cli,
 		stateDir: stateDir,
-		logger:   logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
+		logger:   log.G(ctx).WithField("module", "libcontainerd").WithField("namespace", ns),
 		ns:       ns,
 		backend:  b,
 	}
@@ -597,7 +598,7 @@ func (c *client) waitServe(ctx context.Context) bool {
 			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				return false
 			}
-			logrus.WithError(err).Warn("Error while testing if containerd API is ready")
+			log.G(ctx).WithError(err).Warn("Error while testing if containerd API is ready")
 		}
 
 		if serving {

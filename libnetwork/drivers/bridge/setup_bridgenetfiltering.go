@@ -3,12 +3,13 @@
 package bridge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 // Enumeration type saying which versions of IP protocol to process.
@@ -36,7 +37,7 @@ func setupBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) e
 		if ptherr, ok := err.(*os.PathError); ok {
 			if errno, ok := ptherr.Err.(syscall.Errno); ok && errno == syscall.ENOENT {
 				if isRunningInContainer() {
-					logrus.Warnf("running inside docker container, ignoring missing kernel params: %v", err)
+					log.G(context.TODO()).Warnf("running inside docker container, ignoring missing kernel params: %v", err)
 					err = nil
 				} else {
 					err = errors.New("please ensure that br_netfilter kernel module is loaded")
@@ -63,7 +64,7 @@ func checkBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) e
 		}
 		enabled, err := isPacketForwardingEnabled(ipVer, iface)
 		if err != nil {
-			logrus.Warnf("failed to check %s forwarding: %v", ipVerName, err)
+			log.G(context.TODO()).Warnf("failed to check %s forwarding: %v", ipVerName, err)
 		} else if enabled {
 			enabled, err := getKernelBoolParam(getBridgeNFKernelParam(ipVer))
 			if err != nil || enabled {

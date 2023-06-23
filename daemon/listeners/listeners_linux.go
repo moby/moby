@@ -1,16 +1,17 @@
 package listeners // import "github.com/docker/docker/daemon/listeners"
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"os"
 	"strconv"
 
+	"github.com/containerd/containerd/log"
 	"github.com/coreos/go-systemd/v22/activation"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Init creates new listeners for the server.
@@ -38,7 +39,7 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 				if socketGroup != defaultSocketGroup {
 					return nil, err
 				}
-				logrus.Warnf("could not change group %s to %s: %v", addr, defaultSocketGroup, err)
+				log.G(context.TODO()).Warnf("could not change group %s to %s: %v", addr, defaultSocketGroup, err)
 			}
 			gid = os.Getgid()
 		}
@@ -48,7 +49,7 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		if _, err := homedir.StickRuntimeDirContents([]string{addr}); err != nil {
 			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
-			logrus.WithError(err).Warnf("cannot set sticky bit on socket %s under XDG_RUNTIME_DIR", addr)
+			log.G(context.TODO()).WithError(err).Warnf("cannot set sticky bit on socket %s under XDG_RUNTIME_DIR", addr)
 		}
 		ls = append(ls, l)
 	default:

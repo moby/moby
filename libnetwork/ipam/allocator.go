@@ -1,16 +1,17 @@
 package ipam
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/netip"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipbits"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -67,7 +68,7 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 // If subPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of pool.
 // subPool must be empty if pool is empty.
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	logrus.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
+	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
 
 	parseErr := func(err error) (string, *net.IPNet, map[string]string, error) {
 		return "", nil, nil, types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
@@ -116,7 +117,7 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[
 
 // ReleasePool releases the address pool identified by the passed id
 func (a *Allocator) ReleasePool(poolID string) error {
-	logrus.Debugf("ReleasePool(%s)", poolID)
+	log.G(context.TODO()).Debugf("ReleasePool(%s)", poolID)
 	k := PoolID{}
 	if err := k.FromString(poolID); err != nil {
 		return types.BadRequestErrorf("invalid pool id: %s", poolID)
@@ -225,7 +226,7 @@ func (aSpace *addrSpace) allocatePredefinedPool(ipV6 bool) (netip.Prefix, error)
 
 // RequestAddress returns an address from the specified pool ID
 func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
-	logrus.Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
+	log.G(context.TODO()).Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
 	k := PoolID{}
 	if err := k.FromString(poolID); err != nil {
 		return nil, nil, types.BadRequestErrorf("invalid pool id: %s", poolID)
@@ -285,7 +286,7 @@ func (aSpace *addrSpace) requestAddress(nw, sub netip.Prefix, prefAddress netip.
 
 // ReleaseAddress releases the address from the specified pool ID
 func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
-	logrus.Debugf("ReleaseAddress(%s, %v)", poolID, address)
+	log.G(context.TODO()).Debugf("ReleaseAddress(%s, %v)", poolID, address)
 	k := PoolID{}
 	if err := k.FromString(poolID); err != nil {
 		return types.BadRequestErrorf("invalid pool id: %s", poolID)
@@ -326,7 +327,7 @@ func (aSpace *addrSpace) releaseAddress(nw, sub netip.Prefix, address netip.Addr
 		return ipamapi.ErrIPOutOfRange
 	}
 
-	defer logrus.Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
+	defer log.G(context.TODO()).Debugf("Released address Address:%v Sequence:%s", address, p.addrs)
 
 	return p.addrs.Unset(hostID(address, uint(nw.Bits())))
 }
@@ -337,7 +338,7 @@ func getAddress(base netip.Prefix, bitmask *bitmap.Bitmap, prefAddress netip.Add
 		err     error
 	)
 
-	logrus.Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", base, bitmask, serial, prefAddress)
+	log.G(context.TODO()).Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", base, bitmask, serial, prefAddress)
 
 	if bitmask.Unselected() == 0 {
 		return netip.Addr{}, ipamapi.ErrNoAvailableIPs

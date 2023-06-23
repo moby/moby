@@ -1,9 +1,11 @@
 package remote
 
 import (
+	"context"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/ipams/remote/api"
@@ -11,7 +13,6 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type allocator struct {
@@ -43,13 +44,13 @@ func Register(cb ipamapi.Registerer, pg plugingetter.PluginGetter) error {
 		a := newAllocator(name, client)
 		if cps, err := a.(*allocator).getCapabilities(); err == nil {
 			if err := cb.RegisterIpamDriverWithCapabilities(name, a, cps); err != nil {
-				logrus.Errorf("error registering remote ipam driver %s due to %v", name, err)
+				log.G(context.TODO()).Errorf("error registering remote ipam driver %s due to %v", name, err)
 			}
 		} else {
-			logrus.Infof("remote ipam driver %s does not support capabilities", name)
-			logrus.Debug(err)
+			log.G(context.TODO()).Infof("remote ipam driver %s does not support capabilities", name)
+			log.G(context.TODO()).Debug(err)
 			if err := cb.RegisterIpamDriver(name, a); err != nil {
-				logrus.Errorf("error registering remote ipam driver %s due to %v", name, err)
+				log.G(context.TODO()).Errorf("error registering remote ipam driver %s due to %v", name, err)
 			}
 		}
 	}

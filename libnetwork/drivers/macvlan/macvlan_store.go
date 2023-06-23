@@ -4,15 +4,16 @@
 package macvlan
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -79,7 +80,7 @@ func (d *driver) populateNetworks() error {
 	for _, kvo := range kvol {
 		config := kvo.(*configuration)
 		if _, err = d.createNetwork(config); err != nil {
-			logrus.Warnf("Could not create macvlan network for id %s from persistent state", config.ID)
+			log.G(context.TODO()).Warnf("Could not create macvlan network for id %s from persistent state", config.ID)
 		}
 	}
 
@@ -100,15 +101,15 @@ func (d *driver) populateEndpoints() error {
 		ep := kvo.(*endpoint)
 		n, ok := d.networks[ep.nid]
 		if !ok {
-			logrus.Debugf("Network (%.7s) not found for restored macvlan endpoint (%.7s)", ep.nid, ep.id)
-			logrus.Debugf("Deleting stale macvlan endpoint (%.7s) from store", ep.id)
+			log.G(context.TODO()).Debugf("Network (%.7s) not found for restored macvlan endpoint (%.7s)", ep.nid, ep.id)
+			log.G(context.TODO()).Debugf("Deleting stale macvlan endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale macvlan endpoint (%.7s) from store", ep.id)
+				log.G(context.TODO()).Debugf("Failed to delete stale macvlan endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
 		n.endpoints[ep.id] = ep
-		logrus.Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
+		log.G(context.TODO()).Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
 
 	return nil
@@ -117,7 +118,7 @@ func (d *driver) populateEndpoints() error {
 // storeUpdate used to update persistent macvlan network records as they are created
 func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Warnf("macvlan store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Warnf("macvlan store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 	if err := d.store.PutObjectAtomic(kvObject); err != nil {
@@ -130,7 +131,7 @@ func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 // storeDelete used to delete macvlan records from persistent cache as they are deleted
 func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Debugf("macvlan store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Debugf("macvlan store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 retry:

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/docker/distribution/reference"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -19,7 +20,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
@@ -70,7 +70,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 		if errdefs.IsNotFound(err) && img != nil {
 			po := streamformatter.NewJSONProgressOutput(outStream, false)
 			progress.Messagef(po, "", `WARNING: %s`, err.Error())
-			logrus.WithError(err).WithField("image", image).Warn("ignoring platform mismatch on single-arch image")
+			log.G(ctx).WithError(err).WithField("image", image).Warn("ignoring platform mismatch on single-arch image")
 		} else if err != nil {
 			return err
 		}

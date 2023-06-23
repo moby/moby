@@ -1,15 +1,16 @@
 package v1 // import "github.com/docker/docker/image/v1"
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 // noFallbackMinVersion is the minimum version for which v1compatibility
@@ -58,7 +59,7 @@ func CreateID(v1Image image.V1Image, layerID layer.ChainID, parent digest.Digest
 	if err != nil {
 		return "", err
 	}
-	logrus.Debugf("CreateV1ID %s", configJSON)
+	log.G(context.TODO()).Debugf("CreateV1ID %s", configJSON)
 
 	return digest.FromBytes(configJSON), nil
 }

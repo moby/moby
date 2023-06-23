@@ -1,12 +1,13 @@
 package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/volume"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -94,7 +95,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 	if err != nil {
 		// `GetCapabilities` is a not a required endpoint.
 		// On error assume it's a local-only driver
-		logrus.WithError(err).WithField("driver", a.name).Debug("Volume driver returned an error while trying to query its capabilities, using default capabilities")
+		log.G(context.TODO()).WithError(err).WithField("driver", a.name).Debug("Volume driver returned an error while trying to query its capabilities, using default capabilities")
 		return volume.Capability{Scope: volume.LocalScope}
 	}
 
@@ -105,7 +106,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 
 	cap.Scope = strings.ToLower(cap.Scope)
 	if cap.Scope != volume.LocalScope && cap.Scope != volume.GlobalScope {
-		logrus.WithField("driver", a.Name()).WithField("scope", a.Scope).Warn("Volume driver returned an invalid scope")
+		log.G(context.TODO()).WithField("driver", a.Name()).WithField("scope", a.Scope).Warn("Volume driver returned an invalid scope")
 		cap.Scope = volume.LocalScope
 	}
 

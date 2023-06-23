@@ -1,12 +1,13 @@
 package portallocator
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 type ipMapping map[string]protoMap
@@ -92,7 +93,7 @@ func Get() *PortAllocator {
 func NewInstance() *PortAllocator {
 	start, end, err := getDynamicPortRange()
 	if err != nil {
-		logrus.WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
+		log.G(context.TODO()).WithError(err).Infof("falling back to default port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
 		start, end = defaultPortRangeStart, defaultPortRangeEnd
 	}
 	return &PortAllocator{

@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
@@ -46,7 +47,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -110,7 +110,7 @@ func NewWorker(opt Opt) (*Worker, error) {
 	if err == nil {
 		sm.Register(gs)
 	} else {
-		logrus.Warnf("Could not register builder git source: %s", err)
+		log.G(context.TODO()).Warnf("Could not register builder git source: %s", err)
 	}
 
 	hs, err := http.NewSource(http.Opt{
@@ -120,7 +120,7 @@ func NewWorker(opt Opt) (*Worker, error) {
 	if err == nil {
 		sm.Register(hs)
 	} else {
-		logrus.Warnf("Could not register builder http source: %s", err)
+		log.G(context.TODO()).Warnf("Could not register builder http source: %s", err)
 	}
 
 	ss, err := local.NewSource(local.Opt{
@@ -129,7 +129,7 @@ func NewWorker(opt Opt) (*Worker, error) {
 	if err == nil {
 		sm.Register(ss)
 	} else {
-		logrus.Warnf("Could not register builder local source: %s", err)
+		log.G(context.TODO()).Warnf("Could not register builder local source: %s", err)
 	}
 
 	return &Worker{

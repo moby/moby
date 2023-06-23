@@ -4,6 +4,7 @@
 package local // import "github.com/docker/docker/volume/local"
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,13 +12,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/quota"
 	"github.com/docker/docker/volume"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -62,7 +63,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 	}
 
 	if r.quotaCtl, err = quota.NewControl(r.path); err != nil {
-		logrus.Debugf("No quota support for local volumes in %s: %v", r.path, err)
+		log.G(context.TODO()).Debugf("No quota support for local volumes in %s: %v", r.path, err)
 	}
 
 	for _, d := range dirs {
@@ -340,7 +341,7 @@ func (v *localVolume) loadOpts() error {
 	b, err := os.ReadFile(filepath.Join(v.rootPath, "opts.json"))
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			logrus.WithError(err).Warnf("error while loading volume options for volume: %s", v.name)
+			log.G(context.TODO()).WithError(err).Warnf("error while loading volume options for volume: %s", v.name)
 		}
 		return nil
 	}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
@@ -37,7 +38,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var acceptedPluginFilterTags = map[string]bool{
@@ -384,7 +384,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 	defer waitProgress()
 
 	progressHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		logrus.WithField("mediaType", desc.MediaType).WithField("digest", desc.Digest.String()).Debug("Preparing to push plugin layer")
+		log.G(ctx).WithField("mediaType", desc.MediaType).WithField("digest", desc.Digest.String()).Debug("Preparing to push plugin layer")
 		id := stringid.TruncateID(desc.Digest.String())
 		pj.add(remotes.MakeRefKey(ctx, desc), id)
 		progress.Update(out, id, "Preparing")
@@ -434,14 +434,14 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 		if resolver != nil {
 			pusher, _ := resolver.Pusher(ctx, ref.String())
 			if pusher != nil {
-				logrus.WithField("ref", ref).Debug("Re-attmpting push with http-fallback")
+				log.G(ctx).WithField("ref", ref).Debug("Re-attmpting push with http-fallback")
 				err2 := remotes.PushContent(ctx, pusher, desc, pm.blobStore, nil, nil, func(h images.Handler) images.Handler {
 					return images.Handlers(progressHandler, h)
 				})
 				if err2 == nil {
 					err = nil
 				} else {
-					logrus.WithError(err2).WithField("ref", ref).Debug("Error while attempting push with http-fallback")
+					log.G(ctx).WithError(err2).WithField("ref", ref).Debug("Error while attempting push with http-fallback")
 				}
 			}
 		}
@@ -505,7 +505,7 @@ func buildManifest(ctx context.Context, s content.Manager, config digest.Digest,
 // getManifestDescriptor gets the OCI descriptor for a manifest
 // It will generate a manifest if one does not exist
 func (pm *Manager) getManifestDescriptor(ctx context.Context, p *v2.Plugin) (ocispec.Descriptor, error) {
-	logger := logrus.WithField("plugin", p.Name()).WithField("digest", p.Manifest)
+	logger := log.G(ctx).WithField("plugin", p.Name()).WithField("digest", p.Manifest)
 	if p.Manifest != "" {
 		info, err := pm.blobStore.Info(ctx, p.Manifest)
 		if err == nil {
@@ -579,7 +579,7 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 
 	if p.IsEnabled() {
 		if err := pm.disable(p, c); err != nil {
-			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
+			log.G(context.TODO()).Errorf("failed to disable plugin '%s': %s", p.Name(), err)
 		}
 	}
 

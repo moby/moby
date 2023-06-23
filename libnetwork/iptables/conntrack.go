@@ -4,12 +4,13 @@
 package iptables
 
 import (
+	"context"
 	"errors"
 	"net"
 	"syscall"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -34,7 +35,7 @@ func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []n
 	for _, ipAddress := range ipv4List {
 		flowPurged, err := purgeConntrackState(nlh, syscall.AF_INET, ipAddress)
 		if err != nil {
-			logrus.Warnf("Failed to delete conntrack state for %s: %v", ipAddress, err)
+			log.G(context.TODO()).Warnf("Failed to delete conntrack state for %s: %v", ipAddress, err)
 			continue
 		}
 		totalIPv4FlowPurged += flowPurged
@@ -44,13 +45,13 @@ func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []n
 	for _, ipAddress := range ipv6List {
 		flowPurged, err := purgeConntrackState(nlh, syscall.AF_INET6, ipAddress)
 		if err != nil {
-			logrus.Warnf("Failed to delete conntrack state for %s: %v", ipAddress, err)
+			log.G(context.TODO()).Warnf("Failed to delete conntrack state for %s: %v", ipAddress, err)
 			continue
 		}
 		totalIPv6FlowPurged += flowPurged
 	}
 
-	logrus.Debugf("DeleteConntrackEntries purged ipv4:%d, ipv6:%d", totalIPv4FlowPurged, totalIPv6FlowPurged)
+	log.G(context.TODO()).Debugf("DeleteConntrackEntries purged ipv4:%d, ipv6:%d", totalIPv4FlowPurged, totalIPv6FlowPurged)
 	return totalIPv4FlowPurged, totalIPv6FlowPurged, nil
 }
 
@@ -65,28 +66,28 @@ func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, por
 	for _, port := range ports {
 		filter := &netlink.ConntrackFilter{}
 		if err := filter.AddProtocol(uint8(proto)); err != nil {
-			logrus.Warnf("Failed to delete conntrack state for %s port %d: %v", proto.String(), port, err)
+			log.G(context.TODO()).Warnf("Failed to delete conntrack state for %s port %d: %v", proto.String(), port, err)
 			continue
 		}
 		if err := filter.AddPort(netlink.ConntrackOrigDstPort, port); err != nil {
-			logrus.Warnf("Failed to delete conntrack state for %s port %d: %v", proto.String(), port, err)
+			log.G(context.TODO()).Warnf("Failed to delete conntrack state for %s port %d: %v", proto.String(), port, err)
 			continue
 		}
 
 		v4FlowPurged, err := nlh.ConntrackDeleteFilter(netlink.ConntrackTable, syscall.AF_INET, filter)
 		if err != nil {
-			logrus.Warnf("Failed to delete conntrack state for IPv4 %s port %d: %v", proto.String(), port, err)
+			log.G(context.TODO()).Warnf("Failed to delete conntrack state for IPv4 %s port %d: %v", proto.String(), port, err)
 		}
 		totalIPv4FlowPurged += v4FlowPurged
 
 		v6FlowPurged, err := nlh.ConntrackDeleteFilter(netlink.ConntrackTable, syscall.AF_INET6, filter)
 		if err != nil {
-			logrus.Warnf("Failed to delete conntrack state for IPv6 %s port %d: %v", proto.String(), port, err)
+			log.G(context.TODO()).Warnf("Failed to delete conntrack state for IPv6 %s port %d: %v", proto.String(), port, err)
 		}
 		totalIPv6FlowPurged += v6FlowPurged
 	}
 
-	logrus.Debugf("DeleteConntrackEntriesByPort for %s ports purged ipv4:%d, ipv6:%d", proto.String(), totalIPv4FlowPurged, totalIPv6FlowPurged)
+	log.G(context.TODO()).Debugf("DeleteConntrackEntriesByPort for %s ports purged ipv4:%d, ipv6:%d", proto.String(), totalIPv4FlowPurged, totalIPv6FlowPurged)
 	return nil
 }
 

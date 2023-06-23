@@ -1,11 +1,12 @@
 package service // import "github.com/docker/docker/volume/service"
 
 import (
+	"context"
 	"encoding/json"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -85,7 +86,7 @@ func listMeta(tx *bolt.Tx) []volumeMetadata {
 		var m volumeMetadata
 		if err := json.Unmarshal(v, &m); err != nil {
 			// Just log the error
-			logrus.Errorf("Error while reading volume metadata for volume %q: %v", string(k), err)
+			log.G(context.TODO()).Errorf("Error while reading volume metadata for volume %q: %v", string(k), err)
 			return nil
 		}
 		ls = append(ls, m)

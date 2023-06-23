@@ -1,6 +1,7 @@
 package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
@@ -24,7 +26,6 @@ import (
 	"github.com/moby/sys/sequential"
 	"github.com/moby/sys/symlink"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
@@ -174,7 +175,7 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	// On Linux, this equates to a regular os.Open.
 	rawTar, err := sequential.Open(filename)
 	if err != nil {
-		logrus.Debugf("Error reading embedded tar: %v", err)
+		log.G(context.TODO()).Debugf("Error reading embedded tar: %v", err)
 		return nil, err
 	}
 	defer rawTar.Close()
@@ -183,7 +184,7 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 	if progressOutput != nil {
 		fileInfo, err := rawTar.Stat()
 		if err != nil {
-			logrus.Debugf("Error statting file: %v", err)
+			log.G(context.TODO()).Debugf("Error statting file: %v", err)
 			return nil, err
 		}
 
@@ -280,7 +281,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	}
 	imageJSON, err := os.ReadFile(configPath)
 	if err != nil {
-		logrus.Debugf("Error reading json: %v", err)
+		log.G(context.TODO()).Debugf("Error reading json: %v", err)
 		return err
 	}
 

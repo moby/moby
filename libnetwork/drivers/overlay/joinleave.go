@@ -3,15 +3,16 @@
 package overlay
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"syscall"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
-	"github.com/sirupsen/logrus"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
@@ -95,7 +96,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			continue
 		}
 		if err = jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
-			logrus.Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
+			log.G(context.TODO()).Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
 		}
 	}
 
@@ -109,7 +110,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), false, false, true)
 
 	if err = d.checkEncryption(nid, nil, true, true); err != nil {
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 	}
 
 	buf, err := proto.Marshal(&PeerRecord{
@@ -122,7 +123,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
-		logrus.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
+		log.G(context.TODO()).Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
 	return nil
@@ -130,13 +131,13 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string) {
 	if tablename != ovPeerTable {
-		logrus.Errorf("DecodeTableEntry: unexpected table name %s", tablename)
+		log.G(context.TODO()).Errorf("DecodeTableEntry: unexpected table name %s", tablename)
 		return "", nil
 	}
 
 	var peer PeerRecord
 	if err := proto.Unmarshal(value, &peer); err != nil {
-		logrus.Errorf("DecodeTableEntry: failed to unmarshal peer record for key %s: %v", key, err)
+		log.G(context.TODO()).Errorf("DecodeTableEntry: failed to unmarshal peer record for key %s: %v", key, err)
 		return "", nil
 	}
 
@@ -147,7 +148,7 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 
 func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 	if tableName != ovPeerTable {
-		logrus.Errorf("Unexpected table notification for table %s received", tableName)
+		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}
 
@@ -155,7 +156,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	var peer PeerRecord
 	if err := proto.Unmarshal(value, &peer); err != nil {
-		logrus.Errorf("Failed to unmarshal peer record: %v", err)
+		log.G(context.TODO()).Errorf("Failed to unmarshal peer record: %v", err)
 		return
 	}
 
@@ -167,19 +168,19 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	addr, err := types.ParseCIDR(peer.EndpointIP)
 	if err != nil {
-		logrus.Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
+		log.G(context.TODO()).Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
 		return
 	}
 
 	mac, err := net.ParseMAC(peer.EndpointMAC)
 	if err != nil {
-		logrus.Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
+		log.G(context.TODO()).Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
 		return
 	}
 
 	vtep := net.ParseIP(peer.TunnelEndpointIP)
 	if vtep == nil {
-		logrus.Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
+		log.G(context.TODO()).Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
 		return
 	}
 

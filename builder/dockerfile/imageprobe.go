@@ -3,9 +3,9 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 import (
 	"context"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/sirupsen/logrus"
 )
 
 // ImageProber exposes an Image cache to the Builder. It supports resetting a
@@ -60,11 +60,11 @@ func (c *imageProber) Probe(parentID string, runConfig *container.Config) (strin
 		return "", err
 	}
 	if len(cacheID) == 0 {
-		logrus.Debugf("[BUILDER] Cache miss: %s", runConfig.Cmd)
+		log.G(context.TODO()).Debugf("[BUILDER] Cache miss: %s", runConfig.Cmd)
 		c.cacheBusted = true
 		return "", nil
 	}
-	logrus.Debugf("[BUILDER] Use cached version: %s", runConfig.Cmd)
+	log.G(context.TODO()).Debugf("[BUILDER] Use cached version: %s", runConfig.Cmd)
 	return cacheID, nil
 }
 

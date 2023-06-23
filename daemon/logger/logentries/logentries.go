@@ -3,13 +3,14 @@
 package logentries // import "github.com/docker/docker/daemon/logger/logentries"
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
 	"github.com/bsphere/le_go"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type logentries struct {
@@ -40,7 +41,7 @@ func init() {
 // the context. The supported context configuration variable is
 // logentries-token.
 func New(info logger.Info) (logger.Logger, error) {
-	logrus.WithField("container", info.ContainerID).
+	log.G(context.TODO()).WithField("container", info.ContainerID).
 		WithField("token", info.Config[token]).
 		WithField("line-only", info.Config[lineonly]).
 		Debug("logging driver logentries configured")

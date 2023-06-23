@@ -22,6 +22,7 @@ import (
 
 	// "github.com/docker/docker/api/types/container"
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
@@ -34,7 +35,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a
@@ -154,7 +154,7 @@ This is most likely caused by a bug in the build system that created the fetched
 Please notify the image author to correct the configuration.`,
 					platforms.Format(p), platforms.Format(imgPlat), name,
 				)
-				logrus.WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
+				log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
 			}
 		} else {
 			return nil, err
@@ -257,11 +257,11 @@ func (rl *rolayer) Release() error {
 		return nil
 	}
 	if err := mount.UnmountAll(rl.root, 0); err != nil {
-		logrus.WithError(err).WithField("root", rl.root).Error("failed to unmount ROLayer")
+		log.G(context.TODO()).WithError(err).WithField("root", rl.root).Error("failed to unmount ROLayer")
 		return err
 	}
 	if err := os.Remove(rl.root); err != nil {
-		logrus.WithError(err).WithField("dir", rl.root).Error("failed to remove mount temp dir")
+		log.G(context.TODO()).WithError(err).WithField("dir", rl.root).Error("failed to remove mount temp dir")
 		return err
 	}
 	rl.root = ""
@@ -370,11 +370,11 @@ func (rw *rwlayer) Release() error {
 		return nil
 	}
 	if err := mount.UnmountAll(rw.root, 0); err != nil {
-		logrus.WithError(err).WithField("root", rw.root).Error("failed to unmount ROLayer")
+		log.G(context.TODO()).WithError(err).WithField("root", rw.root).Error("failed to unmount ROLayer")
 		return err
 	}
 	if err := os.Remove(rw.root); err != nil {
-		logrus.WithError(err).WithField("dir", rw.root).Error("failed to remove mount temp dir")
+		log.G(context.TODO()).WithError(err).WithField("dir", rw.root).Error("failed to remove mount temp dir")
 		return err
 	}
 	rw.root = ""

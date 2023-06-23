@@ -4,17 +4,18 @@
 package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"golang.org/x/sys/unix"
 )
 
 func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
 	loopInfo, err := unix.IoctlLoopGetStatus64(int(file.Fd()))
 	if err != nil {
-		logrus.Errorf("Error get loopback backing file: %s", err)
+		log.G(context.TODO()).Errorf("Error get loopback backing file: %s", err)
 		return 0, 0, ErrGetLoopbackBackingFile
 	}
 	return loopInfo.Device, loopInfo.Inode, nil
@@ -23,7 +24,7 @@ func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
 // SetCapacity reloads the size for the loopback device.
 func SetCapacity(file *os.File) error {
 	if err := unix.IoctlSetInt(int(file.Fd()), unix.LOOP_SET_CAPACITY, 0); err != nil {
-		logrus.Errorf("Error loopbackSetCapacity: %s", err)
+		log.G(context.TODO()).Errorf("Error loopbackSetCapacity: %s", err)
 		return ErrSetCapacity
 	}
 	return nil

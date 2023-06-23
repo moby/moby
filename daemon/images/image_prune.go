@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -17,7 +18,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var imagesAcceptedFilters = map[string]bool{
@@ -145,7 +145,7 @@ deleteImagesLoop:
 	}
 
 	if canceled {
-		logrus.Debugf("ImagesPrune operation cancelled: %#v", *rep)
+		log.G(ctx).Debugf("ImagesPrune operation cancelled: %#v", *rep)
 	}
 	i.eventsService.Log("prune", events.ImageEventType, events.Actor{
 		Attributes: map[string]string{
@@ -162,7 +162,7 @@ func imageDeleteFailed(ref string, err error) bool {
 	case errdefs.IsConflict(err), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return true
 	default:
-		logrus.Warnf("failed to prune image %s: %v", ref, err)
+		log.G(context.TODO()).Warnf("failed to prune image %s: %v", ref, err)
 		return true
 	}
 }

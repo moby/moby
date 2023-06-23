@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/util/progress"
@@ -12,7 +13,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func emptyImageConfig() ([]byte, error) {
@@ -97,7 +97,7 @@ func normalizeLayersAndHistory(diffs []digest.Digest, history []ocispec.History,
 	if historyLayers > len(diffs) {
 		// this case shouldn't happen but if it does force set history layers empty
 		// from the bottom
-		logrus.Warn("invalid image config with unaccounted layers")
+		log.G(context.TODO()).Warn("invalid image config with unaccounted layers")
 		historyCopy := make([]ocispec.History, 0, len(history))
 		var l int
 		for _, h := range history {

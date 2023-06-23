@@ -2,12 +2,13 @@ package layer // import "github.com/docker/docker/layer"
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"io"
 	"os"
 
+	"github.com/containerd/containerd/log"
 	"github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -132,9 +133,9 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 
 	defer func() {
 		if err != nil {
-			logrus.Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
+			log.G(context.TODO()).Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
 			if err := tx.Cancel(); err != nil {
-				logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
+				log.G(context.TODO()).Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}
 		}
 	}()

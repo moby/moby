@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/container"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerUnpause unpauses a container
@@ -41,7 +41,7 @@ func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
 	daemon.LogContainerEvent(ctr, "unpause")
 
 	if err := ctr.CheckpointTo(daemon.containersReplica); err != nil {
-		logrus.WithError(err).Warn("could not save container to disk")
+		log.G(context.TODO()).WithError(err).Warn("could not save container to disk")
 	}
 
 	return nil

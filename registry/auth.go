@@ -1,17 +1,18 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // AuthClientID is used the ClientID used for the token server
@@ -74,7 +75,7 @@ func loginV2(authConfig *registry.AuthConfig, endpoint APIEndpoint, userAgent st
 		creds                = loginCredentialStore{authConfig: &credentialAuthConfig}
 	)
 
-	logrus.Debugf("attempting v2 login to registry endpoint %s", endpointStr)
+	log.G(context.TODO()).Debugf("attempting v2 login to registry endpoint %s", endpointStr)
 
 	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
 	if err != nil {

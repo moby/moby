@@ -4,6 +4,7 @@
 package iptables
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -13,8 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/rootless"
-	"github.com/sirupsen/logrus"
 )
 
 // Action signifies the iptable action.
@@ -90,7 +91,7 @@ func (e ChainError) Error() string {
 func detectIptables() {
 	path, err := exec.LookPath("iptables")
 	if err != nil {
-		logrus.WithError(err).Warnf("failed to find iptables")
+		log.G(context.TODO()).WithError(err).Warnf("failed to find iptables")
 		return
 	}
 	iptablesPath = path
@@ -98,14 +99,14 @@ func detectIptables() {
 	// The --wait flag was added in iptables v1.6.0.
 	// TODO remove this check once we drop support for CentOS/RHEL 7, which uses an older version of iptables
 	if out, err := exec.Command(path, "--wait", "-L", "-n").CombinedOutput(); err != nil {
-		logrus.WithError(err).Infof("unable to detect if iptables supports xlock: 'iptables --wait -L -n': `%s`", strings.TrimSpace(string(out)))
+		log.G(context.TODO()).WithError(err).Infof("unable to detect if iptables supports xlock: 'iptables --wait -L -n': `%s`", strings.TrimSpace(string(out)))
 	} else {
 		supportsXlock = true
 	}
 
 	path, err = exec.LookPath("ip6tables")
 	if err != nil {
-		logrus.WithError(err).Warnf("unable to find ip6tables")
+		log.G(context.TODO()).WithError(err).Warnf("unable to find ip6tables")
 	} else {
 		ip6tablesPath = path
 	}
@@ -115,11 +116,11 @@ func initFirewalld() {
 	// When running with RootlessKit, firewalld is running as the root outside our network namespace
 	// https://github.com/moby/moby/issues/43781
 	if rootless.RunningWithRootlessKit() {
-		logrus.Info("skipping firewalld management for rootless mode")
+		log.G(context.TODO()).Info("skipping firewalld management for rootless mode")
 		return
 	}
 	if err := FirewalldInit(); err != nil {
-		logrus.WithError(err).Debugf("unable to initialize firewalld; using raw iptables instead")
+		log.G(context.TODO()).WithError(err).Debugf("unable to initialize firewalld; using raw iptables instead")
 	}
 }
 
@@ -474,7 +475,7 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 	// Flag operations that have taken a long time to complete
 	opTime := time.Since(start)
 	if opTime > opWarnTime {
-		logrus.Warnf("xtables contention detected while running [%s]: Waited for %.2f seconds and received %q", strings.Join(args, " "), float64(opTime)/float64(time.Second), string(output))
+		log.G(context.TODO()).Warnf("xtables contention detected while running [%s]: Waited for %.2f seconds and received %q", strings.Join(args, " "), float64(opTime)/float64(time.Second), string(output))
 	}
 	// ignore iptables' message about xtables lock:
 	// it is a warning, not an error.
@@ -524,7 +525,7 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 		commandName = "ip6tables"
 	}
 
-	logrus.Debugf("%s, %v", path, args)
+	log.G(context.TODO()).Debugf("%s, %v", path, args)
 
 	startTime := time.Now()
 	output, err := exec.Command(path, args...).CombinedOutput()

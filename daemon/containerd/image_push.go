@@ -11,6 +11,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
@@ -21,7 +22,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -48,7 +48,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 	defer func() {
 		err := release(leasedCtx)
 		if err != nil && !cerrdefs.IsNotFound(err) {
-			logrus.WithField("image", targetRef).WithError(err).Error("failed to delete lease created for push")
+			log.G(ctx).WithField("image", targetRef).WithError(err).Error("failed to delete lease created for push")
 		}
 	}()
 
@@ -136,7 +136,7 @@ func (i *ImageService) PushImage(ctx context.Context, targetRef reference.Named,
 		if err := containerdimages.Dispatch(ctx, appendSource, nil, target); err != nil {
 			// Shouldn't happen, but even if it would fail, then make it only a warning
 			// because it doesn't affect the pushed data.
-			logrus.WithError(err).Warn("failed to append distribution source labels to pushed content")
+			log.G(ctx).WithError(err).Warn("failed to append distribution source labels to pushed content")
 		}
 	}
 
@@ -157,7 +157,7 @@ func findMissingMountable(ctx context.Context, store content.Store, queue *jobs,
 		if !errdefs.IsNotFound(err) {
 			return nil, err
 		}
-		logrus.WithField("target", target).Debug("distribution source label not found")
+		log.G(ctx).WithField("target", target).Debug("distribution source label not found")
 		return mountableBlobs, nil
 	}
 

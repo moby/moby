@@ -4,11 +4,12 @@
 package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"golang.org/x/sys/unix"
 )
 
@@ -43,20 +44,20 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 		fi, err := os.Stat(target)
 		if err != nil {
 			if os.IsNotExist(err) {
-				logrus.Error("There are no more loopback devices available.")
+				log.G(context.TODO()).Error("There are no more loopback devices available.")
 			}
 			return nil, ErrAttachLoopbackDevice
 		}
 
 		if fi.Mode()&os.ModeDevice != os.ModeDevice {
-			logrus.Errorf("Loopback device %s is not a block device.", target)
+			log.G(context.TODO()).Errorf("Loopback device %s is not a block device.", target)
 			continue
 		}
 
 		// OpenFile adds O_CLOEXEC
 		loopFile, err = os.OpenFile(target, os.O_RDWR, 0644)
 		if err != nil {
-			logrus.Errorf("Error opening loopback device: %s", err)
+			log.G(context.TODO()).Errorf("Error opening loopback device: %s", err)
 			return nil, ErrAttachLoopbackDevice
 		}
 
@@ -66,7 +67,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 
 			// If the error is EBUSY, then try the next loopback
 			if err != unix.EBUSY {
-				logrus.Errorf("Cannot set up loopback device %s: %s", target, err)
+				log.G(context.TODO()).Errorf("Cannot set up loopback device %s: %s", target, err)
 				return nil, ErrAttachLoopbackDevice
 			}
 
@@ -79,7 +80,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 
 	// This can't happen, but let's be sure
 	if loopFile == nil {
-		logrus.Errorf("Unreachable code reached! Error attaching %s to a loopback device.", sparseFile.Name())
+		log.G(context.TODO()).Errorf("Unreachable code reached! Error attaching %s to a loopback device.", sparseFile.Name())
 		return nil, ErrAttachLoopbackDevice
 	}
 
@@ -94,13 +95,13 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	// loopback from index 0.
 	startIndex, err := getNextFreeLoopbackIndex()
 	if err != nil {
-		logrus.Debugf("Error retrieving the next available loopback: %s", err)
+		log.G(context.TODO()).Debugf("Error retrieving the next available loopback: %s", err)
 	}
 
 	// OpenFile adds O_CLOEXEC
 	sparseFile, err := os.OpenFile(sparseName, os.O_RDWR, 0644)
 	if err != nil {
-		logrus.Errorf("Error opening sparse file %s: %s", sparseName, err)
+		log.G(context.TODO()).Errorf("Error opening sparse file %s: %s", sparseName, err)
 		return nil, ErrAttachLoopbackDevice
 	}
 	defer sparseFile.Close()
@@ -118,11 +119,11 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	}
 
 	if err = unix.IoctlLoopSetStatus64(int(loopFile.Fd()), loopInfo); err != nil {
-		logrus.Errorf("Cannot set up loopback device info: %s", err)
+		log.G(context.TODO()).Errorf("Cannot set up loopback device info: %s", err)
 
 		// If the call failed, then free the loopback device
 		if err = unix.IoctlSetInt(int(loopFile.Fd()), unix.LOOP_CLR_FD, 0); err != nil {
-			logrus.Error("Error while cleaning up the loopback device")
+			log.G(context.TODO()).Error("Error while cleaning up the loopback device")
 		}
 		loopFile.Close()
 		return nil, ErrAttachLoopbackDevice

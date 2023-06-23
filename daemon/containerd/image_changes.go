@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/google/uuid"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 func (i *ImageService) Changes(ctx context.Context, container *container.Container) ([]archive.Change, error) {
@@ -54,7 +54,7 @@ func (i *ImageService) Changes(ctx context.Context, container *container.Contain
 	}
 	defer func() {
 		if err := snapshotter.Remove(ctx, rnd.String()); err != nil {
-			logrus.WithError(err).WithField("key", rnd.String()).Warn("remove temporary snapshot")
+			log.G(ctx).WithError(err).WithField("key", rnd.String()).Warn("remove temporary snapshot")
 		}
 	}()
 

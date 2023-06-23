@@ -1,6 +1,7 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"io"
@@ -8,9 +9,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/sirupsen/logrus"
 )
 
 // v1PingResult contains the information returned when pinging a registry. It
@@ -55,7 +56,7 @@ func newV1Endpoint(index *registry.IndexInfo, headers http.Header) (*v1Endpoint,
 }
 
 func validateEndpoint(endpoint *v1Endpoint) error {
-	logrus.Debugf("pinging registry endpoint %s", endpoint)
+	log.G(context.TODO()).Debugf("pinging registry endpoint %s", endpoint)
 
 	// Try HTTPS ping to registry
 	endpoint.URL.Scheme = "https"
@@ -67,7 +68,7 @@ func validateEndpoint(endpoint *v1Endpoint) error {
 		}
 
 		// If registry is insecure and HTTPS failed, fallback to HTTP.
-		logrus.WithError(err).Debugf("error from registry %q marked as insecure - insecurely falling back to HTTP", endpoint)
+		log.G(context.TODO()).WithError(err).Debugf("error from registry %q marked as insecure - insecurely falling back to HTTP", endpoint)
 		endpoint.URL.Scheme = "http"
 
 		var err2 error
@@ -138,7 +139,7 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		return v1PingResult{}, nil
 	}
 
-	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
+	log.G(context.TODO()).Debugf("attempting v1 ping for registry endpoint %s", e)
 	pingURL := e.String() + "_ping"
 	req, err := http.NewRequest(http.MethodGet, pingURL, nil)
 	if err != nil {
@@ -163,13 +164,13 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		Standalone: true,
 	}
 	if err := json.Unmarshal(jsonString, &info); err != nil {
-		logrus.WithError(err).Debug("error unmarshaling _ping response")
+		log.G(context.TODO()).WithError(err).Debug("error unmarshaling _ping response")
 		// don't stop here. Just assume sane defaults
 	}
 	if hdr := resp.Header.Get("X-Docker-Registry-Version"); hdr != "" {
 		info.Version = hdr
 	}
-	logrus.Debugf("v1PingResult.Version: %q", info.Version)
+	log.G(context.TODO()).Debugf("v1PingResult.Version: %q", info.Version)
 
 	standalone := resp.Header.Get("X-Docker-Registry-Standalone")
 
@@ -180,6 +181,6 @@ func (e *v1Endpoint) ping() (v1PingResult, error) {
 		// there is a header set, and it is not "true" or "1", so assume fails
 		info.Standalone = false
 	}
-	logrus.Debugf("v1PingResult.Standalone: %t", info.Standalone)
+	log.G(context.TODO()).Debugf("v1PingResult.Standalone: %t", info.Standalone)
 	return info, nil
 }

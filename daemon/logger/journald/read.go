@@ -3,15 +3,15 @@
 package journald // import "github.com/docker/docker/daemon/logger/journald"
 
 import (
+	"context"
 	"errors"
 	"runtime"
 	"strconv"
 	"sync/atomic"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/coreos/go-systemd/v22/journal"
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/journald/internal/sdjournal"
@@ -238,7 +238,7 @@ func (r *reader) drainJournal() error {
 		if i != 0 && i%1024 == 0 {
 			if _, err := r.j.Process(); err != nil {
 				// log a warning but ignore it for now
-				logrus.WithField("container", r.s.vars[fieldContainerIDFull]).
+				log.G(context.TODO()).WithField("container", r.s.vars[fieldContainerIDFull]).
 					WithField("error", err).
 					Warn("journald: error processing journal")
 			}
@@ -447,7 +447,7 @@ func waitUntilFlushedImpl(s *journald) error {
 				return
 			}
 		}
-		logrus.WithField("container", s.vars[fieldContainerIDFull]).
+		log.G(context.TODO()).WithField("container", s.vars[fieldContainerIDFull]).
 			Warn("journald: deadline exceeded waiting for logs to be committed to journal")
 	}()
 	return <-flushed

@@ -19,8 +19,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/remotes/docker"
@@ -69,7 +72,6 @@ import (
 	resolverconfig "github.com/moby/buildkit/util/resolver/config"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
@@ -258,7 +260,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 	var mapLock sync.Mutex
 	containers := make(map[string]*container.Container)
 
-	logrus.Info("Loading containers: start.")
+	log.G(context.TODO()).Info("Loading containers: start.")
 
 	dir, err := os.ReadDir(daemon.repository)
 	if err != nil {
@@ -283,7 +285,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := logrus.WithField("container", id)
+			log := log.G(context.TODO()).WithField("container", id)
 
 			c, err := daemon.load(id)
 			if err != nil {
@@ -326,7 +328,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := logrus.WithField("container", c.ID)
+			log := log.G(context.TODO()).WithField("container", c.ID)
 
 			if err := daemon.registerName(c); err != nil {
 				log.WithError(err).Errorf("failed to register container name: %s", c.Name)
@@ -353,7 +355,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 			defer sem.Release(1)
 
-			log := logrus.WithField("container", c.ID)
+			log := log.G(context.TODO()).WithField("container", c.ID)
 
 			if err := daemon.checkpointAndSave(c); err != nil {
 				log.WithError(err).Error("error saving backported mountspec to disk")
@@ -541,7 +543,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.registerLinks(c, c.HostConfig); err != nil {
-				logrus.WithField("container", c.ID).WithError(err).Error("failed to register link for container")
+				log.G(context.TODO()).WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
 
 			sem.Release(1)
@@ -555,7 +557,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 		go func(c *container.Container, chNotify chan struct{}) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			log := logrus.WithField("container", c.ID)
+			log := log.G(context.TODO()).WithField("container", c.ID)
 
 			log.Debug("starting container")
 
@@ -594,7 +596,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.containerRm(&cfg.Config, cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-				logrus.WithField("container", cid).WithError(err).Error("failed to remove container")
+				log.G(context.TODO()).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 
 			sem.Release(1)
@@ -625,7 +627,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			_ = sem.Acquire(context.Background(), 1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
-				logrus.WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
+				log.G(context.TODO()).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
 
 			sem.Release(1)
@@ -634,7 +636,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 	}
 	group.Wait()
 
-	logrus.Info("Loading containers: done.")
+	log.G(context.TODO()).Info("Loading containers: done.")
 
 	return nil
 }
@@ -671,7 +673,7 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 					}
 
 					if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
-						logrus.WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
+						log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 					}
 
 					sem.Release(1)
@@ -697,7 +699,7 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
 		if errors.Is(err, container.ErrNameReserved) {
-			logrus.Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
+			log.G(context.TODO()).Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
 			return nil
 		}
 		return err
@@ -735,10 +737,10 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 		select {
 		case <-done:
 		case <-timeout.C:
-			logrus.Warn("timeout while waiting for ingress network removal")
+			log.G(context.TODO()).Warn("timeout while waiting for ingress network removal")
 		}
 	} else {
-		logrus.Warnf("failed to initiate ingress network removal: %v", err)
+		log.G(context.TODO()).Warnf("failed to initiate ingress network removal: %v", err)
 	}
 
 	daemon.attachmentStore.ClearAttachments()
@@ -773,7 +775,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Ensure that we have a correct root key limit for launching containers.
 	if err := modifyRootKeyLimit(); err != nil {
-		logrus.Warnf("unable to modify root key limit, number of containers could be limited by this quota: %v", err)
+		log.G(ctx).Warnf("unable to modify root key limit, number of containers could be limited by this quota: %v", err)
 	}
 
 	// Ensure we have compatible and valid configuration options
@@ -793,7 +795,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	rootIDs := idMapping.RootPair()
 	if err := setMayDetachMounts(); err != nil {
-		logrus.WithError(err).Warn("Could not set may_detach_mounts kernel parameter")
+		log.G(ctx).WithError(err).Warn("Could not set may_detach_mounts kernel parameter")
 	}
 
 	// set up the tmpDir to use a canonical path
@@ -846,7 +848,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err != nil {
 			// Use a fresh context here. Passed context could be cancelled.
 			if err := d.Shutdown(context.Background()); err != nil {
-				logrus.Error(err)
+				log.G(ctx).Error(err)
 			}
 		}
 	}()
@@ -872,12 +874,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if err := configureMaxThreads(&configStore.Config); err != nil {
-		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
+		log.G(ctx).Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
 	// ensureDefaultAppArmorProfile does nothing if apparmor is disabled
 	if err := ensureDefaultAppArmorProfile(); err != nil {
-		logrus.Errorf(err.Error())
+		log.G(ctx).Errorf(err.Error())
 	}
 
 	daemonRepo := filepath.Join(configStore.Root, "containers")
@@ -988,7 +990,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set log opts")
 	}
-	logrus.Debugf("Using default logging driver %s", d.defaultLogConfig.Type)
+	log.G(ctx).Debugf("Using default logging driver %s", d.defaultLogConfig.Type)
 
 	d.volumes, err = volumesservice.NewVolumeService(configStore.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
@@ -1033,16 +1035,16 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if isWindows {
 		driverName = "windowsfilter"
 	} else if driverName != "" {
-		logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
+		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 	} else {
 		driverName = configStore.GraphDriver
 	}
 
 	if d.UsesSnapshotter() {
 		if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
-			logrus.Warn("Enabling containerd snapshotter through the $TEST_INTEGRATION_USE_SNAPSHOTTER environment variable. This should only be used for testing.")
+			log.G(ctx).Warn("Enabling containerd snapshotter through the $TEST_INTEGRATION_USE_SNAPSHOTTER environment variable. This should only be used for testing.")
 		}
-		logrus.Info("Starting daemon with containerd snapshotter integration enabled")
+		log.G(ctx).Info("Starting daemon with containerd snapshotter integration enabled")
 
 		// FIXME(thaJeztah): implement automatic snapshotter-selection similar to graph-driver selection; see https://github.com/moby/moby/issues/44076
 		if driverName == "" {
@@ -1150,9 +1152,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// if migration is called from daemon/images. layerStore might move as well.
 		d.imageService = images.NewImageService(imgSvcConfig)
 
-		logrus.Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
-		logrus.Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
-		logrus.Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
+		log.G(ctx).Debugf("Max Concurrent Downloads: %d", imgSvcConfig.MaxConcurrentDownloads)
+		log.G(ctx).Debugf("Max Concurrent Uploads: %d", imgSvcConfig.MaxConcurrentUploads)
+		log.G(ctx).Debugf("Max Download Attempts: %d", imgSvcConfig.MaxDownloadAttempts)
 	}
 
 	go d.execCommandGC()
@@ -1168,7 +1170,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	info := d.SystemInfo()
 	for _, w := range info.Warnings {
-		logrus.Warn(w)
+		log.G(ctx).Warn(w)
 	}
 
 	engineInfo.WithValues(
@@ -1185,7 +1187,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	engineCpus.Set(float64(info.NCPU))
 	engineMemory.Set(float64(info.MemTotal))
 
-	logrus.WithFields(logrus.Fields{
+	log.G(ctx).WithFields(logrus.Fields{
 		"version":     dockerversion.Version,
 		"commit":      dockerversion.GitCommit,
 		"graphdriver": d.ImageService().StorageDriver(),
@@ -1265,13 +1267,13 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	}
 
 	if daemon.containers != nil {
-		logrus.Debugf("daemon configured with a %d seconds minimum shutdown timeout", cfg.ShutdownTimeout)
-		logrus.Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.shutdownTimeout(cfg))
+		log.G(ctx).Debugf("daemon configured with a %d seconds minimum shutdown timeout", cfg.ShutdownTimeout)
+		log.G(ctx).Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.shutdownTimeout(cfg))
 		daemon.containers.ApplyAll(func(c *container.Container) {
 			if !c.IsRunning() {
 				return
 			}
-			log := logrus.WithField("container", c.ID)
+			log := log.G(ctx).WithField("container", c.ID)
 			log.Debug("shutting down container")
 			if err := daemon.shutdownContainer(c); err != nil {
 				log.WithError(err).Error("failed to shut down container")
@@ -1286,19 +1288,19 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 
 	if daemon.volumes != nil {
 		if err := daemon.volumes.Shutdown(); err != nil {
-			logrus.Errorf("Error shutting down volume store: %v", err)
+			log.G(ctx).Errorf("Error shutting down volume store: %v", err)
 		}
 	}
 
 	if daemon.imageService != nil {
 		if err := daemon.imageService.Cleanup(); err != nil {
-			logrus.Error(err)
+			log.G(ctx).Error(err)
 		}
 	}
 
 	// If we are part of a cluster, clean up cluster's stuff
 	if daemon.clusterProvider != nil {
-		logrus.Debugf("start clean shutdown of cluster resources...")
+		log.G(ctx).Debugf("start clean shutdown of cluster resources...")
 		daemon.DaemonLeavesCluster()
 	}
 
@@ -1368,13 +1370,13 @@ func prepareTempDir(rootDir string) (string, error) {
 		if err := os.Rename(tmpDir, newName); err == nil {
 			go func() {
 				if err := os.RemoveAll(newName); err != nil {
-					logrus.Warnf("failed to delete old tmp directory: %s", newName)
+					log.G(context.TODO()).Warnf("failed to delete old tmp directory: %s", newName)
 				}
 			}()
 		} else if !os.IsNotExist(err) {
-			logrus.Warnf("failed to rename %s for background deletion: %s. Deleting synchronously", tmpDir, err)
+			log.G(context.TODO()).Warnf("failed to rename %s for background deletion: %s. Deleting synchronously", tmpDir, err)
 			if err := os.RemoveAll(tmpDir); err != nil {
-				logrus.Warnf("failed to delete old tmp directory: %s", tmpDir)
+				log.G(context.TODO()).Warnf("failed to delete old tmp directory: %s", tmpDir)
 			}
 		}
 	}

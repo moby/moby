@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -132,7 +132,7 @@ func (cli *DaemonCli) initContainerd(ctx context.Context) (func(time.Duration) e
 		return nil, nil
 	}
 
-	logrus.Info("containerd not running, starting managed containerd")
+	log.G(ctx).Info("containerd not running, starting managed containerd")
 	opts, err := cli.getContainerdDaemonOpts()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate containerd options")

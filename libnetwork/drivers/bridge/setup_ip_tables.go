@@ -3,13 +3,14 @@
 package bridge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -46,7 +47,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (*iptables.
 	defer func() {
 		if err != nil {
 			if err := iptable.RemoveExistingChain(DockerChain, iptables.Nat); err != nil {
-				logrus.Warnf("failed on removing iptables NAT chain %s on cleanup: %v", DockerChain, err)
+				log.G(context.TODO()).Warnf("failed on removing iptables NAT chain %s on cleanup: %v", DockerChain, err)
 			}
 		}
 	}()
@@ -58,7 +59,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (*iptables.
 	defer func() {
 		if err != nil {
 			if err := iptable.RemoveExistingChain(DockerChain, iptables.Filter); err != nil {
-				logrus.Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerChain, err)
+				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerChain, err)
 			}
 		}
 	}()
@@ -70,7 +71,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (*iptables.
 	defer func() {
 		if err != nil {
 			if err := iptable.RemoveExistingChain(IsolationChain1, iptables.Filter); err != nil {
-				logrus.Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain1, err)
+				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain1, err)
 			}
 		}
 	}()
@@ -82,7 +83,7 @@ func setupIPChains(config configuration, version iptables.IPVersion) (*iptables.
 	defer func() {
 		if err != nil {
 			if err := iptable.RemoveExistingChain(IsolationChain2, iptables.Filter); err != nil {
-				logrus.Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain2, err)
+				log.G(context.TODO()).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain2, err)
 			}
 		}
 	}()
@@ -360,12 +361,12 @@ func setINC(version iptables.IPVersion, iface string, enable bool) error {
 				if i == 1 {
 					// Rollback the rule installed on first chain
 					if err2 := iptable.ProgramRule(iptables.Filter, chains[0], iptables.Delete, rules[0]); err2 != nil {
-						logrus.Warnf("Failed to rollback iptables rule after failure (%v): %v", err, err2)
+						log.G(context.TODO()).Warnf("Failed to rollback iptables rule after failure (%v): %v", err, err2)
 					}
 				}
 				return fmt.Errorf(msg)
 			}
-			logrus.Warn(msg)
+			log.G(context.TODO()).Warn(msg)
 		}
 	}
 
@@ -390,7 +391,7 @@ func removeIPChains(version iptables.IPVersion) {
 		{Name: oldIsolationChain, Table: iptables.Filter, IPTable: ipt},
 	} {
 		if err := chainInfo.Remove(); err != nil {
-			logrus.Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
+			log.G(context.TODO()).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
 		}
 	}
 }

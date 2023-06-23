@@ -28,7 +28,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/mgr"
 )
@@ -274,7 +274,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 				err = v.Delete()
 				if err != nil {
-					logrus.Errorf("Error occurred when removing network %v", err)
+					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
 				}
 
 				_, err := daemon.netController.NewNetwork("nat", name, id,
@@ -284,7 +284,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 					libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 				)
 				if err != nil {
-					logrus.Errorf("Error occurred when creating network %v", err)
+					log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
 				}
 				continue
 			}
@@ -293,7 +293,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			if v.Info().Scope() != datastore.GlobalScope {
 				err = v.Delete()
 				if err != nil {
-					logrus.Errorf("Error occurred when removing network %v", err)
+					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
 				}
 			}
 		}
@@ -392,7 +392,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		)
 
 		if err != nil {
-			logrus.Errorf("Error occurred when creating network %v", err)
+			log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
 		}
 	}
 
@@ -544,7 +544,7 @@ func (daemon *Daemon) setDefaultIsolation(config *config.Config) error {
 		}
 	}
 
-	logrus.Infof("Windows default isolation mode: %s", daemon.defaultIsolation)
+	log.G(context.TODO()).Infof("Windows default isolation mode: %s", daemon.defaultIsolation)
 	return nil
 }
 

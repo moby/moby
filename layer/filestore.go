@@ -2,6 +2,7 @@ package layer // import "github.com/docker/docker/layer"
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -10,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -322,7 +323,7 @@ func (fms *fileMetadataStore) getOrphan() ([]roLayer, error) {
 			nameSplit := strings.Split(fi.Name(), "-")
 			dgst := digest.NewDigestFromEncoded(algorithm, nameSplit[0])
 			if err := dgst.Validate(); err != nil {
-				logrus.WithError(err).WithField("digest", string(algorithm)+":"+nameSplit[0]).Debug("ignoring invalid digest")
+				log.G(context.TODO()).WithError(err).WithField("digest", string(algorithm)+":"+nameSplit[0]).Debug("ignoring invalid digest")
 				continue
 			}
 
@@ -330,13 +331,13 @@ func (fms *fileMetadataStore) getOrphan() ([]roLayer, error) {
 			contentBytes, err := os.ReadFile(chainFile)
 			if err != nil {
 				if !os.IsNotExist(err) {
-					logrus.WithError(err).WithField("digest", dgst).Error("failed to read cache ID")
+					log.G(context.TODO()).WithError(err).WithField("digest", dgst).Error("failed to read cache ID")
 				}
 				continue
 			}
 			cacheID := strings.TrimSpace(string(contentBytes))
 			if cacheID == "" {
-				logrus.Error("invalid cache ID")
+				log.G(context.TODO()).Error("invalid cache ID")
 				continue
 			}
 
@@ -366,7 +367,7 @@ func (fms *fileMetadataStore) List() ([]ChainID, []string, error) {
 			if fi.IsDir() && fi.Name() != "mounts" {
 				dgst := digest.NewDigestFromEncoded(algorithm, fi.Name())
 				if err := dgst.Validate(); err != nil {
-					logrus.Debugf("Ignoring invalid digest %s:%s", algorithm, fi.Name())
+					log.G(context.TODO()).Debugf("Ignoring invalid digest %s:%s", algorithm, fi.Name())
 				} else {
 					ids = append(ids, ChainID(dgst))
 				}
@@ -410,17 +411,17 @@ func (fms *fileMetadataStore) Remove(layer ChainID, cache string) error {
 		chainFile := filepath.Join(dir, "cache-id")
 		contentBytes, err := os.ReadFile(chainFile)
 		if err != nil {
-			logrus.WithError(err).WithField("file", chainFile).Error("cannot get cache ID")
+			log.G(context.TODO()).WithError(err).WithField("file", chainFile).Error("cannot get cache ID")
 			continue
 		}
 		cacheID := strings.TrimSpace(string(contentBytes))
 		if cacheID != cache {
 			continue
 		}
-		logrus.Debugf("Removing folder: %s", dir)
+		log.G(context.TODO()).Debugf("Removing folder: %s", dir)
 		err = os.RemoveAll(dir)
 		if err != nil && !os.IsNotExist(err) {
-			logrus.WithError(err).WithField("name", f.Name()).Error("cannot remove layer")
+			log.G(context.TODO()).WithError(err).WithField("name", f.Name()).Error("cannot remove layer")
 			continue
 		}
 	}

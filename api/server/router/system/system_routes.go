@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router/build"
 	"github.com/docker/docker/api/types"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -279,7 +279,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		case ev := <-l:
 			jev, ok := ev.(events.Message)
 			if !ok {
-				logrus.Warnf("unexpected event message: %q", ev)
+				log.G(ctx).Warnf("unexpected event message: %q", ev)
 				continue
 			}
 			if err := enc.Encode(jev); err != nil {
@@ -288,7 +288,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		case <-timeout:
 			return nil
 		case <-ctx.Done():
-			logrus.Debug("Client context cancelled, stop sending events")
+			log.G(ctx).Debug("Client context cancelled, stop sending events")
 			return nil
 		}
 	}

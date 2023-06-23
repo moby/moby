@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type containerManager struct {
@@ -60,7 +60,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 	go func() {
 		select {
 		case <-ctx.Done():
-			logrus.Debugln("Build cancelled, killing and removing container:", cID)
+			log.G(ctx).Debugln("Build cancelled, killing and removing container:", cID)
 			c.backend.ContainerKill(cID, "")
 			c.removeContainer(cID, stdout)
 			cancelErrCh <- errCancelled
@@ -102,7 +102,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 
 func logCancellationError(cancelErrCh chan error, msg string) {
 	if cancelErr := <-cancelErrCh; cancelErr != nil {
-		logrus.Debugf("Build cancelled (%v): %s", cancelErr, msg)
+		log.G(context.TODO()).Debugf("Build cancelled (%v): %s", cancelErr, msg)
 	}
 }
 
