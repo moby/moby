@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -41,6 +42,7 @@ const (
 	splunkGzipCompressionKey      = "splunk-gzip"
 	splunkGzipCompressionLevelKey = "splunk-gzip-level"
 	splunkIndexAcknowledgment     = "splunk-index-acknowledgment"
+	splunkHTTPTimeout             = "splunk-timeout"
 	envKey                        = "env"
 	envRegexKey                   = "env-regex"
 	labelsKey                     = "labels"
@@ -227,12 +229,26 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	var timeout time.Duration
+	if timeoutStr, ok := info.Config[splunkHTTPTimeout]; ok {
+		value, err := time.ParseDuration(timeoutStr)
+
+		if err != nil {
+			return nil, err
+		}
+		if value < 0 {
+			return nil, errors.Errorf("negative timeout provided: %v", value)
+		}
+		timeout = value
+	}
+
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Proxy:           http.ProxyFromEnvironment,
 	}
 	client := &http.Client{
 		Transport: transport,
+		Timeout:   timeout,
 	}
 
 	source := info.Config[splunkSourceKey]
@@ -583,6 +599,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkGzipCompressionKey:
 		case splunkGzipCompressionLevelKey:
 		case splunkIndexAcknowledgment:
+		case splunkHTTPTimeout:
 		case envKey:
 		case envRegexKey:
 		case labelsKey:
