@@ -77,7 +77,8 @@ type puller struct {
 
 func (p *puller) pull(ctx context.Context, ref reference.Named) (err error) {
 	// TODO(tiborvass): was ReceiveTimeout
-	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	metaHeaders := metaHeadersWithManifestTagHeader(p.config.MetaHeaders, ref)
+	p.repo, err = newRepository(ctx, p.repoInfo, p.endpoint, metaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
 		return err
@@ -374,6 +375,7 @@ func (p *puller) pullTag(ctx context.Context, ref reference.Named, platform *oci
 	} else {
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
+	updateRepoWithManifestInfo(p.repo, ref)
 
 	ctx = log.WithLogger(ctx, logrus.WithFields(
 		logrus.Fields{

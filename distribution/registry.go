@@ -97,7 +97,13 @@ func newRepository(
 		DisableKeepAlives: true,
 	}
 
+	// Using distributionRepositoryWithManifestInfo as a wrapper for the distribution.Repository, to add the manifest
+	// tag header to all requests during push/pull. This implementation assumes the repository instance returned by this
+	// function is used for a single push/pull at a time (not in concurrent)
+	distRepo := &distributionRepositoryWithManifestInfo{}
+
 	modifiers := registry.Headers(dockerversion.DockerUserAgent(ctx), metaHeaders)
+	modifiers = append(modifiers, distRepo)
 	authTransport := transport.NewTransport(base, modifiers...)
 
 	challengeManager, err := registry.PingV2Registry(endpoint.URL, authTransport)
@@ -144,13 +150,14 @@ func newRepository(
 		}
 	}
 
-	repo, err = client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
+	distRepo.Repository, err = client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
 	if err != nil {
 		err = fallbackError{
 			err:         err,
 			transportOK: true,
 		}
 	}
+	repo = distRepo
 	return
 }
 
