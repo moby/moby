@@ -15,13 +15,11 @@ package etwlogs // import "github.com/docker/docker/daemon/logger/etwlogs"
 import (
 	"fmt"
 	"sync"
-	"unsafe"
 
 	"github.com/Microsoft/go-winio/pkg/etw"
 	"github.com/Microsoft/go-winio/pkg/guid"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/windows"
 )
 
 type etwLogs struct {
@@ -32,25 +30,17 @@ type etwLogs struct {
 }
 
 const (
-	name             = "etwlogs"
-	providerGUID     = `a3693192-9ed6-46d2-a981-f8226c8363bd`
-	win32CallSuccess = 0
+	name         = "etwlogs"
+	providerGUID = `a3693192-9ed6-46d2-a981-f8226c8363bd`
 )
 
 var (
-	modAdvapi32          = windows.NewLazySystemDLL("Advapi32.dll")
-	procEventWriteString = modAdvapi32.NewProc("EventWriteString")
-)
-
-var (
-	providerHandle windows.Handle
-	mu             sync.Mutex
-	refCount       int
-	provider       *etw.Provider
+	mu       sync.Mutex
+	refCount int
+	provider *etw.Provider
 )
 
 func init() {
-	providerHandle = windows.InvalidHandle
 	if err := logger.RegisterLogDriver(name, New); err != nil {
 		panic(err)
 	}
@@ -73,10 +63,20 @@ func New(info logger.Info) (logger.Logger, error) {
 
 // Log logs the message to the ETW stream.
 func (etwLogger *etwLogs) Log(msg *logger.Message) error {
-	// TODO(thaJeztah): log structured events instead and use provider.WriteEvent().
-	m := createLogMessage(etwLogger, msg)
+	err := provider.WriteEvent("ContainerLogs", []etw.EventOpt{etw.WithLevel(0)}, etw.WithFields(
+		etw.StringField("container_name", etwLogger.containerName),
+		etw.StringField("image_name", etwLogger.imageName),
+		etw.StringField("container_id", etwLogger.containerID),
+		etw.StringField("image_id", etwLogger.imageID),
+		etw.StringField("source", msg.Source),
+		etw.StringField("log", string(msg.Line)),
+	))
 	logger.PutMessage(msg)
-	return callEventWriteString(m)
+	if err != nil {
+		logrus.WithError(err).Error("ETWLogs provider failed to log message")
+		return fmt.Errorf("ETWLogs provider failed to log message: %v", err)
+	}
+	return nil
 }
 
 // Close closes the logger by unregistering the ETW provider.
@@ -87,16 +87,6 @@ func (etwLogger *etwLogs) Close() error {
 
 func (etwLogger *etwLogs) Name() string {
 	return name
-}
-
-func createLogMessage(etwLogger *etwLogs, msg *logger.Message) string {
-	return fmt.Sprintf("container_name: %s, image_name: %s, container_id: %s, image_id: %s, source: %s, log: %s",
-		etwLogger.containerName,
-		etwLogger.imageName,
-		etwLogger.containerID,
-		etwLogger.imageID,
-		msg.Source,
-		msg.Line)
 }
 
 func registerETWProvider() error {
@@ -124,7 +114,6 @@ func unregisterETWProvider() {
 		}
 		refCount--
 		provider = nil
-		providerHandle = windows.InvalidHandle
 	} else {
 		refCount--
 	}
@@ -138,21 +127,6 @@ func callEventRegister() (*etw.Provider, error) {
 		return nil, fmt.Errorf("failed to register ETW provider: %v", err)
 	}
 	return p, nil
-}
-
-// TODO(thaJeztah): port this function to github.com/Microsoft/go-winio/pkg/etw.
-func callEventWriteString(message string) error {
-	utf16message, err := windows.UTF16FromString(message)
-	if err != nil {
-		return err
-	}
-
-	ret, _, _ := procEventWriteString.Call(uintptr(providerHandle), 0, 0, uintptr(unsafe.Pointer(&utf16message[0])))
-	if ret != win32CallSuccess {
-		logrus.WithError(err).Error("ETWLogs provider failed to log message")
-		return fmt.Errorf("ETWLogs provider failed to log message: %v", err)
-	}
-	return nil
 }
 
 func callEventUnregister() error {
