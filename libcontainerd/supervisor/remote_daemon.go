@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/pidfile"
@@ -45,8 +46,6 @@ type remote struct {
 	daemonStartCh chan error
 	daemonStopCh  chan struct{}
 
-	stateDir string
-
 	// oomScore adjusts the OOM score for the containerd process.
 	oomScore int
 
@@ -65,13 +64,10 @@ type Daemon interface {
 type DaemonOpt func(c *remote) error
 
 // Start starts a containerd daemon and monitors it
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
+func Start(ctx context.Context, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
-		stateDir: stateDir,
 		Config: config.Config{
 			Version: 2,
-			Root:    filepath.Join(rootDir, "daemon"),
-			State:   filepath.Join(stateDir, "daemon"),
 		},
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
@@ -108,6 +104,22 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 
 	return r, nil
 }
+
+func (r *remote) setDefaults() {
+	if r.GRPC.Address == "" {
+		r.GRPC.Address = defaults.DefaultAddress
+	}
+	if r.GRPC.MaxRecvMsgSize == 0 {
+		r.GRPC.MaxRecvMsgSize = defaults.DefaultMaxRecvMsgSize
+	}
+	if r.GRPC.MaxSendMsgSize == 0 {
+		r.GRPC.MaxSendMsgSize = defaults.DefaultMaxSendMsgSize
+	}
+	if r.Debug.Address == "" {
+		r.Debug.Address = defaults.DefaultDebugAddress
+	}
+}
+
 func (r *remote) WaitTimeout(d time.Duration) error {
 	timeout := time.NewTimer(d)
 	defer timeout.Stop()
