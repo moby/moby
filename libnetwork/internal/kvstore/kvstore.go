@@ -1,4 +1,4 @@
-package store
+package kvstore
 
 import (
 	"crypto/tls"

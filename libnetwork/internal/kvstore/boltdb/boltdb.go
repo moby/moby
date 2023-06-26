@@ -10,8 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/libkv"
-	"github.com/docker/libkv/store"
+	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -27,7 +26,7 @@ const (
 	filePerm os.FileMode = 0644
 )
 
-//BoltDB type implements the Store interface
+// BoltDB type implements the Store interface
 type BoltDB struct {
 	client     *bolt.DB
 	boltBucket []byte
@@ -50,7 +49,7 @@ const (
 
 // Register registers boltdb to libkv
 func Register() {
-	libkv.AddStore(store.BOLTDB, New)
+	store.AddStore(store.BOLTDB, New)
 }
 
 // New opens a new BoltDB connection to the specified path and bucket
@@ -167,7 +166,7 @@ func (b *BoltDB) Get(key string) (*store.KVPair, error) {
 	return &store.KVPair{Key: key, Value: val, LastIndex: (dbIndex)}, nil
 }
 
-//Put the key, value pair. index number metadata is prepended to the value
+// Put the key, value pair. index number metadata is prepended to the value
 func (b *BoltDB) Put(key string, value []byte, opts *store.WriteOptions) error {
 	var (
 		dbIndex uint64
@@ -203,7 +202,7 @@ func (b *BoltDB) Put(key string, value []byte, opts *store.WriteOptions) error {
 	return err
 }
 
-//Delete the value for the given key.
+// Delete the value for the given key.
 func (b *BoltDB) Delete(key string) error {
 	var (
 		db  *bolt.DB
