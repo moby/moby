@@ -17,7 +17,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetShortcutString(t *testing.T) {
-	shortcut := GetShortcutString()
+	shortcut := GetShortcutString() //nolint:staticcheck // ignore SA1019 (GetShortcutString is deprecated)
 	if shortcut == "" {
 		t.Fatal("returned shortcut string is empty")
 	}

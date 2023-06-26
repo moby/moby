@@ -35,6 +35,8 @@ func Get() string {
 
 // GetShortcutString returns the string that is shortcut to user's home directory
 // in the native shell of the platform running on.
+//
+// Deprecated: this function is no longer used, and will be removed in the next release.
 func GetShortcutString() string {
 	return homeShortCut
 }
