@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/moby/sys/mount"
@@ -250,7 +250,11 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	os.Mkdir(dotDocker, 0600)
 	tmpCfg := filepath.Join(dotDocker, "config.json")
 
-	c.Setenv(homedir.Key(), tmpDir)
+	if runtime.GOOS == "windows" {
+		c.Setenv("USERPROFILE", tmpDir)
+	} else {
+		c.Setenv("HOME", tmpDir)
+	}
 
 	data := `{
 		"detachKeys": "ctrl-a,a"
@@ -330,7 +334,11 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 	os.Mkdir(dotDocker, 0600)
 	tmpCfg := filepath.Join(dotDocker, "config.json")
 
-	c.Setenv(homedir.Key(), tmpDir)
+	if runtime.GOOS == "windows" {
+		c.Setenv("USERPROFILE", tmpDir)
+	} else {
+		c.Setenv("HOME", tmpDir)
+	}
 
 	data := `{
 		"detachKeys": "ctrl-e,e"
