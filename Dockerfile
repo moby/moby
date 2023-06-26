@@ -12,7 +12,7 @@ ARG DOCKERCLI_VERSION=v24.0.2
 # cli version used for integration-cli tests
 ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v17.06.2-ce
-ARG BUILDX_VERSION=0.10.5
+ARG BUILDX_VERSION=0.11.0
 
 ARG SYSTEMD="false"
 ARG DEBIAN_FRONTEND=noninteractive
