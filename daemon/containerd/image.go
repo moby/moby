@@ -2,14 +2,13 @@ package containerd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
 	cplatforms "github.com/containerd/containerd/platforms"
@@ -33,7 +32,7 @@ var truncatedID = regexp.MustCompile(`^([a-f0-9]{4,64})$`)
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 func (i *ImageService) GetImage(ctx context.Context, refOrID string, options imagetype.GetImageOpts) (*image.Image, error) {
-	desc, err := i.resolveDescriptor(ctx, refOrID)
+	desc, err := i.resolveImage(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
@@ -44,20 +43,31 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	}
 
 	cs := i.client.ContentStore()
-	conf, err := containerdimages.Config(ctx, cs, desc, platform)
+
+	var presentImages []ocispec.Image
+	err = i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
+		conf, err := img.Config(ctx)
+		if err != nil {
+			return err
+		}
+		var ociimage ocispec.Image
+		if err := readConfig(ctx, cs, conf, &ociimage); err != nil {
+			return err
+		}
+		presentImages = append(presentImages, ociimage)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	imageConfigBytes, err := content.ReadBlob(ctx, cs, conf)
-	if err != nil {
-		return nil, err
+	if len(presentImages) == 0 {
+		return nil, errdefs.NotFound(errors.New("failed to find image manifest"))
 	}
 
-	var ociimage ocispec.Image
-	if err := json.Unmarshal(imageConfigBytes, &ociimage); err != nil {
-		return nil, err
-	}
+	sort.SliceStable(presentImages, func(i, j int) bool {
+		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
+	})
+	ociimage := presentImages[0]
 
 	rootfs := image.NewRootFS()
 	for _, id := range ociimage.RootFS.DiffIDs {
@@ -68,9 +78,9 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		exposedPorts[nat.Port(k)] = v
 	}
 
-	img := image.NewImage(image.ID(desc.Digest))
+	img := image.NewImage(image.ID(desc.Target.Digest))
 	img.V1Image = image.V1Image{
-		ID:           string(desc.Digest),
+		ID:           string(desc.Target.Digest),
 		OS:           ociimage.OS,
 		Architecture: ociimage.Architecture,
 		Created:      ociimage.Created,
@@ -92,12 +102,12 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 
 	if options.Details {
 		lastUpdated := time.Unix(0, 0)
-		size, err := i.size(ctx, desc, platform)
+		size, err := i.size(ctx, desc.Target, platform)
 		if err != nil {
 			return nil, err
 		}
 
-		tagged, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Digest.String())
+		tagged, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Target.Digest.String())
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +137,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			}
 			refs = append(refs, name)
 
-			digested, err := reference.WithDigest(reference.TrimNamed(name), desc.Digest)
+			digested, err := reference.WithDigest(reference.TrimNamed(name), desc.Target.Digest)
 			if err != nil {
 				// This could only happen if digest is invalid, but considering that
 				// we get it from the Descriptor it's highly unlikely.
