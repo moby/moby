@@ -2,13 +2,12 @@ package containerd
 
 import (
 	"context"
-	"encoding/json"
+	"sort"
 
-	"github.com/containerd/containerd/content"
-	containerdimages "github.com/containerd/containerd/images"
 	cplatforms "github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	imagetype "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/platforms"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -18,32 +17,39 @@ import (
 // ImageHistory returns a slice of HistoryResponseItem structures for the
 // specified image name by walking the image lineage.
 func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imagetype.HistoryResponseItem, error) {
-	desc, err := i.resolveDescriptor(ctx, name)
+	desc, err := i.resolveImage(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
 	cs := i.client.ContentStore()
-	// TODO: pass the platform from the cli
-	conf, err := containerdimages.Config(ctx, cs, desc, platforms.AllPlatformsWithPreference(cplatforms.Default()))
+	// TODO: pass platform in from the CLI
+	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+
+	var presentImages []ocispec.Image
+	err = i.walkImageManifests(ctx, desc, func(img *ImageManifest) error {
+		conf, err := img.Config(ctx)
+		if err != nil {
+			return err
+		}
+		var ociimage ocispec.Image
+		if err := readConfig(ctx, cs, conf, &ociimage); err != nil {
+			return err
+		}
+		presentImages = append(presentImages, ociimage)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	diffIDs, err := containerdimages.RootFS(ctx, cs, conf)
-	if err != nil {
-		return nil, err
+	if len(presentImages) == 0 {
+		return nil, errdefs.NotFound(errors.New("failed to find image manifest"))
 	}
 
-	blob, err := content.ReadBlob(ctx, cs, conf)
-	if err != nil {
-		return nil, err
-	}
-
-	var image ocispec.Image
-	if err := json.Unmarshal(blob, &image); err != nil {
-		return nil, err
-	}
+	sort.SliceStable(presentImages, func(i, j int) bool {
+		return platform.Less(presentImages[i].Platform, presentImages[j].Platform)
+	})
+	ociimage := presentImages[0]
 
 	var (
 		history []*imagetype.HistoryResponseItem
@@ -51,6 +57,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	)
 	s := i.client.SnapshotService(i.snapshotter)
 
+	diffIDs := ociimage.RootFS.DiffIDs
 	for i := range diffIDs {
 		chainID := identity.ChainID(diffIDs[0 : i+1]).String()
 
@@ -62,7 +69,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 		sizes = append(sizes, use.Size)
 	}
 
-	for _, h := range image.History {
+	for _, h := range ociimage.History {
 		size := int64(0)
 		if !h.EmptyLayer {
 			if len(sizes) == 0 {
@@ -83,9 +90,9 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*imaget
 	}
 
 	if len(history) != 0 {
-		history[0].ID = desc.Digest.String()
+		history[0].ID = desc.Target.Digest.String()
 
-		tagged, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Digest.String())
+		tagged, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Target.Digest.String())
 		if err != nil {
 			return nil, err
 		}
