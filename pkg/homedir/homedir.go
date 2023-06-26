@@ -8,6 +8,8 @@ import (
 
 // Key returns the env var name for the user's home dir based on
 // the platform being run on.
+//
+// Deprecated: this function is no longer used, and will be removed in the next release.
 func Key() string {
 	return envKeyName
 }
