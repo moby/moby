@@ -422,7 +422,6 @@ func (b *BoltDB) Close() {
 	} else {
 		b.client.Close()
 	}
-	return
 }
 
 // DeleteTree deletes a range of keys with a given prefix
@@ -449,7 +448,7 @@ func (b *BoltDB) DeleteTree(keyPrefix string) error {
 		prefix := []byte(keyPrefix)
 
 		for key, _ := cursor.Seek(prefix); bytes.HasPrefix(key, prefix); key, _ = cursor.Next() {
-			_ = bucket.Delete([]byte(key))
+			_ = bucket.Delete(key)
 		}
 		return nil
 	})
