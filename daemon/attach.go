@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
@@ -115,7 +115,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		if logCreated {
 			defer func() {
 				if err = logDriver.Close(); err != nil {
-					logrus.Errorf("Error closing logger: %v", err)
+					log.G(context.TODO()).Errorf("Error closing logger: %v", err)
 				}
 			}()
 		}
@@ -140,7 +140,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 					cfg.Stderr.Write(msg.Line)
 				}
 			case err := <-logs.Err:
-				logrus.Errorf("Error streaming logs: %v", err)
+				log.G(context.TODO()).Errorf("Error streaming logs: %v", err)
 				break LogLoop
 			}
 		}
@@ -156,7 +156,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		r, w := io.Pipe()
 		go func(stdin io.ReadCloser) {
 			defer w.Close()
-			defer logrus.Debug("Closing buffered stdin pipe")
+			defer log.G(context.TODO()).Debug("Closing buffered stdin pipe")
 			io.Copy(w, stdin)
 		}(cfg.Stdin)
 		cfg.Stdin = r
@@ -181,7 +181,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		if errors.Is(err, context.Canceled) || errors.As(err, &ierr) {
 			daemon.LogContainerEvent(c, "detach")
 		} else {
-			logrus.Errorf("attach failed with error: %v", err)
+			log.G(ctx).Errorf("attach failed with error: %v", err)
 		}
 	}
 

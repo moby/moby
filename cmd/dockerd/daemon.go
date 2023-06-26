@@ -16,6 +16,7 @@ import (
 
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	containerddefaults "github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
 	buildbackend "github.com/docker/docker/api/server/backend/build"
@@ -83,6 +84,8 @@ func NewDaemonCli() *DaemonCli {
 }
 
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
+	ctx := context.TODO()
+
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
@@ -101,7 +104,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	configureProxyEnv(cli.Config)
 	configureDaemonLogs(cli.Config)
 
-	logrus.Info("Starting up")
+	log.G(ctx).Info("Starting up")
 
 	cli.configFile = &opts.configFile
 	cli.flags = opts.flags
@@ -111,14 +114,14 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	if cli.Config.Experimental {
-		logrus.Warn("Running experimental build")
+		log.G(ctx).Warn("Running experimental build")
 	}
 
 	if cli.Config.IsRootless() {
-		logrus.Warn("Running in rootless mode. This mode has feature limitations.")
+		log.G(ctx).Warn("Running in rootless mode. This mode has feature limitations.")
 	}
 	if rootless.RunningWithRootlessKit() {
-		logrus.Info("Running with RootlessKit integration")
+		log.G(ctx).Info("Running with RootlessKit integration")
 		if !cli.Config.IsRootless() {
 			return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
 		}
@@ -155,7 +158,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		potentiallyUnderRuntimeDir = append(potentiallyUnderRuntimeDir, cli.Pidfile)
 		defer func() {
 			if err := os.Remove(cli.Pidfile); err != nil {
-				logrus.Error(err)
+				log.G(ctx).Error(err)
 			}
 		}()
 	}
@@ -164,7 +167,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		// Set sticky bit if XDG_RUNTIME_DIR is set && the file is actually under XDG_RUNTIME_DIR
 		if _, err := homedir.StickRuntimeDirContents(potentiallyUnderRuntimeDir); err != nil {
 			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
-			logrus.WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
+			log.G(ctx).WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
 		}
 	}
 
@@ -199,7 +202,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		<-cli.apiShutdown
 		err := httpServer.Shutdown(apiShutdownCtx)
 		if err != nil {
-			logrus.WithError(err).Error("Error shutting down http server")
+			log.G(ctx).WithError(err).Error("Error shutting down http server")
 		}
 		close(apiShutdownDone)
 	}()
@@ -217,7 +220,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 			// e.g. because the daemon failed to start.
 			// Stop the HTTP server with no grace period.
 			if closeErr := httpServer.Close(); closeErr != nil {
-				logrus.WithError(closeErr).Error("Error closing http server")
+				log.G(ctx).WithError(closeErr).Error("Error closing http server")
 			}
 		}
 	}()
@@ -262,7 +265,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	c, err := createAndStartCluster(cli, d)
 	if err != nil {
-		logrus.Fatalf("Error starting cluster component: %v", err)
+		log.G(ctx).Fatalf("Error starting cluster component: %v", err)
 	}
 
 	// Restart all autostart containers which has a swarm endpoint
@@ -270,7 +273,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	logrus.Info("Daemon has completed initialization")
+	log.G(ctx).Info("Daemon has completed initialization")
 
 	routerCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -300,9 +303,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		apiWG.Add(1)
 		go func(ls net.Listener) {
 			defer apiWG.Done()
-			logrus.Infof("API listen on %s", ls.Addr())
+			log.G(ctx).Infof("API listen on %s", ls.Addr())
 			if err := httpServer.Serve(ls); err != http.ErrServerClosed {
-				logrus.WithFields(logrus.Fields{
+				log.G(ctx).WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"listener":      ls.Addr(),
 				}).Error("ServeAPI error")
@@ -330,7 +333,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
 
-	logrus.Info("Daemon shutdown complete")
+	log.G(ctx).Info("Daemon shutdown complete")
 	return nil
 }
 
@@ -396,14 +399,15 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 }
 
 func (cli *DaemonCli) reloadConfig() {
+	ctx := context.TODO()
 	reload := func(c *config.Config) {
 		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
-			logrus.Fatalf("Error validating authorization plugin: %v", err)
+			log.G(ctx).Fatalf("Error validating authorization plugin: %v", err)
 			return
 		}
 
 		if err := cli.d.Reload(c); err != nil {
-			logrus.Errorf("Error reconfiguring the daemon: %v", err)
+			log.G(ctx).Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
 
@@ -424,7 +428,7 @@ func (cli *DaemonCli) reloadConfig() {
 	}
 
 	if err := config.Reload(*cli.configFile, cli.flags, reload); err != nil {
-		logrus.Error(err)
+		log.G(ctx).Error(err)
 	}
 }
 
@@ -457,9 +461,9 @@ func shutdownDaemon(ctx context.Context, d *daemon.Daemon) {
 
 	<-ctx.Done()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		logrus.Error("Force shutdown daemon")
+		log.G(ctx).Error("Force shutdown daemon")
 	} else {
-		logrus.Debug("Clean shutdown succeeded")
+		log.G(ctx).Debug("Clean shutdown succeeded")
 	}
 }
 
@@ -724,6 +728,8 @@ func checkTLSAuthOK(c *config.Config) bool {
 }
 
 func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, []string, error) {
+	ctx := context.TODO()
+
 	if len(cfg.Hosts) == 0 {
 		return nil, nil, errors.New("no hosts configured")
 	}
@@ -742,8 +748,8 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 		// It's a bad idea to bind to TCP without tlsverify.
 		authEnabled := tlsConfig != nil && tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert
 		if proto == "tcp" && !authEnabled {
-			logrus.WithField("host", protoAddr).Warn("Binding to IP address without --tlsverify is insecure and gives root access on this machine to everyone who has access to your network.")
-			logrus.WithField("host", protoAddr).Warn("Binding to an IP address, even on localhost, can also give access to scripts run in a browser. Be safe out there!")
+			log.G(ctx).WithField("host", protoAddr).Warn("Binding to IP address without --tlsverify is insecure and gives root access on this machine to everyone who has access to your network.")
+			log.G(ctx).WithField("host", protoAddr).Warn("Binding to an IP address, even on localhost, can also give access to scripts run in a browser. Be safe out there!")
 			time.Sleep(time.Second)
 
 			// If TLSVerify is explicitly set to false we'll take that as "Please let me shoot myself in the foot"
@@ -761,17 +767,17 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 					if ip == nil {
 						ipA, err := net.ResolveIPAddr("ip", ipAddr)
 						if err != nil {
-							logrus.WithError(err).WithField("host", ipAddr).Error("Error looking up specified host address")
+							log.G(ctx).WithError(err).WithField("host", ipAddr).Error("Error looking up specified host address")
 						}
 						if ipA != nil {
 							ip = ipA.IP
 						}
 					}
 					if ip == nil || !ip.IsLoopback() {
-						logrus.WithField("host", protoAddr).Warn("Binding to an IP address without --tlsverify is deprecated. Startup is intentionally being slowed down to show this message")
-						logrus.WithField("host", protoAddr).Warn("Please consider generating tls certificates with client validation to prevent exposing unauthenticated root access to your network")
-						logrus.WithField("host", protoAddr).Warnf("You can override this by explicitly specifying '--%s=false' or '--%s=false'", FlagTLS, FlagTLSVerify)
-						logrus.WithField("host", protoAddr).Warnf("Support for listening on TCP without authentication or explicit intent to run without authentication will be removed in the next release")
+						log.G(ctx).WithField("host", protoAddr).Warn("Binding to an IP address without --tlsverify is deprecated. Startup is intentionally being slowed down to show this message")
+						log.G(ctx).WithField("host", protoAddr).Warn("Please consider generating tls certificates with client validation to prevent exposing unauthenticated root access to your network")
+						log.G(ctx).WithField("host", protoAddr).Warnf("You can override this by explicitly specifying '--%s=false' or '--%s=false'", FlagTLS, FlagTLSVerify)
+						log.G(ctx).WithField("host", protoAddr).Warnf("Support for listening on TCP without authentication or explicit intent to run without authentication will be removed in the next release")
 
 						time.Sleep(15 * time.Second)
 					}
@@ -788,7 +794,7 @@ func loadListeners(cfg *config.Config, tlsConfig *tls.Config) ([]net.Listener, [
 		if err != nil {
 			return nil, nil, err
 		}
-		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
+		log.G(ctx).Debugf("Listener created for HTTP on %s (%s)", proto, addr)
 		hosts = append(hosts, addr)
 		lss = append(lss, ls...)
 	}
@@ -885,7 +891,7 @@ func configureProxyEnv(conf *config.Config) {
 
 func overrideProxyEnv(name, val string) {
 	if oldVal := os.Getenv(name); oldVal != "" && oldVal != val {
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(logrus.Fields{
 			"name":      name,
 			"old-value": config.MaskCredentials(oldVal),
 			"new-value": config.MaskCredentials(val),

@@ -3,19 +3,20 @@
 package fluentd // import "github.com/docker/docker/daemon/logger/fluentd"
 
 import (
+	"context"
 	"math"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/errdefs"
 	units "github.com/docker/go-units"
 	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type fluentd struct {
@@ -88,7 +89,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	logrus.WithField("container", info.ContainerID).WithField("config", fluentConfig).
+	log.G(context.TODO()).WithField("container", info.ContainerID).WithField("config", fluentConfig).
 		Debug("logging driver fluentd configured")
 
 	log, err := fluent.New(fluentConfig)

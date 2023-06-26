@@ -6,6 +6,7 @@ import (
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -35,7 +36,7 @@ func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, e
 		rootfs, err := platformRootfs(ctx, cs, target, platform)
 		if err != nil {
 			if !cerrdefs.IsNotFound(err) {
-				logrus.WithFields(logrus.Fields{
+				log.G(ctx).WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"image":         target.Digest,
 					"platform":      platform,
@@ -59,7 +60,7 @@ func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, e
 			rootfs, err := platformRootfs(ctx, cs, img.Target, platform)
 			if err != nil {
 				if !cerrdefs.IsNotFound(err) {
-					logrus.WithFields(logrus.Fields{
+					log.G(ctx).WithFields(logrus.Fields{
 						logrus.ErrorKey: err,
 						"image":         img.Target.Digest,
 						"platform":      platform,

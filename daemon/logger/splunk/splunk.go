@@ -19,11 +19,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -446,7 +446,7 @@ func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) 
 		}
 
 		if err := l.tryPostMessages(ctx, messages[i:upperBound]); err != nil {
-			logrus.WithError(err).WithField("module", "logger/splunk").Warn("Error while sending logs")
+			log.G(ctx).WithError(err).WithField("module", "logger/splunk").Warn("Error while sending logs")
 			if messagesLen-i >= l.bufferMaximum || lastChance {
 				// If this is last chance - print them all to the daemon log
 				if lastChance {
@@ -456,9 +456,9 @@ func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) 
 				// we could not send and return buffer minus one batch size
 				for j := i; j < upperBound; j++ {
 					if jsonEvent, err := json.Marshal(messages[j]); err != nil {
-						logrus.Error(err)
+						log.G(ctx).Error(err)
 					} else {
-						logrus.Error(fmt.Errorf("Failed to send a message '%s'", string(jsonEvent)))
+						log.G(ctx).Error(fmt.Errorf("Failed to send a message '%s'", string(jsonEvent)))
 					}
 				}
 				return messages[upperBound:messagesLen]
@@ -651,7 +651,7 @@ func getAdvancedOptionDuration(envName string, defaultValue time.Duration) time.
 	}
 	parsedValue, err := time.ParseDuration(valueStr)
 	if err != nil {
-		logrus.Error(fmt.Sprintf("Failed to parse value of %s as duration. Using default %v. %v", envName, defaultValue, err))
+		log.G(context.TODO()).Error(fmt.Sprintf("Failed to parse value of %s as duration. Using default %v. %v", envName, defaultValue, err))
 		return defaultValue
 	}
 	return parsedValue
@@ -664,7 +664,7 @@ func getAdvancedOptionInt(envName string, defaultValue int) int {
 	}
 	parsedValue, err := strconv.ParseInt(valueStr, 10, 32)
 	if err != nil {
-		logrus.Error(fmt.Sprintf("Failed to parse value of %s as integer. Using default %d. %v", envName, defaultValue, err))
+		log.G(context.TODO()).Error(fmt.Sprintf("Failed to parse value of %s as integer. Using default %d. %v", envName, defaultValue, err))
 		return defaultValue
 	}
 	return int(parsedValue)

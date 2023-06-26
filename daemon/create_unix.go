@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
-	"github.com/sirupsen/logrus"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
@@ -45,7 +45,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
 		if container.HasMountFor(destination) {
-			logrus.WithField("container", container.ID).WithField("destination", spec).Debug("mountpoint already exists, skipping anonymous volume")
+			log.G(context.TODO()).WithField("container", container.ID).WithField("destination", spec).Debug("mountpoint already exists, skipping anonymous volume")
 			// Not an error, this could easily have come from the image config.
 			continue
 		}
@@ -85,7 +85,7 @@ func (daemon *Daemon) populateVolumes(c *container.Container) error {
 			continue
 		}
 
-		logrus.Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, mnt.Name)
+		log.G(context.TODO()).Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, mnt.Name)
 		if err := c.CopyImagePathContent(mnt.Volume, mnt.Destination); err != nil {
 			return err
 		}

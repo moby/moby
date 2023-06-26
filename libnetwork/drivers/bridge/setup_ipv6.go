@@ -3,11 +3,12 @@
 package bridge
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"github.com/vishvananda/netlink"
 )
 
@@ -54,14 +55,14 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 	}
 
 	// Setting route to global IPv6 subnet
-	logrus.Debugf("Adding route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
+	log.G(context.TODO()).Debugf("Adding route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
 	err = i.nlh.RouteAdd(&netlink.Route{
 		Scope:     netlink.SCOPE_UNIVERSE,
 		LinkIndex: i.Link.Attrs().Index,
 		Dst:       config.AddressIPv6,
 	})
 	if err != nil && !os.IsExist(err) {
-		logrus.Errorf("Could not add route to IPv6 network %s via device %s: %s", config.AddressIPv6.String(), config.BridgeName, err)
+		log.G(context.TODO()).Errorf("Could not add route to IPv6 network %s via device %s: %s", config.AddressIPv6.String(), config.BridgeName, err)
 	}
 
 	return nil
@@ -90,7 +91,7 @@ func setupIPv6Forwarding(config *networkConfiguration, i *bridgeInterface) error
 	// Enable IPv6 default forwarding only if it is not already enabled
 	if ipv6ForwardDataDefault[0] != '1' {
 		if err := os.WriteFile(ipv6ForwardConfDefault, []byte{'1', '\n'}, ipv6ForwardConfPerm); err != nil {
-			logrus.Warnf("Unable to enable IPv6 default forwarding: %v", err)
+			log.G(context.TODO()).Warnf("Unable to enable IPv6 default forwarding: %v", err)
 		}
 	}
 
@@ -102,7 +103,7 @@ func setupIPv6Forwarding(config *networkConfiguration, i *bridgeInterface) error
 	// Enable IPv6 all forwarding only if it is not already enabled
 	if ipv6ForwardDataAll[0] != '1' {
 		if err := os.WriteFile(ipv6ForwardConfAll, []byte{'1', '\n'}, ipv6ForwardConfPerm); err != nil {
-			logrus.Warnf("Unable to enable IPv6 all forwarding: %v", err)
+			log.G(context.TODO()).Warnf("Unable to enable IPv6 all forwarding: %v", err)
 		}
 	}
 

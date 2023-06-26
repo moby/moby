@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -45,7 +46,6 @@ import (
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -222,7 +222,7 @@ func parseSecurityOpt(securityOptions *container.SecurityOptions, config *contai
 			k, v, ok = strings.Cut(opt, "=")
 		} else if strings.Contains(opt, ":") {
 			k, v, ok = strings.Cut(opt, ":")
-			logrus.Warn("Security options with `:` as a separator are deprecated and will be completely unsupported in 17.04, use `=` instead.")
+			log.G(context.TODO()).Warn("Security options with `:` as a separator are deprecated and will be completely unsupported in 17.04, use `=` instead.")
 		}
 		if !ok {
 			return fmt.Errorf("invalid --security-opt 1: %q", opt)
@@ -284,7 +284,7 @@ func adjustParallelLimit(n int, limit int) int {
 	// ulimits to the largest possible value for dockerd).
 	var rlim unix.Rlimit
 	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlim); err != nil {
-		logrus.Warnf("Couldn't find dockerd's RLIMIT_NOFILE to double-check startup parallelism factor: %v", err)
+		log.G(context.TODO()).Warnf("Couldn't find dockerd's RLIMIT_NOFILE to double-check startup parallelism factor: %v", err)
 		return limit
 	}
 	softRlimit := int(rlim.Cur)
@@ -299,7 +299,7 @@ func adjustParallelLimit(n int, limit int) int {
 		return limit
 	}
 
-	logrus.Warnf("Found dockerd's open file ulimit (%v) is far too small -- consider increasing it significantly (at least %v)", softRlimit, overhead*limit)
+	log.G(context.TODO()).Warnf("Found dockerd's open file ulimit (%v) is far too small -- consider increasing it significantly (at least %v)", softRlimit, overhead*limit)
 	return softRlimit / overhead
 }
 
@@ -309,10 +309,10 @@ func (daemon *Daemon) adaptContainerSettings(daemonCfg *config.Config, hostConfi
 	if adjustCPUShares && hostConfig.CPUShares > 0 {
 		// Handle unsupported CPUShares
 		if hostConfig.CPUShares < linuxMinCPUShares {
-			logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCPUShares)
+			log.G(context.TODO()).Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCPUShares)
 			hostConfig.CPUShares = linuxMinCPUShares
 		} else if hostConfig.CPUShares > linuxMaxCPUShares {
-			logrus.Warnf("Changing requested CPUShares of %d to maximum allowed of %d", hostConfig.CPUShares, linuxMaxCPUShares)
+			log.G(context.TODO()).Warnf("Changing requested CPUShares of %d to maximum allowed of %d", hostConfig.CPUShares, linuxMaxCPUShares)
 			hostConfig.CPUShares = linuxMaxCPUShares
 		}
 	}
@@ -781,7 +781,7 @@ func configureMaxThreads(config *config.Config) error {
 	}
 	maxThreads := (mtint / 100) * 90
 	debug.SetMaxThreads(maxThreads)
-	logrus.Debugf("Golang's threads limit set to %d", maxThreads)
+	log.G(context.TODO()).Debugf("Golang's threads limit set to %d", maxThreads)
 	return nil
 }
 
@@ -809,7 +809,7 @@ func overlaySupportsSelinux() (bool, error) {
 func configureKernelSecuritySupport(config *config.Config, driverName string) error {
 	if config.EnableSelinuxSupport {
 		if !selinux.GetEnabled() {
-			logrus.Warn("Docker could not enable SELinux on the host system")
+			log.G(context.TODO()).Warn("Docker could not enable SELinux on the host system")
 			return nil
 		}
 
@@ -822,7 +822,7 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 			}
 
 			if !supported {
-				logrus.Warnf("SELinux is not supported with the %v graph driver on this kernel", driverName)
+				log.G(context.TODO()).Warnf("SELinux is not supported with the %v graph driver on this kernel", driverName)
 			}
 		}
 	} else {
@@ -846,7 +846,7 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	}
 
 	if len(activeSandboxes) > 0 {
-		logrus.Info("there are running containers, updated network configuration will not take affect")
+		log.G(context.TODO()).Info("there are running containers, updated network configuration will not take affect")
 	} else if err := configureNetworking(daemon.netController, cfg); err != nil {
 		return err
 	}
@@ -983,7 +983,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 		ipamV4Conf.PreferredPool = ipNet.String()
 		ipamV4Conf.Gateway = ip.String()
 	} else if bridgeName == bridge.DefaultBridgeName && ipamV4Conf.PreferredPool != "" {
-		logrus.Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
+		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
 	if config.BridgeConfig.FixedCIDR != "" {
@@ -1068,7 +1068,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 func removeDefaultBridgeInterface() {
 	if lnk, err := netlink.LinkByName(bridge.DefaultBridgeName); err == nil {
 		if err := netlink.LinkDel(lnk); err != nil {
-			logrus.Warnf("Failed to remove bridge interface (%s): %v", bridge.DefaultBridgeName, err)
+			log.G(context.TODO()).Warnf("Failed to remove bridge interface (%s): %v", bridge.DefaultBridgeName, err)
 		}
 	}
 }
@@ -1187,10 +1187,10 @@ func setupRemappedRoot(config *config.Config) (idtools.IdentityMapping, error) {
 		if username == "root" {
 			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
 			// effectively
-			logrus.Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
+			log.G(context.TODO()).Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
 			return idtools.IdentityMapping{}, nil
 		}
-		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s", username)
+		log.G(context.TODO()).Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s", username)
 		// update remapped root setting now that we have resolved them to actual names
 		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
 
@@ -1235,7 +1235,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 	// `chdir()` to work for containers namespaced to that uid/gid)
 	if config.RemappedRoot != "" {
 		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", remappedRoot.UID, remappedRoot.GID))
-		logrus.Debugf("Creating user namespaced daemon root: %s", config.Root)
+		log.G(context.TODO()).Debugf("Creating user namespaced daemon root: %s", config.Root)
 		// Create the root directory if it doesn't exist
 		if err := idtools.MkdirAllAndChown(config.Root, 0710, id); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
@@ -1257,7 +1257,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 	}
 
 	if err := setupDaemonRootPropagation(config); err != nil {
-		logrus.WithError(err).WithField("dir", config.Root).Warn("Error while setting daemon root propagation, this is not generally critical but may cause some functionality to not work or fallback to less desirable behavior")
+		log.G(context.TODO()).WithError(err).WithField("dir", config.Root).Warn("Error while setting daemon root propagation, this is not generally critical but may cause some functionality to not work or fallback to less desirable behavior")
 	}
 	return nil
 }
@@ -1303,7 +1303,7 @@ func setupDaemonRootPropagation(cfg *config.Config) error {
 			return
 		}
 		if err := os.Remove(cleanupFile); err != nil && !os.IsNotExist(err) {
-			logrus.WithError(err).WithField("file", cleanupFile).Warn("could not clean up old root propagation unmount file")
+			log.G(context.TODO()).WithError(err).WithField("file", cleanupFile).Warn("could not clean up old root propagation unmount file")
 		}
 	}()
 
@@ -1427,7 +1427,7 @@ func setMayDetachMounts() error {
 		// unprivileged container. Ignore the error, but log
 		// it if we appear not to be in that situation.
 		if !userns.RunningInUserNS() {
-			logrus.Debugf("Permission denied writing %q to /proc/sys/fs/may_detach_mounts", "1")
+			log.G(context.TODO()).Debugf("Permission denied writing %q to /proc/sys/fs/may_detach_mounts", "1")
 		}
 		return nil
 	}

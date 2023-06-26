@@ -1,13 +1,14 @@
 package portmapper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/ishidawataru/sctp"
-	"github.com/sirupsen/logrus"
 )
 
 type mapping struct {
@@ -198,7 +199,7 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
 	if err := pm.DeleteForwardingTableEntry(data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		logrus.Errorf("Error on iptables delete: %s", err)
+		log.G(context.TODO()).Errorf("Error on iptables delete: %s", err)
 	}
 
 	switch a := host.(type) {
@@ -219,12 +220,12 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 func (pm *PortMapper) ReMapAll() {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
-	logrus.Debugln("Re-applying all port mappings.")
+	log.G(context.TODO()).Debugln("Re-applying all port mappings.")
 	for _, data := range pm.currentMappings {
 		containerIP, containerPort := getIPAndPort(data.container)
 		hostIP, hostPort := getIPAndPort(data.host)
 		if err := pm.AppendForwardingTableEntry(data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-			logrus.Errorf("Error on iptables add: %s", err)
+			log.G(context.TODO()).Errorf("Error on iptables add: %s", err)
 		}
 	}
 }
@@ -237,7 +238,7 @@ func getKey(a net.Addr) string {
 		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
 	case *sctp.SCTPAddr:
 		if len(t.IPAddrs) == 0 {
-			logrus.Error(ErrSCTPAddrNoIP)
+			log.G(context.TODO()).Error(ErrSCTPAddrNoIP)
 			return ""
 		}
 		return fmt.Sprintf("%s:%d/%s", t.IPAddrs[0].IP.String(), t.Port, "sctp")
@@ -253,7 +254,7 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 		return t.IP, t.Port
 	case *sctp.SCTPAddr:
 		if len(t.IPAddrs) == 0 {
-			logrus.Error(ErrSCTPAddrNoIP)
+			log.G(context.TODO()).Error(ErrSCTPAddrNoIP)
 			return nil, 0
 		}
 		return t.IPAddrs[0].IP, t.Port

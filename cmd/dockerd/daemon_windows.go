@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/system"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"golang.org/x/sys/windows"
 )
 
@@ -28,7 +28,7 @@ func preNotifyReady() {
 	if service != nil {
 		err := service.started()
 		if err != nil {
-			logrus.Fatal(err)
+			log.G(context.TODO()).Fatal(err)
 		}
 	}
 }
@@ -45,7 +45,7 @@ func notifyStopping() {
 func notifyShutdown(err error) {
 	if service != nil {
 		if err != nil {
-			logrus.Fatal(err)
+			log.G(context.TODO()).Fatal(err)
 		}
 		service.stopped(err)
 	}
@@ -60,7 +60,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
 		ev, _ := windows.UTF16PtrFromString(event)
 		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
-			logrus.Debugf("Config reload - waiting signal at %s", event)
+			log.G(context.TODO()).Debugf("Config reload - waiting signal at %s", event)
 			for {
 				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()

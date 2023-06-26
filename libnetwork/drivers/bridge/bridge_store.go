@@ -3,15 +3,16 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -62,9 +63,9 @@ func (d *driver) populateNetworks() error {
 	for _, kvo := range kvol {
 		ncfg := kvo.(*networkConfiguration)
 		if err = d.createNetwork(ncfg); err != nil {
-			logrus.Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
+			log.G(context.TODO()).Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
 		}
-		logrus.Debugf("Network (%.7s) restored", ncfg.ID)
+		log.G(context.TODO()).Debugf("Network (%.7s) restored", ncfg.ID)
 	}
 
 	return nil
@@ -84,16 +85,16 @@ func (d *driver) populateEndpoints() error {
 		ep := kvo.(*bridgeEndpoint)
 		n, ok := d.networks[ep.nid]
 		if !ok {
-			logrus.Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
-			logrus.Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
+			log.G(context.TODO()).Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
+			log.G(context.TODO()).Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
+				log.G(context.TODO()).Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
 		n.endpoints[ep.id] = ep
 		n.restorePortAllocations(ep)
-		logrus.Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
+		log.G(context.TODO()).Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
 
 	return nil
@@ -101,7 +102,7 @@ func (d *driver) populateEndpoints() error {
 
 func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Warnf("bridge store not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 
@@ -114,7 +115,7 @@ func (d *driver) storeUpdate(kvObject datastore.KVObject) error {
 
 func (d *driver) storeDelete(kvObject datastore.KVObject) error {
 	if d.store == nil {
-		logrus.Debugf("bridge store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
+		log.G(context.TODO()).Debugf("bridge store not initialized. kv object %s is not deleted from store", datastore.Key(kvObject.Key()...))
 		return nil
 	}
 
@@ -315,19 +316,19 @@ func (ep *bridgeEndpoint) UnmarshalJSON(b []byte) error {
 	ep.srcName = epMap["SrcName"].(string)
 	d, _ := json.Marshal(epMap["Config"])
 	if err := json.Unmarshal(d, &ep.config); err != nil {
-		logrus.Warnf("Failed to decode endpoint config %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint config %v", err)
 	}
 	d, _ = json.Marshal(epMap["ContainerConfig"])
 	if err := json.Unmarshal(d, &ep.containerConfig); err != nil {
-		logrus.Warnf("Failed to decode endpoint container config %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint container config %v", err)
 	}
 	d, _ = json.Marshal(epMap["ExternalConnConfig"])
 	if err := json.Unmarshal(d, &ep.extConnConfig); err != nil {
-		logrus.Warnf("Failed to decode endpoint external connectivity configuration %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint external connectivity configuration %v", err)
 	}
 	d, _ = json.Marshal(epMap["PortMapping"])
 	if err := json.Unmarshal(d, &ep.portMapping); err != nil {
-		logrus.Warnf("Failed to decode endpoint port mapping %v", err)
+		log.G(context.TODO()).Warnf("Failed to decode endpoint port mapping %v", err)
 	}
 
 	return nil
@@ -394,7 +395,7 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	ep.extConnConfig.PortBindings = ep.portMapping
 	_, err := n.allocatePorts(ep, n.config.DefaultBindingIP, n.driver.config.EnableUserlandProxy)
 	if err != nil {
-		logrus.Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
+		log.G(context.TODO()).Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}
 	ep.extConnConfig.PortBindings = tmp
 }

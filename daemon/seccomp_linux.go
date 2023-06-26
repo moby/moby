@@ -5,12 +5,12 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/log"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/docker/docker/container"
 	dconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/profiles/seccomp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 )
 
 const supportsSeccomp = true
@@ -28,7 +28,7 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			if c.SeccompProfile != "" && c.SeccompProfile != dconfig.SeccompProfileDefault {
 				return fmt.Errorf("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
 			}
-			logrus.Warn("seccomp is not enabled in your kernel, running container without default profile")
+			log.G(ctx).Warn("seccomp is not enabled in your kernel, running container without default profile")
 			c.SeccompProfile = dconfig.SeccompProfileUnconfined
 			return nil
 		}

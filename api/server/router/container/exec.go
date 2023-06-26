@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/sirupsen/logrus"
 )
 
 func (s *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -56,7 +56,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	// Register an instance of Exec in container.
 	id, err := s.backend.ContainerExecCreate(vars["name"], execConfig)
 	if err != nil {
-		logrus.Errorf("Error setting up exec command in container %s: %v", vars["name"], err)
+		log.G(ctx).Errorf("Error setting up exec command in container %s: %v", vars["name"], err)
 		return err
 	}
 
@@ -154,7 +154,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 			return err
 		}
 		stdout.Write([]byte(err.Error() + "\r\n"))
-		logrus.Errorf("Error running exec %s in container: %v", execName, err)
+		log.G(ctx).Errorf("Error running exec %s in container: %v", execName, err)
 	}
 	return nil
 }

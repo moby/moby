@@ -1,14 +1,15 @@
 package snapshotter
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/locker"
-	"github.com/sirupsen/logrus"
 )
 
 const mountsDir = "rootfs"
@@ -82,10 +83,10 @@ func (m *refCountMounter) Mount(mounts []mount.Mount, containerID string) (targe
 		if retErr != nil {
 			if c := m.rc.Decrement(target); c <= 0 {
 				if mntErr := unmount(target); mntErr != nil {
-					logrus.Errorf("error unmounting %s: %v", target, mntErr)
+					log.G(context.TODO()).Errorf("error unmounting %s: %v", target, mntErr)
 				}
 				if rmErr := os.Remove(target); rmErr != nil && !os.IsNotExist(rmErr) {
-					logrus.Debugf("Failed to remove %s: %v: %v", target, rmErr, err)
+					log.G(context.TODO()).Debugf("Failed to remove %s: %v: %v", target, rmErr, err)
 				}
 			}
 		}
@@ -108,11 +109,11 @@ func (m *refCountMounter) Unmount(target string) error {
 	defer m.locker.Unlock(target)
 
 	if err := unmount(target); err != nil {
-		logrus.Debugf("Failed to unmount %s: %v", target, err)
+		log.G(context.TODO()).Debugf("Failed to unmount %s: %v", target, err)
 	}
 
 	if err := os.Remove(target); err != nil {
-		logrus.WithError(err).WithField("dir", target).Error("failed to remove mount temp dir")
+		log.G(context.TODO()).WithError(err).WithField("dir", target).Error("failed to remove mount temp dir")
 	}
 
 	return nil

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
@@ -42,7 +43,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		es, err := tsk.Delete(ctx)
 		cancel()
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
+			log.G(ctx).WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"container":     c.ID,
 			}).Warn("failed to delete container from containerd")
@@ -72,7 +73,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	execDuration := time.Since(c.StartedAt)
 	restart, wait, err := c.RestartManager().ShouldRestart(uint32(exitStatus.ExitCode), daemonShutdown || c.HasBeenManuallyStopped, execDuration)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.G(ctx).WithFields(logrus.Fields{
 			logrus.ErrorKey:          err,
 			"container":              c.ID,
 			"restartCount":           c.RestartCount,
@@ -92,7 +93,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 
 	if restart {
 		c.RestartCount++
-		logrus.WithFields(logrus.Fields{
+		log.G(ctx).WithFields(logrus.Fields{
 			"container":     c.ID,
 			"restartCount":  c.RestartCount,
 			"exitStatus":    exitStatus,
@@ -122,7 +123,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				daemon.waitForStartupDone()
 				cfg := daemon.config() // Apply the most up-to-date daemon config to the restarted container.
 				if err = daemon.containerStart(context.Background(), cfg, c, "", "", false); err != nil {
-					logrus.Debugf("failed to restart container: %+v", err)
+					log.G(ctx).Debugf("failed to restart container: %+v", err)
 				}
 			}
 			if err != nil {
@@ -133,7 +134,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				c.Unlock()
 				defer daemon.autoRemove(&cfg.Config, c)
 				if err != restartmanager.ErrRestartCanceled {
-					logrus.Errorf("restartmanger wait error: %+v", err)
+					log.G(ctx).Errorf("restartmanger wait error: %+v", err)
 				}
 			}
 		}()
@@ -190,7 +191,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			cancel()
 
 			if err := execConfig.CloseStreams(); err != nil {
-				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
+				log.G(ctx).Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
 			}
 
 			exitCode = ec
@@ -206,7 +207,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			if execConfig.Process != nil {
 				go func() {
 					if _, err := execConfig.Process.Delete(context.Background()); err != nil {
-						logrus.WithFields(logrus.Fields{
+						log.G(ctx).WithFields(logrus.Fields{
 							logrus.ErrorKey: err,
 							"container":     ei.ContainerID,
 							"process":       ei.ProcessID,
@@ -231,7 +232,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				if errdefs.IsNotFound(err) {
 					// The container was started by not-docker and so could have been deleted by
 					// not-docker before we got around to loading it from containerd.
-					logrus.WithFields(logrus.Fields{
+					log.G(context.TODO()).WithFields(logrus.Fields{
 						logrus.ErrorKey: err,
 						"container":     c.ID,
 					}).Debug("could not load containerd container for start event")
@@ -242,7 +243,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			tsk, err := ctr.Task(context.Background())
 			if err != nil {
 				if errdefs.IsNotFound(err) {
-					logrus.WithFields(logrus.Fields{
+					log.G(context.TODO()).WithFields(logrus.Fields{
 						logrus.ErrorKey: err,
 						"container":     c.ID,
 					}).Debug("failed to load task for externally-started container")
@@ -310,5 +311,5 @@ func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
 		return
 	}
 
-	logrus.WithFields(logrus.Fields{logrus.ErrorKey: err, "container": c.ID}).Error("error removing container")
+	log.G(context.TODO()).WithFields(logrus.Fields{logrus.ErrorKey: err, "container": c.ID}).Error("error removing container")
 }

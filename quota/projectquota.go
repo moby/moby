@@ -52,15 +52,16 @@ const int Q_XGETQSTAT_PRJQUOTA = QCMD(Q_XGETQSTAT, PRJQUOTA);
 */
 import "C"
 import (
+	"context"
 	"os"
 	"path"
 	"path/filepath"
 	"sync"
 	"unsafe"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -179,7 +180,7 @@ func NewControl(basePath string) (*Control, error) {
 		return nil, err
 	}
 
-	logrus.Debugf("NewControl(%s): nextProjectID = %d", basePath, state.nextProjectID)
+	log.G(context.TODO()).Debugf("NewControl(%s): nextProjectID = %d", basePath, state.nextProjectID)
 	return &q, nil
 }
 
@@ -214,7 +215,7 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 	//
 	// set the quota limit for the container's project id
 	//
-	logrus.Debugf("SetQuota(%s, %d): projectID=%d", targetPath, quota.Size, projectID)
+	log.G(context.TODO()).Debugf("SetQuota(%s, %d): projectID=%d", targetPath, quota.Size, projectID)
 	return setProjectQuota(q.backingFsBlockDev, projectID, quota)
 }
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/libnetwork"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -127,7 +127,7 @@ func (daemon *Daemon) ProcessClusterNotifications(ctx context.Context, watchStre
 			return
 		case message, ok := <-watchStream:
 			if !ok {
-				logrus.Debug("cluster event channel has stopped")
+				log.G(ctx).Debug("cluster event channel has stopped")
 				return
 			}
 			daemon.generateClusterEvent(message)
@@ -138,7 +138,7 @@ func (daemon *Daemon) ProcessClusterNotifications(ctx context.Context, watchStre
 func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 	for _, event := range msg.Events {
 		if event.Object == nil {
-			logrus.Errorf("event without object: %v", event)
+			log.G(context.TODO()).Errorf("event without object: %v", event)
 			continue
 		}
 		switch v := event.Object.GetObject().(type) {
@@ -153,7 +153,7 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 		case *swarmapi.Object_Config:
 			daemon.logConfigEvent(event.Action, v.Config, event.OldObject.GetConfig())
 		default:
-			logrus.Warnf("unrecognized event: %v", event)
+			log.G(context.TODO()).Warnf("unrecognized event: %v", event)
 		}
 	}
 }
@@ -245,7 +245,7 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 				}
 			} else {
 				// This should not happen.
-				logrus.Errorf("service %s runtime changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.Task.GetRuntime(), service.Spec.Task.GetRuntime())
+				log.G(context.TODO()).Errorf("service %s runtime changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.Task.GetRuntime(), service.Spec.Task.GetRuntime())
 			}
 		}
 		// check replicated count change
@@ -259,7 +259,7 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 				}
 			} else {
 				// This should not happen.
-				logrus.Errorf("service %s mode changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.GetMode(), service.Spec.GetMode())
+				log.G(context.TODO()).Errorf("service %s mode changed from %T to %T", service.Spec.Annotations.Name, oldService.Spec.GetMode(), service.Spec.GetMode())
 			}
 		}
 		if service.UpdateStatus != nil {

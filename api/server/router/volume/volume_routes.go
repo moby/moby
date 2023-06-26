@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -116,10 +116,10 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 	// Instead, we will allow creating a volume with a duplicate name, which
 	// should not break anything.
 	if req.ClusterVolumeSpec != nil && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) {
-		logrus.Debug("using cluster volume")
+		log.G(ctx).Debug("using cluster volume")
 		vol, err = v.cluster.CreateVolume(req)
 	} else {
-		logrus.Debug("using regular volume")
+		log.G(ctx).Debug("using regular volume")
 		vol, err = v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
 	}
 

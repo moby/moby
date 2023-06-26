@@ -1,12 +1,13 @@
 package libnetwork
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/sirupsen/logrus"
 )
 
 func registerKVStores() {
@@ -75,7 +76,7 @@ func (c *Controller) getNetworks() ([]*network, error) {
 		ec := &endpointCnt{n: n}
 		err = store.GetObject(datastore.Key(ec.Key()...), ec)
 		if err != nil && !n.inDelete {
-			logrus.Warnf("Could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+			log.G(context.TODO()).Warnf("Could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
 			continue
 		}
 
@@ -96,14 +97,14 @@ func (c *Controller) getNetworksFromStore() []*network { // FIXME: unify with c.
 	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix), &network{ctrlr: c})
 	if err != nil {
 		if err != datastore.ErrKeyNotFound {
-			logrus.Debugf("failed to get networks from store: %v", err)
+			log.G(context.TODO()).Debugf("failed to get networks from store: %v", err)
 		}
 		return nil
 	}
 
 	kvep, err := store.Map(datastore.Key(epCntKeyPrefix), &endpointCnt{})
 	if err != nil && err != datastore.ErrKeyNotFound {
-		logrus.Warnf("failed to get endpoint_count map from store: %v", err)
+		log.G(context.TODO()).Warnf("failed to get endpoint_count map from store: %v", err)
 	}
 
 	for _, kvo := range kvol {
@@ -187,7 +188,7 @@ retry:
 			if err := cs.GetObject(datastore.Key(kvObject.Key()...), kvObject); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to delete: %v", err)
 			}
-			logrus.Warnf("Error (%v) deleting object %v, retrying....", err, kvObject.Key())
+			log.G(context.TODO()).Warnf("Error (%v) deleting object %v, retrying....", err, kvObject.Key())
 			goto retry
 		}
 		return err
@@ -232,7 +233,7 @@ func (c *Controller) networkWatchLoop(nw *netWatch, ep *Endpoint, ecCh <-chan da
 
 			epl, err := ec.n.getEndpointsFromStore()
 			if err != nil {
-				logrus.WithError(err).Debug("error getting endpoints from store")
+				log.G(context.TODO()).WithError(err).Debug("error getting endpoints from store")
 				continue
 			}
 
@@ -342,7 +343,7 @@ func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoi
 
 	ch, err := store.Watch(n.getEpCnt(), nw.stopCh)
 	if err != nil {
-		logrus.Warnf("Error creating watch for network: %v", err)
+		log.G(context.TODO()).Warnf("Error creating watch for network: %v", err)
 		return
 	}
 
@@ -409,9 +410,9 @@ func (c *Controller) startWatch() {
 func (c *Controller) networkCleanup() {
 	for _, n := range c.getNetworksFromStore() {
 		if n.inDelete {
-			logrus.Infof("Removing stale network %s (%s)", n.Name(), n.ID())
+			log.G(context.TODO()).Infof("Removing stale network %s (%s)", n.Name(), n.ID())
 			if err := n.delete(true, true); err != nil {
-				logrus.Debugf("Error while removing stale network: %v", err)
+				log.G(context.TODO()).Debugf("Error while removing stale network: %v", err)
 			}
 		}
 	}
@@ -420,7 +421,7 @@ func (c *Controller) networkCleanup() {
 var populateSpecial NetworkWalker = func(nw Network) bool {
 	if n := nw.(*network); n.hasSpecialDriver() && !n.ConfigOnly() {
 		if err := n.getController().addNetwork(n); err != nil {
-			logrus.Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
+			log.G(context.TODO()).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
 		}
 	}
 	return false

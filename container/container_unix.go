@@ -3,10 +3,12 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"syscall"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -18,7 +20,6 @@ import (
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -64,12 +65,14 @@ func (container *Container) BuildHostnameFile() error {
 
 // NetworkMounts returns the list of network mounts.
 func (container *Container) NetworkMounts() []Mount {
+	ctx := context.TODO()
+
 	var mounts []Mount
 	shared := container.HostConfig.NetworkMode.IsContainer()
 	parser := volumemounts.NewParser()
 	if container.ResolvConfPath != "" {
 		if _, err := os.Stat(container.ResolvConfPath); err != nil {
-			logrus.Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)
+			log.G(ctx).Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)
 		} else {
 			writable := !container.HostConfig.ReadonlyRootfs
 			if m, exists := container.MountPoints["/etc/resolv.conf"]; exists {
@@ -87,7 +90,7 @@ func (container *Container) NetworkMounts() []Mount {
 	}
 	if container.HostnamePath != "" {
 		if _, err := os.Stat(container.HostnamePath); err != nil {
-			logrus.Warnf("HostnamePath set to %q, but can't stat this filename (err = %v); skipping", container.HostnamePath, err)
+			log.G(ctx).Warnf("HostnamePath set to %q, but can't stat this filename (err = %v); skipping", container.HostnamePath, err)
 		} else {
 			writable := !container.HostConfig.ReadonlyRootfs
 			if m, exists := container.MountPoints["/etc/hostname"]; exists {
@@ -105,7 +108,7 @@ func (container *Container) NetworkMounts() []Mount {
 	}
 	if container.HostsPath != "" {
 		if _, err := os.Stat(container.HostsPath); err != nil {
-			logrus.Warnf("HostsPath set to %q, but can't stat this filename (err = %v); skipping", container.HostsPath, err)
+			log.G(ctx).Warnf("HostsPath set to %q, but can't stat this filename (err = %v); skipping", container.HostsPath, err)
 		} else {
 			writable := !container.HostConfig.ReadonlyRootfs
 			if m, exists := container.MountPoints["/etc/hosts"]; exists {
@@ -146,7 +149,7 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 
 	defer func() {
 		if err := v.Unmount(id); err != nil {
-			logrus.Warnf("error while unmounting volume %s: %v", v.Name(), err)
+			log.G(context.TODO()).Warnf("error while unmounting volume %s: %v", v.Name(), err)
 		}
 	}()
 	if err := label.Relabel(path, container.MountLabel, true); err != nil && !errors.Is(err, syscall.ENOTSUP) {
@@ -363,13 +366,15 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 // unmounts each volume normally.
 // This is used from daemon/archive for `docker cp`
 func (container *Container) DetachAndUnmount(volumeEventLog func(name, action string, attributes map[string]string)) error {
+	ctx := context.TODO()
+
 	networkMounts := container.NetworkMounts()
 	mountPaths := make([]string, 0, len(container.MountPoints)+len(networkMounts))
 
 	for _, mntPoint := range container.MountPoints {
 		dest, err := container.GetResourcePath(mntPoint.Destination)
 		if err != nil {
-			logrus.Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, mntPoint.Destination, err)
+			log.G(ctx).Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, mntPoint.Destination, err)
 			continue
 		}
 		mountPaths = append(mountPaths, dest)
@@ -378,7 +383,7 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 	for _, m := range networkMounts {
 		dest, err := container.GetResourcePath(m.Destination)
 		if err != nil {
-			logrus.Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, m.Destination, err)
+			log.G(ctx).Warnf("Failed to get volume destination path for container '%s' at '%s' while lazily unmounting: %v", container.ID, m.Destination, err)
 			continue
 		}
 		mountPaths = append(mountPaths, dest)
@@ -386,7 +391,7 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 
 	for _, mountPath := range mountPaths {
 		if err := mount.Unmount(mountPath); err != nil {
-			logrus.WithError(err).WithField("container", container.ID).
+			log.G(ctx).WithError(err).WithField("container", container.ID).
 				Warn("Unable to unmount")
 		}
 	}

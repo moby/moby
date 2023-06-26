@@ -1,9 +1,10 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 const (
@@ -18,7 +19,7 @@ func (container *Container) Reset(lock bool) {
 	}
 
 	if err := container.CloseStreams(); err != nil {
-		logrus.Errorf("%s: %s", container.ID, err)
+		log.G(context.TODO()).Errorf("%s: %s", container.ID, err)
 	}
 
 	// Re-create a brand new stdin pipe once the container exited
@@ -38,7 +39,7 @@ func (container *Container) Reset(lock bool) {
 			defer timer.Stop()
 			select {
 			case <-timer.C:
-				logrus.Warn("Logger didn't exit in time: logs may be truncated")
+				log.G(context.TODO()).Warn("Logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}
 		}

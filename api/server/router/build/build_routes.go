@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -26,7 +27,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type invalidParam struct {
@@ -248,7 +248,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		}
 		_, err = output.Write(streamformatter.FormatError(err))
 		if err != nil {
-			logrus.Warnf("could not write error response: %v", err)
+			log.G(ctx).Warnf("could not write error response: %v", err)
 		}
 		return nil
 	}

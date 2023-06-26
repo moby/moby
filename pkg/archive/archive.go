@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -205,21 +206,21 @@ func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
 	if noPigzEnv := os.Getenv("MOBY_DISABLE_PIGZ"); noPigzEnv != "" {
 		noPigz, err := strconv.ParseBool(noPigzEnv)
 		if err != nil {
-			logrus.WithError(err).Warn("invalid value in MOBY_DISABLE_PIGZ env var")
+			log.G(ctx).WithError(err).Warn("invalid value in MOBY_DISABLE_PIGZ env var")
 		}
 		if noPigz {
-			logrus.Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
+			log.G(ctx).Debugf("Use of pigz is disabled due to MOBY_DISABLE_PIGZ=%s", noPigzEnv)
 			return gzip.NewReader(buf)
 		}
 	}
 
 	unpigzPath, err := exec.LookPath("unpigz")
 	if err != nil {
-		logrus.Debugf("unpigz binary not found, falling back to go gzip library")
+		log.G(ctx).Debugf("unpigz binary not found, falling back to go gzip library")
 		return gzip.NewReader(buf)
 	}
 
-	logrus.Debugf("Using %s to decompress", unpigzPath)
+	log.G(ctx).Debugf("Using %s to decompress", unpigzPath)
 
 	return cmdStream(exec.CommandContext(ctx, unpigzPath, "-d", "-c"), buf)
 }
@@ -754,7 +755,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 		}
 
 	case tar.TypeXGlobalHeader:
-		logrus.Debug("PAX Global Extended Headers found and ignored")
+		log.G(context.TODO()).Debug("PAX Global Extended Headers found and ignored")
 		return nil
 
 	default:
@@ -789,7 +790,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	}
 
 	if len(xattrErrs) > 0 {
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(logrus.Fields{
 			"errors": xattrErrs,
 		}).Warn("ignored xattrs in archive: underlying filesystem doesn't support them")
 	}
@@ -907,13 +908,13 @@ func (t *Tarballer) Do() {
 	defer func() {
 		// Make sure to check the error on Close.
 		if err := ta.TarWriter.Close(); err != nil {
-			logrus.Errorf("Can't close tar writer: %s", err)
+			log.G(context.TODO()).Errorf("Can't close tar writer: %s", err)
 		}
 		if err := t.compressWriter.Close(); err != nil {
-			logrus.Errorf("Can't close compress writer: %s", err)
+			log.G(context.TODO()).Errorf("Can't close compress writer: %s", err)
 		}
 		if err := t.pipeWriter.Close(); err != nil {
-			logrus.Errorf("Can't close pipe writer: %s", err)
+			log.G(context.TODO()).Errorf("Can't close pipe writer: %s", err)
 		}
 	}()
 
@@ -936,7 +937,7 @@ func (t *Tarballer) Do() {
 		// directory. So, we must split the source path and use the
 		// basename as the include.
 		if len(t.options.IncludeFiles) > 0 {
-			logrus.Warn("Tar: Can't archive a file with includes")
+			log.G(context.TODO()).Warn("Tar: Can't archive a file with includes")
 		}
 
 		dir, base := SplitPathDirEntry(t.srcPath)
@@ -961,7 +962,7 @@ func (t *Tarballer) Do() {
 		walkRoot := getWalkRoot(t.srcPath, include)
 		filepath.WalkDir(walkRoot, func(filePath string, f os.DirEntry, err error) error {
 			if err != nil {
-				logrus.Errorf("Tar: Can't stat file %s to tar: %s", t.srcPath, err)
+				log.G(context.TODO()).Errorf("Tar: Can't stat file %s to tar: %s", t.srcPath, err)
 				return nil
 			}
 
@@ -1000,7 +1001,7 @@ func (t *Tarballer) Do() {
 					skip, matchInfo, err = t.pm.MatchesUsingParentResults(relFilePath, patternmatcher.MatchInfo{})
 				}
 				if err != nil {
-					logrus.Errorf("Error matching %s: %v", relFilePath, err)
+					log.G(context.TODO()).Errorf("Error matching %s: %v", relFilePath, err)
 					return err
 				}
 
@@ -1061,7 +1062,7 @@ func (t *Tarballer) Do() {
 			}
 
 			if err := ta.addTarFile(filePath, relFilePath); err != nil {
-				logrus.Errorf("Can't add file %s to tar: %s", filePath, err)
+				log.G(context.TODO()).Errorf("Can't add file %s to tar: %s", filePath, err)
 				// if pipe is broken, stop writing tar stream to it
 				if err == io.ErrClosedPipe {
 					return err
@@ -1098,7 +1099,7 @@ loop:
 
 		// ignore XGlobalHeader early to avoid creating parent directories for them
 		if hdr.Typeflag == tar.TypeXGlobalHeader {
-			logrus.Debugf("PAX Global Extended Headers found for %s and ignored", hdr.Name)
+			log.G(context.TODO()).Debugf("PAX Global Extended Headers found for %s and ignored", hdr.Name)
 			continue
 		}
 

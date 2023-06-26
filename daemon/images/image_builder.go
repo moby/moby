@@ -5,6 +5,7 @@ import (
 	"io"
 	"runtime"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
@@ -22,7 +23,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type roLayer struct {
@@ -189,7 +189,7 @@ This is most likely caused by a bug in the build system that created the fetched
 Please notify the image author to correct the configuration.`,
 				platforms.Format(p), platforms.Format(imgPlat), name,
 			)
-			logrus.WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
+			log.G(ctx).WithError(err).WithField("image", name).Warn("Ignoring error about platform mismatch where the manifest list points to an image whose configuration does not match the platform in the manifest.")
 			err = nil
 		}
 	}

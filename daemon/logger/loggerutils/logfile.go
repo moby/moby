@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // rotateFileMetadata is a metadata of the gzip header of the compressed log file
@@ -219,7 +219,7 @@ func (w *LogFile) rotate() (retErr error) {
 		defer w.fsopMu.Unlock()
 
 		if err := rotate(fname, w.maxFiles, w.compress); err != nil {
-			logrus.WithError(err).Warn("Error rotating log file, log data may have been lost")
+			log.G(context.TODO()).WithError(err).Warn("Error rotating log file, log data may have been lost")
 		} else {
 			// We may have readers working their way through the
 			// current log file so we can't truncate it. We need to
@@ -228,11 +228,11 @@ func (w *LogFile) rotate() (retErr error) {
 			// current file out of the way.
 			if w.maxFiles < 2 {
 				if err := unlink(fname); err != nil && !errors.Is(err, fs.ErrNotExist) {
-					logrus.WithError(err).Error("Error unlinking current log file")
+					log.G(context.TODO()).WithError(err).Error("Error unlinking current log file")
 				}
 			} else {
 				if err := os.Rename(fname, fname+".1"); err != nil && !errors.Is(err, fs.ErrNotExist) {
-					logrus.WithError(err).Error("Error renaming current log file")
+					log.G(context.TODO()).WithError(err).Error("Error renaming current log file")
 				}
 			}
 		}
@@ -262,7 +262,7 @@ func (w *LogFile) rotate() (retErr error) {
 		// point during the compression process will a reader fail to
 		// open a complete copy of the file.
 		if err := compressFile(fname+".1", ts); err != nil {
-			logrus.WithError(err).Error("Error compressing log file after rotation")
+			log.G(context.TODO()).WithError(err).Error("Error compressing log file after rotation")
 		}
 	}()
 
@@ -289,7 +289,7 @@ func rotate(name string, maxFiles int, compress bool) error {
 		toPath := name + "." + strconv.Itoa(i) + extension
 		fromPath := name + "." + strconv.Itoa(i-1) + extension
 		err := os.Rename(fromPath, toPath)
-		logrus.WithError(err).WithField("source", fromPath).WithField("target", toPath).Trace("Rotating log file")
+		log.G(context.TODO()).WithError(err).WithField("source", fromPath).WithField("target", toPath).Trace("Rotating log file")
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
@@ -302,7 +302,7 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 	file, err := open(fileName)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			logrus.WithField("file", fileName).WithError(err).Debug("Could not open log file to compress")
+			log.G(context.TODO()).WithField("file", fileName).WithError(err).Debug("Could not open log file to compress")
 			return nil
 		}
 		return errors.Wrap(err, "failed to open log file")
@@ -325,7 +325,7 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 		outFile.Close()
 		if retErr != nil {
 			if err := unlink(fileName + ".gz"); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				logrus.WithError(err).Error("Error cleaning up after failed log compression")
+				log.G(context.TODO()).WithError(err).Error("Error cleaning up after failed log compression")
 			}
 		}
 	}()
@@ -339,7 +339,7 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 	compressWriter.Header.Extra, err = json.Marshal(&extra)
 	if err != nil {
 		// Here log the error only and don't return since this is just an optimization.
-		logrus.Warningf("Failed to marshal gzip header as JSON: %v", err)
+		log.G(context.TODO()).Warningf("Failed to marshal gzip header as JSON: %v", err)
 	}
 
 	_, err = pools.Copy(compressWriter, file)

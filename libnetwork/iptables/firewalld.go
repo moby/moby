@@ -4,11 +4,12 @@
 package iptables
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	dbus "github.com/godbus/dbus/v5"
-	"github.com/sirupsen/logrus"
 )
 
 // IPV defines the table string
@@ -191,7 +192,7 @@ func checkRunning() bool {
 // Passthrough method simply passes args through to iptables/ip6tables
 func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	var output string
-	logrus.Debugf("Firewalld passthrough: %s, %s", ipv, args)
+	log.G(context.TODO()).Debugf("Firewalld passthrough: %s, %s", ipv, args)
 	if err := connection.sysObj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
 	}
@@ -235,10 +236,10 @@ func setupDockerZone() error {
 		return err
 	}
 	if contains(zones, dockerZone) {
-		logrus.Infof("Firewalld: %s zone already exists, returning", dockerZone)
+		log.G(context.TODO()).Infof("Firewalld: %s zone already exists, returning", dockerZone)
 		return nil
 	}
-	logrus.Debugf("Firewalld: creating %s zone", dockerZone)
+	log.G(context.TODO()).Debugf("Firewalld: creating %s zone", dockerZone)
 
 	settings := getDockerZoneSettings()
 	// Permanent
@@ -262,11 +263,11 @@ func AddInterfaceFirewalld(intf string) error {
 	}
 	// Return if interface is already part of the zone
 	if contains(intfs, intf) {
-		logrus.Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
+		log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
 		return nil
 	}
 
-	logrus.Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
+	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
 		return err
@@ -286,7 +287,7 @@ func DelInterfaceFirewalld(intf string) error {
 		return fmt.Errorf("Firewalld: unable to find interface %s in %s zone", intf, dockerZone)
 	}
 
-	logrus.Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
+	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
 		return err

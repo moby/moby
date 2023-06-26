@@ -3,6 +3,7 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,11 +12,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -130,10 +131,10 @@ func (c *Controller) acceptClientConnections(sock string, l net.Listener) {
 		conn, err := l.Accept()
 		if err != nil {
 			if _, err1 := os.Stat(sock); os.IsNotExist(err1) {
-				logrus.Debugf("Unix socket %s doesn't exist. cannot accept client connections", sock)
+				log.G(context.TODO()).Debugf("Unix socket %s doesn't exist. cannot accept client connections", sock)
 				return
 			}
-			logrus.Errorf("Error accepting connection %v", err)
+			log.G(context.TODO()).Errorf("Error accepting connection %v", err)
 			continue
 		}
 		go func() {
@@ -147,7 +148,7 @@ func (c *Controller) acceptClientConnections(sock string, l net.Listener) {
 
 			_, err = conn.Write([]byte(ret))
 			if err != nil {
-				logrus.Errorf("Error returning to the client %v", err)
+				log.G(context.TODO()).Errorf("Error returning to the client %v", err)
 			}
 		}()
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/containerd/containerd"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/snapshotters"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
@@ -75,7 +76,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tagOrDigest string,
 		return err
 	}
 
-	logger := logrus.WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(logrus.Fields{
 		"digest": img.Target().Digest,
 		"remote": ref.String(),
 	})

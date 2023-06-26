@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -25,7 +26,7 @@ import (
 // if it returns nil, the config channel will be active and return log
 // messages until it runs out or the context is canceled.
 func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *types.ContainerLogsOptions) (messages <-chan *backend.LogMessage, isTTY bool, retErr error) {
-	lg := logrus.WithFields(logrus.Fields{
+	lg := log.G(ctx).WithFields(logrus.Fields{
 		"module":    "daemon",
 		"method":    "(*Daemon).ContainerLogs",
 		"container": containerName,
@@ -55,7 +56,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		defer func() {
 			if retErr != nil {
 				if err = cLog.Close(); err != nil {
-					logrus.Errorf("Error closing logger: %v", err)
+					log.G(ctx).Errorf("Error closing logger: %v", err)
 				}
 			}
 		}()
@@ -108,7 +109,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		if cLogCreated {
 			defer func() {
 				if err = cLog.Close(); err != nil {
-					logrus.Errorf("Error closing logger: %v", err)
+					log.G(ctx).Errorf("Error closing logger: %v", err)
 				}
 			}()
 		}

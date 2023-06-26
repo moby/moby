@@ -10,6 +10,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -91,7 +92,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 			available, err := img.CheckContentAvailable(ctx)
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
+				log.G(ctx).WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"manifest":      img.Target(),
 					"image":         img.Name(),
@@ -182,7 +183,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 	rawImg := image.Metadata()
 	target := rawImg.Target.Digest
 
-	logger := logrus.WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(logrus.Fields{
 		"name":   rawImg.Name,
 		"digest": target,
 	})
@@ -434,7 +435,7 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 			return true
 		}
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
+			log.G(ctx).WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"image":         image.Name,
 				"checks":        checks,

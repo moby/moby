@@ -1,6 +1,7 @@
 package ns
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -8,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -26,15 +27,15 @@ func Init() {
 	var err error
 	initNs, err = netns.Get()
 	if err != nil {
-		logrus.Errorf("could not get initial namespace: %v", err)
+		log.G(context.TODO()).Errorf("could not get initial namespace: %v", err)
 	}
 	initNl, err = netlink.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
-		logrus.Errorf("could not create netlink handle on initial namespace: %v", err)
+		log.G(context.TODO()).Errorf("could not create netlink handle on initial namespace: %v", err)
 	}
 	err = initNl.SetSocketTimeout(NetlinkSocketsTimeout)
 	if err != nil {
-		logrus.Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
+		log.G(context.TODO()).Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
 	}
 }
 
@@ -59,14 +60,14 @@ func getSupportedNlFamilies() []int {
 	fams := []int{syscall.NETLINK_ROUTE}
 	// NETLINK_XFRM test
 	if err := checkXfrmSocket(); err != nil {
-		logrus.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
+		log.G(context.TODO()).Warnf("Could not load necessary modules for IPSEC rules: %v", err)
 	} else {
 		fams = append(fams, syscall.NETLINK_XFRM)
 	}
 	// NETLINK_NETFILTER test
 	if err := loadNfConntrackModules(); err != nil {
 		if checkNfSocket() != nil {
-			logrus.Warnf("Could not load necessary modules for Conntrack: %v", err)
+			log.G(context.TODO()).Warnf("Could not load necessary modules for Conntrack: %v", err)
 		} else {
 			fams = append(fams, syscall.NETLINK_NETFILTER)
 		}

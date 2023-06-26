@@ -4,9 +4,9 @@ import (
 	"context"
 	"io"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image/tarexport"
-	"github.com/sirupsen/logrus"
 )
 
 // ExportImage exports a list of images to the given output stream. The
@@ -28,7 +28,7 @@ func (i *ImageService) PerformWithBaseFS(ctx context.Context, c *container.Conta
 		if err != nil {
 			err2 := i.ReleaseLayer(rwlayer)
 			if err2 != nil {
-				logrus.WithError(err2).WithField("container", c.ID).Warn("Failed to release layer")
+				log.G(ctx).WithError(err2).WithField("container", c.ID).Warn("Failed to release layer")
 			}
 		}
 	}()

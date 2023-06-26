@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
@@ -26,7 +27,6 @@ import (
 	"github.com/moby/sys/mount"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -66,7 +66,7 @@ type Driver struct {
 }
 
 var (
-	logger = logrus.WithField("storage-driver", driverName)
+	logger = log.G(context.TODO()).WithField("storage-driver", driverName)
 )
 
 func init() {
@@ -502,7 +502,7 @@ func fusermountU(mountpoint string) (unmounted bool) {
 	for _, v := range []string{"fusermount3", "fusermount"} {
 		err := exec.Command(v, "-u", mountpoint).Run()
 		if err != nil && !os.IsNotExist(err) {
-			logrus.Debugf("Error unmounting %s with %s - %v", mountpoint, v, err)
+			log.G(context.TODO()).Debugf("Error unmounting %s with %s - %v", mountpoint, v, err)
 		}
 		if err == nil {
 			unmounted = true
@@ -515,7 +515,7 @@ func fusermountU(mountpoint string) (unmounted bool) {
 		fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
 		if err == nil {
 			if err := unix.Syncfs(fd); err != nil {
-				logrus.Debugf("Error Syncfs(%s) - %v", mountpoint, err)
+				log.G(context.TODO()).Debugf("Error Syncfs(%s) - %v", mountpoint, err)
 			}
 			unix.Close(fd)
 		}

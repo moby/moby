@@ -1,9 +1,11 @@
 package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
@@ -11,7 +13,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
@@ -168,7 +169,7 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 		target := s.GetFile()
 		if target == nil {
 			// not a file target
-			logrus.Warnf("secret target not a file: secret=%s", s.SecretID)
+			log.G(context.TODO()).Warnf("secret target not a file: secret=%s", s.SecretID)
 			continue
 		}
 		refs = append(refs, &types.SecretReference{
@@ -240,7 +241,7 @@ func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigRef
 			}
 		} else {
 			// not a file target
-			logrus.Warnf("config target not known: config=%s", s.ConfigID)
+			log.G(context.TODO()).Warnf("config target not known: config=%s", s.ConfigID)
 			continue
 		}
 		refs = append(refs, r)

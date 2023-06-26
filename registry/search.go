@@ -10,9 +10,9 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var acceptedSearchFilterTags = map[string]bool{
@@ -126,7 +126,7 @@ func (s *Service) searchUnfiltered(ctx context.Context, term string, limit int, 
 		v2Client.CheckRedirect = endpoint.client.CheckRedirect
 		v2Client.Jar = endpoint.client.Jar
 
-		logrus.Debugf("using v2 client for search to %s", endpoint.URL)
+		log.G(ctx).Debugf("using v2 client for search to %s", endpoint.URL)
 		client = v2Client
 	} else {
 		client = endpoint.client

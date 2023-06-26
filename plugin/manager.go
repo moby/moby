@@ -15,6 +15,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/containerfs"
@@ -131,7 +132,7 @@ func (pm *Manager) HandleExitEvent(id string) error {
 	}
 
 	if err := os.RemoveAll(filepath.Join(pm.config.ExecRoot, id)); err != nil {
-		logrus.WithError(err).WithField("id", id).Error("Could not remove plugin bundle dir")
+		log.G(context.TODO()).WithError(err).WithField("id", id).Error("Could not remove plugin bundle dir")
 	}
 
 	pm.mu.RLock()
@@ -155,7 +156,7 @@ func handleLoadError(err error, id string) {
 	if err == nil {
 		return
 	}
-	logger := logrus.WithError(err).WithField("id", id)
+	logger := log.G(context.TODO()).WithError(err).WithField("id", id)
 	if errors.Is(err, os.ErrNotExist) {
 		// Likely some error while removing on an older version of docker
 		logger.Warn("missing plugin config, skipping: this may be caused due to a failed remove and requires manual cleanup.")
@@ -182,7 +183,7 @@ func (pm *Manager) reload() error { // todo: restore
 			if validFullID.MatchString(strings.TrimSuffix(v.Name(), "-removing")) {
 				// There was likely some error while removing this plugin, let's try to remove again here
 				if err := containerfs.EnsureRemoveAll(v.Name()); err != nil {
-					logrus.WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
+					log.G(context.TODO()).WithError(err).WithField("id", v.Name()).Warn("error while attempting to clean up previously removed plugin")
 				}
 			}
 		}
@@ -201,7 +202,7 @@ func (pm *Manager) reload() error { // todo: restore
 		go func(p *v2.Plugin) {
 			defer wg.Done()
 			if err := pm.restorePlugin(p, c); err != nil {
-				logrus.WithError(err).WithField("id", p.GetID()).Error("Failed to restore plugin")
+				log.G(context.TODO()).WithError(err).WithField("id", p.GetID()).Error("Failed to restore plugin")
 				return
 			}
 
@@ -221,13 +222,13 @@ func (pm *Manager) reload() error { // todo: restore
 							rootfsProp := filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
 							if _, err := os.Stat(rootfsProp); err == nil {
 								if err := os.Rename(rootfsProp, propRoot); err != nil {
-									logrus.WithError(err).WithField("dir", propRoot).Error("error migrating propagated mount storage")
+									log.G(context.TODO()).WithError(err).WithField("dir", propRoot).Error("error migrating propagated mount storage")
 								}
 							}
 						}
 
 						if err := os.MkdirAll(propRoot, 0755); err != nil {
-							logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
+							log.G(context.TODO()).Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
 						}
 					}
 				}
@@ -239,7 +240,7 @@ func (pm *Manager) reload() error { // todo: restore
 			if requiresManualRestore {
 				// if liveRestore is not enabled, the plugin will be stopped now so we should enable it
 				if err := pm.enable(p, c, true); err != nil {
-					logrus.WithError(err).WithField("id", p.GetID()).Error("failed to enable plugin")
+					log.G(context.TODO()).WithError(err).WithField("id", p.GetID()).Error("failed to enable plugin")
 				}
 			}
 		}(p)

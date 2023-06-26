@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
 	registrypkg "github.com/docker/docker/registry"
-	"github.com/sirupsen/logrus"
 )
 
 const secretRegistryToken = "mysecrettoken"
@@ -25,7 +25,7 @@ type tokenPassThruHandler struct {
 func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.reached = true
 	if strings.Contains(r.Header.Get("Authorization"), secretRegistryToken) {
-		logrus.Debug("Detected registry token in auth header")
+		log.G(context.TODO()).Debug("Detected registry token in auth header")
 		h.gotToken = true
 	}
 	if h.shouldSend401 == nil || h.shouldSend401(r.RequestURI) {
@@ -74,7 +74,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 		t.Fatal(err)
 	}
 
-	logrus.Debug("About to pull")
+	log.G(ctx).Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
 	_ = p.pullRepository(ctx, tag)

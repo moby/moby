@@ -8,15 +8,15 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/sirupsen/logrus"
 )
 
 // DebugRequestMiddleware dumps the request to logger
 func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		logrus.Debugf("Calling %s %s", r.Method, r.RequestURI)
+		log.G(ctx).Debugf("Calling %s %s", r.Method, r.RequestURI)
 
 		if r.Method != http.MethodPost {
 			return handler(ctx, w, r, vars)
@@ -44,9 +44,9 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 			maskSecretKeys(postForm)
 			formStr, errMarshal := json.Marshal(postForm)
 			if errMarshal == nil {
-				logrus.Debugf("form data: %s", string(formStr))
+				log.G(ctx).Debugf("form data: %s", string(formStr))
 			} else {
-				logrus.Debugf("form data: %q", postForm)
+				log.G(ctx).Debugf("form data: %q", postForm)
 			}
 		}
 

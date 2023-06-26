@@ -2,6 +2,7 @@ package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -14,6 +15,7 @@ import (
 	"golang.org/x/text/transform"
 
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
@@ -324,7 +326,7 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 
 // Reload reads the configuration in the host and reloads the daemon and server.
 func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
-	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
+	log.G(context.TODO()).Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		if flags.Changed("config-file") || !os.IsNotExist(err) {

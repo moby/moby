@@ -6,11 +6,11 @@ import (
 	"context"
 	"sort"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
@@ -27,7 +27,7 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Plat
 		if descP == nil || m.Match(*descP) {
 			matches = append(matches, desc)
 			if descP != nil {
-				logrus.Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
+				log.G(context.TODO()).Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
 			}
 		}
 	}

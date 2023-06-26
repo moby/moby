@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -11,10 +12,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/diagnostic"
 	"github.com/docker/docker/libnetwork/drivers/overlay"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -30,10 +33,10 @@ const (
 func httpIsOk(body io.ReadCloser) {
 	b, err := io.ReadAll(body)
 	if err != nil {
-		logrus.Fatalf("Failed the body parse %s", err)
+		log.G(context.TODO()).Fatalf("Failed the body parse %s", err)
 	}
 	if !strings.Contains(string(b), "OK") {
-		logrus.Fatalf("Server not ready %s", b)
+		log.G(context.TODO()).Fatalf("Server not ready %s", b)
 	}
 	body.Close()
 }
@@ -54,14 +57,14 @@ func main() {
 	}
 
 	if _, ok := os.LookupEnv("DIND_CLIENT"); !ok && *joinPtr {
-		logrus.Fatal("you are not using the client in docker in docker mode, the use of the -a flag can be disruptive, " +
+		log.G(context.TODO()).Fatal("you are not using the client in docker in docker mode, the use of the -a flag can be disruptive, " +
 			"please remove it (doc:https://github.com/docker/docker/libnetwork/blob/master/cmd/diagnostic/README.md)")
 	}
 
-	logrus.Infof("Connecting to %s:%d checking ready", *ipPtr, *portPtr)
+	log.G(context.TODO()).Infof("Connecting to %s:%d checking ready", *ipPtr, *portPtr)
 	resp, err := http.Get(fmt.Sprintf(readyPath, *ipPtr, *portPtr))
 	if err != nil {
-		logrus.WithError(err).Fatalf("The connection failed")
+		log.G(context.TODO()).WithError(err).Fatalf("The connection failed")
 	}
 	httpIsOk(resp.Body)
 
@@ -70,10 +73,10 @@ func main() {
 	var joinedNetwork bool
 	if *networkPtr != "" {
 		if *joinPtr {
-			logrus.Infof("Joining the network:%q", *networkPtr)
+			log.G(context.TODO()).Infof("Joining the network:%q", *networkPtr)
 			resp, err = http.Get(fmt.Sprintf(joinNetwork, *ipPtr, *portPtr, *networkPtr))
 			if err != nil {
-				logrus.WithError(err).Fatalf("Failed joining the network")
+				log.G(context.TODO()).WithError(err).Fatalf("Failed joining the network")
 			}
 			httpIsOk(resp.Body)
 			joinedNetwork = true
@@ -81,7 +84,7 @@ func main() {
 
 		networkPeers = fetchNodePeers(*ipPtr, *portPtr, *networkPtr)
 		if len(networkPeers) == 0 {
-			logrus.Warnf("There is no peer on network %q, check the network ID, and verify that is the non truncated version", *networkPtr)
+			log.G(context.TODO()).Warnf("There is no peer on network %q, check the network ID, and verify that is the non truncated version", *networkPtr)
 		}
 	}
 
@@ -93,10 +96,10 @@ func main() {
 	}
 
 	if joinedNetwork {
-		logrus.Infof("Leaving the network:%q", *networkPtr)
+		log.G(context.TODO()).Infof("Leaving the network:%q", *networkPtr)
 		resp, err = http.Get(fmt.Sprintf(leaveNetwork, *ipPtr, *portPtr, *networkPtr))
 		if err != nil {
-			logrus.WithError(err).Fatalf("Failed leaving the network")
+			log.G(context.TODO()).WithError(err).Fatalf("Failed leaving the network")
 		}
 		httpIsOk(resp.Body)
 	}
@@ -104,9 +107,9 @@ func main() {
 
 func fetchNodePeers(ip string, port int, network string) map[string]string {
 	if network == "" {
-		logrus.Infof("Fetch cluster peers")
+		log.G(context.TODO()).Infof("Fetch cluster peers")
 	} else {
-		logrus.Infof("Fetch peers network:%q", network)
+		log.G(context.TODO()).Infof("Fetch peers network:%q", network)
 	}
 
 	var path string
@@ -118,77 +121,77 @@ func fetchNodePeers(ip string, port int, network string) map[string]string {
 
 	resp, err := http.Get(path) //nolint:gosec // G107: Potential HTTP request made with variable url
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed fetching path")
+		log.G(context.TODO()).WithError(err).Fatalf("Failed fetching path")
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed the body parse")
+		log.G(context.TODO()).WithError(err).Fatalf("Failed the body parse")
 	}
 
 	output := diagnostic.HTTPResult{Details: &diagnostic.TablePeersResult{}}
 	err = json.Unmarshal(body, &output)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed the json unmarshalling")
+		log.G(context.TODO()).WithError(err).Fatalf("Failed the json unmarshalling")
 	}
 
-	logrus.Debugf("Parsing JSON response")
+	log.G(context.TODO()).Debugf("Parsing JSON response")
 	result := make(map[string]string, output.Details.(*diagnostic.TablePeersResult).Length)
 	for _, v := range output.Details.(*diagnostic.TablePeersResult).Elements {
-		logrus.Debugf("name:%s ip:%s", v.Name, v.IP)
+		log.G(context.TODO()).Debugf("name:%s ip:%s", v.Name, v.IP)
 		result[v.Name] = v.IP
 	}
 	return result
 }
 
 func fetchTable(ip string, port int, network, tableName string, clusterPeers, networkPeers map[string]string, remediate bool) {
-	logrus.Infof("Fetch %s table and check owners", tableName)
+	log.G(context.TODO()).Infof("Fetch %s table and check owners", tableName)
 	resp, err := http.Get(fmt.Sprintf(dumpTable, ip, port, network, tableName))
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed fetching endpoint table")
+		log.G(context.TODO()).WithError(err).Fatalf("Failed fetching endpoint table")
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed the body parse")
+		log.G(context.TODO()).WithError(err).Fatalf("Failed the body parse")
 	}
 
 	output := diagnostic.HTTPResult{Details: &diagnostic.TableEndpointsResult{}}
 	err = json.Unmarshal(body, &output)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed the json unmarshalling")
+		log.G(context.TODO()).WithError(err).Fatalf("Failed the json unmarshalling")
 	}
 
-	logrus.Debug("Parsing data structures")
+	log.G(context.TODO()).Debug("Parsing data structures")
 	var orphanKeys []string
 	for _, v := range output.Details.(*diagnostic.TableEndpointsResult).Elements {
 		decoded, err := base64.StdEncoding.DecodeString(v.Value)
 		if err != nil {
-			logrus.WithError(err).Errorf("Failed decoding entry")
+			log.G(context.TODO()).WithError(err).Errorf("Failed decoding entry")
 			continue
 		}
 		switch tableName {
 		case "endpoint_table":
 			var elem libnetwork.EndpointRecord
 			elem.Unmarshal(decoded)
-			logrus.Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
+			log.G(context.TODO()).Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
 		case "overlay_peer_table":
 			var elem overlay.PeerRecord
 			elem.Unmarshal(decoded)
-			logrus.Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
+			log.G(context.TODO()).Debugf("key:%s value:%+v owner:%s", v.Key, elem, v.Owner)
 		}
 
 		if _, ok := networkPeers[v.Owner]; !ok {
-			logrus.Warnf("The element with key:%s does not belong to any node on this network", v.Key)
+			log.G(context.TODO()).Warnf("The element with key:%s does not belong to any node on this network", v.Key)
 			orphanKeys = append(orphanKeys, v.Key)
 		}
 		if _, ok := clusterPeers[v.Owner]; !ok {
-			logrus.Warnf("The element with key:%s does not belong to any node on this cluster", v.Key)
+			log.G(context.TODO()).Warnf("The element with key:%s does not belong to any node on this cluster", v.Key)
 		}
 	}
 
 	if len(orphanKeys) > 0 && remediate {
-		logrus.Warnf("The following keys:%v results as orphan, do you want to proceed with the deletion (this operation is irreversible)? [Yes/No]", orphanKeys)
+		log.G(context.TODO()).Warnf("The following keys:%v results as orphan, do you want to proceed with the deletion (this operation is irreversible)? [Yes/No]", orphanKeys)
 		reader := bufio.NewReader(os.Stdin)
 		text, _ := reader.ReadString('\n')
 		text = strings.ReplaceAll(text, "\n", "")
@@ -196,13 +199,13 @@ func fetchTable(ip string, port int, network, tableName string, clusterPeers, ne
 			for _, k := range orphanKeys {
 				resp, err := http.Get(fmt.Sprintf(deleteEntry, ip, port, network, tableName, k))
 				if err != nil {
-					logrus.WithError(err).Errorf("Failed deleting entry k:%s", k)
+					log.G(context.TODO()).WithError(err).Errorf("Failed deleting entry k:%s", k)
 					break
 				}
 				resp.Body.Close()
 			}
 		} else {
-			logrus.Infof("Deletion skipped")
+			log.G(context.TODO()).Infof("Deletion skipped")
 		}
 	}
 }

@@ -23,13 +23,14 @@
 package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/sirupsen/logrus"
 )
 
 // ProtocolSchemeHTTPV1 is the name of the protocol used for interacting with plugins using this package.
@@ -217,7 +218,7 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 				return nil, err
 			}
 			retries++
-			logrus.Warnf("Unable to locate plugin: %s, retrying in %v", name, timeOff)
+			log.G(context.TODO()).Warnf("Unable to locate plugin: %s, retrying in %v", name, timeOff)
 			time.Sleep(timeOff)
 			continue
 		}
@@ -262,7 +263,7 @@ func Get(name, imp string) (*Plugin, error) {
 		return nil, err
 	}
 	if err := pl.waitActive(); err == nil && pl.implements(imp) {
-		logrus.Debugf("%s implements: %s", name, imp)
+		log.G(context.TODO()).Debugf("%s implements: %s", name, imp)
 		return pl, nil
 	}
 	return nil, fmt.Errorf("%w: plugin=%q, requested implementation=%q", ErrNotImplements, name, imp)
@@ -329,7 +330,7 @@ func (l *LocalRegistry) GetAll(imp string) ([]*Plugin, error) {
 	var out []*Plugin
 	for pl := range chPl {
 		if pl.err != nil {
-			logrus.Error(pl.err)
+			log.G(context.TODO()).Error(pl.err)
 			continue
 		}
 		if err := pl.pl.waitActive(); err == nil && pl.pl.implements(imp) {

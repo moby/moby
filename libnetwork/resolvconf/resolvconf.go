@@ -3,12 +3,13 @@ package resolvconf
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 const (
@@ -51,7 +52,7 @@ func Path() string {
 		ns := GetNameservers(candidateResolvConf, IP)
 		if len(ns) == 1 && ns[0] == "127.0.0.53" {
 			pathAfterSystemdDetection = alternatePath
-			logrus.Infof("detected 127.0.0.53 nameserver, assuming systemd-resolved, so using resolv.conf: %s", alternatePath)
+			log.G(context.TODO()).Infof("detected 127.0.0.53 nameserver, assuming systemd-resolved, so using resolv.conf: %s", alternatePath)
 		}
 	})
 	return pathAfterSystemdDetection
@@ -120,10 +121,10 @@ func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 	// if the resulting resolvConf has no more nameservers defined, add appropriate
 	// default DNS servers for IPv4 and (optionally) IPv6
 	if len(GetNameservers(cleanedResolvConf, IP)) == 0 {
-		logrus.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers: %v", defaultIPv4Dns)
+		log.G(context.TODO()).Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers: %v", defaultIPv4Dns)
 		dns := defaultIPv4Dns
 		if ipv6Enabled {
-			logrus.Infof("IPv6 enabled; Adding default IPv6 external servers: %v", defaultIPv6Dns)
+			log.G(context.TODO()).Infof("IPv6 enabled; Adding default IPv6 external servers: %v", defaultIPv6Dns)
 			dns = append(dns, defaultIPv6Dns...)
 		}
 		cleanedResolvConf = append(cleanedResolvConf, []byte("\n"+strings.Join(dns, "\n"))...)

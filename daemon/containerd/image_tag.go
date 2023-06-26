@@ -5,6 +5,7 @@ import (
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -54,7 +55,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageID image.ID, newTag re
 		}
 	}
 
-	logger := logrus.WithFields(logrus.Fields{
+	logger := log.G(ctx).WithFields(logrus.Fields{
 		"imageID": imageID.String(),
 		"tag":     newTag.String(),
 	})

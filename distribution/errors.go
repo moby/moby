@@ -1,11 +1,13 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
 	"syscall"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
@@ -15,7 +17,6 @@ import (
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // fallbackError wraps an error that can possibly allow fallback to a different
@@ -85,7 +86,7 @@ func translatePullError(err error, ref reference.Named) error {
 	case errcode.Errors:
 		if len(v) != 0 {
 			for _, extra := range v[1:] {
-				logrus.WithError(extra).Infof("Ignoring extra error returned from registry")
+				log.G(context.TODO()).WithError(extra).Infof("Ignoring extra error returned from registry")
 			}
 			return translatePullError(v[0], ref)
 		}

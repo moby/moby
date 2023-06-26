@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -23,7 +24,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -234,7 +234,7 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 				authReader := strings.NewReader(encodedAuth)
 				dec := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, authReader))
 				if err := dec.Decode(authConfig); err != nil {
-					logrus.Warnf("invalid authconfig: %v", err)
+					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
 			}
 
@@ -245,14 +245,14 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" && queryRegistry {
 				digestImage, err := c.imageWithDigestString(ctx, ctnr.Image, authConfig)
 				if err != nil {
-					logrus.Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
+					log.G(ctx).Warnf("unable to pin image %s to digest: %s", ctnr.Image, err.Error())
 					// warning in the client response should be concise
 					resp.Warnings = append(resp.Warnings, digestWarning(ctnr.Image))
 				} else if ctnr.Image != digestImage {
-					logrus.Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
+					log.G(ctx).Debugf("pinning image %s by digest: %s", ctnr.Image, digestImage)
 					ctnr.Image = digestImage
 				} else {
-					logrus.Debugf("creating service using supplied digest reference %s", ctnr.Image)
+					log.G(ctx).Debugf("creating service using supplied digest reference %s", ctnr.Image)
 				}
 
 				// Replace the context with a fresh one.
@@ -349,7 +349,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 			authConfig := &registry.AuthConfig{}
 			if encodedAuth != "" {
 				if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuth))).Decode(authConfig); err != nil {
-					logrus.Warnf("invalid authconfig: %v", err)
+					log.G(ctx).Warnf("invalid authconfig: %v", err)
 				}
 			}
 
@@ -360,14 +360,14 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 			if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" && queryRegistry {
 				digestImage, err := c.imageWithDigestString(ctx, newCtnr.Image, authConfig)
 				if err != nil {
-					logrus.Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
+					log.G(ctx).Warnf("unable to pin image %s to digest: %s", newCtnr.Image, err.Error())
 					// warning in the client response should be concise
 					resp.Warnings = append(resp.Warnings, digestWarning(newCtnr.Image))
 				} else if newCtnr.Image != digestImage {
-					logrus.Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
+					log.G(ctx).Debugf("pinning image %s by digest: %s", newCtnr.Image, digestImage)
 					newCtnr.Image = digestImage
 				} else {
-					logrus.Debugf("updating service using supplied digest reference %s", newCtnr.Image)
+					log.G(ctx).Debugf("updating service using supplied digest reference %s", newCtnr.Image)
 				}
 
 				// Replace the context with a fresh one.

@@ -7,6 +7,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"github.com/Microsoft/go-winio/vhd"
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
@@ -33,7 +35,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
 
@@ -65,7 +66,7 @@ func init() {
 	// DOCKER_WINDOWSFILTER_NOREEXEC allows for inline processing which makes
 	// debugging issues in the re-exec codepath significantly easier.
 	if os.Getenv("DOCKER_WINDOWSFILTER_NOREEXEC") != "" {
-		logrus.Warnf("WindowsGraphDriver is set to not re-exec. This is intended for debugging purposes only.")
+		log.G(context.TODO()).Warnf("WindowsGraphDriver is set to not re-exec. This is intended for debugging purposes only.")
 		noreexec = true
 	} else {
 		reexec.Register("docker-windows-write-layer", writeLayerReexec)
@@ -97,7 +98,7 @@ type Driver struct {
 
 // InitFilter returns a new Windows storage filter driver.
 func InitFilter(home string, options []string, _ idtools.IdentityMapping) (graphdriver.Driver, error) {
-	logrus.Debugf("WindowsGraphDriver InitFilter at %s", home)
+	log.G(context.TODO()).Debugf("WindowsGraphDriver InitFilter at %s", home)
 
 	fsType, err := winiofs.GetFileSystemType(home)
 	if err != nil {
@@ -242,14 +243,14 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 
 	if _, err := os.Lstat(d.dir(parent)); err != nil {
 		if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
-			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err2)
+			log.G(context.TODO()).Warnf("Failed to DestroyLayer %s: %s", id, err2)
 		}
 		return errors.Wrapf(err, "cannot create layer with missing parent %s", parent)
 	}
 
 	if err := d.setLayerChain(id, layerChain); err != nil {
 		if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
-			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err2)
+			log.G(context.TODO()).Warnf("Failed to DestroyLayer %s: %s", id, err2)
 		}
 		return err
 	}
@@ -352,7 +353,7 @@ func (d *Driver) Remove(id string) error {
 		}
 	}
 	if err := hcsshim.DestroyLayer(d.info, tmpID); err != nil {
-		logrus.Errorf("Failed to DestroyLayer %s: %s", id, err)
+		log.G(context.TODO()).Errorf("Failed to DestroyLayer %s: %s", id, err)
 	}
 
 	return nil
@@ -365,7 +366,7 @@ func (d *Driver) GetLayerPath(id string) (string, error) {
 
 // Get returns the rootfs path for the id. This will mount the dir at its given path.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
-	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
+	log.G(context.TODO()).Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
 	var dir string
 
 	rID, err := d.resolveID(id)
@@ -390,7 +391,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
 		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
-			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
+			log.G(context.TODO()).Warnf("Failed to Deactivate %s: %s", id, err)
 		}
 		return "", err
 	}
@@ -399,10 +400,10 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	if err != nil {
 		d.ctr.Decrement(rID)
 		if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
-			logrus.Warnf("Failed to Unprepare %s: %s", id, err)
+			log.G(context.TODO()).Warnf("Failed to Unprepare %s: %s", id, err)
 		}
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
-			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
+			log.G(context.TODO()).Warnf("Failed to Deactivate %s: %s", id, err)
 		}
 		return "", err
 	}
@@ -423,7 +424,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put adds a new layer to the driver.
 func (d *Driver) Put(id string) error {
-	logrus.Debugf("WindowsGraphDriver Put() id %s", id)
+	log.G(context.TODO()).Debugf("WindowsGraphDriver Put() id %s", id)
 
 	rID, err := d.resolveID(id)
 	if err != nil {
@@ -467,9 +468,9 @@ func (d *Driver) Cleanup() error {
 	for _, item := range items {
 		if item.IsDir() && strings.HasSuffix(item.Name(), "-removing") {
 			if err := hcsshim.DestroyLayer(d.info, item.Name()); err != nil {
-				logrus.Warnf("Failed to cleanup %s: %s", item.Name(), err)
+				log.G(context.TODO()).Warnf("Failed to cleanup %s: %s", item.Name(), err)
 			} else {
-				logrus.Infof("Cleaned up %s", item.Name())
+				log.G(context.TODO()).Infof("Cleaned up %s", item.Name())
 			}
 		}
 	}
@@ -497,7 +498,7 @@ func (d *Driver) Diff(id, _ string) (_ io.ReadCloser, err error) {
 	}
 	prepare := func() {
 		if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
-			logrus.Warnf("Failed to Deactivate %s: %s", rID, err)
+			log.G(context.TODO()).Warnf("Failed to Deactivate %s: %s", rID, err)
 		}
 	}
 
@@ -531,7 +532,7 @@ func (d *Driver) Changes(id, _ string) ([]archive.Change, error) {
 	}
 	defer func() {
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
-			logrus.Errorf("changes() failed to DeactivateLayer %s %s: %s", id, rID, err2)
+			log.G(context.TODO()).Errorf("changes() failed to DeactivateLayer %s %s: %s", id, rID, err2)
 		}
 	}()
 

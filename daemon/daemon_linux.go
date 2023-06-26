@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -10,13 +11,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -30,7 +31,7 @@ func getPluginExecRoot(_ *config.Config) string {
 }
 
 func (daemon *Daemon) cleanupMountsByID(id string) error {
-	logrus.Debugf("Cleaning up old mountid %s: start.", id)
+	log.G(context.TODO()).Debugf("Cleaning up old mountid %s: start.", id)
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return err
@@ -54,7 +55,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 				for _, p := range regexps {
 					if p.MatchString(mnt) {
 						if err := unmount(mnt); err != nil {
-							logrus.Error(err)
+							log.G(context.TODO()).Error(err)
 							errs = append(errs, err.Error())
 						}
 					}
@@ -71,7 +72,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 		return fmt.Errorf("Error cleaning up mounts:\n%v", strings.Join(errs, "\n"))
 	}
 
-	logrus.Debugf("Cleaning up old mountid %v: done.", id)
+	log.G(context.TODO()).Debugf("Cleaning up old mountid %v: done.", id)
 	return nil
 }
 
@@ -105,7 +106,7 @@ func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 		return nil
 	}
 
-	logrus.WithField("mountpoint", daemon.root).Debug("unmounting daemon root")
+	log.G(context.TODO()).WithField("mountpoint", daemon.root).Debug("unmounting daemon root")
 	if err := mount.Unmount(daemon.root); err != nil {
 		return err
 	}
@@ -214,7 +215,7 @@ func kernelSupportsRecursivelyReadOnly() error {
 				}
 			}
 			if umErr != nil {
-				logrus.WithError(umErr).Warnf("Failed to unmount %q", tmpMnt)
+				log.G(context.TODO()).WithError(umErr).Warnf("Failed to unmount %q", tmpMnt)
 			}
 		}()
 		attr := &unix.MountAttr{

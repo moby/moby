@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
@@ -177,7 +178,7 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 		mfst, err := i.GetImageManifest(ctx, ctr.Config.Image, imagetypes.GetImageOpts{})
 		if err != nil {
 			// Log error, don't error out whole operation.
-			logrus.WithFields(logrus.Fields{
+			log.G(ctx).WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"container":     containerID,
 			}).Warn("empty ImageManifest, can't calculate base image size")

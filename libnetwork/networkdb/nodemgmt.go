@@ -1,10 +1,11 @@
 package networkdb
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/containerd/containerd/log"
 	"github.com/hashicorp/memberlist"
-	"github.com/sirupsen/logrus"
 )
 
 type nodeState int
@@ -73,7 +74,7 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		nDB.failedNodes[nodeName] = n
 	}
 
-	logrus.Infof("Node %s change state %s --> %s", nodeName, nodeStateName[currState], nodeStateName[newState])
+	log.G(context.TODO()).Infof("Node %s change state %s --> %s", nodeName, nodeStateName[currState], nodeStateName[newState])
 
 	if newState == nodeLeftState || newState == nodeFailedState {
 		// set the node reap time, if not already set
@@ -94,7 +95,7 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 func (nDB *NetworkDB) purgeReincarnation(mn *memberlist.Node) bool {
 	for name, node := range nDB.nodes {
 		if node.Addr.Equal(mn.Addr) && node.Port == mn.Port && mn.Name != name {
-			logrus.Infof("Node %s/%s, is the new incarnation of the active node %s/%s", mn.Name, mn.Addr, name, node.Addr)
+			log.G(context.TODO()).Infof("Node %s/%s, is the new incarnation of the active node %s/%s", mn.Name, mn.Addr, name, node.Addr)
 			nDB.changeNodeState(name, nodeLeftState)
 			return true
 		}
@@ -102,7 +103,7 @@ func (nDB *NetworkDB) purgeReincarnation(mn *memberlist.Node) bool {
 
 	for name, node := range nDB.failedNodes {
 		if node.Addr.Equal(mn.Addr) && node.Port == mn.Port && mn.Name != name {
-			logrus.Infof("Node %s/%s, is the new incarnation of the failed node %s/%s", mn.Name, mn.Addr, name, node.Addr)
+			log.G(context.TODO()).Infof("Node %s/%s, is the new incarnation of the failed node %s/%s", mn.Name, mn.Addr, name, node.Addr)
 			nDB.changeNodeState(name, nodeLeftState)
 			return true
 		}
@@ -110,7 +111,7 @@ func (nDB *NetworkDB) purgeReincarnation(mn *memberlist.Node) bool {
 
 	for name, node := range nDB.leftNodes {
 		if node.Addr.Equal(mn.Addr) && node.Port == mn.Port && mn.Name != name {
-			logrus.Infof("Node %s/%s, is the new incarnation of the shutdown node %s/%s", mn.Name, mn.Addr, name, node.Addr)
+			log.G(context.TODO()).Infof("Node %s/%s, is the new incarnation of the shutdown node %s/%s", mn.Name, mn.Addr, name, node.Addr)
 			nDB.changeNodeState(name, nodeLeftState)
 			return true
 		}

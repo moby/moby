@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
@@ -21,7 +22,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const mediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
@@ -84,7 +84,7 @@ func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registr
 		// This is perfectly fine, unless you are talking to an older registry which does not split the comma separated list,
 		//   so it is never able to match a media type and it falls back to schema1 (yuck) and fails because our manifest the
 		//   fallback does not support plugin configs...
-		logrus.WithError(err).WithField("ref", withDomain).Debug("Error while resolving reference, falling back to backwards compatible accept header format")
+		log.G(ctx).WithError(err).WithField("ref", withDomain).Debug("Error while resolving reference, falling back to backwards compatible accept header format")
 		headers := http.Header{}
 		headers.Add("Accept", images.MediaTypeDockerSchema2Manifest)
 		headers.Add("Accept", images.MediaTypeDockerSchema2ManifestList)
@@ -94,7 +94,7 @@ func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registr
 		if resolver != nil {
 			resolved, desc, err = resolver.Resolve(ctx, withDomain.String())
 			if err != nil {
-				logrus.WithError(err).WithField("ref", withDomain).Debug("Failed to resolve reference after falling back to backwards compatible accept header format")
+				log.G(ctx).WithError(err).WithField("ref", withDomain).Debug("Failed to resolve reference after falling back to backwards compatible accept header format")
 			}
 		}
 		if err != nil {
@@ -249,7 +249,7 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 				s, err := cs.Status(ctx, key)
 				if err != nil {
 					if !cerrdefs.IsNotFound(err) {
-						logrus.WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
+						log.G(ctx).WithError(err).WithField("layerDigest", desc.Digest.String()).Error("Error looking up status of plugin layer pull")
 						progress.Update(out, id, err.Error())
 						return
 					}

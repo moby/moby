@@ -1,19 +1,20 @@
 package ovmanager
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/idm"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -91,7 +92,7 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 	vxlanIDList := make([]uint32, 0, len(ipV4Data))
 	for key, val := range option {
 		if key == netlabel.OverlayVxlanIDList {
-			logrus.Debugf("overlay network option: %s", val)
+			log.G(context.TODO()).Debugf("overlay network option: %s", val)
 			valStrList := strings.Split(val, ",")
 			for _, idStr := range valStrList {
 				vni, err := strconv.Atoi(idStr)

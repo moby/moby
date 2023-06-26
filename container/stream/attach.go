@@ -4,10 +4,10 @@ import (
 	"context"
 	"io"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -63,8 +63,8 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 	// Connect stdin of container to the attach stdin stream.
 	if cfg.Stdin != nil {
 		group.Go(func() error {
-			logrus.Debug("attach: stdin: begin")
-			defer logrus.Debug("attach: stdin: end")
+			log.G(ctx).Debug("attach: stdin: begin")
+			defer log.G(ctx).Debug("attach: stdin: end")
 
 			defer func() {
 				if cfg.CloseStdin && !cfg.TTY {
@@ -90,7 +90,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 				err = nil
 			}
 			if err != nil {
-				logrus.WithError(err).Debug("error on attach stdin")
+				log.G(ctx).WithError(err).Debug("error on attach stdin")
 				return errors.Wrap(err, "error on attach stdin")
 			}
 			return nil
@@ -98,8 +98,8 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 	}
 
 	attachStream := func(name string, stream io.Writer, streamPipe io.ReadCloser) error {
-		logrus.Debugf("attach: %s: begin", name)
-		defer logrus.Debugf("attach: %s: end", name)
+		log.G(ctx).Debugf("attach: %s: begin", name)
+		defer log.G(ctx).Debugf("attach: %s: end", name)
 		defer func() {
 			// Make sure stdin gets closed
 			if cfg.Stdin != nil {
@@ -113,7 +113,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 			err = nil
 		}
 		if err != nil {
-			logrus.WithError(err).Debugf("attach: %s", name)
+			log.G(ctx).WithError(err).Debugf("attach: %s", name)
 			return errors.Wrapf(err, "error attaching %s stream", name)
 		}
 		return nil
@@ -132,7 +132,7 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan erro
 
 	errs := make(chan error, 1)
 	go func() {
-		defer logrus.Debug("attach done")
+		defer log.G(ctx).Debug("attach done")
 		groupErr := make(chan error, 1)
 		go func() {
 			groupErr <- group.Wait()

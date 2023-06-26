@@ -3,12 +3,14 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -16,7 +18,6 @@ import (
 	metrics "github.com/docker/go-metrics"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -31,13 +32,13 @@ func (daemon *Daemon) listenMetricsSock(cfg *config.Config) (string, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", metrics.Handler())
 	go func() {
-		logrus.Debugf("metrics API listening on %s", l.Addr())
+		log.G(context.TODO()).Debugf("metrics API listening on %s", l.Addr())
 		srv := &http.Server{
 			Handler:           mux,
 			ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
 		}
 		if err := srv.Serve(l); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-			logrus.WithError(err).Error("error serving metrics API")
+			log.G(context.TODO()).WithError(err).Error("error serving metrics API")
 		}
 	}()
 	daemon.metricsPluginListener = l
@@ -61,10 +62,10 @@ func registerMetricsPluginCallback(store *plugin.Store, sockPath string) {
 
 		adapter, err := makePluginAdapter(p)
 		if err != nil {
-			logrus.WithError(err).WithField("plugin", p.Name()).Error("Error creating plugin adapter")
+			log.G(context.TODO()).WithError(err).WithField("plugin", p.Name()).Error("Error creating plugin adapter")
 		}
 		if err := adapter.StartMetrics(); err != nil {
-			logrus.WithError(err).WithField("plugin", p.Name()).Error("Error starting metrics collector plugin")
+			log.G(context.TODO()).WithError(err).WithField("plugin", p.Name()).Error("Error starting metrics collector plugin")
 		}
 	})
 }

@@ -1,13 +1,14 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	dockercontainer "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerRename changes the name of a container, using the oldName
@@ -101,7 +102,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 			container.Name = oldName
 			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			if e := container.CheckpointTo(daemon.containersReplica); e != nil {
-				logrus.Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
+				log.G(context.TODO()).Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
 			}
 		}
 	}()

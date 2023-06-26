@@ -3,17 +3,18 @@
 package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/errdefs"
 	getter "github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const extName = "VolumeDriver"
@@ -97,7 +98,7 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 			if mode > 0 {
 				// Undo any reference count changes from the initial `Get`
 				if _, err := s.pluginGetter.Get(name, extName, mode*-1); err != nil {
-					logrus.WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
+					log.G(context.TODO()).WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
 				}
 			}
 			return nil, err

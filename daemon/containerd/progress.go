@@ -8,13 +8,13 @@ import (
 
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 type progressUpdater interface {
@@ -48,7 +48,7 @@ func (j *jobs) showProgress(ctx context.Context, out progress.Output, updater pr
 			case <-ticker.C:
 				if err := updater.UpdateProgress(ctx, j, out, start); err != nil {
 					if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-						logrus.WithError(err).Error("Updating progress failed")
+						log.G(ctx).WithError(err).Error("Updating progress failed")
 					}
 				}
 			case <-ctx.Done():
@@ -114,7 +114,7 @@ func (p pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pro
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}
-		logrus.WithError(err).Error("status check failed")
+		log.G(ctx).WithError(err).Error("status check failed")
 		return nil
 	}
 	pulling := make(map[string]content.Status, len(actives))

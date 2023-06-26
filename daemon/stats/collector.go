@@ -2,14 +2,15 @@ package stats // import "github.com/docker/docker/daemon/stats"
 
 import (
 	"bufio"
+	"context"
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/pubsub"
-	"github.com/sirupsen/logrus"
 )
 
 // Collector manages and provides container resource stats
@@ -109,7 +110,7 @@ func (s *Collector) Run() {
 
 		onlineCPUs, err := s.getNumberOnlineCPUs()
 		if err != nil {
-			logrus.Errorf("collecting system online cpu count: %v", err)
+			log.G(context.TODO()).Errorf("collecting system online cpu count: %v", err)
 			continue
 		}
 
@@ -122,7 +123,7 @@ func (s *Collector) Run() {
 				// noise in metric calculations.
 				systemUsage, err := s.getSystemCPUUsage()
 				if err != nil {
-					logrus.WithError(err).WithField("container_id", pair.container.ID).Errorf("collecting system cpu usage")
+					log.G(context.TODO()).WithError(err).WithField("container_id", pair.container.ID).Errorf("collecting system cpu usage")
 					continue
 				}
 
@@ -140,7 +141,7 @@ func (s *Collector) Run() {
 				})
 
 			default:
-				logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
+				log.G(context.TODO()).Errorf("collecting stats for %s: %v", pair.container.ID, err)
 				pair.publisher.Publish(types.StatsJSON{
 					Name: pair.container.Name,
 					ID:   pair.container.ID,

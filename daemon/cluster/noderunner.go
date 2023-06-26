@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	lncluster "github.com/docker/docker/libnetwork/cluster"
@@ -15,7 +16,6 @@ import (
 	swarmallocator "github.com/moby/swarmkit/v2/manager/allocator/cnmallocator"
 	swarmnode "github.com/moby/swarmkit/v2/node"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -231,7 +231,7 @@ func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientCo
 		IncludeOldObject: true,
 	})
 	if err != nil {
-		logrus.WithError(err).Error("failed to watch cluster store")
+		log.G(ctx).WithError(err).Error("failed to watch cluster store")
 		return
 	}
 	for {
@@ -240,7 +240,7 @@ func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientCo
 			// store watch is broken
 			errStatus, ok := status.FromError(err)
 			if !ok || errStatus.Code() != codes.Canceled {
-				logrus.WithError(err).Error("failed to receive changes from store watch API")
+				log.G(ctx).WithError(err).Error("failed to receive changes from store watch API")
 			}
 			return
 		}
@@ -271,7 +271,7 @@ func (n *nodeRunner) handleReadyEvent(ctx context.Context, node *swarmnode.Node,
 func (n *nodeRunner) handleNodeExit(node *swarmnode.Node) {
 	err := detectLockedError(node.Err(context.Background()))
 	if err != nil {
-		logrus.Errorf("cluster exited with error: %v", err)
+		log.G(context.TODO()).Errorf("cluster exited with error: %v", err)
 	}
 	n.mu.Lock()
 	n.swarmNode = nil
@@ -352,7 +352,7 @@ func (n *nodeRunner) enableReconnectWatcher() {
 	if n.reconnectDelay > maxReconnectDelay {
 		n.reconnectDelay = maxReconnectDelay
 	}
-	logrus.Warnf("Restarting swarm in %.2f seconds", n.reconnectDelay.Seconds())
+	log.G(context.TODO()).Warnf("Restarting swarm in %.2f seconds", n.reconnectDelay.Seconds())
 	delayCtx, cancel := context.WithTimeout(context.Background(), n.reconnectDelay)
 	n.cancelReconnect = cancel
 

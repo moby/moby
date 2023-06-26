@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/pkg/idtools"
@@ -20,7 +21,6 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sirupsen/logrus"
 )
 
 const networkName = "bridge"
@@ -39,7 +39,7 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 		for _, fi := range fis {
 			fp := filepath.Join(netRoot, fi.Name())
 			if err := os.RemoveAll(fp); err != nil {
-				logrus.WithError(err).Errorf("failed to delete old network state: %v", fp)
+				log.G(context.TODO()).WithError(err).Errorf("failed to delete old network state: %v", fp)
 			}
 		}
 	}
@@ -124,7 +124,7 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n libnetwork.Network) {
 func (iface *lnInterface) Set(s *specs.Spec) error {
 	<-iface.ready
 	if iface.err != nil {
-		logrus.WithError(iface.err).Error("failed to set networking spec")
+		log.G(context.TODO()).WithError(iface.err).Error("failed to set networking spec")
 		return iface.err
 	}
 	shortNetCtlrID := stringid.TruncateID(iface.provider.Controller.ID())
@@ -143,10 +143,10 @@ func (iface *lnInterface) Close() error {
 	if iface.sbx != nil {
 		go func() {
 			if err := iface.sbx.Delete(); err != nil {
-				logrus.WithError(err).Errorf("failed to delete builder network sandbox")
+				log.G(context.TODO()).WithError(err).Errorf("failed to delete builder network sandbox")
 			}
 			if err := os.RemoveAll(filepath.Join(iface.provider.Root, iface.sbx.ContainerID())); err != nil {
-				logrus.WithError(err).Errorf("failed to delete builder sandbox directory")
+				log.G(context.TODO()).WithError(err).Errorf("failed to delete builder sandbox directory")
 			}
 		}()
 	}

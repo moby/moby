@@ -1,6 +1,7 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,8 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
 
@@ -60,7 +61,7 @@ func init() {
 
 func handlerAccessLog(handler http.Handler) http.Handler {
 	logHandler := func(w http.ResponseWriter, r *http.Request) {
-		logrus.Debugf(`%s "%s %s"`, r.RemoteAddr, r.Method, r.URL)
+		log.G(context.TODO()).Debugf(`%s "%s %s"`, r.RemoteAddr, r.Method, r.URL)
 		handler.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(logHandler)

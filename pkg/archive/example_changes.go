@@ -13,14 +13,14 @@ import (
 	"path"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 var (
 	flDebug  = flag.Bool("D", false, "debugging output")
 	flNewDir = flag.String("newdir", "", "")
 	flOldDir = flag.String("olddir", "", "")
-	log      = logrus.New()
+	log      = log.G(ctx).New()
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 	flag.Parse()
 	log.Out = os.Stderr
 	if (len(os.Getenv("DEBUG")) > 0) || *flDebug {
-		logrus.SetLevel(logrus.DebugLevel)
+		log.G(ctx).SetLevel(logrus.DebugLevel)
 	}
 	var newDir, oldDir string
 

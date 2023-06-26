@@ -2,12 +2,14 @@ package remotecontext // import "github.com/docker/docker/builder/remotecontext"
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"runtime"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
@@ -18,7 +20,6 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/patternmatcher"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ClientSessionRemote is identifier for client-session context transport
@@ -133,7 +134,7 @@ func removeDockerfile(c modifiableContext, filesToRemove ...string) error {
 	for _, fileToRemove := range filesToRemove {
 		if rm, _ := patternmatcher.MatchesOrParentMatches(fileToRemove, excludes); rm {
 			if err := c.Remove(fileToRemove); err != nil {
-				logrus.Errorf("failed to remove %s: %v", fileToRemove, err)
+				log.G(context.TODO()).Errorf("failed to remove %s: %v", fileToRemove, err)
 			}
 		}
 	}

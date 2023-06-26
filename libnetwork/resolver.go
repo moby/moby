@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
@@ -92,7 +93,7 @@ func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
 
 func (r *Resolver) log() *logrus.Logger {
 	if r.logger == nil {
-		return logrus.StandardLogger()
+		return log.G(context.TODO()).Logger
 	}
 	return r.logger
 }

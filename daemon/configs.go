@@ -1,14 +1,16 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
+
+	"github.com/containerd/containerd/log"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/sirupsen/logrus"
 )
 
 // SetContainerConfigReferences sets the container config references needed
 func (daemon *Daemon) SetContainerConfigReferences(name string, refs []*swarmtypes.ConfigReference) error {
 	if !configsSupported() && len(refs) > 0 {
-		logrus.Warn("configs are not supported on this platform")
+		log.G(context.TODO()).Warn("configs are not supported on this platform")
 		return nil
 	}
 

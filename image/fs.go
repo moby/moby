@@ -1,15 +1,16 @@
 package image // import "github.com/docker/docker/image"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // DigestWalkFunc is function called by StoreBackend.Walk
@@ -75,7 +76,7 @@ func (s *fs) Walk(f DigestWalkFunc) error {
 	for _, v := range dir {
 		dgst := digest.NewDigestFromEncoded(digest.Canonical, v.Name())
 		if err := dgst.Validate(); err != nil {
-			logrus.Debugf("skipping invalid digest %s: %s", dgst, err)
+			log.G(context.TODO()).Debugf("skipping invalid digest %s: %s", dgst, err)
 			continue
 		}
 		if err := f(dgst); err != nil {

@@ -1,6 +1,7 @@
 package overlay
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -9,11 +10,11 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -83,10 +84,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 	existingNetwork := d.network(id)
 	if existingNetwork != nil {
-		logrus.Debugf("Network preexists. Deleting %s", id)
+		log.G(context.TODO()).Debugf("Network preexists. Deleting %s", id)
 		err := d.DeleteNetwork(id)
 		if err != nil {
-			logrus.Errorf("Error deleting stale network %s", err.Error())
+			log.G(context.TODO()).Errorf("Error deleting stale network %s", err.Error())
 		}
 	}
 
@@ -237,7 +238,7 @@ func (d *driver) network(nid string) *network {
 }
 
 // func (n *network) restoreNetworkEndpoints() error {
-// 	logrus.Infof("Restoring endpoints for overlay network: %s", n.id)
+// 	log.G(ctx).Infof("Restoring endpoints for overlay network: %s", n.id)
 
 // 	hnsresponse, err := hcsshim.HNSListEndpointRequest("GET", "", "")
 // 	if err != nil {
@@ -252,7 +253,7 @@ func (d *driver) network(nid string) *network {
 // 		ep := n.convertToOverlayEndpoint(&endpoint)
 
 // 		if ep != nil {
-// 			logrus.Debugf("Restored endpoint:%s Remote:%t", ep.id, ep.remote)
+// 			log.G(ctx).Debugf("Restored endpoint:%s Remote:%t", ep.id, ep.remote)
 // 			n.addEndpoint(ep)
 // 		}
 // 	}
@@ -323,7 +324,7 @@ func (d *driver) createHnsNetwork(n *network) error {
 	}
 
 	configuration := string(configurationb)
-	logrus.Infof("HNSNetwork Request =%v", configuration)
+	log.G(context.TODO()).Infof("HNSNetwork Request =%v", configuration)
 
 	hnsresponse, err := hcsshim.HNSNetworkRequest("POST", "", configuration)
 	if err != nil {

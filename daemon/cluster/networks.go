@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/containerd/log"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // GetNetworks returns all current cluster managed networks.
@@ -127,7 +127,7 @@ func (c *Cluster) UpdateAttachment(target, containerID string, config *network.N
 		return fmt.Errorf("could not find attacher for container %s to network %s", containerID, target)
 	}
 	if attacher.inProgress {
-		logrus.Debugf("Discarding redundant notice of resource allocation on network %s for task id %s", target, attacher.taskID)
+		log.G(context.TODO()).Debugf("Discarding redundant notice of resource allocation on network %s for task id %s", target, attacher.taskID)
 		c.mu.Unlock()
 		return nil
 	}
@@ -219,13 +219,13 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	close(attachCompleteCh)
 	c.mu.Unlock()
 
-	logrus.Debugf("Successfully attached to network %s with task id %s", target, taskID)
+	log.G(ctx).Debugf("Successfully attached to network %s with task id %s", target, taskID)
 
 	release := func() {
 		ctx, cancel := c.getRequestContext()
 		defer cancel()
 		if err := agent.ResourceAllocator().DetachNetwork(ctx, taskID); err != nil {
-			logrus.Errorf("Failed remove network attachment %s to network %s on allocation failure: %v",
+			log.G(ctx).Errorf("Failed remove network attachment %s to network %s on allocation failure: %v",
 				taskID, target, err)
 		}
 	}
@@ -242,7 +242,7 @@ func (c *Cluster) AttachNetwork(target string, containerID string, addresses []s
 	c.attachers[aKey].config = config
 	c.mu.Unlock()
 
-	logrus.Debugf("Successfully allocated resources on network %s for task id %s", target, taskID)
+	log.G(ctx).Debugf("Successfully allocated resources on network %s for task id %s", target, taskID)
 
 	return config, nil
 }

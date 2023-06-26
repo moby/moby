@@ -11,7 +11,7 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
 )
 
@@ -188,10 +188,10 @@ func New(info logger.Info) (logger.Logger, error) {
 	c.OnError = func(err error) {
 		if err == logging.ErrOverflow {
 			if i := atomic.AddUint64(&droppedLogs, 1); i%1000 == 1 {
-				logrus.Errorf("gcplogs driver has dropped %v logs", i)
+				log.G(context.TODO()).Errorf("gcplogs driver has dropped %v logs", i)
 			}
 		} else {
-			logrus.Error(err)
+			log.G(context.TODO()).Error(err)
 		}
 	}
 

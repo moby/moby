@@ -1,6 +1,7 @@
 package osl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -13,11 +14,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/internal/unshare"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl/kernel"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -220,7 +221,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 
 	err = n.nlHandle.SetSocketTimeout(ns.NetlinkSocketsTimeout)
 	if err != nil {
-		logrus.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
+		log.G(context.TODO()).Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
 	}
 	// In live-restore mode, IPV6 entries are getting cleaned up due to below code
 	// We should retain IPV6 configurations in live-restore mode when Docker Daemon
@@ -229,7 +230,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 	if !isRestore && !n.isDefault {
 		err = setIPv6(n.path, "all", false)
 		if err != nil {
-			logrus.Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
+			log.G(context.TODO()).Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
 		}
 	}
 
@@ -277,13 +278,13 @@ func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
 
 	err = n.nlHandle.SetSocketTimeout(ns.NetlinkSocketsTimeout)
 	if err != nil {
-		logrus.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
+		log.G(context.TODO()).Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
 	}
 
 	// As starting point, disable IPv6 on all interfaces
 	err = setIPv6(n.path, "all", false)
 	if err != nil {
-		logrus.Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
+		log.G(context.TODO()).Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
 	}
 
 	if err = n.loopbackUp(); err != nil {
@@ -311,7 +312,7 @@ func createNetworkNamespace(path string, osCreate bool) error {
 func unmountNamespaceFile(path string) {
 	if _, err := os.Stat(path); err == nil {
 		if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
-			logrus.WithError(err).Error("Error unmounting namespace file")
+			log.G(context.TODO()).WithError(err).Error("Error unmounting namespace file")
 		}
 	}
 }
@@ -426,7 +427,7 @@ func (n *networkNamespace) InvokeFunc(f func()) error {
 		defer func() {
 			close(done)
 			if err := netns.Set(origNS); err != nil {
-				logrus.WithError(err).Warn("failed to restore thread's network namespace")
+				log.G(context.TODO()).WithError(err).Warn("failed to restore thread's network namespace")
 				// Recover from the error by leaving this goroutine locked to
 				// the thread. The runtime will terminate the thread and replace
 				// it with a clean one when this goroutine returns.
@@ -587,7 +588,7 @@ func (n *networkNamespace) checkLoV6() {
 	}
 
 	if err := setIPv6(n.path, "lo", enable); err != nil {
-		logrus.Warnf("Failed to %s IPv6 on loopback interface on network namespace %q: %v", action, n.path, err)
+		log.G(context.TODO()).Warnf("Failed to %s IPv6 on loopback interface on network namespace %q: %v", action, n.path, err)
 	}
 
 	n.loV6Enabled = enable
@@ -622,7 +623,7 @@ func setIPv6(nspath, iface string, enable bool) error {
 		}
 		defer func() {
 			if err := netns.Set(origNS); err != nil {
-				logrus.WithError(err).Error("libnetwork: restoring thread network namespace failed")
+				log.G(context.TODO()).WithError(err).Error("libnetwork: restoring thread network namespace failed")
 				// The error is only fatal for the current thread. Keep this
 				// goroutine locked to the thread to make the runtime replace it
 				// with a clean thread once this goroutine returns.
@@ -644,7 +645,7 @@ func setIPv6(nspath, iface string, enable bool) error {
 
 		if _, err := os.Stat(path); err != nil {
 			if os.IsNotExist(err) {
-				logrus.WithError(err).Warn("Cannot configure IPv6 forwarding on container interface. Has IPv6 been disabled in this node's kernel?")
+				log.G(context.TODO()).WithError(err).Warn("Cannot configure IPv6 forwarding on container interface. Has IPv6 been disabled in this node's kernel?")
 				return
 			}
 			errCh <- err

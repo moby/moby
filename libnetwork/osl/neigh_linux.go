@@ -2,10 +2,11 @@ package osl
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 	"github.com/vishvananda/netlink"
 )
 
@@ -84,7 +85,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 		// from the namespace cache. Otherwise if the neighbor moves back to the
 		// same host again, kernel update can fail.
 		if err := nlh.NeighDel(nlnh); err != nil {
-			logrus.Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
+			log.G(context.TODO()).Warnf("Deleting neighbor IP %s, mac %s failed, %v", dstIP, dstMac, err)
 		}
 
 		// Delete the dynamic entry in the bridge
@@ -100,7 +101,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 				nlnh.LinkIndex = iface.Attrs().Index
 			}
 			if err := nlh.NeighDel(nlnh); err != nil {
-				logrus.WithError(err).Warn("error while deleting neighbor entry")
+				log.G(context.TODO()).WithError(err).Warn("error while deleting neighbor entry")
 			}
 		}
 	}
@@ -113,7 +114,7 @@ func (n *networkNamespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr,
 		}
 	}
 	n.Unlock()
-	logrus.Debugf("Neighbor entry deleted for IP %v, mac %v osDelete:%t", dstIP, dstMac, osDelete)
+	log.G(context.TODO()).Debugf("Neighbor entry deleted for IP %v, mac %v osDelete:%t", dstIP, dstMac, osDelete)
 
 	return nil
 }
@@ -130,7 +131,7 @@ func (n *networkNamespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, fo
 	nh := n.findNeighbor(dstIP, dstMac)
 	if nh != nil {
 		neighborAlreadyPresent = true
-		logrus.Warnf("Neighbor entry already present for IP %v, mac %v neighbor:%+v forceUpdate:%t", dstIP, dstMac, nh, force)
+		log.G(context.TODO()).Warnf("Neighbor entry already present for IP %v, mac %v neighbor:%+v forceUpdate:%t", dstIP, dstMac, nh, force)
 		if !force {
 			return NeighborSearchError{dstIP, dstMac, true}
 		}
@@ -187,7 +188,7 @@ func (n *networkNamespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, fo
 	n.Lock()
 	n.neighbors = append(n.neighbors, nh)
 	n.Unlock()
-	logrus.Debugf("Neighbor entry added for IP:%v, mac:%v on ifc:%s", dstIP, dstMac, nh.linkName)
+	log.G(context.TODO()).Debugf("Neighbor entry added for IP:%v, mac:%v on ifc:%s", dstIP, dstMac, nh.linkName)
 
 	return nil
 }

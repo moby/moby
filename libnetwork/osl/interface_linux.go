@@ -1,15 +1,16 @@
 package osl
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -141,7 +142,7 @@ func (i *nwIface) Remove() error {
 
 	err = nlh.LinkSetName(iface, i.SrcName())
 	if err != nil {
-		logrus.Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
+		log.G(context.TODO()).Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
 		return err
 	}
 
@@ -153,7 +154,7 @@ func (i *nwIface) Remove() error {
 	} else if !isDefault {
 		// Move the network interface to caller namespace.
 		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
-			logrus.Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
+			log.G(context.TODO()).Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
 			return err
 		}
 	}
@@ -290,10 +291,10 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 		// to properly cleanup the interface. Its important especially for
 		// interfaces with global attributes, ex: vni id for vxlan interfaces.
 		if nerr := nlh.LinkSetName(iface, i.SrcName()); nerr != nil {
-			logrus.Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
+			log.G(context.TODO()).Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
 		}
 		if nerr := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
-			logrus.Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
+			log.G(context.TODO()).Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
 		}
 		return err
 	}
@@ -301,7 +302,7 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	// Up the interface.
 	cnt := 0
 	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
-		logrus.Debugf("retrying link setup because of: %v", err)
+		log.G(context.TODO()).Debugf("retrying link setup because of: %v", err)
 		time.Sleep(10 * time.Millisecond)
 		err = nlh.LinkSetUp(iface)
 	}

@@ -5,13 +5,14 @@ package overlay
 //go:generate protoc -I=. -I=../../../vendor/ --gogofaster_out=import_path=github.com/docker/docker/libnetwork/drivers/overlay:. overlay.proto
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -107,7 +108,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 			keys = append(keys, k)
 		}
 		if err := d.setKeys(keys); err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 		}
 	case discoverapi.EncryptionKeysUpdate:
 		var newKey, delKey, priKey *key

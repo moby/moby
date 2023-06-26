@@ -13,14 +13,15 @@
 package etwlogs // import "github.com/docker/docker/daemon/logger/etwlogs"
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"unsafe"
 
 	"github.com/Microsoft/go-winio/pkg/etw"
 	"github.com/Microsoft/go-winio/pkg/guid"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
 
@@ -61,7 +62,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	if err := registerETWProvider(); err != nil {
 		return nil, err
 	}
-	logrus.Debugf("logging driver etwLogs configured for container: %s.", info.ContainerID)
+	log.G(context.TODO()).Debugf("logging driver etwLogs configured for container: %s.", info.ContainerID)
 
 	return &etwLogs{
 		containerName: info.Name(),
@@ -134,7 +135,7 @@ func callEventRegister() (*etw.Provider, error) {
 	providerID, _ := guid.FromString(providerGUID)
 	p, err := etw.NewProviderWithOptions("", etw.WithID(providerID))
 	if err != nil {
-		logrus.WithError(err).Error("Failed to register ETW provider")
+		log.G(context.TODO()).WithError(err).Error("Failed to register ETW provider")
 		return nil, fmt.Errorf("failed to register ETW provider: %v", err)
 	}
 	return p, nil
@@ -149,7 +150,7 @@ func callEventWriteString(message string) error {
 
 	ret, _, _ := procEventWriteString.Call(uintptr(providerHandle), 0, 0, uintptr(unsafe.Pointer(&utf16message[0])))
 	if ret != win32CallSuccess {
-		logrus.WithError(err).Error("ETWLogs provider failed to log message")
+		log.G(context.TODO()).WithError(err).Error("ETWLogs provider failed to log message")
 		return fmt.Errorf("ETWLogs provider failed to log message: %v", err)
 	}
 	return nil

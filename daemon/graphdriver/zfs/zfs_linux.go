@@ -1,8 +1,10 @@
 package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 
 import (
+	"context"
+
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/sirupsen/logrus"
 )
 
 func checkRootdirFs(rootDir string) error {
@@ -16,7 +18,7 @@ func checkRootdirFs(rootDir string) error {
 	}
 
 	if fsMagic != graphdriver.FsMagicZfs {
-		logrus.WithField("root", rootDir).WithField("backingFS", backingFS).WithField("storage-driver", "zfs").Error("No zfs dataset found for root")
+		log.G(context.TODO()).WithField("root", rootDir).WithField("backingFS", backingFS).WithField("storage-driver", "zfs").Error("No zfs dataset found for root")
 		return graphdriver.ErrPrerequisites
 	}
 

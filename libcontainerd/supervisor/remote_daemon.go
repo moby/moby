@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/pkg/pidfile"
@@ -76,7 +77,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),
-		logger:        logrus.WithField("module", "libcontainerd"),
+		logger:        log.G(ctx).WithField("module", "libcontainerd"),
 		daemonStartCh: make(chan error, 1),
 		daemonStopCh:  make(chan struct{}),
 	}

@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/containerd/containerd/log"
 	coci "github.com/containerd/containerd/oci"
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
@@ -19,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -208,7 +210,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		if b, err := json.Marshal(&s); err == nil {
-			logrus.Debugf("Generated spec: %s", string(b))
+			log.G(ctx).Debugf("Generated spec: %s", string(b))
 		}
 	}
 

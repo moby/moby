@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/volume/service"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type mounts []container.Mount
@@ -72,7 +72,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 	dereferenceIfExists := func(destination string) {
 		if v, ok := mountPoints[destination]; ok {
-			logrus.Debugf("Duplicate mount point '%s'", destination)
+			log.G(ctx).Debugf("Duplicate mount point '%s'", destination)
 			if v.Volume != nil {
 				daemon.volumes.Release(ctx, v.Volume.Name(), container.ID)
 			}

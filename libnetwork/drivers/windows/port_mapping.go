@@ -4,14 +4,15 @@ package windows
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -33,7 +34,7 @@ func AllocatePorts(portMapper *portmapper.PortMapper, bindings []types.PortBindi
 		if err := allocatePort(portMapper, &b, containerIP); err != nil {
 			// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
 			if cuErr := ReleasePorts(portMapper, bs); cuErr != nil {
-				logrus.Warnf("Upon allocation failure for %v, failed to clear previously allocated port bindings: %v", b, cuErr)
+				log.G(context.TODO()).Warnf("Upon allocation failure for %v, failed to clear previously allocated port bindings: %v", b, cuErr)
 			}
 			return nil, err
 		}
@@ -75,10 +76,10 @@ func allocatePort(portMapper *portmapper.PortMapper, bnd *types.PortBinding, con
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
 		if bnd.HostPort != 0 {
-			logrus.Warnf("Failed to allocate and map port %d-%d: %s", bnd.HostPort, bnd.HostPortEnd, err)
+			log.G(context.TODO()).Warnf("Failed to allocate and map port %d-%d: %s", bnd.HostPort, bnd.HostPortEnd, err)
 			break
 		}
-		logrus.Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
+		log.G(context.TODO()).Warnf("Failed to allocate and map port: %s, retry: %d", err, i+1)
 	}
 	if err != nil {
 		return err

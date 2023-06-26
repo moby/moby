@@ -2,16 +2,18 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/containerd/containerd/log"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -295,7 +297,7 @@ func (h *handler) started() error {
 }
 
 func (h *handler) stopped(err error) {
-	logrus.Debugf("Stopping service: %v", err)
+	log.G(context.TODO()).Debugf("Stopping service: %v", err)
 	h.tosvc <- err != nil
 	<-h.fromsvc
 }
@@ -308,12 +310,12 @@ func (h *handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.S
 	// Wait for initialization to complete.
 	failed := <-h.tosvc
 	if failed {
-		logrus.Debug("Aborting service start due to failure during initialization")
+		log.G(context.TODO()).Debug("Aborting service start due to failure during initialization")
 		return true, 1
 	}
 
 	s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.Accepted(windows.SERVICE_ACCEPT_PARAMCHANGE)}
-	logrus.Debug("Service running")
+	log.G(context.TODO()).Debug("Service running")
 Loop:
 	for {
 		select {
@@ -380,7 +382,7 @@ func initPanicFile(path string) error {
 	os.Stderr = os.NewFile(panicFile.Fd(), "/dev/stderr")
 
 	// Force threads that panic to write to stderr (the panicFile handle now), otherwise it will go into the ether
-	log.SetOutput(os.Stderr)
+	logrus.SetOutput(os.Stderr)
 
 	return nil
 }

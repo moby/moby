@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	ctdreference "github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
@@ -42,7 +43,6 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -147,7 +147,7 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 		img, err := is.resolveLocal(ref)
 		if err == nil {
 			if opt.Platform != nil && !platformMatches(img, opt.Platform) {
-				logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
+				log.G(ctx).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, checking remote",
 					path.Join(opt.Platform.OS, opt.Platform.Architecture, opt.Platform.Variant),
 					path.Join(img.OS, img.Architecture, img.Variant),
 				)
@@ -245,7 +245,7 @@ func (p *puller) resolveLocal() {
 			img, err := p.is.resolveLocal(ref)
 			if err == nil {
 				if !platformMatches(img, &p.platform) {
-					logrus.WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, not resolving",
+					log.G(context.TODO()).WithField("ref", ref).Debugf("Requested build platform %s does not match local image platform %s, not resolving",
 						path.Join(p.platform.OS, p.platform.Architecture, p.platform.Variant),
 						path.Join(img.OS, img.Architecture, img.Variant),
 					)
@@ -828,7 +828,7 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 	var img ocispec.Image
 	err := json.Unmarshal(dt, &img)
 	if err != nil {
-		logrus.WithError(err).Errorf("failed to unmarshal image config for cache key %v", err)
+		log.G(context.TODO()).WithError(err).Errorf("failed to unmarshal image config for cache key %v", err)
 		return digest.FromBytes(dt)
 	}
 	if img.RootFS.Type != "layers" || len(img.RootFS.DiffIDs) == 0 {

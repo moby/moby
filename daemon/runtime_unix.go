@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/containerd/runtime/v2/shim"
@@ -24,7 +26,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go/features"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -70,11 +71,11 @@ func defaultV2ShimConfig(conf *config.Config, runtimePath string) *shimConfig {
 	featuresCmd := exec.Command(runtimePath, "features")
 	featuresCmd.Stderr = &featuresStderr
 	if featuresB, err := featuresCmd.Output(); err != nil {
-		logrus.WithError(err).Warnf("Failed to run %v: %q", featuresCmd.Args, featuresStderr.String())
+		log.G(context.TODO()).WithError(err).Warnf("Failed to run %v: %q", featuresCmd.Args, featuresStderr.String())
 	} else {
 		var features features.Features
 		if jsonErr := json.Unmarshal(featuresB, &features); jsonErr != nil {
-			logrus.WithError(err).Warnf("Failed to unmarshal the output of %v as a JSON", featuresCmd.Args)
+			log.G(context.TODO()).WithError(err).Warnf("Failed to unmarshal the output of %v as a JSON", featuresCmd.Args)
 		} else {
 			shim.Features = &features
 		}

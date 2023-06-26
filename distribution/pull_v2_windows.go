@@ -19,7 +19,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/pkg/system"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 var _ distribution.Describable = &layerDescriptor{}
@@ -50,7 +50,7 @@ func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekClose
 
 	// Find the first URL that results in a 200 result code.
 	for _, url := range ld.src.URLs {
-		logrus.Debugf("Pulling %v from foreign URL %v", ld.digest, url)
+		log.G(ctx).Debugf("Pulling %v from foreign URL %v", ld.digest, url)
 		rsc = transport.NewHTTPReadSeeker(http.DefaultClient, url, nil)
 
 		// Seek does an HTTP GET.  If it succeeds, the blob really is accessible.
@@ -58,7 +58,7 @@ func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekClose
 		if err == nil {
 			break
 		}
-		logrus.Debugf("Download for %v failed: %v", ld.digest, err)
+		log.G(ctx).Debugf("Download for %v failed: %v", ld.digest, err)
 		rsc.Close()
 		rsc = nil
 	}
@@ -68,7 +68,7 @@ func (ld *layerDescriptor) open(ctx context.Context) (distribution.ReadSeekClose
 func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Platform) []manifestlist.ManifestDescriptor {
 	version := osversion.Get()
 	osVersion := fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build)
-	logrus.Debugf("will prefer Windows entries with version %s", osVersion)
+	log.G(context.TODO()).Debugf("will prefer Windows entries with version %s", osVersion)
 
 	var matches []manifestlist.ManifestDescriptor
 	foundWindowsMatch := false
@@ -83,9 +83,9 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p ocispec.Plat
 				foundWindowsMatch = true
 			}
 			matches = append(matches, manifestDescriptor)
-			logrus.Debugf("found match %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+			log.G(context.TODO()).Debugf("found match %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		} else {
-			logrus.Debugf("ignoring %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, manifestDescriptor.Platform.Architecture, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+			log.G(context.TODO()).Debugf("ignoring %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, manifestDescriptor.Platform.Architecture, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		}
 	}
 	if foundWindowsMatch {
@@ -130,7 +130,7 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 			if imageOSBuild, err := strconv.Atoi(splitImageOSVersion[2]); err == nil {
 				if imageOSBuild > int(hostOSV.Build) {
 					errMsg := fmt.Sprintf("a Windows version %s.%s.%s-based image is incompatible with a %s host", splitImageOSVersion[0], splitImageOSVersion[1], splitImageOSVersion[2], hostOSV.ToString())
-					logrus.Debugf(errMsg)
+					log.G(context.TODO()).Debugf(errMsg)
 					return errors.New(errMsg)
 				}
 			}

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
@@ -61,7 +62,7 @@ func NewController(backend Backend, t *api.Task) (*Controller, error) {
 		backend:   backend,
 		spec:      spec,
 		serviceID: t.ServiceID,
-		logger: logrus.WithFields(logrus.Fields{
+		logger: log.G(context.TODO()).WithFields(logrus.Fields{
 			"controller": "plugin",
 			"task":       t.ID,
 			"plugin":     spec.Name,

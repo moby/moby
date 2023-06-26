@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
@@ -199,7 +201,7 @@ func newDNSHandlerServFailOnce(requests *int) func(w dns.ResponseWriter, r *dns.
 		}
 		*requests = *requests + 1
 		if err := w.WriteMsg(m); err != nil {
-			logrus.WithError(err).Error("Error writing dns response")
+			log.G(context.TODO()).WithError(err).Error("Error writing dns response")
 		}
 	}
 }

@@ -1,11 +1,10 @@
 package main
 
 import (
-	"io"
-	"path/filepath"
-
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
 	"github.com/sirupsen/logrus"
+	"io"
+	"path/filepath"
 )
 
 func runDaemon(opts *daemonOptions) error {

@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamutils"
@@ -10,7 +12,6 @@ import (
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libkv/store"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -60,7 +61,7 @@ type Option func(c *Config)
 // OptionDefaultNetwork function returns an option setter for a default network
 func OptionDefaultNetwork(dn string) Option {
 	return func(c *Config) {
-		logrus.Debugf("Option DefaultNetwork: %s", dn)
+		log.G(context.TODO()).Debugf("Option DefaultNetwork: %s", dn)
 		c.DefaultNetwork = strings.TrimSpace(dn)
 	}
 }
@@ -68,7 +69,7 @@ func OptionDefaultNetwork(dn string) Option {
 // OptionDefaultDriver function returns an option setter for default driver
 func OptionDefaultDriver(dd string) Option {
 	return func(c *Config) {
-		logrus.Debugf("Option DefaultDriver: %s", dd)
+		log.G(context.TODO()).Debugf("Option DefaultDriver: %s", dd)
 		c.DefaultDriver = strings.TrimSpace(dd)
 	}
 }
@@ -123,9 +124,9 @@ func OptionPluginGetter(pg plugingetter.PluginGetter) Option {
 // OptionNetworkControlPlaneMTU function returns an option setter for control plane MTU
 func OptionNetworkControlPlaneMTU(exp int) Option {
 	return func(c *Config) {
-		logrus.Debugf("Network Control Plane MTU: %d", exp)
+		log.G(context.TODO()).Debugf("Network Control Plane MTU: %d", exp)
 		if exp < warningThNetworkControlPlaneMTU {
-			logrus.Warnf("Received a MTU of %d, this value is very low, the network control plane can misbehave,"+
+			log.G(context.TODO()).Warnf("Received a MTU of %d, this value is very low, the network control plane can misbehave,"+
 				" defaulting to minimum value (%d)", exp, minimumNetworkControlPlaneMTU)
 			if exp < minimumNetworkControlPlaneMTU {
 				exp = minimumNetworkControlPlaneMTU
@@ -143,7 +144,7 @@ func IsValidName(name string) bool {
 // OptionLocalKVProvider function returns an option setter for kvstore provider
 func OptionLocalKVProvider(provider string) Option {
 	return func(c *Config) {
-		logrus.Debugf("Option OptionLocalKVProvider: %s", provider)
+		log.G(context.TODO()).Debugf("Option OptionLocalKVProvider: %s", provider)
 		c.Scope.Client.Provider = strings.TrimSpace(provider)
 	}
 }
@@ -151,7 +152,7 @@ func OptionLocalKVProvider(provider string) Option {
 // OptionLocalKVProviderURL function returns an option setter for kvstore url
 func OptionLocalKVProviderURL(url string) Option {
 	return func(c *Config) {
-		logrus.Debugf("Option OptionLocalKVProviderURL: %s", url)
+		log.G(context.TODO()).Debugf("Option OptionLocalKVProviderURL: %s", url)
 		c.Scope.Client.Address = strings.TrimSpace(url)
 	}
 }
@@ -159,7 +160,7 @@ func OptionLocalKVProviderURL(url string) Option {
 // OptionLocalKVProviderConfig function returns an option setter for kvstore config
 func OptionLocalKVProviderConfig(config *store.Config) Option {
 	return func(c *Config) {
-		logrus.Debugf("Option OptionLocalKVProviderConfig: %v", config)
+		log.G(context.TODO()).Debugf("Option OptionLocalKVProviderConfig: %v", config)
 		c.Scope.Client.Config = config
 	}
 }

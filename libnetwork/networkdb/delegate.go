@@ -1,11 +1,12 @@
 package networkdb
 
 import (
+	"context"
 	"net"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/gogo/protobuf/proto"
-	"github.com/sirupsen/logrus"
 )
 
 type delegate struct {
@@ -41,7 +42,7 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	// If the node is not known from memberlist we cannot process save any state of it else if it actually
 	// dies we won't receive any notification and we will remain stuck with it
 	if _, ok := nDB.nodes[nEvent.NodeName]; !ok {
-		logrus.Errorf("node: %s is unknown to memberlist", nEvent.NodeName)
+		log.G(context.TODO()).Errorf("node: %s is unknown to memberlist", nEvent.NodeName)
 		return false
 	}
 
@@ -49,21 +50,21 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	case NodeEventTypeJoin:
 		moved, err := nDB.changeNodeState(n.Name, nodeActiveState)
 		if err != nil {
-			logrus.WithError(err).Error("unable to find the node to move")
+			log.G(context.TODO()).WithError(err).Error("unable to find the node to move")
 			return false
 		}
 		if moved {
-			logrus.Infof("%v(%v): Node join event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
+			log.G(context.TODO()).Infof("%v(%v): Node join event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
 		return moved
 	case NodeEventTypeLeave:
 		moved, err := nDB.changeNodeState(n.Name, nodeLeftState)
 		if err != nil {
-			logrus.WithError(err).Error("unable to find the node to move")
+			log.G(context.TODO()).WithError(err).Error("unable to find the node to move")
 			return false
 		}
 		if moved {
-			logrus.Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
+			log.G(context.TODO()).Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
 		return moved
 	}
@@ -197,7 +198,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	// This case can happen if the cluster is running different versions of the engine where the old version does not have the
 	// field. If that is not the case, this can be a BUG
 	if e.deleting && e.reapTime == 0 {
-		logrus.Warnf("%v(%v) handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?",
+		log.G(context.TODO()).Warnf("%v(%v) handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?",
 			nDB.config.Hostname, nDB.config.NodeID, tEvent)
 		e.reapTime = nDB.config.reapEntryInterval
 	}
@@ -214,7 +215,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 		// most likely the cluster is already aware of it
 		// This also reduce the possibility that deletion of entries close to their garbage collection ends up circuling around
 		// forever
-		//logrus.Infof("exiting on delete not knowing the obj with rebroadcast:%t", network.inSync)
+		//log.G(ctx).Infof("exiting on delete not knowing the obj with rebroadcast:%t", network.inSync)
 		return network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
 	}
 
@@ -236,7 +237,7 @@ func (nDB *NetworkDB) handleCompound(buf []byte, isBulkSync bool) {
 	// Decode the parts
 	parts, err := decodeCompoundMessage(buf)
 	if err != nil {
-		logrus.Errorf("Failed to decode compound request: %v", err)
+		log.G(context.TODO()).Errorf("Failed to decode compound request: %v", err)
 		return
 	}
 
@@ -249,7 +250,7 @@ func (nDB *NetworkDB) handleCompound(buf []byte, isBulkSync bool) {
 func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 	var tEvent TableEvent
 	if err := proto.Unmarshal(buf, &tEvent); err != nil {
-		logrus.Errorf("Error decoding table event message: %v", err)
+		log.G(context.TODO()).Errorf("Error decoding table event message: %v", err)
 		return
 	}
 
@@ -262,7 +263,7 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		var err error
 		buf, err = encodeRawMessage(MessageTypeTableEvent, buf)
 		if err != nil {
-			logrus.Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
+			log.G(context.TODO()).Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
 			return
 		}
 
@@ -292,7 +293,7 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 	var nEvent NodeEvent
 	if err := proto.Unmarshal(buf, &nEvent); err != nil {
-		logrus.Errorf("Error decoding node event message: %v", err)
+		log.G(context.TODO()).Errorf("Error decoding node event message: %v", err)
 		return
 	}
 
@@ -300,7 +301,7 @@ func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 		var err error
 		buf, err = encodeRawMessage(MessageTypeNodeEvent, buf)
 		if err != nil {
-			logrus.Errorf("Error marshalling gossip message for node event rebroadcast: %v", err)
+			log.G(context.TODO()).Errorf("Error marshalling gossip message for node event rebroadcast: %v", err)
 			return
 		}
 
@@ -313,7 +314,7 @@ func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 	var nEvent NetworkEvent
 	if err := proto.Unmarshal(buf, &nEvent); err != nil {
-		logrus.Errorf("Error decoding network event message: %v", err)
+		log.G(context.TODO()).Errorf("Error decoding network event message: %v", err)
 		return
 	}
 
@@ -321,7 +322,7 @@ func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 		var err error
 		buf, err = encodeRawMessage(MessageTypeNetworkEvent, buf)
 		if err != nil {
-			logrus.Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
+			log.G(context.TODO()).Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
 			return
 		}
 
@@ -336,7 +337,7 @@ func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 	var bsm BulkSyncMessage
 	if err := proto.Unmarshal(buf, &bsm); err != nil {
-		logrus.Errorf("Error decoding bulk sync message: %v", err)
+		log.G(context.TODO()).Errorf("Error decoding bulk sync message: %v", err)
 		return
 	}
 
@@ -367,14 +368,14 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 	nDB.RUnlock()
 
 	if err := nDB.bulkSyncNode(bsm.Networks, bsm.NodeName, false); err != nil {
-		logrus.Errorf("Error in responding to bulk sync from node %s: %v", nodeAddr, err)
+		log.G(context.TODO()).Errorf("Error in responding to bulk sync from node %s: %v", nodeAddr, err)
 	}
 }
 
 func (nDB *NetworkDB) handleMessage(buf []byte, isBulkSync bool) {
 	mType, data, err := decodeMessage(buf)
 	if err != nil {
-		logrus.Errorf("Error decoding gossip message to get message type: %v", err)
+		log.G(context.TODO()).Errorf("Error decoding gossip message to get message type: %v", err)
 		return
 	}
 
@@ -390,7 +391,7 @@ func (nDB *NetworkDB) handleMessage(buf []byte, isBulkSync bool) {
 	case MessageTypeCompound:
 		nDB.handleCompound(data, isBulkSync)
 	default:
-		logrus.Errorf("%v(%v): unknown message type %d", nDB.config.Hostname, nDB.config.NodeID, mType)
+		log.G(context.TODO()).Errorf("%v(%v): unknown message type %d", nDB.config.Hostname, nDB.config.NodeID, mType)
 	}
 }
 
@@ -439,7 +440,7 @@ func (d *delegate) LocalState(join bool) []byte {
 
 	buf, err := encodeMessage(MessageTypePushPull, &pp)
 	if err != nil {
-		logrus.Errorf("Failed to encode local network state: %v", err)
+		log.G(context.TODO()).Errorf("Failed to encode local network state: %v", err)
 		return nil
 	}
 
@@ -448,24 +449,24 @@ func (d *delegate) LocalState(join bool) []byte {
 
 func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	if len(buf) == 0 {
-		logrus.Error("zero byte remote network state received")
+		log.G(context.TODO()).Error("zero byte remote network state received")
 		return
 	}
 
 	var gMsg GossipMessage
 	err := proto.Unmarshal(buf, &gMsg)
 	if err != nil {
-		logrus.Errorf("Error unmarshalling push pull message: %v", err)
+		log.G(context.TODO()).Errorf("Error unmarshalling push pull message: %v", err)
 		return
 	}
 
 	if gMsg.Type != MessageTypePushPull {
-		logrus.Errorf("Invalid message type %v received from remote", buf[0])
+		log.G(context.TODO()).Errorf("Invalid message type %v received from remote", buf[0])
 	}
 
 	pp := NetworkPushPull{}
 	if err := proto.Unmarshal(gMsg.Data, &pp); err != nil {
-		logrus.Errorf("Failed to decode remote network state: %v", err)
+		log.G(context.TODO()).Errorf("Failed to decode remote network state: %v", err)
 		return
 	}
 

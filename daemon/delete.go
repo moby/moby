@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/leases"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -17,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ContainerRm removes the container id from the filesystem. An error
@@ -77,7 +77,7 @@ func (daemon *Daemon) rmLink(cfg *config.Config, container *container.Container,
 	if parentContainer != nil {
 		daemon.linkIndex.unlink(name, container, parentContainer)
 		if err := daemon.updateNetwork(cfg, parentContainer); err != nil {
-			logrus.Debugf("Could not update network to remove link %s: %v", n, err)
+			log.G(context.TODO()).Debugf("Could not update network to remove link %s: %v", n, err)
 		}
 	}
 	return nil
@@ -129,7 +129,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil && !os.IsNotExist(err) {
-		logrus.Errorf("Error saving dying container to disk: %v", err)
+		log.G(context.TODO()).Errorf("Error saving dying container to disk: %v", err)
 	}
 	container.Unlock()
 
@@ -173,7 +173,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 	daemon.containers.Delete(container.ID)
 	daemon.containersReplica.Delete(container)
 	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
-		logrus.Error(err)
+		log.G(context.TODO()).Error(err)
 	}
 	for _, name := range linkNames {
 		daemon.releaseName(name)

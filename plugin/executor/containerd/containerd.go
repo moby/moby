@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
@@ -75,7 +76,7 @@ func (p c8dPlugin) deleteTaskAndContainer(ctx context.Context) {
 // Create creates a new container
 func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
 	ctx := context.Background()
-	log := logrus.WithField("plugin", id)
+	log := log.G(ctx).WithField("plugin", id)
 	ctr, err := libcontainerd.ReplaceContainer(ctx, e.client, id, &spec, e.shim, e.shimOpts)
 	if err != nil {
 		return errors.Wrap(err, "error creating containerd container for plugin")
@@ -96,7 +97,7 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 // Restore restores a container
 func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
 	ctx := context.Background()
-	p := c8dPlugin{log: logrus.WithField("plugin", id)}
+	p := c8dPlugin{log: log.G(ctx).WithField("plugin", id)}
 	ctr, err := e.client.LoadContainer(ctx, id)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
@@ -164,7 +165,7 @@ func (e *Executor) ProcessEvent(id string, et libcontainerdtypes.EventType, ei l
 		p := e.plugins[id]
 		e.mu.Unlock()
 		if p == nil {
-			logrus.WithField("id", id).Warn("Received exit event for an unknown plugin")
+			log.G(context.TODO()).WithField("id", id).Warn("Received exit event for an unknown plugin")
 		} else {
 			p.deleteTaskAndContainer(context.Background())
 		}

@@ -95,7 +95,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	authConfig := &registry.AuthConfig{}
 	if encodedAuthConfig != "" {
 		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuthConfig))).Decode(authConfig); err != nil {
-			logrus.Warnf("invalid authconfig: %v", err)
+			log.G(ctx).Warnf("invalid authconfig: %v", err)
 		}
 	}
 

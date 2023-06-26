@@ -4,13 +4,13 @@ import (
 	"context"
 	"runtime"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	dockerimage "github.com/docker/docker/image"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type getAndMountFunc func(context.Context, string, bool, *ocispec.Platform) (builder.Image, builder.ROLayer, error)
@@ -64,7 +64,7 @@ func (m *imageSources) Get(ctx context.Context, idOrRef string, localOnly bool, 
 func (m *imageSources) Unmount() (retErr error) {
 	for _, im := range m.mounts {
 		if err := im.unmount(); err != nil {
-			logrus.Error(err)
+			log.G(context.TODO()).Error(err)
 			retErr = err
 		}
 	}

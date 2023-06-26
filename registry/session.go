@@ -2,6 +2,7 @@ package registry // import "github.com/docker/docker/registry"
 
 import (
 	// this is required for some certificates
+	"context"
 	_ "crypto/sha512"
 	"encoding/json"
 	"fmt"
@@ -11,12 +12,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // A session is used to communicate with a V1 registry
@@ -155,7 +156,7 @@ func authorizeClient(client *http.Client, authConfig *registry.AuthConfig, endpo
 			return err
 		}
 		if info.Standalone && authConfig != nil {
-			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
+			log.G(context.TODO()).Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
 			alwaysSetBasicAuth = true
 		}
 	}
@@ -191,7 +192,7 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	if limit < 1 || limit > 100 {
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
-	logrus.Debugf("Index server: %s", r.indexEndpoint)
+	log.G(context.TODO()).Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)

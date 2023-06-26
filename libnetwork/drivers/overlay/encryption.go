@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -13,11 +14,11 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -112,7 +113,7 @@ func (e *encrMap) String() string {
 }
 
 func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) error {
-	logrus.Debugf("checkEncryption(%.7s, %v, %t)", nid, rIP, isLocal)
+	log.G(context.TODO()).Debugf("checkEncryption(%.7s, %v, %t)", nid, rIP, isLocal)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -135,7 +136,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 			}
 			return false
 		}); err != nil {
-			logrus.Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
+			log.G(context.TODO()).Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
 		}
 	default:
 		if len(d.network(nid).endpoints) > 0 {
@@ -143,18 +144,18 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 		}
 	}
 
-	logrus.Debugf("List of nodes: %s", nodes)
+	log.G(context.TODO()).Debugf("List of nodes: %s", nodes)
 
 	if add {
 		for _, rIP := range nodes {
 			if err := setupEncryption(lIP, aIP, rIP, d.secMap, d.keys); err != nil {
-				logrus.Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
+				log.G(context.TODO()).Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
 	} else {
 		if len(nodes) == 0 {
 			if err := removeEncryption(lIP, rIP, d.secMap); err != nil {
-				logrus.Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
+				log.G(context.TODO()).Warnf("Failed to remove network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
 	}
@@ -165,7 +166,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, isLocal, add bool) erro
 // setupEncryption programs the encryption parameters for secure communication
 // between the local node and a remote node.
 func setupEncryption(localIP, advIP, remoteIP net.IP, em *encrMap, keys []*key) error {
-	logrus.Debugf("Programming encryption between %s and %s", localIP, remoteIP)
+	log.G(context.TODO()).Debugf("Programming encryption between %s and %s", localIP, remoteIP)
 	rIPs := remoteIP.String()
 
 	indices := make([]*spi, 0, len(keys))
@@ -178,7 +179,7 @@ func setupEncryption(localIP, advIP, remoteIP net.IP, em *encrMap, keys []*key) 
 		}
 		fSA, rSA, err := programSA(localIP, remoteIP, spis, k, dir, true)
 		if err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 		}
 		indices = append(indices, spis)
 		if i != 0 {
@@ -186,7 +187,7 @@ func setupEncryption(localIP, advIP, remoteIP net.IP, em *encrMap, keys []*key) 
 		}
 		err = programSP(fSA, rSA, true)
 		if err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 		}
 	}
 
@@ -211,14 +212,14 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 		}
 		fSA, rSA, err := programSA(localIP, remoteIP, idxs, nil, dir, false)
 		if err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 		}
 		if i != 0 {
 			continue
 		}
 		err = programSP(fSA, rSA, false)
 		if err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 		}
 	}
 	return nil
@@ -315,9 +316,9 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 		}
 
 		if add != exists {
-			logrus.Debugf("%s: rSA{%s}", action, rSA)
+			log.G(context.TODO()).Debugf("%s: rSA{%s}", action, rSA)
 			if err := xfrmProgram(rSA); err != nil {
-				logrus.Warnf("Failed %s rSA{%s}: %v", action, rSA, err)
+				log.G(context.TODO()).Warnf("Failed %s rSA{%s}: %v", action, rSA, err)
 			}
 		}
 	}
@@ -341,9 +342,9 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 		}
 
 		if add != exists {
-			logrus.Debugf("%s fSA{%s}", action, fSA)
+			log.G(context.TODO()).Debugf("%s fSA{%s}", action, fSA)
 			if err := xfrmProgram(fSA); err != nil {
-				logrus.Warnf("Failed %s fSA{%s}: %v.", action, fSA, err)
+				log.G(context.TODO()).Warnf("Failed %s fSA{%s}: %v.", action, fSA, err)
 			}
 		}
 	}
@@ -389,9 +390,9 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 	}
 
 	if add != exists {
-		logrus.Debugf("%s fSP{%s}", action, fPol)
+		log.G(context.TODO()).Debugf("%s fSP{%s}", action, fPol)
 		if err := xfrmProgram(fPol); err != nil {
-			logrus.Warnf("%s fSP{%s}: %v", action, fPol, err)
+			log.G(context.TODO()).Warnf("%s fSP{%s}: %v", action, fPol, err)
 		}
 	}
 
@@ -407,7 +408,7 @@ func saExists(sa *netlink.XfrmState) (bool, error) {
 		return false, nil
 	default:
 		err = fmt.Errorf("Error while checking for SA existence: %v", err)
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 		return false, err
 	}
 }
@@ -421,7 +422,7 @@ func spExists(sp *netlink.XfrmPolicy) (bool, error) {
 		return false, nil
 	default:
 		err = fmt.Errorf("Error while checking for SP existence: %v", err)
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 		return false, err
 	}
 }
@@ -469,16 +470,16 @@ func (d *driver) setKeys(keys []*key) error {
 	d.keys = keys
 	d.secMap = &encrMap{nodes: map[string][]*spi{}}
 	d.Unlock()
-	logrus.Debugf("Initial encryption keys: %v", keys)
+	log.G(context.TODO()).Debugf("Initial encryption keys: %v", keys)
 	return nil
 }
 
 // updateKeys allows to add a new key and/or change the primary key and/or prune an existing key
 // The primary key is the key used in transmission and will go in first position in the list.
 func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
-	logrus.Debugf("Updating Keys. New: %v, Primary: %v, Pruned: %v", newKey, primary, pruneKey)
+	log.G(context.TODO()).Debugf("Updating Keys. New: %v, Primary: %v, Pruned: %v", newKey, primary, pruneKey)
 
-	logrus.Debugf("Current: %v", d.keys)
+	log.G(context.TODO()).Debugf("Current: %v", d.keys)
 
 	var (
 		newIdx = -1
@@ -533,7 +534,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		d.keys = append(d.keys[:delIdx], d.keys[delIdx+1:]...)
 	}
 
-	logrus.Debugf("Updated: %v", d.keys)
+	log.G(context.TODO()).Debugf("Updated: %v", d.keys)
 
 	return nil
 }
@@ -546,10 +547,10 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 
 // Spis and keys are sorted in such away the one in position 0 is the primary
 func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx, delIdx int) []*spi {
-	logrus.Debugf("Updating keys for node: %s (%d,%d,%d)", rIP, newIdx, priIdx, delIdx)
+	log.G(context.TODO()).Debugf("Updating keys for node: %s (%d,%d,%d)", rIP, newIdx, priIdx, delIdx)
 
 	spis := idxs
-	logrus.Debugf("Current: %v", spis)
+	log.G(context.TODO()).Debugf("Current: %v", spis)
 
 	// add new
 	if newIdx != -1 {
@@ -596,9 +597,9 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, pr
 				},
 			},
 		}
-		logrus.Debugf("Updating fSP{%s}", fSP1)
+		log.G(context.TODO()).Debugf("Updating fSP{%s}", fSP1)
 		if err := ns.NlHandle().XfrmPolicyUpdate(fSP1); err != nil {
-			logrus.Warnf("Failed to update fSP{%s}: %v", fSP1, err)
+			log.G(context.TODO()).Warnf("Failed to update fSP{%s}: %v", fSP1, err)
 		}
 
 		// -fSA1
@@ -619,7 +620,7 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, pr
 		spis = append(spis[:delIdx], spis[delIdx+1:]...)
 	}
 
-	logrus.Debugf("Updated: %v", spis)
+	log.G(context.TODO()).Debugf("Updated: %v", spis)
 
 	return spis
 }
@@ -643,30 +644,30 @@ func clearEncryptionStates() {
 	nlh := ns.NlHandle()
 	spList, err := nlh.XfrmPolicyList(netlink.FAMILY_ALL)
 	if err != nil {
-		logrus.Warnf("Failed to retrieve SP list for cleanup: %v", err)
+		log.G(context.TODO()).Warnf("Failed to retrieve SP list for cleanup: %v", err)
 	}
 	saList, err := nlh.XfrmStateList(netlink.FAMILY_ALL)
 	if err != nil {
-		logrus.Warnf("Failed to retrieve SA list for cleanup: %v", err)
+		log.G(context.TODO()).Warnf("Failed to retrieve SA list for cleanup: %v", err)
 	}
 	for _, sp := range spList {
 		sp := sp
 		if sp.Mark != nil && sp.Mark.Value == spMark.Value {
 			if err := nlh.XfrmPolicyDel(&sp); err != nil {
-				logrus.Warnf("Failed to delete stale SP %s: %v", sp, err)
+				log.G(context.TODO()).Warnf("Failed to delete stale SP %s: %v", sp, err)
 				continue
 			}
-			logrus.Debugf("Removed stale SP: %s", sp)
+			log.G(context.TODO()).Debugf("Removed stale SP: %s", sp)
 		}
 	}
 	for _, sa := range saList {
 		sa := sa
 		if sa.Reqid == mark {
 			if err := nlh.XfrmStateDel(&sa); err != nil {
-				logrus.Warnf("Failed to delete stale SA %s: %v", sa, err)
+				log.G(context.TODO()).Warnf("Failed to delete stale SA %s: %v", sa, err)
 				continue
 			}
-			logrus.Debugf("Removed stale SA: %s", sa)
+			log.G(context.TODO()).Debugf("Removed stale SA: %s", sa)
 		}
 	}
 }

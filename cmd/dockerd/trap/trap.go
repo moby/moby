@@ -1,11 +1,12 @@
 package trap // import "github.com/docker/docker/cmd/dockerd/trap"
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/containerd/log"
 )
 
 const (
@@ -29,7 +30,7 @@ func Trap(cleanup func()) {
 	go func() {
 		var interruptCount int
 		for sig := range c {
-			logrus.Infof("Processing signal '%v'", sig)
+			log.G(context.TODO()).Infof("Processing signal '%v'", sig)
 			if interruptCount < forceQuitCount {
 				interruptCount++
 				// Initiate the cleanup only once
@@ -39,7 +40,7 @@ func Trap(cleanup func()) {
 				continue
 			}
 
-			logrus.Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
+			log.G(context.TODO()).Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
 			os.Exit(128 + int(sig.(syscall.Signal)))
 		}
 	}()

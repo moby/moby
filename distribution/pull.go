@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	refstore "github.com/docker/docker/reference"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Pull initiates a pull operation. image is the repository name to pull, and
@@ -42,12 +42,12 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 	for _, endpoint := range endpoints {
 		if endpoint.URL.Scheme != "https" {
 			if _, confirmedTLS := confirmedTLSRegistries[endpoint.URL.Host]; confirmedTLS {
-				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
+				log.G(ctx).Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
 				continue
 			}
 		}
 
-		logrus.Debugf("Trying to pull %s from %s", reference.FamiliarName(repoInfo.Name), endpoint.URL)
+		log.G(ctx).Debugf("Trying to pull %s from %s", reference.FamiliarName(repoInfo.Name), endpoint.URL)
 
 		if err := newPuller(endpoint, repoInfo, config, local).pull(ctx, ref); err != nil {
 			// Was this pull cancelled? If so, don't try to fall
@@ -66,10 +66,10 @@ func Pull(ctx context.Context, ref reference.Named, config *ImagePullConfig, loc
 			}
 			if fallback {
 				lastErr = err
-				logrus.Infof("Attempting next endpoint for pull after error: %v", err)
+				log.G(ctx).Infof("Attempting next endpoint for pull after error: %v", err)
 				continue
 			}
-			logrus.Errorf("Not continuing with pull after error: %v", err)
+			log.G(ctx).Errorf("Not continuing with pull after error: %v", err)
 			return translatePullError(err, ref)
 		}
 
@@ -101,7 +101,7 @@ func addDigestReference(store refstore.Store, ref reference.Named, dgst digest.D
 	if oldTagID, err := store.Get(dgstRef); err == nil {
 		if oldTagID != id {
 			// Updating digests not supported by reference store
-			logrus.Errorf("Image ID for digest %s changed from %s to %s, cannot update", dgst.String(), oldTagID, id)
+			log.G(context.TODO()).Errorf("Image ID for digest %s changed from %s to %s, cannot update", dgst.String(), oldTagID, id)
 		}
 		return nil
 	} else if err != refstore.ErrDoesNotExist {

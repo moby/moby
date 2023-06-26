@@ -3,11 +3,12 @@
 package bridge
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -42,14 +43,14 @@ func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 			iptable := iptables.GetIptable(iptables.IPv4)
 			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
 				if err := configureIPForwarding(false); err != nil {
-					logrus.Errorf("Disabling IP forwarding failed, %v", err)
+					log.G(context.TODO()).Errorf("Disabling IP forwarding failed, %v", err)
 				}
 				return err
 			}
 			iptables.OnReloaded(func() {
-				logrus.Debug("Setting the default DROP policy on firewall reload")
+				log.G(context.TODO()).Debug("Setting the default DROP policy on firewall reload")
 				if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-					logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+					log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 				}
 			})
 		}
@@ -59,12 +60,12 @@ func setupIPForwarding(enableIPTables bool, enableIP6Tables bool) error {
 	if enableIP6Tables {
 		iptable := iptables.GetIptable(iptables.IPv6)
 		if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-			logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+			log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 		}
 		iptables.OnReloaded(func() {
-			logrus.Debug("Setting the default DROP policy on firewall reload")
+			log.G(context.TODO()).Debug("Setting the default DROP policy on firewall reload")
 			if err := iptable.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-				logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
+				log.G(context.TODO()).Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 			}
 		})
 	}

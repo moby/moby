@@ -1,12 +1,14 @@
 package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	enginecontainer "github.com/docker/docker/api/types/container"
@@ -26,7 +28,6 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/moby/swarmkit/v2/template"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -594,7 +595,7 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 		return nil
 	}
 
-	logrus.Debugf("Creating service config in agent for t = %+v", c.task)
+	log.G(context.TODO()).Debugf("Creating service config in agent for t = %+v", c.task)
 	svcCfg := &clustertypes.ServiceConfig{
 		Name:             c.task.ServiceAnnotations.Name,
 		Aliases:          make(map[string][]string),

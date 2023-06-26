@@ -1,17 +1,18 @@
 package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
@@ -168,7 +169,7 @@ func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Drive
 	if err == nil {
 		return pluginDriver, nil
 	}
-	logrus.WithError(err).WithField("driver", name).WithField("home-dir", config.Root).Error("Failed to GetDriver graph")
+	log.G(context.TODO()).WithError(err).WithField("driver", name).WithField("home-dir", config.Root).Error("Failed to GetDriver graph")
 	return nil, ErrNotSupported
 }
 
@@ -177,7 +178,7 @@ func getBuiltinDriver(name, home string, options []string, idMap idtools.Identit
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options, idMap)
 	}
-	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
+	log.G(context.TODO()).Errorf("Failed to built-in GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
 }
 
@@ -191,8 +192,9 @@ type Options struct {
 
 // New creates the driver and initializes it at the specified root.
 func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
+	ctx := context.TODO()
 	if name != "" {
-		logrus.Infof("[graphdriver] trying configured driver: %s", name)
+		log.G(ctx).Infof("[graphdriver] trying configured driver: %s", name)
 		if err := checkRemoved(name); err != nil {
 			return nil, err
 		}
@@ -202,7 +204,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 	// Guess for prior driver
 	driversMap := scanPriorDrivers(config.Root)
 	priorityList := strings.Split(priority, ",")
-	logrus.Debugf("[graphdriver] priority list: %v", priorityList)
+	log.G(ctx).Debugf("[graphdriver] priority list: %v", priorityList)
 	for _, name := range priorityList {
 		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
@@ -213,7 +215,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 				// state, and now it is no longer supported/prereq/compatible, so
 				// something changed and needs attention. Otherwise the daemon's
 				// images would just "disappear".
-				logrus.Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
+				log.G(ctx).Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
 				return nil, err
 			}
 
@@ -226,11 +228,11 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 				}
 
 				err = errors.Errorf("%s contains several valid graphdrivers: %s; cleanup or explicitly choose storage driver (-s <DRIVER>)", config.Root, strings.Join(driversSlice, ", "))
-				logrus.Errorf("[graphdriver] %v", err)
+				log.G(ctx).Errorf("[graphdriver] %v", err)
 				return nil, err
 			}
 
-			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
+			log.G(ctx).Infof("[graphdriver] using prior storage driver: %s", name)
 			return driver, nil
 		}
 	}

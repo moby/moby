@@ -1,12 +1,14 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/debug"
@@ -22,7 +24,6 @@ import (
 	"github.com/docker/docker/registry"
 	metrics "github.com/docker/go-metrics"
 	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/sirupsen/logrus"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
@@ -237,7 +238,7 @@ func (daemon *Daemon) fillDefaultAddressPools(v *types.Info, cfg *config.Config)
 func hostName() string {
 	hostname := ""
 	if hn, err := os.Hostname(); err != nil {
-		logrus.Warnf("Could not get hostname: %v", err)
+		log.G(context.TODO()).Warnf("Could not get hostname: %v", err)
 	} else {
 		hostname = hn
 	}
@@ -247,7 +248,7 @@ func hostName() string {
 func kernelVersion() string {
 	var kernelVersion string
 	if kv, err := kernel.GetKernelVersion(); err != nil {
-		logrus.Warnf("Could not get kernel version: %v", err)
+		log.G(context.TODO()).Warnf("Could not get kernel version: %v", err)
 	} else {
 		kernelVersion = kv.String()
 	}
@@ -257,7 +258,7 @@ func kernelVersion() string {
 func memInfo() *meminfo.Memory {
 	memInfo, err := meminfo.Read()
 	if err != nil {
-		logrus.Errorf("Could not read system memory info: %v", err)
+		log.G(context.TODO()).Errorf("Could not read system memory info: %v", err)
 		memInfo = &meminfo.Memory{}
 	}
 	return memInfo
@@ -267,12 +268,12 @@ func operatingSystem() (operatingSystem string) {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("operating_system"))()
 
 	if s, err := operatingsystem.GetOperatingSystem(); err != nil {
-		logrus.Warnf("Could not get operating system name: %v", err)
+		log.G(context.TODO()).Warnf("Could not get operating system name: %v", err)
 	} else {
 		operatingSystem = s
 	}
 	if inContainer, err := operatingsystem.IsContainerized(); err != nil {
-		logrus.Errorf("Could not determine if daemon is containerized: %v", err)
+		log.G(context.TODO()).Errorf("Could not determine if daemon is containerized: %v", err)
 		operatingSystem += " (error determining if containerized)"
 	} else if inContainer {
 		operatingSystem += " (containerized)"
@@ -286,7 +287,7 @@ func osVersion() (version string) {
 
 	version, err := operatingsystem.GetOperatingSystemVersion()
 	if err != nil {
-		logrus.Warnf("Could not get operating system version: %v", err)
+		log.G(context.TODO()).Warnf("Could not get operating system version: %v", err)
 	}
 
 	return version

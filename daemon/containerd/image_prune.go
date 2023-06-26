@@ -5,6 +5,7 @@ import (
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -79,7 +80,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 	// Apply filters
 	for name, img := range imagesToPrune {
 		filteredOut := !filterFunc(img)
-		logrus.WithFields(logrus.Fields{
+		log.G(ctx).WithFields(logrus.Fields{
 			"image":       name,
 			"filteredOut": filteredOut,
 		}).Debug("filtering image")
@@ -99,7 +100,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		// Warning: This doesn't handle truncated ids:
 		//          `docker run 124c7d2` will have Image="124c7d270790"
 		ref, err := reference.ParseNormalizedNamed(ctr.Config.Image)
-		logrus.WithFields(logrus.Fields{
+		log.G(ctx).WithFields(logrus.Fields{
 			"ctr":          ctr.ID,
 			"image":        ref,
 			"nameParseErr": err,
@@ -121,7 +122,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 	}()
 
 	for _, img := range imagesToPrune {
-		logrus.WithField("image", img).Debug("pruning image")
+		log.G(ctx).WithField("image", img).Debug("pruning image")
 
 		blobs := []ocispec.Descriptor{}
 
@@ -207,7 +208,7 @@ func (i *ImageService) unleaseSnapshotsFromDeletedConfigs(ctx context.Context, p
 		info, err := store.Info(ctx, cfgDigest)
 		if err != nil {
 			if cerrdefs.IsNotFound(err) {
-				logrus.WithField("config", cfgDigest).Debug("config already gone")
+				log.G(ctx).WithField("config", cfgDigest).Debug("config already gone")
 			} else {
 				errs = multierror.Append(errs, err)
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {

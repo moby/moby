@@ -1,14 +1,15 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"runtime"
 	"sync"
 
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/sirupsen/logrus"
 )
 
 // ExecConfig holds the configurations for execs. The Daemon keeps
@@ -55,7 +56,7 @@ func (c *ExecConfig) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 	if c.StreamConfig.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
 		if iop.Stdin != nil {
 			if err := iop.Stdin.Close(); err != nil {
-				logrus.Errorf("error closing exec stdin: %+v", err)
+				log.G(context.TODO()).Errorf("error closing exec stdin: %+v", err)
 			}
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -212,7 +213,7 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 		// If it is any other error other than already
 		// exists error log error and return.
 		if _, ok := err.(libnetwork.NetworkNameError); !ok {
-			logrus.Errorf("Failed creating ingress network: %v", err)
+			log.G(context.TODO()).Errorf("Failed creating ingress network: %v", err)
 			return
 		}
 		// Otherwise continue down the call to create or recreate sandbox.
@@ -220,7 +221,7 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 
 	_, err := daemon.GetNetworkByID(create.ID)
 	if err != nil {
-		logrus.Errorf("Failed getting ingress network by id after creating: %v", err)
+		log.G(context.TODO()).Errorf("Failed getting ingress network by id after creating: %v", err)
 	}
 }
 
@@ -233,12 +234,12 @@ func (daemon *Daemon) releaseIngress(id string) {
 
 	n, err := controller.NetworkByID(id)
 	if err != nil {
-		logrus.Errorf("failed to retrieve ingress network %s: %v", id, err)
+		log.G(context.TODO()).Errorf("failed to retrieve ingress network %s: %v", id, err)
 		return
 	}
 
 	if err := n.Delete(libnetwork.NetworkDeleteOptionRemoveLB); err != nil {
-		logrus.Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
+		log.G(context.TODO()).Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
 		return
 	}
 }
@@ -323,7 +324,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
 		for k, v := range defaultOpts {
 			if _, ok := networkOptions[k]; !ok {
-				logrus.WithFields(logrus.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
+				log.G(context.TODO()).WithFields(logrus.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
 				networkOptions[k] = v
 			}
 		}
@@ -411,7 +412,7 @@ func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 	if daemon.PluginStore != nil {
 		_, err := daemon.PluginStore.Get(driver, capability, mode)
 		if err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{"mode": mode, "driver": driver}).Error("Error handling plugin refcount operation")
+			log.G(context.TODO()).WithError(err).WithFields(logrus.Fields{"mode": mode, "driver": driver}).Error("Error handling plugin refcount operation")
 		}
 	}
 }
@@ -785,12 +786,12 @@ func (daemon *Daemon) clearAttachableNetworks() {
 			}
 			containerID := sb.ContainerID()
 			if err := daemon.DisconnectContainerFromNetwork(containerID, n.ID(), true); err != nil {
-				logrus.Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
+				log.G(context.TODO()).Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
 					containerID, n.Name(), err)
 			}
 		}
 		if err := daemon.DeleteManagedNetwork(n.ID()); err != nil {
-			logrus.Warnf("Failed to remove swarm network %s on cluster leave: %v", n.Name(), err)
+			log.G(context.TODO()).Warnf("Failed to remove swarm network %s on cluster leave: %v", n.Name(), err)
 		}
 	}
 }

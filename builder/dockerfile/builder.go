@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -23,7 +24,6 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/syncmap"
 )
 
@@ -76,7 +76,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	defer func() {
 		if source != nil {
 			if err := source.Close(); err != nil {
-				logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+				log.G(ctx).Debugf("[BUILDER] failed to remove temporary context: %v", err)
 			}
 		}
 	}()
@@ -283,7 +283,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseR
 		for _, cmd := range stage.Commands {
 			select {
 			case <-ctx.Done():
-				logrus.Debug("Builder: build cancelled!")
+				log.G(ctx).Debug("Builder: build cancelled!")
 				fmt.Fprint(b.Stdout, "Build cancelled\n")
 				buildsFailed.WithValues(metricsBuildCanceled).Inc()
 				return nil, errors.New("Build cancelled")

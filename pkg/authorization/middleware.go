@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/sirupsen/logrus"
 )
 
 // Middleware uses a list of plugins to
@@ -74,7 +74,7 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 		authCtx := NewCtx(plugins, user, userAuthNMethod, r.Method, r.RequestURI)
 
 		if err := authCtx.AuthZRequest(w, r); err != nil {
-			logrus.Errorf("AuthZRequest for %s %s returned error: %s", r.Method, r.RequestURI, err)
+			log.G(ctx).Errorf("AuthZRequest for %s %s returned error: %s", r.Method, r.RequestURI, err)
 			return err
 		}
 
@@ -83,21 +83,21 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 		var errD error
 
 		if errD = handler(ctx, rw, r, vars); errD != nil {
-			logrus.Errorf("Handler for %s %s returned error: %s", r.Method, r.RequestURI, errD)
+			log.G(ctx).Errorf("Handler for %s %s returned error: %s", r.Method, r.RequestURI, errD)
 		}
 
 		// There's a chance that the authCtx.plugins was updated. One of the reasons
 		// this can happen is when an authzplugin is disabled.
 		plugins = m.getAuthzPlugins()
 		if len(plugins) == 0 {
-			logrus.Debug("There are no authz plugins in the chain")
+			log.G(ctx).Debug("There are no authz plugins in the chain")
 			return nil
 		}
 
 		authCtx.plugins = plugins
 
 		if err := authCtx.AuthZResponse(rw, r); errD == nil && err != nil {
-			logrus.Errorf("AuthZResponse for %s %s returned error: %s", r.Method, r.RequestURI, err)
+			log.G(ctx).Errorf("AuthZResponse for %s %s returned error: %s", r.Method, r.RequestURI, err)
 			return err
 		}
 

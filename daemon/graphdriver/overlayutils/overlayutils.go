@@ -4,15 +4,16 @@
 package overlayutils // import "github.com/docker/docker/daemon/graphdriver/overlayutils"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -54,7 +55,7 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			logrus.Warnf("Failed to remove check directory %v: %v", td, err)
+			log.G(context.TODO()).Warnf("Failed to remove check directory %v: %v", td, err)
 		}
 	}()
 
@@ -74,7 +75,7 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
 	if err := unix.Unmount(mnt, 0); err != nil {
-		logrus.Warnf("Failed to unmount check directory %v: %v", mnt, err)
+		log.G(context.TODO()).Warnf("Failed to unmount check directory %v: %v", mnt, err)
 	}
 	return nil
 }

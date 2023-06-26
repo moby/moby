@@ -22,6 +22,7 @@ import (
 	"github.com/aws/smithy-go"
 	smithymiddleware "github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
@@ -183,7 +184,7 @@ func New(info logger.Info) (logger.Logger, error) {
 				if backoff < maxBackoff {
 					backoff *= 2
 				}
-				logrus.
+				log.G(context.TODO()).
 					WithError(err).
 					WithField("container-id", info.ContainerID).
 					WithField("container-name", info.ContainerName).
@@ -335,6 +336,7 @@ var newSDKEndpoint = credentialsEndpoint
 // User-Agent string and automatic region detection using the EC2 Instance
 // Metadata Service when region is otherwise unspecified.
 func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) error) (*cloudwatchlogs.Client, error) {
+	ctx := context.TODO()
 	var region, endpoint *string
 	if os.Getenv(regionEnvKey) != "" {
 		region = aws.String(os.Getenv(regionEnvKey))
@@ -346,16 +348,16 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		endpoint = aws.String(info.Config[endpointKey])
 	}
 	if region == nil || *region == "" {
-		logrus.Info("Trying to get region from IMDS")
+		log.G(ctx).Info("Trying to get region from IMDS")
 		regFinder, err := newRegionFinder(context.TODO())
 		if err != nil {
-			logrus.WithError(err).Error("could not create regionFinder")
+			log.G(ctx).WithError(err).Error("could not create regionFinder")
 			return nil, errors.Wrap(err, "could not create regionFinder")
 		}
 
 		r, err := regFinder.GetRegion(context.TODO(), &imds.GetRegionInput{})
 		if err != nil {
-			logrus.WithError(err).Error("Could not get region from IMDS, environment, or log option")
+			log.G(ctx).WithError(err).Error("Could not get region from IMDS, environment, or log option")
 			return nil, errors.Wrap(err, "cannot determine region for awslogs driver")
 		}
 		region = &r.Region
@@ -364,7 +366,7 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 	configOpts = append(configOpts, config.WithRegion(*region))
 
 	if uri, ok := info.Config[credentialsEndpointKey]; ok {
-		logrus.Debugf("Trying to get credentials from awslogs-credentials-endpoint")
+		log.G(ctx).Debugf("Trying to get credentials from awslogs-credentials-endpoint")
 
 		endpoint := fmt.Sprintf("%s%s", newSDKEndpoint, uri)
 		configOpts = append(configOpts, config.WithCredentialsProvider(endpointcreds.New(endpoint)))
@@ -372,11 +374,11 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), configOpts...)
 	if err != nil {
-		logrus.WithError(err).Error("Could not initialize AWS SDK config")
+		log.G(ctx).WithError(err).Error("Could not initialize AWS SDK config")
 		return nil, errors.Wrap(err, "could not initialize AWS SDK config")
 	}
 
-	logrus.WithFields(logrus.Fields{
+	log.G(ctx).WithFields(logrus.Fields{
 		"region": *region,
 	}).Debug("Created awslogs client")
 
@@ -483,10 +485,10 @@ func (l *logStream) createLogGroup() error {
 			}
 			if _, ok := apiErr.(*types.ResourceAlreadyExistsException); ok {
 				// Allow creation to succeed
-				logrus.WithFields(fields).Info("Log group already exists")
+				log.G(context.TODO()).WithFields(fields).Info("Log group already exists")
 				return nil
 			}
-			logrus.WithFields(fields).Error("Failed to create log group")
+			log.G(context.TODO()).WithFields(fields).Error("Failed to create log group")
 		}
 		return err
 	}
@@ -497,7 +499,7 @@ func (l *logStream) createLogGroup() error {
 func (l *logStream) createLogStream() error {
 	// Directly return if we do not want to create log stream.
 	if !l.logCreateStream {
-		logrus.WithFields(logrus.Fields{
+		log.G(context.TODO()).WithFields(logrus.Fields{
 			"logGroupName":    l.logGroupName,
 			"logStreamName":   l.logStreamName,
 			"logCreateStream": l.logCreateStream,
@@ -522,10 +524,10 @@ func (l *logStream) createLogStream() error {
 			}
 			if _, ok := apiErr.(*types.ResourceAlreadyExistsException); ok {
 				// Allow creation to succeed
-				logrus.WithFields(fields).Info("Log stream already exists")
+				log.G(context.TODO()).WithFields(fields).Info("Log stream already exists")
 				return nil
 			}
-			logrus.WithFields(fields).Error("Failed to create log stream")
+			log.G(context.TODO()).WithFields(fields).Error("Failed to create log stream")
 		}
 	}
 	return err
@@ -694,7 +696,7 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 		if apiErr := (*types.DataAlreadyAcceptedException)(nil); errors.As(err, &apiErr) {
 			// already submitted, just grab the correct sequence token
 			nextSequenceToken = apiErr.ExpectedSequenceToken
-			logrus.WithFields(logrus.Fields{
+			log.G(context.TODO()).WithFields(logrus.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
 				"logGroupName":  l.logGroupName,
@@ -706,7 +708,7 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 		}
 	}
 	if err != nil {
-		logrus.Error(err)
+		log.G(context.TODO()).Error(err)
 	} else {
 		l.sequenceToken = nextSequenceToken
 	}
@@ -724,7 +726,7 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) {
-			logrus.WithFields(logrus.Fields{
+			log.G(context.TODO()).WithFields(logrus.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
 				"logGroupName":  l.logGroupName,

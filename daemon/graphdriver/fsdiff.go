@@ -1,14 +1,15 @@
 package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
+	"context"
 	"io"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -143,11 +144,11 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, diff io.Reader) (size i
 	layerFs := layerRootFs
 	options := &archive.TarOptions{IDMap: gdw.IDMap, BestEffortXattrs: gdw.BestEffortXattrs}
 	start := time.Now().UTC()
-	logrus.WithField("id", id).Debug("Start untar layer")
+	log.G(context.TODO()).WithField("id", id).Debug("Start untar layer")
 	if size, err = ApplyUncompressedLayer(layerFs, diff, options); err != nil {
 		return
 	}
-	logrus.WithField("id", id).Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
+	log.G(context.TODO()).WithField("id", id).Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
 	return
 }

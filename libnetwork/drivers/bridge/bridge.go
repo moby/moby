@@ -3,6 +3,7 @@
 package bridge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
@@ -22,7 +24,6 @@ import (
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/portmapper"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -380,7 +381,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	if config.EnableIPTables || config.EnableIP6Tables {
 		if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
 			if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
-				logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
+				log.G(context.TODO()).Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
 			}
 		}
 	}
@@ -395,9 +396,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
-			logrus.Debugf("Recreating iptables chains on firewall reload")
+			log.G(context.TODO()).Debugf("Recreating iptables chains on firewall reload")
 			if _, _, _, _, err := setupIPChains(config, iptables.IPv4); err != nil {
-				logrus.WithError(err).Error("Error reloading iptables chains")
+				log.G(context.TODO()).WithError(err).Error("Error reloading iptables chains")
 			}
 		})
 	}
@@ -412,9 +413,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 
 		// Make sure on firewall reload, first thing being re-played is chains creation
 		iptables.OnReloaded(func() {
-			logrus.Debugf("Recreating ip6tables chains on firewall reload")
+			log.G(context.TODO()).Debugf("Recreating ip6tables chains on firewall reload")
 			if _, _, _, _, err := setupIPChains(config, iptables.IPv6); err != nil {
-				logrus.WithError(err).Error("Error reloading ip6tables chains")
+				log.G(context.TODO()).WithError(err).Error("Error reloading ip6tables chains")
 			}
 		})
 	}
@@ -422,7 +423,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	if config.EnableIPForwarding {
 		err = setupIPForwarding(config.EnableIPTables, config.EnableIP6Tables)
 		if err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 			return err
 		}
 	}
@@ -631,9 +632,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 			return err
 		}
 		// Got a conflict with a stale default network, clean that up and continue
-		logrus.Warn(nerr)
+		log.G(context.TODO()).Warn(nerr)
 		if err := d.deleteNetwork(nerr.ID); err != nil {
-			logrus.WithError(err).Debug("Error while cleaning up network on conflict")
+			log.G(context.TODO()).WithError(err).Debug("Error while cleaning up network on conflict")
 		}
 	}
 
@@ -657,7 +658,7 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 				// We must delete it as libnetwork is the source of truth
 				// The default network being created must be the only one
 				// This can happen only from docker 1.12 on ward
-				logrus.Infof("Found stale default bridge network %s (%s)", nwConfig.ID, nwConfig.BridgeName)
+				log.G(context.TODO()).Infof("Found stale default bridge network %s (%s)", nwConfig.ID, nwConfig.BridgeName)
 				return defaultBridgeNetworkConflict{nwConfig.ID}
 			}
 
@@ -710,7 +711,7 @@ func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
 		if err := network.isolateNetwork(true); err != nil {
 			if err = network.isolateNetwork(false); err != nil {
-				logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
+				log.G(context.TODO()).Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
 			}
 			return err
 		}
@@ -823,16 +824,16 @@ func (d *driver) deleteNetwork(nid string) error {
 	// delele endpoints belong to this network
 	for _, ep := range n.endpoints {
 		if err := n.releasePorts(ep); err != nil {
-			logrus.Warn(err)
+			log.G(context.TODO()).Warn(err)
 		}
 		if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
 			if err := d.nlh.LinkDel(link); err != nil {
-				logrus.WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+				log.G(context.TODO()).WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
 			}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			logrus.Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+			log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 
@@ -858,7 +859,7 @@ func (d *driver) deleteNetwork(nid string) error {
 		// it is not the default one (to keep the backward compatible behavior.)
 		if !config.DefaultBridge {
 			if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
-				logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+				log.G(context.TODO()).Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
 			}
 		}
 	case ifaceCreatedByUser:
@@ -868,7 +869,7 @@ func (d *driver) deleteNetwork(nid string) error {
 	// clean all relevant iptables rules
 	for _, cleanFunc := range n.iptCleanFuncs {
 		if errClean := cleanFunc(); errClean != nil {
-			logrus.Warnf("Failed to clean iptables rules for bridge network: %v", errClean)
+			log.G(context.TODO()).Warnf("Failed to clean iptables rules for bridge network: %v", errClean)
 		}
 	}
 	return d.storeDelete(config)
@@ -880,7 +881,7 @@ func addToBridge(nlh *netlink.Handle, ifaceName, bridgeName string) error {
 		return fmt.Errorf("could not find interface %s: %v", ifaceName, err)
 	}
 	if err := nlh.LinkSetMaster(lnk, &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}); err != nil {
-		logrus.WithError(err).Errorf("Failed to add %s to bridge via netlink", ifaceName)
+		log.G(context.TODO()).WithError(err).Errorf("Failed to add %s to bridge via netlink", ifaceName)
 		return err
 	}
 	return nil
@@ -981,7 +982,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	defer func() {
 		if err != nil {
 			if err := d.nlh.LinkDel(host); err != nil {
-				logrus.WithError(err).Warnf("Failed to delete host side interface (%s)'s link", hostIfName)
+				log.G(context.TODO()).WithError(err).Warnf("Failed to delete host side interface (%s)'s link", hostIfName)
 			}
 		}
 	}()
@@ -994,7 +995,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	defer func() {
 		if err != nil {
 			if err := d.nlh.LinkDel(sbox); err != nil {
-				logrus.WithError(err).Warnf("Failed to delete sandbox side interface (%s)'s link", containerIfName)
+				log.G(context.TODO()).WithError(err).Warnf("Failed to delete sandbox side interface (%s)'s link", containerIfName)
 			}
 		}
 	}()
@@ -1131,12 +1132,12 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	// Also make sure defer does not see this error either.
 	if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
 		if err := d.nlh.LinkDel(link); err != nil {
-			logrus.WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+			log.G(context.TODO()).WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
 		}
 	}
 
 	if err := d.storeDelete(ep); err != nil {
-		logrus.Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
+		log.G(context.TODO()).Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 	}
 
 	return nil
@@ -1296,7 +1297,7 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	defer func() {
 		if err != nil {
 			if e := network.releasePorts(endpoint); e != nil {
-				logrus.Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
+				log.G(context.TODO()).Errorf("Failed to release ports allocated for the bridge endpoint %s on failure %v because of %v",
 					eid, err, e)
 			}
 			endpoint.portMapping = nil
@@ -1335,7 +1336,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 
 	err = network.releasePorts(endpoint)
 	if err != nil {
-		logrus.Warn(err)
+		log.G(context.TODO()).Warn(err)
 	}
 
 	endpoint.portMapping = nil

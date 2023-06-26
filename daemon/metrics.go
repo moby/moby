@@ -1,15 +1,16 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"sync"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	metrics "github.com/docker/go-metrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 )
 
 const metricsPluginType = "MetricsCollector"
@@ -121,11 +122,11 @@ func (daemon *Daemon) cleanupMetricsPlugins() {
 
 			adapter, err := makePluginAdapter(p)
 			if err != nil {
-				logrus.WithError(err).WithField("plugin", p.Name()).Error("Error creating metrics plugin adapter")
+				log.G(context.TODO()).WithError(err).WithField("plugin", p.Name()).Error("Error creating metrics plugin adapter")
 				return
 			}
 			if err := adapter.StopMetrics(); err != nil {
-				logrus.WithError(err).WithField("plugin", p.Name()).Error("Error stopping plugin metrics collection")
+				log.G(context.TODO()).WithError(err).WithField("plugin", p.Name()).Error("Error stopping plugin metrics collection")
 			}
 		}()
 	}

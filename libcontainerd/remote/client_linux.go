@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/log"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -107,7 +108,7 @@ func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.
 	closer := func() error {
 		for _, path := range paths {
 			if err := os.RemoveAll(path); err != nil {
-				logrus.Warnf("libcontainerd: failed to remove fifo %v: %v", path, err)
+				log.G(context.TODO()).Warnf("libcontainerd: failed to remove fifo %v: %v", path, err)
 			}
 		}
 		return nil
