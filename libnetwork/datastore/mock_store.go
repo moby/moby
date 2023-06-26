@@ -3,8 +3,8 @@ package datastore
 import (
 	"errors"
 
+	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/libkv/store"
 )
 
 var (
