@@ -24,11 +24,11 @@ func ArchitectureIsNot(arch string) bool {
 }
 
 func DaemonIsWindows() bool {
-	return testEnv.OSType == "windows"
+	return testEnv.DaemonInfo.OSType == "windows"
 }
 
 func DaemonIsLinux() bool {
-	return testEnv.OSType == "linux"
+	return testEnv.DaemonInfo.OSType == "linux"
 }
 
 func MinimumAPIVersion(version string) func() bool {
@@ -153,7 +153,7 @@ func UserNamespaceInKernel() bool {
 }
 
 func IsPausable() bool {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		return testEnv.DaemonInfo.Isolation.IsHyperV()
 	}
 	return true

@@ -23,7 +23,7 @@ func ensureSyscallTest(c *testing.T) {
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
-	if testEnv.OSType != runtime.GOOS {
+	if testEnv.DaemonInfo.OSType != runtime.GOOS {
 		ensureSyscallTestBuild(c)
 		return
 	}
@@ -86,7 +86,7 @@ func ensureNNPTest(c *testing.T) {
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
-	if testEnv.OSType != runtime.GOOS {
+	if testEnv.DaemonInfo.OSType != runtime.GOOS {
 		ensureNNPTestBuild(c)
 		return
 	}

@@ -18,7 +18,7 @@ import (
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		return "c:", `\`
 	}
 	return "", "/"

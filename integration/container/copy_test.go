@@ -42,7 +42,7 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 
 	path := "/etc/passwd/"
 	expected := "not a directory"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		path = "c:/windows/system32/drivers/etc/hosts/"
 		expected = "The filename, directory name, or volume label syntax is incorrect."
 	}
@@ -127,7 +127,7 @@ func TestCopyToContainerPathIsNotDir(t *testing.T) {
 	cid := container.Create(ctx, t, apiclient)
 
 	path := "/etc/passwd/"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		path = "c:/windows/system32/drivers/etc/hosts/"
 	}
 	err := apiclient.CopyToContainer(ctx, cid, path, nil, types.CopyToContainerOptions{})

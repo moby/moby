@@ -90,7 +90,7 @@ func TestPluginInvalidJSON(t *testing.T) {
 
 func TestPluginInstall(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of localhost")
 
 	ctx := context.Background()
@@ -199,7 +199,7 @@ func TestPluginInstall(t *testing.T) {
 func TestPluginsWithRuntimes(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.IsRootless, "Test not supported on rootless due to buggy daemon setup in rootless mode due to daemon restart")
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
@@ -261,7 +261,7 @@ func TestPluginsWithRuntimes(t *testing.T) {
 
 func TestPluginBackCompatMediaTypes(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "Rootless has a different view of localhost (needed for test registry access)")
 
 	defer setupTest(t)()

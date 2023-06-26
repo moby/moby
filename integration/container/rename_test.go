@@ -23,7 +23,7 @@ import (
 // This checks that "rename" updates source container correctly and doesn't set it to null.
 func TestRenameLinkedContainer(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
@@ -151,7 +151,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	count := "-c"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		count = "-n"
 	}
 	cID = container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
@@ -190,7 +190,7 @@ func TestRenameContainerWithSameName(t *testing.T) {
 // container could still reference to the container that is renamed.
 func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
 	defer setupTest(t)()
 	ctx := context.Background()

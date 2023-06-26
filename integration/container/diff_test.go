@@ -13,7 +13,7 @@ import (
 )
 
 func TestDiff(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()
@@ -28,7 +28,7 @@ func TestDiff(t *testing.T) {
 		{Kind: containertypes.ChangeAdd, Path: "/foo"},
 		{Kind: containertypes.ChangeAdd, Path: "/foo/bar"},
 	}
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
 		expected = []containertypes.FilesystemChange{
 			{Kind: containertypes.ChangeModify, Path: "Files/foo"},

@@ -115,7 +115,7 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 // verifies with the remote that the digest exists in that repo.
 func TestImagePullStoredfDigestForOtherRepo(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows", "We don't run a test registry on Windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "We don't run a test registry on Windows")
 	skip.If(t, testEnv.IsRootless, "Rootless has a different view of localhost (needed for test registry access)")
 	defer setupTest(t)()
 

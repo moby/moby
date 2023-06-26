@@ -82,7 +82,7 @@ func (s *DockerCLIRunSuite) TestRunLeakyFileDescriptors(c *testing.T) {
 // this will fail when Internet access is unavailable
 func (s *DockerCLIRunSuite) TestRunLookupGoogleDNS(c *testing.T) {
 	testRequires(c, Network, NotArm)
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		// nslookup isn't present in Windows busybox. Is built-in. Further,
 		// nslookup isn't present in nanoserver. Hence just use PowerShell...
 		dockerCmd(c, "run", testEnv.PlatformDefaults.BaseImage, "powershell", "Resolve-DNSName", "google.com")
@@ -146,7 +146,7 @@ func (s *DockerCLIRunSuite) TestRunDetachedContainerIDPrinting(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunWorkingDirectory(c *testing.T) {
 	dir := "/root"
 	image := "busybox"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		dir = `C:/Windows`
 	}
 
@@ -169,7 +169,7 @@ func (s *DockerCLIRunSuite) TestRunWorkingDirectory(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunWithoutNetworking(c *testing.T) {
 	count := "-c"
 	image := "busybox"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		count = "-n"
 		image = testEnv.PlatformDefaults.BaseImage
 	}
@@ -360,7 +360,7 @@ func (s *DockerCLIRunSuite) TestRunWithVolumesFromExited(c *testing.T) {
 	)
 
 	// Create a file in a volume
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", `c:\some\dir`, testEnv.PlatformDefaults.BaseImage, "cmd", "/c", `echo hello > c:\some\dir\file`)
 	} else {
 		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
@@ -370,7 +370,7 @@ func (s *DockerCLIRunSuite) TestRunWithVolumesFromExited(c *testing.T) {
 	}
 
 	// Read the file from another container using --volumes-from to access the volume in the second container
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", testEnv.PlatformDefaults.BaseImage, "cmd", "/c", `type c:\some\dir\file`)
 	} else {
 		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", "busybox", "cat", "/some/dir/file")
@@ -402,7 +402,7 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumesInSymlinkDir(c *testing.T) {
 	// In the case of Windows to Windows CI, if the machine is setup so that
 	// the temp directory is not the C: drive, this test is invalid and will
 	// not work.
-	if testEnv.OSType == "windows" && strings.ToLower(dir[:1]) != "c" {
+	if testEnv.DaemonInfo.OSType == "windows" && strings.ToLower(dir[:1]) != "c" {
 		c.Skip("Requires TEMP to point to C: drive")
 	}
 
@@ -412,7 +412,7 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumesInSymlinkDir(c *testing.T) {
 	}
 	f.Close()
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir %s\nRUN mklink /D c:\\test %s", testEnv.PlatformDefaults.BaseImage, dir, dir)
 		containerPath = `c:\test\test`
 		cmd = "tasklist"
@@ -437,7 +437,7 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumesInSymlinkDir2(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 	name := "test-volume-symlink2"
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir c:\\%s\nRUN mklink /D c:\\test c:\\%s", testEnv.PlatformDefaults.BaseImage, name, name)
 		containerPath = `c:\test\test`
 		cmd = "tasklist"
@@ -461,7 +461,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromInReadonlyModeFails(c *testing.T) 
 		volumeDir string
 		fileInVol string
 	)
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		volumeDir = `c:/test` // Forward-slash as using busybox
 		fileInVol = `c:/test/file`
 	} else {
@@ -482,7 +482,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromInReadWriteMode(c *testing.T) {
 		volumeDir string
 		fileInVol string
 	)
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		volumeDir = `c:/test` // Forward-slash as using busybox
 		fileInVol = `c:/test/file`
 	} else {
@@ -503,7 +503,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromInReadWriteMode(c *testing.T) {
 func (s *DockerCLIRunSuite) TestVolumesFromGetsProperMode(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	hostpath := RandomTmpDirPath("test", testEnv.OSType)
+	hostpath := RandomTmpDirPath("test", testEnv.DaemonInfo.OSType)
 	if err := os.MkdirAll(hostpath, 0755); err != nil {
 		c.Fatalf("Failed to create %s: %q", hostpath, err)
 	}
@@ -526,11 +526,11 @@ func (s *DockerCLIRunSuite) TestVolumesFromGetsProperMode(c *testing.T) {
 
 // Test for GH#10618
 func (s *DockerCLIRunSuite) TestRunNoDupVolumes(c *testing.T) {
-	path1 := RandomTmpDirPath("test1", testEnv.OSType)
-	path2 := RandomTmpDirPath("test2", testEnv.OSType)
+	path1 := RandomTmpDirPath("test1", testEnv.DaemonInfo.OSType)
+	path2 := RandomTmpDirPath("test2", testEnv.DaemonInfo.OSType)
 
 	someplace := ":/someplace"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		// Windows requires that the source directory exists before calling HCS
 		testRequires(c, testEnv.IsLocalDaemon)
 		someplace = `:c:\someplace`
@@ -579,7 +579,7 @@ func (s *DockerCLIRunSuite) TestRunNoDupVolumes(c *testing.T) {
 // Test for #1351
 func (s *DockerCLIRunSuite) TestRunApplyVolumesFromBeforeVolumes(c *testing.T) {
 	prefix := ""
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		prefix = `c:`
 	}
 	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "touch", prefix+"/test/foo")
@@ -588,7 +588,7 @@ func (s *DockerCLIRunSuite) TestRunApplyVolumesFromBeforeVolumes(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunMultipleVolumesFrom(c *testing.T) {
 	prefix := ""
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		prefix = `c:`
 	}
 	dockerCmd(c, "run", "--name", "parent1", "-v", prefix+"/test", "busybox", "touch", prefix+"/test/foo")
@@ -618,7 +618,7 @@ func (s *DockerCLIRunSuite) TestRunVerifyContainerID(c *testing.T) {
 // Test that creating a container with a volume doesn't crash. Regression test for #995.
 func (s *DockerCLIRunSuite) TestRunCreateVolume(c *testing.T) {
 	prefix := ""
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		prefix = `c:`
 	}
 	dockerCmd(c, "run", "-v", prefix+"/var/lib/data", "busybox", "true")
@@ -675,7 +675,7 @@ func (s *DockerCLIRunSuite) TestRunVolumesFromSymlinkPath(c *testing.T) {
 		RUN ln -s home /foo
 		VOLUME ["/foo/bar"]`
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		prefix = `c:`
 		dfContents = `FROM ` + testEnv.PlatformDefaults.BaseImage + `
 	    RUN mkdir c:\home
@@ -721,7 +721,7 @@ func (s *DockerCLIRunSuite) TestRunExitCode(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunUserDefaults(c *testing.T) {
 	expected := "uid=0(root) gid=0(root)"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "uid=0(root) gid=0(root) groups=0(root)"
 	}
 	out, _ := dockerCmd(c, "run", "busybox", "id")
@@ -927,7 +927,7 @@ func (s *DockerCLIRunSuite) TestRunEnvironmentOverride(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunContainerNetwork(c *testing.T) {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		// Windows busybox does not have ping. Use built in ping instead.
 		dockerCmd(c, "run", testEnv.PlatformDefaults.BaseImage, "ping", "-n", "1", "127.0.0.1")
 	} else {
@@ -1227,7 +1227,7 @@ func (s *DockerCLIRunSuite) TestRunModeHostname(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunRootWorkdir(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "--workdir", "/", "busybox", "pwd")
 	expected := "/\n"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "C:" + expected
 	}
 	if out != expected {
@@ -1236,7 +1236,7 @@ func (s *DockerCLIRunSuite) TestRunRootWorkdir(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunAllowBindMountingRoot(c *testing.T) {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		// Windows busybox will fail with Permission Denied on items such as pagefile.sys
 		dockerCmd(c, "run", "-v", `c:\:c:\host`, testEnv.PlatformDefaults.BaseImage, "cmd", "-c", "dir", `c:\host`)
 	} else {
@@ -1247,7 +1247,7 @@ func (s *DockerCLIRunSuite) TestRunAllowBindMountingRoot(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunDisallowBindMountingRootToRoot(c *testing.T) {
 	mount := "/:/"
 	targetDir := "/host"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		mount = `c:\:c\`
 		targetDir = "c:/host" // Forward slash as using busybox
 	}
@@ -1708,7 +1708,7 @@ func (s *DockerCLIRunSuite) TestRunCleanupCmdOnEntrypoint(c *testing.T) {
 	}
 	out = strings.TrimSpace(out)
 	expected := "root"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		if strings.Contains(testEnv.PlatformDefaults.BaseImage, "servercore") {
 			expected = `user manager\containeradministrator`
 		} else {
@@ -1724,7 +1724,7 @@ func (s *DockerCLIRunSuite) TestRunCleanupCmdOnEntrypoint(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunWorkdirExistsAndIsFile(c *testing.T) {
 	existingFile := "/bin/cat"
 	expected := "not a directory"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		existingFile = `\windows\system32\ntdll.dll`
 		expected = `The directory name is invalid.`
 	}
@@ -1740,7 +1740,7 @@ func (s *DockerCLIRunSuite) TestRunExitOnStdinClose(c *testing.T) {
 
 	meow := "/bin/cat"
 	delay := 60
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		meow = "cat"
 	}
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "-i", "busybox", meow)
@@ -1883,7 +1883,7 @@ func (s *DockerCLIRunSuite) TestRunEntrypoint(c *testing.T) {
 
 func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
-	if testEnv.OSType == "linux" {
+	if testEnv.DaemonInfo.OSType == "linux" {
 		testRequires(c, DaemonIsLinux, NotUserNamespace)
 	}
 
@@ -1904,7 +1904,7 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 	}
 
 	// test writing to bind mount
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		dockerCmd(c, "run", "-v", fmt.Sprintf(`%s:c:\tmp:rw`, tmpDir), "busybox", "touch", "c:/tmp/holla")
 	} else {
 		dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "busybox", "touch", "/tmp/holla")
@@ -1919,7 +1919,7 @@ func (s *DockerCLIRunSuite) TestRunBindMounts(c *testing.T) {
 	}
 
 	// Windows does not (and likely never will) support mounting a single file
-	if testEnv.OSType != "windows" {
+	if testEnv.DaemonInfo.OSType != "windows" {
 		// test mount a file
 		dockerCmd(c, "run", "-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "busybox", "sh", "-c", "echo -n 'yotta' > /tmp/holla")
 		content := readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
@@ -1988,7 +1988,7 @@ func (s *DockerCLIRunSuite) TestRunSetMacAddress(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 	mac := "12:34:56:78:9a:bc"
 	var out string
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		out, _ = dockerCmd(c, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "sh", "-c", "ipconfig /all | grep 'Physical Address' | awk '{print $12}'")
 		mac = strings.ReplaceAll(strings.ToUpper(mac), ":", "-") // To Windows-style MACs
 	} else {
@@ -2184,7 +2184,7 @@ func (s *DockerCLIRunSuite) TestVolumesNoCopyData(c *testing.T) {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
 	}
 
-	tmpDir := RandomTmpDirPath("docker_test_bind_mount_copy_data", testEnv.OSType)
+	tmpDir := RandomTmpDirPath("docker_test_bind_mount_copy_data", testEnv.DaemonInfo.OSType)
 	if out, _, err := dockerCmdWithError("run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on bind mount but shouldn't be:\n%q", out)
 	}
@@ -2536,7 +2536,7 @@ func (s *DockerCLIRunSuite) TestRunNonLocalMacAddress(c *testing.T) {
 	args := []string{"run", "--mac-address", addr}
 	expected := addr
 
-	if testEnv.OSType != "windows" {
+	if testEnv.DaemonInfo.OSType != "windows" {
 		args = append(args, "busybox", "ifconfig")
 	} else {
 		args = append(args, testEnv.PlatformDefaults.BaseImage, "ipconfig", "/all")
@@ -2632,7 +2632,7 @@ func (s *DockerCLIRunSuite) TestRunSetDefaultRestartPolicy(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunRestartMaxRetries(c *testing.T) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
 	timeout := 10 * time.Second
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		timeout = 120 * time.Second
 	}
 
@@ -3003,7 +3003,7 @@ func (s *DockerCLIRunSuite) TestVolumeFromMixedRWOptions(c *testing.T) {
 	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
 
-	if testEnv.OSType != "windows" {
+	if testEnv.DaemonInfo.OSType != "windows" {
 		mRO, err := inspectMountPoint("test-volumes-1", prefix+slash+"test")
 		assert.NilError(c, err, "failed to inspect mount point")
 		if mRO.RW {
@@ -3394,7 +3394,7 @@ func (s *DockerCLIRunSuite) TestRunLoopbackOnlyExistsWhenNetworkingDisabled(c *t
 
 // Issue #4681
 func (s *DockerCLIRunSuite) TestRunLoopbackWhenNetworkDisabled(c *testing.T) {
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		dockerCmd(c, "run", "--net=none", testEnv.PlatformDefaults.BaseImage, "ping", "-n", "1", "127.0.0.1")
 	} else {
 		dockerCmd(c, "run", "--net=none", "busybox", "ping", "-c", "1", "127.0.0.1")
@@ -3660,7 +3660,7 @@ func (s *DockerCLIRunSuite) TestRunNonExistingCmd(c *testing.T) {
 // as that's when the check is made (and yes, by its design...)
 func (s *DockerCLIRunSuite) TestCmdCannotBeInvoked(c *testing.T) {
 	expected := 126
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = 127
 	}
 	name := "testCmdCannotBeInvoked"

@@ -20,7 +20,7 @@ import (
 )
 
 func TestCreateWithCDIDevices(t *testing.T) {
-	skip.If(t, testEnv.OSType != "linux", "CDI devices are only supported on Linux")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "CDI devices are only supported on Linux")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run cdi tests with a remote daemon")
 
 	cwd, err := os.Getwd()

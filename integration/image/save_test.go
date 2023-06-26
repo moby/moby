@@ -161,7 +161,7 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 }
 
 func TestSaveDirectoryPermissions(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "Test is looking at linux specific details")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Test is looking at linux specific details")
 
 	defer setupTest(t)()
 

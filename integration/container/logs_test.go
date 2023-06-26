@@ -125,7 +125,7 @@ func testLogs(t *testing.T, logDriver string) {
 	}
 
 	pollTimeout := time.Second * 10
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		pollTimeout = StopContainerWindowsPollTimeout
 	}
 
@@ -160,7 +160,7 @@ func testLogs(t *testing.T, logDriver string) {
 
 			stdoutStr := stdout.String()
 
-			if tty && testEnv.OSType == "windows" {
+			if tty && testEnv.DaemonInfo.OSType == "windows" {
 				stdoutStr = stripEscapeCodes(t, stdoutStr)
 
 				// Special case for Windows Server 2019

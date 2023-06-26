@@ -153,7 +153,7 @@ func TestNetworkList(t *testing.T) {
 }
 
 func TestHostIPv4BridgeLabel(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 	d := daemon.New(t)
@@ -179,7 +179,7 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 }
 
 func TestDefaultNetworkOpts(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 

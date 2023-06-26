@@ -52,7 +52,7 @@ func (s *DockerCLIBuildSuite) TestBuildJSONEmptyRun(c *testing.T) {
 func (s *DockerCLIBuildSuite) TestBuildShCmdJSONEntrypoint(c *testing.T) {
 	name := "testbuildshcmdjsonentrypoint"
 	expected := "/bin/sh -c echo test"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "cmd /S /C echo test"
 	}
 
@@ -90,7 +90,7 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementVolume(c *testing.T
 
 	var volumePath string
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		volumePath = "c:/quux"
 	} else {
 		volumePath = "/quux"
@@ -145,7 +145,7 @@ func (s *DockerCLIBuildSuite) TestBuildEnvironmentReplacementWorkdir(c *testing.
 	res := inspectFieldJSON(c, name, "Config.WorkingDir")
 
 	expected := `"/work"`
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = `"C:\\work"`
 	}
 	if res != expected {
@@ -1298,7 +1298,7 @@ func (s *DockerCLIBuildSuite) TestBuildRelativeWorkdir(c *testing.T) {
 		expectedFinal string
 	)
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected1 = `C:/`
 		expected2 = `C:/test1`
 		expected3 = `C:/test2`
@@ -1377,7 +1377,7 @@ func (s *DockerCLIBuildSuite) TestBuildWorkdirWithEnvVariables(c *testing.T) {
 	name := "testbuildworkdirwithenvvariables"
 
 	var expected string
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = `C:\test1\test2`
 	} else {
 		expected = `/test1/test2`
@@ -1399,7 +1399,7 @@ func (s *DockerCLIBuildSuite) TestBuildRelativeCopy(c *testing.T) {
 	testRequires(c, NotUserNamespace)
 
 	var expected string
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = `C:/test1/test2`
 	} else {
 		expected = `/test1/test2`
@@ -2230,7 +2230,7 @@ func (s *DockerCLIBuildSuite) TestBuildOnBuild(c *testing.T) {
 // gh #2446
 func (s *DockerCLIBuildSuite) TestBuildAddToSymlinkDest(c *testing.T) {
 	makeLink := `ln -s /foo /bar`
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		makeLink = `mklink /D C:\bar C:\foo`
 	}
 	name := "testbuildaddtosymlinkdest"
@@ -3186,7 +3186,7 @@ func (s *DockerCLIBuildSuite) TestBuildCmdShDashC(c *testing.T) {
 
 	res := inspectFieldJSON(c, name, "Config.Cmd")
 	expected := `["/bin/sh","-c","echo cmd"]`
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = `["cmd /S /C echo cmd"]`
 	}
 	if res != expected {
@@ -3258,7 +3258,7 @@ func (s *DockerCLIBuildSuite) TestBuildEntrypointCanBeOverriddenByChildInspect(c
 		expected = `["/bin/sh","-c","echo quux"]`
 	)
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = `["cmd /S /C echo quux"]`
 	}
 
@@ -3328,7 +3328,7 @@ func (s *DockerCLIBuildSuite) TestBuildVerboseOut(c *testing.T) {
 	name := "testbuildverboseout"
 	expected := "\n123\n"
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "\n123\r\n"
 	}
 
@@ -3344,7 +3344,7 @@ func (s *DockerCLIBuildSuite) TestBuildWithTabs(c *testing.T) {
 	res := inspectFieldJSON(c, name, "ContainerConfig.Cmd")
 	expected1 := `["/bin/sh","-c","echo\tone\t\ttwo"]`
 	expected2 := `["/bin/sh","-c","echo\u0009one\u0009\u0009two"]` // syntactically equivalent, and what Go 1.3 generates
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected1 = `["cmd /S /C echo\tone\t\ttwo"]`
 		expected2 = `["cmd /S /C echo\u0009one\u0009\u0009two"]` // syntactically equivalent, and what Go 1.3 generates
 	}
@@ -3542,7 +3542,7 @@ func (s *DockerCLIBuildSuite) TestBuildStderr(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	// Windows to non-Windows should have a security warning
-	if runtime.GOOS == "windows" && testEnv.OSType != "windows" && !strings.Contains(result.Stdout(), "SECURITY WARNING:") {
+	if runtime.GOOS == "windows" && testEnv.DaemonInfo.OSType != "windows" && !strings.Contains(result.Stdout(), "SECURITY WARNING:") {
 		c.Fatalf("Stdout contains unexpected output: %q", result.Stdout())
 	}
 
@@ -3659,7 +3659,7 @@ func (s *DockerCLIBuildSuite) TestBuildVolumesRetainContents(c *testing.T) {
 		volName  = "/foo"
 	)
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		volName = "C:/foo"
 	}
 
@@ -3842,7 +3842,7 @@ RUN echo "  \
 
 	expected := "\n    foo  \n"
 	// Windows uses the builtin echo, which preserves quotes
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "\"    foo  \""
 	}
 
@@ -3876,7 +3876,7 @@ func (s *DockerCLIBuildSuite) TestBuildMissingArgs(c *testing.T) {
 		"INSERT":     {},
 	}
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		skipCmds = map[string]struct{}{
 			"CMD":        {},
 			"RUN":        {},
@@ -4008,7 +4008,7 @@ func (s *DockerCLIBuildSuite) TestBuildRUNErrMsg(c *testing.T) {
 	name := "testbuildbadrunerrmsg"
 	shell := "/bin/sh -c"
 	exitCode := 127
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		shell = "cmd /S /C"
 		// architectural - Windows has to start the container to determine the exe is bad, Linux does not
 		exitCode = 1
@@ -4027,7 +4027,7 @@ func (s *DockerCLIBuildSuite) TestBuildRUNErrMsg(c *testing.T) {
 func (s *DockerCLIBuildSuite) TestBuildNullStringInAddCopyVolume(c *testing.T) {
 	name := "testbuildnullstringinaddcopyvolume"
 	volName := "nullvolume"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		volName = `C:\\nullvolume`
 	}
 
@@ -4067,7 +4067,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArg(c *testing.T) {
 	envKey := "foo"
 	envVal := "bar"
 	var dockerfile string
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		// Bugs in Windows busybox port - use the default base image and native cmd stuff
 		dockerfile = fmt.Sprintf(`FROM `+minimalBaseImage()+`
 			ARG %s
@@ -4678,7 +4678,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
 func (s *DockerCLIBuildSuite) TestBuildNoNamedVolume(c *testing.T) {
 	volName := "testname:/foo"
 
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		volName = "testname:C:\\foo"
 	}
 	dockerCmd(c, "run", "-v", volName, "busybox", "sh", "-c", "touch /foo/oops")
@@ -6105,7 +6105,7 @@ CMD echo foo
 
 	out, _ := dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", "build2")
 	expected := `["/bin/sh","-c","echo foo"]`
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = `["/bin/sh -c echo foo"]`
 	}
 	assert.Equal(c, strings.TrimSpace(out), expected)

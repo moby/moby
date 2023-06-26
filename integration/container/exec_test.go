@@ -119,7 +119,7 @@ func TestExec(t *testing.T) {
 	out := string(r)
 	assert.NilError(t, err)
 	expected := "PWD=/tmp"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		expected = "PWD=C:/tmp"
 	}
 	assert.Assert(t, is.Contains(out, expected), "exec command not running in expected /tmp working directory")
@@ -128,7 +128,7 @@ func TestExec(t *testing.T) {
 
 func TestExecUser(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
-	skip.If(t, testEnv.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()

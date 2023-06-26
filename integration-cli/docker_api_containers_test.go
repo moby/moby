@@ -987,7 +987,7 @@ func (s *DockerAPISuite) TestContainerAPIWait(c *testing.T) {
 	name := "test-api-wait"
 
 	sleepCmd := "/bin/sleep"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		sleepCmd = "sleep"
 	}
 	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
@@ -1194,7 +1194,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 
 	vol := "/testvolume"
-	if testEnv.OSType == "windows" {
+	if testEnv.DaemonInfo.OSType == "windows" {
 		vol = `c:\testvolume`
 	}
 
@@ -1972,7 +1972,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 	var (
 		testImg string
 	)
-	if testEnv.OSType != "windows" {
+	if testEnv.DaemonInfo.OSType != "windows" {
 		testImg = "test-mount-config"
 		buildImageSuccessfully(c, testImg, build.WithDockerfile(`
 	FROM busybox
@@ -2073,7 +2073,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		}
 	}
 
-	if testEnv.OSType != "windows" { // Windows does not support volume populate
+	if testEnv.DaemonInfo.OSType != "windows" { // Windows does not support volume populate
 		cases = append(cases, []testCase{
 			{
 				spec:     mount.Mount{Type: "volume", Target: destPath, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},

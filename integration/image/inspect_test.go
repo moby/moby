@@ -13,7 +13,7 @@ import (
 
 // Regression test for: https://github.com/moby/moby/issues/45556
 func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
-	skip.If(t, testEnv.OSType == "windows", "build-empty-images is not called on Windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "build-empty-images is not called on Windows")
 	defer setupTest(t)()
 
 	client := testEnv.APIClient()
