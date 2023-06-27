@@ -30,55 +30,17 @@ const (
 	credentialSpecFileLocation     = "CredentialSpecs"
 )
 
-func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container) (*specs.Spec, error) {
-	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
-	if err != nil {
-		return nil, err
-	}
-	if err := image.CheckOS(img.OperatingSystem()); err != nil {
-		return nil, err
-	}
-
-	s := oci.DefaultSpec()
-
-	if err := coci.WithAnnotations(c.HostConfig.Annotations)(ctx, nil, nil, &s); err != nil {
-		return nil, err
-	}
-
-	linkedEnv, err := daemon.setupLinkedContainers(c)
-	if err != nil {
-		return nil, err
-	}
-
+// setupContainerDirs sets up base container directories (root, ipc, tmpfs and secrets).
+func (daemon *Daemon) setupContainerDirs(c *container.Container) ([]container.Mount, error) {
 	// Note, unlike Unix, we do NOT call into SetupWorkingDirectory as
 	// this is done in VMCompute. Further, we couldn't do it for Hyper-V
 	// containers anyway.
-
 	if err := daemon.setupSecretDir(c); err != nil {
 		return nil, err
 	}
 
 	if err := daemon.setupConfigDir(c); err != nil {
 		return nil, err
-	}
-
-	// In s.Mounts
-	mounts, err := daemon.setupMounts(c)
-	if err != nil {
-		return nil, err
-	}
-
-	var isHyperV bool
-	if c.HostConfig.Isolation.IsDefault() {
-		// Container using default isolation, so take the default from the daemon configuration
-		isHyperV = daemon.defaultIsolation.IsHyperV()
-	} else {
-		// Container may be requesting an explicit isolation mode.
-		isHyperV = c.HostConfig.Isolation.IsHyperV()
-	}
-
-	if isHyperV {
-		s.Windows.HyperV = &specs.WindowsHyperV{}
 	}
 
 	// If the container has not been started, and has configs or secrets
@@ -90,7 +52,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 	if !c.HasBeenStartedBefore && (len(c.SecretReferences) > 0 || len(c.ConfigReferences) > 0) {
 		// The container file system is mounted before this function is called,
 		// except for Hyper-V containers, so mount it here in that case.
-		if isHyperV {
+		if daemon.isHyperV(c) {
 			if err := daemon.Mount(c); err != nil {
 				return nil, err
 			}
@@ -108,12 +70,41 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 	if err != nil {
 		return nil, err
 	}
+
+	var mounts []container.Mount
 	if secretMounts != nil {
 		mounts = append(mounts, secretMounts...)
 	}
 
 	if configMounts := c.ConfigMounts(); configMounts != nil {
 		mounts = append(mounts, configMounts...)
+	}
+
+	return mounts, nil
+}
+
+func (daemon *Daemon) isHyperV(c *container.Container) bool {
+	if c.HostConfig.Isolation.IsDefault() {
+		// Container using default isolation, so take the default from the daemon configuration
+		return daemon.defaultIsolation.IsHyperV()
+	}
+	// Container may be requesting an explicit isolation mode.
+	return c.HostConfig.Isolation.IsHyperV()
+}
+
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (*specs.Spec, error) {
+	img, err := daemon.imageService.GetImage(ctx, string(c.ImageID), imagetypes.GetImageOpts{})
+	if err != nil {
+		return nil, err
+	}
+	if err := image.CheckOS(img.OperatingSystem()); err != nil {
+		return nil, err
+	}
+
+	s := oci.DefaultSpec()
+
+	if err := coci.WithAnnotations(c.HostConfig.Annotations)(ctx, nil, nil, &s); err != nil {
+		return nil, err
 	}
 
 	for _, mount := range mounts {
@@ -125,6 +116,16 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 			m.Options = append(m.Options, "ro")
 		}
 		s.Mounts = append(s.Mounts, m)
+	}
+
+	linkedEnv, err := daemon.setupLinkedContainers(c)
+	if err != nil {
+		return nil, err
+	}
+
+	isHyperV := daemon.isHyperV(c)
+	if isHyperV {
+		s.Windows.HyperV = &specs.WindowsHyperV{}
 	}
 
 	// In s.Process

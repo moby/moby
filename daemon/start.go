@@ -159,7 +159,18 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	spec, err := daemon.createSpec(ctx, daemonCfg, container)
+	mnts, err := daemon.setupContainerDirs(container)
+	if err != nil {
+		return err
+	}
+
+	m, err := daemon.setupMounts(container)
+	if err != nil {
+		return err
+	}
+	mnts = append(mnts, m...)
+
+	spec, err := daemon.createSpec(ctx, daemonCfg, container, mnts)
 	if err != nil {
 		// Any error that occurs while creating the spec, even if it's the
 		// result of an invalid container config, must be considered a System

@@ -532,47 +532,8 @@ func inSlice(slice []string, s string) bool {
 }
 
 // withMounts sets the container's mounts
-func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container) coci.SpecOpts {
+func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, ms []container.Mount) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) (err error) {
-		if err := daemon.setupContainerMountsRoot(c); err != nil {
-			return err
-		}
-
-		if err := daemon.setupIPCDirs(c); err != nil {
-			return err
-		}
-
-		defer func() {
-			if err != nil {
-				daemon.cleanupSecretDir(c)
-			}
-		}()
-
-		if err := daemon.setupSecretDir(c); err != nil {
-			return err
-		}
-
-		ms, err := daemon.setupMounts(c)
-		if err != nil {
-			return err
-		}
-
-		if !c.HostConfig.IpcMode.IsPrivate() && !c.HostConfig.IpcMode.IsEmpty() {
-			ms = append(ms, c.IpcMounts()...)
-		}
-
-		tmpfsMounts, err := c.TmpfsMounts()
-		if err != nil {
-			return err
-		}
-		ms = append(ms, tmpfsMounts...)
-
-		secretMounts, err := c.SecretMounts()
-		if err != nil {
-			return err
-		}
-		ms = append(ms, secretMounts...)
-
 		sort.Sort(mounts(ms))
 
 		mounts := ms
@@ -1093,7 +1054,7 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
-func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container) (retSpec *specs.Spec, err error) {
+func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (retSpec *specs.Spec, err error) {
 	var (
 		opts []coci.SpecOpts
 		s    = oci.DefaultSpec()
@@ -1108,7 +1069,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		WithNamespaces(daemon, c),
 		WithCapabilities(c),
 		WithSeccomp(daemon, c),
-		withMounts(daemon, daemonCfg, c),
+		withMounts(daemon, daemonCfg, c, mounts),
 		withLibnetwork(daemon, &daemonCfg.Config, c),
 		WithApparmor(c),
 		WithSelinux(c),
