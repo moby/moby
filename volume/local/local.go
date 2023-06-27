@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/quota"
 	"github.com/docker/docker/volume"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -36,6 +37,8 @@ var (
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
 	volumeNameRegex = names.RestrictedNamePattern
+
+	_ volume.LiveRestorer = (*localVolume)(nil)
 )
 
 type activeMount struct {
@@ -297,14 +300,17 @@ func (v *localVolume) CachedPath() string {
 func (v *localVolume) Mount(id string) (string, error) {
 	v.m.Lock()
 	defer v.m.Unlock()
+	logger := log.G(context.TODO()).WithField("volume", v.name)
 	if v.needsMount() {
 		if !v.active.mounted {
+			logger.Debug("Mounting volume")
 			if err := v.mount(); err != nil {
 				return "", errdefs.System(err)
 			}
 			v.active.mounted = true
 		}
 		v.active.count++
+		logger.WithField("active mounts", v.active).Debug("Decremented active mount count")
 	}
 	if err := v.postMount(); err != nil {
 		return "", err
@@ -317,6 +323,7 @@ func (v *localVolume) Mount(id string) (string, error) {
 func (v *localVolume) Unmount(id string) error {
 	v.m.Lock()
 	defer v.m.Unlock()
+	logger := log.G(context.TODO()).WithField("volume", v.name)
 
 	// Always decrement the count, even if the unmount fails
 	// Essentially docker doesn't care if this fails, it will send an error, but
@@ -324,12 +331,14 @@ func (v *localVolume) Unmount(id string) error {
 	// this volume can never be removed until a daemon restart occurs.
 	if v.needsMount() {
 		v.active.count--
+		logger.WithField("active mounts", v.active).Debug("Decremented active mount count")
 	}
 
 	if v.active.count > 0 {
 		return nil
 	}
 
+	logger.Debug("Unmounting volume")
 	return v.unmount()
 }
 
@@ -367,6 +376,24 @@ func (v *localVolume) saveOpts() error {
 	if err != nil {
 		return errdefs.System(errors.Wrap(err, "error while persisting volume options"))
 	}
+	return nil
+}
+
+// LiveRestoreVolume restores reference counts for mounts
+// It is assumed that the volume is already mounted since this is only called for active, live-restored containers.
+func (v *localVolume) LiveRestoreVolume(ctx context.Context, _ string) error {
+	v.m.Lock()
+	defer v.m.Unlock()
+
+	if !v.needsMount() {
+		return nil
+	}
+	v.active.count++
+	v.active.mounted = true
+	log.G(ctx).WithFields(logrus.Fields{
+		"volume":        v.name,
+		"active mounts": v.active,
+	}).Debugf("Live restored volume")
 	return nil
 }
 
