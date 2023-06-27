@@ -13,7 +13,7 @@ runs:
       shell: bash
     - run: |
         if [ ! -e /etc/docker/daemon.json ]; then
-         echo '{}' | tee /etc/docker/daemon.json >/dev/null
+         echo '{}' | sudo tee /etc/docker/daemon.json >/dev/null
         fi
         DOCKERD_CONFIG=$(jq '.+{"experimental":true,"live-restore":true,"ipv6":true,"fixed-cidr-v6":"2001:db8:1::/64"}' /etc/docker/daemon.json)
         sudo tee /etc/docker/daemon.json <<<"$DOCKERD_CONFIG" >/dev/null
