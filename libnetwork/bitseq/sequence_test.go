@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/boltdb"
+	store "github.com/docker/docker/libnetwork/internal/kvstore"
+	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 )
 
 var (
@@ -222,7 +222,7 @@ func testSetRollover(t *testing.T, serial bool) {
 		t.Fatalf("Unexpected free bits: found %d free bits.\nSeed: %d.\n%s", unselected, seed, hnd)
 	}
 
-	//request to allocate for remaining half of the bits
+	// request to allocate for remaining half of the bits
 	for i := 0; i < numBits/2; i++ {
 		_, err := hnd.SetAny(serial)
 		if err != nil {
@@ -230,8 +230,8 @@ func testSetRollover(t *testing.T, serial bool) {
 		}
 	}
 
-	//At this point all the bits must be allocated except the randomly unallocated bits
-	//which were unallocated in the first half of the bit sequence
+	// At this point all the bits must be allocated except the randomly unallocated bits
+	// which were unallocated in the first half of the bit sequence
 	if unselected := hnd.Unselected(); unselected != uint64(numBits/4) {
 		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", unselected, numBits/4)
 	}
@@ -242,8 +242,8 @@ func testSetRollover(t *testing.T, serial bool) {
 			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
 		}
 	}
-	//Now requesting to allocate the unallocated random bits (qurter of the number of bits) should
-	//leave no more bits that can be allocated.
+	// Now requesting to allocate the unallocated random bits (qurter of the number of bits) should
+	// leave no more bits that can be allocated.
 	if hnd.Unselected() != 0 {
 		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), 0)
 	}

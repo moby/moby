@@ -1,4 +1,4 @@
-package store
+package kvstore
 
 import (
 	"crypto/tls"
@@ -9,26 +9,14 @@ import (
 // Backend represents a KV Store Backend
 type Backend string
 
-const (
-	// CONSUL backend
-	CONSUL Backend = "consul"
-	// ETCD backend
-	ETCD Backend = "etcd"
-	// ZK backend
-	ZK Backend = "zk"
-	// BOLTDB backend
-	BOLTDB Backend = "boltdb"
-)
+// BOLTDB backend
+const BOLTDB Backend = "boltdb"
 
 var (
 	// ErrBackendNotSupported is thrown when the backend k/v store is not supported by libkv
 	ErrBackendNotSupported = errors.New("Backend storage not supported yet, please choose one of")
 	// ErrCallNotSupported is thrown when a method is not implemented/supported by the current backend
 	ErrCallNotSupported = errors.New("The current call is not supported with this backend")
-	// ErrNotReachable is thrown when the API cannot be reached for issuing common store operations
-	ErrNotReachable = errors.New("Api not reachable")
-	// ErrCannotLock is thrown when there is an error acquiring a lock on a key
-	ErrCannotLock = errors.New("Error acquiring the lock")
 	// ErrKeyModified is thrown during an atomic operation if the index does not match the one in the store
 	ErrKeyModified = errors.New("Unable to complete atomic operation, key modified")
 	// ErrKeyNotFound is thrown when the key is not found in the store during a Get operation

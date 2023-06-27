@@ -7,7 +7,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/libkv/store/boltdb"
+	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 )
 
 func registerKVStores() {

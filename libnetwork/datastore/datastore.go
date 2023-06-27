@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/libnetwork/discoverapi"
+	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/libkv"
-	"github.com/docker/libkv/store"
 )
 
 // DataStore exported
@@ -204,7 +203,7 @@ func newClient(kv string, addr string, config *store.Config) (DataStore, error) 
 		}
 	}
 
-	s, err := libkv.NewStore(store.Backend(kv), addrs, config)
+	s, err := store.New(store.Backend(kv), addrs, config)
 	if err != nil {
 		return nil, err
 	}

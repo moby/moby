@@ -1,19 +1,17 @@
-package libkv
+package kvstore
 
 import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/docker/libkv/store"
 )
 
 // Initialize creates a new Store object, initializing the client
-type Initialize func(addrs []string, options *store.Config) (store.Store, error)
+type Initialize func(addrs []string, options *Config) (Store, error)
 
 var (
 	// Backend initializers
-	initializers = make(map[store.Backend]Initialize)
+	initializers = make(map[Backend]Initialize)
 
 	supportedBackend = func() string {
 		keys := make([]string, 0, len(initializers))
@@ -25,16 +23,16 @@ var (
 	}()
 )
 
-// NewStore creates an instance of store
-func NewStore(backend store.Backend, addrs []string, options *store.Config) (store.Store, error) {
+// New creates an instance of store
+func New(backend Backend, addrs []string, options *Config) (Store, error) {
 	if init, exists := initializers[backend]; exists {
 		return init(addrs, options)
 	}
 
-	return nil, fmt.Errorf("%s %s", store.ErrBackendNotSupported.Error(), supportedBackend)
+	return nil, fmt.Errorf("%s %s", ErrBackendNotSupported.Error(), supportedBackend)
 }
 
 // AddStore adds a new store backend to libkv
-func AddStore(store store.Backend, init Initialize) {
+func AddStore(store Backend, init Initialize) {
 	initializers[store] = init
 }
