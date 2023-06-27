@@ -31,6 +31,12 @@ type imageCache struct {
 
 func (ic *imageCache) GetCache(parentID string, cfg *container.Config) (imageID string, err error) {
 	ctx := context.TODO()
+
+	if parentID == "" {
+		// TODO handle "parentless" image cache lookups ("FROM scratch")
+		return "", nil
+	}
+
 	parent, err := ic.c.GetImage(ctx, parentID, imagetype.GetImageOpts{})
 	if err != nil {
 		return "", err
