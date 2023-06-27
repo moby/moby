@@ -255,9 +255,11 @@ COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
 ARG DOCKERCLI_REPOSITORY
 ARG DOCKERCLI_VERSION
 ARG TARGETPLATFORM
-RUN --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,target=./.git \
+RUN --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
-    /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build
+        rm -f ./.git/*.lock \
+     && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build \
+     && /build/docker --version
 
 FROM base AS dockercli-integration
 WORKDIR /go/src/github.com/docker/cli
@@ -265,9 +267,11 @@ COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
 ARG DOCKERCLI_INTEGRATION_REPOSITORY
 ARG DOCKERCLI_INTEGRATION_VERSION
 ARG TARGETPLATFORM
-RUN --mount=type=cache,id=dockercli-integration-git-$TARGETPLATFORM,target=./.git \
+RUN --mount=type=cache,id=dockercli-integration-git-$TARGETPLATFORM,sharing=locked,target=./.git \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-integration-build-$TARGETPLATFORM \
-    /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build
+        rm -f ./.git/*.lock \
+     && /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build \
+     && /build/docker --version
 
 # runc
 FROM base AS runc-src
