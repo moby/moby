@@ -480,7 +480,6 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 		ReadOnlyNonRecursive: true,
 		Propagation:          mounttypes.PropagationRPrivate,
 	}
-	nonRecursiveAsStr := nonRecursive.Source + ":" + nonRecursive.Target + ":ro-non-recursive,rprivate"
 
 	// Force recursive
 	forceRecursive := ro
@@ -488,7 +487,6 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 		ReadOnlyForceRecursive: true,
 		Propagation:            mounttypes.PropagationRPrivate,
 	}
-	forceRecursiveAsStr := forceRecursive.Source + ":" + forceRecursive.Target + ":ro-force-recursive,rprivate"
 
 	ctx := context.Background()
 	client := testEnv.APIClient()
@@ -498,13 +496,11 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 		container.Run(ctx, t, client, container.WithBindRaw(roAsStr), container.WithCmd(roVerifier...)),
 
 		container.Run(ctx, t, client, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
-		container.Run(ctx, t, client, container.WithBindRaw(nonRecursiveAsStr), container.WithCmd(nonRecursiveVerifier...)),
 	}
 
 	if rroSupported {
 		containers = append(containers,
 			container.Run(ctx, t, client, container.WithMount(forceRecursive), container.WithCmd(forceRecursiveVerifier...)),
-			container.Run(ctx, t, client, container.WithBindRaw(forceRecursiveAsStr), container.WithCmd(forceRecursiveVerifier...)),
 		)
 	}
 
