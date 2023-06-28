@@ -24,6 +24,8 @@ const (
 	volumeDataDir = "volumes"
 )
 
+var _ volume.LiveRestorer = (*volumeWrapper)(nil)
+
 type volumeWrapper struct {
 	volume.Volume
 	labels  map[string]string
@@ -65,6 +67,13 @@ func (v volumeWrapper) CachedPath() string {
 		return vv.CachedPath()
 	}
 	return v.Volume.Path()
+}
+
+func (v volumeWrapper) LiveRestoreVolume(ctx context.Context, ref string) error {
+	if vv, ok := v.Volume.(volume.LiveRestorer); ok {
+		return vv.LiveRestoreVolume(ctx, ref)
+	}
+	return nil
 }
 
 // StoreOpt sets options for a VolumeStore

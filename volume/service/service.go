@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
@@ -286,4 +287,19 @@ func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes
 // Shutdown shuts down the image service and dependencies
 func (s *VolumesService) Shutdown() error {
 	return s.vs.Shutdown()
+}
+
+// LiveRestoreVolume passes through the LiveRestoreVolume call to the volume if it is implemented
+// otherwise it is a no-op.
+func (s *VolumesService) LiveRestoreVolume(ctx context.Context, vol *volumetypes.Volume, ref string) error {
+	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
+	if err != nil {
+		return err
+	}
+	rlv, ok := v.(volume.LiveRestorer)
+	if !ok {
+		log.G(ctx).WithField("volume", vol.Name).Debugf("volume does not implement LiveRestoreVolume: %T", v)
+		return nil
+	}
+	return rlv.LiveRestoreVolume(ctx, ref)
 }
