@@ -1,6 +1,7 @@
 package volume // import "github.com/docker/docker/volume"
 
 import (
+	"context"
 	"time"
 )
 
@@ -66,4 +67,13 @@ type DetailedVolume interface {
 	Options() map[string]string
 	Scope() string
 	Volume
+}
+
+// LiveRestorer is an optional interface that can be implemented by a volume driver
+// It is used to restore any resources that are necessary for a volume to be used by a live-restored container
+type LiveRestorer interface {
+	// LiveRestoreVolume allows a volume driver which implements this interface to restore any necessary resources (such as reference counting)
+	// This is called only after the daemon is restarted with live-restored containers
+	// It is called once per live-restored container.
+	LiveRestoreVolume(_ context.Context, ref string) error
 }
