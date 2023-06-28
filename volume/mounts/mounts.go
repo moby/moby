@@ -1,6 +1,7 @@
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // MountPoint is the intersection point between a volume and a container. It
@@ -178,4 +180,30 @@ func errInvalidMode(mode string) error {
 
 func errInvalidSpec(spec string) error {
 	return errors.Errorf("invalid volume specification: '%s'", spec)
+}
+
+func (m *MountPoint) LiveRestore(ctx context.Context) error {
+	if m.Volume == nil {
+		logrus.Debug("No volume to restore")
+		return nil
+	}
+
+	lrv, ok := m.Volume.(volume.LiveRestorer)
+	if !ok {
+		logrus.WithField("volume", m.Volume.Name()).Debugf("Volume does not support live restore: %T", m.Volume)
+		return nil
+	}
+
+	id := m.ID
+	if id == "" {
+		id = stringid.GenerateRandomID()
+	}
+
+	if err := lrv.LiveRestoreVolume(ctx, id); err != nil {
+		return errors.Wrapf(err, "error while restoring volume '%s'", m.Source)
+	}
+
+	m.ID = id
+	m.active++
+	return nil
 }
