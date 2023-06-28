@@ -2,8 +2,7 @@ package snapshotter
 
 import "github.com/containerd/containerd/mount"
 
-type winChecker struct {
-}
+type winChecker struct{}
 
 func (c *winChecker) IsMounted(path string) bool {
 	return false
