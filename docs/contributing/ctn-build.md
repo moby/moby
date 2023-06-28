@@ -25,4 +25,21 @@ docker buildx bake binary-cross
 
 # build binaries for a specific platform
 docker buildx bake --set *.platform=linux/arm64
+
+# build "complete" binaries (including containerd, runc, vpnkit, etc.)
+docker buildx bake all
+
+# build "complete" binaries for all supported platforms
+docker buildx bake all-cross
+
+# build non-runnable image wrapping "complete" binaries
+# useful for use with undock and sharing via a registry
+docker buildx bake bin-image
+
+# build non-runnable image wrapping "complete" binaries, with custom tag
+docker buildx bake bin-image --set "*.tags=foo/moby-bin:latest"
+
+# build non-runnable image wrapping "complete" binaries for all supported platforms
+# multi-platform images must be directly pushed to a registry
+docker buildx bake bin-image-cross --set "*.tags=foo/moby-bin:latest" --push
 ```
