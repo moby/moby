@@ -106,7 +106,7 @@ jobs:
       -
         name: Update daemon.json
         run: |
-          sudo rm /etc/docker/daemon.json
+          sudo rm -f /etc/docker/daemon.json
           sudo service docker restart
           docker version
           docker info
