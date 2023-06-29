@@ -57,38 +57,41 @@ func (s *systemRouter) swarmStatus() string {
 }
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	info := s.backend.SystemInfo()
-
-	if s.cluster != nil {
-		info.Swarm = s.cluster.Info()
-		info.Warnings = append(info.Warnings, info.Swarm.Warnings...)
-	}
-
 	version := httputils.VersionFromContext(ctx)
-	if versions.LessThan(version, "1.25") {
-		// TODO: handle this conversion in engine-api
-		kvSecOpts, err := types.DecodeSecurityOptions(info.SecurityOptions)
-		if err != nil {
-			info.Warnings = append(info.Warnings, err.Error())
+	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*types.Info, error) {
+		info := s.backend.SystemInfo()
+
+		if s.cluster != nil {
+			info.Swarm = s.cluster.Info()
+			info.Warnings = append(info.Warnings, info.Swarm.Warnings...)
 		}
-		var nameOnly []string
-		for _, so := range kvSecOpts {
-			nameOnly = append(nameOnly, so.Name)
+
+		if versions.LessThan(version, "1.25") {
+			// TODO: handle this conversion in engine-api
+			kvSecOpts, err := types.DecodeSecurityOptions(info.SecurityOptions)
+			if err != nil {
+				info.Warnings = append(info.Warnings, err.Error())
+			}
+			var nameOnly []string
+			for _, so := range kvSecOpts {
+				nameOnly = append(nameOnly, so.Name)
+			}
+			info.SecurityOptions = nameOnly
+			info.ExecutionDriver = "<not supported>" //nolint:staticcheck // ignore SA1019 (ExecutionDriver is deprecated)
 		}
-		info.SecurityOptions = nameOnly
-		info.ExecutionDriver = "<not supported>" //nolint:staticcheck // ignore SA1019 (ExecutionDriver is deprecated)
-	}
-	if versions.LessThan(version, "1.39") {
-		if info.KernelVersion == "" {
-			info.KernelVersion = "<unknown>"
+		if versions.LessThan(version, "1.39") {
+			if info.KernelVersion == "" {
+				info.KernelVersion = "<unknown>"
+			}
+			if info.OperatingSystem == "" {
+				info.OperatingSystem = "<unknown>"
+			}
 		}
-		if info.OperatingSystem == "" {
-			info.OperatingSystem = "<unknown>"
+		if versions.GreaterThanOrEqualTo(version, "1.42") {
+			info.KernelMemory = false
 		}
-	}
-	if versions.GreaterThanOrEqualTo(version, "1.42") {
-		info.KernelMemory = false
-	}
+		return info, nil
+	})
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
