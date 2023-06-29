@@ -93,7 +93,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 	// if the container is currently restarting we do not need to send the signal
 	// to the process. Telling the monitor that it should exit on its next event
 	// loop is enough
-	if container.Restarting {
+	if container.Restarting && !container.HasBeenManuallyRestarted {
 		return nil
 	}
 
