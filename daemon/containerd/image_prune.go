@@ -95,6 +95,9 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 	var errs error
 	// Exclude images used by existing containers
 	for _, ctr := range containers {
+		// If the original image was deleted, make sure we don't delete the dangling image
+		delete(imagesToPrune, danglingImageName(ctr.ImageID.Digest()))
+
 		// Config.Image is the image reference passed by user.
 		// For example: container created by `docker run alpine` will have Image="alpine"
 		// Warning: This doesn't handle truncated ids:
