@@ -212,6 +212,9 @@ func WithVersionFromEnv() Opt {
 // With this option enabled, the client automatically negotiates the API version
 // to use when making requests. API version negotiation is performed on the first
 // request; subsequent requests will not re-negotiate.
+//
+// NOTE: This option is not thread safe and may cause a race condition
+// as the version is not protected by a Mutex.
 func WithAPIVersionNegotiation() Opt {
 	return func(c *Client) error {
 		c.negotiateVersion = true
