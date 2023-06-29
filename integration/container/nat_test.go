@@ -12,7 +12,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -96,19 +95,13 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
+	ports, portBindings := container.MustParsePortSpecs(t, fmt.Sprintf("%d:%d/tcp", port, port))
+
 	cID := container.Run(ctx, t, client,
 		container.WithName("server-"+t.Name()),
 		container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)),
-		container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)),
-		func(c *container.TestContainerConfig) {
-			c.HostConfig.PortBindings = nat.PortMap{
-				nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{
-					{
-						HostPort: fmt.Sprintf("%d", port),
-					},
-				},
-			}
-		})
+		container.WithPublishedPorts(ports, portBindings),
+	)
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 

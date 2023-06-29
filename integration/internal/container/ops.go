@@ -2,6 +2,7 @@ package container
 
 import (
 	"strings"
+	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -9,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
 )
 
 // WithName sets the name of the container
@@ -46,14 +48,18 @@ func WithNetworkMode(mode string) func(*TestContainerConfig) {
 	}
 }
 
-// WithExposedPorts sets the exposed ports of the container
-func WithExposedPorts(ports ...string) func(*TestContainerConfig) {
+// WithPublishedPorts sets the published ports of the container
+func WithPublishedPorts(ports nat.PortSet, portBindings nat.PortMap) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.Config.ExposedPorts = map[nat.Port]struct{}{}
-		for _, port := range ports {
-			c.Config.ExposedPorts[nat.Port(port)] = struct{}{}
-		}
+		c.Config.ExposedPorts = ports
+		c.HostConfig.PortBindings = portBindings
 	}
+}
+
+func MustParsePortSpec(t *testing.T, portsSpec string) (map[nat.Port]struct{}, map[nat.Port][]nat.PortBinding) {
+	ports, portBindings, err := nat.ParsePortSpecs([]string{portsSpec})
+	assert.NilError(t, err)
+	return ports, portBindings
 }
 
 // WithTty sets the TTY mode of the container
