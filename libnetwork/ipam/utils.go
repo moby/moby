@@ -17,24 +17,6 @@ func toIPNet(p netip.Prefix) *net.IPNet {
 	}
 }
 
-func toPrefix(n *net.IPNet) (netip.Prefix, bool) {
-	if ll := len(n.Mask); ll != net.IPv4len && ll != net.IPv6len {
-		return netip.Prefix{}, false
-	}
-
-	addr, ok := netip.AddrFromSlice(n.IP)
-	if !ok {
-		return netip.Prefix{}, false
-	}
-
-	ones, bits := n.Mask.Size()
-	if ones == 0 && bits == 0 {
-		return netip.Prefix{}, false
-	}
-
-	return netip.PrefixFrom(addr.Unmap(), ones), true
-}
-
 func hostID(addr netip.Addr, bits uint) uint64 {
 	return ipbits.Field(addr, bits, uint(addr.BitLen()))
 }

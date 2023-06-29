@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -246,17 +247,37 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 	}
 }
 
+func retrieveAllSubnets(s ipamutils.Subnetter) []*net.IPNet {
+	nets := make([]*net.IPNet, 0)
+	for nw, err := s.NextSubnet(); err == nil; nw, err = s.NextSubnet() {
+		nets = append(nets, toIPNet(nw))
+	}
+
+	return nets
+}
+
+func toIPNet(p netip.Prefix) *net.IPNet {
+	if !p.IsValid() {
+		return nil
+	}
+	return &net.IPNet{
+		IP:   p.Addr().AsSlice(),
+		Mask: net.CIDRMask(p.Bits(), p.Addr().BitLen()),
+	}
+}
+
 func TestNetworkRequest(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
-	nw, err := FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
+	nw, err := FindAvailableNetwork(retrieveAllSubnets(ipamutils.GetDefaultLocalScopeSubnetter()))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var found bool
-	for _, exp := range ipamutils.GetLocalScopeDefaultNetworks() {
-		if types.CompareIPNet(exp, nw) {
+	localNetworks := ipamutils.GetDefaultLocalScopeSubnetter()
+	for exp, err := localNetworks.NextSubnet(); err == nil; exp, err = localNetworks.NextSubnet() {
+		if types.CompareIPNet(toIPNet(exp), nw) {
 			found = true
 			break
 		}
@@ -266,14 +287,15 @@ func TestNetworkRequest(t *testing.T) {
 		t.Fatalf("Found unexpected broad network %s", nw)
 	}
 
-	nw, err = FindAvailableNetwork(ipamutils.GetGlobalScopeDefaultNetworks())
+	nw, err = FindAvailableNetwork(retrieveAllSubnets(ipamutils.GetDefaultGlobalScopeSubnetter()))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	found = false
-	for _, exp := range ipamutils.GetGlobalScopeDefaultNetworks() {
-		if types.CompareIPNet(exp, nw) {
+	globalNetworks := ipamutils.GetDefaultGlobalScopeSubnetter()
+	for exp, err := globalNetworks.NextSubnet(); err == nil; exp, err = globalNetworks.NextSubnet() {
+		if types.CompareIPNet(toIPNet(exp), nw) {
 			found = true
 			break
 		}
@@ -283,14 +305,14 @@ func TestNetworkRequest(t *testing.T) {
 		t.Fatalf("Found unexpected granular network %s", nw)
 	}
 
-	// Add iface and ssert returned address on request
+	// Add iface and assert returned address on request
 	createInterface(t, "test", "172.17.42.1/16")
 
 	_, exp, err := net.ParseCIDR("172.18.0.0/16")
 	if err != nil {
 		t.Fatal(err)
 	}
-	nw, err = FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
+	nw, err = FindAvailableNetwork(retrieveAllSubnets(ipamutils.GetDefaultLocalScopeSubnetter()))
 	if err != nil {
 		t.Fatal(err)
 	}
