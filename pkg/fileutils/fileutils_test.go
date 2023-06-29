@@ -216,3 +216,10 @@ func TestCreateIfNotExistsFile(t *testing.T) {
 		t.Fatalf("Should have been a file, seems it's not")
 	}
 }
+
+func BenchmarkGetTotalUsedFds(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = GetTotalUsedFds()
+	}
+}
