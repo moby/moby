@@ -33,6 +33,11 @@ func New(ds datastore.DataStore, id string, start, end uint64) (*Idm, error) {
 	return &Idm{start: start, end: end, handle: h}, nil
 }
 
+// NewWithNoStore returns an instance of id manager for a [start,end] set of numerical ids
+func NewWithNoStore(id string, start, end uint64) (*Idm, error) {
+	return New(nil, id, start, end)
+}
+
 // GetID returns the first available id in the set
 func (i *Idm) GetID(serial bool) (uint64, error) {
 	if i.handle == nil {
