@@ -5,11 +5,16 @@ package networking
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"hash/adler32"
 	"io"
 	"net"
+	"net/netip"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -17,7 +22,9 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/internal/testutils/networking"
 	"github.com/docker/docker/testutil/daemon"
+	"github.com/docker/go-connections/nat"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -287,4 +294,193 @@ func TestAccessPublishedPortFromBridgeGateway(t *testing.T) {
 			}
 		})
 	}
+}
+
+// synProbeFromAnotherHost sends a syn probe to destIP:destPort from an attacker simulated as being another host on a
+// L2 segment shared with the victim host, which is the current network namespace. It returns an error if the victim
+// host returns back a SYN-ACK. The sgmtNw parameter is the subnet used by the victim, the attacker and the bridge.
+//
+// If the env var TEST_MANUAL_DEBUG is specified and the test fails, the simulated L2 segment won't be destroyed. If
+// TEST_REUSE_L2SEGMENT is specified, it tries to reuse an existing L2 segment from a prior run, if there's one. This
+// allows to easily run tcpdump and other debugging tools while re-running a test.
+func synProbeFromAnotherHost(t *testing.T, sgmtNw netip.Prefix, destIP netip.Addr, destPort uint16) error {
+	manualDebug := os.Getenv("TEST_MANUAL_DEBUG") != ""
+	reusePrevious := os.Getenv("TEST_REUSE_L2SEGMENT") != ""
+
+	// The Adler-32 checksum is computed from the test name to make sure the netns created for a given test is unique
+	// across tests, and stable over time. This is intended to support TEST_REUSE_L2SEGMENT.
+	testID := adler32.Checksum([]byte(t.Name()))
+
+	sgmt, err := networking.NewL2Segment(t, "br-l2-segment", sgmtNw, testID, reusePrevious)
+	if err != nil {
+		return fmt.Errorf("failed to create L2Segment: %w", err)
+	}
+
+	// The current netns is used since this is where the container port is published.
+	victimNs := networking.CurrentNetns(t)
+	victimHost := networking.L3Host{
+		Ns:               victimNs,
+		HostIfaceName:    fmt.Sprintf("victim-%8x", testID),
+		BridgedIfaceName: "victim",
+	}
+	if err := sgmt.AddHost(&victimHost, reusePrevious); err != nil {
+		return fmt.Errorf("failed to create victim host: %w", err)
+	}
+
+	attackerNs := networking.NewNamedNetns(t, fmt.Sprintf("attacker-%8x", testID), reusePrevious)
+	attackerHost := networking.L3Host{
+		Ns:               attackerNs,
+		HostIfaceName:    "eth0",
+		BridgedIfaceName: "attacker",
+	}
+	if err := sgmt.AddHost(&attackerHost, reusePrevious); err != nil {
+		return fmt.Errorf("failed to create attacker host: %w", err)
+	}
+
+	t.Cleanup(func() {
+		if !manualDebug {
+			// A veth pair can be deleted in two ways: 1. by removing one of its interface; 2. by deleting the netns
+			// where one of the interface leaves. L2Segment.Destroy() destroys the bridge netns, so this is enough to
+			// tear down the whole attacker's netns and veth pair, and victim's veth pair.
+			attackerNs.Destroy(t)
+			sgmt.Destroy(t)
+			return
+		}
+
+		fmt.Println("L2 segment is kept for manual debugging:")
+		fmt.Printf("\t* Bridge netns: %s\n", sgmt.BridgeNs)
+		fmt.Printf("\t* Attacker netns: %s\n", attackerNs)
+		fmt.Printf("\t* Victim MAC: %s\n", victimHost.MACAddr)
+		fmt.Printf("\t* Attacker MAC: %s\n", attackerHost.MACAddr)
+		fmt.Printf("\t* Victim IP address: %s\n", victimHost.IPAddr)
+		fmt.Printf("\t* Attacker IP address: %s\n", attackerHost.IPAddr)
+	})
+
+	prober := networking.SynProber{
+		Iface:   attackerHost.HostIfaceName,
+		SrcMAC:  attackerHost.MACAddr,
+		DstMAC:  victimHost.MACAddr,
+		SrcIP:   attackerHost.IPAddr,
+		DstIP:   destIP,
+		SrcPort: 60000,
+		DstPort: destPort,
+	}
+
+	// We need to warm-up victim's arp table, otherwise victim host will send an ARP request like:
+	// "Who has 192.168.210.3? Tell 127.0.0.1". This is obviously going to fail.
+	if err := attackerNs.InNetns(t, func() error {
+		t.Logf("Warm-up victim's ARP table by trying to connect to %s:%d", victimHost.IPAddr, prober.DstPort)
+
+		// This warm-up connection is specifically using the DstPort we want to test to make sure it's not reachable.
+		// This helps prevent false negatives.
+		conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", victimHost.IPAddr, prober.DstPort))
+		if err != nil && !errors.Is(err, syscall.ECONNREFUSED) {
+			return fmt.Errorf("warm up connection to %s:%d failed with an unexpected error: %w", victimHost.IPAddr, prober.DstPort, err)
+		}
+		if conn != nil {
+			conn.Close()
+			return fmt.Errorf("connection to %s:%d should fail, but did not. Test can't be conducted", victimHost.IPAddr, prober.DstPort)
+		}
+		t.Logf("Warm-up connection was correctly refused.")
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to warm-up victim's arp table: %w", err)
+	}
+
+	if err := attackerNs.InNetns(t, func() error {
+		err = prober.Probe(deadline)
+		if errors.Is(err, networking.ErrNoSynAck) {
+			if manualDebug {
+				manualDebug = false
+				fmt.Println("Test env was previously marked persistent for manual debugging but the test succeeded; let's delete it.")
+			}
+			return nil
+		} else if err == nil {
+			err = errors.New("a SYN-ACK packet was received although we expect to not receive one")
+		}
+
+		return err
+	}); err != nil {
+		return fmt.Errorf("failed to conduct attack: %w", err)
+	}
+
+	return nil
+}
+
+func TestAccessPortPublishedToLoopbackFromAnotherHost(t *testing.T) {
+	t.Skip("See moby/moby#45610")
+
+	d := daemon.New(t)
+	d.StartWithBusybox(t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	ports, portBindings, err := nat.ParsePortSpecs([]string{"127.0.0.1:1324:1324"})
+	assert.NilError(t, err)
+
+	ctx := context.Background()
+	cid := container.Run(ctx, t, c,
+		container.WithImage("busybox:latest"),
+		container.WithPublishedPorts(ports, portBindings),
+		container.WithCmd("nc", "-l", "-p", "1324"))
+	defer c.ContainerRemove(ctx, cid, types.ContainerRemoveOptions{
+		Force: true,
+	})
+
+	assert.NilError(t, synProbeFromAnotherHost(t, netip.MustParsePrefix("192.168.210.1/24"),
+		netip.MustParseAddr("127.0.0.1"), 1324))
+}
+
+func TestAccessUnpublishedPortFromAnotherHost(t *testing.T) {
+	t.Skip("See moby/moby#45610")
+
+	d := daemon.New(t)
+	d.StartWithBusybox(t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	ctx := context.Background()
+	cid := container.Run(ctx, t, c,
+		container.WithImage("busybox:latest"),
+		container.WithCmd("nc", "-l", "-p", "1324"))
+	defer c.ContainerRemove(ctx, cid, types.ContainerRemoveOptions{
+		Force: true,
+	})
+
+	inspect := container.Inspect(ctx, t, c, cid)
+	destIP := netip.MustParseAddr(inspect.NetworkSettings.Networks["bridge"].IPAddress)
+
+	assert.NilError(t, synProbeFromAnotherHost(t, netip.MustParsePrefix("192.168.212.1/24"), destIP, 1324))
+}
+
+func TestAccessPortPublishedToASpecificIPFromAnotherHost(t *testing.T) {
+	t.Skip("See moby/moby#45610")
+
+	d := daemon.New(t)
+	d.StartWithBusybox(t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	bindIP := getIfaceAddress(t, "eth0", false)
+	ports, portBindings, err := nat.ParsePortSpecs([]string{bindIP.String() + ":1312:1312"})
+	assert.NilError(t, err)
+
+	ctx := context.Background()
+	cid := container.Run(ctx, t, c,
+		container.WithImage("busybox:latest"),
+		container.WithPublishedPorts(ports, portBindings),
+		container.WithCmd("nc", "-l", "-p", "1312"))
+	defer c.ContainerRemove(ctx, cid, types.ContainerRemoveOptions{
+		Force: true,
+	})
+
+	destIP, _ := netip.AddrFromSlice(bindIP)
+	assert.NilError(t, synProbeFromAnotherHost(t, netip.MustParsePrefix("192.168.213.1/24"), destIP, 1312))
 }
