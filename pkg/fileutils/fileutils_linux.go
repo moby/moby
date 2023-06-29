@@ -1,6 +1,4 @@
-//go:build linux || freebsd
-
-package fileutils // import "github.com/docker/docker/pkg/fileutils"
+package fileutils
 
 import (
 	"context"
