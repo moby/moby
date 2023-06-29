@@ -199,7 +199,7 @@ func TestConvertTmpfsOptions(t *testing.T) {
 	}
 	cases := []testCase{
 		{
-			opt:                  mount.TmpfsOptions{SizeBytes: 1024 * 1024, Mode: 0700},
+			opt:                  mount.TmpfsOptions{SizeBytes: 1024 * 1024, Mode: 0o700},
 			readOnly:             false,
 			expectedSubstrings:   []string{"size=1m", "mode=700"},
 			unexpectedSubstrings: []string{"ro"},

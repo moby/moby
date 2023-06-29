@@ -2215,7 +2215,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0644)
+	os.WriteFile(configName, []byte(config), 0o644)
 	s.d.StartWithBusybox(c, "--config-file", configName)
 
 	// Run with default runtime
@@ -2241,7 +2241,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0644)
+	os.WriteFile(configName, []byte(config), 0o644)
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
@@ -2268,7 +2268,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0644)
+	os.WriteFile(configName, []byte(config), 0o644)
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
@@ -2293,7 +2293,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0644)
+	os.WriteFile(configName, []byte(config), 0o644)
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
@@ -2654,7 +2654,7 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 
 	size := 67108864 * 2
 	configData := []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
-	assert.Assert(c, os.WriteFile(configFile, configData, 0666) == nil, "could not write temp file for config reload")
+	assert.Assert(c, os.WriteFile(configFile, configData, 0o666) == nil, "could not write temp file for config reload")
 	pattern := regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
 
 	s.d.StartWithBusybox(c, "--config-file", configFile)
@@ -2669,7 +2669,7 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 
 	size = 67108864 * 3
 	configData = []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
-	assert.Assert(c, os.WriteFile(configFile, configData, 0666) == nil, "could not write temp file for config reload")
+	assert.Assert(c, os.WriteFile(configFile, configData, 0o666) == nil, "could not write temp file for config reload")
 	pattern = regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
 
 	err = s.d.ReloadConfig()

@@ -176,6 +176,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 		assert.Check(t, errdefs.IsInvalidParameter(err))
 	}
 }
+
 func TestCreateWithCustomMaskedPaths(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 

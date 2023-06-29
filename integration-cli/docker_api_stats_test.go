@@ -40,7 +40,7 @@ func (s *DockerAPISuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 	assert.NilError(c, err)
 	body.Close()
 
-	var cpuPercent = 0.0
+	cpuPercent := 0.0
 
 	if testEnv.DaemonInfo.OSType != "windows" {
 		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)

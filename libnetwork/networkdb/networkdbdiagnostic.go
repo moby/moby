@@ -391,7 +391,7 @@ func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	if ok {
 		table := nDB.GetTableByNetwork(tname, nid)
 		rsp := &diagnostic.TableObj{Length: len(table)}
-		var i = 0
+		i := 0
 		for k, v := range table {
 			var encodedValue string
 			if unsafe {

@@ -64,7 +64,8 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*containertypes.
 			j.ImageName,
 			fmt.Sprint(j.ProcessID),
 			fmt.Sprintf("%02d:%02d:%02d.%03d", int(d.Hours()), int(d.Minutes())%60, int(d.Seconds())%60, int(d.Nanoseconds()/1000000)%1000),
-			units.HumanSize(float64(j.MemoryWorkingSetPrivateBytes))})
+			units.HumanSize(float64(j.MemoryWorkingSetPrivateBytes)),
+		})
 	}
 
 	return procList, nil

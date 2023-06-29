@@ -41,7 +41,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		specPath = filepath.Join(os.Getenv("programdata"), "docker", "plugins")
 	}
 
-	if err := os.MkdirAll(specPath, 0755); err != nil {
+	if err := os.MkdirAll(specPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -56,7 +56,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 		t.Fatal("Failed to start an HTTP Server")
 	}
 
-	if err := os.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, name+".spec"), []byte(server.URL), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,7 +74,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 }
 
 func TestGetCapabilities(t *testing.T) {
-	var plugin = "test-ipam-driver-capabilities"
+	plugin := "test-ipam-driver-capabilities"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -107,7 +107,7 @@ func TestGetCapabilities(t *testing.T) {
 }
 
 func TestGetCapabilitiesFromLegacyDriver(t *testing.T) {
-	var plugin = "test-ipam-legacy-driver"
+	plugin := "test-ipam-legacy-driver"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -130,7 +130,7 @@ func TestGetCapabilitiesFromLegacyDriver(t *testing.T) {
 }
 
 func TestGetDefaultAddressSpaces(t *testing.T) {
-	var plugin = "test-ipam-driver-addr-spaces"
+	plugin := "test-ipam-driver-addr-spaces"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()
@@ -164,7 +164,7 @@ func TestGetDefaultAddressSpaces(t *testing.T) {
 }
 
 func TestRemoteDriver(t *testing.T) {
-	var plugin = "test-ipam-driver"
+	plugin := "test-ipam-driver"
 
 	mux := http.NewServeMux()
 	defer setupPlugin(t, plugin, mux)()

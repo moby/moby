@@ -164,13 +164,17 @@ func TestArgsMatchKVList(t *testing.T) {
 
 	matches := map[*Args]string{
 		{}: "field",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key1": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key1": true},
+			},
 		}: "labels",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key1=value1": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key1=value1": true},
+			},
 		}: "labels",
 	}
 
@@ -181,16 +185,22 @@ func TestArgsMatchKVList(t *testing.T) {
 	}
 
 	differs := map[*Args]string{
-		{map[string]map[string]bool{
-			"created": {"today": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key4": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key4": true},
+			},
 		}: "labels",
-		{map[string]map[string]bool{
-			"created": {"today": true},
-			"labels":  {"key1=value3": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+				"labels":  {"key1=value3": true},
+			},
 		}: "labels",
 	}
 
@@ -206,20 +216,30 @@ func TestArgsMatch(t *testing.T) {
 
 	matches := map[*Args]string{
 		{}: "field",
-		{map[string]map[string]bool{
-			"created": {"today": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today": true},
+			},
 		}: "today",
-		{map[string]map[string]bool{
-			"created": {"to*": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"to*": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"to(.*)": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"to(.*)": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"tod": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tod": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"anything": true, "to*": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"anything": true, "to*": true},
+			},
 		}: "created",
 	}
 
@@ -229,21 +249,31 @@ func TestArgsMatch(t *testing.T) {
 	}
 
 	differs := map[*Args]string{
-		{map[string]map[string]bool{
-			"created": {"tomorrow": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tomorrow": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"to(day": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"to(day": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"tom(.*)": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tom(.*)": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"tom": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"tom": true},
+			},
 		}: "created",
-		{map[string]map[string]bool{
-			"created": {"today1": true},
-			"labels":  {"today": true}},
+		{
+			map[string]map[string]bool{
+				"created": {"today1": true},
+				"labels":  {"today": true},
+			},
 		}: "created",
 	}
 
@@ -532,5 +562,4 @@ func TestGetBoolOrDefault(t *testing.T) {
 			assert.Check(t, is.Equal(tC.expectedValue, value))
 		})
 	}
-
 }

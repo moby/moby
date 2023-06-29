@@ -8,9 +8,7 @@ import (
 )
 
 func assertParseRelease(t *testing.T, release string, b *VersionInfo, result int) {
-	var (
-		a *VersionInfo
-	)
+	var a *VersionInfo
 	a, _ = ParseRelease(release)
 
 	if r := CompareKernelVersion(*a, *b); r != result {

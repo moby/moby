@@ -239,11 +239,11 @@ func TestCheckoutGit(t *testing.T) {
 	must(gitRepo{}.gitWithinDir(root, "-c", "init.defaultBranch=master", "init", gitDir))
 	must(gitRepo{}.gitWithinDir(gitDir, "config", "user.email", "test@docker.com"))
 	must(gitRepo{}.gitWithinDir(gitDir, "config", "user.name", "Docker test"))
-	assert.NilError(t, os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0644))
+	assert.NilError(t, os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch"), 0o644))
 
 	subDir := filepath.Join(gitDir, "subdir")
-	assert.NilError(t, os.Mkdir(subDir, 0755))
-	assert.NilError(t, os.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 5000"), 0644))
+	assert.NilError(t, os.Mkdir(subDir, 0o755))
+	assert.NilError(t, os.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 5000"), 0o644))
 
 	if runtime.GOOS != "windows" {
 		assert.NilError(t, os.Symlink("../subdir", filepath.Join(gitDir, "parentlink")))
@@ -254,8 +254,8 @@ func TestCheckoutGit(t *testing.T) {
 	must(gitRepo{}.gitWithinDir(gitDir, "commit", "-am", "First commit"))
 	must(gitRepo{}.gitWithinDir(gitDir, "checkout", "-b", "test"))
 
-	assert.NilError(t, os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0644))
-	assert.NilError(t, os.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0644))
+	assert.NilError(t, os.WriteFile(filepath.Join(gitDir, "Dockerfile"), []byte("FROM scratch\nEXPOSE 3000"), 0o644))
+	assert.NilError(t, os.WriteFile(filepath.Join(subDir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 5000"), 0o644))
 
 	must(gitRepo{}.gitWithinDir(gitDir, "add", "-A"))
 	must(gitRepo{}.gitWithinDir(gitDir, "commit", "-am", "Branch commit"))
@@ -267,7 +267,7 @@ func TestCheckoutGit(t *testing.T) {
 	must(gitRepo{}.gitWithinDir(subrepoDir, "config", "user.email", "test@docker.com"))
 	must(gitRepo{}.gitWithinDir(subrepoDir, "config", "user.name", "Docker test"))
 
-	assert.NilError(t, os.WriteFile(filepath.Join(subrepoDir, "subfile"), []byte("subcontents"), 0644))
+	assert.NilError(t, os.WriteFile(filepath.Join(subrepoDir, "subfile"), []byte("subcontents"), 0o644))
 
 	must(gitRepo{}.gitWithinDir(subrepoDir, "add", "-A"))
 	must(gitRepo{}.gitWithinDir(subrepoDir, "commit", "-am", "Subrepo initial"))

@@ -1213,19 +1213,19 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 	// layer content subtrees.
 	if _, err := os.Stat(rootDir); err == nil {
 		// root current exists; verify the access bits are correct by setting them
-		if err = os.Chmod(rootDir, 0711); err != nil {
+		if err = os.Chmod(rootDir, 0o711); err != nil {
 			return err
 		}
 	} else if os.IsNotExist(err) {
 		// no root exists yet, create it 0711 with root:root ownership
-		if err := os.MkdirAll(rootDir, 0711); err != nil {
+		if err := os.MkdirAll(rootDir, 0o711); err != nil {
 			return err
 		}
 	}
 
 	id := idtools.Identity{UID: idtools.CurrentIdentity().UID, GID: remappedRoot.GID}
 	// First make sure the current root dir has the correct perms.
-	if err := idtools.MkdirAllAndChown(config.Root, 0710, id); err != nil {
+	if err := idtools.MkdirAllAndChown(config.Root, 0o710, id); err != nil {
 		return errors.Wrapf(err, "could not create or set daemon root permissions: %s", config.Root)
 	}
 
@@ -1237,7 +1237,7 @@ func setupDaemonRoot(config *config.Config, rootDir string, remappedRoot idtools
 		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", remappedRoot.UID, remappedRoot.GID))
 		log.G(context.TODO()).Debugf("Creating user namespaced daemon root: %s", config.Root)
 		// Create the root directory if it doesn't exist
-		if err := idtools.MkdirAllAndChown(config.Root, 0710, id); err != nil {
+		if err := idtools.MkdirAllAndChown(config.Root, 0o710, id); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
 		}
 		// we also need to verify that any pre-existing directories in the path to
@@ -1323,11 +1323,11 @@ func setupDaemonRootPropagation(cfg *config.Config) error {
 		return nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cleanupFile), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(cleanupFile), 0o700); err != nil {
 		return errors.Wrap(err, "error creating dir to store mount cleanup file")
 	}
 
-	if err := os.WriteFile(cleanupFile, nil, 0600); err != nil {
+	if err := os.WriteFile(cleanupFile, nil, 0o600); err != nil {
 		return errors.Wrap(err, "error writing file to signal mount cleanup on shutdown")
 	}
 	return nil
@@ -1446,7 +1446,7 @@ func (daemon *Daemon) initCPURtController(cfg *config.Config, mnt, path string) 
 	}
 
 	path = filepath.Join(mnt, path)
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0o755); err != nil {
 		return err
 	}
 	if err := maybeCreateCPURealTimeFile(cfg.CPURealtimePeriod, "cpu.rt_period_us", path); err != nil {
@@ -1459,7 +1459,7 @@ func maybeCreateCPURealTimeFile(configValue int64, file string, path string) err
 	if configValue == 0 {
 		return nil
 	}
-	return os.WriteFile(filepath.Join(path, file), []byte(strconv.FormatInt(configValue, 10)), 0700)
+	return os.WriteFile(filepath.Join(path, file), []byte(strconv.FormatInt(configValue, 10)), 0o700)
 }
 
 func (daemon *Daemon) setupSeccompProfile(cfg *config.Config) error {

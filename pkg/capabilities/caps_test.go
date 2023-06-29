@@ -14,7 +14,7 @@ func TestMatch(t *testing.T) {
 		caps     [][]string
 		expected []string
 	}
-	var testcases = []testcase{
+	testcases := []testcase{
 		// matches
 		{
 			caps:     [][]string{{}},

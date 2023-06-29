@@ -1175,9 +1175,7 @@ func OptionLoadBalancer(nid string) SandboxOption {
 // epi.joininfo <=> epj.joininfo   # ipv6 < ipv4
 // epi.name <=> epj.name           # bar < foo
 func (epi *Endpoint) Less(epj *Endpoint) bool {
-	var (
-		prioi, prioj int
-	)
+	var prioi, prioj int
 
 	sbi, _ := epi.getSandbox()
 	sbj, _ := epj.getSandbox()

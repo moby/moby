@@ -15,7 +15,7 @@ func TestIsExistingDirectory(t *testing.T) {
 	tmpdir := fs.NewDir(t, "dir-exists-test")
 	defer tmpdir.Remove()
 
-	var testcases = []struct {
+	testcases := []struct {
 		doc      string
 		path     string
 		expected bool
@@ -47,7 +47,7 @@ func TestIsExistingDirectory(t *testing.T) {
 }
 
 func TestGetFilenameForDownload(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		path        string
 		disposition string
 		expected    string

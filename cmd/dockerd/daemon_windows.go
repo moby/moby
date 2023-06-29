@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/system"
-	"github.com/containerd/containerd/log"
 	"golang.org/x/sys/windows"
 )
 

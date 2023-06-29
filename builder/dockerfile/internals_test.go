@@ -26,7 +26,7 @@ func TestEmptyDockerfile(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0777)
+	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, "", 0o777)
 
 	readAndCheckDockerfile(t, "emptyDockerfile", contextDir, "", "the Dockerfile (Dockerfile) cannot be empty")
 }
@@ -96,7 +96,7 @@ func TestCopyRunConfig(t *testing.T) {
 	defaultEnv := []string{"foo=1"}
 	defaultCmd := []string{"old"}
 
-	var testcases = []struct {
+	testcases := []struct {
 		doc       string
 		modifiers []runConfigModifier
 		expected  *container.Config

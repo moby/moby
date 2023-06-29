@@ -23,7 +23,7 @@ import (
 var dbPort int32 = 10000
 
 func TestMain(m *testing.M) {
-	os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0644)
+	os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0o644)
 	logrus.SetLevel(logrus.ErrorLevel)
 	os.Exit(m.Run())
 }
@@ -851,9 +851,11 @@ func TestNetworkDBIslands(t *testing.T) {
 	node := dbs[0].nodes[dbs[0].config.NodeID]
 	baseIPStr := node.Addr.String()
 	// Node 0,1,2 are going to be the 3 bootstrap nodes
-	members := []string{fmt.Sprintf("%s:%d", baseIPStr, dbs[0].config.BindPort),
+	members := []string{
+		fmt.Sprintf("%s:%d", baseIPStr, dbs[0].config.BindPort),
 		fmt.Sprintf("%s:%d", baseIPStr, dbs[1].config.BindPort),
-		fmt.Sprintf("%s:%d", baseIPStr, dbs[2].config.BindPort)}
+		fmt.Sprintf("%s:%d", baseIPStr, dbs[2].config.BindPort),
+	}
 	// Rejoining will update the list of the bootstrap members
 	for i := 3; i < 5; i++ {
 		t.Logf("Re-joining: %d", i)

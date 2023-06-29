@@ -71,7 +71,7 @@ func NeedsUserXAttr(d string) (bool, error) {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to remove check directory %v", tdRoot)
 	}
 
-	if err := os.MkdirAll(tdRoot, 0700); err != nil {
+	if err := os.MkdirAll(tdRoot, 0o700); err != nil {
 		return false, err
 	}
 
@@ -87,7 +87,7 @@ func NeedsUserXAttr(d string) (bool, error) {
 	}
 
 	for _, dir := range []string{"lower1", "lower2", "upper", "work", "merged"} {
-		if err := os.Mkdir(filepath.Join(td, dir), 0755); err != nil {
+		if err := os.Mkdir(filepath.Join(td, dir), 0o755); err != nil {
 			return false, err
 		}
 	}

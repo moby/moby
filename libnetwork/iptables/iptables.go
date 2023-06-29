@@ -198,7 +198,8 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 		preroute := []string{
 			"-m", "addrtype",
 			"--dst-type", "LOCAL",
-			"-j", c.Name}
+			"-j", c.Name,
+		}
 		if !iptable.Exists(Nat, "PREROUTING", preroute...) && enable {
 			if err := c.Prerouting(Append, preroute...); err != nil {
 				return fmt.Errorf("Failed to inject %s in PREROUTING chain: %s", c.Name, err)
@@ -211,7 +212,8 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 		output := []string{
 			"-m", "addrtype",
 			"--dst-type", "LOCAL",
-			"-j", c.Name}
+			"-j", c.Name,
+		}
 		if !hairpinMode {
 			output = append(output, "!", "--dst", iptable.LoopbackByVersion())
 		}
@@ -231,7 +233,8 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 		}
 		link := []string{
 			"-o", bridgeName,
-			"-j", c.Name}
+			"-j", c.Name,
+		}
 		if !iptable.Exists(Filter, "FORWARD", link...) && enable {
 			insert := append([]string{string(Insert), "FORWARD"}, link...)
 			if output, err := iptable.Raw(insert...); err != nil {
@@ -251,7 +254,8 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 			"-o", bridgeName,
 			"-m", "conntrack",
 			"--ctstate", "RELATED,ESTABLISHED",
-			"-j", "ACCEPT"}
+			"-j", "ACCEPT",
+		}
 		if !iptable.Exists(Filter, "FORWARD", establish...) && enable {
 			insert := append([]string{string(Insert), "FORWARD"}, establish...)
 			if output, err := iptable.Raw(insert...); err != nil {
@@ -300,7 +304,8 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 		"-d", daddr,
 		"--dport", strconv.Itoa(port),
 		"-j", "DNAT",
-		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))}
+		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort)),
+	}
 
 	if !c.HairpinMode {
 		args = append(args, "!", "-i", bridgeName)

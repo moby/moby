@@ -32,10 +32,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	// untar defines the untar method
-	untar = chrootarchive.UntarUncompressed
-)
+// untar defines the untar method
+var untar = chrootarchive.UntarUncompressed
 
 // This backend uses the overlay union filesystem for containers
 // with diff directories for each layer.
@@ -168,10 +166,10 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		UID: cur.UID,
 		GID: idMap.RootPair().GID,
 	}
-	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(home, 0o710, dirID); err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, cur); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0o700, cur); err != nil {
 		return nil, err
 	}
 
@@ -347,10 +345,10 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		GID: root.GID,
 	}
 
-	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Dir(dir), 0o710, dirID); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0710, dirID); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0o710, dirID); err != nil {
 		return err
 	}
 
@@ -375,7 +373,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		}
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, diffDirName), 0755, root); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, diffDirName), 0o755, root); err != nil {
 		return err
 	}
 
@@ -385,7 +383,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}
 
 	// Write link id to link file
-	if err := os.WriteFile(path.Join(dir, "link"), []byte(lid), 0644); err != nil {
+	if err := os.WriteFile(path.Join(dir, "link"), []byte(lid), 0o644); err != nil {
 		return err
 	}
 
@@ -394,11 +392,11 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return nil
 	}
 
-	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0700, root); err != nil {
+	if err := idtools.MkdirAndChown(path.Join(dir, workDirName), 0o700, root); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(path.Join(d.dir(parent), "committed"), []byte{}, 0600); err != nil {
+	if err := os.WriteFile(path.Join(d.dir(parent), "committed"), []byte{}, 0o600); err != nil {
 		return err
 	}
 
@@ -407,7 +405,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 	if lower != "" {
-		if err := os.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0666); err != nil {
+		if err := os.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0o666); err != nil {
 			return err
 		}
 	}
@@ -567,7 +565,7 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	mountTarget := mergedDir
 
 	root := d.idMap.RootPair()
-	if err := idtools.MkdirAndChown(mergedDir, 0700, root); err != nil {
+	if err := idtools.MkdirAndChown(mergedDir, 0o700, root); err != nil {
 		return "", err
 	}
 

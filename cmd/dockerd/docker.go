@@ -17,9 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	honorXDG bool
-)
+var honorXDG bool
 
 func newDaemonCommand() (*cobra.Command, error) {
 	cfg, err := config.New()

@@ -63,7 +63,8 @@ func TestWriteWithWriterError(t *testing.T) {
 	expectedReturnedBytes := 10
 	writer := NewStdWriter(&errWriter{
 		n:   stdWriterPrefixLen + expectedReturnedBytes,
-		err: expectedError}, Stdout)
+		err: expectedError,
+	}, Stdout)
 	data := []byte("This won't get written, sigh")
 	n, err := writer.Write(data)
 	if err != expectedError {
@@ -132,7 +133,8 @@ func (f *customReader) Read(buf []byte) (int, error) {
 func TestStdCopyReturnsErrorReadingHeader(t *testing.T) {
 	expectedError := errors.New("error")
 	reader := &customReader{
-		err: expectedError}
+		err: expectedError,
+	}
 	written, err := StdCopy(io.Discard, io.Discard, reader)
 	if written != 0 {
 		t.Fatalf("Expected 0 bytes read, got %d", written)
@@ -154,7 +156,8 @@ func TestStdCopyReturnsErrorReadingFrame(t *testing.T) {
 		correctCalls: 1,
 		n:            stdWriterPrefixLen + 1,
 		err:          expectedError,
-		src:          buffer}
+		src:          buffer,
+	}
 	written, err := StdCopy(io.Discard, io.Discard, reader)
 	if written != 0 {
 		t.Fatalf("Expected 0 bytes read, got %d", written)
@@ -175,7 +178,8 @@ func TestStdCopyDetectsCorruptedFrame(t *testing.T) {
 		correctCalls: 1,
 		n:            stdWriterPrefixLen + 1,
 		err:          io.EOF,
-		src:          buffer}
+		src:          buffer,
+	}
 	written, err := StdCopy(io.Discard, io.Discard, reader)
 	if written != startingBufLen {
 		t.Fatalf("Expected %d bytes read, got %d", startingBufLen, written)

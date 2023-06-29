@@ -37,7 +37,7 @@ func handle(mux *http.ServeMux) {
 			return
 		}
 
-		f, err := os.OpenFile(req.File, syscall.O_RDONLY, 0700)
+		f, err := os.OpenFile(req.File, syscall.O_RDONLY, 0o700)
 		if err != nil {
 			respond(err, w)
 		}

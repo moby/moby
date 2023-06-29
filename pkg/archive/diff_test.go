@@ -17,7 +17,7 @@ func TestApplyLayerInvalidFilenames(t *testing.T) {
 			{
 				Name:     "../victim/dotdot",
 				Typeflag: tar.TypeReg,
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{
@@ -25,7 +25,7 @@ func TestApplyLayerInvalidFilenames(t *testing.T) {
 				// Note the leading slash
 				Name:     "/../victim/slash-dotdot",
 				Typeflag: tar.TypeReg,
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 	} {
@@ -42,7 +42,7 @@ func TestApplyLayerInvalidHardlink(t *testing.T) {
 				Name:     "dotdot",
 				Typeflag: tar.TypeLink,
 				Linkname: "../victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try reading victim/hello (/../)
@@ -51,7 +51,7 @@ func TestApplyLayerInvalidHardlink(t *testing.T) {
 				Typeflag: tar.TypeLink,
 				// Note the leading slash
 				Linkname: "/../victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try writing victim/file
@@ -59,12 +59,12 @@ func TestApplyLayerInvalidHardlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeLink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "loophole-victim/file",
 				Typeflag: tar.TypeReg,
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try reading victim/hello (hardlink, symlink)
@@ -72,13 +72,13 @@ func TestApplyLayerInvalidHardlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeLink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "symlink",
 				Typeflag: tar.TypeSymlink,
 				Linkname: "loophole-victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // Try reading victim/hello (hardlink, hardlink)
@@ -86,13 +86,13 @@ func TestApplyLayerInvalidHardlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeLink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "hardlink",
 				Typeflag: tar.TypeLink,
 				Linkname: "loophole-victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // Try removing victim directory (hardlink)
@@ -100,12 +100,12 @@ func TestApplyLayerInvalidHardlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeLink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeReg,
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 	} {
@@ -122,7 +122,7 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 				Name:     "dotdot",
 				Typeflag: tar.TypeSymlink,
 				Linkname: "../victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try reading victim/hello (/../)
@@ -131,7 +131,7 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 				Typeflag: tar.TypeSymlink,
 				// Note the leading slash
 				Linkname: "/../victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try writing victim/file
@@ -139,12 +139,12 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeSymlink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "loophole-victim/file",
 				Typeflag: tar.TypeReg,
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try reading victim/hello (symlink, symlink)
@@ -152,13 +152,13 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeSymlink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "symlink",
 				Typeflag: tar.TypeSymlink,
 				Linkname: "loophole-victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try reading victim/hello (symlink, hardlink)
@@ -166,13 +166,13 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeSymlink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "hardlink",
 				Typeflag: tar.TypeLink,
 				Linkname: "loophole-victim/hello",
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 		{ // try removing victim directory (symlink)
@@ -180,12 +180,12 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeSymlink,
 				Linkname: "../victim",
-				Mode:     0755,
+				Mode:     0o755,
 			},
 			{
 				Name:     "loophole-victim",
 				Typeflag: tar.TypeReg,
-				Mode:     0644,
+				Mode:     0o644,
 			},
 		},
 	} {
@@ -324,11 +324,11 @@ func makeTestLayer(paths []string) (rc io.ReadCloser, err error) {
 		// Source files are always in Unix format. But we use filepath on
 		// creation to be platform agnostic.
 		if p[len(p)-1] == '/' {
-			if err = os.MkdirAll(filepath.Join(tmpDir, p), 0700); err != nil {
+			if err = os.MkdirAll(filepath.Join(tmpDir, p), 0o700); err != nil {
 				return
 			}
 		} else {
-			if err = os.WriteFile(filepath.Join(tmpDir, p), nil, 0600); err != nil {
+			if err = os.WriteFile(filepath.Join(tmpDir, p), nil, 0o600); err != nil {
 				return
 			}
 		}

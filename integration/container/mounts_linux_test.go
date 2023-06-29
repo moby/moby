@@ -34,7 +34,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 
 	ctx := context.Background()
 
-	tmpDir := fs.NewDir(t, "network-file-mounts", fs.WithMode(0755), fs.WithFile("nwfile", "network file bind mount", fs.WithMode(0644)))
+	tmpDir := fs.NewDir(t, "network-file-mounts", fs.WithMode(0o755), fs.WithFile("nwfile", "network file bind mount", fs.WithMode(0o644)))
 	defer tmpDir.Remove()
 
 	tmpNWFileMount := tmpDir.Join("nwfile")
@@ -179,7 +179,6 @@ func TestMountDaemonRoot(t *testing.T) {
 						Image: "busybox",
 						Cmd:   []string{"true"},
 					}, hc, nil, nil, "")
-
 					if err != nil {
 						if test.expected != "" {
 							t.Fatal(err)
@@ -222,12 +221,12 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 
 	defer setupTest(t)()
 
-	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0755),
-		fs.WithDir("mnt", fs.WithMode(0755)))
+	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0o755),
+		fs.WithDir("mnt", fs.WithMode(0o755)))
 	defer tmpDir1.Remove()
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt")
-	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0755),
-		fs.WithFile("file", "should not be visible when NonRecursive", fs.WithMode(0644)))
+	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0o755),
+		fs.WithFile("file", "should not be visible when NonRecursive", fs.WithMode(0o644)))
 	defer tmpDir2.Remove()
 
 	err := mount.Mount(tmpDir2.Path(), tmpDir1Mnt, "none", "bind,ro")
@@ -281,8 +280,8 @@ func TestContainerVolumesMountedAsShared(t *testing.T) {
 	defer setupTest(t)()
 
 	// Prepare a source directory to bind mount
-	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0755),
-		fs.WithDir("mnt1", fs.WithMode(0755)))
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755),
+		fs.WithDir("mnt1", fs.WithMode(0o755)))
 	defer tmpDir1.Remove()
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
 
@@ -332,15 +331,15 @@ func TestContainerVolumesMountedAsSlave(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
 
 	// Prepare a source directory to bind mount
-	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0755),
-		fs.WithDir("mnt1", fs.WithMode(0755)))
+	tmpDir1 := fs.NewDir(t, "volume-source", fs.WithMode(0o755),
+		fs.WithDir("mnt1", fs.WithMode(0o755)))
 	defer tmpDir1.Remove()
 	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt1")
 
 	// Prepare a source directory with file in it. We will bind mount this
 	// directory and see if file shows up.
-	tmpDir2 := fs.NewDir(t, "volume-source2", fs.WithMode(0755),
-		fs.WithFile("slave-testfile", "Test", fs.WithMode(0644)))
+	tmpDir2 := fs.NewDir(t, "volume-source2", fs.WithMode(0o755),
+		fs.WithFile("slave-testfile", "Test", fs.WithMode(0o644)))
 	defer tmpDir2.Remove()
 
 	// Convert this directory into a shared mount point so that we do

@@ -60,7 +60,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 		uid, gid := getSpecUser(ociSpec)
 		if uid == 0 && gid == 0 {
 			c.Labels[DockerContainerBundlePath] = bundleDir
-			return idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.Identity{UID: 0, GID: 0})
+			return idtools.MkdirAllAndChownNew(bundleDir, 0o755, idtools.Identity{UID: 0, GID: 0})
 		}
 
 		p := string(filepath.Separator)
@@ -73,7 +73,7 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 			}
 			if os.IsNotExist(err) || fi.Mode()&1 == 0 {
 				p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
-				if err := idtools.MkdirAndChown(p, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
+				if err := idtools.MkdirAndChown(p, 0o700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
 					return err
 				}
 			}

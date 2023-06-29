@@ -56,7 +56,7 @@ func Init(base string, opt []string, idMap idtools.IdentityMapping) (graphdriver
 		return nil, graphdriver.ErrPrerequisites
 	}
 
-	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 0600)
+	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 0o600)
 	if err != nil {
 		logger.Debugf("cannot open /dev/zfs: %v", err)
 		return nil, graphdriver.ErrPrerequisites
@@ -109,7 +109,7 @@ func Init(base string, opt []string, idMap idtools.IdentityMapping) (graphdriver
 		UID: idtools.CurrentIdentity().UID,
 		GID: idMap.RootPair().GID,
 	}
-	if err := idtools.MkdirAllAndChown(base, 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(base, 0o710, dirID); err != nil {
 		return nil, fmt.Errorf("Failed to create '%s': %v", base, err)
 	}
 
@@ -388,7 +388,7 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 
 	root := d.idMap.RootPair()
 	// Create the target directories if they don't exist
-	if err := idtools.MkdirAllAndChown(mountpoint, 0755, root); err != nil {
+	if err := idtools.MkdirAllAndChown(mountpoint, 0o755, root); err != nil {
 		return "", err
 	}
 

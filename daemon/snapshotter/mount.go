@@ -138,5 +138,4 @@ func (m mounter) Mount(mounts []mount.Mount, containerID string) (string, error)
 
 func (m mounter) Unmount(target string) error {
 	return unmount(target)
-
 }

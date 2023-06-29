@@ -146,9 +146,7 @@ func (s *DockerAPISuite) TestContainerAPIGetChanges(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
-	var (
-		name = "statscontainer"
-	)
+	const name = "statscontainer"
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
@@ -476,7 +474,8 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	defer apiClient.Close()
 
 	config := container.Config{
-		Labels: map[string]string{"key1": "value1", "key2": "value2"}}
+		Labels: map[string]string{"key1": "value1", "key2": "value2"},
+	}
 
 	options := types.ContainerCommitOptions{
 		Reference: "testcontainerapicommitwithconfig",
@@ -513,7 +512,8 @@ func (s *DockerAPISuite) TestContainerAPIBadPort(c *testing.T) {
 			"8080/tcp": []nat.PortBinding{
 				{
 					HostIP:   "",
-					HostPort: "aa80"},
+					HostPort: "aa80",
+				},
 			},
 		},
 	}
@@ -1662,8 +1662,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				Mounts: []mount.Mount{{
 					Type:   "notreal",
 					Target: destPath,
-				},
-				},
+				}},
 			},
 
 			msg: "mount type unknown",
@@ -1674,7 +1673,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 			},
 			hostConfig: container.HostConfig{
 				Mounts: []mount.Mount{{
-					Type: "bind"}}},
+					Type: "bind",
+				}},
+			},
 			msg: "Target must not be empty",
 		},
 		{
@@ -1684,7 +1685,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 			hostConfig: container.HostConfig{
 				Mounts: []mount.Mount{{
 					Type:   "bind",
-					Target: destPath}}},
+					Target: destPath,
+				}},
+			},
 			msg: "Source must not be empty",
 		},
 		{
@@ -1695,7 +1698,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				Mounts: []mount.Mount{{
 					Type:   "bind",
 					Source: notExistPath,
-					Target: destPath}}},
+					Target: destPath,
+				}},
+			},
 			msg: "source path does not exist",
 			// FIXME(vdemeester) fails into e2e, migrate to integration/container anyway
 			// msg: "source path does not exist: " + notExistPath,
@@ -1706,7 +1711,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 			},
 			hostConfig: container.HostConfig{
 				Mounts: []mount.Mount{{
-					Type: "volume"}}},
+					Type: "volume",
+				}},
+			},
 			msg: "Target must not be empty",
 		},
 		{
@@ -1717,7 +1724,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				Mounts: []mount.Mount{{
 					Type:   "volume",
 					Source: "hello",
-					Target: destPath}}},
+					Target: destPath,
+				}},
+			},
 			msg: "",
 		},
 		{
@@ -1731,7 +1740,11 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 					Target: destPath,
 					VolumeOptions: &mount.VolumeOptions{
 						DriverConfig: &mount.Driver{
-							Name: "local"}}}}},
+							Name: "local",
+						},
+					},
+				}},
+			},
 			msg: "",
 		},
 	}
@@ -1749,7 +1762,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 					Mounts: []mount.Mount{{
 						Type:   "bind",
 						Source: tmpDir,
-						Target: destPath}}},
+						Target: destPath,
+					}},
+				},
 				msg: "",
 			},
 			{
@@ -1761,7 +1776,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 						Type:          "bind",
 						Source:        tmpDir,
 						Target:        destPath,
-						VolumeOptions: &mount.VolumeOptions{}}}},
+						VolumeOptions: &mount.VolumeOptions{},
+					}},
+				},
 				msg: "VolumeOptions must not be specified",
 			},
 		}...)
@@ -1886,7 +1903,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 				hostConfig: container.HostConfig{
 					Mounts: []mount.Mount{{
 						Type:   "tmpfs",
-						Target: destPath}}},
+						Target: destPath,
+					}},
+				},
 				msg: "",
 			},
 			{
@@ -1899,8 +1918,10 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 						Target: destPath,
 						TmpfsOptions: &mount.TmpfsOptions{
 							SizeBytes: 4096 * 1024,
-							Mode:      0700,
-						}}}},
+							Mode:      0o700,
+						},
+					}},
+				},
 				msg: "",
 			},
 			{
@@ -1911,7 +1932,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 					Mounts: []mount.Mount{{
 						Type:   "tmpfs",
 						Source: "/shouldnotbespecified",
-						Target: destPath}}},
+						Target: destPath,
+					}},
+				},
 				msg: "Source must not be specified",
 			},
 		}...)
@@ -1942,7 +1965,7 @@ func (s *DockerAPISuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-mounts-api-bind")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
-	err = os.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0666)
+	err = os.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 0o666)
 	assert.NilError(c, err)
 	config := container.Config{
 		Image: "busybox",
@@ -1969,9 +1992,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	destPath := prefix + slash + "foo"
 
-	var (
-		testImg string
-	)
+	var testImg string
 	if testEnv.DaemonInfo.OSType != "windows" {
 		testImg = "test-mount-config"
 		buildImageSuccessfully(c, testImg, build.WithDockerfile(`
@@ -2184,7 +2205,8 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 		{
 			cfg: mount.Mount{
 				Type:   "tmpfs",
-				Target: target},
+				Target: target,
+			},
 			expectedOptions: []string{"rw", "nosuid", "nodev", "noexec", "relatime"},
 		},
 		{
@@ -2192,7 +2214,9 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 				Type:   "tmpfs",
 				Target: target,
 				TmpfsOptions: &mount.TmpfsOptions{
-					SizeBytes: 4096 * 1024, Mode: 0700}},
+					SizeBytes: 4096 * 1024, Mode: 0o700,
+				},
+			},
 			expectedOptions: []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=4096k", "mode=700"},
 		},
 	}

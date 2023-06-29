@@ -41,12 +41,12 @@ othergrp:x:6666:
 	contextDir, cleanup := createTestTempDir(t, "", "builder-chown-parse-test")
 	defer cleanup()
 
-	if err := os.Mkdir(filepath.Join(contextDir, "etc"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(contextDir, "etc"), 0o755); err != nil {
 		t.Fatalf("error creating test directory: %v", err)
 	}
 
 	for filename, content := range testFiles {
-		createTestTempFile(t, filepath.Join(contextDir, "etc"), filename, content, 0644)
+		createTestTempFile(t, filepath.Join(contextDir, "etc"), filename, content, 0o644)
 	}
 
 	// positive tests

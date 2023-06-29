@@ -107,7 +107,6 @@ func JobComplete(client client.CommonAPIClient, service swarmtypes.Service) func
 		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
 			Filters: filter,
 		})
-
 		if err != nil {
 			poll.Error(err)
 		}

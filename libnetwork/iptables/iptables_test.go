@@ -119,7 +119,8 @@ func TestLink(t *testing.T) {
 		"-s", ip1.String(),
 		"-d", ip2.String(),
 		"--dport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(filterChain.Table, filterChain.Name, rule1...) {
 		t.Fatal("rule1 does not exist")
@@ -132,7 +133,8 @@ func TestLink(t *testing.T) {
 		"-s", ip2.String(),
 		"-d", ip1.String(),
 		"--sport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(filterChain.Table, filterChain.Name, rule2...) {
 		t.Fatal("rule2 does not exist")
@@ -142,10 +144,7 @@ func TestLink(t *testing.T) {
 func TestPrerouting(t *testing.T) {
 	iptable, natChain, _ := createNewChain(t)
 
-	args := []string{
-		"-i", "lo",
-		"-d", "192.168.1.1"}
-
+	args := []string{"-i", "lo", "-d", "192.168.1.1"}
 	err := natChain.Prerouting(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
@@ -164,10 +163,7 @@ func TestPrerouting(t *testing.T) {
 func TestOutput(t *testing.T) {
 	iptable, natChain, _ := createNewChain(t)
 
-	args := []string{
-		"-o", "lo",
-		"-d", "192.168.1.1"}
-
+	args := []string{"-o", "lo", "-d", "192.168.1.1"}
 	err := natChain.Output(Insert, args...)
 	if err != nil {
 		t.Fatal(err)
@@ -177,8 +173,10 @@ func TestOutput(t *testing.T) {
 		t.Fatal("rule does not exist")
 	}
 
-	delRule := append([]string{"-D", "OUTPUT", "-t",
-		string(natChain.Table)}, args...)
+	delRule := append([]string{
+		"-D", "OUTPUT", "-t",
+		string(natChain.Table),
+	}, args...)
 	if _, err = iptable.Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
@@ -227,10 +225,12 @@ func TestCleanup(t *testing.T) {
 	var rules []byte
 
 	// Cleanup filter/FORWARD first otherwise output of iptables-save is dirty
-	link := []string{"-t", string(filterChain.Table),
+	link := []string{
+		"-t", string(filterChain.Table),
 		string(Delete), "FORWARD",
 		"-o", bridgeName,
-		"-j", filterChain.Name}
+		"-j", filterChain.Name,
+	}
 
 	if _, err := iptable.Raw(link...); err != nil {
 		t.Fatal(err)

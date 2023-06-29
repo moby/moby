@@ -16,13 +16,11 @@ import (
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
-var (
-	clusterEventAction = map[swarmapi.WatchActionKind]string{
-		swarmapi.WatchActionKindCreate: "create",
-		swarmapi.WatchActionKindUpdate: "update",
-		swarmapi.WatchActionKindRemove: "remove",
-	}
-)
+var clusterEventAction = map[swarmapi.WatchActionKind]string{
+	swarmapi.WatchActionKindCreate: "create",
+	swarmapi.WatchActionKindUpdate: "update",
+	swarmapi.WatchActionKindRemove: "remove",
+}
 
 // LogContainerEvent generates an event related to a container with only the default attributes.
 func (daemon *Daemon) LogContainerEvent(container *container.Container, action string) {

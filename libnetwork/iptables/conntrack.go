@@ -14,10 +14,8 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-var (
-	// ErrConntrackNotConfigurable means that conntrack module is not loaded or does not have the netlink module loaded
-	ErrConntrackNotConfigurable = errors.New("conntrack is not available")
-)
+// ErrConntrackNotConfigurable means that conntrack module is not loaded or does not have the netlink module loaded
+var ErrConntrackNotConfigurable = errors.New("conntrack is not available")
 
 // IsConntrackProgrammable returns true if the handle supports the NETLINK_NETFILTER and the base modules are loaded
 func IsConntrackProgrammable(nlh *netlink.Handle) bool {

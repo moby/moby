@@ -20,7 +20,7 @@ func TestOpenFileDelete(t *testing.T) {
 
 func TestOpenFileRename(t *testing.T) {
 	tmpDir := t.TempDir()
-	f, err := openFile(filepath.Join(tmpDir, "test.txt"), os.O_CREATE|os.O_RDWR, 0644)
+	f, err := openFile(filepath.Join(tmpDir, "test.txt"), os.O_CREATE|os.O_RDWR, 0o644)
 	assert.NilError(t, err)
 	defer f.Close()
 
@@ -30,7 +30,7 @@ func TestOpenFileRename(t *testing.T) {
 func TestUnlinkOpenFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	name := filepath.Join(tmpDir, "test.txt")
-	f, err := openFile(name, os.O_CREATE|os.O_RDWR, 0644)
+	f, err := openFile(name, os.O_CREATE|os.O_RDWR, 0o644)
 	assert.NilError(t, err)
 	defer func() { assert.NilError(t, f.Close()) }()
 
@@ -38,7 +38,7 @@ func TestUnlinkOpenFile(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.NilError(t, unlink(name))
-	f2, err := openFile(name, os.O_CREATE|os.O_RDWR, 0644)
+	f2, err := openFile(name, os.O_CREATE|os.O_RDWR, 0o644)
 	assert.NilError(t, err)
 	defer func() { assert.NilError(t, f2.Close()) }()
 

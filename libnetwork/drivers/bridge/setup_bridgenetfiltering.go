@@ -140,7 +140,7 @@ func setKernelBoolParam(path string, on bool) error {
 	if on {
 		value = byte('1')
 	}
-	return os.WriteFile(path, []byte{value, '\n'}, 0644)
+	return os.WriteFile(path, []byte{value, '\n'}, 0o644)
 }
 
 // Checks to see if packet forwarding is enabled

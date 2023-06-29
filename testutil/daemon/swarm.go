@@ -16,9 +16,7 @@ const (
 	defaultSwarmListenAddr = "0.0.0.0"
 )
 
-var (
-	startArgs = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-)
+var startArgs = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
 
 // StartNode (re)starts the daemon
 func (d *Daemon) StartNode(t testing.TB) {

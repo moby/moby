@@ -49,12 +49,11 @@ func TestHashFile(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, filename, contents, 0755)
+	createTestTempFile(t, contextDir, filename, contents, 0o755)
 
 	tarSum := makeTestArchiveContext(t, contextDir)
 
 	sum, err := tarSum.Hash(filename)
-
 	if err != nil {
 		t.Fatalf("Error when executing Stat: %s", err)
 	}
@@ -75,23 +74,21 @@ func TestHashSubdir(t *testing.T) {
 	defer cleanup()
 
 	contextSubdir := filepath.Join(contextDir, "builder-tarsum-test-subdir")
-	err := os.Mkdir(contextSubdir, 0755)
+	err := os.Mkdir(contextSubdir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to make directory: %s", contextSubdir)
 	}
 
-	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0755)
+	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0o755)
 
 	tarSum := makeTestArchiveContext(t, contextDir)
 
 	relativePath, err := filepath.Rel(contextDir, testFilename)
-
 	if err != nil {
 		t.Fatalf("Error when getting relative path: %s", err)
 	}
 
 	sum, err := tarSum.Hash(relativePath)
-
 	if err != nil {
 		t.Fatalf("Error when executing Stat: %s", err)
 	}
@@ -114,7 +111,6 @@ func TestRemoveDirectory(t *testing.T) {
 	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
 
 	relativePath, err := filepath.Rel(contextDir, contextSubdir)
-
 	if err != nil {
 		t.Fatalf("Error when getting relative path: %s", err)
 	}

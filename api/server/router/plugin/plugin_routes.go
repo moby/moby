@@ -186,7 +186,8 @@ func (pr *pluginRouter) createPlugin(ctx context.Context, w http.ResponseWriter,
 	}
 
 	options := &types.PluginCreateOptions{
-		RepoName: r.FormValue("name")}
+		RepoName: r.FormValue("name"),
+	}
 
 	if err := pr.backend.CreateFromContext(ctx, r.Body, options); err != nil {
 		return err

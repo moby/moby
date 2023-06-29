@@ -16,7 +16,7 @@ import (
 var bridgeIPv6 = &net.IPNet{IP: net.ParseIP("fe80::1"), Mask: net.CIDRMask(64, 128)}
 
 const (
-	ipv6ForwardConfPerm    = 0644
+	ipv6ForwardConfPerm    = 0o644
 	ipv6ForwardConfDefault = "/proc/sys/net/ipv6/conf/default/forwarding"
 	ipv6ForwardConfAll     = "/proc/sys/net/ipv6/conf/all/forwarding"
 )

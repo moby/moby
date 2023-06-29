@@ -55,7 +55,6 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 		container.Unlock()
 
 		err := daemon.containerStop(ctx, container, options)
-
 		if err != nil {
 			return err
 		}

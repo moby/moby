@@ -8,9 +8,7 @@ import (
 	"github.com/docker/docker/testutil/environment"
 )
 
-var (
-	testEnv *environment.Execution
-)
+var testEnv *environment.Execution
 
 func TestMain(m *testing.M) {
 	var err error

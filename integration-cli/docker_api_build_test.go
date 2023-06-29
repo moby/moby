@@ -352,7 +352,7 @@ func (s *DockerAPISuite) TestBuildAddRemoteNoDecompress(c *testing.T) {
 	err := tw.WriteHeader(&tar.Header{
 		Name:     "foo",
 		Size:     int64(len(dt)),
-		Mode:     0600,
+		Mode:     0o600,
 		Typeflag: tar.TypeReg,
 	})
 	assert.NilError(c, err)
@@ -430,7 +430,7 @@ COPY file /file`
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFile("file", "bar"))
 
-	var build = func(ctx *fakecontext.Fake) string {
+	build := func(ctx *fakecontext.Fake) string {
 		res, body, err := request.Post("/build",
 			request.RawContent(ctx.AsTarReader(c)),
 			request.ContentType("application/x-tar"))
@@ -470,7 +470,7 @@ ADD file /file`
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFile("file", "bar"))
 
-	var build = func(ctx *fakecontext.Fake) string {
+	build := func(ctx *fakecontext.Fake) string {
 		res, body, err := request.Post("/build",
 			request.RawContent(ctx.AsTarReader(c)),
 			request.ContentType("application/x-tar"))

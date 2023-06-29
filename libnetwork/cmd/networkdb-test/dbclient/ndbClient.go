@@ -78,7 +78,6 @@ func deleteTableKey(ip, port, networkName, tableName, key string) {
 
 func clusterPeersNumber(ip, port string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/clusterpeers")
-
 	if err != nil {
 		log.G(context.TODO()).Errorf("clusterPeers %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
@@ -92,7 +91,6 @@ func clusterPeersNumber(ip, port string, doneCh chan resultTuple) {
 
 func networkPeersNumber(ip, port, networkName string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/networkpeers?nid="+networkName)
-
 	if err != nil {
 		log.G(context.TODO()).Errorf("networkPeersNumber %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
@@ -106,7 +104,6 @@ func networkPeersNumber(ip, port, networkName string, doneCh chan resultTuple) {
 
 func dbTableEntriesNumber(ip, port, networkName, tableName string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/gettable?nid="+networkName+"&tname="+tableName)
-
 	if err != nil {
 		log.G(context.TODO()).Errorf("tableEntriesNumber %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
@@ -119,7 +116,6 @@ func dbTableEntriesNumber(ip, port, networkName, tableName string, doneCh chan r
 
 func dbQueueLength(ip, port, networkName string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/networkstats?nid="+networkName)
-
 	if err != nil {
 		log.G(context.TODO()).Errorf("queueLength %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}
@@ -139,7 +135,6 @@ func clientWatchTable(ip, port, networkName, tableName string, doneCh chan resul
 
 func clientTableEntriesNumber(ip, port, networkName, tableName string, doneCh chan resultTuple) {
 	body, err := httpGet(ip, port, "/watchedtableentries?nid="+networkName+"&tname="+tableName)
-
 	if err != nil {
 		log.G(context.TODO()).Errorf("clientTableEntriesNumber %s there was an error: %s", ip, err)
 		doneCh <- resultTuple{id: ip, result: -1}

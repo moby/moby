@@ -66,30 +66,30 @@ type FileData struct {
 
 func createSampleDir(t *testing.T, root string) {
 	files := []FileData{
-		{filetype: Regular, path: "file1", contents: "file1\n", permissions: 0600},
-		{filetype: Regular, path: "file2", contents: "file2\n", permissions: 0666},
-		{filetype: Regular, path: "file3", contents: "file3\n", permissions: 0404},
-		{filetype: Regular, path: "file4", contents: "file4\n", permissions: 0600},
-		{filetype: Regular, path: "file5", contents: "file5\n", permissions: 0600},
-		{filetype: Regular, path: "file6", contents: "file6\n", permissions: 0600},
-		{filetype: Regular, path: "file7", contents: "file7\n", permissions: 0600},
-		{filetype: Dir, path: "dir1", contents: "", permissions: 0740},
-		{filetype: Regular, path: "dir1/file1-1", contents: "file1-1\n", permissions: 01444},
-		{filetype: Regular, path: "dir1/file1-2", contents: "file1-2\n", permissions: 0666},
-		{filetype: Dir, path: "dir2", contents: "", permissions: 0700},
-		{filetype: Regular, path: "dir2/file2-1", contents: "file2-1\n", permissions: 0666},
-		{filetype: Regular, path: "dir2/file2-2", contents: "file2-2\n", permissions: 0666},
-		{filetype: Dir, path: "dir3", contents: "", permissions: 0700},
-		{filetype: Regular, path: "dir3/file3-1", contents: "file3-1\n", permissions: 0666},
-		{filetype: Regular, path: "dir3/file3-2", contents: "file3-2\n", permissions: 0666},
-		{filetype: Dir, path: "dir4", contents: "", permissions: 0700},
-		{filetype: Regular, path: "dir4/file3-1", contents: "file4-1\n", permissions: 0666},
-		{filetype: Regular, path: "dir4/file3-2", contents: "file4-2\n", permissions: 0666},
-		{filetype: Symlink, path: "symlink1", contents: "target1", permissions: 0666},
-		{filetype: Symlink, path: "symlink2", contents: "target2", permissions: 0666},
-		{filetype: Symlink, path: "symlink3", contents: root + "/file1", permissions: 0666},
-		{filetype: Symlink, path: "symlink4", contents: root + "/symlink3", permissions: 0666},
-		{filetype: Symlink, path: "dirSymlink", contents: root + "/dir1", permissions: 0740},
+		{filetype: Regular, path: "file1", contents: "file1\n", permissions: 0o600},
+		{filetype: Regular, path: "file2", contents: "file2\n", permissions: 0o666},
+		{filetype: Regular, path: "file3", contents: "file3\n", permissions: 0o404},
+		{filetype: Regular, path: "file4", contents: "file4\n", permissions: 0o600},
+		{filetype: Regular, path: "file5", contents: "file5\n", permissions: 0o600},
+		{filetype: Regular, path: "file6", contents: "file6\n", permissions: 0o600},
+		{filetype: Regular, path: "file7", contents: "file7\n", permissions: 0o600},
+		{filetype: Dir, path: "dir1", contents: "", permissions: 0o740},
+		{filetype: Regular, path: "dir1/file1-1", contents: "file1-1\n", permissions: 0o1444},
+		{filetype: Regular, path: "dir1/file1-2", contents: "file1-2\n", permissions: 0o666},
+		{filetype: Dir, path: "dir2", contents: "", permissions: 0o700},
+		{filetype: Regular, path: "dir2/file2-1", contents: "file2-1\n", permissions: 0o666},
+		{filetype: Regular, path: "dir2/file2-2", contents: "file2-2\n", permissions: 0o666},
+		{filetype: Dir, path: "dir3", contents: "", permissions: 0o700},
+		{filetype: Regular, path: "dir3/file3-1", contents: "file3-1\n", permissions: 0o666},
+		{filetype: Regular, path: "dir3/file3-2", contents: "file3-2\n", permissions: 0o666},
+		{filetype: Dir, path: "dir4", contents: "", permissions: 0o700},
+		{filetype: Regular, path: "dir4/file3-1", contents: "file4-1\n", permissions: 0o666},
+		{filetype: Regular, path: "dir4/file3-2", contents: "file4-2\n", permissions: 0o666},
+		{filetype: Symlink, path: "symlink1", contents: "target1", permissions: 0o666},
+		{filetype: Symlink, path: "symlink2", contents: "target2", permissions: 0o666},
+		{filetype: Symlink, path: "symlink3", contents: root + "/file1", permissions: 0o666},
+		{filetype: Symlink, path: "symlink4", contents: root + "/symlink3", permissions: 0o666},
+		{filetype: Symlink, path: "dirSymlink", contents: root + "/dir1", permissions: 0o740},
 	}
 	provisionSampleDir(t, root, files)
 }
@@ -156,7 +156,7 @@ func TestChangesWithChanges(t *testing.T) {
 	assert.NilError(t, err)
 	defer os.RemoveAll(layer)
 	createSampleDir(t, layer)
-	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0740)
+	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0o740)
 
 	// Mock the RW layer
 	rwLayer, err := os.MkdirTemp("", "docker-changes-test")
@@ -165,16 +165,16 @@ func TestChangesWithChanges(t *testing.T) {
 
 	// Create a folder in RW layer
 	dir1 := path.Join(rwLayer, "dir1")
-	os.MkdirAll(dir1, 0740)
+	os.MkdirAll(dir1, 0o740)
 	deletedFile := path.Join(dir1, ".wh.file1-2")
-	os.WriteFile(deletedFile, []byte{}, 0600)
+	os.WriteFile(deletedFile, []byte{}, 0o600)
 	modifiedFile := path.Join(dir1, "file1-1")
-	os.WriteFile(modifiedFile, []byte{0x00}, 01444)
+	os.WriteFile(modifiedFile, []byte{0x00}, 0o1444)
 	// Let's add a subfolder for a newFile
 	subfolder := path.Join(dir1, "subfolder")
-	os.MkdirAll(subfolder, 0740)
+	os.MkdirAll(subfolder, 0o740)
 	newFile := path.Join(subfolder, "newFile")
-	os.WriteFile(newFile, []byte{}, 0740)
+	os.WriteFile(newFile, []byte{}, 0o740)
 
 	changes, err := Changes([]string{layer}, rwLayer)
 	assert.NilError(t, err)
@@ -200,10 +200,10 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 	defer os.RemoveAll(baseLayer)
 
 	dir3 := path.Join(baseLayer, "dir1/dir2/dir3")
-	os.MkdirAll(dir3, 07400)
+	os.MkdirAll(dir3, 0o7400)
 
 	file := path.Join(dir3, "file.txt")
-	os.WriteFile(file, []byte("hello"), 0666)
+	os.WriteFile(file, []byte("hello"), 0o666)
 
 	layer, err := os.MkdirTemp("", "docker-changes-test2.")
 	assert.NilError(t, err)
@@ -216,7 +216,7 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 
 	os.Remove(path.Join(layer, "dir1/dir2/dir3/file.txt"))
 	file = path.Join(layer, "dir1/dir2/dir3/file1.txt")
-	os.WriteFile(file, []byte("bye"), 0666)
+	os.WriteFile(file, []byte("bye"), 0o666)
 
 	changes, err := Changes([]string{baseLayer}, layer)
 	assert.NilError(t, err)
@@ -237,7 +237,7 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 	}
 
 	file = path.Join(layer, "dir1/dir2/dir3/file.txt")
-	os.WriteFile(file, []byte("bye"), 0666)
+	os.WriteFile(file, []byte("bye"), 0o666)
 
 	changes, err = Changes([]string{baseLayer}, layer)
 	assert.NilError(t, err)
@@ -294,13 +294,13 @@ func mutateSampleDir(t *testing.T, root string) {
 	assert.NilError(t, err)
 
 	// Rewrite a file
-	err = os.WriteFile(path.Join(root, "file2"), []byte("fileNN\n"), 0777)
+	err = os.WriteFile(path.Join(root, "file2"), []byte("fileNN\n"), 0o777)
 	assert.NilError(t, err)
 
 	// Replace a file
 	err = os.RemoveAll(path.Join(root, "file3"))
 	assert.NilError(t, err)
-	err = os.WriteFile(path.Join(root, "file3"), []byte("fileMM\n"), 0404)
+	err = os.WriteFile(path.Join(root, "file3"), []byte("fileMM\n"), 0o404)
 	assert.NilError(t, err)
 
 	// Touch file
@@ -310,15 +310,15 @@ func mutateSampleDir(t *testing.T, root string) {
 	// Replace file with dir
 	err = os.RemoveAll(path.Join(root, "file5"))
 	assert.NilError(t, err)
-	err = os.MkdirAll(path.Join(root, "file5"), 0666)
+	err = os.MkdirAll(path.Join(root, "file5"), 0o666)
 	assert.NilError(t, err)
 
 	// Create new file
-	err = os.WriteFile(path.Join(root, "filenew"), []byte("filenew\n"), 0777)
+	err = os.WriteFile(path.Join(root, "filenew"), []byte("filenew\n"), 0o777)
 	assert.NilError(t, err)
 
 	// Create new dir
-	err = os.MkdirAll(path.Join(root, "dirnew"), 0766)
+	err = os.MkdirAll(path.Join(root, "dirnew"), 0o766)
 	assert.NilError(t, err)
 
 	// Create a new symlink
@@ -335,7 +335,7 @@ func mutateSampleDir(t *testing.T, root string) {
 	// Replace dir with file
 	err = os.RemoveAll(path.Join(root, "dir2"))
 	assert.NilError(t, err)
-	err = os.WriteFile(path.Join(root, "dir2"), []byte("dir2\n"), 0777)
+	err = os.WriteFile(path.Join(root, "dir2"), []byte("dir2\n"), 0o777)
 	assert.NilError(t, err)
 
 	// Touch dir
@@ -510,10 +510,10 @@ func TestChangesSize(t *testing.T) {
 	assert.NilError(t, err)
 	defer os.RemoveAll(parentPath)
 	addition := path.Join(parentPath, "addition")
-	err = os.WriteFile(addition, []byte{0x01, 0x01, 0x01}, 0744)
+	err = os.WriteFile(addition, []byte{0x01, 0x01, 0x01}, 0o744)
 	assert.NilError(t, err)
 	modification := path.Join(parentPath, "modification")
-	err = os.WriteFile(modification, []byte{0x01, 0x01, 0x01}, 0744)
+	err = os.WriteFile(modification, []byte{0x01, 0x01, 0x01}, 0o744)
 	assert.NilError(t, err)
 
 	changes := []Change{

@@ -139,9 +139,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 }
 
 func TestParseTCP(t *testing.T) {
-	var (
-		defaultHTTPHost = "tcp://127.0.0.1:8888"
-	)
+	defaultHTTPHost := "tcp://127.0.0.1:8888"
 	invalids := map[string]string{
 		"tcp:a.b.c.d":                 `invalid bind address (tcp:a.b.c.d): parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
 		"tcp:a.b.c.d/path":            `invalid bind address (tcp:a.b.c.d/path): parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,

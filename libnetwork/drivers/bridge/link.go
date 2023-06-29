@@ -52,8 +52,7 @@ func (l *link) Disable() {
 	// that returns typed errors
 }
 
-func linkContainers(action, parentIP, childIP string, ports []types.TransportPort, bridge string,
-	ignoreErrors bool) error {
+func linkContainers(action, parentIP, childIP string, ports []types.TransportPort, bridge string, ignoreErrors bool) error {
 	var nfAction iptables.Action
 
 	switch action {

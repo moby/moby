@@ -998,7 +998,7 @@ func TestCollectBatchClose(t *testing.T) {
 			NextSequenceToken: aws.String(nextSequenceToken),
 		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1100,7 +1100,7 @@ func TestCollectBatchLineSplit(t *testing.T) {
 			NextSequenceToken: aws.String(nextSequenceToken),
 		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1148,7 +1148,7 @@ func TestCollectBatchLineSplitWithBinary(t *testing.T) {
 			NextSequenceToken: aws.String(nextSequenceToken),
 		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1196,7 +1196,7 @@ func TestCollectBatchMaxEvents(t *testing.T) {
 			NextSequenceToken: aws.String(nextSequenceToken),
 		}, nil
 	}
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1251,7 +1251,7 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 		}, nil
 	}
 
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,
@@ -1332,7 +1332,7 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 		}, nil
 	}
 
-	var ticks = make(chan time.Time)
+	ticks := make(chan time.Time)
 	newTicker = func(_ time.Duration) *time.Ticker {
 		return &time.Ticker{
 			C: ticks,

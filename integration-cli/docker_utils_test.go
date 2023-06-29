@@ -186,8 +186,8 @@ func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 func writeFile(dst, content string, c *testing.T) {
 	c.Helper()
 	// Create subdirectories if necessary
-	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0700) == nil)
-	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
+	assert.Assert(c, os.MkdirAll(path.Dir(dst), 0o700) == nil)
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o700)
 	assert.NilError(c, err)
 	defer f.Close()
 	// Write content (truncate if it exists)
@@ -302,7 +302,7 @@ func createTmpFile(c *testing.T, content string) string {
 
 	filename := f.Name()
 
-	err = os.WriteFile(filename, []byte(content), 0644)
+	err = os.WriteFile(filename, []byte(content), 0o644)
 	assert.NilError(c, err)
 
 	return filename
@@ -403,8 +403,10 @@ func getErrorMessage(c *testing.T, body []byte) string {
 	return strings.TrimSpace(resp.Message)
 }
 
-type checkF func(*testing.T) (interface{}, string)
-type reducer func(...interface{}) interface{}
+type (
+	checkF  func(*testing.T) (interface{}, string)
+	reducer func(...interface{}) interface{}
+)
 
 func pollCheck(t *testing.T, f checkF, compare func(x interface{}) assert.BoolOrComparison) poll.Check {
 	return func(poll.LogT) poll.Result {

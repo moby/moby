@@ -73,8 +73,7 @@ func init() {
 	}
 }
 
-type checker struct {
-}
+type checker struct{}
 
 func (c *checker) IsMounted(path string) bool {
 	return false
@@ -846,7 +845,7 @@ func (d *Driver) resolveID(id string) (string, error) {
 
 // setID stores the layerId in disk.
 func (d *Driver) setID(id, altID string) error {
-	return os.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0600)
+	return os.WriteFile(filepath.Join(d.dir(id), "layerId"), []byte(altID), 0o600)
 }
 
 // getLayerChain returns the layer chain information.

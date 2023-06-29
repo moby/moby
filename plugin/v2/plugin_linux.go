@@ -27,7 +27,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	}
 
 	execRoot = filepath.Join(execRoot, p.PluginObj.ID)
-	if err := os.MkdirAll(execRoot, 0700); err != nil {
+	if err := os.MkdirAll(execRoot, 0o700); err != nil {
 		return nil, errors.WithStack(err)
 	}
 

@@ -326,7 +326,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 				Type: "VLAN",
 				VLAN: config.VLAN,
 			})
-
 			if err != nil {
 				return err
 			}
@@ -338,7 +337,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 				Type: "VSID",
 				VSID: config.VSID,
 			})
-
 			if err != nil {
 				return err
 			}
@@ -459,7 +457,6 @@ func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error
 			Type:                            "QOS",
 			MaximumOutgoingBandwidthInBytes: elem.MaxEgressBandwidth,
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +493,6 @@ func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 			Protocol:             elem.Proto.String(),
 			ExternalPortReserved: true,
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -693,7 +689,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 			Policy:     hcsshim.Policy{Type: hcsshim.OutboundNat},
 			Exceptions: n.config.OutboundNatExceptions,
 		})
-
 		if err != nil {
 			return err
 		}

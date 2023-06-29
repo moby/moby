@@ -565,7 +565,7 @@ func TestEnableIPv6(t *testing.T) {
 	}
 	// cleanup
 	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -593,7 +593,7 @@ func TestEnableIPv6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -642,7 +642,7 @@ func TestResolvConfHost(t *testing.T) {
 	}
 	// cleanup
 	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -653,7 +653,7 @@ func TestResolvConfHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -689,7 +689,7 @@ func TestResolvConfHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmode := (os.FileMode)(0644)
+	fmode := (os.FileMode)(0o644)
 	if finfo.Mode() != fmode {
 		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
 	}
@@ -720,7 +720,7 @@ func TestResolvConf(t *testing.T) {
 	}
 	// cleanup
 	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -745,7 +745,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -772,7 +772,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmode := (os.FileMode)(0644)
+	fmode := (os.FileMode)(0o644)
 	if finfo.Mode() != fmode {
 		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
 	}
@@ -792,7 +792,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf2, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf2, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -820,7 +820,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatalf("Expected:\n%s\nGot:\n%s", string(expectedResolvConf1), string(content))
 	}
 
-	if err := os.WriteFile(resolvConfPath, tmpResolvConf3, 0644); err != nil {
+	if err := os.WriteFile(resolvConfPath, tmpResolvConf3, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

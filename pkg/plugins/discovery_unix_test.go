@@ -24,7 +24,7 @@ func TestLocalSocket(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if err := os.MkdirAll(filepath.Dir(c), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(c), 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -77,12 +77,12 @@ func TestScan(t *testing.T) {
 	addr := "unix://var/lib/docker/plugins/echo.sock"
 	name := "echo"
 
-	err = os.MkdirAll(filepath.Dir(path), 0755)
+	err = os.MkdirAll(filepath.Dir(path), 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = os.WriteFile(path, []byte(addr), 0644)
+	err = os.WriteFile(path, []byte(addr), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestScanNotPlugins(t *testing.T) {
 	// `Scan()` uses to find plugins to the returned `tmpdir`
 
 	notPlugin := filepath.Join(tmpdir, "not-a-plugin")
-	if err := os.MkdirAll(notPlugin, 0700); err != nil {
+	if err := os.MkdirAll(notPlugin, 0o700); err != nil {
 		t.Fatal(err)
 	}
 

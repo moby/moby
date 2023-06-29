@@ -45,11 +45,11 @@ func createBase(t testing.TB, driver graphdriver.Driver, name string) {
 	defer driver.Put(name)
 
 	subdir := filepath.Join(dirFS, "a subdir")
-	assert.NilError(t, os.Mkdir(subdir, 0705|os.ModeSticky))
+	assert.NilError(t, os.Mkdir(subdir, 0o705|os.ModeSticky))
 	assert.NilError(t, contdriver.LocalDriver.Lchown(subdir, 1, 2))
 
 	file := filepath.Join(dirFS, "a file")
-	err = os.WriteFile(file, []byte("Some data"), 0222|os.ModeSetuid)
+	err = os.WriteFile(file, []byte("Some data"), 0o222|os.ModeSetuid)
 	assert.NilError(t, err)
 }
 
@@ -59,10 +59,10 @@ func verifyBase(t testing.TB, driver graphdriver.Driver, name string) {
 	defer driver.Put(name)
 
 	subdir := filepath.Join(dirFS, "a subdir")
-	verifyFile(t, subdir, 0705|os.ModeDir|os.ModeSticky, 1, 2)
+	verifyFile(t, subdir, 0o705|os.ModeDir|os.ModeSticky, 1, 2)
 
 	file := filepath.Join(dirFS, "a file")
-	verifyFile(t, file, 0222|os.ModeSetuid, 0, 0)
+	verifyFile(t, file, 0o222|os.ModeSetuid, 0, 0)
 
 	files, err := readDir(dirFS)
 	assert.NilError(t, err)

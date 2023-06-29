@@ -32,7 +32,7 @@ func TestAtomicRemoveAllAlreadyExists(t *testing.T) {
 	}
 	defer os.RemoveAll(dir) // just try to make sure this gets cleaned up
 
-	if err := os.MkdirAll(dir+"-removing", 0755); err != nil {
+	if err := os.MkdirAll(dir+"-removing", 0o755); err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir + "-removing")
@@ -63,7 +63,7 @@ func TestAtomicRemoveAllNotExist(t *testing.T) {
 	// create the removing dir, but not the "real" one
 	foo := filepath.Join(dir, "foo")
 	removing := dir + "-removing"
-	if err := os.MkdirAll(removing, 0755); err != nil {
+	if err := os.MkdirAll(removing, 0o755); err != nil {
 		t.Fatal(err)
 	}
 

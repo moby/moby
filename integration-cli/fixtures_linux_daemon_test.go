@@ -51,7 +51,7 @@ func ensureSyscallTest(c *testing.T) {
 	FROM debian:bullseye-slim
 	COPY . /usr/bin/
 	`)
-	err = os.WriteFile(dockerFile, content, 0600)
+	err = os.WriteFile(dockerFile, content, 0o600)
 	assert.NilError(c, err)
 
 	var buildArgs []string
@@ -106,7 +106,7 @@ func ensureNNPTest(c *testing.T) {
 	COPY . /usr/bin
 	RUN chmod +s /usr/bin/nnp-test
 	`
-	err = os.WriteFile(dockerfile, []byte(content), 0600)
+	err = os.WriteFile(dockerfile, []byte(content), 0o600)
 	assert.NilError(c, err, "could not write Dockerfile for nnp-test image")
 
 	var buildArgs []string

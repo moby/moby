@@ -43,9 +43,7 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 		return nil, err
 	}
 
-	var (
-		beforeFilter, sinceFilter time.Time
-	)
+	var beforeFilter, sinceFilter time.Time
 	err = opts.Filters.WalkValues("before", func(value string) error {
 		img, err := i.GetImage(ctx, value, imagetypes.GetImageOpts{})
 		if err != nil {

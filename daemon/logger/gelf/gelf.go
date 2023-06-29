@@ -71,7 +71,6 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 		return "_" + key
 	})
-
 	if err != nil {
 		return nil, err
 	}

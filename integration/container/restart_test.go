@@ -48,7 +48,8 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 		},
 		{
 			desc: "container with restart=always and with healthcheck",
-			config: &container.Config{Image: "busybox", Cmd: []string{"top"},
+			config: &container.Config{
+				Image: "busybox", Cmd: []string{"top"},
 				Healthcheck: &container.HealthConfig{
 					Test:     []string{"CMD-SHELL", "sleep 1"},
 					Interval: time.Second,

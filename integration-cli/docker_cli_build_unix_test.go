@@ -107,7 +107,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {
 			Dir:     tmpDir,
 		}).Assert(c, icmd.Success)
 
-		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)

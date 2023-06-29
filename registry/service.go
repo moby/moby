@@ -54,7 +54,7 @@ func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), err erro
 // It can be used to verify the validity of a client's credentials.
 func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (status, token string, err error) {
 	// TODO Use ctx when searching for repositories
-	var registryHostName = IndexHostname
+	registryHostName := IndexHostname
 
 	if authConfig.ServerAddress != "" {
 		serverAddress := authConfig.ServerAddress

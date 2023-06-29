@@ -196,7 +196,7 @@ func TestDownloadRemote(t *testing.T) {
 }
 
 func TestGetWithStatusError(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		err          error
 		statusCode   int
 		expectedErr  string

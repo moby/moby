@@ -95,7 +95,6 @@ func (d *driver) convertToOverlayNetwork(v *hcsshim.HNSNetwork) *network {
 		}
 
 		_, subnetIP, err := net.ParseCIDR(hnsSubnet.AddressPrefix)
-
 		if err != nil {
 			log.G(context.TODO()).Errorf("Error parsing subnet address %s ", hnsSubnet.AddressPrefix)
 			continue

@@ -19,7 +19,6 @@ func TestGenerate(t *testing.T) {
 	}
 
 	result, err := GenerateFromModel(gen, Model{})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +51,6 @@ func TestGeneratePtr(t *testing.T) {
 	}
 
 	result, err := GenerateFromModel(gen, &Model{})
-
 	if err != nil {
 		t.Fatal(err)
 	}

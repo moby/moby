@@ -514,7 +514,8 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 
 func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 	opts := map[string]string{
-		ipamapi.AllocSerialPrefix: "true"}
+		ipamapi.AllocSerialPrefix: "true",
+	}
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
@@ -641,7 +642,8 @@ func TestGetAddress(t *testing.T) {
 		/*"10.0.0.0/8", "10.0.0.0/9", "10.0.0.0/10",*/ "10.0.0.0/11", "10.0.0.0/12", "10.0.0.0/13", "10.0.0.0/14",
 		"10.0.0.0/15", "10.0.0.0/16", "10.0.0.0/17", "10.0.0.0/18", "10.0.0.0/19", "10.0.0.0/20", "10.0.0.0/21",
 		"10.0.0.0/22", "10.0.0.0/23", "10.0.0.0/24", "10.0.0.0/25", "10.0.0.0/26", "10.0.0.0/27", "10.0.0.0/28",
-		"10.0.0.0/29", "10.0.0.0/30", "10.0.0.0/31"}
+		"10.0.0.0/29", "10.0.0.0/30", "10.0.0.0/31",
+	}
 
 	for _, subnet := range input {
 		assertGetAddress(t, subnet)
@@ -881,9 +883,7 @@ func TestUnusualSubnets(t *testing.T) {
 }
 
 func TestRelease(t *testing.T) {
-	var (
-		subnet = "192.168.0.0/23"
-	)
+	subnet := "192.168.0.0/23"
 
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)

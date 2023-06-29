@@ -25,7 +25,7 @@ func TestInspect(t *testing.T) {
 	client := d.NewClientT(t)
 	defer client.Close()
 
-	var now = time.Now()
+	now := time.Now()
 	var instances uint64 = 2
 	serviceSpec := fullSwarmServiceSpec("test-service-inspect"+t.Name(), instances)
 

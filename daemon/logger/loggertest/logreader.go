@@ -521,6 +521,7 @@ func copyLogMessage(src *logger.Message) *logger.Message {
 	}
 	return dst
 }
+
 func readMessage(t *testing.T, lw *logger.LogWatcher) *logger.Message {
 	t.Helper()
 	timeout := time.NewTimer(5 * time.Second)

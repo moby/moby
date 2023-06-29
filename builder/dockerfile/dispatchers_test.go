@@ -430,7 +430,8 @@ func TestPrependEnvOnCmd(t *testing.T) {
 	cmd := []string{"foo", "bar"}
 	cmdWithEnv := prependEnvOnCmd(buildArgs, args, cmd)
 	expected := strslice.StrSlice([]string{
-		"|3", "NO_PROXY=YA", "args=not", "sorted=nope", "foo", "bar"})
+		"|3", "NO_PROXY=YA", "args=not", "sorted=nope", "foo", "bar",
+	})
 	assert.Check(t, is.DeepEqual(expected, cmdWithEnv))
 }
 

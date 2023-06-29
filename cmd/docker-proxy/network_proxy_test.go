@@ -14,8 +14,10 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-var testBuf = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")
-var testBufSize = len(testBuf)
+var (
+	testBuf     = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")
+	testBufSize = len(testBuf)
+)
 
 type EchoServer interface {
 	Run()

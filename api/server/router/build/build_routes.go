@@ -107,7 +107,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if ulimitsJSON := r.FormValue("ulimits"); ulimitsJSON != "" {
-		var buildUlimits = []*units.Ulimit{}
+		buildUlimits := []*units.Ulimit{}
 		if err := json.Unmarshal([]byte(ulimitsJSON), &buildUlimits); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading ulimit settings")}
 		}
@@ -127,7 +127,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	// so that it can print a warning about "foo" being unused if there is
 	// no "ARG foo" in the Dockerfile.
 	if buildArgsJSON := r.FormValue("buildargs"); buildArgsJSON != "" {
-		var buildArgs = map[string]*string{}
+		buildArgs := map[string]*string{}
 		if err := json.Unmarshal([]byte(buildArgsJSON), &buildArgs); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading build args")}
 		}
@@ -135,7 +135,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if labelsJSON := r.FormValue("labels"); labelsJSON != "" {
-		var labels = map[string]string{}
+		labels := map[string]string{}
 		if err := json.Unmarshal([]byte(labelsJSON), &labels); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading labels")}
 		}
@@ -143,7 +143,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 
 	if cacheFromJSON := r.FormValue("cachefrom"); cacheFromJSON != "" {
-		var cacheFrom = []string{}
+		cacheFrom := []string{}
 		if err := json.Unmarshal([]byte(cacheFromJSON), &cacheFrom); err != nil {
 			return nil, invalidParam{errors.Wrap(err, "error reading cache-from")}
 		}

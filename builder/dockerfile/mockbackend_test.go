@@ -136,8 +136,7 @@ func (l *mockLayer) DiffID() layer.DiffID {
 	return "abcdef"
 }
 
-type mockRWLayer struct {
-}
+type mockRWLayer struct{}
 
 func (l *mockRWLayer) Release() error {
 	return nil

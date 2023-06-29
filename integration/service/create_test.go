@@ -31,7 +31,7 @@ func TestServiceCreateInit(t *testing.T) {
 
 func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 	return func(t *testing.T) {
-		var ops = []daemon.Option{}
+		ops := []daemon.Option{}
 
 		if daemonEnabled {
 			ops = append(ops, daemon.WithInit())
@@ -272,7 +272,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 				Name: "/etc/secret",
 				UID:  "0",
 				GID:  "0",
-				Mode: 0777,
+				Mode: 0o777,
 			},
 			SecretID:   secretResp.ID,
 			SecretName: secretName,
@@ -329,7 +329,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 				Name: "/etc/config",
 				UID:  "0",
 				GID:  "0",
-				Mode: 0777,
+				Mode: 0o777,
 			},
 			ConfigID:   configResp.ID,
 			ConfigName: configName,

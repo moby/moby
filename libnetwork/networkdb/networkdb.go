@@ -294,7 +294,7 @@ func (nDB *NetworkDB) Close() {
 		log.G(context.TODO()).Errorf("%v(%v) Could not close DB: %v", nDB.config.Hostname, nDB.config.NodeID, err)
 	}
 
-	//Avoid (*Broadcaster).run goroutine leak
+	// Avoid (*Broadcaster).run goroutine leak
 	nDB.broadcaster.Close()
 }
 
@@ -622,7 +622,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	nodeNetworks[nid].entriesNumber.Store(entries)
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			//TODO fcrisciani this can be optimized maybe avoiding the lock?
+			// TODO fcrisciani this can be optimized maybe avoiding the lock?
 			// this call is done each GetBroadcasts call to evaluate the number of
 			// replicas for the message
 			nDB.RLock()

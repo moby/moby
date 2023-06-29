@@ -1172,7 +1172,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		fmt.Fprintln(w, `{"Implements": ["InvalidDriver"]}`)
 	})
 
-	if err := os.MkdirAll(specPath, 0755); err != nil {
+	if err := os.MkdirAll(specPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
@@ -1181,7 +1181,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		}
 	}()
 
-	if err := os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1227,7 +1227,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		fmt.Fprintf(w, "null")
 	})
 
-	if err := os.MkdirAll(specPath, 0755); err != nil {
+	if err := os.MkdirAll(specPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
@@ -1236,7 +1236,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		}
 	}()
 
-	if err := os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

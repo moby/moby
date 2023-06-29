@@ -21,10 +21,8 @@ const (
 	bestEffortXattrsOptValue = "i_want_broken_containers"
 )
 
-var (
-	// CopyDir defines the copy method to use.
-	CopyDir = dirCopy
-)
+// CopyDir defines the copy method to use.
+var CopyDir = dirCopy
 
 func init() {
 	graphdriver.Register("vfs", Init)
@@ -46,7 +44,7 @@ func Init(home string, options []string, idMap idtools.IdentityMapping) (graphdr
 		UID: idtools.CurrentIdentity().UID,
 		GID: d.idMapping.RootPair().GID,
 	}
-	if err := idtools.MkdirAllAndChown(home, 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(home, 0o710, dirID); err != nil {
 		return nil, err
 	}
 
@@ -170,10 +168,10 @@ func (d *Driver) create(id, parent string, size uint64) error {
 		UID: idtools.CurrentIdentity().UID,
 		GID: rootIDs.GID,
 	}
-	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0710, dirID); err != nil {
+	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0o710, dirID); err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(dir, 0755, rootIDs); err != nil {
+	if err := idtools.MkdirAndChown(dir, 0o755, rootIDs); err != nil {
 		return err
 	}
 

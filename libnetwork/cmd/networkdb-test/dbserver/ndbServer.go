@@ -15,9 +15,11 @@ import (
 	"github.com/docker/docker/libnetwork/networkdb"
 )
 
-var nDB *networkdb.NetworkDB
-var server *diagnostic.Server
-var ipAddr string
+var (
+	nDB    *networkdb.NetworkDB
+	server *diagnostic.Server
+	ipAddr string
+)
 
 var testerPaths2Func = map[string]diagnostic.HTTPHandlerFunc{
 	"/myip": ipaddress,

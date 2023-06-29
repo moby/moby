@@ -66,7 +66,8 @@ func NewController(backend Backend, t *api.Task) (*Controller, error) {
 			"controller": "plugin",
 			"task":       t.ID,
 			"plugin":     spec.Name,
-		})}, nil
+		}),
+	}, nil
 }
 
 func readSpec(t *api.Task) (runtime.PluginSpec, error) {

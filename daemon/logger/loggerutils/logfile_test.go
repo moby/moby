@@ -128,7 +128,7 @@ func TestCheckCapacityAndRotate(t *testing.T) {
 		3,    // maxFiles
 		true, // compress
 		createDecoder,
-		0600, // perms
+		0o600, // perms
 		getTailReader,
 	)
 	assert.NilError(t, err)

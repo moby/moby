@@ -132,7 +132,7 @@ func TestGetAll(t *testing.T) {
 	"Addr": "https://example.com/docker/plugin"
 }`
 
-	if err := os.WriteFile(p, []byte(spec), 0644); err != nil {
+	if err := os.WriteFile(p, []byte(spec), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

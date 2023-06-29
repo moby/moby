@@ -10,6 +10,7 @@ package sdjournal // import "github.com/docker/docker/daemon/logger/journald/int
 // 	return sd_journal_add_match(j, _GoStringPtr(s), _GoStringLen(s));
 // }
 import "C"
+
 import (
 	"fmt"
 	"runtime"

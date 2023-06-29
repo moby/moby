@@ -344,11 +344,11 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		respond(w, &graphDriverResponse{Size: size})
 	})
 
-	err = os.MkdirAll("/etc/docker/plugins", 0755)
+	err = os.MkdirAll("/etc/docker/plugins", 0o755)
 	assert.NilError(t, err)
 
 	specFile := "/etc/docker/plugins/" + name + "." + ext
-	err = os.WriteFile(specFile, b, 0644)
+	err = os.WriteFile(specFile, b, 0o644)
 	assert.NilError(t, err)
 }
 

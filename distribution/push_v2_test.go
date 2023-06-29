@@ -466,24 +466,28 @@ func TestLayerAlreadyExists(t *testing.T) {
 	}
 }
 
-type mockReferenceStore struct {
-}
+type mockReferenceStore struct{}
 
 func (s *mockReferenceStore) References(id digest.Digest) []reference.Named {
 	return []reference.Named{}
 }
+
 func (s *mockReferenceStore) ReferencesByName(ref reference.Named) []refstore.Association {
 	return []refstore.Association{}
 }
+
 func (s *mockReferenceStore) AddTag(ref reference.Named, id digest.Digest, force bool) error {
 	return nil
 }
+
 func (s *mockReferenceStore) AddDigest(ref reference.Canonical, id digest.Digest, force bool) error {
 	return nil
 }
+
 func (s *mockReferenceStore) Delete(ref reference.Named) (bool, error) {
 	return true, nil
 }
+
 func (s *mockReferenceStore) Get(ref reference.Named) (digest.Digest, error) {
 	return "", nil
 }
@@ -641,14 +645,17 @@ func (m *mockRepo) Named() reference.Named {
 	m.t.Fatalf("Named() not implemented")
 	return nil
 }
+
 func (m *mockRepo) Manifests(ctc context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error) {
 	m.t.Fatalf("Manifests() not implemented")
 	return nil, nil
 }
+
 func (m *mockRepo) Tags(ctc context.Context) distribution.TagService {
 	m.t.Fatalf("Tags() not implemented")
 	return nil
 }
+
 func (m *mockRepo) Blobs(ctx context.Context) distribution.BlobStore {
 	return &mockBlobStore{
 		repo: m,
@@ -671,6 +678,7 @@ func (m *mockBlobStore) Stat(ctx context.Context, dgst digest.Digest) (distribut
 	}
 	return distribution.Descriptor{}, distribution.ErrBlobUnknown
 }
+
 func (m *mockBlobStore) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
 	m.repo.t.Fatal("Get() not implemented")
 	return nil, nil
@@ -690,14 +698,17 @@ func (m *mockBlobStore) Create(ctx context.Context, options ...distribution.Blob
 	m.repo.t.Fatal("Create() not implemented")
 	return nil, nil
 }
+
 func (m *mockBlobStore) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
 	m.repo.t.Fatal("Resume() not implemented")
 	return nil, nil
 }
+
 func (m *mockBlobStore) Delete(ctx context.Context, dgst digest.Digest) error {
 	m.repo.t.Fatal("Delete() not implemented")
 	return nil
 }
+
 func (m *mockBlobStore) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
 	m.repo.t.Fatalf("ServeBlob() not implemented")
 	return nil
@@ -713,18 +724,22 @@ var _ metadata.V2MetadataService = &mockV2MetadataService{}
 func (*mockV2MetadataService) GetMetadata(diffID layer.DiffID) ([]metadata.V2Metadata, error) {
 	return nil, nil
 }
+
 func (*mockV2MetadataService) GetDiffID(dgst digest.Digest) (layer.DiffID, error) {
 	return "", nil
 }
+
 func (m *mockV2MetadataService) Add(diffID layer.DiffID, metadata metadata.V2Metadata) error {
 	m.added = append(m.added, metadata)
 	return nil
 }
+
 func (m *mockV2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, meta metadata.V2Metadata) error {
 	meta.HMAC = metadata.ComputeV2MetadataHMAC(hmacKey, &meta)
 	m.Add(diffID, meta)
 	return nil
 }
+
 func (m *mockV2MetadataService) Remove(metadata metadata.V2Metadata) error {
 	m.removed = append(m.removed, metadata)
 	return nil

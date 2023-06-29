@@ -140,7 +140,7 @@ type attacher struct {
 // New creates a new Cluster instance using provided config.
 func New(config Config) (*Cluster, error) {
 	root := filepath.Join(config.Root, swarmDirName)
-	if err := os.MkdirAll(root, 0700); err != nil {
+	if err := os.MkdirAll(root, 0o700); err != nil {
 		return nil, err
 	}
 	if config.RuntimeRoot == "" {
@@ -154,7 +154,7 @@ func New(config Config) (*Cluster, error) {
 		config.RaftElectionTick = 10 * config.RaftHeartbeatTick
 	}
 
-	if err := os.MkdirAll(config.RuntimeRoot, 0700); err != nil {
+	if err := os.MkdirAll(config.RuntimeRoot, 0o700); err != nil {
 		return nil, err
 	}
 	c := &Cluster{

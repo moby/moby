@@ -31,8 +31,10 @@ import (
 	"gotest.tools/v3/icmd"
 )
 
-const dummyNetworkDriver = "dummy-network-driver"
-const dummyIPAMDriver = "dummy-ipam-driver"
+const (
+	dummyNetworkDriver = "dummy-network-driver"
+	dummyIPAMDriver    = "dummy-ipam-driver"
+)
 
 var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
@@ -90,7 +92,8 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 
 		veth := &netlink.Veth{
-			LinkAttrs: netlink.LinkAttrs{Name: "randomIfName", TxQLen: 0}, PeerName: "cnt0"}
+			LinkAttrs: netlink.LinkAttrs{Name: "randomIfName", TxQLen: 0}, PeerName: "cnt0",
+		}
 		if err := netlink.LinkAdd(veth); err != nil {
 			fmt.Fprintf(w, `{"Error":"failed to add veth pair: `+err.Error()+`"}`)
 		} else {
@@ -194,15 +197,15 @@ func setupRemoteNetworkDrivers(c *testing.T, mux *http.ServeMux, url, netDrv, ip
 		}
 	})
 
-	err := os.MkdirAll("/etc/docker/plugins", 0755)
+	err := os.MkdirAll("/etc/docker/plugins", 0o755)
 	assert.NilError(c, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
-	err = os.WriteFile(fileName, []byte(url), 0644)
+	err = os.WriteFile(fileName, []byte(url), 0o644)
 	assert.NilError(c, err)
 
 	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
-	err = os.WriteFile(ipamFileName, []byte(url), 0644)
+	err = os.WriteFile(ipamFileName, []byte(url), 0o644)
 	assert.NilError(c, err)
 }
 

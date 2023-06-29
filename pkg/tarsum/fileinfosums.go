@@ -27,9 +27,11 @@ type fileInfoSum struct {
 func (fis fileInfoSum) Name() string {
 	return fis.name
 }
+
 func (fis fileInfoSum) Sum() string {
 	return fis.sum
 }
+
 func (fis fileInfoSum) Pos() int64 {
 	return fis.pos
 }

@@ -56,7 +56,8 @@ func TestReloaded(t *testing.T) {
 		"-s", ip1.String(),
 		"-d", ip2.String(),
 		"--dport", strconv.Itoa(port),
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	if !iptable.Exists(fwdChain.Table, fwdChain.Name, rule1...) {
 		t.Fatal("rule1 does not exist")
@@ -78,7 +79,8 @@ func TestPassthrough(t *testing.T) {
 		"-i", "lo",
 		"-p", "udp",
 		"--dport", "123",
-		"-j", "ACCEPT"}
+		"-j", "ACCEPT",
+	}
 
 	iptable := GetIptable(IPv4)
 	if firewalldRunning {

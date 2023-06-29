@@ -24,7 +24,6 @@ func (c *Controller) createGWNetwork() (Network, error) {
 		NetworkOptionDriverOpts(netOption),
 		NetworkOptionEnableIPv6(false),
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("error creating external connectivity network: %v", err)
 	}

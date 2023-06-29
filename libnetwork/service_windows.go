@@ -25,7 +25,7 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 
 	lb.Lock()
 	defer lb.Unlock()
-	//find the load balancer IP for the network.
+	// find the load balancer IP for the network.
 	var sourceVIP string
 	for _, e := range n.Endpoints() {
 		epInfo := e.Info()
@@ -49,7 +49,7 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 		if be.disabled {
 			continue
 		}
-		//Call HNS to get back ID (GUID) corresponding to the endpoint.
+		// Call HNS to get back ID (GUID) corresponding to the endpoint.
 		hnsEndpoint, err := hcsshim.GetHNSEndpointByName(eid)
 		if err != nil {
 			log.G(context.TODO()).Errorf("Failed to find HNS ID for endpoint %v: %v", eid, err)

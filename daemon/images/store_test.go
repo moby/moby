@@ -29,7 +29,7 @@ func setupTestStores(t *testing.T) (context.Context, content.Store, *imageStoreW
 	is, err := image.NewImageStore(backend, nil)
 	assert.NilError(t, err)
 
-	db, err := bbolt.Open(filepath.Join(dir, "metadata.db"), 0600, nil)
+	db, err := bbolt.Open(filepath.Join(dir, "metadata.db"), 0o600, nil)
 	assert.NilError(t, err)
 
 	cs, err := local.NewStore(filepath.Join(dir, "content"))

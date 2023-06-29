@@ -270,7 +270,6 @@ func (n *network) convertToOverlayEndpoint(v *hcsshim.HNSEndpoint) *endpoint {
 	}
 
 	mac, err := net.ParseMAC(v.MacAddress)
-
 	if err != nil {
 		return nil
 	}
@@ -285,7 +284,6 @@ func (n *network) convertToOverlayEndpoint(v *hcsshim.HNSEndpoint) *endpoint {
 }
 
 func (d *driver) createHnsNetwork(n *network) error {
-
 	subnets := []hcsshim.Subnet{}
 
 	for _, s := range n.subnets {
@@ -301,7 +299,6 @@ func (d *driver) createHnsNetwork(n *network) error {
 			Type: "VSID",
 			VSID: uint(s.vni),
 		})
-
 		if err != nil {
 			return err
 		}

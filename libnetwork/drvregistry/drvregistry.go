@@ -15,8 +15,10 @@ type DrvRegistry struct {
 	pluginGetter plugingetter.PluginGetter
 }
 
-var _ driverapi.DriverCallback = (*DrvRegistry)(nil)
-var _ ipamapi.Callback = (*DrvRegistry)(nil)
+var (
+	_ driverapi.DriverCallback = (*DrvRegistry)(nil)
+	_ ipamapi.Callback         = (*DrvRegistry)(nil)
+)
 
 // InitFunc defines the driver initialization function signature.
 type InitFunc func(driverapi.DriverCallback, map[string]interface{}) error

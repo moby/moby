@@ -45,7 +45,6 @@ type Backend interface {
 	CommitBuildStep(context.Context, backend.CommitConfig) (image.ID, error)
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
-
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (Image, error)
 
 	ImageCacheBuilder

@@ -55,7 +55,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 
 	// Create a mount to simulate a plugin that has created it's own mounts
 	p2Mount := filepath.Join(p2.Rootfs, "testmount")
-	if err := os.MkdirAll(p2Mount, 0755); err != nil {
+	if err := os.MkdirAll(p2Mount, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := mount.Mount("tmpfs", p2Mount, "tmpfs", ""); err != nil {
@@ -73,7 +73,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
 	id := stringid.GenerateRandomID()
 	rootfs := filepath.Join(root, id)
-	if err := os.MkdirAll(rootfs, 0755); err != nil {
+	if err := os.MkdirAll(rootfs, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -151,6 +151,7 @@ func (e *executorWithRunning) Create(id string, spec specs.Spec, stdout, stderr 
 func (e *executorWithRunning) IsRunning(id string) (bool, error) {
 	return true, nil
 }
+
 func (e *executorWithRunning) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
 	return true, nil
 }
@@ -211,7 +212,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 
 			root := filepath.Join(root, desc)
 			config.Root = filepath.Join(root, "manager")
-			if err := os.MkdirAll(filepath.Join(config.Root, p.GetID()), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Join(config.Root, p.GetID()), 0o755); err != nil {
 				t.Fatal(err)
 			}
 
@@ -244,7 +245,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 }
 
 func listenTestPlugin(sockAddr string, exit chan struct{}) (net.Listener, error) {
-	if err := os.MkdirAll(filepath.Dir(sockAddr), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(sockAddr), 0o755); err != nil {
 		return nil, err
 	}
 	l, err := net.Listen("unix", sockAddr)

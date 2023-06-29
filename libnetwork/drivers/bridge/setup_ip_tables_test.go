@@ -82,7 +82,8 @@ func TestSetupIPChains(t *testing.T) {
 func getBasicTestConfig() *networkConfiguration {
 	config := &networkConfiguration{
 		BridgeName:  DefaultBridgeName,
-		AddressIPv4: &net.IPNet{IP: net.ParseIP(iptablesTestBridgeIP), Mask: net.CIDRMask(16, 32)}}
+		AddressIPv4: &net.IPNet{IP: net.ParseIP(iptablesTestBridgeIP), Mask: net.CIDRMask(16, 32)},
+	}
 	return config
 }
 
@@ -128,8 +129,10 @@ func assertChainConfig(d *driver, t *testing.T) {
 
 // Assert function which pushes chains based on bridge config parameters.
 func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *driver, t *testing.T) {
-	nw := bridgeNetwork{portMapper: portmapper.New(""),
-		config: config}
+	nw := bridgeNetwork{
+		portMapper: portmapper.New(""),
+		config:     config,
+	}
 	nw.driver = d
 
 	// Attempt programming of ip tables.

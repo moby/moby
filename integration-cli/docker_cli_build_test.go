@@ -933,9 +933,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinks(c *testing.T) {
 		ADD foo.txt /symlink/
 		`
 	targetFile := "foo.txt"
-	var (
-		name = "test-link-absolute"
-	)
+	name := "test-link-absolute"
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
 	defer ctx.Close()
 
@@ -974,7 +972,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinks(c *testing.T) {
 		Name:     "symlink",
 		Typeflag: tar.TypeSymlink,
 		Linkname: symlinkTarget,
-		Mode:     0755,
+		Mode:     0o755,
 		Uid:      0,
 		Gid:      0,
 	}
@@ -1061,7 +1059,7 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 		if err := os.Chown(pathToFileWithoutReadAccess, 0, 0); err != nil {
 			c.Fatalf("failed to chown file to root: %s", err)
 		}
-		if err := os.Chmod(pathToFileWithoutReadAccess, 0700); err != nil {
+		if err := os.Chmod(pathToFileWithoutReadAccess, 0o700); err != nil {
 			c.Fatalf("failed to chmod file to 700: %s", err)
 		}
 		result := icmd.RunCmd(icmd.Cmd{
@@ -1095,10 +1093,10 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 		if err := os.Chown(pathToDirectoryWithoutReadAccess, 0, 0); err != nil {
 			c.Fatalf("failed to chown directory to root: %s", err)
 		}
-		if err := os.Chmod(pathToDirectoryWithoutReadAccess, 0444); err != nil {
+		if err := os.Chmod(pathToDirectoryWithoutReadAccess, 0o444); err != nil {
 			c.Fatalf("failed to chmod directory to 444: %s", err)
 		}
-		if err := os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700); err != nil {
+		if err := os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0o700); err != nil {
 			c.Fatalf("failed to chmod file to 700: %s", err)
 		}
 
@@ -1149,17 +1147,19 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 		if err := os.Chown(pathToDirectoryWithoutReadAccess, 0, 0); err != nil {
 			c.Fatalf("failed to chown directory to root: %s", err)
 		}
-		if err := os.Chmod(pathToDirectoryWithoutReadAccess, 0444); err != nil {
+		if err := os.Chmod(pathToDirectoryWithoutReadAccess, 0o444); err != nil {
 			c.Fatalf("failed to chmod directory to 444: %s", err)
 		}
-		if err := os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700); err != nil {
+		if err := os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0o700); err != nil {
 			c.Fatalf("failed to chmod file to 700: %s", err)
 		}
 
 		result := icmd.RunCmd(icmd.Cmd{
 			Dir: ctx.Dir,
-			Command: []string{"su", "unprivilegeduser", "-c",
-				fmt.Sprintf("%s build -t %s .", dockerBinary, name)},
+			Command: []string{
+				"su", "unprivilegeduser", "-c",
+				fmt.Sprintf("%s build -t %s .", dockerBinary, name),
+			},
 		})
 		result.Assert(c, icmd.Expected{})
 	}
@@ -2061,7 +2061,7 @@ func (s *DockerCLIBuildSuite) TestBuildDockerfileStdin(c *testing.T) {
 	name := "stdindockerfile"
 	tmpDir, err := os.MkdirTemp("", "fake-context")
 	assert.NilError(c, err)
-	err = os.WriteFile(filepath.Join(tmpDir, "foo"), []byte("bar"), 0600)
+	err = os.WriteFile(filepath.Join(tmpDir, "foo"), []byte("bar"), 0o600)
 	assert.NilError(c, err)
 
 	icmd.RunCmd(icmd.Cmd{
@@ -2106,7 +2106,7 @@ func (s *DockerCLIBuildSuite) testBuildDockerfileStdinNoExtraFiles(c *testing.T,
 	defer os.RemoveAll(tmpDir)
 
 	writeFile := func(filename, content string) {
-		err = os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0600)
+		err = os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0o600)
 		assert.NilError(c, err)
 	}
 
@@ -2856,7 +2856,7 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 			c.Fatalf("failed to close tar archive: %v", err)
 		}
 
-		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -2905,7 +2905,7 @@ ADD test.tar /`
 			c.Fatalf("failed to truncate tar archive: %v", err)
 		}
 
-		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -2968,7 +2968,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddTarXz(c *testing.T) {
 			Command: []string{"xz", "-k", "test.tar"},
 			Dir:     tmpDir,
 		}).Assert(c, icmd.Success)
-		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -3020,7 +3020,7 @@ func (s *DockerCLIBuildSuite) TestBuildAddTarXzGz(c *testing.T) {
 			Command: []string{"gzip", "test.tar.xz"},
 			Dir:     tmpDir,
 		})
-		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
 		return fakecontext.New(c, tmpDir)
@@ -3587,18 +3587,18 @@ func (s *DockerCLIBuildSuite) TestBuildSymlinkBreakout(c *testing.T) {
 
 	defer os.RemoveAll(tmpdir)
 	ctx := filepath.Join(tmpdir, "context")
-	if err := os.MkdirAll(ctx, 0755); err != nil {
+	if err := os.MkdirAll(ctx, 0o755); err != nil {
 		c.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte(`
 	from busybox
 	add symlink.tar /
 	add inject /symlink/
-	`), 0644); err != nil {
+	`), 0o644); err != nil {
 		c.Fatal(err)
 	}
 	inject := filepath.Join(ctx, "inject")
-	if err := os.WriteFile(inject, nil, 0644); err != nil {
+	if err := os.WriteFile(inject, nil, 0o644); err != nil {
 		c.Fatal(err)
 	}
 	f, err := os.Create(filepath.Join(ctx, "symlink.tar"))
@@ -4747,7 +4747,7 @@ func (s *DockerCLIBuildSuite) TestBuildCacheBrokenSymlink(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	// add new file to context, should invalidate cache
-	err = os.WriteFile(filepath.Join(ctx.Dir, "newfile"), []byte("foo"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "newfile"), []byte("foo"), 0o644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -4776,14 +4776,13 @@ func (s *DockerCLIBuildSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 	assert.Assert(c, cmp.Regexp("^bar$", out))
 
 	// change target file should invalidate cache
-	err = os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0o644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	assert.Assert(c, !strings.Contains(result.Combined(), "Using cache"))
 	out = cli.DockerCmd(c, "run", "--rm", name, "cat", "target").Combined()
 	assert.Assert(c, cmp.Regexp("^baz$", out))
-
 }
 
 func (s *DockerCLIBuildSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
@@ -4807,7 +4806,7 @@ func (s *DockerCLIBuildSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 	assert.Assert(c, cmp.Regexp("^barbaz$", out))
 
 	// change target file should invalidate cache
-	err = os.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0o644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -4854,7 +4853,7 @@ func (s *DockerCLIBuildSuite) TestBuildCacheRootSource(c *testing.T) {
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 
 	// change file, should invalidate cache
-	err := os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0o644)
 	assert.NilError(c, err)
 
 	result := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -5004,7 +5003,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *testing.T
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
 	configPath := filepath.Join(tmp, "config.json")
-	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	err = os.WriteFile(configPath, []byte(externalAuthConfig), 0o644)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
@@ -5464,7 +5463,7 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFrom(c *testing.T) {
 		ENV FOO=bar
 		ADD baz /
 		RUN touch newfile`
-	err = os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(dockerfile), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(dockerfile), 0o644)
 	assert.NilError(c, err)
 
 	result = cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
@@ -5621,14 +5620,14 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 7)
 	assert.Equal(c, getIDByName(c, "build1"), getIDByName(c, "build2"))
 
-	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0o644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should not affect last block
 	result = cli.BuildCmd(c, "build3", build.WithExternalBuildContext(ctx))
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 5)
 
-	err = os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("pqr"), 0644)
+	err = os.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("pqr"), 0o644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should affect both first and last block
@@ -6145,7 +6144,7 @@ func (s *DockerCLIBuildSuite) TestBuildIidFileCleanupOnFail(c *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	tmpIidFile := filepath.Join(tmpDir, "iid")
 
-	err = os.WriteFile(tmpIidFile, []byte("Dummy"), 0666)
+	err = os.WriteFile(tmpIidFile, []byte("Dummy"), 0o666)
 	assert.NilError(c, err)
 
 	cli.Docker(cli.Args("build", "-t", "testbuildiidfilecleanuponfail"),

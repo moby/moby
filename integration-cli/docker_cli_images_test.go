@@ -367,7 +367,7 @@ func (s *DockerCLIImagesSuite) TestImagesFormatDefaultFormat(c *testing.T) {
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
 
-	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
 	assert.NilError(c, err)
 
 	out, _ = dockerCmd(c, "--config", d, "images", "-q", "myimage")

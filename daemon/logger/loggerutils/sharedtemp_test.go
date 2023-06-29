@@ -212,7 +212,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 
 func createFile(t *testing.T, path string, content string) {
 	t.Helper()
-	f, err := openFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
+	f, err := openFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644)
 	assert.NilError(t, err)
 	_, err = io.WriteString(f, content)
 	assert.NilError(t, err)

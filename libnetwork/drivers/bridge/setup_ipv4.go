@@ -77,7 +77,7 @@ func setupLoopbackAddressesRouting(config *networkConfiguration, i *bridgeInterf
 	}
 	// Enable loopback addresses routing only if it isn't already enabled
 	if ipv4LoRoutingData[0] != '1' {
-		if err := os.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
+		if err := os.WriteFile(sysPath, []byte{'1', '\n'}, 0o644); err != nil {
 			return fmt.Errorf("Unable to enable local routing for hairpin mode: %v", err)
 		}
 	}

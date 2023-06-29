@@ -649,39 +649,51 @@ func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, nI
 	}
 	return nil
 }
+
 func (b *badDriver) DeleteNetwork(nid string) error {
 	return nil
 }
+
 func (b *badDriver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
 	return fmt.Errorf("I will not create any endpoint")
 }
+
 func (b *badDriver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
+
 func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	return nil, nil
 }
+
 func (b *badDriver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	return fmt.Errorf("I will not allow any join")
 }
+
 func (b *badDriver) Leave(nid, eid string) error {
 	return nil
 }
+
 func (b *badDriver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
+
 func (b *badDriver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
+
 func (b *badDriver) Type() string {
 	return badDriverName
 }
+
 func (b *badDriver) IsBuiltIn() bool {
 	return false
 }
+
 func (b *badDriver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
 	return nil
 }
+
 func (b *badDriver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }

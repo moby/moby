@@ -46,7 +46,7 @@ func getDefaultDaemonConfigFile() (string, error) {
 // setDefaultUmask sets the umask to 0022 to avoid problems
 // caused by custom umask
 func setDefaultUmask() error {
-	desiredUmask := 0022
+	desiredUmask := 0o022
 	unix.Umask(desiredUmask)
 	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
 		return errors.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)

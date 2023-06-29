@@ -406,7 +406,7 @@ func (s *DockerCLIRunSuite) TestRunCreateVolumesInSymlinkDir(c *testing.T) {
 		c.Skip("Requires TEMP to point to C: drive")
 	}
 
-	f, err := os.OpenFile(filepath.Join(dir, "test"), os.O_CREATE, 0700)
+	f, err := os.OpenFile(filepath.Join(dir, "test"), os.O_CREATE, 0o700)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -504,7 +504,7 @@ func (s *DockerCLIRunSuite) TestVolumesFromGetsProperMode(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	hostpath := RandomTmpDirPath("test", testEnv.DaemonInfo.OSType)
-	if err := os.MkdirAll(hostpath, 0755); err != nil {
+	if err := os.MkdirAll(hostpath, 0o755); err != nil {
 		c.Fatalf("Failed to create %s: %q", hostpath, err)
 	}
 	defer os.RemoveAll(hostpath)
@@ -534,11 +534,11 @@ func (s *DockerCLIRunSuite) TestRunNoDupVolumes(c *testing.T) {
 		// Windows requires that the source directory exists before calling HCS
 		testRequires(c, testEnv.IsLocalDaemon)
 		someplace = `:c:\someplace`
-		if err := os.MkdirAll(path1, 0755); err != nil {
+		if err := os.MkdirAll(path1, 0o755); err != nil {
 			c.Fatalf("Failed to create %s: %q", path1, err)
 		}
 		defer os.RemoveAll(path1)
-		if err := os.MkdirAll(path2, 0755); err != nil {
+		if err := os.MkdirAll(path2, 0o755); err != nil {
 			c.Fatalf("Failed to create %s: %q", path1, err)
 		}
 		defer os.RemoveAll(path2)
@@ -1269,7 +1269,7 @@ func (s *DockerCLIRunSuite) TestRunDNSDefaultOptions(c *testing.T) {
 	}
 	// defer restored original conf
 	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", origResolvConf, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", origResolvConf, 0o644); err != nil {
 			c.Fatal(err)
 		}
 	}()
@@ -1278,7 +1278,7 @@ func (s *DockerCLIRunSuite) TestRunDNSDefaultOptions(c *testing.T) {
 	// 2 are removed from the file at container start, and the 3rd (commented out) one is ignored by
 	// GetNameservers(), leading to a replacement of nameservers with the default set
 	tmpResolvConf := []byte("nameserver 127.0.0.1\n#nameserver 127.0.2.1\nnameserver ::1")
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1373,12 +1373,12 @@ func (s *DockerCLIRunSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T)
 
 	// test with file
 	tmpResolvConf := []byte("search example.com\nnameserver 12.34.56.78\nnameserver 127.0.0.1")
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
 		c.Fatal(err)
 	}
 	// put the old resolvconf back
 	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", origResolvConf, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", origResolvConf, 0o644); err != nil {
 			c.Fatal(err)
 		}
 	}()
@@ -1416,7 +1416,7 @@ func (s *DockerCLIRunSuite) TestRunNonRootUserResolvName(c *testing.T) {
 
 	cID := getIDByName(c, "testperm")
 
-	fmode := (os.FileMode)(0644)
+	fmode := (os.FileMode)(0o644)
 	finfo, err := os.Stat(containerStorageFile(cID, "resolv.conf"))
 	if err != nil {
 		c.Fatal(err)
@@ -1457,7 +1457,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 
 	// cleanup
 	defer func() {
-		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+		if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
 			c.Fatal(err)
 		}
 	}()
@@ -1467,7 +1467,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 	containerID1 := getIDByName(c, "first")
 
 	// replace resolv.conf with our temporary copy
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1490,7 +1490,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 	containerID2 := getIDByName(c, "second")
 
 	// make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
-	if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1508,7 +1508,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 	runningContainerID := strings.TrimSpace(out)
 
 	// replace resolv.conf
-	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", tmpResolvConf, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1532,7 +1532,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 	//   host resolv.conf before updating container's resolv.conf copies
 
 	// replace resolv.conf with a localhost-only nameserver copy
-	if err = os.WriteFile("/etc/resolv.conf", tmpLocalhostResolvConf, 0644); err != nil {
+	if err = os.WriteFile("/etc/resolv.conf", tmpLocalhostResolvConf, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1551,7 +1551,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 	//   of containers' resolv.conf.
 
 	// Restore the original resolv.conf
-	if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", resolvConfSystem, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1560,7 +1560,7 @@ func (s *DockerCLIRunSuite) TestRunResolvconfUpdate(c *testing.T) {
 	containerID3 := getIDByName(c, "third")
 
 	// Create a modified resolv.conf.aside and override resolv.conf with it
-	if err := os.WriteFile("/etc/resolv.conf.aside", tmpResolvConf, 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf.aside", tmpResolvConf, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -2097,19 +2097,19 @@ func (s *DockerCLIRunSuite) TestRunMountOrdering(c *testing.T) {
 
 	// Create a temporary tmpfs mounc.
 	fooDir := filepath.Join(tmpDir, "foo")
-	if err := os.MkdirAll(filepath.Join(tmpDir, "foo"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, "foo"), 0o755); err != nil {
 		c.Fatalf("failed to mkdir at %s - %s", fooDir, err)
 	}
 
-	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", fooDir), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", fooDir), []byte{}, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
-	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir), []byte{}, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
-	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir2), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(fmt.Sprintf("%s/touch-me", tmpDir2), []byte{}, 0o644); err != nil {
 		c.Fatal(err)
 	}
 
@@ -3055,7 +3055,7 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMount(c *testing.T) {
 	defer os.Remove(filename)
 
 	// for user namespaced test runs, the temp file must be accessible to unprivileged root
-	if err := os.Chmod(filename, 0646); err != nil {
+	if err := os.Chmod(filename, 0o646); err != nil {
 		c.Fatalf("error modifying permissions of %s: %v", filename, err)
 	}
 
@@ -3077,7 +3077,7 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMountRO(c *testing.T) {
 	defer os.Remove(filename)
 
 	// for user namespaced test runs, the temp file must be accessible to unprivileged root
-	if err := os.Chmod(filename, 0646); err != nil {
+	if err := os.Chmod(filename, 0o646); err != nil {
 		c.Fatalf("error modifying permissions of %s: %v", filename, err)
 	}
 
@@ -3099,7 +3099,7 @@ func (s *DockerCLIRunSuite) TestRunNetworkFilesBindMountROFilesystem(c *testing.
 	defer os.Remove(filename)
 
 	// for user namespaced test runs, the temp file must be accessible to unprivileged root
-	if err := os.Chmod(filename, 0646); err != nil {
+	if err := os.Chmod(filename, 0o646); err != nil {
 		c.Fatalf("error modifying permissions of %s: %v", filename, err)
 	}
 
@@ -4223,16 +4223,16 @@ func (s *DockerCLIRunSuite) TestRunMount(c *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 	mnt1, mnt2 := path.Join(tmpDir, "mnt1"), path.Join(tmpDir, "mnt2")
-	if err := os.Mkdir(mnt1, 0755); err != nil {
+	if err := os.Mkdir(mnt1, 0o755); err != nil {
 		c.Fatal(err)
 	}
-	if err := os.Mkdir(mnt2, 0755); err != nil {
+	if err := os.Mkdir(mnt2, 0o755); err != nil {
 		c.Fatal(err)
 	}
-	if err := os.WriteFile(path.Join(mnt1, "test1"), []byte("test1"), 0644); err != nil {
+	if err := os.WriteFile(path.Join(mnt1, "test1"), []byte("test1"), 0o644); err != nil {
 		c.Fatal(err)
 	}
-	if err := os.WriteFile(path.Join(mnt2, "test2"), []byte("test2"), 0644); err != nil {
+	if err := os.WriteFile(path.Join(mnt2, "test2"), []byte("test2"), 0o644); err != nil {
 		c.Fatal(err)
 	}
 	testCatFooBar := func(cName string) error {

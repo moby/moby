@@ -29,8 +29,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const configFileName = "config.json"
-const rootFSFileName = "rootfs"
+const (
+	configFileName = "config.json"
+	rootFSFileName = "rootfs"
+)
 
 var validFullID = regexp.MustCompile(`^([a-f0-9]{64})$`)
 
@@ -95,7 +97,7 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 		config: config,
 	}
 	for _, dirName := range []string{manager.config.Root, manager.config.ExecRoot, manager.tmpDir()} {
-		if err := os.MkdirAll(dirName, 0700); err != nil {
+		if err := os.MkdirAll(dirName, 0o700); err != nil {
 			return nil, errors.Wrapf(err, "failed to mkdir %v", dirName)
 		}
 	}
@@ -227,7 +229,7 @@ func (pm *Manager) reload() error { // todo: restore
 							}
 						}
 
-						if err := os.MkdirAll(propRoot, 0755); err != nil {
+						if err := os.MkdirAll(propRoot, 0o755); err != nil {
 							log.G(context.TODO()).Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
 						}
 					}
@@ -272,7 +274,7 @@ func (pm *Manager) save(p *v2.Plugin) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal plugin json")
 	}
-	if err := ioutils.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0600); err != nil {
+	if err := ioutils.AtomicWriteFile(filepath.Join(pm.config.Root, p.GetID(), configFileName), pluginJSON, 0o600); err != nil {
 		return errors.Wrap(err, "failed to write atomically plugin json")
 	}
 	return nil

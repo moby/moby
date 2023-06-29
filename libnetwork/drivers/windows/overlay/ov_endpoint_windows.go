@@ -32,8 +32,8 @@ type endpoint struct {
 }
 
 var (
-	//Server 2016 (RS1) does not support concurrent add/delete of endpoints.  Therefore, we need
-	//to use this mutex and serialize the add/delete of endpoints on RS1.
+	// Server 2016 (RS1) does not support concurrent add/delete of endpoints.  Therefore, we need
+	// to use this mutex and serialize the add/delete of endpoints on RS1.
 	endpointMu   sync.Mutex
 	windowsBuild = osversion.Build()
 )
@@ -93,8 +93,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 	}
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
-	epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	var err error
 	if err = validateID(nid, eid); err != nil {
 		return err
@@ -149,17 +148,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		Type: "PA",
 		PA:   n.providerAddress,
 	})
-
 	if err != nil {
 		return err
 	}
 
 	hnsEndpoint.Policies = append(hnsEndpoint.Policies, paPolicy)
 
-	natPolicy, err := json.Marshal(hcsshim.PaPolicy{
-		Type: "OutBoundNAT",
-	})
-
+	natPolicy, err := json.Marshal(hcsshim.PaPolicy{Type: "OutBoundNAT"})
 	if err != nil {
 		return err
 	}

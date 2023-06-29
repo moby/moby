@@ -109,7 +109,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeLsFormatDefaultFormat(c *testing.T) {
 	assert.NilError(c, err)
 	defer os.RemoveAll(d)
 
-	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
 	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "--config", d, "volume", "ls")
@@ -567,7 +567,7 @@ func (s *DockerCLIVolumeSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c
 	out, _ = dockerCmd(c, "volume", "ls", "-q")
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data1))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), data2))
-	err := os.MkdirAll("/tmp/data", 0755)
+	err := os.MkdirAll("/tmp/data", 0o755)
 	assert.NilError(c, err)
 	// Mounts is available in API
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)

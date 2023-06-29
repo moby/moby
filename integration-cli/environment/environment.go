@@ -7,10 +7,8 @@ import (
 	"github.com/docker/docker/testutil/environment"
 )
 
-var (
-	// DefaultClientBinary is the name of the docker binary
-	DefaultClientBinary = os.Getenv("TEST_CLIENT_BINARY")
-)
+// DefaultClientBinary is the name of the docker binary
+var DefaultClientBinary = os.Getenv("TEST_CLIENT_BINARY")
 
 func init() {
 	if DefaultClientBinary == "" {

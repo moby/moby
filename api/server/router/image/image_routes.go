@@ -449,7 +449,7 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 	// AuthConfig to increase compatibility with the existing API.
 	authConfig, _ := registry.DecodeAuthConfig(r.Header.Get(registry.AuthHeader))
 
-	var headers = http.Header{}
+	headers := http.Header{}
 	for k, v := range r.Header {
 		k = http.CanonicalHeaderKey(k)
 		if strings.HasPrefix(k, "X-Meta-") {

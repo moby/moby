@@ -76,7 +76,6 @@ func (i *ImageService) Children(ctx context.Context, id image.ID) ([]image.ID, e
 				}
 			}
 		}
-
 	}
 
 	return children, nil

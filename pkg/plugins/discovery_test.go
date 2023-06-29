@@ -43,10 +43,10 @@ func TestFileSpecPlugin(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if err := os.MkdirAll(filepath.Dir(c.path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(c.path), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(c.path, []byte(c.addr), 0644); err != nil {
+		if err := os.WriteFile(c.path, []byte(c.addr), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -88,7 +88,7 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 	}
 }`
 
-	if err := os.WriteFile(p, []byte(spec), 0644); err != nil {
+	if err := os.WriteFile(p, []byte(spec), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -128,7 +128,7 @@ func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
   "Addr": "https://example.com/docker/plugin"
 }`
 
-	if err := os.WriteFile(p, []byte(spec), 0644); err != nil {
+	if err := os.WriteFile(p, []byte(spec), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

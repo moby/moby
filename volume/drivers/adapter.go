@@ -10,9 +10,7 @@ import (
 	"github.com/docker/docker/volume"
 )
 
-var (
-	errNoSuchVolume = errors.New("no such volume")
-)
+var errNoSuchVolume = errors.New("no such volume")
 
 type volumeDriverAdapter struct {
 	name         string
@@ -168,6 +166,7 @@ func (a *volumeAdapter) Unmount(id string) error {
 func (a *volumeAdapter) CreatedAt() (time.Time, error) {
 	return a.createdAt, nil
 }
+
 func (a *volumeAdapter) Status() map[string]interface{} {
 	out := make(map[string]interface{}, len(a.status))
 	for k, v := range a.status {

@@ -224,7 +224,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		return nil, errors.Errorf("multiple outputs not supported")
 	}
 
-	var rc = opt.Source
+	rc := opt.Source
 	if buildID := opt.Options.BuildID; buildID != "" {
 		b.mu.Lock()
 
@@ -466,6 +466,7 @@ func (sp *streamProxy) SetTrailer(_ grpcmetadata.MD) {
 func (sp *streamProxy) Context() context.Context {
 	return sp.ctx
 }
+
 func (sp *streamProxy) RecvMsg(m interface{}) error {
 	return io.EOF
 }
@@ -478,6 +479,7 @@ type statusProxy struct {
 func (sp *statusProxy) Send(resp *controlapi.StatusResponse) error {
 	return sp.SendMsg(resp)
 }
+
 func (sp *statusProxy) SendMsg(m interface{}) error {
 	if sr, ok := m.(*controlapi.StatusResponse); ok {
 		sp.ch <- sr
@@ -493,6 +495,7 @@ type pruneProxy struct {
 func (sp *pruneProxy) Send(resp *controlapi.UsageRecord) error {
 	return sp.SendMsg(resp)
 }
+
 func (sp *pruneProxy) SendMsg(m interface{}) error {
 	if sr, ok := m.(*controlapi.UsageRecord); ok {
 		sp.ch <- sr

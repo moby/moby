@@ -51,6 +51,7 @@ struct fsxattr {
 const int Q_XGETQSTAT_PRJQUOTA = QCMD(Q_XGETQSTAT, PRJQUOTA);
 */
 import "C"
+
 import (
 	"context"
 	"os"
@@ -70,8 +71,10 @@ type pquotaState struct {
 	nextProjectID uint32
 }
 
-var pquotaStateInst *pquotaState
-var pquotaStateOnce sync.Once
+var (
+	pquotaStateInst *pquotaState
+	pquotaStateOnce sync.Once
+)
 
 // getPquotaState - get global pquota state tracker instance
 func getPquotaState() *pquotaState {
@@ -230,7 +233,7 @@ func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) er
 	d.d_blk_hardlimit = C.__u64(quota.Size / 512)
 	d.d_blk_softlimit = d.d_blk_hardlimit
 
-	var cs = C.CString(backingFsBlockDev)
+	cs := C.CString(backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
 	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XSETPQLIM,
@@ -258,7 +261,7 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	//
 	var d C.fs_disk_quota_t
 
-	var cs = C.CString(q.backingFsBlockDev)
+	cs := C.CString(q.backingFsBlockDev)
 	defer C.free(unsafe.Pointer(cs))
 
 	_, _, errno := unix.Syscall6(unix.SYS_QUOTACTL, C.Q_XGETPQUOTA,
@@ -409,7 +412,7 @@ func makeBackingFsDev(home string) (string, error) {
 	backingFsBlockDev := path.Join(home, "backingFsBlockDev")
 	// Re-create just in case someone copied the home directory over to a new device
 	unix.Unlink(backingFsBlockDev)
-	err := unix.Mknod(backingFsBlockDev, unix.S_IFBLK|0600, int(stat.Dev))
+	err := unix.Mknod(backingFsBlockDev, unix.S_IFBLK|0o600, int(stat.Dev))
 	switch err {
 	case nil:
 		return backingFsBlockDev, nil
@@ -423,7 +426,7 @@ func makeBackingFsDev(home string) (string, error) {
 }
 
 func hasQuotaSupport(backingFsBlockDev string) (bool, error) {
-	var cs = C.CString(backingFsBlockDev)
+	cs := C.CString(backingFsBlockDev)
 	defer free(cs)
 	var qstat C.fs_quota_stat_t
 

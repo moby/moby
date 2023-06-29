@@ -68,7 +68,7 @@ func (s *DockerCLIRunSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 
 	// Create a temporary tmpfs mount.
 	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
-	assert.Assert(c, os.MkdirAll(tmpfsDir, 0777) == nil, "failed to mkdir at %s", tmpfsDir)
+	assert.Assert(c, os.MkdirAll(tmpfsDir, 0o777) == nil, "failed to mkdir at %s", tmpfsDir)
 	assert.Assert(c, mount.Mount("tmpfs", tmpfsDir, "tmpfs", "") == nil, "failed to create a tmpfs mount at %s", tmpfsDir)
 
 	f, err := os.CreateTemp(tmpfsDir, "touch-me")
@@ -247,7 +247,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	dotDocker := filepath.Join(tmpDir, ".docker")
-	os.Mkdir(dotDocker, 0600)
+	os.Mkdir(dotDocker, 0o600)
 	tmpCfg := filepath.Join(dotDocker, "config.json")
 
 	if runtime.GOOS == "windows" {
@@ -260,7 +260,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachFromConfig(c *testing.T) {
 		"detachKeys": "ctrl-a,a"
 	}`
 
-	err = os.WriteFile(tmpCfg, []byte(data), 0600)
+	err = os.WriteFile(tmpCfg, []byte(data), 0o600)
 	assert.NilError(c, err)
 
 	// Then do the work
@@ -331,7 +331,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 	defer os.RemoveAll(tmpDir)
 
 	dotDocker := filepath.Join(tmpDir, ".docker")
-	os.Mkdir(dotDocker, 0600)
+	os.Mkdir(dotDocker, 0o600)
 	tmpCfg := filepath.Join(dotDocker, "config.json")
 
 	if runtime.GOOS == "windows" {
@@ -344,7 +344,7 @@ func (s *DockerCLIRunSuite) TestRunAttachDetachKeysOverrideConfig(c *testing.T) 
 		"detachKeys": "ctrl-e,e"
 	}`
 
-	err = os.WriteFile(tmpCfg, []byte(data), 0600)
+	err = os.WriteFile(tmpCfg, []byte(data), 0o600)
 	assert.NilError(c, err)
 
 	// Then do the work
@@ -1362,7 +1362,7 @@ func (s *DockerCLIRunSuite) TestRunDeviceSymlink(c *testing.T) {
 	// Create a temporary file "temp" inside tmpDir, write some data to "tmpDir/temp",
 	// then create a symlink "tmpDir/file" to the temporary file "tmpDir/temp".
 	tmpFile := filepath.Join(tmpDir, "temp")
-	err = os.WriteFile(tmpFile, []byte("temp"), 0666)
+	err = os.WriteFile(tmpFile, []byte("temp"), 0o666)
 	assert.NilError(c, err)
 	symFile := filepath.Join(tmpDir, "file")
 	err = os.Symlink(tmpFile, symFile)

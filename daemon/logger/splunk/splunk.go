@@ -239,7 +239,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	sourceType := info.Config[splunkSourceTypeKey]
 	index := info.Config[splunkIndexKey]
 
-	var nullMessage = &splunkMessage{
+	nullMessage := &splunkMessage{
 		Host:       hostname,
 		Source:     source,
 		SourceType: sourceType,

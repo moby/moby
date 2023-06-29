@@ -45,7 +45,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	if p.PluginObj.Config.PropagatedMount != "" {
 		propRoot = filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
 
-		if err := os.MkdirAll(propRoot, 0755); err != nil {
+		if err := os.MkdirAll(propRoot, 0o755); err != nil {
 			log.G(context.TODO()).Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
 		}
 
@@ -321,7 +321,7 @@ func (pm *Manager) createPlugin(name string, configDigest, manifestDigest digest
 	}
 
 	pdir := filepath.Join(pm.config.Root, p.PluginObj.ID)
-	if err := os.MkdirAll(pdir, 0700); err != nil {
+	if err := os.MkdirAll(pdir, 0o700); err != nil {
 		return nil, errors.Wrapf(err, "failed to mkdir %v", pdir)
 	}
 

@@ -195,7 +195,7 @@ func TestValidateManifest(t *testing.T) {
 
 func TestFormatPlatform(t *testing.T) {
 	var platform ocispec.Platform
-	var result = formatPlatform(platform)
+	result := formatPlatform(platform)
 	if strings.HasPrefix(result, "unknown") {
 		t.Fatal("expected formatPlatform to show a known platform")
 	}

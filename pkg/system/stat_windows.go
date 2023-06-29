@@ -45,5 +45,6 @@ func fromStatT(fi *os.FileInfo) (*StatT, error) {
 	return &StatT{
 		size: (*fi).Size(),
 		mode: (*fi).Mode(),
-		mtim: (*fi).ModTime()}, nil
+		mtim: (*fi).ModTime(),
+	}, nil
 }

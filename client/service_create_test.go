@@ -194,7 +194,6 @@ func TestServiceCreateDigestPinning(t *testing.T) {
 				},
 			},
 		}, types.ServiceCreateOptions{QueryRegistry: true})
-
 		if err != nil {
 			t.Fatal(err)
 		}

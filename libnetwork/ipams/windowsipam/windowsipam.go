@@ -17,12 +17,9 @@ const (
 // DefaultIPAM defines the default ipam-driver for local-scoped windows networks
 const DefaultIPAM = "windows"
 
-var (
-	defaultPool, _ = types.ParseCIDR("0.0.0.0/0")
-)
+var defaultPool, _ = types.ParseCIDR("0.0.0.0/0")
 
-type allocator struct {
-}
+type allocator struct{}
 
 // Register registers the built-in ipam service with libnetwork
 func Register(ipamName string, r ipamapi.Registerer) error {
@@ -67,7 +64,6 @@ func (a *allocator) ReleasePool(poolID string) error {
 func (a *allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
 	log.G(context.TODO()).Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
 	_, ipNet, err := net.ParseCIDR(poolID)
-
 	if err != nil {
 		return nil, nil, err
 	}

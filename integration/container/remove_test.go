@@ -34,7 +34,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0755))
+	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
 	defer tempDir.Remove()
 
 	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))

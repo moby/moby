@@ -120,7 +120,6 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -235,9 +234,7 @@ type imageFilterFunc func(image images.Image) bool
 // containerdListFilters is a slice of filters which should be passed to ImageService.List()
 // filterFunc is a function that checks whether given image matches the filters.
 // TODO(thaJeztah): reimplement filters using containerd filters: see https://github.com/moby/moby/issues/43845
-func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (
-	containerdListFilters []string, filterFunc imageFilterFunc, outErr error) {
-
+func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (containerdListFilters []string, filterFunc imageFilterFunc, outErr error) {
 	var fltrs []imageFilterFunc
 	err := imageFilters.WalkValues("before", func(value string) error {
 		ref, err := reference.ParseDockerRef(value)

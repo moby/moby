@@ -27,27 +27,27 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	skip.If(t, userns.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
 	// Create opaque directory containing single file and permission 0700
-	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
+	err := os.Mkdir(filepath.Join(src, "d1"), 0o700)
 	assert.NilError(t, err)
 
 	err = system.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
-	err = os.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0600)
+	err = os.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0o600)
 	assert.NilError(t, err)
 
 	// Create another opaque directory containing single file but with permission 0750
-	err = os.Mkdir(filepath.Join(src, "d2"), 0750)
+	err = os.Mkdir(filepath.Join(src, "d2"), 0o750)
 	assert.NilError(t, err)
 
 	err = system.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0)
 	assert.NilError(t, err)
 
-	err = os.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0660)
+	err = os.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0o660)
 	assert.NilError(t, err)
 
 	// Create regular directory with deleted file
-	err = os.Mkdir(filepath.Join(src, "d3"), 0700)
+	err = os.Mkdir(filepath.Join(src, "d3"), 0o700)
 	assert.NilError(t, err)
 
 	err = system.Mknod(filepath.Join(src, "d3", "f1"), unix.S_IFCHR, 0)
@@ -110,11 +110,11 @@ func TestOverlayTarUntar(t *testing.T) {
 	err = Untar(archive, dst, options)
 	assert.NilError(t, err)
 
-	checkFileMode(t, filepath.Join(dst, "d1"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d2"), 0750|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d3"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0600)
-	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0660)
+	checkFileMode(t, filepath.Join(dst, "d1"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d2"), 0o750|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d3"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0o600)
+	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0o660)
 	checkFileMode(t, filepath.Join(dst, "d3", "f1"), os.ModeCharDevice|os.ModeDevice)
 
 	checkOpaqueness(t, filepath.Join(dst, "d1"), "y")
@@ -150,12 +150,12 @@ func TestOverlayTarAUFSUntar(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	checkFileMode(t, filepath.Join(dst, "d1"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d1", WhiteoutOpaqueDir), 0700)
-	checkFileMode(t, filepath.Join(dst, "d2"), 0750|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d2", WhiteoutOpaqueDir), 0750)
-	checkFileMode(t, filepath.Join(dst, "d3"), 0700|os.ModeDir)
-	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0600)
-	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0660)
-	checkFileMode(t, filepath.Join(dst, "d3", WhiteoutPrefix+"f1"), 0600)
+	checkFileMode(t, filepath.Join(dst, "d1"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d1", WhiteoutOpaqueDir), 0o700)
+	checkFileMode(t, filepath.Join(dst, "d2"), 0o750|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d2", WhiteoutOpaqueDir), 0o750)
+	checkFileMode(t, filepath.Join(dst, "d3"), 0o700|os.ModeDir)
+	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0o600)
+	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0o660)
+	checkFileMode(t, filepath.Join(dst, "d3", WhiteoutPrefix+"f1"), 0o600)
 }

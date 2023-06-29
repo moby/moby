@@ -357,7 +357,6 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 
 	logger.Debug("createWindows() completed successfully")
 	return ctr, nil
-
 }
 
 func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcsshim.ContainerConfig) {

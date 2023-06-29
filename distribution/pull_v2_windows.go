@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Microsoft/hcsshim/osversion"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
@@ -19,7 +20,6 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/pkg/system"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/containerd/containerd/log"
 )
 
 var _ distribution.Describable = &layerDescriptor{}

@@ -48,7 +48,6 @@ func TestCheckpointDelete(t *testing.T) {
 	err := client.CheckpointDelete(context.Background(), "container_id", types.CheckpointDeleteOptions{
 		CheckpointID: "checkpoint_id",
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
