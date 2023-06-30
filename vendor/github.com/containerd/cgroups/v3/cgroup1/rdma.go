@@ -124,7 +124,6 @@ func toRdmaEntry(strEntries []string) []*v1.RdmaEntry {
 }
 
 func (p *rdmaController) Stat(path string, stats *v1.Metrics) error {
-
 	currentData, err := os.ReadFile(filepath.Join(p.Path(path), "rdma.current"))
 	if err != nil {
 		return err

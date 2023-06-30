@@ -472,7 +472,7 @@ func (m *memoryController) memoryEvent(path string, event MemoryEvent) (uintptr,
 	defer evtFile.Close()
 	data := fmt.Sprintf("%d %d %s", efd, evtFile.Fd(), event.Arg())
 	evctlPath := filepath.Join(root, "cgroup.event_control")
-	if err := os.WriteFile(evctlPath, []byte(data), 0700); err != nil {
+	if err := os.WriteFile(evctlPath, []byte(data), 0o700); err != nil {
 		unix.Close(efd)
 		return 0, err
 	}
