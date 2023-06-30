@@ -20,11 +20,10 @@ func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
 
 // Register registers a new instance of the macvlan manager driver.
 func Register(r driverapi.Registerer, _ map[string]interface{}) error {
-	c := driverapi.Capability{
+	return r.RegisterDriver(networkType, &driver{}, driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.GlobalScope,
-	}
-	return r.RegisterDriver(networkType, &driver{}, c)
+	})
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {

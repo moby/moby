@@ -24,11 +24,10 @@ func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
 }
 
 func Register(r driverapi.Registerer, _ map[string]interface{}) error {
-	c := driverapi.Capability{
+	return r.RegisterDriver(networkType, &driver{}, driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.LocalScope,
-	}
-	return r.RegisterDriver(networkType, &driver{}, c)
+	})
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {

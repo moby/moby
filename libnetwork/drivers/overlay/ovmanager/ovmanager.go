@@ -54,11 +54,6 @@ func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
 // Register registers a new instance of the overlay driver.
 func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 	var err error
-	c := driverapi.Capability{
-		DataScope:         datastore.GlobalScope,
-		ConnectivityScope: datastore.GlobalScope,
-	}
-
 	d := &driver{
 		networks: networkTable{},
 	}
@@ -68,7 +63,10 @@ func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
 	}
 
-	return r.RegisterDriver(networkType, d, c)
+	return r.RegisterDriver(networkType, d, driverapi.Capability{
+		DataScope:         datastore.GlobalScope,
+		ConnectivityScope: datastore.GlobalScope,
+	})
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {

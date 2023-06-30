@@ -27,18 +27,16 @@ type driver struct {
 
 // Register registers a new instance of the overlay driver.
 func Register(r driverapi.Registerer, _ map[string]interface{}) error {
-	c := driverapi.Capability{
-		DataScope:         datastore.GlobalScope,
-		ConnectivityScope: datastore.GlobalScope,
-	}
-
 	d := &driver{
 		networks: networkTable{},
 	}
 
 	d.restoreHNSNetworks()
 
-	return r.RegisterDriver(networkType, d, c)
+	return r.RegisterDriver(networkType, d, driverapi.Capability{
+		DataScope:         datastore.GlobalScope,
+		ConnectivityScope: datastore.GlobalScope,
+	})
 }
 
 func (d *driver) restoreHNSNetworks() error {

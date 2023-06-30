@@ -174,12 +174,10 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	if err := d.configure(config); err != nil {
 		return err
 	}
-
-	c := driverapi.Capability{
+	return r.RegisterDriver(networkType, d, driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.LocalScope,
-	}
-	return r.RegisterDriver(networkType, d, c)
+	})
 }
 
 // Validate performs a static validation on the network configuration parameters.
