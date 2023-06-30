@@ -86,11 +86,10 @@ func (i *ImageService) ImportImage(ctx context.Context, ref reference.Named, pla
 	ociCfg := containerConfigToOciImageConfig(imageConfig)
 	createdAt := time.Now()
 	config := ocispec.Image{
-		Architecture: platform.Architecture,
-		OS:           platform.OS,
-		Created:      &createdAt,
-		Author:       "",
-		Config:       ociCfg,
+		Platform: *platform,
+		Created:  &createdAt,
+		Author:   "",
+		Config:   ociCfg,
 		RootFS: ocispec.RootFS{
 			Type:    "layers",
 			DiffIDs: []digest.Digest{uncompressedDigest},

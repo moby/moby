@@ -416,13 +416,15 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 
 	// make an ocispec.Image from the docker/image.Image
 	ociImgToCreate := ocispec.Image{
-		Created:      &imgToCreate.Created,
-		Author:       imgToCreate.Author,
-		Architecture: imgToCreate.Architecture,
-		Variant:      imgToCreate.Variant,
-		OS:           imgToCreate.OS,
-		OSVersion:    imgToCreate.OSVersion,
-		OSFeatures:   imgToCreate.OSFeatures,
+		Created: &imgToCreate.Created,
+		Author:  imgToCreate.Author,
+		Platform: ocispec.Platform{
+			Architecture: imgToCreate.Architecture,
+			Variant:      imgToCreate.Variant,
+			OS:           imgToCreate.OS,
+			OSVersion:    imgToCreate.OSVersion,
+			OSFeatures:   imgToCreate.OSFeatures,
+		},
 		Config: ocispec.ImageConfig{
 			User:         imgToCreate.Config.User,
 			ExposedPorts: exposedPorts,
