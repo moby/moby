@@ -7,6 +7,7 @@ import (
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -18,10 +19,10 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 
 	// If the image already exists, persist it as dangling image
 	// but only if no other image has the same target.
-	digest := img.Target.Digest.String()
-	imgs, err := is.List(ctx, "target.digest=="+digest)
+	dgst := img.Target.Digest.String()
+	imgs, err := is.List(ctx, "target.digest=="+dgst)
 	if err != nil {
-		return errdefs.System(errors.Wrapf(err, "failed to check if there are images targeting digest %s", digest))
+		return errdefs.System(errors.Wrapf(err, "failed to check if there are images targeting digest %s", dgst))
 	}
 
 	// From this point explicitly ignore the passed context
@@ -29,19 +30,12 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 
 	// Create dangling image if this is the last image pointing to this target.
 	if len(imgs) == 1 {
-		danglingImage := img
-
-		danglingImage.Name = danglingImageName(img.Target.Digest)
-		delete(danglingImage.Labels, "io.containerd.image.name")
-		delete(danglingImage.Labels, "org.opencontainers.image.ref.name")
-
-		_, err = is.Create(context.Background(), danglingImage)
+		err = i.ensureDanglingImage(context.Background(), img)
 
 		// Error out in case we couldn't persist the old image.
-		// If it already exists, then just continue.
-		if err != nil && !cerrdefs.IsAlreadyExists(err) {
+		if err != nil {
 			return errdefs.System(errors.Wrapf(err, "failed to create a dangling image for the replaced image %s with digest %s",
-				danglingImage.Name, danglingImage.Target.Digest.String()))
+				img.Name, img.Target.Digest.String()))
 		}
 	}
 
@@ -54,6 +48,29 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 	}
 
 	return nil
+}
+
+func (i *ImageService) ensureDanglingImage(ctx context.Context, from containerdimages.Image) error {
+	danglingImage := from
+
+	danglingImage.Labels = make(map[string]string)
+	for k, v := range from.Labels {
+		switch k {
+		case containerdimages.AnnotationImageName, ocispec.AnnotationRefName:
+			// Don't copy name labels.
+		default:
+			danglingImage.Labels[k] = v
+		}
+	}
+	danglingImage.Name = danglingImageName(from.Target.Digest)
+
+	_, err := i.client.ImageService().Create(context.Background(), danglingImage)
+	// If it already exists, then just continue.
+	if cerrdefs.IsAlreadyExists(err) {
+		return nil
+	}
+
+	return err
 }
 
 func danglingImageName(digest digest.Digest) string {

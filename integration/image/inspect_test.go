@@ -19,12 +19,9 @@ func TestImageInspectEmptyTagsAndDigests(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	danglingId := environment.DanglingImageIdGraphDriver
-	if testEnv.UsingSnapshotter() {
-		danglingId = environment.DanglingImageIdSnapshotter
-	}
+	danglingID := environment.GetTestDanglingImageId(testEnv)
 
-	inspect, raw, err := client.ImageInspectWithRaw(ctx, danglingId)
+	inspect, raw, err := client.ImageInspectWithRaw(ctx, danglingID)
 	assert.NilError(t, err)
 
 	// Must be a zero length array, not null.
