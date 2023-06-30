@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"strings"
 
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
@@ -70,35 +71,50 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		return nil, err
 	}
 
+	// How many images make reference to a particular target digest.
+	digestRefCount := map[digest.Digest]int{}
+	// Images considered for pruning.
 	imagesToPrune := map[string]containerdimages.Image{}
 	for _, img := range allImages {
+		digestRefCount[img.Target.Digest] += 1
+
 		if !danglingOnly || isDanglingImage(img) {
-			imagesToPrune[img.Name] = img
+			canBePruned := filterFunc(img)
+			log.G(ctx).WithFields(logrus.Fields{
+				"image":       img.Name,
+				"canBePruned": canBePruned,
+			}).Debug("considering image for pruning")
+
+			if canBePruned {
+				imagesToPrune[img.Name] = img
+			}
+
 		}
 	}
 
-	// Apply filters
-	for name, img := range imagesToPrune {
-		filteredOut := !filterFunc(img)
-		log.G(ctx).WithFields(logrus.Fields{
-			"image":       name,
-			"filteredOut": filteredOut,
-		}).Debug("filtering image")
+	// Image specified by digests that are used by containers.
+	usedDigests := map[digest.Digest]struct{}{}
 
-		if filteredOut {
-			delete(imagesToPrune, name)
-		}
-	}
-
-	containers := i.containers.List()
-
-	var errs error
 	// Exclude images used by existing containers
-	for _, ctr := range containers {
+	for _, ctr := range i.containers.List() {
+		// If the original image was deleted, make sure we don't delete the dangling image
+		delete(imagesToPrune, danglingImageName(ctr.ImageID.Digest()))
+
 		// Config.Image is the image reference passed by user.
-		// For example: container created by `docker run alpine` will have Image="alpine"
-		// Warning: This doesn't handle truncated ids:
-		//          `docker run 124c7d2` will have Image="124c7d270790"
+		// Config.ImageID is the resolved content digest based on the user's Config.Image.
+		// For example: container created by:
+		//           `docker run alpine` will have Config.Image="alpine"
+		//           `docker run 82d1e9d` will have Config.Image="82d1e9d"
+		// but both will have ImageID="sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1"
+		imageDgst := ctr.ImageID.Digest()
+
+		// If user didn't specify an explicit image, mark the digest as used.
+		normalizedImageID := "sha256:" + strings.TrimPrefix(ctr.Config.Image, "sha256:")
+		if strings.HasPrefix(imageDgst.String(), normalizedImageID) {
+			usedDigests[imageDgst] = struct{}{}
+			continue
+		}
+
 		ref, err := reference.ParseNormalizedNamed(ctr.Config.Image)
 		log.G(ctx).WithFields(logrus.Fields{
 			"ctr":          ctr.ID,
@@ -107,12 +123,28 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		}).Debug("filtering container's image")
 
 		if err == nil {
+			// If user provided a specific image name, exclude that image.
 			name := reference.TagNameOnly(ref)
 			delete(imagesToPrune, name.String())
 		}
 	}
 
+	// Create dangling images for images that will be deleted but are still in use.
+	for _, img := range imagesToPrune {
+		dgst := img.Target.Digest
+
+		digestRefCount[dgst] -= 1
+		if digestRefCount[dgst] == 0 {
+			if _, isUsed := usedDigests[dgst]; isUsed {
+				if err := i.ensureDanglingImage(ctx, img); err != nil {
+					return &report, errors.Wrapf(err, "failed to create ensure dangling image for %s", img.Name)
+				}
+			}
+		}
+	}
+
 	possiblyDeletedConfigs := map[digest.Digest]struct{}{}
+	var errs error
 
 	// Workaround for https://github.com/moby/buildkit/issues/3797
 	defer func() {
