@@ -52,7 +52,7 @@ func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
 }
 
 // Register registers a new instance of the overlay driver.
-func Register(r driverapi.DriverCallback, _ map[string]interface{}) error {
+func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 	var err error
 	c := driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
