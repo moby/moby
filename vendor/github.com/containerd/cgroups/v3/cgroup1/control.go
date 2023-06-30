@@ -28,7 +28,7 @@ type procType = string
 const (
 	cgroupProcs    procType = "cgroup.procs"
 	cgroupTasks    procType = "tasks"
-	defaultDirPerm          = 0755
+	defaultDirPerm          = 0o755
 )
 
 // defaultFilePerm is a var so that the test framework can change the filemode

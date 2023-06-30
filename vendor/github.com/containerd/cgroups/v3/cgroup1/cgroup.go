@@ -41,7 +41,7 @@ func New(path Path, resources *specs.LinuxResources, opts ...InitOpts) (Cgroup, 
 			return nil, err
 		}
 	}
-	subsystems, err := config.hiearchy()
+	subsystems, err := config.hierarchy()
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func Load(path Path, opts ...InitOpts) (Cgroup, error) {
 		}
 	}
 	var activeSubsystems []Subsystem
-	subsystems, err := config.hiearchy()
+	subsystems, err := config.hierarchy()
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (c *cgroup) subsystemsFilter(subsystems ...Name) []Subsystem {
 		return c.subsystems
 	}
 
-	var filteredSubsystems = []Subsystem{}
+	filteredSubsystems := []Subsystem{}
 	for _, s := range c.subsystems {
 		for _, f := range subsystems {
 			if s.Name() == f {
@@ -259,6 +259,10 @@ func (c *cgroup) Delete() error {
 		// kernel prevents cgroups with running process from being removed, check the tree is empty
 		procs, err := c.processes(s.Name(), true, cgroupProcs)
 		if err != nil {
+			// if the control group does not exist within a subsystem, then proceed to the next subsystem
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
 			return err
 		}
 		if len(procs) > 0 {
