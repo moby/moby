@@ -14,12 +14,12 @@ type driver struct{}
 // Init registers a new instance of the macvlan manager driver.
 //
 // Deprecated: use [Register].
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	return Register(dc, config)
+func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
+	return Register(dc, nil)
 }
 
 // Register registers a new instance of the macvlan manager driver.
-func Register(r driverapi.Registerer, config map[string]interface{}) error {
+func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.GlobalScope,

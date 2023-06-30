@@ -21,13 +21,12 @@ const (
 )
 
 type driver struct {
-	config   map[string]interface{}
 	networks networkTable
 	sync.Mutex
 }
 
 // Register registers a new instance of the overlay driver.
-func Register(r driverapi.Registerer, config map[string]interface{}) error {
+func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
 		ConnectivityScope: datastore.GlobalScope,
@@ -35,7 +34,6 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 
 	d := &driver{
 		networks: networkTable{},
-		config:   config,
 	}
 
 	d.restoreHNSNetworks()
@@ -64,7 +62,7 @@ func (d *driver) restoreHNSNetworks() error {
 		// We assume that any network will be recreated on daemon restart
 		// and therefore don't restore hns endpoints for now
 		//
-		//n.restoreNetworkEndpoints()
+		// n.restoreNetworkEndpoints()
 	}
 
 	return nil

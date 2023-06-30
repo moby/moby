@@ -33,7 +33,7 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 // plugin is activated.
 //
 // Deprecated: use [Register].
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
+func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
 	return Register(dc, dc.GetPluginGetter())
 }
 

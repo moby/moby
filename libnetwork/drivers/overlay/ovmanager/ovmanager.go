@@ -26,7 +26,6 @@ const (
 type networkTable map[string]*network
 
 type driver struct {
-	config   map[string]interface{}
 	networks networkTable
 	vxlanIdm *idm.Idm
 	sync.Mutex
@@ -48,12 +47,12 @@ type network struct {
 // Init registers a new instance of the overlay driver.
 //
 // Deprecated: use [Register].
-func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	return Register(dc, config)
+func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
+	return Register(dc, nil)
 }
 
 // Register registers a new instance of the overlay driver.
-func Register(r driverapi.DriverCallback, config map[string]interface{}) error {
+func Register(r driverapi.DriverCallback, _ map[string]interface{}) error {
 	var err error
 	c := driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
@@ -62,7 +61,6 @@ func Register(r driverapi.DriverCallback, config map[string]interface{}) error {
 
 	d := &driver{
 		networks: networkTable{},
-		config:   config,
 	}
 
 	d.vxlanIdm, err = idm.New(nil, "vxlan-id", 0, vxlanIDEnd)

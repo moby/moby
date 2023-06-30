@@ -17,7 +17,7 @@ type driver struct {
 }
 
 // Register registers a new instance of the null driver.
-func Register(r driverapi.Registerer, config map[string]interface{}) error {
+func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope: datastore.LocalScope,
 	}
