@@ -53,9 +53,16 @@ func (i *ImageService) softImageDelete(ctx context.Context, img containerdimages
 func (i *ImageService) ensureDanglingImage(ctx context.Context, from containerdimages.Image) error {
 	danglingImage := from
 
+	danglingImage.Labels = make(map[string]string)
+	for k, v := range from.Labels {
+		switch k {
+		case containerdimages.AnnotationImageName, ocispec.AnnotationRefName:
+			// Don't copy name labels.
+		default:
+			danglingImage.Labels[k] = v
+		}
+	}
 	danglingImage.Name = danglingImageName(from.Target.Digest)
-	delete(danglingImage.Labels, containerdimages.AnnotationImageName)
-	delete(danglingImage.Labels, ocispec.AnnotationRefName)
 
 	_, err := i.client.ImageService().Create(context.Background(), danglingImage)
 	// If it already exists, then just continue.
