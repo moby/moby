@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -40,7 +41,9 @@ func TestEventsErrorInOptions(t *testing.T) {
 		client := &Client{
 			client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 		}
-		_, errs := client.Events(context.Background(), e.options)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second/2)
+		defer cancel()
+		_, errs := client.Events(ctx, e.options)
 		err := <-errs
 		if err == nil || !strings.Contains(err.Error(), e.expectedError) {
 			t.Fatalf("expected an error %q, got %v", e.expectedError, err)
@@ -52,7 +55,9 @@ func TestEventsErrorFromServer(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, errs := client.Events(context.Background(), types.EventsOptions{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, errs := client.Events(ctx, types.EventsOptions{})
 	err := <-errs
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
@@ -140,23 +145,33 @@ func TestEvents(t *testing.T) {
 			}),
 		}
 
-		messages, errs := client.Events(context.Background(), eventsCase.options)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second/2)
+		defer cancel()
 
-	loop:
-		for {
+		messages, errs := client.Events(ctx, eventsCase.options)
+
+		for ctx.Err() == nil {
 			select {
+			case <-ctx.Done():
+				if len(eventsCase.expectedEvents) != 0 {
+					t.Fatal("receive events timeout")
+				}
+
 			case err := <-errs:
 				if err != nil && err != io.EOF {
 					t.Fatal(err)
 				}
 
-				break loop
 			case e := <-messages:
-				_, ok := eventsCase.expectedEvents[e.ID]
-				if !ok {
-					t.Fatalf("event received not expected with action %s & id %s", e.Action, e.ID)
+				if _, ok := eventsCase.expectedEvents[e.ID]; !ok {
+					t.Fatalf("event received not expected with action [%s] & id [%s]", e.Action, e.ID)
 				}
+				delete(eventsCase.expectedEvents, e.ID)
 			}
+		}
+
+		for failed := range eventsCase.expectedEvents {
+			t.Fatalf("didn't receive event, id %s", failed)
 		}
 	}
 }
