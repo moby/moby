@@ -28,9 +28,7 @@ func ensureSyscallTest(c *testing.T) {
 		return
 	}
 
-	tmp, err := os.MkdirTemp("", "syscall-test-build")
-	assert.NilError(c, err, "couldn't create temp dir")
-	defer os.RemoveAll(tmp)
+	tmp := c.TempDir()
 
 	gcc, err := exec.LookPath("gcc")
 	assert.NilError(c, err, "could not find gcc")
@@ -91,8 +89,7 @@ func ensureNNPTest(c *testing.T) {
 		return
 	}
 
-	tmp, err := os.MkdirTemp("", "docker-nnp-test")
-	assert.NilError(c, err)
+	tmp := c.TempDir()
 
 	gcc, err := exec.LookPath("gcc")
 	assert.NilError(c, err, "could not find gcc")

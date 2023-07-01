@@ -3,16 +3,17 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
@@ -34,21 +35,24 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
-	defer tempDir.Remove()
+	tempDir := t.TempDir()
+	err := os.Chmod(tempDir, 0o777)
+	assert.Check(t, err)
+	hostPath := filepath.Join(tempDir, "hostPath")
 
-	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
+	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(hostPath, prefix+slash+"test"))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
-	err := os.RemoveAll(tempDir.Path())
+	err = os.RemoveAll(hostPath)
 	assert.NilError(t, err)
 
 	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 	})
-	assert.NilError(t, err)
+	assert.Check(t, err)
 
 	_, _, err = client.ContainerInspectWithRaw(ctx, cID, true)
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "No such container"))
 }
 

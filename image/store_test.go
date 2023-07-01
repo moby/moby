@@ -11,16 +11,13 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	imgStore, cleanup := defaultImageStore(t)
-	defer cleanup()
-
+	imgStore := defaultImageStore(t)
 	_, err := imgStore.Create([]byte(`{}`))
 	assert.Check(t, is.Error(err, "invalid image JSON, no RootFS key"))
 }
 
 func TestRestore(t *testing.T) {
-	fs, cleanup := defaultFSStoreBackend(t)
-	defer cleanup()
+	fs := defaultFSStoreBackend(t)
 
 	id1, err := fs.Set([]byte(`{"comment": "abc", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
@@ -77,8 +74,7 @@ func TestRestore(t *testing.T) {
 }
 
 func TestAddDelete(t *testing.T) {
-	imgStore, cleanup := defaultImageStore(t)
-	defer cleanup()
+	imgStore := defaultImageStore(t)
 
 	id1, err := imgStore.Create([]byte(`{"comment": "abc", "rootfs": {"type": "layers", "diff_ids": ["2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"]}}`))
 	assert.NilError(t, err)
@@ -114,8 +110,7 @@ func TestAddDelete(t *testing.T) {
 }
 
 func TestSearchAfterDelete(t *testing.T) {
-	imgStore, cleanup := defaultImageStore(t)
-	defer cleanup()
+	imgStore := defaultImageStore(t)
 
 	id, err := imgStore.Create([]byte(`{"comment": "abc", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
@@ -133,16 +128,13 @@ func TestSearchAfterDelete(t *testing.T) {
 }
 
 func TestDeleteNotExisting(t *testing.T) {
-	imgStore, cleanup := defaultImageStore(t)
-	defer cleanup()
-
+	imgStore := defaultImageStore(t)
 	_, err := imgStore.Delete(ID("i_dont_exists"))
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
 
 func TestParentReset(t *testing.T) {
-	imgStore, cleanup := defaultImageStore(t)
-	defer cleanup()
+	imgStore := defaultImageStore(t)
 
 	id, err := imgStore.Create([]byte(`{"comment": "abc1", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
@@ -161,18 +153,18 @@ func TestParentReset(t *testing.T) {
 	assert.Check(t, is.Len(imgStore.Children(id3), 1))
 }
 
-func defaultImageStore(t *testing.T) (Store, func()) {
-	fsBackend, cleanup := defaultFSStoreBackend(t)
+func defaultImageStore(t *testing.T) Store {
+	t.Helper()
+	fsBackend := defaultFSStoreBackend(t)
 
 	store, err := NewImageStore(fsBackend, &mockLayerGetReleaser{})
 	assert.NilError(t, err)
 
-	return store, cleanup
+	return store
 }
 
 func TestGetAndSetLastUpdated(t *testing.T) {
-	store, cleanup := defaultImageStore(t)
-	defer cleanup()
+	store := defaultImageStore(t)
 
 	id, err := store.Create([]byte(`{"comment": "abc1", "rootfs": {"type": "layers"}}`))
 	assert.NilError(t, err)
@@ -189,8 +181,7 @@ func TestGetAndSetLastUpdated(t *testing.T) {
 }
 
 func TestStoreLen(t *testing.T) {
-	store, cleanup := defaultImageStore(t)
-	defer cleanup()
+	store := defaultImageStore(t)
 
 	expected := 10
 	for i := 0; i < expected; i++ {

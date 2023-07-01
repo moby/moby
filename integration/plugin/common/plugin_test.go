@@ -201,10 +201,6 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "Test not supported on rootless due to buggy daemon setup in rootless mode due to daemon restart")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
@@ -219,7 +215,8 @@ func TestPluginsWithRuntimes(t *testing.T) {
 
 	assert.NilError(t, client.PluginEnable(ctx, "test:latest", types.PluginEnableOptions{Timeout: 30}))
 
-	p := filepath.Join(dir, "myrt")
+	tmpDir := t.TempDir()
+	p := filepath.Join(tmpDir, "myrt")
 	script := fmt.Sprintf(`#!/bin/sh
 	file="%s/success"
 	if [ "$1" = "someArg" ]; then
@@ -229,7 +226,7 @@ func TestPluginsWithRuntimes(t *testing.T) {
 
 	touch $file
 	exec runc $@
-	`, dir)
+	`, tmpDir)
 
 	assert.NilError(t, os.WriteFile(p, []byte(script), 0o777))
 
@@ -243,18 +240,18 @@ func TestPluginsWithRuntimes(t *testing.T) {
 			"myrtArgs": {Path: p, Args: []string{"someArg"}},
 		},
 	})
-	configPath := filepath.Join(dir, "config.json")
+	configPath := filepath.Join(tmpDir, "config.json")
 	os.WriteFile(configPath, cfg, 0o644)
 
 	t.Run("No Args", func(t *testing.T) {
 		d.Restart(t, "--default-runtime=myrt", "--config-file="+configPath)
-		_, err = os.Stat(filepath.Join(dir, "success"))
+		_, err = os.Stat(filepath.Join(tmpDir, "success"))
 		assert.NilError(t, err)
 	})
 
 	t.Run("With Args", func(t *testing.T) {
 		d.Restart(t, "--default-runtime=myrtArgs", "--config-file="+configPath)
-		_, err = os.Stat(filepath.Join(dir, "success_someArg"))
+		_, err = os.Stat(filepath.Join(tmpDir, "success_someArg"))
 		assert.NilError(t, err)
 	})
 }

@@ -45,39 +45,30 @@ func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
 	return graphdriver.GetDriver("vfs", nil, options)
 }
 
-func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {
-	td, err := os.MkdirTemp("", "graph-")
-	if err != nil {
-		t.Fatal(err)
-	}
+func newTestGraphDriver(t *testing.T) graphdriver.Driver {
+	t.Helper()
+	td := t.TempDir()
 
 	driver, err := newVFSGraphDriver(td)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return driver, func() {
-		os.RemoveAll(td)
-	}
+	return driver
 }
 
-func newTestStore(t *testing.T) (Store, string, func()) {
-	td, err := os.MkdirTemp("", "layerstore-")
-	if err != nil {
-		t.Fatal(err)
-	}
+func newTestStore(t *testing.T) (Store, string) {
+	t.Helper()
+	td := t.TempDir()
 
-	graph, graphcleanup := newTestGraphDriver(t)
+	graph := newTestGraphDriver(t)
 
 	ls, err := newStoreFromGraphDriver(td, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return ls, td, func() {
-		graphcleanup()
-		os.RemoveAll(td)
-	}
+	return ls, td
 }
 
 type layerInit func(root string) error
@@ -245,8 +236,7 @@ func assertLayerEqual(t *testing.T, l1, l2 Layer) {
 }
 
 func TestMountAndRegister(t *testing.T) {
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	li := initWithFiles(newTestFile("testfile.txt", []byte("some test data"), 0o644))
 	layer, err := createLayer(ls, "", li)
@@ -290,8 +280,7 @@ func TestLayerRelease(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0o644)))
 	if err != nil {
@@ -339,8 +328,7 @@ func TestStoreRestore(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0o644)))
 	if err != nil {
@@ -454,8 +442,7 @@ func TestTarStreamStability(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	files1 := []FileApplier{
 		newTestFile("/etc/hosts", []byte("mydomain 10.0.0.1"), 0o644),
@@ -643,8 +630,7 @@ func assertReferences(t *testing.T, references ...Layer) {
 }
 
 func TestRegisterExistingLayer(t *testing.T) {
-	ls, _, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, _ := newTestStore(t)
 
 	baseFiles := []FileApplier{
 		newTestFile("/etc/profile", []byte("# Base configuration"), 0o644),
@@ -683,8 +669,7 @@ func TestTarStreamVerification(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Failing on Windows")
 	}
-	ls, tmpdir, cleanup := newTestStore(t)
-	defer cleanup()
+	ls, tmpdir := newTestStore(t)
 
 	files1 := []FileApplier{
 		newTestFile("/foo", []byte("abc"), 0o644),

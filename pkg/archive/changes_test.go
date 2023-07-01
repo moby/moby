@@ -136,12 +136,8 @@ func TestChangeString(t *testing.T) {
 }
 
 func TestChangesWithNoChanges(t *testing.T) {
-	rwLayer, err := os.MkdirTemp("", "docker-changes-test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(rwLayer)
-	layer, err := os.MkdirTemp("", "docker-changes-test-layer")
-	assert.NilError(t, err)
-	defer os.RemoveAll(layer)
+	rwLayer := t.TempDir()
+	layer := t.TempDir()
 	createSampleDir(t, layer)
 	changes, err := Changes([]string{layer}, rwLayer)
 	assert.NilError(t, err)
@@ -152,16 +148,12 @@ func TestChangesWithNoChanges(t *testing.T) {
 
 func TestChangesWithChanges(t *testing.T) {
 	// Mock the readonly layer
-	layer, err := os.MkdirTemp("", "docker-changes-test-layer")
-	assert.NilError(t, err)
-	defer os.RemoveAll(layer)
+	layer := t.TempDir()
 	createSampleDir(t, layer)
 	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0o740)
 
 	// Mock the RW layer
-	rwLayer, err := os.MkdirTemp("", "docker-changes-test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(rwLayer)
+	rwLayer := t.TempDir()
 
 	// Create a folder in RW layer
 	dir1 := path.Join(rwLayer, "dir1")
@@ -195,9 +187,7 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("needs more investigation")
 	}
-	baseLayer, err := os.MkdirTemp("", "docker-changes-test.")
-	assert.NilError(t, err)
-	defer os.RemoveAll(baseLayer)
+	baseLayer := t.TempDir()
 
 	dir3 := path.Join(baseLayer, "dir1/dir2/dir3")
 	os.MkdirAll(dir3, 0o7400)
@@ -205,9 +195,7 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 	file := path.Join(dir3, "file.txt")
 	os.WriteFile(file, []byte("hello"), 0o666)
 
-	layer, err := os.MkdirTemp("", "docker-changes-test2.")
-	assert.NilError(t, err)
-	defer os.RemoveAll(layer)
+	layer := t.TempDir()
 
 	// Test creating a new file
 	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
@@ -228,9 +216,7 @@ func TestChangesWithChangesGH13590(t *testing.T) {
 	checkChanges(expectedChanges, changes, t)
 
 	// Now test changing a file
-	layer, err = os.MkdirTemp("", "docker-changes-test3.")
-	assert.NilError(t, err)
-	defer os.RemoveAll(layer)
+	layer = t.TempDir()
 
 	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
 		t.Fatalf("Cmd failed: %q", err)
@@ -262,12 +248,10 @@ func TestChangesDirsEmpty(t *testing.T) {
 		}
 	}
 
-	src, err := os.MkdirTemp("", "docker-changes-test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(src)
+	src := t.TempDir()
 	createSampleDir(t, src)
 	dst := src + "-copy"
-	err = copyDir(src, dst)
+	err := copyDir(src, dst)
 	assert.NilError(t, err)
 	defer os.RemoveAll(dst)
 	changes, err := ChangesDirs(dst, src)
@@ -468,13 +452,8 @@ func TestChangesSizeWithHardlinks(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("needs further investigation")
 	}
-	srcDir, err := os.MkdirTemp("", "docker-test-srcDir")
-	assert.NilError(t, err)
-	defer os.RemoveAll(srcDir)
-
-	destDir, err := os.MkdirTemp("", "docker-test-destDir")
-	assert.NilError(t, err)
-	defer os.RemoveAll(destDir)
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
 
 	creationSize, err := prepareUntarSourceDirectory(100, destDir, true)
 	assert.NilError(t, err)
@@ -506,11 +485,9 @@ func TestChangesSizeWithOnlyDeleteChanges(t *testing.T) {
 }
 
 func TestChangesSize(t *testing.T) {
-	parentPath, err := os.MkdirTemp("", "docker-changes-test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(parentPath)
+	parentPath := t.TempDir()
 	addition := path.Join(parentPath, "addition")
-	err = os.WriteFile(addition, []byte{0x01, 0x01, 0x01}, 0o744)
+	err := os.WriteFile(addition, []byte{0x01, 0x01, 0x01}, 0o744)
 	assert.NilError(t, err)
 	modification := path.Join(parentPath, "modification")
 	err = os.WriteFile(modification, []byte{0x01, 0x01, 0x01}, 0o744)

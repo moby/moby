@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -12,15 +11,14 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func newDaemonWithTmpRoot(t *testing.T) (*Daemon, func()) {
-	tmp, err := os.MkdirTemp("", "docker-daemon-unix-test-")
-	assert.NilError(t, err)
-	d := &Daemon{
+func newDaemonWithTmpRoot(t *testing.T) *Daemon {
+	t.Helper()
+	tmp := t.TempDir()
+	return &Daemon{
 		repository: tmp,
 		root:       tmp,
+		containers: container.NewMemoryStore(),
 	}
-	d.containers = container.NewMemoryStore()
-	return d, func() { os.RemoveAll(tmp) }
 }
 
 func newContainerWithState(state *container.State) *container.Container {
@@ -70,8 +68,7 @@ func TestContainerDelete(t *testing.T) {
 
 	for _, te := range tt {
 		c := te.initContainer()
-		d, cleanup := newDaemonWithTmpRoot(t)
-		defer cleanup()
+		d := newDaemonWithTmpRoot(t)
 		d.containers.Add(c.ID, c)
 
 		err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: false})
@@ -86,8 +83,7 @@ func TestContainerDoubleDelete(t *testing.T) {
 	// Mark the container as having a delete in progress
 	c.SetRemovalInProgress()
 
-	d, cleanup := newDaemonWithTmpRoot(t)
-	defer cleanup()
+	d := newDaemonWithTmpRoot(t)
 	d.containers.Add(c.ID, c)
 
 	// Try to remove the container when its state is removalInProgress.

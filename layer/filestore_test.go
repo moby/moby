@@ -19,21 +19,15 @@ func randomLayerID(seed int64) ChainID {
 	return ChainID(digest.FromBytes([]byte(fmt.Sprintf("%d", r.Int63()))))
 }
 
-func newFileMetadataStore(t *testing.T) (*fileMetadataStore, string, func()) {
-	td, err := os.MkdirTemp("", "layers-")
-	if err != nil {
-		t.Fatal(err)
-	}
+func newFileMetadataStore(t *testing.T) (*fileMetadataStore, string) {
+	t.Helper()
+	td := t.TempDir()
 	fms, err := newFSMetadataStore(td)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return fms, td, func() {
-		if err := os.RemoveAll(td); err != nil {
-			t.Logf("Failed to cleanup %q: %s", td, err)
-		}
-	}
+	return fms, td
 }
 
 func assertNotDirectoryError(t *testing.T, err error) {
@@ -48,8 +42,7 @@ func assertNotDirectoryError(t *testing.T, err error) {
 }
 
 func TestCommitFailure(t *testing.T) {
-	fms, td, cleanup := newFileMetadataStore(t)
-	defer cleanup()
+	fms, td := newFileMetadataStore(t)
 
 	if err := os.WriteFile(filepath.Join(td, "sha256"), []byte("was here first!"), 0o644); err != nil {
 		t.Fatal(err)
@@ -72,8 +65,7 @@ func TestCommitFailure(t *testing.T) {
 }
 
 func TestStartTransactionFailure(t *testing.T) {
-	fms, td, cleanup := newFileMetadataStore(t)
-	defer cleanup()
+	fms, td := newFileMetadataStore(t)
 
 	if err := os.WriteFile(filepath.Join(td, "tmp"), []byte("was here first!"), 0o644); err != nil {
 		t.Fatal(err)
@@ -104,8 +96,7 @@ func TestStartTransactionFailure(t *testing.T) {
 }
 
 func TestGetOrphan(t *testing.T) {
-	fms, td, cleanup := newFileMetadataStore(t)
-	defer cleanup()
+	fms, td := newFileMetadataStore(t)
 
 	layerRoot := filepath.Join(td, "sha256")
 	if err := os.MkdirAll(layerRoot, 0o755); err != nil {

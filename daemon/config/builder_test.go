@@ -23,7 +23,6 @@ func TestBuilderGC(t *testing.T) {
     }
   }
 }`))
-	defer tempFile.Remove()
 	configFile := tempFile.Path()
 
 	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)

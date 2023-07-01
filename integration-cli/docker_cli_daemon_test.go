@@ -1086,13 +1086,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverShouldBeIgnoredForBuild(c *te
 }
 
 func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *testing.T) {
-	dir, err := os.MkdirTemp("", "socket-cleanup-test")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	sockPath := filepath.Join(dir, "docker.sock")
+	sockPath := filepath.Join(c.TempDir(), "docker.sock")
 	s.d.Start(c, "--host", "unix://"+sockPath)
 
 	if _, err := os.Stat(sockPath); err != nil {
@@ -1617,9 +1611,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, Network)
 
-	testDir, err := os.MkdirTemp("", "no-space-left-on-device-test")
-	assert.NilError(c, err)
-	defer os.RemoveAll(testDir)
+	testDir := c.TempDir()
 	assert.Assert(c, mount.MakeRShared(testDir) == nil)
 	defer mount.Unmount(testDir)
 
@@ -2074,13 +2066,10 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
+	daemonConfig := `{ "max-concurrent-downloads" : 8 }`
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
-
-	daemonConfig := `{ "max-concurrent-downloads" : 8 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
@@ -2089,12 +2078,9 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *testing.T)
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
-
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
 
@@ -2114,13 +2100,11 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
+	daemonConfig := `{ "max-concurrent-uploads" : null }`
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
-	daemonConfig := `{ "max-concurrent-uploads" : null }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
@@ -2129,11 +2113,9 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 	// unix.Kill(s.d.cmd.Process.Pid, unix.SIGHUP)
@@ -2146,11 +2128,9 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *test
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentUploads))
 	assert.Assert(c, strings.Contains(string(content), expectedMaxConcurrentDownloads))
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "labels":["foo=bar"] }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 
@@ -2428,10 +2408,8 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 
 	dockerProxyPath, err := exec.LookPath("docker-proxy")
 	assert.NilError(c, err)
-	tmpDir, err := os.MkdirTemp("", "test-docker-proxy")
-	assert.NilError(c, err)
 
-	newProxyPath := filepath.Join(tmpDir, "docker-proxy")
+	newProxyPath := filepath.Join(c.TempDir(), "docker-proxy")
 	cmd := exec.Command("cp", dockerProxyPath, newProxyPath)
 	assert.NilError(c, cmd.Run())
 
@@ -2480,20 +2458,16 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *testing.T
 
 	// daemon config file
 	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
+	daemonConfig := `{ "shutdown-timeout" : 8 }`
+	err := os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
-	daemonConfig := `{ "shutdown-timeout" : 8 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
 	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
 	daemonConfig = `{ "shutdown-timeout" : 5 }`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	err = os.WriteFile(configFilePath, []byte(daemonConfig), 0666)
+	assert.NilError(c, err)
 
 	assert.Assert(c, s.d.Signal(unix.SIGHUP) == nil)
 
@@ -2647,10 +2621,7 @@ func (s *DockerDaemonSuite) TestShmSize(c *testing.T) {
 func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	configPath, err := os.MkdirTemp("", "test-daemon-shm-size-reload-config")
-	assert.Assert(c, err == nil, "could not create temp file for config reload")
-	defer os.RemoveAll(configPath) // clean up
-	configFile := filepath.Join(configPath, "config.json")
+	configFile := filepath.Join(c.TempDir(), "config.json")
 
 	size := 67108864 * 2
 	configData := []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))

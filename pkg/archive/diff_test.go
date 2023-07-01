@@ -196,11 +196,7 @@ func TestApplyLayerInvalidSymlink(t *testing.T) {
 }
 
 func TestApplyLayerWhiteouts(t *testing.T) {
-	wd, err := os.MkdirTemp("", "graphdriver-test-whiteouts")
-	if err != nil {
-		return
-	}
-	defer os.RemoveAll(wd)
+	wd := t.TempDir()
 
 	base := []string{
 		".baz",

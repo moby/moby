@@ -9,7 +9,6 @@ import (
 
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/fs"
 )
 
 const imageSize = 64 * 1024 * 1024
@@ -78,9 +77,7 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 			mountOptions = mountOptions + ",prjquota"
 		}
 
-		mountPointDir := fs.NewDir(t, "xfs-mountPoint")
-		defer mountPointDir.Remove()
-		mountPoint := mountPointDir.Path()
+		mountPoint := t.TempDir()
 
 		out, err := exec.Command("mount", "-o", mountOptions, imageFileName, mountPoint).CombinedOutput()
 		if err != nil {

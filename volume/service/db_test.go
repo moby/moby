@@ -1,31 +1,25 @@
 package service // import "github.com/docker/docker/volume/service"
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSetGetMeta(t *testing.T) {
 	t.Parallel()
 
-	dir, err := os.MkdirTemp("", "test-set-get")
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
-	db, err := bolt.Open(filepath.Join(dir, "db"), 0o600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(filepath.Join(t.TempDir(), "db"), 0o600, &bolt.Options{Timeout: 1 * time.Second})
 	assert.NilError(t, err)
 
 	store := &VolumeStore{db: db}
 	defer store.Shutdown()
 
 	_, err = store.getMeta("test")
-	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.Assert(t, err != nil)
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket(volumeBucketName)

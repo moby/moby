@@ -32,9 +32,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	const imageTag = "capabilities:1.0"
 
-	tmp, err := os.MkdirTemp("", "integration-")
-	assert.NilError(t, err)
-	defer os.RemoveAll(tmp)
+	tmpDir := t.TempDir()
 
 	dUserRemap := daemon.New(t)
 	dUserRemap.Start(t, "--userns-remap", "default")
@@ -42,7 +40,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	clientUserRemap := dUserRemap.NewClientT(t)
 	defer clientUserRemap.Close()
 
-	err = load.FrozenImagesLinux(clientUserRemap, "debian:bullseye-slim")
+	err := load.FrozenImagesLinux(clientUserRemap, "debian:bullseye-slim")
 	assert.NilError(t, err)
 
 	dUserRemapRunning := true
@@ -78,7 +76,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	assert.NilError(t, err, "failed to download capabilities image")
 	defer reader.Close()
 
-	tar, err := os.Create(tmp + "/image.tar")
+	tar, err := os.Create(tmpDir + "/image.tar")
 	assert.NilError(t, err, "failed to create image tar file")
 	defer tar.Close()
 
@@ -99,7 +97,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	clientNoUserRemap := dNoUserRemap.NewClientT(t)
 	defer clientNoUserRemap.Close()
 
-	tarFile, err := os.Open(tmp + "/image.tar")
+	tarFile, err := os.Open(tmpDir + "/image.tar")
 	assert.NilError(t, err, "failed to open image tar file")
 	defer tarFile.Close()
 

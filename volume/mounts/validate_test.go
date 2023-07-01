@@ -2,7 +2,6 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"errors"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -11,11 +10,7 @@ import (
 )
 
 func TestValidateMount(t *testing.T) {
-	testDir, err := os.MkdirTemp("", "test-validate-mount")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(testDir)
+	testDir := t.TempDir()
 
 	cases := []struct {
 		input    mount.Mount
