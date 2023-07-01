@@ -965,8 +965,8 @@ github.com/spf13/pflag
 # github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 ## explicit
 github.com/syndtr/gocapability/capability
-# github.com/tinylib/msgp v1.1.6
-## explicit; go 1.14
+# github.com/tinylib/msgp v1.1.8
+## explicit; go 1.15
 github.com/tinylib/msgp/msgp
 # github.com/tonistiigi/fsutil v0.0.0-20230105215944-fb433841cbfa
 ## explicit; go 1.18
