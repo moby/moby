@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -173,7 +174,7 @@ func TestWaitDisabled(t *testing.T) {
 	select {
 	case <-chEvent:
 		<-ctxWaitReady.Done()
-		if err := ctxWaitReady.Err(); err == context.DeadlineExceeded {
+		if err := ctxWaitReady.Err(); os.IsTimeout(err) {
 			t.Fatal(err)
 		}
 		select {
@@ -254,7 +255,7 @@ func TestWaitEnabled(t *testing.T) {
 	select {
 	case <-chEvent:
 		<-ctxWaitReady.Done()
-		if err := ctxWaitReady.Err(); err == context.DeadlineExceeded {
+		if err := ctxWaitReady.Err(); os.IsTimeout(err) {
 			t.Fatal(err)
 		}
 		select {
