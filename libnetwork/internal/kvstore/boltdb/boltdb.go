@@ -456,17 +456,7 @@ func (b *BoltDB) DeleteTree(keyPrefix string) error {
 	return err
 }
 
-// NewLock has to implemented at the library level since its not supported by BoltDB
-func (b *BoltDB) NewLock(key string, options *store.LockOptions) (store.Locker, error) {
-	return nil, store.ErrCallNotSupported
-}
-
 // Watch has to implemented at the library level since its not supported by BoltDB
 func (b *BoltDB) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
-	return nil, store.ErrCallNotSupported
-}
-
-// WatchTree has to implemented at the library level since its not supported by BoltDB
-func (b *BoltDB) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
 	return nil, store.ErrCallNotSupported
 }

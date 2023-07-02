@@ -76,16 +76,6 @@ func (s *MockStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVP
 	return nil, ErrNotImplemented
 }
 
-// WatchTree triggers a watch on a range of values at "directory"
-func (s *MockStore) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
-	return nil, ErrNotImplemented
-}
-
-// NewLock exposed
-func (s *MockStore) NewLock(key string, options *store.LockOptions) (store.Locker, error) {
-	return nil, ErrNotImplemented
-}
-
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
 func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
