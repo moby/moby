@@ -33,8 +33,6 @@ type DataStore interface {
 	Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KVObject, error)
 	// RestartWatch retriggers stopped Watches
 	RestartWatch()
-	// Active returns if the store is active
-	Active() bool
 	// List returns of a list of KVObjects belonging to the parent
 	// key. The caller must pass a KVObject of the same type as
 	// the objects that need to be listed
@@ -60,7 +58,6 @@ type datastore struct {
 	store      store.Store
 	cache      *cache
 	watchCh    chan struct{}
-	active     bool
 	sequential bool
 	sync.Mutex
 }
@@ -210,7 +207,7 @@ func newClient(kv string, addr string, config *store.Config) (DataStore, error) 
 		return nil, err
 	}
 
-	ds := &datastore{scope: LocalScope, store: s, active: true, watchCh: make(chan struct{}), sequential: true}
+	ds := &datastore{scope: LocalScope, store: s, watchCh: make(chan struct{}), sequential: true}
 	ds.cache = newCache(ds)
 
 	return ds, nil
@@ -261,10 +258,6 @@ func (ds *datastore) Scope() string {
 	return ds.scope
 }
 
-func (ds *datastore) Active() bool {
-	return ds.active
-}
-
 func (ds *datastore) Watchable() bool {
 	return ds.scope != LocalScope
 }
@@ -304,9 +297,6 @@ func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KV
 				// for the watch can exit resulting in a nil value in
 				// channel.
 				if kvPair == nil {
-					ds.Lock()
-					ds.active = false
-					ds.Unlock()
 					break loop
 				}
 
@@ -340,7 +330,6 @@ func (ds *datastore) RestartWatch() {
 	ds.Lock()
 	defer ds.Unlock()
 
-	ds.active = true
 	watchCh := ds.watchCh
 	ds.watchCh = make(chan struct{})
 	close(watchCh)
