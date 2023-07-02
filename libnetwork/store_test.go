@@ -23,12 +23,12 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	genericOption[netlabel.GenericData] = driverOptions
 	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", genericOption))
 
-	ctrl, err := New(cfgOptions...)
+	testController, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
-	defer ctrl.Stop()
-	nw, err := ctrl.NewNetwork("host", "host", "")
+	defer testController.Stop()
+	nw, err := testController.NewNetwork("host", "host", "")
 	if err != nil {
 		t.Fatalf("Error creating default \"host\" network: %v", err)
 	}
@@ -36,22 +36,22 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.getStore().KVStore()
-	if exists, err := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); !exists || err != nil {
+	kvStore := testController.getStore().KVStore()
+	if exists, err := kvStore.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); !exists || err != nil {
 		t.Fatalf("Network key should have been created.")
 	}
-	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); !exists || err != nil {
+	if exists, err := kvStore.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); !exists || err != nil {
 		t.Fatalf("Endpoint key should have been created.")
 	}
-	store.Close()
+	kvStore.Close()
 
 	// test restore of local store
-	ctrl, err = New(cfgOptions...)
+	testController, err = New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}
-	defer ctrl.Stop()
-	if _, err = ctrl.NetworkByID(nw.ID()); err != nil {
+	defer testController.Stop()
+	if _, err = testController.NetworkByID(nw.ID()); err != nil {
 		t.Fatalf("Error getting network %v", err)
 	}
 }
