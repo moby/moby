@@ -78,26 +78,25 @@ func (s *MockStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVP
 
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
-func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair) (bool, *store.KVPair, error) {
+func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair) (*store.KVPair, error) {
 	mData := s.db[key]
 
 	if previous == nil {
 		if mData != nil {
-			return false, nil, types.BadRequestErrorf("atomic put failed because key exists")
+			return nil, types.BadRequestErrorf("atomic put failed because key exists")
 		} // Else OK.
 	} else {
 		if mData == nil {
-			return false, nil, types.BadRequestErrorf("atomic put failed because key exists")
+			return nil, types.BadRequestErrorf("atomic put failed because key exists")
 		}
 		if mData != nil && mData.Index != previous.LastIndex {
-			return false, nil, types.BadRequestErrorf("atomic put failed due to mismatched Index")
+			return nil, types.BadRequestErrorf("atomic put failed due to mismatched Index")
 		} // Else OK.
 	}
-	err := s.Put(key, newValue)
-	if err != nil {
-		return false, nil, err
+	if err := s.Put(key, newValue); err != nil {
+		return nil, err
 	}
-	return true, &store.KVPair{Key: key, Value: newValue, LastIndex: s.db[key].Index}, nil
+	return &store.KVPair{Key: key, Value: newValue, LastIndex: s.db[key].Index}, nil
 }
 
 // AtomicDelete deletes a value at "key" if the key has not

@@ -350,7 +350,7 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 
 // AtomicPut puts a value at "key" if the key has not been
 // modified since the last Put, throws an error if this is the case
-func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (bool, *store.KVPair, error) {
+func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (*store.KVPair, error) {
 	var (
 		val     []byte
 		dbIndex uint64
@@ -363,7 +363,7 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (bo
 	dbval := make([]byte, libkvmetadatalen)
 
 	if db, err = b.getDBhandle(); err != nil {
-		return false, nil, err
+		return nil, err
 	}
 	defer b.releaseDBhandle()
 
@@ -400,16 +400,9 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (bo
 		return (bucket.Put([]byte(key), dbval))
 	})
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
-
-	updated := &store.KVPair{
-		Key:       key,
-		Value:     value,
-		LastIndex: dbIndex,
-	}
-
-	return true, updated, nil
+	return &store.KVPair{Key: key, Value: value, LastIndex: dbIndex}, nil
 }
 
 // Close the db connection to the BoltDB

@@ -382,7 +382,7 @@ func (ds *datastore) PutObjectAtomic(kvObject KVObject) error {
 		previous = nil
 	}
 
-	_, pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
+	pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
 	if err != nil {
 		if err == store.ErrKeyExists {
 			return ErrKeyModified
