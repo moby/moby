@@ -3,7 +3,6 @@ package libnetwork
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -14,15 +13,15 @@ import (
 )
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
-	cfgOptions := []config.Option{}
-	cfgOptions = append(cfgOptions, optionLocalKVProvider(provider))
-	cfgOptions = append(cfgOptions, optionLocalKVProviderURL(url))
-	cfgOptions = append(cfgOptions, optionLocalKVProviderConfig(storeConfig))
+	cfgOptions := []config.Option{func(c *config.Config) {
+		c.Scope.Client.Provider = provider
+		c.Scope.Client.Address = url
+		c.Scope.Client.Config = storeConfig
+	}}
 
-	driverOptions := options.Generic{}
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = driverOptions
-	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", genericOption))
+	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", map[string]interface{}{
+		netlabel.GenericData: options.Generic{},
+	}))
 
 	testController, err := New(cfgOptions...)
 	if err != nil {
@@ -66,30 +65,9 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 	}
 
 	return func(c *config.Config) {
-		optionLocalKVProvider("boltdb")(c)
-		optionLocalKVProviderURL(tmp)(c)
-		optionLocalKVProviderConfig(&store.Config{Bucket: "testBackend"})(c)
-	}
-}
-
-// optionLocalKVProvider function returns an option setter for kvstore provider
-func optionLocalKVProvider(provider string) config.Option {
-	return func(c *config.Config) {
-		c.Scope.Client.Provider = strings.TrimSpace(provider)
-	}
-}
-
-// optionLocalKVProviderURL function returns an option setter for kvstore url
-func optionLocalKVProviderURL(url string) config.Option {
-	return func(c *config.Config) {
-		c.Scope.Client.Address = strings.TrimSpace(url)
-	}
-}
-
-// optionLocalKVProviderConfig function returns an option setter for kvstore config
-func optionLocalKVProviderConfig(cfg *store.Config) config.Option {
-	return func(c *config.Config) {
-		c.Scope.Client.Config = cfg
+		c.Scope.Client.Provider = "boltdb"
+		c.Scope.Client.Address = tmp
+		c.Scope.Client.Config = &store.Config{Bucket: "testBackend"}
 	}
 }
 
