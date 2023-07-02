@@ -369,8 +369,3 @@ func (b *BoltDB) Close() {
 		b.client.Close()
 	}
 }
-
-// Watch has to implemented at the library level since its not supported by BoltDB
-func (b *BoltDB) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
-	return nil, store.ErrCallNotSupported
-}

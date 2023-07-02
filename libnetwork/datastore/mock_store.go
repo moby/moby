@@ -65,11 +65,6 @@ func (s *MockStore) List(prefix string) ([]*store.KVPair, error) {
 	return nil, ErrNotImplemented
 }
 
-// Watch a single key for modifications
-func (s *MockStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
-	return nil, ErrNotImplemented
-}
-
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
 func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair) (*store.KVPair, error) {
