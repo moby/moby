@@ -41,10 +41,10 @@ var (
 )
 
 type datastore struct {
+	mu    sync.Mutex
 	scope string
 	store store.Store
 	cache *cache
-	sync.Mutex
 }
 
 // KVObject is Key/Value interface used by objects to be part of the DataStore
@@ -254,8 +254,8 @@ func (ds *datastore) PutObjectAtomic(kvObject KVObject) error {
 		pair     *store.KVPair
 		err      error
 	)
-	ds.Lock()
-	defer ds.Unlock()
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
 
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
@@ -299,8 +299,8 @@ add_cache:
 
 // GetObject returns a record matching the key
 func (ds *datastore) GetObject(key string, o KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
 
 	if ds.cache != nil {
 		return ds.cache.get(o)
@@ -333,8 +333,8 @@ func (ds *datastore) ensureParent(parent string) error {
 }
 
 func (ds *datastore) List(key string, kvObject KVObject) ([]KVObject, error) {
-	ds.Lock()
-	defer ds.Unlock()
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
 
 	if ds.cache != nil {
 		return ds.cache.list(kvObject)
@@ -388,8 +388,8 @@ func (ds *datastore) iterateKVPairsFromStore(key string, kvObject KVObject, call
 }
 
 func (ds *datastore) Map(key string, kvObject KVObject) (map[string]KVObject, error) {
-	ds.Lock()
-	defer ds.Unlock()
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
 
 	kvol := make(map[string]KVObject)
 	cb := func(key string, val KVObject) {
@@ -405,8 +405,8 @@ func (ds *datastore) Map(key string, kvObject KVObject) (map[string]KVObject, er
 
 // DeleteObjectAtomic performs atomic delete on a record
 func (ds *datastore) DeleteObjectAtomic(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
 
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
