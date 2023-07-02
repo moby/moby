@@ -1,7 +1,6 @@
 package kvstore
 
 import (
-	"crypto/tls"
 	"errors"
 	"time"
 )
@@ -29,21 +28,9 @@ var (
 
 // Config contains the options for a storage client
 type Config struct {
-	ClientTLS         *ClientTLSConfig
-	TLS               *tls.Config
 	ConnectionTimeout time.Duration
 	Bucket            string
 	PersistConnection bool
-	Username          string
-	Password          string
-}
-
-// ClientTLSConfig contains data for a Client TLS configuration in the form
-// the etcd client wants it.  Eventually we'll adapt it for ZK and Consul.
-type ClientTLSConfig struct {
-	CertFile   string
-	KeyFile    string
-	CACertFile string
 }
 
 // Store represents the backend K/V storage
