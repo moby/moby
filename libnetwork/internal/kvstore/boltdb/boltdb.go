@@ -308,30 +308,26 @@ func (b *BoltDB) List(keyPrefix string) ([]*store.KVPair, error) {
 // AtomicDelete deletes a value at "key" if the key
 // has not been modified in the meantime, throws an
 // error if this is the case
-func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
-	var (
-		val []byte
-		db  *bolt.DB
-		err error
-	)
+func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) error {
 	b.Lock()
 	defer b.Unlock()
 
 	if previous == nil {
-		return false, store.ErrPreviousNotSpecified
+		return store.ErrPreviousNotSpecified
 	}
-	if db, err = b.getDBhandle(); err != nil {
-		return false, err
+	db, err := b.getDBhandle()
+	if err != nil {
+		return err
 	}
 	defer b.releaseDBhandle()
 
-	err = db.Update(func(tx *bolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
 			return store.ErrKeyNotFound
 		}
 
-		val = bucket.Get([]byte(key))
+		val := bucket.Get([]byte(key))
 		if val == nil {
 			return store.ErrKeyNotFound
 		}
@@ -339,13 +335,8 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 		if dbIndex != previous.LastIndex {
 			return store.ErrKeyModified
 		}
-		err := bucket.Delete([]byte(key))
-		return err
+		return bucket.Delete([]byte(key))
 	})
-	if err != nil {
-		return false, err
-	}
-	return true, err
 }
 
 // AtomicPut puts a value at "key" if the key has not been

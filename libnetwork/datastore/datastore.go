@@ -590,7 +590,7 @@ func (ds *datastore) DeleteObjectAtomic(kvObject KVObject) error {
 		goto del_cache
 	}
 
-	if _, err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
+	if err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
 		if err == store.ErrKeyExists {
 			return ErrKeyModified
 		}

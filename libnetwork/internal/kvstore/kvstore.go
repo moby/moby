@@ -64,7 +64,7 @@ type Store interface {
 	AtomicPut(key string, value []byte, previous *KVPair) (*KVPair, error)
 
 	// AtomicDelete performs an atomic delete of a single value.
-	AtomicDelete(key string, previous *KVPair) (bool, error)
+	AtomicDelete(key string, previous *KVPair) error
 
 	// Close the store connection
 	Close()

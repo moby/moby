@@ -101,12 +101,12 @@ func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPai
 
 // AtomicDelete deletes a value at "key" if the key has not
 // been modified in the meantime, throws an error if this is the case
-func (s *MockStore) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
+func (s *MockStore) AtomicDelete(key string, previous *store.KVPair) error {
 	mData := s.db[key]
 	if mData != nil && mData.Index != previous.LastIndex {
-		return false, types.BadRequestErrorf("atomic delete failed due to mismatched Index")
+		return types.BadRequestErrorf("atomic delete failed due to mismatched Index")
 	}
-	return true, s.Delete(key)
+	return s.Delete(key)
 }
 
 // Close closes the client connection
