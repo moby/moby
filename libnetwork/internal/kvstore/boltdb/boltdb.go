@@ -167,7 +167,7 @@ func (b *BoltDB) Get(key string) (*store.KVPair, error) {
 }
 
 // Put the key, value pair. index number metadata is prepended to the value
-func (b *BoltDB) Put(key string, value []byte, opts *store.WriteOptions) error {
+func (b *BoltDB) Put(key string, value []byte) error {
 	var (
 		dbIndex uint64
 		db      *bolt.DB
@@ -350,7 +350,7 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 
 // AtomicPut puts a value at "key" if the key has not been
 // modified since the last Put, throws an error if this is the case
-func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
+func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair) (bool, *store.KVPair, error) {
 	var (
 		val     []byte
 		dbIndex uint64

@@ -38,7 +38,7 @@ func (s *MockStore) Get(key string) (*store.KVPair, error) {
 }
 
 // Put a value at "key"
-func (s *MockStore) Put(key string, value []byte, options *store.WriteOptions) error {
+func (s *MockStore) Put(key string, value []byte) error {
 	mData := s.db[key]
 	if mData == nil {
 		mData = &MockData{value, 0}
@@ -78,7 +78,7 @@ func (s *MockStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVP
 
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
-func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
+func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair) (bool, *store.KVPair, error) {
 	mData := s.db[key]
 
 	if previous == nil {
@@ -93,7 +93,7 @@ func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPai
 			return false, nil, types.BadRequestErrorf("atomic put failed due to mismatched Index")
 		} // Else OK.
 	}
-	err := s.Put(key, newValue, nil)
+	err := s.Put(key, newValue)
 	if err != nil {
 		return false, nil, err
 	}

@@ -382,7 +382,7 @@ func (ds *datastore) PutObjectAtomic(kvObject KVObject) error {
 		previous = nil
 	}
 
-	_, pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous, nil)
+	_, pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous)
 	if err != nil {
 		if err == store.ErrKeyExists {
 			return ErrKeyModified
@@ -437,7 +437,7 @@ func (ds *datastore) putObjectWithKey(kvObject KVObject, key ...string) error {
 	if kvObjValue == nil {
 		return types.BadRequestErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
-	return ds.store.Put(Key(key...), kvObjValue, nil)
+	return ds.store.Put(Key(key...), kvObjValue)
 }
 
 // GetObject returns a record matching the key
@@ -474,7 +474,7 @@ func (ds *datastore) ensureParent(parent string) error {
 	if exists {
 		return nil
 	}
-	return ds.store.Put(parent, []byte{}, &store.WriteOptions{IsDir: true})
+	return ds.store.Put(parent, []byte{})
 }
 
 func (ds *datastore) List(key string, kvObject KVObject) ([]KVObject, error) {

@@ -39,7 +39,7 @@ type Config struct {
 // backend for libkv
 type Store interface {
 	// Put a value at the specified key
-	Put(key string, value []byte, options *WriteOptions) error
+	Put(key string, value []byte) error
 
 	// Get a value given its key
 	Get(key string) (*KVPair, error)
@@ -61,7 +61,7 @@ type Store interface {
 
 	// AtomicPut performs an atomic CAS operation on a single value.
 	// Pass previous = nil to create a new key.
-	AtomicPut(key string, value []byte, previous *KVPair, options *WriteOptions) (bool, *KVPair, error)
+	AtomicPut(key string, value []byte, previous *KVPair) (bool, *KVPair, error)
 
 	// AtomicDelete performs an atomic delete of a single value.
 	AtomicDelete(key string, previous *KVPair) (bool, error)
@@ -75,10 +75,4 @@ type KVPair struct {
 	Key       string
 	Value     []byte
 	LastIndex uint64
-}
-
-// WriteOptions contains optional request parameters
-type WriteOptions struct {
-	IsDir bool
-	TTL   time.Duration
 }
