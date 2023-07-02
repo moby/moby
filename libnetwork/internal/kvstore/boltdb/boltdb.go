@@ -139,12 +139,11 @@ func (b *BoltDB) Get(key string) (*store.KVPair, error) {
 
 		return nil
 	})
-
-	if len(val) == 0 {
-		return nil, store.ErrKeyNotFound
-	}
 	if err != nil {
 		return nil, err
+	}
+	if len(val) == 0 {
+		return nil, store.ErrKeyNotFound
 	}
 
 	dbIndex := binary.LittleEndian.Uint64(val[:libkvmetadatalen])
