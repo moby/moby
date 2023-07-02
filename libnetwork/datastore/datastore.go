@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 	"sync"
@@ -27,12 +26,6 @@ type DataStore interface {
 	DeleteObjectAtomic(kvObject KVObject) error
 	// DeleteTree deletes a record
 	DeleteTree(kvObject KVObject) error
-	// Watchable returns whether the store is watchable or not
-	Watchable() bool
-	// Watch for changes on a KVObject
-	Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KVObject, error)
-	// RestartWatch retriggers stopped Watches
-	RestartWatch()
 	// List returns of a list of KVObjects belonging to the parent
 	// key. The caller must pass a KVObject of the same type as
 	// the objects that need to be listed
@@ -54,10 +47,9 @@ var (
 )
 
 type datastore struct {
-	scope   string
-	store   store.Store
-	cache   *cache
-	watchCh chan struct{}
+	scope string
+	store store.Store
+	cache *cache
 	sync.Mutex
 }
 
@@ -206,7 +198,7 @@ func newClient(kv string, addr string, config *store.Config) (DataStore, error) 
 		return nil, err
 	}
 
-	ds := &datastore{scope: LocalScope, store: s, watchCh: make(chan struct{})}
+	ds := &datastore{scope: LocalScope, store: s}
 	ds.cache = newCache(ds)
 
 	return ds, nil
@@ -255,83 +247,6 @@ func (ds *datastore) Close() {
 
 func (ds *datastore) Scope() string {
 	return ds.scope
-}
-
-func (ds *datastore) Watchable() bool {
-	return ds.scope != LocalScope
-}
-
-func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KVObject, error) {
-	sCh := make(chan struct{})
-
-	ctor, ok := kvObject.(KVConstructor)
-	if !ok {
-		return nil, fmt.Errorf("error watching object type %T, object does not implement KVConstructor interface", kvObject)
-	}
-
-	kvpCh, err := ds.store.Watch(Key(kvObject.Key()...), sCh)
-	if err != nil {
-		return nil, err
-	}
-
-	kvoCh := make(chan KVObject)
-
-	go func() {
-	retry_watch:
-		var err error
-
-		// Make sure to get a new instance of watch channel
-		ds.Lock()
-		watchCh := ds.watchCh
-		ds.Unlock()
-
-	loop:
-		for {
-			select {
-			case <-stopCh:
-				close(sCh)
-				return
-			case kvPair := <-kvpCh:
-				// If the backend KV store gets reset libkv's go routine
-				// for the watch can exit resulting in a nil value in
-				// channel.
-				if kvPair == nil {
-					break loop
-				}
-
-				dstO := ctor.New()
-
-				if err = dstO.SetValue(kvPair.Value); err != nil {
-					log.Printf("Could not unmarshal kvpair value = %s", string(kvPair.Value))
-					break
-				}
-
-				dstO.SetIndex(kvPair.LastIndex)
-				kvoCh <- dstO
-			}
-		}
-
-		// Wait on watch channel for a re-trigger when datastore becomes active
-		<-watchCh
-
-		kvpCh, err = ds.store.Watch(Key(kvObject.Key()...), sCh)
-		if err != nil {
-			log.Printf("Could not watch the key %s in store: %v", Key(kvObject.Key()...), err)
-		}
-
-		goto retry_watch
-	}()
-
-	return kvoCh, nil
-}
-
-func (ds *datastore) RestartWatch() {
-	ds.Lock()
-	defer ds.Unlock()
-
-	watchCh := ds.watchCh
-	ds.watchCh = make(chan struct{})
-	close(watchCh)
 }
 
 func (ds *datastore) KVStore() store.Store {

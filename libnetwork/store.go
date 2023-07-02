@@ -200,7 +200,6 @@ retry:
 type netWatch struct {
 	localEps  map[string]*Endpoint
 	remoteEps map[string]*Endpoint
-	stopCh    chan struct{}
 }
 
 func (c *Controller) getLocalEps(nw *netWatch) []*Endpoint {
@@ -221,71 +220,6 @@ func (c *Controller) watchSvcRecord(ep *Endpoint) {
 
 func (c *Controller) unWatchSvcRecord(ep *Endpoint) {
 	c.unWatchCh <- ep
-}
-
-func (c *Controller) networkWatchLoop(nw *netWatch, ep *Endpoint, ecCh <-chan datastore.KVObject) {
-	for {
-		select {
-		case <-nw.stopCh:
-			return
-		case o := <-ecCh:
-			ec := o.(*endpointCnt)
-
-			epl, err := ec.n.getEndpointsFromStore()
-			if err != nil {
-				log.G(context.TODO()).WithError(err).Debug("error getting endpoints from store")
-				continue
-			}
-
-			c.mu.Lock()
-			var addEp []*Endpoint
-
-			delEpMap := make(map[string]*Endpoint)
-			renameEpMap := make(map[string]bool)
-			for k, v := range nw.remoteEps {
-				delEpMap[k] = v
-			}
-
-			for _, lEp := range epl {
-				if _, ok := nw.localEps[lEp.ID()]; ok {
-					continue
-				}
-
-				if ep, ok := nw.remoteEps[lEp.ID()]; ok {
-					// On a container rename EP ID will remain
-					// the same but the name will change. service
-					// records should reflect the change.
-					// Keep old EP entry in the delEpMap and add
-					// EP from the store (which has the new name)
-					// into the new list
-					if lEp.name == ep.name {
-						delete(delEpMap, lEp.ID())
-						continue
-					}
-					renameEpMap[lEp.ID()] = true
-				}
-				nw.remoteEps[lEp.ID()] = lEp
-				addEp = append(addEp, lEp)
-			}
-
-			// EPs whose name are to be deleted from the svc records
-			// should also be removed from nw's remote EP list, except
-			// the ones that are getting renamed.
-			for _, lEp := range delEpMap {
-				if !renameEpMap[lEp.ID()] {
-					delete(nw.remoteEps, lEp.ID())
-				}
-			}
-			c.mu.Unlock()
-
-			for _, lEp := range delEpMap {
-				ep.getNetwork().updateSvcRecord(lEp, c.getLocalEps(nw), false)
-			}
-			for _, lEp := range addEp {
-				ep.getNetwork().updateSvcRecord(lEp, c.getLocalEps(nw), true)
-			}
-		}
-	}
 }
 
 func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoint) {
@@ -329,25 +263,7 @@ func (c *Controller) processEndpointCreate(nmap map[string]*netWatch, ep *Endpoi
 	c.mu.Lock()
 	nw.localEps[endpointID] = ep
 	nmap[networkID] = nw
-	nw.stopCh = make(chan struct{})
 	c.mu.Unlock()
-
-	store := c.getStore()
-	if store == nil {
-		return
-	}
-
-	if !store.Watchable() {
-		return
-	}
-
-	ch, err := store.Watch(n.getEpCnt(), nw.stopCh)
-	if err != nil {
-		log.G(context.TODO()).Warnf("Error creating watch for network: %v", err)
-		return
-	}
-
-	go c.networkWatchLoop(nw, ep, ch)
 }
 
 func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoint) {
@@ -373,8 +289,6 @@ func (c *Controller) processEndpointDelete(nmap map[string]*netWatch, ep *Endpoi
 
 		c.mu.Lock()
 		if len(nw.localEps) == 0 {
-			close(nw.stopCh)
-
 			// This is the last container going away for the network. Destroy
 			// this network's svc db entry
 			delete(c.svcRecords, networkID)
