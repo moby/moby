@@ -42,9 +42,6 @@ type Store interface {
 	// Get a value given its key
 	Get(key string) (*KVPair, error)
 
-	// Delete the value at the specified key
-	Delete(key string) error
-
 	// Exists verifies if a Key exists in the store.
 	Exists(key string) (bool, error)
 

@@ -48,12 +48,6 @@ func (s *MockStore) Put(key string, value []byte) error {
 	return nil
 }
 
-// Delete a value at "key"
-func (s *MockStore) Delete(key string) error {
-	delete(s.db, key)
-	return nil
-}
-
 // Exists checks that the key exists inside the store
 func (s *MockStore) Exists(key string) (bool, error) {
 	_, ok := s.db[key]
@@ -95,7 +89,8 @@ func (s *MockStore) AtomicDelete(key string, previous *store.KVPair) error {
 	if mData != nil && mData.Index != previous.LastIndex {
 		return types.BadRequestErrorf("atomic delete failed due to mismatched Index")
 	}
-	return s.Delete(key)
+	delete(s.db, key)
+	return nil
 }
 
 // Close closes the client connection

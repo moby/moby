@@ -178,26 +178,6 @@ func (b *BoltDB) Put(key string, value []byte) error {
 	})
 }
 
-// Delete the value for the given key.
-func (b *BoltDB) Delete(key string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	db, err := b.getDBhandle()
-	if err != nil {
-		return err
-	}
-	defer b.releaseDBhandle()
-
-	return db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(b.boltBucket)
-		if bucket == nil {
-			return store.ErrKeyNotFound
-		}
-		return bucket.Delete([]byte(key))
-	})
-}
-
 // Exists checks if the key exists inside the store
 func (b *BoltDB) Exists(key string) (bool, error) {
 	b.mu.Lock()
