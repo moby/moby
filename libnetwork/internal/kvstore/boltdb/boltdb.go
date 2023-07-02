@@ -230,20 +230,16 @@ func (b *BoltDB) Exists(key string) (bool, error) {
 
 // List returns the range of keys starting with the passed in prefix
 func (b *BoltDB) List(keyPrefix string) ([]*store.KVPair, error) {
-	var (
-		db  *bolt.DB
-		err error
-	)
 	b.Lock()
 	defer b.Unlock()
 
-	kv := []*store.KVPair{}
-
-	if db, err = b.getDBhandle(); err != nil {
+	db, err := b.getDBhandle()
+	if err != nil {
 		return nil, err
 	}
 	defer b.releaseDBhandle()
 
+	var kv []*store.KVPair
 	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
@@ -254,7 +250,6 @@ func (b *BoltDB) List(keyPrefix string) ([]*store.KVPair, error) {
 		prefix := []byte(keyPrefix)
 
 		for key, v := cursor.Seek(prefix); bytes.HasPrefix(key, prefix); key, v = cursor.Next() {
-
 			dbIndex := binary.LittleEndian.Uint64(v[:libkvmetadatalen])
 			v = v[libkvmetadatalen:]
 			val := make([]byte, len(v))
@@ -268,10 +263,13 @@ func (b *BoltDB) List(keyPrefix string) ([]*store.KVPair, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 	if len(kv) == 0 {
 		return nil, store.ErrKeyNotFound
 	}
-	return kv, err
+	return kv, nil
 }
 
 // AtomicDelete deletes a value at "key" if the key
