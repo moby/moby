@@ -56,9 +56,6 @@ type Store interface {
 	// List the content of a given prefix
 	List(directory string) ([]*KVPair, error)
 
-	// DeleteTree deletes a range of keys under a given directory
-	DeleteTree(directory string) error
-
 	// AtomicPut performs an atomic CAS operation on a single value.
 	// Pass previous = nil to create a new key.
 	AtomicPut(key string, value []byte, previous *KVPair) (*KVPair, error)

@@ -65,12 +65,6 @@ func (s *MockStore) List(prefix string) ([]*store.KVPair, error) {
 	return nil, ErrNotImplemented
 }
 
-// DeleteTree deletes a range of values at "directory"
-func (s *MockStore) DeleteTree(prefix string) error {
-	delete(s.db, prefix)
-	return nil
-}
-
 // Watch a single key for modifications
 func (s *MockStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
 	return nil, ErrNotImplemented

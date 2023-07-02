@@ -20,8 +20,6 @@ type DataStore interface {
 	PutObjectAtomic(kvObject KVObject) error
 	// DeleteObjectAtomic performs an atomic delete operation
 	DeleteObjectAtomic(kvObject KVObject) error
-	// DeleteTree deletes a record
-	DeleteTree(kvObject KVObject) error
 	// List returns of a list of KVObjects belonging to the parent
 	// key. The caller must pass a KVObject of the same type as
 	// the objects that need to be listed
@@ -436,23 +434,4 @@ del_cache:
 	}
 
 	return nil
-}
-
-// DeleteTree unconditionally deletes a record from the store
-func (ds *datastore) DeleteTree(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
-
-	// cleanup the cache first
-	if ds.cache != nil {
-		// If persistent store is skipped, sequencing needs to
-		// happen in cache.
-		ds.cache.del(kvObject, kvObject.Skip())
-	}
-
-	if kvObject.Skip() {
-		return nil
-	}
-
-	return ds.store.DeleteTree(Key(kvObject.KeyPrefix()...))
 }

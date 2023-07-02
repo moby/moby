@@ -370,38 +370,6 @@ func (b *BoltDB) Close() {
 	}
 }
 
-// DeleteTree deletes a range of keys with a given prefix
-func (b *BoltDB) DeleteTree(keyPrefix string) error {
-	var (
-		db  *bolt.DB
-		err error
-	)
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if db, err = b.getDBhandle(); err != nil {
-		return err
-	}
-	defer b.releaseDBhandle()
-
-	err = db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(b.boltBucket)
-		if bucket == nil {
-			return store.ErrKeyNotFound
-		}
-
-		cursor := bucket.Cursor()
-		prefix := []byte(keyPrefix)
-
-		for key, _ := cursor.Seek(prefix); bytes.HasPrefix(key, prefix); key, _ = cursor.Next() {
-			_ = bucket.Delete(key)
-		}
-		return nil
-	})
-
-	return err
-}
-
 // Watch has to implemented at the library level since its not supported by BoltDB
 func (b *BoltDB) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
 	return nil, store.ErrCallNotSupported
