@@ -47,7 +47,7 @@ type Store interface {
 	// Delete the value at the specified key
 	Delete(key string) error
 
-	// Verify if a Key exists in the store
+	// Exists verifies if a Key exists in the store.
 	Exists(key string) (bool, error)
 
 	// Watch for changes on a key
@@ -68,11 +68,11 @@ type Store interface {
 	// DeleteTree deletes a range of keys under a given directory
 	DeleteTree(directory string) error
 
-	// Atomic CAS operation on a single value.
+	// AtomicPut performs an atomic CAS operation on a single value.
 	// Pass previous = nil to create a new key.
 	AtomicPut(key string, value []byte, previous *KVPair, options *WriteOptions) (bool, *KVPair, error)
 
-	// Atomic delete of a single value
+	// AtomicDelete performs an atomic delete of a single value.
 	AtomicDelete(key string, previous *KVPair) (bool, error)
 
 	// Close the store connection
