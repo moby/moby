@@ -220,8 +220,13 @@ func (b *BoltDB) Exists(key string) (bool, error) {
 		exists = len(bucket.Get([]byte(key))) > 0
 		return nil
 	})
-
-	return exists, err
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, store.ErrKeyNotFound
+	}
+	return true, nil
 }
 
 // List returns the range of keys starting with the passed in prefix
