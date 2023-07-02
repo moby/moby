@@ -430,7 +430,7 @@ func (ds *datastore) GetObject(key string, o KVObject) error {
 	defer ds.Unlock()
 
 	if ds.cache != nil {
-		return ds.cache.get(key, o)
+		return ds.cache.get(o)
 	}
 
 	kvPair, err := ds.store.Get(key)

@@ -138,7 +138,7 @@ func (c *cache) del(kvObject KVObject, atomic bool) error {
 	return nil
 }
 
-func (c *cache) get(key string, kvObject KVObject) error {
+func (c *cache) get(kvObject KVObject) error {
 	kmap, err := c.kmap(kvObject)
 	if err != nil {
 		return err
