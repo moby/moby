@@ -2,7 +2,6 @@ package msgp
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"math"
 	"reflect"
@@ -357,6 +356,11 @@ func (mw *Writer) WriteFloat32(f float32) error {
 	return mw.prefix32(mfloat32, math.Float32bits(f))
 }
 
+// WriteDuration writes a time.Duration to the writer
+func (mw *Writer) WriteDuration(d time.Duration) error {
+	return mw.WriteInt64(int64(d))
+}
+
 // WriteInt64 writes an int64 to the writer
 func (mw *Writer) WriteInt64(i int64) error {
 	if i >= 0 {
@@ -622,12 +626,12 @@ func (mw *Writer) WriteTime(t time.Time) error {
 
 // WriteIntf writes the concrete type of 'v'.
 // WriteIntf will error if 'v' is not one of the following:
-//  - A bool, float, string, []byte, int, uint, or complex
-//  - A map of supported types (with string keys)
-//  - An array or slice of supported types
-//  - A pointer to a supported type
-//  - A type that satisfies the msgp.Encodable interface
-//  - A type that satisfies the msgp.Extension interface
+//   - A bool, float, string, []byte, int, uint, or complex
+//   - A map of supported types (with string keys)
+//   - An array or slice of supported types
+//   - A pointer to a supported type
+//   - A type that satisfies the msgp.Encodable interface
+//   - A type that satisfies the msgp.Extension interface
 func (mw *Writer) WriteIntf(v interface{}) error {
 	if v == nil {
 		return mw.WriteNil()
@@ -683,11 +687,13 @@ func (mw *Writer) WriteIntf(v interface{}) error {
 		return mw.WriteMapStrIntf(v)
 	case time.Time:
 		return mw.WriteTime(v)
+	case time.Duration:
+		return mw.WriteDuration(v)
 	}
 
 	val := reflect.ValueOf(v)
 	if !isSupported(val.Kind()) || !val.IsValid() {
-		return fmt.Errorf("msgp: type %s not supported", val)
+		return errors.New("msgp: type " + val.String() + " not supported")
 	}
 
 	switch val.Kind() {
@@ -745,60 +751,6 @@ func (mw *Writer) writeSlice(v reflect.Value) (err error) {
 		}
 	}
 	return
-}
-
-func (mw *Writer) writeStruct(v reflect.Value) error {
-	if enc, ok := v.Interface().(Encodable); ok {
-		return enc.EncodeMsg(mw)
-	}
-	return fmt.Errorf("msgp: unsupported type: %s", v.Type())
-}
-
-func (mw *Writer) writeVal(v reflect.Value) error {
-	if !isSupported(v.Kind()) {
-		return fmt.Errorf("msgp: msgp/enc: type %q not supported", v.Type())
-	}
-
-	// shortcut for nil values
-	if v.IsNil() {
-		return mw.WriteNil()
-	}
-	switch v.Kind() {
-	case reflect.Bool:
-		return mw.WriteBool(v.Bool())
-
-	case reflect.Float32, reflect.Float64:
-		return mw.WriteFloat64(v.Float())
-
-	case reflect.Complex64, reflect.Complex128:
-		return mw.WriteComplex128(v.Complex())
-
-	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
-		return mw.WriteInt64(v.Int())
-
-	case reflect.Interface, reflect.Ptr:
-		if v.IsNil() {
-			mw.WriteNil()
-		}
-		return mw.writeVal(v.Elem())
-
-	case reflect.Map:
-		return mw.writeMap(v)
-
-	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
-		return mw.WriteUint64(v.Uint())
-
-	case reflect.String:
-		return mw.WriteString(v.String())
-
-	case reflect.Slice, reflect.Array:
-		return mw.writeSlice(v)
-
-	case reflect.Struct:
-		return mw.writeStruct(v)
-
-	}
-	return fmt.Errorf("msgp: msgp/enc: type %q not supported", v.Type())
 }
 
 // is the reflect.Kind encodable?
