@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -14,9 +15,9 @@ import (
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
 	cfgOptions := []config.Option{}
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider(provider))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(url))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(storeConfig))
+	cfgOptions = append(cfgOptions, optionLocalKVProvider(provider))
+	cfgOptions = append(cfgOptions, optionLocalKVProviderURL(url))
+	cfgOptions = append(cfgOptions, optionLocalKVProviderConfig(storeConfig))
 
 	driverOptions := options.Generic{}
 	genericOption := make(map[string]interface{})
@@ -65,9 +66,30 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 	}
 
 	return func(c *config.Config) {
-		config.OptionLocalKVProvider("boltdb")(c)
-		config.OptionLocalKVProviderURL(tmp)(c)
-		config.OptionLocalKVProviderConfig(&store.Config{Bucket: "testBackend"})(c)
+		optionLocalKVProvider("boltdb")(c)
+		optionLocalKVProviderURL(tmp)(c)
+		optionLocalKVProviderConfig(&store.Config{Bucket: "testBackend"})(c)
+	}
+}
+
+// optionLocalKVProvider function returns an option setter for kvstore provider
+func optionLocalKVProvider(provider string) config.Option {
+	return func(c *config.Config) {
+		c.Scope.Client.Provider = strings.TrimSpace(provider)
+	}
+}
+
+// optionLocalKVProviderURL function returns an option setter for kvstore url
+func optionLocalKVProviderURL(url string) config.Option {
+	return func(c *config.Config) {
+		c.Scope.Client.Address = strings.TrimSpace(url)
+	}
+}
+
+// optionLocalKVProviderConfig function returns an option setter for kvstore config
+func optionLocalKVProviderConfig(cfg *store.Config) config.Option {
+	return func(c *config.Config) {
+		c.Scope.Client.Config = cfg
 	}
 }
 

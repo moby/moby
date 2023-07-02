@@ -32,15 +32,13 @@ func TestMain(m *testing.M) {
 
 func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
-	genericOption := map[string]interface{}{
-		netlabel.GenericData: options.Generic{
-			"EnableIPForwarding": true,
-		},
-	}
-
 	c, err := libnetwork.New(
 		libnetwork.OptionBoltdbWithRandomDBFile(t),
-		config.OptionDriverConfig(bridgeNetType, genericOption),
+		config.OptionDriverConfig(bridgeNetType, map[string]interface{}{
+			netlabel.GenericData: options.Generic{
+				"EnableIPForwarding": true,
+			},
+		}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -56,9 +54,7 @@ func createTestNetwork(c *libnetwork.Controller, networkType, networkName string
 }
 
 func getEmptyGenericOption() map[string]interface{} {
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = map[string]string{}
-	return genericOption
+	return map[string]interface{}{netlabel.GenericData: map[string]string{}}
 }
 
 func getPortMapping() []types.PortBinding {
