@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/datastore"
@@ -11,9 +12,10 @@ import (
 func TestBoltdbBackend(t *testing.T) {
 	defer os.Remove(datastore.DefaultScope("").Client.Address)
 	testLocalBackend(t, "", "", nil)
-	defer os.Remove("/tmp/boltdb.db")
-	config := &store.Config{Bucket: "testBackend"}
-	testLocalBackend(t, "boltdb", "/tmp/boltdb.db", config)
+	tmpPath := filepath.Join(t.TempDir(), "boltdb.db")
+	testLocalBackend(t, "boltdb", tmpPath, &store.Config{
+		Bucket: "testBackend",
+	})
 }
 
 func TestNoPersist(t *testing.T) {
