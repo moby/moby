@@ -16,12 +16,8 @@ import (
 type DataStore interface {
 	// GetObject gets data from datastore and unmarshals to the specified object
 	GetObject(key string, o KVObject) error
-	// PutObject adds a new Record based on an object into the datastore
-	PutObject(kvObject KVObject) error
 	// PutObjectAtomic provides an atomic add and update operation for a Record
 	PutObjectAtomic(kvObject KVObject) error
-	// DeleteObject deletes a record
-	DeleteObject(kvObject KVObject) error
 	// DeleteObjectAtomic performs an atomic delete operation
 	DeleteObjectAtomic(kvObject KVObject) error
 	// DeleteTree deletes a record
@@ -303,42 +299,6 @@ add_cache:
 	return nil
 }
 
-// PutObject adds a new Record based on an object into the datastore
-func (ds *datastore) PutObject(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
-
-	if kvObject == nil {
-		return types.BadRequestErrorf("invalid KV Object : nil")
-	}
-
-	if kvObject.Skip() {
-		goto add_cache
-	}
-
-	if err := ds.putObjectWithKey(kvObject, kvObject.Key()...); err != nil {
-		return err
-	}
-
-add_cache:
-	if ds.cache != nil {
-		// If persistent store is skipped, sequencing needs to
-		// happen in cache.
-		return ds.cache.add(kvObject, kvObject.Skip())
-	}
-
-	return nil
-}
-
-func (ds *datastore) putObjectWithKey(kvObject KVObject, key ...string) error {
-	kvObjValue := kvObject.Value()
-
-	if kvObjValue == nil {
-		return types.BadRequestErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
-	}
-	return ds.store.Put(Key(key...), kvObjValue)
-}
-
 // GetObject returns a record matching the key
 func (ds *datastore) GetObject(key string, o KVObject) error {
 	ds.Lock()
@@ -443,25 +403,6 @@ func (ds *datastore) Map(key string, kvObject KVObject) (map[string]KVObject, er
 		return nil, err
 	}
 	return kvol, nil
-}
-
-// DeleteObject unconditionally deletes a record from the store
-func (ds *datastore) DeleteObject(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
-
-	// cleanup the cache first
-	if ds.cache != nil {
-		// If persistent store is skipped, sequencing needs to
-		// happen in cache.
-		ds.cache.del(kvObject, kvObject.Skip())
-	}
-
-	if kvObject.Skip() {
-		return nil
-	}
-
-	return ds.store.Delete(Key(kvObject.Key()...))
 }
 
 // DeleteObjectAtomic performs atomic delete on a record
