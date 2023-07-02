@@ -45,7 +45,7 @@ func watchTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 
 	nDB, ok := ctx.(*networkdb.NetworkDB)
 	if ok {
-		ch, cancel := nDB.Watch(tableName, "", "")
+		ch, cancel := nDB.Watch(tableName, "")
 		clientWatchTable[tableName] = tableHandler{cancelWatch: cancel, entries: make(map[string]string)}
 		go handleTableEvents(tableName, ch)
 

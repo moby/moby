@@ -312,9 +312,9 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	c.DiagnosticServer.RegisterHandler(nDB, networkdb.NetDbPaths2Func)
 
 	var cancelList []func()
-	ch, cancel := nDB.Watch(libnetworkEPTable, "", "")
+	ch, cancel := nDB.Watch(libnetworkEPTable, "")
 	cancelList = append(cancelList, cancel)
-	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "", "")
+	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "")
 	cancelList = append(cancelList, cancel)
 
 	c.mu.Lock()
@@ -783,7 +783,7 @@ func (n *network) addDriverWatches() {
 		return
 	}
 	for _, table := range n.driverTables {
-		ch, cancel := agent.networkDB.Watch(table.name, n.ID(), "")
+		ch, cancel := agent.networkDB.Watch(table.name, n.ID())
 		agent.Lock()
 		agent.driverCancelFuncs[n.ID()] = append(agent.driverCancelFuncs[n.ID()], cancel)
 		agent.Unlock()
