@@ -52,7 +52,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 
 	defer func() {
 		if t.Failed() {
-			os.RemoveAll(specPath)
+			_ = os.RemoveAll(specPath)
 		}
 	}()
 
@@ -167,11 +167,11 @@ func compareIPs(t *testing.T, kind string, shouldBe string, supplied net.IP) {
 }
 
 func compareIPNets(t *testing.T, kind string, shouldBe string, supplied net.IPNet) {
-	_, net, _ := net.ParseCIDR(shouldBe)
-	if net == nil {
+	_, ipNet, _ := net.ParseCIDR(shouldBe)
+	if ipNet == nil {
 		t.Fatalf(`Invalid IP network to test against: "%s"`, shouldBe)
 	}
-	if !types.CompareIPNet(net, &supplied) {
+	if !types.CompareIPNet(ipNet, &supplied) {
 		t.Fatalf(`%s IP networks are not equal: expected "%s", got %v`, kind, shouldBe, supplied)
 	}
 }
@@ -504,9 +504,9 @@ func TestDriverError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	driver := newDriver(plugin, client)
 
-	if err := driver.CreateEndpoint("dummy", "dummy", &testEndpoint{t: t}, map[string]interface{}{}); err == nil {
+	d := newDriver(plugin, client)
+	if err := d.CreateEndpoint("dummy", "dummy", &testEndpoint{t: t}, map[string]interface{}{}); err == nil {
 		t.Fatal("Expected error from driver")
 	}
 }
@@ -541,9 +541,9 @@ func TestMissingValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	driver := newDriver(plugin, client)
 
-	if err := driver.CreateEndpoint("dummy", "dummy", ep, map[string]interface{}{}); err != nil {
+	d := newDriver(plugin, client)
+	if err := d.CreateEndpoint("dummy", "dummy", ep, map[string]interface{}{}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -606,11 +606,10 @@ func TestRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	driver := newDriver(plugin, client)
 
+	d := newDriver(plugin, client)
 	ep := &rollbackEndpoint{}
-
-	if err := driver.CreateEndpoint("dummy", "dummy", ep.Interface(), map[string]interface{}{}); err == nil {
+	if err := d.CreateEndpoint("dummy", "dummy", ep.Interface(), map[string]interface{}{}); err == nil {
 		t.Fatal("Expected error from driver")
 	}
 	if !rolledback {
