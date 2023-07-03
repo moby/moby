@@ -214,8 +214,8 @@ github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/cgroups v1.0.4
 ## explicit; go 1.17
 github.com/containerd/cgroups/stats/v1
-# github.com/containerd/cgroups/v3 v3.0.1
-## explicit; go 1.17
+# github.com/containerd/cgroups/v3 v3.0.2
+## explicit; go 1.18
 github.com/containerd/cgroups/v3
 github.com/containerd/cgroups/v3/cgroup1
 github.com/containerd/cgroups/v3/cgroup1/stats

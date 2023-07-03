@@ -45,7 +45,7 @@ func Default() ([]Subsystem, error) {
 }
 
 // v1MountPoint returns the mount point where the cgroup
-// mountpoints are mounted in a single hiearchy
+// mountpoints are mounted in a single hierarchy
 func v1MountPoint() (string, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
