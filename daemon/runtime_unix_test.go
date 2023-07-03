@@ -11,13 +11,12 @@ import (
 	runtimeoptions_v1 "github.com/containerd/containerd/pkg/runtimeoptions/v1"
 	"github.com/containerd/containerd/plugin"
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
+	"github.com/docker/docker/api/types/system"
+	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/imdario/mergo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/errdefs"
 )
 
 func TestSetupRuntimes(t *testing.T) {
@@ -29,7 +28,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "Empty",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {},
 				},
 			},
@@ -38,7 +37,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "ArgsOnly",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {Args: []string{"foo", "bar"}},
 				},
 			},
@@ -47,7 +46,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "OptionsOnly",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {Options: map[string]interface{}{"hello": "world"}},
 				},
 			},
@@ -56,7 +55,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "PathAndType",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {Path: "/bin/true", Type: "io.containerd.runsc.v1"},
 				},
 			},
@@ -65,7 +64,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "PathAndOptions",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {Path: "/bin/true", Options: map[string]interface{}{"a": "b"}},
 				},
 			},
@@ -74,7 +73,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "TypeAndArgs",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {Type: "io.containerd.runsc.v1", Args: []string{"--version"}},
 				},
 			},
@@ -83,7 +82,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "PathArgsOptions",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {
 						Path:    "/bin/true",
 						Args:    []string{"--version"},
@@ -96,7 +95,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "TypeOptionsArgs",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {
 						Type:    "io.containerd.kata.v2",
 						Options: map[string]interface{}{"a": "b"},
@@ -109,7 +108,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "PathArgsTypeOptions",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"myruntime": {
 						Path:    "/bin/true",
 						Args:    []string{"foo"},
@@ -123,7 +122,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "CannotOverrideStockRuntime",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					config.StockRuntimeName: {},
 				},
 			},
@@ -157,7 +156,7 @@ func TestSetupRuntimes(t *testing.T) {
 		{
 			name: "SetDefinedRuntimeAsDefault",
 			config: &config.Config{
-				Runtimes: map[string]types.Runtime{
+				Runtimes: map[string]system.Runtime{
 					"some-runtime": {
 						Path: "/usr/local/bin/file-not-found",
 					},
@@ -192,30 +191,30 @@ func TestGetRuntime(t *testing.T) {
 	// which would not be allowed as implicit runtime names. Explicit takes
 	// precedence over implicit.
 	const configuredRtName = "my/custom.runtime.v1"
-	configuredRuntime := types.Runtime{Path: "/bin/true"}
+	configuredRuntime := system.Runtime{Path: "/bin/true"}
 
 	const rtWithArgsName = "withargs"
-	rtWithArgs := types.Runtime{
+	rtWithArgs := system.Runtime{
 		Path: "/bin/false",
 		Args: []string{"--version"},
 	}
 
 	const shimWithOptsName = "shimwithopts"
-	shimWithOpts := types.Runtime{
+	shimWithOpts := system.Runtime{
 		Type:    plugin.RuntimeRuncV2,
 		Options: map[string]interface{}{"IoUid": 42},
 	}
 
 	const shimAliasName = "wasmedge"
-	shimAlias := types.Runtime{Type: "io.containerd.wasmedge.v1"}
+	shimAlias := system.Runtime{Type: "io.containerd.wasmedge.v1"}
 
 	const configuredShimByPathName = "shimwithpath"
-	configuredShimByPath := types.Runtime{Type: "/path/to/my/shim"}
+	configuredShimByPath := system.Runtime{Type: "/path/to/my/shim"}
 
 	// A runtime configured with the generic 'runtimeoptions/v1.Options' shim configuration options.
 	// https://gvisor.dev/docs/user_guide/containerd/configuration/#:~:text=to%20the%20shim.-,Containerd%201.3%2B,-Starting%20in%201.3
 	const gvisorName = "gvisor"
-	gvisorRuntime := types.Runtime{
+	gvisorRuntime := system.Runtime{
 		Type: "io.containerd.runsc.v1",
 		Options: map[string]interface{}{
 			"TypeUrl":    "io.containerd.runsc.v1.options",
@@ -227,7 +226,7 @@ func TestGetRuntime(t *testing.T) {
 	assert.NilError(t, err)
 
 	cfg.Root = t.TempDir()
-	cfg.Runtimes = map[string]types.Runtime{
+	cfg.Runtimes = map[string]system.Runtime{
 		configuredRtName:         configuredRuntime,
 		rtWithArgsName:           rtWithArgs,
 		shimWithOptsName:         shimWithOpts,
@@ -363,7 +362,7 @@ func TestGetRuntime_PreflightCheck(t *testing.T) {
 	assert.NilError(t, err)
 
 	cfg.Root = t.TempDir()
-	cfg.Runtimes = map[string]types.Runtime{
+	cfg.Runtimes = map[string]system.Runtime{
 		"path-only": {
 			Path: "/usr/local/bin/file-not-found",
 		},
@@ -393,7 +392,7 @@ func TestRuntimeWrapping(t *testing.T) {
 	cfg, err := config.New()
 	assert.NilError(t, err)
 	cfg.Root = t.TempDir()
-	cfg.Runtimes = map[string]types.Runtime{
+	cfg.Runtimes = map[string]system.Runtime{
 		"change-args": {
 			Path: "/bin/true",
 			Args: []string{"foo", "bar"},
@@ -431,15 +430,15 @@ func TestRuntimeWrapping(t *testing.T) {
 		}
 	}
 
-	cfg.Runtimes["change-args"] = types.Runtime{
+	cfg.Runtimes["change-args"] = system.Runtime{
 		Path: cfg.Runtimes["change-args"].Path,
 		Args: []string{"baz", "quux"},
 	}
-	cfg.Runtimes["change-path"] = types.Runtime{
+	cfg.Runtimes["change-path"] = system.Runtime{
 		Path: "/bin/false",
 		Args: cfg.Runtimes["change-path"].Args,
 	}
-	cfg.Runtimes["drop-args"] = types.Runtime{
+	cfg.Runtimes["drop-args"] = system.Runtime{
 		Path: cfg.Runtimes["drop-args"].Path,
 	}
 	delete(cfg.Runtimes, "goes-away")

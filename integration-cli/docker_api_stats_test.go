@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/request"
@@ -71,7 +72,7 @@ func (s *DockerAPISuite) TestAPIStatsStoppedContainerInGoroutines(c *testing.T) 
 	getGoRoutines := func() int {
 		_, body, err := request.Get("/info")
 		assert.NilError(c, err)
-		info := types.Info{}
+		info := system.Info{}
 		err = json.NewDecoder(body).Decode(&info)
 		assert.NilError(c, err)
 		body.Close()

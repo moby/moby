@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
@@ -58,7 +59,7 @@ func (s *systemRouter) swarmStatus() string {
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	version := httputils.VersionFromContext(ctx)
-	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*types.Info, error) {
+	info, _, _ := s.collectSystemInfo.Do(ctx, version, func(ctx context.Context) (*system.Info, error) {
 		info := s.backend.SystemInfo()
 
 		if s.cluster != nil {
@@ -68,7 +69,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 
 		if versions.LessThan(version, "1.25") {
 			// TODO: handle this conversion in engine-api
-			kvSecOpts, err := types.DecodeSecurityOptions(info.SecurityOptions)
+			kvSecOpts, err := system.DecodeSecurityOptions(info.SecurityOptions)
 			if err != nil {
 				info.Warnings = append(info.Warnings, err.Error())
 			}

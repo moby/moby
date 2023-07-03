@@ -14,6 +14,7 @@ import (
 	v2runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/rootless"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -22,7 +23,7 @@ import (
 )
 
 // fillPlatformInfo fills the platform related info.
-func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *configStore) {
+func (daemon *Daemon) fillPlatformInfo(v *system.Info, sysInfo *sysinfo.SysInfo, cfg *configStore) {
 	v.CgroupDriver = cgroupDriver(&cfg.Config)
 	v.CgroupVersion = "1"
 	if sysInfo.CgroupUnified {
@@ -41,12 +42,12 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo, 
 		v.CPUSet = sysInfo.Cpuset
 		v.PidsLimit = sysInfo.PidsLimit
 	}
-	v.Runtimes = make(map[string]types.Runtime)
+	v.Runtimes = make(map[string]system.Runtime)
 	for n, p := range stockRuntimes() {
-		v.Runtimes[n] = types.Runtime{Path: p}
+		v.Runtimes[n] = system.Runtime{Path: p}
 	}
 	for n, r := range cfg.Config.Runtimes {
-		v.Runtimes[n] = types.Runtime{
+		v.Runtimes[n] = system.Runtime{
 			Path: r.Path,
 			Args: append([]string(nil), r.Args...),
 		}
@@ -280,7 +281,7 @@ func getRootlessKitClient() (rkclient.Client, error) {
 	return rkclient.New(apiSock)
 }
 
-func fillDriverWarnings(v *types.Info) {
+func fillDriverWarnings(v *system.Info) {
 	for _, pair := range v.DriverStatus {
 		if pair[0] == "Extended file attributes" && pair[1] == "best-effort" {
 			msg := fmt.Sprintf("WARNING: %s: extended file attributes from container images "+

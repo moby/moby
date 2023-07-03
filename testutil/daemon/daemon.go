@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/ioutils"
@@ -90,7 +90,7 @@ type Daemon struct {
 	DataPathPort    uint32
 	OOMScoreAdjust  int
 	// cached information
-	CachedInfo types.Info
+	CachedInfo system.Info
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -817,7 +817,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 // Info returns the info struct for this daemon
-func (d *Daemon) Info(t testing.TB) types.Info {
+func (d *Daemon) Info(t testing.TB) system.Info {
 	t.Helper()
 	c := d.NewClientT(t)
 	info, err := c.Info(context.Background())

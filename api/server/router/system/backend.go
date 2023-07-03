@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 )
 
 // DiskUsageOptions holds parameters for system disk usage query.
@@ -26,7 +27,7 @@ type DiskUsageOptions struct {
 // Backend is the methods that need to be implemented to provide
 // system specific functionality.
 type Backend interface {
-	SystemInfo() *types.Info
+	SystemInfo() *system.Info
 	SystemVersion() types.Version
 	SystemDiskUsage(ctx context.Context, opts DiskUsageOptions) (*types.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})

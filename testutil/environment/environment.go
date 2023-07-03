@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ import (
 // under test
 type Execution struct {
 	client            client.APIClient
-	DaemonInfo        types.Info
+	DaemonInfo        system.Info
 	PlatformDefaults  PlatformDefaults
 	protectedElements protectedElements
 }
@@ -57,7 +58,7 @@ func FromClient(c *client.Client) (*Execution, error) {
 	}, nil
 }
 
-func getPlatformDefaults(info types.Info) PlatformDefaults {
+func getPlatformDefaults(info system.Info) PlatformDefaults {
 	volumesPath := filepath.Join(info.DockerRootDir, "volumes")
 	containersPath := filepath.Join(info.DockerRootDir, "containers")
 
