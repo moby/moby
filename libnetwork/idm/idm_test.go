@@ -5,17 +5,17 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	_, err := New(nil, "", 0, 1)
+	_, err := New("", 0, 1)
 	if err == nil {
 		t.Fatal("Expected failure, but succeeded")
 	}
 
-	_, err = New(nil, "myset", 1<<10, 0)
+	_, err = New("myset", 1<<10, 0)
 	if err == nil {
 		t.Fatal("Expected failure, but succeeded")
 	}
 
-	i, err := New(nil, "myset", 0, 10)
+	i, err := New("myset", 0, 10)
 	if err != nil {
 		t.Fatalf("Unexpected failure: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestAllocate(t *testing.T) {
-	i, err := New(nil, "myids", 50, 52)
+	i, err := New("myids", 50, 52)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestUninitialized(t *testing.T) {
 }
 
 func TestAllocateInRange(t *testing.T) {
-	i, err := New(nil, "myset", 5, 10)
+	i, err := New("myset", 5, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestAllocateInRange(t *testing.T) {
 
 	// New larger set
 	ul := uint64((1 << 24) - 1)
-	i, err = New(nil, "newset", 0, ul)
+	i, err = New("newset", 0, ul)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +234,7 @@ func TestAllocateInRange(t *testing.T) {
 }
 
 func TestAllocateSerial(t *testing.T) {
-	i, err := New(nil, "myids", 50, 55)
+	i, err := New("myids", 50, 55)
 	if err != nil {
 		t.Fatal(err)
 	}

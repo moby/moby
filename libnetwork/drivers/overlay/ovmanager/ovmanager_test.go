@@ -19,7 +19,7 @@ func newDriver(t *testing.T) *driver {
 		networks: networkTable{},
 	}
 
-	vxlanIdm, err := idm.New(nil, "vxlan-id", vxlanIDStart, vxlanIDEnd)
+	vxlanIdm, err := idm.New("vxlan-id", vxlanIDStart, vxlanIDEnd)
 	assert.NilError(t, err)
 
 	d.vxlanIdm = vxlanIdm

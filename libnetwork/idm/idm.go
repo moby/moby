@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/libnetwork/bitseq"
-	"github.com/docker/docker/libnetwork/datastore"
 )
 
 // Idm manages the reservation/release of numerical ids from a contiguous set
@@ -17,7 +16,7 @@ type Idm struct {
 }
 
 // New returns an instance of id manager for a [start,end] set of numerical ids
-func New(ds datastore.DataStore, id string, start, end uint64) (*Idm, error) {
+func New(id string, start, end uint64) (*Idm, error) {
 	if id == "" {
 		return nil, errors.New("Invalid id")
 	}
@@ -25,7 +24,7 @@ func New(ds datastore.DataStore, id string, start, end uint64) (*Idm, error) {
 		return nil, fmt.Errorf("Invalid set range: [%d, %d]", start, end)
 	}
 
-	h, err := bitseq.NewHandle("idm", ds, id, 1+end-start)
+	h, err := bitseq.NewHandle("idm", nil, id, 1+end-start)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize bit sequence handler: %s", err.Error())
 	}
