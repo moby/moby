@@ -18,6 +18,7 @@ package cgroup2
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -25,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -39,7 +41,7 @@ import (
 const (
 	cgroupProcs    = "cgroup.procs"
 	cgroupThreads  = "cgroup.threads"
-	defaultDirPerm = 0755
+	defaultDirPerm = 0o755
 )
 
 // defaultFilePerm is a var so that the test framework can change the filemode
@@ -92,19 +94,13 @@ func parseCgroupProcsFile(path string) ([]uint64, error) {
 	return out, nil
 }
 
-func parseKV(raw string) (string, interface{}, error) {
+func parseKV(raw string) (string, uint64, error) {
 	parts := strings.Fields(raw)
-	switch len(parts) {
-	case 2:
-		v, err := parseUint(parts[1], 10, 64)
-		if err != nil {
-			// if we cannot parse as a uint, parse as a string
-			return parts[0], parts[1], nil
-		}
-		return parts[0], v, nil
-	default:
+	if len(parts) != 2 {
 		return "", 0, ErrInvalidFormat
 	}
+	v, err := parseUint(parts[1], 10, 64)
+	return parts[0], v, err
 }
 
 func parseUint(s string, base, bitSize int) (uint64, error) {
@@ -136,9 +132,7 @@ func parseCgroupFile(path string) (string, error) {
 }
 
 func parseCgroupFromReader(r io.Reader) (string, error) {
-	var (
-		s = bufio.NewScanner(r)
-	)
+	s := bufio.NewScanner(r)
 	for s.Scan() {
 		var (
 			text  = s.Text()
@@ -244,18 +238,28 @@ func ToResources(spec *specs.LinuxResources) *Resources {
 
 // Gets uint64 parsed content of single value cgroup stat file
 func getStatFileContentUint64(filePath string) uint64 {
-	contents, err := os.ReadFile(filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return 0
 	}
-	trimmed := strings.TrimSpace(string(contents))
+	defer f.Close()
+
+	// We expect an unsigned 64 bit integer, or a "max" string
+	// in some cases.
+	buf := make([]byte, 32)
+	n, err := f.Read(buf)
+	if err != nil {
+		return 0
+	}
+
+	trimmed := strings.TrimSpace(string(buf[:n]))
 	if trimmed == "max" {
 		return math.MaxUint64
 	}
 
 	res, err := parseUint(trimmed, 10, 64)
 	if err != nil {
-		logrus.Errorf("unable to parse %q as a uint from Cgroup file %q", string(contents), filePath)
+		logrus.Errorf("unable to parse %q as a uint from Cgroup file %q", trimmed, filePath)
 		return res
 	}
 
@@ -385,56 +389,94 @@ func systemdUnitFromPath(path string) string {
 }
 
 func readHugeTlbStats(path string) []*stats.HugeTlbStat {
-	var usage = []*stats.HugeTlbStat{}
-	var keyUsage = make(map[string]*stats.HugeTlbStat)
-	f, err := os.Open(path)
-	if err != nil {
-		return usage
-	}
-	files, err := f.Readdir(-1)
-	f.Close()
-	if err != nil {
-		return usage
-	}
-
-	for _, file := range files {
-		if strings.Contains(file.Name(), "hugetlb") &&
-			(strings.HasSuffix(file.Name(), "max") || strings.HasSuffix(file.Name(), "current")) {
-			var hugeTlb *stats.HugeTlbStat
-			var ok bool
-			fileName := strings.Split(file.Name(), ".")
-			pageSize := fileName[1]
-			if hugeTlb, ok = keyUsage[pageSize]; !ok {
-				hugeTlb = &stats.HugeTlbStat{}
-			}
-			hugeTlb.Pagesize = pageSize
-			out, err := os.ReadFile(filepath.Join(path, file.Name()))
-			if err != nil {
-				continue
-			}
-			var value uint64
-			stringVal := strings.TrimSpace(string(out))
-			if stringVal == "max" {
-				value = math.MaxUint64
-			} else {
-				value, err = strconv.ParseUint(stringVal, 10, 64)
-			}
-			if err != nil {
-				continue
-			}
-			switch fileName[2] {
-			case "max":
-				hugeTlb.Max = value
-			case "current":
-				hugeTlb.Current = value
-			}
-			keyUsage[pageSize] = hugeTlb
+	hpSizes := hugePageSizes()
+	usage := make([]*stats.HugeTlbStat, len(hpSizes))
+	for idx, pagesize := range hpSizes {
+		usage[idx] = &stats.HugeTlbStat{
+			Max:      getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".max")),
+			Current:  getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".current")),
+			Pagesize: pagesize,
 		}
 	}
-	for _, entry := range keyUsage {
-		usage = append(usage, entry)
-	}
 	return usage
+}
+
+var (
+	hPageSizes  []string
+	initHPSOnce sync.Once
+)
+
+// The following idea and implementation is taken pretty much line for line from
+// runc. Because the hugetlb files are well known, and the only variable thrown in
+// the mix is what huge page sizes you have on your host, this lends itself well
+// to doing the work to find the files present once, and then re-using this. This
+// saves a os.Readdirnames(0) call to search for hugeltb files on every `manager.Stat`
+// call.
+// https://github.com/opencontainers/runc/blob/3a2c0c2565644d8a7e0f1dd594a060b21fa96cf1/libcontainer/cgroups/utils.go#L301
+func hugePageSizes() []string {
+	initHPSOnce.Do(func() {
+		dir, err := os.OpenFile("/sys/kernel/mm/hugepages", unix.O_DIRECTORY|unix.O_RDONLY, 0)
+		if err != nil {
+			return
+		}
+		files, err := dir.Readdirnames(0)
+		dir.Close()
+		if err != nil {
+			return
+		}
+
+		hPageSizes, err = getHugePageSizeFromFilenames(files)
+		if err != nil {
+			logrus.Warnf("hugePageSizes: %s", err)
+		}
+	})
+
+	return hPageSizes
+}
+
+func getHugePageSizeFromFilenames(fileNames []string) ([]string, error) {
+	pageSizes := make([]string, 0, len(fileNames))
+	var warn error
+
+	for _, file := range fileNames {
+		// example: hugepages-1048576kB
+		val := strings.TrimPrefix(file, "hugepages-")
+		if len(val) == len(file) {
+			// Unexpected file name: no prefix found, ignore it.
+			continue
+		}
+		// In all known versions of Linux up to 6.3 the suffix is always
+		// "kB". If we find something else, produce an error but keep going.
+		eLen := len(val) - 2
+		val = strings.TrimSuffix(val, "kB")
+		if len(val) != eLen {
+			// Highly unlikely.
+			if warn == nil {
+				warn = errors.New(file + `: invalid suffix (expected "kB")`)
+			}
+			continue
+		}
+		size, err := strconv.Atoi(val)
+		if err != nil {
+			// Highly unlikely.
+			if warn == nil {
+				warn = fmt.Errorf("%s: %w", file, err)
+			}
+			continue
+		}
+		// Model after https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/hugetlb_cgroup.c?id=eff48ddeab782e35e58ccc8853f7386bbae9dec4#n574
+		// but in our case the size is in KB already.
+		if size >= (1 << 20) {
+			val = strconv.Itoa(size>>20) + "GB"
+		} else if size >= (1 << 10) {
+			val = strconv.Itoa(size>>10) + "MB"
+		} else {
+			val += "KB"
+		}
+		pageSizes = append(pageSizes, val)
+	}
+
+	return pageSizes, warn
 }
 
 func getSubreaper() (int, error) {

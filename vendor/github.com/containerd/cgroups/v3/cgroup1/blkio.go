@@ -331,7 +331,6 @@ type deviceKey struct {
 // keyed by major and minor number. Since devices may be mapped multiple times,
 // we err on taking the first occurrence.
 func getDevices(r io.Reader) (map[deviceKey]string, error) {
-
 	var (
 		s       = bufio.NewScanner(r)
 		devices = make(map[deviceKey]string)

@@ -29,7 +29,7 @@ import (
 
 const (
 	SystemdDbus  Name = "systemd"
-	defaultSlice      = "system.slice"
+	defaultSlice Name = "system.slice"
 )
 
 var (
@@ -56,7 +56,7 @@ func Systemd() ([]Subsystem, error) {
 
 func Slice(slice, name string) Path {
 	if slice == "" {
-		slice = defaultSlice
+		slice = string(defaultSlice)
 	}
 	return func(subsystem Name) (string, error) {
 		return filepath.Join(slice, name), nil
@@ -70,7 +70,6 @@ func NewSystemd(root string) (*SystemdController, error) {
 }
 
 type SystemdController struct {
-	mu   sync.Mutex
 	root string
 }
 
