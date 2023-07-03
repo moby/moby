@@ -85,7 +85,7 @@ func safeOpenFd(path, subpath string) (int, error) {
 	switch {
 	case errors.Is(err, unix.ENOSYS):
 		// Openat2 is not available, fallback to Openat loop.
-		return softOpenat2(prevFd, subpath)
+		return kubernetesSafeOpen(path, subpath)
 	case errors.Is(err, unix.EXDEV):
 		return -1, &ErrEscapesBase{Base: path, Subpath: subpath}
 	case errors.Is(err, unix.ENOENT), errors.Is(err, unix.ELOOP):
@@ -96,10 +96,6 @@ func safeOpenFd(path, subpath string) (int, error) {
 
 	// Openat2 is available and succeeded.
 	return fd, nil
-}
-
-func softOpenat2(baseFd int, subpath string) (int, error) {
-	return -1, errors.New("temporary stub, will be removed in later commit")
 }
 
 // tempMountPoint creates a temporary file/directory to act as mount

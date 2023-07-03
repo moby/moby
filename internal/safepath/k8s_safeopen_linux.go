@@ -17,48 +17,40 @@ limitations under the License.
 */
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
-	"syscall"
 
+	"github.com/containerd/log"
+	"github.com/docker/docker/internal/unix_noeintr"
 	"golang.org/x/sys/unix"
-	"k8s.io/klog/v2"
-	"k8s.io/mount-utils"
 )
 
-const (
+// kubernetesSafeOpen open path formed by concatenation of the base directory
+// and its subpath and return its fd.
+// Symlinks are disallowed (pathname must already resolve symlinks) and the path
+// path must be within the base directory.
+// This is minimally modified code from https://github.com/kubernetes/kubernetes/blob/55fb1805a1217b91b36fa8fe8f2bf3a28af2454d/pkg/volume/util/subpath/subpath_linux.go#L530
+func kubernetesSafeOpen(base, subpath string) (int, error) {
 	// syscall.Openat flags used to traverse directories not following symlinks
-	nofollowFlags = unix.O_RDONLY | unix.O_NOFOLLOW
+	const nofollowFlags = unix.O_RDONLY | unix.O_NOFOLLOW
 	// flags for getting file descriptor without following the symlink
-	openFDFlags = unix.O_NOFOLLOW | unix.O_PATH
-)
+	const openFDFlags = unix.O_NOFOLLOW | unix.O_PATH
 
-// This implementation is shared between Linux and NsEnterMounter
-// Open path and return its fd.
-// Symlinks are disallowed (pathname must already resolve symlinks),
-// and the path must be within the base directory.
-func doSafeOpen(pathname string, base string) (int, error) {
-	pathname = filepath.Clean(pathname)
-	base = filepath.Clean(base)
-
-	// Calculate segments to follow
-	subpath, err := filepath.Rel(base, pathname)
-	if err != nil {
-		return -1, err
-	}
+	pathname := filepath.Join(base, subpath)
 	segments := strings.Split(subpath, string(filepath.Separator))
 
 	// Assumption: base is the only directory that we have under control.
 	// Base dir is not allowed to be a symlink.
-	parentFD, err := syscall.Open(base, nofollowFlags|unix.O_CLOEXEC, 0)
+	parentFD, err := unix_noeintr.Open(base, nofollowFlags|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return -1, fmt.Errorf("cannot open directory %s: %s", base, err)
+		return -1, &ErrNotAccessible{Path: base, Cause: err}
 	}
 	defer func() {
 		if parentFD != -1 {
-			if err = syscall.Close(parentFD); err != nil {
-				klog.V(4).Infof("Closing FD %v failed for safeopen(%v): %v", parentFD, pathname, err)
+			if err = unix_noeintr.Close(parentFD); err != nil {
+				log.G(context.TODO()).Errorf("Closing FD %v failed for safeopen(%v): %v", parentFD, pathname, err)
 			}
 		}
 	}()
@@ -66,8 +58,8 @@ func doSafeOpen(pathname string, base string) (int, error) {
 	childFD := -1
 	defer func() {
 		if childFD != -1 {
-			if err = syscall.Close(childFD); err != nil {
-				klog.V(4).Infof("Closing FD %v failed for safeopen(%v): %v", childFD, pathname, err)
+			if err = unix_noeintr.Close(childFD); err != nil {
+				log.G(context.TODO()).Errorf("Closing FD %v failed for safeopen(%v): %v", childFD, pathname, err)
 			}
 		}
 	}()
@@ -80,31 +72,31 @@ func doSafeOpen(pathname string, base string) (int, error) {
 		var deviceStat unix.Stat_t
 
 		currentPath = filepath.Join(currentPath, seg)
-		if !mount.PathWithinBase(currentPath, base) {
-			return -1, fmt.Errorf("path %s is outside of allowed base %s", currentPath, base)
+		if !isLocalTo(currentPath, base) {
+			return -1, &ErrEscapesBase{Base: currentPath, Subpath: seg}
 		}
 
 		// Trigger auto mount if it's an auto-mounted directory, ignore error if not a directory.
 		// Notice the trailing slash is mandatory, see "automount" in openat(2) and open_by_handle_at(2).
-		unix.Fstatat(parentFD, seg+"/", &deviceStat, unix.AT_SYMLINK_NOFOLLOW)
+		unix_noeintr.Fstatat(parentFD, seg+"/", &deviceStat, unix.AT_SYMLINK_NOFOLLOW)
 
-		klog.V(5).Infof("Opening path %s", currentPath)
-		childFD, err = syscall.Openat(parentFD, seg, openFDFlags|unix.O_CLOEXEC, 0)
+		log.G(context.TODO()).Debugf("Opening path %s", currentPath)
+		childFD, err = unix_noeintr.Openat(parentFD, seg, openFDFlags|unix.O_CLOEXEC, 0)
 		if err != nil {
-			return -1, fmt.Errorf("cannot open %s: %s", currentPath, err)
+			return -1, &ErrNotAccessible{Path: currentPath, Cause: err}
 		}
 
-		err := unix.Fstat(childFD, &deviceStat)
+		err := unix_noeintr.Fstat(childFD, &deviceStat)
 		if err != nil {
 			return -1, fmt.Errorf("error running fstat on %s with %v", currentPath, err)
 		}
-		fileFmt := deviceStat.Mode & syscall.S_IFMT
-		if fileFmt == syscall.S_IFLNK {
+		fileFmt := deviceStat.Mode & unix.S_IFMT
+		if fileFmt == unix.S_IFLNK {
 			return -1, fmt.Errorf("unexpected symlink found %s", currentPath)
 		}
 
 		// Close parentFD
-		if err = syscall.Close(parentFD); err != nil {
+		if err = unix_noeintr.Close(parentFD); err != nil {
 			return -1, fmt.Errorf("closing fd for %q failed: %v", filepath.Dir(currentPath), err)
 		}
 		// Set child to new parent
