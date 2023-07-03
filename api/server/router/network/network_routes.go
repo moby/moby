@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
-	netconst "github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/pkg/errors"
 )
 
@@ -144,7 +144,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		// or if the get network was passed with a network name and scope as swarm
 		// return the network. Skipped using isMatchingScope because it is true if the scope
 		// is not set which would be case if the client API v1.30
-		if strings.HasPrefix(nwk.ID, term) || (netconst.SwarmScope == scope) {
+		if strings.HasPrefix(nwk.ID, term) || (datastore.SwarmScope == scope) {
 			// If we have a previous match "backend", return it, we need verbose when enabled
 			// ex: overlay/partial_ID or name/swarm_scope
 			if nwv, ok := listByPartialID[nwk.ID]; ok {

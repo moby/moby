@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	netconst "github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -645,7 +645,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		Ingress:        convert.IsIngressNetwork(na.Network),
 		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
-		Scope:          netconst.SwarmScope,
+		Scope:          datastore.SwarmScope,
 	}
 
 	if na.Network.Spec.GetNetwork() != "" {
