@@ -246,11 +246,11 @@ func errorWithRollback(msg string, err error) error {
 }
 
 func (d *driver) DeleteEndpoint(nid, eid string) error {
-	delete := &api.DeleteEndpointRequest{
+	deleteRequest := &api.DeleteEndpointRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
 	}
-	return d.call("DeleteEndpoint", delete, &api.DeleteEndpointResponse{})
+	return d.call("DeleteEndpoint", deleteRequest, &api.DeleteEndpointResponse{})
 }
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
