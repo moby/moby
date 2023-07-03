@@ -720,7 +720,7 @@ func (c *containerConfig) applyPrivileges(hc *enginecontainer.HostConfig) {
 	}
 }
 
-func (c containerConfig) eventFilter() filters.Args {
+func (c *containerConfig) eventFilter() filters.Args {
 	return filters.NewArgs(
 		filters.Arg("type", events.ContainerEventType),
 		filters.Arg("name", c.name()),
