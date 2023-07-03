@@ -392,7 +392,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	}
 
 	var (
-		config     *networktypes.NetworkingConfig
+		nwCfg      *networktypes.NetworkingConfig
 		retryCount int
 	)
 
@@ -406,7 +406,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
 			var err error
-			config, err = daemon.clusterProvider.AttachNetwork(id, container.ID, addresses)
+			nwCfg, err = daemon.clusterProvider.AttachNetwork(id, container.ID, addresses)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -427,7 +427,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 			// attached to the swarm scope network went down
 			// and removed the network while we were in
 			// the process of attaching.
-			if config != nil {
+			if nwCfg != nil {
 				if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
 					if retryCount >= 5 {
 						return nil, nil, fmt.Errorf("could not find network %s after successful attachment", idOrName)
@@ -446,7 +446,7 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	// This container has attachment to a swarm scope
 	// network. Update the container network settings accordingly.
 	container.NetworkSettings.HasSwarmEndpoint = true
-	return n, config, nil
+	return n, nwCfg, nil
 }
 
 // updateContainerNetworkSettings updates the network settings
@@ -737,7 +737,7 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 		endpointConfig = &networktypes.EndpointSettings{}
 	}
 
-	n, config, err := daemon.findAndAttachNetwork(container, idOrName, endpointConfig)
+	n, nwCfg, err := daemon.findAndAttachNetwork(container, idOrName, endpointConfig)
 	if err != nil {
 		return err
 	}
@@ -746,8 +746,8 @@ func (daemon *Daemon) connectToNetwork(cfg *config.Config, container *container.
 	}
 
 	var operIPAM bool
-	if config != nil {
-		if epConfig, ok := config.EndpointsConfig[n.Name()]; ok {
+	if nwCfg != nil {
+		if epConfig, ok := nwCfg.EndpointsConfig[n.Name()]; ok {
 			if endpointConfig.IPAMConfig == nil ||
 				(endpointConfig.IPAMConfig.IPv4Address == "" &&
 					endpointConfig.IPAMConfig.IPv6Address == "" &&
