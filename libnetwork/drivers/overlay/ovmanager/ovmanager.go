@@ -18,9 +18,12 @@ import (
 )
 
 const (
-	networkType  = "overlay"
+	networkType = "overlay"
+	// The lowest VNI value to auto-assign. Windows does not support VXLAN IDs
+	// which overlap the range of 802.1Q VLAN IDs [0, 4095].
 	vxlanIDStart = 4096
-	vxlanIDEnd   = (1 << 24) - 1
+	// The largest VNI value permitted by RFC 7348.
+	vxlanIDEnd = (1 << 24) - 1
 )
 
 type networkTable map[string]*network
@@ -108,13 +111,22 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 			gwIP:     ipd.Gateway,
 		}
 
-		if len(vxlanIDList) > i {
+		if len(vxlanIDList) > i { // The VNI for this subnet was specified in the network options.
 			s.vni = vxlanIDList[i]
-		}
-
-		if err := n.obtainVxlanID(s); err != nil {
-			n.releaseVxlanID()
-			return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", s.subnetIP, err)
+			err := d.vxlanIdm.GetSpecificID(uint64(s.vni)) // Mark VNI as in-use.
+			if err != nil {
+				// The VNI is already in use by another subnet/network.
+				n.releaseVxlanID()
+				return nil, fmt.Errorf("could not assign vxlan id %v to pool %s: %v", s.vni, s.subnetIP, err)
+			}
+		} else {
+			// Allocate an available VNI for the subnet, outside the range of 802.1Q VLAN IDs.
+			vni, err := d.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
+			if err != nil {
+				n.releaseVxlanID()
+				return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", s.subnetIP, err)
+			}
+			s.vni = uint32(vni)
 		}
 
 		n.subnets = append(n.subnets, s)
@@ -156,21 +168,6 @@ func (d *driver) NetworkFree(id string) error {
 	delete(d.networks, id)
 
 	return nil
-}
-
-func (n *network) obtainVxlanID(s *subnet) error {
-	vni := uint64(s.vni)
-	if vni == 0 {
-		vni, err := n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
-		if err != nil {
-			return err
-		}
-
-		s.vni = uint32(vni)
-		return nil
-	}
-
-	return n.driver.vxlanIdm.GetSpecificID(vni)
 }
 
 func (n *network) releaseVxlanID() {
