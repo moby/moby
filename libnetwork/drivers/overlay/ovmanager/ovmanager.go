@@ -9,10 +9,10 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/libnetwork/bitmap"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/idm"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -31,7 +31,7 @@ type networkTable map[string]*network
 type driver struct {
 	mu       sync.Mutex
 	networks networkTable
-	vxlanIdm *idm.Idm
+	vxlanIdm *bitmap.Bitmap
 }
 
 type subnet struct {
@@ -55,20 +55,17 @@ func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
 
 // Register registers a new instance of the overlay driver.
 func Register(r driverapi.Registerer, _ map[string]interface{}) error {
-	var err error
-	d := &driver{
-		networks: networkTable{},
-	}
-
-	d.vxlanIdm, err = idm.New(nil, "vxlan-id", 0, vxlanIDEnd)
-	if err != nil {
-		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
-	}
-
-	return r.RegisterDriver(networkType, d, driverapi.Capability{
+	return r.RegisterDriver(networkType, newDriver(), driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
 		ConnectivityScope: datastore.GlobalScope,
 	})
+}
+
+func newDriver() *driver {
+	return &driver{
+		networks: networkTable{},
+		vxlanIdm: bitmap.New(vxlanIDEnd + 1), // The full range of valid vxlan IDs: [0, 2^24).
+	}
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -105,6 +102,8 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 		}
 	}
 
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	for i, ipd := range ipV4Data {
 		s := &subnet{
 			subnetIP: ipd.Pool,
@@ -113,7 +112,7 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 
 		if len(vxlanIDList) > i { // The VNI for this subnet was specified in the network options.
 			s.vni = vxlanIDList[i]
-			err := d.vxlanIdm.GetSpecificID(uint64(s.vni)) // Mark VNI as in-use.
+			err := d.vxlanIdm.Set(uint64(s.vni)) // Mark VNI as in-use.
 			if err != nil {
 				// The VNI is already in use by another subnet/network.
 				n.releaseVxlanID()
@@ -121,7 +120,7 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 			}
 		} else {
 			// Allocate an available VNI for the subnet, outside the range of 802.1Q VLAN IDs.
-			vni, err := d.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
+			vni, err := d.vxlanIdm.SetAnyInRange(vxlanIDStart, vxlanIDEnd, true)
 			if err != nil {
 				n.releaseVxlanID()
 				return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", s.subnetIP, err)
@@ -138,8 +137,6 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 	}
 	opts[netlabel.OverlayVxlanIDList] = val
 
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	if _, ok := d.networks[id]; ok {
 		n.releaseVxlanID()
 		return nil, fmt.Errorf("network %s already exists", id)
@@ -172,7 +169,7 @@ func (d *driver) NetworkFree(id string) error {
 
 func (n *network) releaseVxlanID() {
 	for _, s := range n.subnets {
-		n.driver.vxlanIdm.Release(uint64(s.vni))
+		n.driver.vxlanIdm.Unset(uint64(s.vni))
 		s.vni = 0
 	}
 }

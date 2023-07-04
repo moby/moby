@@ -7,24 +7,11 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/idm"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
-
-func newDriver(t *testing.T) *driver {
-	d := &driver{
-		networks: networkTable{},
-	}
-
-	vxlanIdm, err := idm.New(nil, "vxlan-id", vxlanIDStart, vxlanIDEnd)
-	assert.NilError(t, err)
-
-	d.vxlanIdm = vxlanIdm
-	return d
-}
 
 func parseCIDR(t *testing.T, ipnet string) *net.IPNet {
 	subnet, err := types.ParseCIDR(ipnet)
@@ -33,7 +20,7 @@ func parseCIDR(t *testing.T, ipnet string) *net.IPNet {
 }
 
 func TestNetworkAllocateFree(t *testing.T) {
-	d := newDriver(t)
+	d := newDriver()
 
 	ipamData := []driverapi.IPAMData{
 		{
@@ -56,7 +43,7 @@ func TestNetworkAllocateFree(t *testing.T) {
 }
 
 func TestNetworkAllocateUserDefinedVNIs(t *testing.T) {
-	d := newDriver(t)
+	d := newDriver()
 
 	ipamData := []driverapi.IPAMData{
 		{
