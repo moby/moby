@@ -329,8 +329,8 @@ type ContainerJSON struct {
 // NetworkSettings exposes the network settings in the api
 type NetworkSettings struct {
 	NetworkSettingsBase
-	DefaultNetworkSettings
-	Networks map[string]*network.EndpointSettings
+	DefaultNetworkSettings // Deprecated: DefaultNetworkSettings is deprecated since API v1.21 and will be removed in a future release.
+	Networks               map[string]*network.EndpointSettings
 }
 
 // SummaryNetworkSettings provides a summary of container's networks
@@ -362,9 +362,10 @@ type NetworkSettingsBase struct {
 	SecondaryIPv6Addresses []network.Address // Deprecated: This field is never set and will be removed in a future release.
 }
 
-// DefaultNetworkSettings holds network information
-// during the 2 release deprecation period.
-// It will be removed in Docker 1.11.
+// DefaultNetworkSettings holds the networking state of the default bridge when inspecting a container.
+//
+// Deprecated: this struct is deprecated since API v1.21 and will be removed in a future release. You should look for
+// the default network in NetworkSettings.Networks instead.
 type DefaultNetworkSettings struct {
 	EndpointID          string // EndpointID uniquely represents a service endpoint in a Sandbox
 	Gateway             string // Gateway holds the gateway address for the network

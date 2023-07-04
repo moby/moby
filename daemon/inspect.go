@@ -292,10 +292,10 @@ func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Se
 	return result
 }
 
-// getDefaultNetworkSettings creates the deprecated structure that holds the information
-// about the bridge network for a container.
-func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
-	var settings types.DefaultNetworkSettings
+// getDefaultNetworkSettings creates the struct that holds the networking state of the default bridge when inspecting a
+// container.
+func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings { //nolint:staticcheck // ignore SA1019: struct is deprecated since API v1.21.
+	var settings types.DefaultNetworkSettings //nolint:staticcheck // ignore SA1019: struct is deprecated since API v1.21.
 
 	if defaultNetwork, ok := networks[networktypes.NetworkBridge]; ok && defaultNetwork.EndpointSettings != nil {
 		settings.EndpointID = defaultNetwork.EndpointID
