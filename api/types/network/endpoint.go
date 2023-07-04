@@ -14,6 +14,7 @@ type EndpointSettings struct {
 	IPAMConfig *EndpointIPAMConfig
 	Links      []string
 	Aliases    []string
+	MacAddress string
 	// Operational data
 	NetworkID           string
 	EndpointID          string
@@ -23,7 +24,6 @@ type EndpointSettings struct {
 	IPv6Gateway         string
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
-	MacAddress          string
 	DriverOpts          map[string]string
 }
 

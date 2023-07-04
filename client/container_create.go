@@ -39,6 +39,9 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	if err := cli.NewVersionError(ctx, "1.44", "specify health-check start interval"); config != nil && config.Healthcheck != nil && config.Healthcheck.StartInterval != 0 && err != nil {
 		return response, err
 	}
+	if err := cli.NewVersionError("1.44", "specify mac-address per network"); hasEndpointSpecificMacAddress(networkingConfig) && err != nil {
+		return response, err
+	}
 
 	if hostConfig != nil {
 		if versions.LessThan(cli.ClientVersion(), "1.25") {
@@ -90,4 +93,17 @@ func formatPlatform(platform *ocispec.Platform) string {
 		return ""
 	}
 	return path.Join(platform.OS, platform.Architecture, platform.Variant)
+}
+
+// hasEndpointSpecificMacAddress checks whether one of the endpoint in networkingConfig has a MacAddress defined.
+func hasEndpointSpecificMacAddress(networkingConfig *network.NetworkingConfig) bool {
+	if networkingConfig == nil {
+		return false
+	}
+	for _, endpoint := range networkingConfig.EndpointsConfig {
+		if endpoint.MacAddress != "" {
+			return true
+		}
+	}
+	return false
 }

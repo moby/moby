@@ -628,7 +628,6 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	es.IPv6Gateway = ""
 	es.GlobalIPv6Address = ""
 	es.GlobalIPv6PrefixLen = 0
-	es.MacAddress = ""
 	if es.IPAMOperational {
 		es.IPAMConfig = nil
 	}
