@@ -13,15 +13,19 @@ import (
 )
 
 func registerNetworkDrivers(r driverapi.Registerer, driverConfig func(string) map[string]interface{}) error {
+	noConfig := func(fn func(driverapi.Registerer) error) func(driverapi.Registerer, map[string]interface{}) error {
+		return func(r driverapi.Registerer, _ map[string]interface{}) error { return fn(r) }
+	}
+
 	for _, nr := range []struct {
 		ntype    string
 		register func(driverapi.Registerer, map[string]interface{}) error
 	}{
 		{ntype: bridge.NetworkType, register: bridge.Register},
-		{ntype: host.NetworkType, register: host.Register},
+		{ntype: host.NetworkType, register: noConfig(host.Register)},
 		{ntype: ipvlan.NetworkType, register: ipvlan.Register},
 		{ntype: macvlan.NetworkType, register: macvlan.Register},
-		{ntype: null.NetworkType, register: null.Register},
+		{ntype: null.NetworkType, register: noConfig(null.Register)},
 		{ntype: overlay.NetworkType, register: overlay.Register},
 	} {
 		if err := nr.register(r, driverConfig(nr.ntype)); err != nil {

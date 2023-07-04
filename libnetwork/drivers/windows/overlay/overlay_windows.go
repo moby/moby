@@ -26,7 +26,7 @@ type driver struct {
 }
 
 // Register registers a new instance of the overlay driver.
-func Register(r driverapi.Registerer, _ map[string]interface{}) error {
+func Register(r driverapi.Registerer) error {
 	d := &driver{
 		networks: networkTable{},
 	}

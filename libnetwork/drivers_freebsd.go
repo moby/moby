@@ -5,5 +5,5 @@ import (
 )
 
 func registerNetworkDrivers(r driverapi.Registerer, driverConfig func(string) map[string]interface{}) error {
-	return null.Register(r, driverConfig(null.NetworkType))
+	return null.Register(r)
 }

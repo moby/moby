@@ -20,10 +20,10 @@ type driver struct {
 //
 // Deprecated: use [Register].
 func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
-	return Register(dc, nil)
+	return Register(dc)
 }
 
-func Register(r driverapi.Registerer, _ map[string]interface{}) error {
+func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(NetworkType, &driver{}, driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.LocalScope,
