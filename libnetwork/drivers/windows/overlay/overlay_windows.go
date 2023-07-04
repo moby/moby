@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	networkType = "overlay"
+	NetworkType = "overlay"
 )
 
 type driver struct {
@@ -33,7 +33,7 @@ func Register(r driverapi.Registerer, _ map[string]interface{}) error {
 
 	d.restoreHNSNetworks()
 
-	return r.RegisterDriver(networkType, d, driverapi.Capability{
+	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
 		ConnectivityScope: datastore.GlobalScope,
 	})
@@ -48,7 +48,7 @@ func (d *driver) restoreHNSNetworks() error {
 	}
 
 	for _, v := range hnsresponse {
-		if v.Type != networkType {
+		if v.Type != NetworkType {
 			continue
 		}
 
@@ -105,7 +105,7 @@ func (d *driver) convertToOverlayNetwork(v *hcsshim.HNSNetwork) *network {
 }
 
 func (d *driver) Type() string {
-	return networkType
+	return NetworkType
 }
 
 func (d *driver) IsBuiltIn() bool {

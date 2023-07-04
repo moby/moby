@@ -109,16 +109,20 @@ const (
 	errNotFound = "HNS failed with error : The object identifier does not represent a valid object. "
 )
 
+var builtinLocalDrivers = map[string]struct{}{
+	"transparent": {},
+	"l2bridge":    {},
+	"l2tunnel":    {},
+	"nat":         {},
+	"internal":    {},
+	"private":     {},
+	"ics":         {},
+}
+
 // IsBuiltinLocalDriver validates if network-type is a builtin local-scoped driver
 func IsBuiltinLocalDriver(networkType string) bool {
-	if "l2bridge" == networkType || "l2tunnel" == networkType ||
-		"nat" == networkType || "ics" == networkType ||
-		"transparent" == networkType || "internal" == networkType ||
-		"private" == networkType {
-		return true
-	}
-
-	return false
+	_, ok := builtinLocalDrivers[networkType]
+	return ok
 }
 
 // New constructs a new bridge driver
@@ -127,24 +131,23 @@ func newDriver(networkType string) *driver {
 }
 
 // GetInit returns an initializer for the given network type
-func GetInit(networkType string) func(dc driverapi.Registerer, config map[string]interface{}) error {
-	return func(dc driverapi.Registerer, config map[string]interface{}) error {
-		if !IsBuiltinLocalDriver(networkType) {
-			return types.BadRequestErrorf("Network type not supported: %s", networkType)
-		}
-
+func RegisterBuiltinLocalDrivers(r driverapi.Registerer, driverConfig func(string) map[string]interface{}) error {
+	for networkType := range builtinLocalDrivers {
 		d := newDriver(networkType)
-
-		err := d.initStore(config)
+		err := d.initStore(driverConfig(networkType))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to initialize %q driver: %w", networkType, err)
 		}
 
-		return dc.RegisterDriver(networkType, d, driverapi.Capability{
+		err = r.RegisterDriver(networkType, d, driverapi.Capability{
 			DataScope:         datastore.LocalScope,
 			ConnectivityScope: datastore.LocalScope,
 		})
+		if err != nil {
+			return fmt.Errorf("failed to register %q driver: %w", networkType, err)
+		}
 	}
+	return nil
 }
 
 func (d *driver) getNetwork(id string) (*hnsNetwork, error) {
