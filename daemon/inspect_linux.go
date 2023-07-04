@@ -47,7 +47,7 @@ func (daemon *Daemon) containerInspectPre120(ctx context.Context, name string) (
 		VolumesRW:         volumesRW,
 		Config: &v1p19.ContainerConfig{
 			Config:          ctr.Config,
-			MacAddress:      ctr.Config.MacAddress,
+			MacAddress:      ctr.Config.MacAddress, //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 			NetworkDisabled: ctr.Config.NetworkDisabled,
 			ExposedPorts:    ctr.Config.ExposedPorts,
 			VolumeDriver:    ctr.HostConfig.VolumeDriver,

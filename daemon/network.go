@@ -861,22 +861,6 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
-	// configs that are applicable only for the endpoint in the network
-	// to which container was connected to on docker run.
-	// Ideally all these network-specific endpoint configurations must be moved under
-	// container.NetworkSettings.Networks[n.Name()]
-	netMode := c.HostConfig.NetworkMode
-	if nwName == netMode.NetworkName() || n.ID() == netMode.NetworkName() || (nwName == defaultNetName && netMode.IsDefault()) {
-		if c.Config.MacAddress != "" {
-			mac, err := net.ParseMAC(c.Config.MacAddress)
-			if err != nil {
-				return nil, err
-			}
-
-			genericOptions[netlabel.MacAddress] = mac
-		}
-	}
-
 	// Port-mapping rules belong to the container & applicable only to non-internal networks.
 	//
 	// TODO(thaJeztah): Look if we can provide a more minimal function for getPortMapInfo, as it does a lot, and we only need the "length".

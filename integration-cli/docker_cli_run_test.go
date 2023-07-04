@@ -3311,11 +3311,6 @@ func (s *DockerCLIRunSuite) TestRunContainerNetModeWithDNSMacHosts(c *testing.T)
 		c.Fatalf("run --net=container with --dns should error out")
 	}
 
-	out, _, err = dockerCmdWithError("run", "--mac-address", "92:d0:c6:0a:29:33", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, runconfig.ErrConflictContainerNetworkAndMac.Error()) {
-		c.Fatalf("run --net=container with --mac-address should error out")
-	}
-
 	out, _, err = dockerCmdWithError("run", "--add-host", "test:192.168.2.109", "--net=container:parent", "busybox")
 	if err == nil || !strings.Contains(out, runconfig.ErrConflictNetworkHosts.Error()) {
 		c.Fatalf("run --net=container with --add-host should error out")

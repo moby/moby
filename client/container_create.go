@@ -39,7 +39,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	if err := cli.NewVersionError(ctx, "1.44", "specify health-check start interval"); config != nil && config.Healthcheck != nil && config.Healthcheck.StartInterval != 0 && err != nil {
 		return response, err
 	}
-	if err := cli.NewVersionError("1.44", "specify mac-address per network"); hasEndpointSpecificMacAddress(networkingConfig) && err != nil {
+	if err := cli.NewVersionError(ctx, "1.44", "specify mac-address per network"); hasEndpointSpecificMacAddress(networkingConfig) && err != nil {
 		return response, err
 	}
 
@@ -56,6 +56,11 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 			// When using API under 1.42, the Linux daemon doesn't respect the ConsoleSize
 			hostConfig.ConsoleSize = [2]uint{0, 0}
 		}
+	}
+
+	// Since API 1.44, the container-wide MacAddress is deprecated and will trigger a WARNING if it's specified.
+	if versions.GreaterThanOrEqualTo(cli.ClientVersion(), "1.44") {
+		config.MacAddress = "" //nolint:staticcheck // ignore SA1019: field is deprecated, but still used on API < v1.44.
 	}
 
 	query := url.Values{}

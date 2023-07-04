@@ -57,6 +57,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   some configuration of Seccomp and AppArmor in Swarm services.
 * A new endpoint-specific `MacAddress` field has been added to `NetworkSettings.EndpointSettings`
   on `POST /containers/create`, and to `EndpointConfig` on `POST /networks/{id}/connect`.
+  The container-wide `MacAddress` field in `Config`, on `POST /containers/create`, is now deprecated.
 
 ## v1.43 API changes
 

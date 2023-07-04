@@ -1313,7 +1313,10 @@ definitions:
         type: "boolean"
         x-nullable: true
       MacAddress:
-        description: "MAC address of the container."
+        description: |
+          MAC address of the container.
+
+          Deprecated: this field is deprecated in API v1.44 and up. Use EndpointSettings.MacAddress instead.
         type: "string"
         x-nullable: true
       OnBuild:
