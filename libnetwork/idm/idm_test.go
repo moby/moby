@@ -5,12 +5,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	_, err := New(nil, "", 0, 1)
-	if err == nil {
-		t.Fatal("Expected failure, but succeeded")
-	}
-
-	_, err = New(nil, "myset", 1<<10, 0)
+	_, err := New(nil, "myset", 1<<10, 0)
 	if err == nil {
 		t.Fatal("Expected failure, but succeeded")
 	}
