@@ -99,6 +99,24 @@ type NetworkConfig struct {
 	VXLANUDPPort uint32
 }
 
+type (
+	registryConstructor = func(drvregistry.DriverNotifyFunc, plugingetter.PluginGetter) (*drvregistry.DrvRegistry, error)
+	legacyConstructor   = func(drvregistry.Placeholder, drvregistry.Placeholder, drvregistry.DriverNotifyFunc, drvregistry.Placeholder, plugingetter.PluginGetter) (*drvregistry.DrvRegistry, error)
+)
+
+func newDriverRegistry(newFn any, pg plugingetter.PluginGetter) (*drvregistry.DrvRegistry, error) {
+	switch fn := newFn.(type) {
+	case registryConstructor:
+		// There are no driver configurations and notification
+		// functions as of now.
+		return fn(nil, pg)
+	case legacyConstructor:
+		return fn(nil, nil, nil, nil, pg)
+	default:
+		return nil, fmt.Errorf("invalid constructor signature: %T", newFn)
+	}
+}
+
 // New returns a new NetworkAllocator handle
 func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocator.NetworkAllocator, error) {
 	na := &cnmNetworkAllocator{
@@ -108,9 +126,8 @@ func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocat
 		nodes:    make(map[string]map[string]struct{}),
 	}
 
-	// There are no driver configurations and notification
-	// functions as of now.
-	reg, err := drvregistry.New(nil, nil, nil, nil, pg)
+	// FIXME(thaJeztah): drvregistry.New was deprecated in https://github.com/moby/moby/commit/5595311209cc915e8b0ace0a1bbd8b52a7baecb0, but there's no other way to pass a PluginGetter to it.
+	reg, err := newDriverRegistry(drvregistry.New, pg)
 	if err != nil {
 		return nil, err
 	}

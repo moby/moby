@@ -6,6 +6,9 @@ module github.com/docker/docker
 
 go 1.18
 
+// FIXME(thaJeztah): using remove_driverregistry_arg branch (https://github.com/moby/swarmkit/pull/3015)
+replace github.com/moby/swarmkit/v2 => github.com/thaJeztah/swarmkit/v2 v2.0.0-20230704112403-47210e3c8bb7
+
 require (
 	cloud.google.com/go/compute v1.7.0
 	cloud.google.com/go/logging v1.4.2

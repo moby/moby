@@ -3,6 +3,7 @@ package cnmallocator
 import (
 	"fmt"
 
+	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/idm"
 	"github.com/moby/swarmkit/v2/api"
 )
@@ -117,16 +118,30 @@ func newPortAllocator() (*portAllocator, error) {
 	return &portAllocator{portSpaces: portSpaces}, nil
 }
 
-func newPortSpace(protocol api.PortConfig_Protocol) (*portSpace, error) {
-	masterName := fmt.Sprintf("%s-master-ports", protocol)
-	dynamicName := fmt.Sprintf("%s-dynamic-ports", protocol)
+type (
+	// these are deliberately aliases, otherwise we'd only match the same type, not signature.
+	legacyIdmConstructor = func(ds datastore.DataStore, id string, start, end uint64) (*idm.Idm, error)
+	idmConstructor       = func(id string, start, end uint64) (*idm.Idm, error)
+)
 
-	master, err := idm.New(nil, masterName, masterPortStart, masterPortEnd)
+func newIdm(newFn any, id string, start, end uint64) (*idm.Idm, error) {
+	switch fn := newFn.(type) {
+	case idmConstructor:
+		return fn(id, start, end)
+	case legacyIdmConstructor:
+		return fn(nil, id, start, end)
+	default:
+		return nil, fmt.Errorf("invalid constructor signature: %T", newFn)
+	}
+}
+
+func newPortSpace(protocol api.PortConfig_Protocol) (*portSpace, error) {
+	master, err := newIdm(idm.New, protocol.String()+"-master-ports", masterPortStart, masterPortEnd)
 	if err != nil {
 		return nil, err
 	}
 
-	dynamic, err := idm.New(nil, dynamicName, dynamicPortStart, dynamicPortEnd)
+	dynamic, err := newIdm(idm.New, protocol.String()+"-dynamic-ports", dynamicPortStart, dynamicPortEnd)
 	if err != nil {
 		return nil, err
 	}
