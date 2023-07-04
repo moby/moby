@@ -45,6 +45,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   such, the `CheckDuplicate` field is now deprecated. Note that this change is
   _unversioned_ and applied to all API versions on daemon that support version
   1.44.
+* `POST /containers/create` now accepts multiple `EndpointSettings` in
+  `NetworkingConfig.EndpointSettings`.
 
 ## v1.43 API changes
 
