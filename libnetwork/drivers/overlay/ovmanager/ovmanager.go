@@ -26,9 +26,9 @@ const (
 type networkTable map[string]*network
 
 type driver struct {
+	mu       sync.Mutex
 	networks networkTable
 	vxlanIdm *idm.Idm
-	sync.Mutex
 }
 
 type subnet struct {
@@ -40,8 +40,8 @@ type subnet struct {
 type network struct {
 	id      string
 	driver  *driver
+	mu      sync.Mutex
 	subnets []*subnet
-	sync.Mutex
 }
 
 // Init registers a new instance of the overlay driver.
@@ -127,8 +127,8 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 	}
 	opts[netlabel.OverlayVxlanIDList] = val
 
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if _, ok := d.networks[id]; ok {
 		n.releaseVxlanID()
 		return nil, fmt.Errorf("network %s already exists", id)
@@ -143,8 +143,8 @@ func (d *driver) NetworkFree(id string) error {
 		return fmt.Errorf("invalid network id passed while freeing overlay network")
 	}
 
-	d.Lock()
-	defer d.Unlock()
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	n, ok := d.networks[id]
 
 	if !ok {
@@ -165,9 +165,9 @@ func (n *network) obtainVxlanID(s *subnet) error {
 		vni uint64
 	)
 
-	n.Lock()
+	n.mu.Lock()
 	vni = uint64(s.vni)
-	n.Unlock()
+	n.mu.Unlock()
 
 	if vni == 0 {
 		vni, err = n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
@@ -175,9 +175,9 @@ func (n *network) obtainVxlanID(s *subnet) error {
 			return err
 		}
 
-		n.Lock()
+		n.mu.Lock()
 		s.vni = uint32(vni)
-		n.Unlock()
+		n.mu.Unlock()
 		return nil
 	}
 
@@ -185,13 +185,13 @@ func (n *network) obtainVxlanID(s *subnet) error {
 }
 
 func (n *network) releaseVxlanID() {
-	n.Lock()
+	n.mu.Lock()
 	vnis := make([]uint32, 0, len(n.subnets))
 	for _, s := range n.subnets {
 		vnis = append(vnis, s.vni)
 		s.vni = 0
 	}
-	n.Unlock()
+	n.mu.Unlock()
 
 	for _, vni := range vnis {
 		n.driver.vxlanIdm.Release(uint64(vni))
