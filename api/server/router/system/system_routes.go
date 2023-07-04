@@ -67,24 +67,16 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 	version := httputils.VersionFromContext(ctx)
 	if versions.LessThan(version, "1.25") {
 		// TODO: handle this conversion in engine-api
-		type oldInfo struct {
-			*types.Info
-			ExecutionDriver string
-		}
-		old := &oldInfo{
-			Info:            info,
-			ExecutionDriver: "<not supported>",
-		}
-		nameOnlySecurityOptions := []string{}
-		kvSecOpts, err := types.DecodeSecurityOptions(old.SecurityOptions)
+		kvSecOpts, err := types.DecodeSecurityOptions(info.SecurityOptions)
 		if err != nil {
-			return err
+			info.Warnings = append(info.Warnings, err.Error())
 		}
-		for _, s := range kvSecOpts {
-			nameOnlySecurityOptions = append(nameOnlySecurityOptions, s.Name)
+		var nameOnly []string
+		for _, so := range kvSecOpts {
+			nameOnly = append(nameOnly, so.Name)
 		}
-		old.SecurityOptions = nameOnlySecurityOptions
-		return httputils.WriteJSON(w, http.StatusOK, old)
+		info.SecurityOptions = nameOnly
+		info.ExecutionDriver = "<not supported>" //nolint:staticcheck // ignore SA1019 (ExecutionDriver is deprecated)
 	}
 	if versions.LessThan(version, "1.39") {
 		if info.KernelVersion == "" {

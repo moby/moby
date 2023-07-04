@@ -307,11 +307,18 @@ type Info struct {
 	ProductLicense      string               `json:",omitempty"`
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
 
+	// Legacy API fields for older API versions.
+	legacyFields
+
 	// Warnings contains a slice of warnings that occurred  while collecting
 	// system information. These warnings are intended to be informational
 	// messages for the user, and are not intended to be parsed / used for
 	// other purposes, as they do not have a fixed format.
 	Warnings []string
+}
+
+type legacyFields struct {
+	ExecutionDriver string `json:",omitempty"` // Deprecated: deprecated since API v1.25, but returned for older versions.
 }
 
 // KeyValue holds a key/value pair
