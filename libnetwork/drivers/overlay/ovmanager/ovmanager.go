@@ -40,7 +40,6 @@ type subnet struct {
 type network struct {
 	id      string
 	driver  *driver
-	mu      sync.Mutex
 	subnets []*subnet
 }
 
@@ -160,24 +159,14 @@ func (d *driver) NetworkFree(id string) error {
 }
 
 func (n *network) obtainVxlanID(s *subnet) error {
-	var (
-		err error
-		vni uint64
-	)
-
-	n.mu.Lock()
-	vni = uint64(s.vni)
-	n.mu.Unlock()
-
+	vni := uint64(s.vni)
 	if vni == 0 {
-		vni, err = n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
+		vni, err := n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
 		if err != nil {
 			return err
 		}
 
-		n.mu.Lock()
 		s.vni = uint32(vni)
-		n.mu.Unlock()
 		return nil
 	}
 
@@ -185,16 +174,9 @@ func (n *network) obtainVxlanID(s *subnet) error {
 }
 
 func (n *network) releaseVxlanID() {
-	n.mu.Lock()
-	vnis := make([]uint32, 0, len(n.subnets))
 	for _, s := range n.subnets {
-		vnis = append(vnis, s.vni)
+		n.driver.vxlanIdm.Release(uint64(s.vni))
 		s.vni = 0
-	}
-	n.mu.Unlock()
-
-	for _, vni := range vnis {
-		n.driver.vxlanIdm.Release(uint64(vni))
 	}
 }
 
