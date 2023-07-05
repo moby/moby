@@ -177,14 +177,12 @@ func OnReloaded(callback func()) {
 
 // Call some remote method to see whether the service is actually running.
 func checkRunning() bool {
-	var zone string
-	var err error
-
-	if connection != nil {
-		err = connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-		return err == nil
+	if connection == nil {
+		return false
 	}
-	return false
+	var zone string
+	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
+	return err == nil
 }
 
 // Passthrough method simply passes args through to iptables/ip6tables
