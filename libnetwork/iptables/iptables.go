@@ -75,7 +75,7 @@ type ChainInfo struct {
 	Name        string
 	Table       Table
 	HairpinMode bool
-	IPTable     IPTable
+	IPVersion   IPVersion
 }
 
 // ChainError is returned to represent errors during ip table operation.
@@ -160,7 +160,7 @@ func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*Ch
 		Name:        name,
 		Table:       table,
 		HairpinMode: hairpinMode,
-		IPTable:     iptable,
+		IPVersion:   iptable.Version,
 	}, nil
 }
 
@@ -279,16 +279,16 @@ func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
 		table = Filter
 	}
 	c := &ChainInfo{
-		Name:    name,
-		Table:   table,
-		IPTable: iptable,
+		Name:      name,
+		Table:     table,
+		IPVersion: iptable.Version,
 	}
 	return c.Remove()
 }
 
 // Forward adds forwarding rule to 'filter' table and corresponding nat rule to 'nat' table.
 func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int, bridgeName string) error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	daddr := ip.String()
 	if ip.IsUnspecified() {
 		// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
@@ -361,7 +361,7 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.
 // Traffic is allowed from ip1 to ip2 and vice-versa
 func (c *ChainInfo) Link(action Action, ip1, ip2 net.IP, port int, proto string, bridgeName string) error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	// forward
 	args := []string{
 		"-i", bridgeName, "-o", bridgeName,
@@ -393,7 +393,7 @@ func (iptable IPTable) ProgramRule(table Table, chain string, action Action, arg
 
 // Prerouting adds linking rule to nat/PREROUTING chain.
 func (c *ChainInfo) Prerouting(action Action, args ...string) error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	a := []string{"-t", string(Nat), string(action), "PREROUTING"}
 	if len(args) > 0 {
 		a = append(a, args...)
@@ -412,7 +412,7 @@ func (c *ChainInfo) Output(action Action, args ...string) error {
 	if len(args) > 0 {
 		a = append(a, args...)
 	}
-	if output, err := GetIptable(c.IPTable.Version).Raw(a...); err != nil {
+	if output, err := GetIptable(c.IPVersion).Raw(a...); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return ChainError{Chain: "OUTPUT", Output: output}
@@ -422,7 +422,7 @@ func (c *ChainInfo) Output(action Action, args ...string) error {
 
 // Remove removes the chain.
 func (c *ChainInfo) Remove() error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
 		_ = c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)

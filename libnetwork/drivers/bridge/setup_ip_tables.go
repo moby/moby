@@ -17,6 +17,7 @@ import (
 // DockerChain: DOCKER iptable chain name
 const (
 	DockerChain = "DOCKER"
+
 	// Isolation between bridge networks is achieved in two stages by means
 	// of the following two chains in the filter table. The first chain matches
 	// on the source interface being a bridge network's bridge and the
@@ -26,6 +27,7 @@ const (
 	// bridge. A positive match identifies a packet originated from one bridge
 	// network's bridge destined to another bridge network's bridge and will
 	// result in the packet being dropped. No match returns to the parent chain.
+
 	IsolationChain1 = "DOCKER-ISOLATION-STAGE-1"
 	IsolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )
@@ -382,11 +384,11 @@ func removeIPChains(version iptables.IPVersion) {
 
 	// Remove chains
 	for _, chainInfo := range []iptables.ChainInfo{
-		{Name: DockerChain, Table: iptables.Nat, IPTable: ipt},
-		{Name: DockerChain, Table: iptables.Filter, IPTable: ipt},
-		{Name: IsolationChain1, Table: iptables.Filter, IPTable: ipt},
-		{Name: IsolationChain2, Table: iptables.Filter, IPTable: ipt},
-		{Name: oldIsolationChain, Table: iptables.Filter, IPTable: ipt},
+		{Name: DockerChain, Table: iptables.Nat, IPVersion: version},
+		{Name: DockerChain, Table: iptables.Filter, IPVersion: version},
+		{Name: IsolationChain1, Table: iptables.Filter, IPVersion: version},
+		{Name: IsolationChain2, Table: iptables.Filter, IPVersion: version},
+		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
 	} {
 		if err := chainInfo.Remove(); err != nil {
 			log.G(context.TODO()).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
