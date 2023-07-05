@@ -114,10 +114,12 @@ func newConnection() (*Conn, error) {
 
 func signalHandler() {
 	for signal := range connection.signal {
-		if strings.Contains(signal.Name, "NameOwnerChanged") {
+		switch {
+		case strings.Contains(signal.Name, "NameOwnerChanged"):
 			firewalldRunning = checkRunning()
 			dbusConnectionChanged(signal.Body)
-		} else if strings.Contains(signal.Name, "Reloaded") {
+
+		case strings.Contains(signal.Name, "Reloaded"):
 			reloaded()
 		}
 	}
