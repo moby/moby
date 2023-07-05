@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/datastore"
@@ -11,18 +12,19 @@ import (
 func TestBoltdbBackend(t *testing.T) {
 	defer os.Remove(datastore.DefaultScope("").Client.Address)
 	testLocalBackend(t, "", "", nil)
-	defer os.Remove("/tmp/boltdb.db")
-	config := &store.Config{Bucket: "testBackend"}
-	testLocalBackend(t, "boltdb", "/tmp/boltdb.db", config)
+	tmpPath := filepath.Join(t.TempDir(), "boltdb.db")
+	testLocalBackend(t, "boltdb", tmpPath, &store.Config{
+		Bucket: "testBackend",
+	})
 }
 
 func TestNoPersist(t *testing.T) {
-	ctrl, err := New(OptionBoltdbWithRandomDBFile(t))
+	testController, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
-	defer ctrl.Stop()
-	nw, err := ctrl.NewNetwork("host", "host", "", NetworkOptionPersist(false))
+	defer testController.Stop()
+	nw, err := testController.NewNetwork("host", "host", "", NetworkOptionPersist(false))
 	if err != nil {
 		t.Fatalf("Error creating default \"host\" network: %v", err)
 	}
@@ -30,12 +32,12 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.getStore().KVStore()
-	if exists, _ := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); exists {
+	kvStore := testController.getStore().KVStore()
+	if exists, _ := kvStore.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); exists {
 		t.Fatalf("Network with persist=false should not be stored in KV Store")
 	}
-	if exists, _ := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); exists {
+	if exists, _ := kvStore.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); exists {
 		t.Fatalf("Endpoint in Network with persist=false should not be stored in KV Store")
 	}
-	store.Close()
+	kvStore.Close()
 }

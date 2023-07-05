@@ -7,7 +7,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/cluster"
 	"github.com/docker/docker/libnetwork/datastore"
-	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/osl"
@@ -139,30 +138,6 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 // IsValidName validates configuration objects supported by libnetwork
 func IsValidName(name string) bool {
 	return strings.TrimSpace(name) != ""
-}
-
-// OptionLocalKVProvider function returns an option setter for kvstore provider
-func OptionLocalKVProvider(provider string) Option {
-	return func(c *Config) {
-		log.G(context.TODO()).Debugf("Option OptionLocalKVProvider: %s", provider)
-		c.Scope.Client.Provider = strings.TrimSpace(provider)
-	}
-}
-
-// OptionLocalKVProviderURL function returns an option setter for kvstore url
-func OptionLocalKVProviderURL(url string) Option {
-	return func(c *Config) {
-		log.G(context.TODO()).Debugf("Option OptionLocalKVProviderURL: %s", url)
-		c.Scope.Client.Address = strings.TrimSpace(url)
-	}
-}
-
-// OptionLocalKVProviderConfig function returns an option setter for kvstore config
-func OptionLocalKVProviderConfig(config *store.Config) Option {
-	return func(c *Config) {
-		log.G(context.TODO()).Debugf("Option OptionLocalKVProviderConfig: %v", config)
-		c.Scope.Client.Config = config
-	}
 }
 
 // OptionActiveSandboxes function returns an option setter for passing the sandboxes

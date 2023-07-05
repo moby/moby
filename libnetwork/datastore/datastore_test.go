@@ -51,7 +51,7 @@ func TestInvalidDataStore(t *testing.T) {
 func TestKVObjectFlatKey(t *testing.T) {
 	store := NewTestDataStore()
 	expected := dummyKVObject("1000", true)
-	err := store.PutObject(expected)
+	err := store.PutObjectAtomic(expected)
 	if err != nil {
 		t.Fatal(err)
 	}

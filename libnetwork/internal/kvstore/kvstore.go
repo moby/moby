@@ -1,7 +1,6 @@
 package kvstore
 
 import (
-	"crypto/tls"
 	"errors"
 	"time"
 )
@@ -15,8 +14,6 @@ const BOLTDB Backend = "boltdb"
 var (
 	// ErrBackendNotSupported is thrown when the backend k/v store is not supported by libkv
 	ErrBackendNotSupported = errors.New("Backend storage not supported yet, please choose one of")
-	// ErrCallNotSupported is thrown when a method is not implemented/supported by the current backend
-	ErrCallNotSupported = errors.New("The current call is not supported with this backend")
 	// ErrKeyModified is thrown during an atomic operation if the index does not match the one in the store
 	ErrKeyModified = errors.New("Unable to complete atomic operation, key modified")
 	// ErrKeyNotFound is thrown when the key is not found in the store during a Get operation
@@ -29,21 +26,9 @@ var (
 
 // Config contains the options for a storage client
 type Config struct {
-	ClientTLS         *ClientTLSConfig
-	TLS               *tls.Config
 	ConnectionTimeout time.Duration
 	Bucket            string
 	PersistConnection bool
-	Username          string
-	Password          string
-}
-
-// ClientTLSConfig contains data for a Client TLS configuration in the form
-// the etcd client wants it.  Eventually we'll adapt it for ZK and Consul.
-type ClientTLSConfig struct {
-	CertFile   string
-	KeyFile    string
-	CACertFile string
 }
 
 // Store represents the backend K/V storage
@@ -52,41 +37,23 @@ type ClientTLSConfig struct {
 // backend for libkv
 type Store interface {
 	// Put a value at the specified key
-	Put(key string, value []byte, options *WriteOptions) error
+	Put(key string, value []byte) error
 
 	// Get a value given its key
 	Get(key string) (*KVPair, error)
 
-	// Delete the value at the specified key
-	Delete(key string) error
-
-	// Verify if a Key exists in the store
+	// Exists verifies if a Key exists in the store.
 	Exists(key string) (bool, error)
-
-	// Watch for changes on a key
-	Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error)
-
-	// WatchTree watches for changes on child nodes under
-	// a given directory
-	WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*KVPair, error)
-
-	// NewLock creates a lock for a given key.
-	// The returned Locker is not held and must be acquired
-	// with `.Lock`. The Value is optional.
-	NewLock(key string, options *LockOptions) (Locker, error)
 
 	// List the content of a given prefix
 	List(directory string) ([]*KVPair, error)
 
-	// DeleteTree deletes a range of keys under a given directory
-	DeleteTree(directory string) error
-
-	// Atomic CAS operation on a single value.
+	// AtomicPut performs an atomic CAS operation on a single value.
 	// Pass previous = nil to create a new key.
-	AtomicPut(key string, value []byte, previous *KVPair, options *WriteOptions) (bool, *KVPair, error)
+	AtomicPut(key string, value []byte, previous *KVPair) (*KVPair, error)
 
-	// Atomic delete of a single value
-	AtomicDelete(key string, previous *KVPair) (bool, error)
+	// AtomicDelete performs an atomic delete of a single value.
+	AtomicDelete(key string, previous *KVPair) error
 
 	// Close the store connection
 	Close()
@@ -97,24 +64,4 @@ type KVPair struct {
 	Key       string
 	Value     []byte
 	LastIndex uint64
-}
-
-// WriteOptions contains optional request parameters
-type WriteOptions struct {
-	IsDir bool
-	TTL   time.Duration
-}
-
-// LockOptions contains optional request parameters
-type LockOptions struct {
-	Value     []byte        // Optional, value to associate with the lock
-	TTL       time.Duration // Optional, expiration ttl associated with the lock
-	RenewLock chan struct{} // Optional, chan used to control and stop the session ttl renewal for the lock
-}
-
-// Locker provides locking mechanism on top of the store.
-// Similar to `sync.Lock` except it may return errors.
-type Locker interface {
-	Lock(stopChan chan struct{}) (<-chan struct{}, error)
-	Unlock() error
 }

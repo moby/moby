@@ -368,7 +368,7 @@ func TestNetworkDBWatch(t *testing.T) {
 	err = dbs[1].JoinNetwork("network1")
 	assert.NilError(t, err)
 
-	ch, cancel := dbs[1].Watch("", "", "")
+	ch, cancel := dbs[1].Watch("", "")
 
 	err = dbs[0].CreateEntry("test_table", "network1", "test_key", []byte("test_value"))
 	assert.NilError(t, err)

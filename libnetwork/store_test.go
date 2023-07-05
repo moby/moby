@@ -13,22 +13,22 @@ import (
 )
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
-	cfgOptions := []config.Option{}
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider(provider))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(url))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(storeConfig))
+	cfgOptions := []config.Option{func(c *config.Config) {
+		c.Scope.Client.Provider = provider
+		c.Scope.Client.Address = url
+		c.Scope.Client.Config = storeConfig
+	}}
 
-	driverOptions := options.Generic{}
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = driverOptions
-	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", genericOption))
+	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", map[string]interface{}{
+		netlabel.GenericData: options.Generic{},
+	}))
 
-	ctrl, err := New(cfgOptions...)
+	testController, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
-	defer ctrl.Stop()
-	nw, err := ctrl.NewNetwork("host", "host", "")
+	defer testController.Stop()
+	nw, err := testController.NewNetwork("host", "host", "")
 	if err != nil {
 		t.Fatalf("Error creating default \"host\" network: %v", err)
 	}
@@ -36,22 +36,22 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.getStore().KVStore()
-	if exists, err := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); !exists || err != nil {
+	kvStore := testController.getStore().KVStore()
+	if exists, err := kvStore.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); !exists || err != nil {
 		t.Fatalf("Network key should have been created.")
 	}
-	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); !exists || err != nil {
+	if exists, err := kvStore.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); !exists || err != nil {
 		t.Fatalf("Endpoint key should have been created.")
 	}
-	store.Close()
+	kvStore.Close()
 
 	// test restore of local store
-	ctrl, err = New(cfgOptions...)
+	testController, err = New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}
-	defer ctrl.Stop()
-	if _, err = ctrl.NetworkByID(nw.ID()); err != nil {
+	defer testController.Stop()
+	if _, err = testController.NetworkByID(nw.ID()); err != nil {
 		t.Fatalf("Error getting network %v", err)
 	}
 }
@@ -65,9 +65,9 @@ func OptionBoltdbWithRandomDBFile(t *testing.T) config.Option {
 	}
 
 	return func(c *config.Config) {
-		config.OptionLocalKVProvider("boltdb")(c)
-		config.OptionLocalKVProviderURL(tmp)(c)
-		config.OptionLocalKVProviderConfig(&store.Config{Bucket: "testBackend"})(c)
+		c.Scope.Client.Provider = "boltdb"
+		c.Scope.Client.Address = tmp
+		c.Scope.Client.Config = &store.Config{Bucket: "testBackend"}
 	}
 }
 
