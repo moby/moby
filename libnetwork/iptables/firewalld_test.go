@@ -19,15 +19,11 @@ func TestFirewalldInit(t *testing.T) {
 }
 
 func TestReloaded(t *testing.T) {
-	var err error
-	var fwdChain *ChainInfo
-
 	iptable := GetIptable(IPv4)
-	fwdChain, err = iptable.NewChain("FWD", Filter, false)
+	fwdChain, err := iptable.NewChain("FWD", Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bridgeName := "lo"
 
 	err = iptable.ProgramChain(fwdChain, bridgeName, false, true)
 	if err != nil {
@@ -38,8 +34,8 @@ func TestReloaded(t *testing.T) {
 	// copy-pasted from iptables_test:TestLink
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
-	port := 1234
-	proto := "tcp"
+	const port = 1234
+	const proto = "tcp"
 
 	err = fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
