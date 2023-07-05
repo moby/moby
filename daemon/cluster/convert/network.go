@@ -6,7 +6,7 @@ import (
 	basictypes "github.com/docker/docker/api/types"
 	networktypes "github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
-	netconst "github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/datastore"
 	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
@@ -31,7 +31,7 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 				Attachable:  n.Spec.Attachable,
 				Ingress:     IsIngressNetwork(n),
 				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
-				Scope:       netconst.SwarmScope,
+				Scope:       datastore.SwarmScope,
 			},
 			IPAMOptions: ipamFromGRPC(n.IPAM),
 		}
@@ -160,7 +160,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 	nr := basictypes.NetworkResource{
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
-		Scope:      netconst.SwarmScope,
+		Scope:      datastore.SwarmScope,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
 		Internal:   spec.Internal,
