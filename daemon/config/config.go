@@ -151,7 +151,6 @@ type CommonConfig struct {
 	GraphDriver           string   `json:"storage-driver,omitempty"`
 	GraphOptions          []string `json:"storage-opts,omitempty"`
 	Labels                []string `json:"labels,omitempty"`
-	Mtu                   int      `json:"mtu,omitempty"`
 	NetworkDiagnosticPort int      `json:"network-diagnostic-port,omitempty"`
 	Pidfile               string   `json:"pidfile,omitempty"`
 	RawLogs               bool     `json:"raw-logs,omitempty"`
@@ -280,7 +279,7 @@ func New() (*Config, error) {
 			MaxConcurrentDownloads: DefaultMaxConcurrentDownloads,
 			MaxConcurrentUploads:   DefaultMaxConcurrentUploads,
 			MaxDownloadAttempts:    DefaultDownloadAttempts,
-			Mtu:                    DefaultNetworkMtu,
+			BridgeConfig:           BridgeConfig{MTU: DefaultNetworkMtu},
 			NetworkConfig: NetworkConfig{
 				NetworkControlPlaneMTU: DefaultNetworkMtu,
 				DefaultNetworkOpts:     make(map[string]map[string]string),
@@ -615,8 +614,8 @@ func Validate(config *Config) error {
 	}
 
 	// TODO(thaJeztah) Validations below should not accept "0" to be valid; see Validate() for a more in-depth description of this problem
-	if config.Mtu < 0 {
-		return errors.Errorf("invalid default MTU: %d", config.Mtu)
+	if config.MTU < 0 {
+		return errors.Errorf("invalid default MTU: %d", config.MTU)
 	}
 	if config.MaxConcurrentDownloads < 0 {
 		return errors.Errorf("invalid max concurrent downloads: %d", config.MaxConcurrentDownloads)

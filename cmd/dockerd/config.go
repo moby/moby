@@ -30,7 +30,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.BoolVar(&conf.CriContainerd, "cri-containerd", false, "start containerd with cri")
 
 	flags.Var(opts.NewNamedMapMapOpts("default-network-opts", conf.DefaultNetworkOpts, nil), "default-network-opt", "Default network options")
-	flags.IntVar(&conf.Mtu, "mtu", conf.Mtu, `Set the MTU for the default "bridge" network`)
+	flags.IntVar(&conf.MTU, "mtu", conf.MTU, `Set the MTU for the default "bridge" network`)
 	if runtime.GOOS == "windows" {
 		// The mtu option is not used on Windows, but it has been available since
 		// "forever" (and always silently ignored). We hide the flag for now,

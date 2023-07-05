@@ -930,7 +930,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
 		bridge.DefaultBridge:      strconv.FormatBool(true),
-		netlabel.DriverMTU:        strconv.Itoa(config.Mtu),
+		netlabel.DriverMTU:        strconv.Itoa(config.MTU),
 		bridge.EnableIPMasquerade: strconv.FormatBool(config.BridgeConfig.EnableIPMasq),
 		bridge.EnableICC:          strconv.FormatBool(config.BridgeConfig.InterContainerCommunication),
 	}

@@ -19,6 +19,10 @@ const (
 // configuration.
 type BridgeConfig struct {
 	commonBridgeConfig
+
+	// MTU is not actually used on Windows, but the --mtu option has always
+	// been there on Windows (but ignored).
+	MTU int `json:"mtu,omitempty"`
 }
 
 // Config defines the configuration of a docker daemon.
@@ -48,7 +52,7 @@ func (conf *Config) IsSwarmCompatible() error {
 
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func (conf *Config) ValidatePlatformConfig() error {
-	if conf.Mtu != 0 && conf.Mtu != DefaultNetworkMtu {
+	if conf.MTU != 0 && conf.MTU != DefaultNetworkMtu {
 		log.G(context.TODO()).Warn(`WARNING: MTU for the default network is not configurable on Windows, and this option will be ignored.`)
 	}
 	return nil
