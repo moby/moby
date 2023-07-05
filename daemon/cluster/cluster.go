@@ -359,7 +359,7 @@ func (c *Cluster) errNoManager(st nodeState) error {
 		if st.err == errSwarmCertificatesExpired {
 			return errSwarmCertificatesExpired
 		}
-		return errors.WithStack(notAvailableError("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again."))
+		return errors.WithStack(notAvailableError(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
 	}
 	if st.swarmNode.Manager() != nil {
 		return errors.WithStack(notAvailableError("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster."))
