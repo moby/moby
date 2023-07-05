@@ -20,8 +20,6 @@ const (
 	Iptables IPV = "ipv4"
 	// IP6Tables point to ipv6 table
 	IP6Tables IPV = "ipv6"
-	// Ebtables point to bridge table
-	Ebtables IPV = "eb"
 )
 
 const (
