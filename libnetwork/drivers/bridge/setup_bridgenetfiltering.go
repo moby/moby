@@ -24,11 +24,11 @@ const (
 
 // getIPVersion gets the IP version in use ( [ipv4], [ipv6] or [ipv4 and ipv6] )
 func getIPVersion(config *networkConfiguration) ipVersion {
-	ipVersion := ipv4
+	ipVer := ipv4
 	if config.AddressIPv6 != nil || config.EnableIPv6 {
-		ipVersion |= ipv6
+		ipVer |= ipv6
 	}
-	return ipVersion
+	return ipVer
 }
 
 func setupBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) error {

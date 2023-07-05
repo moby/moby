@@ -226,38 +226,37 @@ func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, i
 	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: natArgs}
 	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: hpNatArgs}
 
-	ipVersion := iptables.IPv4
-
+	ipVer := iptables.IPv4
 	if addr.IP.To4() == nil {
-		ipVersion = iptables.IPv6
+		ipVer = iptables.IPv6
 	}
 
 	// Set NAT.
 	if ipmasq {
-		if err := programChainRule(ipVersion, natRule, "NAT", enable); err != nil {
+		if err := programChainRule(ipVer, natRule, "NAT", enable); err != nil {
 			return err
 		}
 	}
 
 	if ipmasq && !hairpin {
-		if err := programChainRule(ipVersion, skipDNAT, "SKIP DNAT", enable); err != nil {
+		if err := programChainRule(ipVer, skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
 	}
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
 	// that bridge, make sure the iptables rule isn't lying around.
-	if err := programChainRule(ipVersion, hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
+	if err := programChainRule(ipVer, hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
 		return err
 	}
 
 	// Set Inter Container Communication.
-	if err := setIcc(ipVersion, bridgeIface, icc, enable); err != nil {
+	if err := setIcc(ipVer, bridgeIface, icc, enable); err != nil {
 		return err
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
-	return programChainRule(ipVersion, outRule, "ACCEPT NON_ICC OUTGOING", enable)
+	return programChainRule(ipVer, outRule, "ACCEPT NON_ICC OUTGOING", enable)
 }
 
 func programChainRule(version iptables.IPVersion, rule iptRule, ruleDescr string, insert bool) error {
