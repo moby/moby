@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -33,20 +34,25 @@ func ErrDTypeNotSupported(driver, backingFs string) error {
 	return graphdriver.NotSupportedError(msg)
 }
 
+const (
+	testSELinuxLabel = "system_u:object_r:container_file_t:s0"
+)
+
 // SupportsOverlay checks if the system supports overlay filesystem
 // by performing an actual overlay mount.
 //
 // checkMultipleLowers parameter enables check for multiple lowerdirs,
 // which is required for the overlay2 driver.
 func SupportsOverlay(d string, checkMultipleLowers bool) error {
-	// We can't rely on go-selinux.GetEnabled() to detect whether SELinux is enabled,
-	// because RootlessKit doesn't mount /sys/fs/selinux in the child: https://github.com/rootless-containers/rootlesskit/issues/94
-	// So we check $_DOCKERD_ROOTLESS_SELINUX, which is set by dockerd-rootless.sh .
-	if os.Getenv("_DOCKERD_ROOTLESS_SELINUX") == "1" {
-		// Kernel 5.11 introduced support for rootless overlayfs, but incompatible with SELinux,
-		// so fallback to fuse-overlayfs.
-		// https://github.com/moby/moby/issues/42333
-		return errors.New("overlay is not supported for Rootless with SELinux")
+	// We can't solely rely on selinux.GetEnabled() to detect whether SELinux is enabled, as [RootlessKit] does not
+	// mount /sys/fs/selinux for us. _DOCKERD_ROOTLESS_SELINUX is set in the dockerd-rootless.sh wrapper script instead.
+	//
+	// [RootlessKit]: https://github.com/rootless-containers/rootlesskit/issues/94
+	checkSELinux := false
+	if selinux.GetEnabled() || os.Getenv("_DOCKERD_ROOTLESS_SELINUX") == "1" {
+		// We only test for SELinux if the test label is valid; this prevents incorrectly testing for the container
+		// SELinux profile, instead of kernel support.
+		checkSELinux = selinux.SecurityCheckContext(testSELinuxLabel) == nil
 	}
 
 	td, err := os.MkdirTemp(d, "check-overlayfs-support")
@@ -71,6 +77,9 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 		lowerDir += ":" + path.Join(td, "lower1")
 	}
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, path.Join(td, "upper"), path.Join(td, "work"))
+	if checkSELinux {
+		opts = fmt.Sprintf("%s,context=%s", opts, testSELinuxLabel)
+	}
 	if err := unix.Mount("overlay", mnt, "overlay", 0, opts); err != nil {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
