@@ -883,7 +883,7 @@ func configureNetworking(controller *libnetwork.Controller, conf *config.Config)
 
 	if !conf.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, conf); err != nil {
+		if err := initBridgeDriver(controller, conf.BridgeConfig); err != nil {
 			return err
 		}
 	} else {
@@ -922,22 +922,22 @@ func driverOptions(config *config.Config) nwconfig.Option {
 	})
 }
 
-func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) error {
+func initBridgeDriver(controller *libnetwork.Controller, cfg config.BridgeConfig) error {
 	bridgeName := bridge.DefaultBridgeName
-	if config.BridgeConfig.Iface != "" {
-		bridgeName = config.BridgeConfig.Iface
+	if cfg.Iface != "" {
+		bridgeName = cfg.Iface
 	}
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
 		bridge.DefaultBridge:      strconv.FormatBool(true),
-		netlabel.DriverMTU:        strconv.Itoa(config.MTU),
-		bridge.EnableIPMasquerade: strconv.FormatBool(config.BridgeConfig.EnableIPMasq),
-		bridge.EnableICC:          strconv.FormatBool(config.BridgeConfig.InterContainerCommunication),
+		netlabel.DriverMTU:        strconv.Itoa(cfg.MTU),
+		bridge.EnableIPMasquerade: strconv.FormatBool(cfg.EnableIPMasq),
+		bridge.EnableICC:          strconv.FormatBool(cfg.InterContainerCommunication),
 	}
 
 	// --ip processing
-	if config.BridgeConfig.DefaultIP != nil {
-		netOption[bridge.DefaultBindingIP] = config.BridgeConfig.DefaultIP.String()
+	if cfg.DefaultIP != nil {
+		netOption[bridge.DefaultBindingIP] = cfg.DefaultIP.String()
 	}
 
 	ipamV4Conf := &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
@@ -954,8 +954,8 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 
 	if len(nwList) > 0 {
 		nw := nwList[0]
-		if len(nwList) > 1 && config.BridgeConfig.FixedCIDR != "" {
-			_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
+		if len(nwList) > 1 && cfg.FixedCIDR != "" {
+			_, fCIDR, err := net.ParseCIDR(cfg.FixedCIDR)
 			if err != nil {
 				return errors.Wrap(err, "parse CIDR failed")
 			}
@@ -975,8 +975,8 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 		}
 	}
 
-	if config.BridgeConfig.IP != "" {
-		ip, ipNet, err := net.ParseCIDR(config.BridgeConfig.IP)
+	if cfg.IP != "" {
+		ip, ipNet, err := net.ParseCIDR(cfg.IP)
 		if err != nil {
 			return err
 		}
@@ -986,8 +986,8 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 		log.G(context.TODO()).Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
-	if config.BridgeConfig.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
+	if cfg.FixedCIDR != "" {
+		_, fCIDR, err := net.ParseCIDR(cfg.FixedCIDR)
 		if err != nil {
 			return err
 		}
@@ -998,8 +998,8 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 		}
 	}
 
-	if config.BridgeConfig.DefaultGatewayIPv4 != nil {
-		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.BridgeConfig.DefaultGatewayIPv4.String()
+	if cfg.DefaultGatewayIPv4 != nil {
+		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = cfg.DefaultGatewayIPv4.String()
 	}
 
 	var (
@@ -1007,10 +1007,10 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 		ipamV6Conf     *libnetwork.IpamConf
 	)
 
-	if config.BridgeConfig.EnableIPv6 && config.BridgeConfig.FixedCIDRv6 == "" {
+	if cfg.EnableIPv6 && cfg.FixedCIDRv6 == "" {
 		return errdefs.InvalidParameter(errors.New("IPv6 is enabled for the default bridge, but no subnet is configured. Specify an IPv6 subnet using --fixed-cidr-v6"))
-	} else if config.BridgeConfig.FixedCIDRv6 != "" {
-		_, fCIDRv6, err := net.ParseCIDR(config.BridgeConfig.FixedCIDRv6)
+	} else if cfg.FixedCIDRv6 != "" {
+		_, fCIDRv6, err := net.ParseCIDR(cfg.FixedCIDRv6)
 		if err != nil {
 			return err
 		}
@@ -1040,11 +1040,11 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 		}
 	}
 
-	if config.BridgeConfig.DefaultGatewayIPv6 != nil {
+	if cfg.DefaultGatewayIPv6 != nil {
 		if ipamV6Conf == nil {
 			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
-		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.BridgeConfig.DefaultGatewayIPv6.String()
+		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = cfg.DefaultGatewayIPv6.String()
 	}
 
 	v4Conf := []*libnetwork.IpamConf{ipamV4Conf}
@@ -1054,7 +1054,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 	}
 	// Initialize default network on "bridge" with the same name
 	_, err = controller.NewNetwork("bridge", "bridge", "",
-		libnetwork.NetworkOptionEnableIPv6(config.BridgeConfig.EnableIPv6),
+		libnetwork.NetworkOptionEnableIPv6(cfg.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(netOption),
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
