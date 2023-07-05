@@ -275,13 +275,13 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 
 // RemoveExistingChain removes existing chain from the table.
 func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
+	if table == "" {
+		table = Filter
+	}
 	c := &ChainInfo{
 		Name:    name,
 		Table:   table,
 		IPTable: iptable,
-	}
-	if string(c.Table) == "" {
-		c.Table = Filter
 	}
 	return c.Remove()
 }
