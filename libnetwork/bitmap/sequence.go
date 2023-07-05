@@ -47,7 +47,7 @@ type Bitmap struct {
 	noCopy noCopy
 }
 
-// NewHandle returns a new Bitmap n bits long.
+// NewHandle returns a new Bitmap of ordinals in the interval [0, n).
 func New(n uint64) *Bitmap {
 	return &Bitmap{
 		bits:       n,
@@ -176,7 +176,7 @@ func (s *sequence) fromByteArray(data []byte) error {
 	return nil
 }
 
-// SetAnyInRange sets the first unset bit in the range [start, end) and returns
+// SetAnyInRange sets the first unset bit in the range [start, end] and returns
 // the ordinal of the set bit.
 //
 // When serial=true, the bitmap is scanned starting from the ordinal following
