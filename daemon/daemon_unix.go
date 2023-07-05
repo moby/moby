@@ -701,7 +701,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	if hostConfig.CgroupParent != "" && UsingSystemd(daemon.configStore) {
 		// CgroupParent for systemd cgroup should be named as "xxx.slice"
 		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
-			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+			return warnings, fmt.Errorf(`cgroup-parent for systemd cgroup should be a valid slice named as "xxx.slice"`)
 		}
 	}
 	if hostConfig.Runtime == "" {
@@ -754,7 +754,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 	}
 	if conf.CgroupParent != "" && UsingSystemd(conf) {
 		if len(conf.CgroupParent) <= 6 || !strings.HasSuffix(conf.CgroupParent, ".slice") {
-			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+			return fmt.Errorf(`cgroup-parent for systemd cgroup should be a valid slice named as "xxx.slice"`)
 		}
 	}
 
@@ -1069,7 +1069,7 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
-		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
+		return fmt.Errorf(`error creating default "bridge" network: %v`, err)
 	}
 	return nil
 }
