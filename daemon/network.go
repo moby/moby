@@ -377,7 +377,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	if err != nil {
 		if errors.Is(err, libnetwork.ErrDataStoreNotInitialized) {
 			//nolint: revive
-			return nil, errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+			return nil, errors.New(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`)
 		}
 		return nil, err
 	}

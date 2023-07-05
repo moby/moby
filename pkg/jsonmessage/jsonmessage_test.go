@@ -241,22 +241,22 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 			"",
 		},
 		// Without progress & ID
-		"{ \"status\": \"status\" }": {
+		`{ "status": "status" }`: {
 			"status\n",
 			"status\n",
 		},
 		// Without progress, with ID
-		"{ \"id\": \"ID\",\"status\": \"status\" }": {
+		`{ "id": "ID","status": "status" }`: {
 			"ID: status\n",
 			"ID: status\n",
 		},
 		// With progress
-		"{ \"id\": \"ID\", \"status\": \"status\", \"progress\": \"ProgressMessage\" }": {
+		`{ "id": "ID", "status": "status", "progress": "ProgressMessage" }`: {
 			"ID: status ProgressMessage",
 			fmt.Sprintf("\n%c[%dAID: status ProgressMessage%c[%dB", 27, 1, 27, 1),
 		},
 		// With progressDetail
-		"{ \"id\": \"ID\", \"status\": \"status\", \"progressDetail\": { \"Current\": 1} }": {
+		`{ "id": "ID", "status": "status", "progressDetail": { "Current": 1} }`: {
 			"", // progressbar is disabled in non-terminal
 			fmt.Sprintf("\n%c[%dA%c[2K\rID: status       1B\r%c[%dB", 27, 1, 27, 27, 1),
 		},

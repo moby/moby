@@ -1158,7 +1158,7 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	assert.Assert(c, waitRun(id2) == nil)
 
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
-	assert.Equal(c, links, "[\"/tlink1:/tlink2/tlink1\"]", "expected to have links between containers")
+	assert.Equal(c, links, `["/tlink1:/tlink2/tlink1"]`, "expected to have links between containers")
 
 	removeOptions := types.ContainerRemoveOptions{
 		RemoveLinks: true,

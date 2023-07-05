@@ -1673,7 +1673,7 @@ func (s *DockerCLIRunSuite) TestRunCopyVolumeUIDGID(c *testing.T) {
 		RUN mkdir -p /hello && touch /hello/test && chown dockerio.dockerio /hello`))
 
 	// Test that the uid and gid is copied from the image to the volume
-	out, _ := dockerCmd(c, "run", "--rm", "-v", "/hello", name, "sh", "-c", "ls -l / | grep hello | awk '{print $3\":\"$4}'")
+	out, _ := dockerCmd(c, "run", "--rm", "-v", "/hello", name, "sh", "-c", `ls -l / | grep hello | awk '{print $3":"$4}'`)
 	out = strings.TrimSpace(out)
 	if out != "dockerio:dockerio" {
 		c.Fatalf("Wrong /hello ownership: %s, expected dockerio:dockerio", out)
@@ -2053,7 +2053,7 @@ func (s *DockerCLIRunSuite) TestRunPortInUse(c *testing.T) {
 		c.Fatalf("Binding on used port must fail")
 	}
 	if !strings.Contains(out, "port is already allocated") {
-		c.Fatalf("Out must be about \"port is already allocated\", got %s", out)
+		c.Fatalf(`Out must be about "port is already allocated", got %s`, out)
 	}
 }
 

@@ -42,7 +42,7 @@ func TestImageTagInvalidSourceImageName(t *testing.T) {
 	}
 
 	err := client.ImageTag(context.Background(), "invalid_source_image_name_", "repo:tag")
-	if err == nil || err.Error() != "Error parsing reference: \"invalid_source_image_name_\" is not a valid repository/tag: invalid reference format" {
+	if err == nil || err.Error() != `Error parsing reference: "invalid_source_image_name_" is not a valid repository/tag: invalid reference format` {
 		t.Fatalf("expected Parsing Reference Error, got %v", err)
 	}
 }

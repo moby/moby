@@ -149,7 +149,7 @@ func TestParseSecurityOptWithDeprecatedColon(t *testing.T) {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 	if opts.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", opts.AppArmorProfile)
+		t.Fatalf(`Unexpected AppArmorProfile, expected: "test_profile", got %q`, opts.AppArmorProfile)
 	}
 
 	// test seccomp

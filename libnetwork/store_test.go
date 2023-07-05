@@ -30,7 +30,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	defer testController.Stop()
 	nw, err := testController.NewNetwork("host", "host", "")
 	if err != nil {
-		t.Fatalf("Error creating default \"host\" network: %v", err)
+		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}
 	ep, err := nw.CreateEndpoint("newendpoint", []EndpointOption{}...)
 	if err != nil {
