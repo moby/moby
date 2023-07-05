@@ -3,6 +3,7 @@ package plugins // import "github.com/docker/docker/pkg/plugins"
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -240,22 +240,39 @@ func TestClientWithRequestTimeout(t *testing.T) {
 		Timeout() bool
 	}
 
-	timeout := 1 * time.Millisecond
+	unblock := make(chan struct{})
 	testHandler := func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(timeout + 1*time.Millisecond)
+		select {
+		case <-unblock:
+		case <-r.Context().Done():
+		}
 		w.WriteHeader(http.StatusOK)
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(testHandler))
-	defer srv.Close()
+	defer func() {
+		close(unblock)
+		srv.Close()
+	}()
 
 	client := &Client{http: srv.Client(), requestFactory: &testRequestWrapper{srv}}
-	_, err := client.callWithRetry("/Plugin.Hello", nil, false, WithRequestTimeout(timeout))
-	assert.Assert(t, is.ErrorContains(err, ""), "expected error")
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := client.callWithRetry("/Plugin.Hello", nil, false, WithRequestTimeout(time.Millisecond))
+		errCh <- err
+	}()
 
-	var tErr timeoutError
-	assert.Assert(t, errors.As(err, &tErr))
-	assert.Assert(t, tErr.Timeout())
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	select {
+	case err := <-errCh:
+		var tErr timeoutError
+		if assert.Check(t, errors.As(err, &tErr), "want timeout error, got %T", err) {
+			assert.Check(t, tErr.Timeout())
+		}
+	case <-timer.C:
+		t.Fatal("client request did not time out in time")
+	}
 }
 
 type testRequestWrapper struct {
