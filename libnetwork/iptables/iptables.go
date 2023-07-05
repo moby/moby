@@ -94,6 +94,19 @@ func (e ChainError) Error() string {
 	return fmt.Sprintf("error iptables %s: %s", e.Chain, string(e.Output))
 }
 
+// loopbackAddress returns the loopback address for the given IP version.
+func loopbackAddress(version IPVersion) string {
+	switch version {
+	case IPv4, "":
+		// IPv4 (default for backward-compatibility)
+		return "127.0.0.0/8"
+	case IPv6:
+		return "::1/128"
+	default:
+		panic("unknown IP version: " + version)
+	}
+}
+
 func detectIptables() {
 	path, err := exec.LookPath("iptables")
 	if err != nil {
@@ -183,14 +196,6 @@ func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*Ch
 	}, nil
 }
 
-// LoopbackByVersion returns loopback address by version
-func (iptable IPTable) LoopbackByVersion() string {
-	if iptable.ipVersion == IPv6 {
-		return "::1/128"
-	}
-	return "127.0.0.0/8"
-}
-
 // ProgramChain is used to add rules to a chain
 func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
 	if c.Name == "" {
@@ -232,7 +237,7 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 			"-j", c.Name,
 		}
 		if !hairpinMode {
-			output = append(output, "!", "--dst", iptable.LoopbackByVersion())
+			output = append(output, "!", "--dst", loopbackAddress(iptable.ipVersion))
 		}
 		if !iptable.Exists(Nat, "OUTPUT", output...) && enable {
 			if err := c.Output(Append, output...); err != nil {
@@ -443,15 +448,15 @@ func (c *ChainInfo) Output(action Action, args ...string) error {
 
 // Remove removes the chain.
 func (c *ChainInfo) Remove() error {
-	iptable := GetIptable(c.IPVersion)
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
 		_ = c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)
-		_ = c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", iptable.LoopbackByVersion(), "-j", c.Name)
+		_ = c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", loopbackAddress(c.IPVersion), "-j", c.Name)
 		_ = c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name) // Created in versions <= 0.1.6
 		_ = c.Prerouting(Delete)
 		_ = c.Output(Delete)
 	}
+	iptable := GetIptable(c.IPVersion)
 	_, _ = iptable.Raw("-t", string(c.Table), "-F", c.Name)
 	_, _ = iptable.Raw("-t", string(c.Table), "-X", c.Name)
 	return nil
