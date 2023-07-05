@@ -450,19 +450,19 @@ func (iptable IPTable) ExistsNative(table Table, chain string, rule ...string) b
 }
 
 func (iptable IPTable) exists(native bool, table Table, chain string, rule ...string) bool {
+	if err := initCheck(); err != nil {
+		// The exists() signature does not allow us to return an error, but at least
+		// we can skip the (likely invalid) exec invocation.
+		return false
+	}
+
 	f := iptable.Raw
 	if native {
 		f = iptable.raw
 	}
 
-	if string(table) == "" {
+	if table == "" {
 		table = Filter
-	}
-
-	if err := initCheck(); err != nil {
-		// The exists() signature does not allow us to return an error, but at least
-		// we can skip the (likely invalid) exec invocation.
-		return false
 	}
 
 	// if exit status is 0 then return true, the rule exists
