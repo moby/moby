@@ -251,9 +251,10 @@ func TestTemplatedConfig(t *testing.T) {
 		Templating: &swarmtypes.Driver{
 			Name: "golang",
 		},
-		Data: []byte("SERVICE_NAME={{.Service.Name}}\n" +
-			"{{secret \"referencedsecrettarget\"}}\n" +
-			"{{config \"referencedconfigtarget\"}}\n"),
+		Data: []byte(`SERVICE_NAME={{.Service.Name}}
+{{secret "referencedsecrettarget"}}
+{{config "referencedconfigtarget"}}
+`),
 	}
 
 	templatedConfig, err := c.ConfigCreate(ctx, configSpec)
