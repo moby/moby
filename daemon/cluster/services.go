@@ -456,7 +456,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 	} else {
 		t, err := strconv.Atoi(config.Tail)
 		if err != nil {
-			return nil, errors.New("tail value must be a positive integer or \"all\"")
+			return nil, errors.New(`tail value must be a positive integer or "all"`)
 		}
 		if t < 0 {
 			return nil, errors.New("negative tail values not supported")
