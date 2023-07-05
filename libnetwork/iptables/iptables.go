@@ -581,7 +581,7 @@ func (iptable IPTable) AddReturnRule(chain string) error {
 
 	err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN")
 	if err != nil {
-		return fmt.Errorf("unable to add return rule in %s chain: %s", chain, err.Error())
+		return fmt.Errorf("unable to add return rule in %s chain: %v", chain, err)
 	}
 
 	return nil
@@ -592,13 +592,13 @@ func (iptable IPTable) EnsureJumpRule(fromChain, toChain string) error {
 	if iptable.Exists(Filter, fromChain, "-j", toChain) {
 		err := iptable.RawCombinedOutput("-D", fromChain, "-j", toChain)
 		if err != nil {
-			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
 	}
 
 	err := iptable.RawCombinedOutput("-I", fromChain, "-j", toChain)
 	if err != nil {
-		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 
 	return nil
