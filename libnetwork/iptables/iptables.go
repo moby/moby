@@ -408,12 +408,11 @@ func (c *ChainInfo) Prerouting(action Action, args ...string) error {
 
 // Output adds linking rule to an OUTPUT chain.
 func (c *ChainInfo) Output(action Action, args ...string) error {
-	iptable := GetIptable(c.IPTable.Version)
 	a := []string{"-t", string(c.Table), string(action), "OUTPUT"}
 	if len(args) > 0 {
 		a = append(a, args...)
 	}
-	if output, err := iptable.Raw(a...); err != nil {
+	if output, err := GetIptable(c.IPTable.Version).Raw(a...); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return ChainError{Chain: "OUTPUT", Output: output}
@@ -426,15 +425,14 @@ func (c *ChainInfo) Remove() error {
 	iptable := GetIptable(c.IPTable.Version)
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
-		c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)
-		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", iptable.LoopbackByVersion(), "-j", c.Name)
-		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name) // Created in versions <= 0.1.6
-
-		c.Prerouting(Delete)
-		c.Output(Delete)
+		_ = c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)
+		_ = c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", iptable.LoopbackByVersion(), "-j", c.Name)
+		_ = c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name) // Created in versions <= 0.1.6
+		_ = c.Prerouting(Delete)
+		_ = c.Output(Delete)
 	}
-	iptable.Raw("-t", string(c.Table), "-F", c.Name)
-	iptable.Raw("-t", string(c.Table), "-X", c.Name)
+	_, _ = iptable.Raw("-t", string(c.Table), "-F", c.Name)
+	_, _ = iptable.Raw("-t", string(c.Table), "-X", c.Name)
 	return nil
 }
 
