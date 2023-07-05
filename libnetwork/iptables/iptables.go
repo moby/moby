@@ -60,9 +60,7 @@ var (
 	xLockWaitMsg  = "Another app is currently holding the xtables lock"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
-	// ErrIptablesNotFound is returned when the rule is not found.
-	ErrIptablesNotFound = errors.New("Iptables not found")
-	initOnce            sync.Once
+	initOnce       sync.Once
 )
 
 // IPTable defines struct with IPVersion
@@ -133,7 +131,7 @@ func initCheck() error {
 	initOnce.Do(initDependencies)
 
 	if iptablesPath == "" {
-		return ErrIptablesNotFound
+		return errors.New("iptables not found")
 	}
 	return nil
 }
