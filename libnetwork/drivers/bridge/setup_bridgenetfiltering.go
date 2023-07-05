@@ -31,17 +31,15 @@ func getIPVersion(config *networkConfiguration) ipVersion {
 	return ipVer
 }
 
-func setupBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) error {
-	err := checkBridgeNetFiltering(config, i)
-	if err != nil {
+func setupBridgeNetFiltering(config *networkConfiguration, _ *bridgeInterface) error {
+	if err := checkBridgeNetFiltering(config); err != nil {
 		if ptherr, ok := err.(*os.PathError); ok {
 			if errno, ok := ptherr.Err.(syscall.Errno); ok && errno == syscall.ENOENT {
 				if isRunningInContainer() {
 					log.G(context.TODO()).Warnf("running inside docker container, ignoring missing kernel params: %v", err)
-					err = nil
-				} else {
-					err = errors.New("please ensure that br_netfilter kernel module is loaded")
+					return nil
 				}
+				err = errors.New("please ensure that br_netfilter kernel module is loaded")
 			}
 		}
 		if err != nil {
@@ -52,18 +50,18 @@ func setupBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) e
 }
 
 // Enable bridge net filtering if ip forwarding is enabled. See github issue #11404
-func checkBridgeNetFiltering(config *networkConfiguration, i *bridgeInterface) error {
+func checkBridgeNetFiltering(config *networkConfiguration) error {
 	ipVer := getIPVersion(config)
 	iface := config.BridgeName
 	doEnable := func(ipVer ipVersion) error {
-		var ipVerName string
-		if ipVer == ipv4 {
-			ipVerName = "IPv4"
-		} else {
-			ipVerName = "IPv6"
-		}
 		enabled, err := isPacketForwardingEnabled(ipVer, iface)
 		if err != nil {
+			var ipVerName string
+			if ipVer == ipv4 {
+				ipVerName = "IPv4"
+			} else {
+				ipVerName = "IPv6"
+			}
 			log.G(context.TODO()).Warnf("failed to check %s forwarding: %v", ipVerName, err)
 		} else if enabled {
 			enabled, err := getKernelBoolParam(getBridgeNFKernelParam(ipVer))
