@@ -66,7 +66,7 @@ func TestFixedBufferString(t *testing.T) {
 
 	out := buf.String()
 	if out != "helloworld" {
-		t.Fatalf("expected output to be \"helloworld\", got %q", out)
+		t.Fatalf(`expected output to be "helloworld", got %q`, out)
 	}
 
 	// read 5 bytes
@@ -76,7 +76,7 @@ func TestFixedBufferString(t *testing.T) {
 	// test that fixedBuffer.String() only returns the part that hasn't been read
 	out = buf.String()
 	if out != "world" {
-		t.Fatalf("expected output to be \"world\", got %q", out)
+		t.Fatalf(`expected output to be "world", got %q`, out)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestFixedBufferWrite(t *testing.T) {
 	}
 
 	if string(buf.buf[:5]) != "hello" {
-		t.Fatalf("expected \"hello\", got %q", string(buf.buf[:5]))
+		t.Fatalf(`expected "hello", got %q`, string(buf.buf[:5]))
 	}
 
 	n, err = buf.Write(bytes.Repeat([]byte{1}, 64))
@@ -121,7 +121,7 @@ func TestFixedBufferRead(t *testing.T) {
 	}
 
 	if string(b) != "hello" {
-		t.Fatalf("expected \"hello\", got %q", string(b))
+		t.Fatalf(`expected "hello", got %q`, string(b))
 	}
 
 	n, err = buf.Read(b)
@@ -134,7 +134,7 @@ func TestFixedBufferRead(t *testing.T) {
 	}
 
 	if string(b) != " worl" {
-		t.Fatalf("expected \" worl\", got %s", string(b))
+		t.Fatalf(`expected " worl", got %s`, string(b))
 	}
 
 	b = b[:1]
@@ -148,6 +148,6 @@ func TestFixedBufferRead(t *testing.T) {
 	}
 
 	if string(b) != "d" {
-		t.Fatalf("expected \"d\", got %s", string(b))
+		t.Fatalf(`expected "d", got %s`, string(b))
 	}
 }
