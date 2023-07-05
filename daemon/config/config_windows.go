@@ -1,8 +1,11 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+
+	"github.com/containerd/containerd/log"
 )
 
 const (
@@ -45,6 +48,9 @@ func (conf *Config) IsSwarmCompatible() error {
 
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func (conf *Config) ValidatePlatformConfig() error {
+	if conf.Mtu != 0 && conf.Mtu != DefaultNetworkMtu {
+		log.G(context.TODO()).Warn(`WARNING: MTU for the default network is not configurable on Windows, and this option will be ignored.`)
+	}
 	return nil
 }
 
