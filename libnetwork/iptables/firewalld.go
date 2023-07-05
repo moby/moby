@@ -87,40 +87,29 @@ func FirewalldInit() error {
 	return nil
 }
 
-// New() establishes a connection to the system bus.
+// newConnection establishes a connection to the system bus.
 func newConnection() (*Conn, error) {
-	c := new(Conn)
-	if err := c.initConnection(); err != nil {
+	c := &Conn{}
+
+	var err error
+	c.sysconn, err = dbus.SystemBus()
+	if err != nil {
 		return nil, err
 	}
 
-	return c, nil
-}
-
-// Initialize D-Bus connection.
-func (c *Conn) initConnection() error {
-	var err error
-
-	c.sysconn, err = dbus.SystemBus()
-	if err != nil {
-		return err
-	}
-
 	// This never fails, even if the service is not running atm.
-	c.sysObj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusPath))
-	c.sysConfObj = c.sysconn.Object(dbusInterface, dbus.ObjectPath(dbusConfigPath))
-	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'",
-		dbusPath, dbusInterface, dbusInterface)
+	c.sysObj = c.sysconn.Object(dbusInterface, dbusPath)
+	c.sysConfObj = c.sysconn.Object(dbusInterface, dbusConfigPath)
+
+	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
 	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
-	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'",
-		dbusInterface)
+	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
 	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
 
 	c.signal = make(chan *dbus.Signal, 10)
 	c.sysconn.Signal(c.signal)
-
-	return nil
+	return c, nil
 }
 
 func signalHandler() {
