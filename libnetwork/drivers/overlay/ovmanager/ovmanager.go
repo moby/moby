@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/containerd/containerd/log"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -88,14 +88,10 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 	for key, val := range option {
 		if key == netlabel.OverlayVxlanIDList {
 			log.G(context.TODO()).Debugf("overlay network option: %s", val)
-			valStrList := strings.Split(val, ",")
-			for _, idStr := range valStrList {
-				vni, err := strconv.Atoi(idStr)
-				if err != nil {
-					return nil, fmt.Errorf("invalid vxlan id value %q passed", idStr)
-				}
-
-				vxlanIDList = append(vxlanIDList, uint32(vni))
+			var err error
+			vxlanIDList, err = overlayutils.AppendVNIList(vxlanIDList, val)
+			if err != nil {
+				return nil, err
 			}
 		} else {
 			opts[key] = val

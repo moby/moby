@@ -16,6 +16,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
@@ -111,14 +112,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return errors.New("no VNI provided")
 	}
 	log.G(context.TODO()).Debugf("overlay: Received vxlan IDs: %s", vnisOpt)
-	vniStrings := strings.Split(vnisOpt, ",")
-	for _, vniStr := range vniStrings {
-		vni, err := strconv.Atoi(vniStr)
-		if err != nil {
-			return fmt.Errorf("invalid vxlan id value %q passed", vniStr)
-		}
-
-		vnis = append(vnis, uint32(vni))
+	var err error
+	vnis, err = overlayutils.AppendVNIList(vnis, vnisOpt)
+	if err != nil {
+		return err
 	}
 
 	if _, ok := optMap[secureOption]; ok {
