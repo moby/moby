@@ -7,15 +7,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/opencontainers/selinux/go-selinux"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 // ErrDTypeNotSupported denotes that the backing filesystem doesn't support d_type.
@@ -38,11 +36,9 @@ const (
 	testSELinuxLabel = "system_u:object_r:container_file_t:s0"
 )
 
-// SupportsOverlay checks if the system supports overlay filesystem
-// by performing an actual overlay mount.
+// SupportsOverlay determines whether the kernel supports overlayfs (meeting our needs) by performing an actual mount.
 //
-// checkMultipleLowers parameter enables check for multiple lowerdirs,
-// which is required for the overlay2 driver.
+// checkMultipleLowers tests for multiple lowerdir support, which is needed for overlay2.
 func SupportsOverlay(d string, checkMultipleLowers bool) error {
 	// We can't solely rely on selinux.GetEnabled() to detect whether SELinux is enabled, as [RootlessKit] does not
 	// mount /sys/fs/selinux for us. _DOCKERD_ROOTLESS_SELINUX is set in the dockerd-rootless.sh wrapper script instead.
@@ -61,31 +57,39 @@ func SupportsOverlay(d string, checkMultipleLowers bool) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove check directory %v: %v", td, err)
+			log.G(context.TODO()).WithError(err).Warnf("failed to remove check directory %v", td)
 		}
 	}()
 
-	for _, dir := range []string{"lower1", "lower2", "upper", "work", "merged"} {
-		if err := os.Mkdir(filepath.Join(td, dir), 0o755); err != nil {
+	l1, l2, l3, work, merged := filepath.Join(td, "l1"), filepath.Join(td, "l2"), filepath.Join(td, "l3"), filepath.Join(td, "work"), filepath.Join(td, "merged")
+	for _, dir := range []string{l1, l2, l3, work, merged} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
 			return err
 		}
 	}
 
-	mnt := filepath.Join(td, "merged")
-	lowerDir := path.Join(td, "lower2")
+	lowers := l1
 	if checkMultipleLowers {
-		lowerDir += ":" + path.Join(td, "lower1")
+		lowers += ":" + l2
 	}
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, path.Join(td, "upper"), path.Join(td, "work"))
+	opts := []string{fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowers, l3, work)}
 	if checkSELinux {
-		opts = fmt.Sprintf("%s,context=%s", opts, testSELinuxLabel)
+		opts = append(opts, fmt.Sprintf("context=%s", testSELinuxLabel))
 	}
-	if err := unix.Mount("overlay", mnt, "overlay", 0, opts); err != nil {
-		return errors.Wrap(err, "failed to mount overlay")
+
+	m := mount.Mount{
+		Type:    "overlay",
+		Source:  "overlay",
+		Options: opts,
 	}
-	if err := unix.Unmount(mnt, 0); err != nil {
-		log.G(context.TODO()).Warnf("Failed to unmount check directory %v: %v", mnt, err)
+
+	if err := m.Mount(merged); err != nil {
+		return fmt.Errorf("failed to mount overlayfs (checkMultipleLowers=%t,checkSELinux=%t): %w", checkMultipleLowers, checkSELinux, err)
 	}
+	if err := mount.UnmountAll(merged, 0); err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("failed to unmount check directory %v", merged)
+	}
+
 	return nil
 }
 
