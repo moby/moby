@@ -120,17 +120,17 @@ func (s *DockerCLICommitSuite) TestCommitChange(c *testing.T) {
 	dockerCmd(c, "run", "--name", "test", "busybox", "true")
 
 	imageID, _ := dockerCmd(c, "commit",
-		"--change", "EXPOSE 8080",
-		"--change", "ENV DEBUG true",
-		"--change", "ENV test 1",
-		"--change", "ENV PATH /foo",
-		"--change", "LABEL foo bar",
-		"--change", "CMD [\"/bin/sh\"]",
-		"--change", "WORKDIR /opt",
-		"--change", "ENTRYPOINT [\"/bin/sh\"]",
-		"--change", "USER testuser",
-		"--change", "VOLUME /var/lib/docker",
-		"--change", "ONBUILD /usr/local/bin/python-build --dir /app/src",
+		"--change", `EXPOSE 8080`,
+		"--change", `ENV DEBUG true`,
+		"--change", `ENV test 1`,
+		"--change", `ENV PATH /foo`,
+		"--change", `LABEL foo bar`,
+		"--change", `CMD ["/bin/sh"]`,
+		"--change", `WORKDIR /opt`,
+		"--change", `ENTRYPOINT ["/bin/sh"]`,
+		"--change", `USER testuser`,
+		"--change", `VOLUME /var/lib/docker`,
+		"--change", `ONBUILD /usr/local/bin/python-build --dir /app/src`,
 		"test", "test-commit")
 	imageID = strings.TrimSpace(imageID)
 

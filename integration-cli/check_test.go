@@ -76,7 +76,7 @@ func printCliVersion() {
 	cli.SetTestEnvironment(testEnv)
 	cmd := cli.Docker(cli.Args("version"))
 	if cmd.Error != nil {
-		fmt.Printf("WARNING: Failed to run \"docker version\": %+v\n", cmd.Error)
+		fmt.Printf("WARNING: Failed to run 'docker version': %+v\n", cmd.Error)
 		return
 	}
 
