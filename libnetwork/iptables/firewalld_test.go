@@ -75,6 +75,9 @@ func TestReloaded(t *testing.T) {
 }
 
 func TestPassthrough(t *testing.T) {
+	if !firewalldRunning {
+		t.Skip("firewalld is not running")
+	}
 	rule1 := []string{
 		"-i", "lo",
 		"-p", "udp",
@@ -82,14 +85,11 @@ func TestPassthrough(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	iptable := GetIptable(IPv4)
-	if firewalldRunning {
-		_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !iptable.Exists(Filter, "INPUT", rule1...) {
-			t.Fatal("rule1 does not exist")
-		}
+	_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !GetIptable(IPv4).Exists(Filter, "INPUT", rule1...) {
+		t.Fatal("rule1 does not exist")
 	}
 }
