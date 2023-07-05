@@ -64,4 +64,19 @@ func TestAppendVNIList(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("DoesNotAllocate", func(t *testing.T) {
+		slice := make([]uint32, 0, 10)
+		csv := "1,2,3,4,5,6,7,8,9,10"
+		want := []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+		allocs := testing.AllocsPerRun(10, func() {
+			var err error
+			slice, err = AppendVNIList(slice[:0], csv)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		assert.Check(t, is.DeepEqual(slice, want))
+		assert.Check(t, is.Equal(int(allocs), 0))
+	})
 }
