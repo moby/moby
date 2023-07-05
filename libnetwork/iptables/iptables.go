@@ -577,16 +577,11 @@ func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy
 
 // AddReturnRule adds a return rule for the chain in the filter table
 func (iptable IPTable) AddReturnRule(chain string) error {
-	var (
-		table = Filter
-		args  = []string{"-j", "RETURN"}
-	)
-
-	if iptable.Exists(table, chain, args...) {
+	if iptable.Exists(Filter, chain, "-j", "RETURN") {
 		return nil
 	}
 
-	err := iptable.RawCombinedOutput(append([]string{"-A", chain}, args...)...)
+	err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN")
 	if err != nil {
 		return fmt.Errorf("unable to add return rule in %s chain: %s", chain, err.Error())
 	}
@@ -596,19 +591,14 @@ func (iptable IPTable) AddReturnRule(chain string) error {
 
 // EnsureJumpRule ensures the jump rule is on top
 func (iptable IPTable) EnsureJumpRule(fromChain, toChain string) error {
-	var (
-		table = Filter
-		args  = []string{"-j", toChain}
-	)
-
-	if iptable.Exists(table, fromChain, args...) {
-		err := iptable.RawCombinedOutput(append([]string{"-D", fromChain}, args...)...)
+	if iptable.Exists(Filter, fromChain, "-j", toChain) {
+		err := iptable.RawCombinedOutput("-D", fromChain, "-j", toChain)
 		if err != nil {
 			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
 		}
 	}
 
-	err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, args...)...)
+	err := iptable.RawCombinedOutput("-I", fromChain, "-j", toChain)
 	if err != nil {
 		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
 	}
