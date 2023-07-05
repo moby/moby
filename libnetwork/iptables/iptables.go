@@ -145,25 +145,23 @@ func GetIptable(version IPVersion) *IPTable {
 
 // NewChain adds a new chain to ip table.
 func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
-	c := &ChainInfo{
+	if table == "" {
+		table = Filter
+	}
+	// Add chain if it doesn't exist
+	if _, err := iptable.Raw("-t", string(table), "-n", "-L", name); err != nil {
+		if output, err := iptable.Raw("-t", string(table), "-N", name); err != nil {
+			return nil, err
+		} else if len(output) != 0 {
+			return nil, fmt.Errorf("could not create %s/%s chain: %s", table, name, output)
+		}
+	}
+	return &ChainInfo{
 		Name:        name,
 		Table:       table,
 		HairpinMode: hairpinMode,
 		IPTable:     iptable,
-	}
-	if string(c.Table) == "" {
-		c.Table = Filter
-	}
-
-	// Add chain if it doesn't exist
-	if _, err := iptable.Raw("-t", string(c.Table), "-n", "-L", c.Name); err != nil {
-		if output, err := iptable.Raw("-t", string(c.Table), "-N", c.Name); err != nil {
-			return nil, err
-		} else if len(output) != 0 {
-			return nil, fmt.Errorf("Could not create %s/%s chain: %s", c.Table, c.Name, output)
-		}
-	}
-	return c, nil
+	}, nil
 }
 
 // LoopbackByVersion returns loopback address by version
