@@ -3,6 +3,8 @@ package overlayutils
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -39,4 +41,24 @@ func VXLANUDPPort() uint32 {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return vxlanUDPPort
+}
+
+// AppendVNIList appends the VNI values encoded as a CSV string to slice.
+func AppendVNIList(vnis []uint32, csv string) ([]uint32, error) {
+	for {
+		var (
+			vniStr string
+			found  bool
+		)
+		vniStr, csv, found = strings.Cut(csv, ",")
+		vni, err := strconv.Atoi(vniStr)
+		if err != nil {
+			return vnis, fmt.Errorf("invalid vxlan id value %q passed", vniStr)
+		}
+
+		vnis = append(vnis, uint32(vni))
+		if !found {
+			return vnis, nil
+		}
+	}
 }
