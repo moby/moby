@@ -111,6 +111,70 @@ func TestHealthCheckProcessKilled(t *testing.T) {
 	poll.WaitOn(t, pollForHealthCheckLog(ctx, apiClient, cID, "Health check exceeded timeout (50ms): logs logs logs\n"))
 }
 
+func TestHealthStartInterval(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The shell commands used in the test healthcheck do not work on Windows")
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	// Note: Windows is much slower than linux so this use longer intervals/timeouts
+	id := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+		c.Config.Healthcheck = &containertypes.HealthConfig{
+			Test:          []string{"CMD-SHELL", `count="$(cat /tmp/health)"; if [ -z "${count}" ]; then let count=0; fi; let count=${count}+1; echo -n ${count} | tee /tmp/health; if [ ${count} -lt 3 ]; then exit 1; fi`},
+			Interval:      30 * time.Second,
+			StartInterval: time.Second,
+			StartPeriod:   30 * time.Second,
+		}
+	})
+
+	ctxPoll, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	dl, _ := ctxPoll.Deadline()
+
+	poll.WaitOn(t, func(log poll.LogT) poll.Result {
+		if ctxPoll.Err() != nil {
+			return poll.Error(ctxPoll.Err())
+		}
+		inspect, err := client.ContainerInspect(ctxPoll, id)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if inspect.State.Health.Status != "healthy" {
+			if len(inspect.State.Health.Log) > 0 {
+				t.Log(inspect.State.Health.Log[len(inspect.State.Health.Log)-1])
+			}
+			return poll.Continue("waiting on container to be ready")
+		}
+		return poll.Success()
+	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(time.Until(dl)))
+	cancel()
+
+	ctxPoll, cancel = context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	dl, _ = ctxPoll.Deadline()
+
+	poll.WaitOn(t, func(log poll.LogT) poll.Result {
+		inspect, err := client.ContainerInspect(ctxPoll, id)
+		if err != nil {
+			return poll.Error(err)
+		}
+
+		hLen := len(inspect.State.Health.Log)
+		if hLen < 2 {
+			return poll.Continue("waiting for more healthcheck results")
+		}
+
+		h1 := inspect.State.Health.Log[hLen-1]
+		h2 := inspect.State.Health.Log[hLen-2]
+		if h1.Start.Sub(h2.Start) >= inspect.Config.Healthcheck.Interval {
+			return poll.Success()
+		}
+		t.Log(h1.Start.Sub(h2.Start))
+		return poll.Continue("waiting for health check interval to switch from the start interval")
+	}, poll.WithDelay(time.Second), poll.WithTimeout(time.Until(dl)))
+}
+
 func pollForHealthCheckLog(ctx context.Context, client client.APIClient, containerID string, expected string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)

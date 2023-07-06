@@ -804,6 +804,12 @@ definitions:
           1000000 (1 ms). 0 means inherit.
         type: "integer"
         format: "int64"
+      StartInterval:
+        description: |
+          The time to wait between checks in nanoseconds during the start period.
+          It should be 0 or at least 1000000 (1 ms). 0 means inherit.
+        type: "integer"
+        format: "int64"
 
   Health:
     description: |

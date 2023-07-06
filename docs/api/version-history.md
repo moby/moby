@@ -24,6 +24,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   with runtimes which support the feature.
   `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
   `BindOptions.ReadOnlyNonRecursive` and `BindOptions.ReadOnlyForceRecursive` to customize the behavior.
+* `POST /containers/create` now accepts a `HealthConfig.StartInterval` to set the
+  interval for health checks during the start period.
 
 ## v1.43 API changes
 

@@ -92,6 +92,9 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			if userConf.Healthcheck.StartPeriod == 0 {
 				userConf.Healthcheck.StartPeriod = imageConf.Healthcheck.StartPeriod
 			}
+			if userConf.Healthcheck.StartInterval == 0 {
+				userConf.Healthcheck.StartInterval = imageConf.Healthcheck.StartInterval
+			}
 			if userConf.Healthcheck.Retries == 0 {
 				userConf.Healthcheck.Retries = imageConf.Healthcheck.Retries
 			}
