@@ -110,11 +110,6 @@ type Controller struct {
 	mu               sync.Mutex
 }
 
-type initializer struct {
-	fn    func(driverapi.Registerer, map[string]interface{}) error
-	ntype string
-}
-
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (*Controller, error) {
 	c := &Controller{
@@ -141,10 +136,8 @@ func New(cfgOptions ...config.Option) (*Controller, error) {
 		return nil, err
 	}
 
-	for _, i := range getInitializers() {
-		if err := i.fn(&c.drvRegistry, c.makeDriverConfig(i.ntype)); err != nil {
-			return nil, err
-		}
+	if err := registerNetworkDrivers(&c.drvRegistry, c.makeDriverConfig); err != nil {
+		return nil, err
 	}
 
 	if err := initIPAMDrivers(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool); err != nil {

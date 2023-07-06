@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	networkType  = "overlay"
+	NetworkType  = "overlay"
 	vethPrefix   = "veth"
 	vethLen      = len(vethPrefix) + 7
 	vxlanEncap   = 50
@@ -47,7 +47,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		secMap: &encrMap{nodes: map[string][]*spi{}},
 		config: config,
 	}
-	return r.RegisterDriver(networkType, d, driverapi.Capability{
+	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
 		ConnectivityScope: datastore.GlobalScope,
 	})
@@ -61,7 +61,7 @@ func (d *driver) configure() error {
 }
 
 func (d *driver) Type() string {
-	return networkType
+	return NetworkType
 }
 
 func (d *driver) IsBuiltIn() bool {

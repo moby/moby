@@ -50,11 +50,11 @@ type network struct {
 //
 // Deprecated: use [Register].
 func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
-	return Register(dc, nil)
+	return Register(dc)
 }
 
 // Register registers a new instance of the overlay driver.
-func Register(r driverapi.Registerer, _ map[string]interface{}) error {
+func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(networkType, newDriver(), driverapi.Capability{
 		DataScope:         datastore.GlobalScope,
 		ConnectivityScope: datastore.GlobalScope,

@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	networkType                = "bridge"
+	NetworkType                = "bridge"
 	vethPrefix                 = "veth"
 	vethLen                    = len(vethPrefix) + 7
 	defaultContainerVethPrefix = "eth"
@@ -174,7 +174,7 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 	if err := d.configure(config); err != nil {
 		return err
 	}
-	return r.RegisterDriver(networkType, d, driverapi.Capability{
+	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         datastore.LocalScope,
 		ConnectivityScope: datastore.LocalScope,
 	})
@@ -1433,7 +1433,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 }
 
 func (d *driver) Type() string {
-	return networkType
+	return NetworkType
 }
 
 func (d *driver) IsBuiltIn() bool {

@@ -4,8 +4,6 @@ import (
 	"github.com/docker/docker/libnetwork/drivers/null"
 )
 
-func getInitializers() []initializer {
-	return []initializer{
-		{null.Register, "null"},
-	}
+func registerNetworkDrivers(r driverapi.Registerer, driverConfig func(string) map[string]interface{}) error {
+	return null.Register(r)
 }
