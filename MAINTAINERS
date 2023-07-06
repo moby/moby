@@ -24,6 +24,7 @@
 	# subsystem maintainers accountable. If ownership is unclear, they are the de facto owners.
 
 		people = [
+			"akerouanton",
 			"akihirosuda",
 			"anusha",
 			"coolljt0725",
@@ -65,7 +66,6 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
-		    "akerouanton",
 			"alexellis",
 			"andrewhsu",
 			"bsousaa",
