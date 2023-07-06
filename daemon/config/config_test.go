@@ -286,7 +286,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			name: "negative MTU",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					Mtu: -10,
+					BridgeConfig: BridgeConfig{MTU: -10},
 				},
 			},
 			expectedErr: "invalid default MTU: -10",
@@ -440,10 +440,10 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name:  "with mtu",
-			field: "Mtu",
+			field: "MTU",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					Mtu: 1234,
+					BridgeConfig: BridgeConfig{MTU: 1234},
 				},
 			},
 		},

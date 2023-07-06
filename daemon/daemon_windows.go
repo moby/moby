@@ -397,7 +397,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 	if !daemonCfg.DisableBridge {
 		// Initialize default driver "bridge"
-		if err := initBridgeDriver(daemon.netController, daemonCfg); err != nil {
+		if err := initBridgeDriver(daemon.netController, daemonCfg.BridgeConfig); err != nil {
 			return err
 		}
 	}
@@ -405,7 +405,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 	return nil
 }
 
-func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) error {
+func initBridgeDriver(controller *libnetwork.Controller, config config.BridgeConfig) error {
 	if _, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
 		return nil
 	}
@@ -417,8 +417,8 @@ func initBridgeDriver(controller *libnetwork.Controller, config *config.Config) 
 	var ipamOption libnetwork.NetworkOption
 	var subnetPrefix string
 
-	if config.BridgeConfig.FixedCIDR != "" {
-		subnetPrefix = config.BridgeConfig.FixedCIDR
+	if config.FixedCIDR != "" {
+		subnetPrefix = config.FixedCIDR
 	}
 
 	if subnetPrefix != "" {

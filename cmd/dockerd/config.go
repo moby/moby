@@ -1,6 +1,8 @@
 package main
 
 import (
+	"runtime"
+
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
@@ -28,7 +30,16 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.BoolVar(&conf.CriContainerd, "cri-containerd", false, "start containerd with cri")
 
 	flags.Var(opts.NewNamedMapMapOpts("default-network-opts", conf.DefaultNetworkOpts, nil), "default-network-opt", "Default network options")
-	flags.IntVar(&conf.Mtu, "mtu", conf.Mtu, "Set the containers network MTU")
+	flags.IntVar(&conf.MTU, "mtu", conf.MTU, `Set the MTU for the default "bridge" network`)
+	if runtime.GOOS == "windows" {
+		// The mtu option is not used on Windows, but it has been available since
+		// "forever" (and always silently ignored). We hide the flag for now,
+		// to discourage using it (and print a warning if it's set), but not
+		// "hard-deprecating" it, to not break users, and in case it will be
+		// supported on Windows in future.
+		flags.MarkHidden("mtu")
+	}
+
 	flags.IntVar(&conf.NetworkControlPlaneMTU, "network-control-plane-mtu", conf.NetworkControlPlaneMTU, "Network Control plane MTU")
 	flags.IntVar(&conf.NetworkDiagnosticPort, "network-diagnostic-port", 0, "TCP port number of the network diagnostic server")
 	_ = flags.MarkHidden("network-diagnostic-port")

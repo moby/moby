@@ -37,6 +37,7 @@ type BridgeConfig struct {
 	commonBridgeConfig
 
 	// Fields below here are platform specific.
+	MTU                         int    `json:"mtu,omitempty"`
 	DefaultIP                   net.IP `json:"ip,omitempty"`
 	IP                          string `json:"bip,omitempty"`
 	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
