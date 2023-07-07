@@ -554,10 +554,8 @@ func (iptable IPTable) RawCombinedOutputNative(args ...string) error {
 
 // ExistChain checks if a chain exists
 func (iptable IPTable) ExistChain(chain string, table Table) bool {
-	if _, err := iptable.Raw("-t", string(table), "-nL", chain); err == nil {
-		return true
-	}
-	return false
+	_, err := iptable.Raw("-t", string(table), "-nL", chain)
+	return err == nil
 }
 
 // SetDefaultPolicy sets the passed default policy for the table/chain
