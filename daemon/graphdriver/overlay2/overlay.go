@@ -386,6 +386,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	if err := os.WriteFile(path.Join(dir, "link"), []byte(lid), 0o644); err != nil {
 		return err
 	}
+	fsync(path.Join(dir, "link"))
 
 	// if no parent directory, done
 	if parent == "" {
@@ -408,6 +409,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		if err := os.WriteFile(path.Join(dir, lowerFile), []byte(lower), 0o666); err != nil {
 			return err
 		}
+		fsync(path.Join(dir, lowerFile))
 	}
 
 	return nil
@@ -729,4 +731,25 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 // parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	return d.naiveDiff.Changes(id, parent)
+}
+
+func fsync(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		logger.Warnf("Failed to open file for fsyncing; file: %s, err: %s", path, err.Error())
+		return
+	}
+	if f == nil {
+		logger.Warnf("Failed to open file for fsyncing; file: %s, err: nil file descriptor", path)
+		return
+	}
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			logger.Warnf("Failed to close a file opened for fsyncing; file: %s, err: %s", path, err.Error())
+		}
+	}()
+	if err := f.Sync(); err != nil {
+		logger.Errorf("Failed to fsync %s, err: %s", path, err.Error())
+	}
 }
