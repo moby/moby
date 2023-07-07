@@ -452,6 +452,24 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 		err = c.VolumeRemove(ctx, v.Name, false)
 		assert.NilError(t, err)
 	})
+
+	// Make sure that we don't panic if the container has bind-mounts
+	// (which should not be "restored")
+	// Regression test for https://github.com/moby/moby/issues/45898
+	t.Run("container with bind-mounts", func(t *testing.T) {
+		m := mount.Mount{
+			Type:   mount.TypeBind,
+			Source: os.TempDir(),
+			Target: "/foo",
+		}
+		cID := container.Run(ctx, t, c, container.WithMount(m), container.WithCmd("top"))
+		defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+
+		d.Restart(t, "--live-restore", "--iptables=false")
+
+		err := c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+		assert.NilError(t, err)
+	})
 }
 
 func TestDaemonDefaultBridgeWithFixedCidrButNoBip(t *testing.T) {
