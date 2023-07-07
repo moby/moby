@@ -69,13 +69,6 @@ func (a *allocator) IsBuiltIn() bool {
 	return true
 }
 
-// Init registers the null ipam driver with ic.
-//
-// Deprecated: use [Register].
-func Init(ic ipamapi.Callback, l, g interface{}) error {
-	return Register(ic)
-}
-
 // Register registers the null ipam driver with r.
 func Register(r ipamapi.Registerer) error {
 	return r.RegisterIpamDriver(ipamapi.NullIPAM, &allocator{})

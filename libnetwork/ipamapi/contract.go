@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/docker/docker/libnetwork/types"
-	"github.com/docker/docker/pkg/plugingetter"
 )
 
 // IPAM plugin types
@@ -26,15 +25,6 @@ type Registerer interface {
 	RegisterIpamDriver(name string, driver Ipam) error
 	// RegisterIpamDriverWithCapabilities provides a way for drivers to dynamically register with libnetwork and specify capabilities
 	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
-}
-
-// Callback is a legacy interface for registering an IPAM instance into LibNetwork.
-//
-// The narrower [Registerer] interface is preferred for new code.
-type Callback interface {
-	Registerer
-	// GetPluginGetter returns the pluginv2 getter.
-	GetPluginGetter() plugingetter.PluginGetter
 }
 
 // Well-known errors returned by IPAM

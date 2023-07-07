@@ -4,7 +4,6 @@ import (
 	"net"
 
 	"github.com/docker/docker/libnetwork/discoverapi"
-	"github.com/docker/docker/pkg/plugingetter"
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
@@ -159,13 +158,6 @@ type JoinInfo interface {
 // Registerer provides a way for network drivers to be dynamically registered.
 type Registerer interface {
 	RegisterDriver(name string, driver Driver, capability Capability) error
-}
-
-// DriverCallback provides a Callback interface for Drivers into LibNetwork
-type DriverCallback interface {
-	Registerer
-	// GetPluginGetter returns the pluginv2 getter.
-	GetPluginGetter() plugingetter.PluginGetter
 }
 
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of

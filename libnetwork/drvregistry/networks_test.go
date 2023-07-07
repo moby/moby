@@ -3,10 +3,29 @@ package drvregistry
 import (
 	"testing"
 
+	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+const mockDriverName = "mock-driver"
+
+type mockDriver struct {
+	driverapi.Driver
+}
+
+var mockDriverCaps = driverapi.Capability{DataScope: datastore.LocalScope}
+
+var md = mockDriver{}
+
+func (m *mockDriver) Type() string {
+	return mockDriverName
+}
+
+func (m *mockDriver) IsBuiltIn() bool {
+	return true
+}
 
 func TestNetworks(t *testing.T) {
 	t.Run("RegisterDriver", func(t *testing.T) {

@@ -31,13 +31,6 @@ func newAllocator(name string, client *plugins.Client) ipamapi.Ipam {
 	return a
 }
 
-// Init registers a remote ipam when its plugin is activated.
-//
-// Deprecated: use [Register].
-func Init(cb ipamapi.Callback, l, g interface{}) error {
-	return Register(cb, cb.GetPluginGetter())
-}
-
 // Register registers a remote ipam when its plugin is activated.
 func Register(cb ipamapi.Registerer, pg plugingetter.PluginGetter) error {
 	newPluginHandler := func(name string, client *plugins.Client) {
