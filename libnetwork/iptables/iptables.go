@@ -488,9 +488,8 @@ const (
 )
 
 func filterOutput(start time.Time, output []byte, args ...string) []byte {
-	// Flag operations that have taken a long time to complete
-	opTime := time.Since(start)
-	if opTime > opWarnTime {
+	if opTime := time.Since(start); opTime > opWarnTime {
+		// Flag operations that have taken a long time to complete
 		log.G(context.TODO()).Warnf("xtables contention detected while running [%s]: Waited for %.2f seconds and received %q", strings.Join(args, " "), float64(opTime)/float64(time.Second), string(output))
 	}
 	// ignore iptables' message about xtables lock:
@@ -524,13 +523,6 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	if err := initCheck(); err != nil {
 		return nil, err
 	}
-	if supportsXlock {
-		args = append([]string{"--wait"}, args...)
-	} else {
-		bestEffortLock.Lock()
-		defer bestEffortLock.Unlock()
-	}
-
 	path := iptablesPath
 	commandName := "iptables"
 	if iptable.Version == IPv6 {
@@ -539,6 +531,13 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 		}
 		path = ip6tablesPath
 		commandName = "ip6tables"
+	}
+
+	if supportsXlock {
+		args = append([]string{"--wait"}, args...)
+	} else {
+		bestEffortLock.Lock()
+		defer bestEffortLock.Unlock()
 	}
 
 	log.G(context.TODO()).Debugf("%s, %v", path, args)
@@ -589,28 +588,21 @@ func (iptable IPTable) AddReturnRule(chain string) error {
 	if iptable.Exists(Filter, chain, "-j", "RETURN") {
 		return nil
 	}
-
-	err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN")
-	if err != nil {
+	if err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN"); err != nil {
 		return fmt.Errorf("unable to add return rule in %s chain: %v", chain, err)
 	}
-
 	return nil
 }
 
 // EnsureJumpRule ensures the jump rule is on top
 func (iptable IPTable) EnsureJumpRule(fromChain, toChain string) error {
 	if iptable.Exists(Filter, fromChain, "-j", toChain) {
-		err := iptable.RawCombinedOutput("-D", fromChain, "-j", toChain)
-		if err != nil {
+		if err := iptable.RawCombinedOutput("-D", fromChain, "-j", toChain); err != nil {
 			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
 	}
-
-	err := iptable.RawCombinedOutput("-I", fromChain, "-j", toChain)
-	if err != nil {
+	if err := iptable.RawCombinedOutput("-I", fromChain, "-j", toChain); err != nil {
 		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
-
 	return nil
 }
