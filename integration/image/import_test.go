@@ -27,7 +27,7 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 
 	// Spin up a new daemon, so that we can run this test in parallel (it's a slow test)
 	d := daemon.New(t)
-	d.Start(t)
+	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
