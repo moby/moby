@@ -18,6 +18,10 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 		if err := daemon.lazyInitializeVolume(container.ID, config); err != nil {
 			return err
 		}
+		if config.Volume == nil {
+			// FIXME(thaJeztah): should we check for config.Type here as well? (i.e., skip bind-mounts etc)
+			continue
+		}
 		if alive {
 			log.G(context.TODO()).WithFields(logrus.Fields{
 				"container": container.ID,
