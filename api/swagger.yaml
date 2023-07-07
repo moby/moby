@@ -1398,7 +1398,8 @@ definitions:
     type: "object"
     properties:
       Bridge:
-        description: Name of the network's bridge (for example, `docker0`).
+        description: |
+          Name of the default bridge interface when dockerd's --bridge flag is set.
         type: "string"
         example: "docker0"
       SandboxID:
@@ -1408,34 +1409,40 @@ definitions:
       HairpinMode:
         description: |
           Indicates if hairpin NAT should be enabled on the virtual interface.
+
+          Deprecated: This field is never set and will be removed in a future release.
         type: "boolean"
         example: false
       LinkLocalIPv6Address:
-        description: IPv6 unicast address using the link-local prefix.
+        description: |
+          IPv6 unicast address using the link-local prefix.
+
+          Deprecated: This field is never set and will be removed in a future release.
         type: "string"
-        example: "fe80::42:acff:fe11:1"
+        example: ""
       LinkLocalIPv6PrefixLen:
-        description: Prefix length of the IPv6 unicast address.
+        description: |
+          Prefix length of the IPv6 unicast address.
+
+          Deprecated: This field is never set and will be removed in a future release.
         type: "integer"
-        example: "64"
+        example: ""
       Ports:
         $ref: "#/definitions/PortMap"
       SandboxKey:
-        description: SandboxKey identifies the sandbox
+        description: SandboxKey is the full path of the netns handle
         type: "string"
         example: "/var/run/docker/netns/8ab54b426c38"
 
-      # TODO is SecondaryIPAddresses actually used?
       SecondaryIPAddresses:
-        description: ""
+        description: "Deprecated: This field is never set and will be removed in a future release."
         type: "array"
         items:
           $ref: "#/definitions/Address"
         x-nullable: true
 
-      # TODO is SecondaryIPv6Addresses actually used?
       SecondaryIPv6Addresses:
-        description: ""
+        description: "Deprecated: This field is never set and will be removed in a future release."
         type: "array"
         items:
           $ref: "#/definitions/Address"
