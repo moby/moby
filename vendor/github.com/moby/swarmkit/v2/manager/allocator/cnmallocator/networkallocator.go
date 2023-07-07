@@ -8,8 +8,10 @@ import (
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/drivers/remote"
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
+	remoteipam "github.com/docker/docker/libnetwork/ipams/remote"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/moby/swarmkit/v2/api"
@@ -30,9 +32,14 @@ const (
 // like managing network and IPAM drivers and also creating and
 // deleting networks and the associated resources.
 type cnmNetworkAllocator struct {
-	// The driver register which manages all internal and external
-	// IPAM and network drivers.
-	drvRegistry *drvregistry.DrvRegistry
+	// The plugin getter instance used to get network and IPAM driver plugins.
+	pg plugingetter.PluginGetter
+
+	// The driver registry for all internal and external IPAM drivers.
+	ipamRegistry drvregistry.IPAMs
+
+	// The driver registry for all internal and external network drivers.
+	networkRegistry drvregistry.Networks
 
 	// The port allocator instance for allocating node ports
 	portAllocator *portAllocator
@@ -81,11 +88,6 @@ type networkDriver struct {
 	capability *driverapi.Capability
 }
 
-type initializer struct {
-	fn    drvregistry.InitFunc
-	ntype string
-}
-
 // NetworkConfig is used to store network related cluster config in the Manager.
 type NetworkConfig struct {
 	// DefaultAddrPool specifies default subnet pool for global scope networks
@@ -106,21 +108,23 @@ func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocat
 		services: make(map[string]struct{}),
 		tasks:    make(map[string]struct{}),
 		nodes:    make(map[string]map[string]struct{}),
+		pg:       pg,
 	}
 
-	// There are no driver configurations and notification
-	// functions as of now.
-	reg, err := drvregistry.New(nil, nil, nil, nil, pg)
-	if err != nil {
-		return nil, err
+	for ntype, i := range initializers {
+		if err := i(&na.networkRegistry); err != nil {
+			return nil, fmt.Errorf("failed to register %q network driver: %w", ntype, err)
+		}
+	}
+	if err := remote.Register(&na.networkRegistry, pg); err != nil {
+		return nil, fmt.Errorf("failed to initialize network driver plugins: %w", err)
 	}
 
-	if err := initializeDrivers(reg); err != nil {
+	if err := initIPAMDrivers(&na.ipamRegistry, netConfig); err != nil {
 		return nil, err
 	}
-
-	if err = initIPAMDrivers(reg, netConfig); err != nil {
-		return nil, err
+	if err := remoteipam.Register(&na.ipamRegistry, pg); err != nil {
+		return nil, fmt.Errorf("failed to initialize IPAM driver plugins: %w", err)
 	}
 
 	pa, err := newPortAllocator()
@@ -129,7 +133,6 @@ func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocat
 	}
 
 	na.portAllocator = pa
-	na.drvRegistry = reg
 	return na, nil
 }
 
@@ -816,28 +819,27 @@ func (na *cnmNetworkAllocator) resolveDriver(n *api.Network) (*networkDriver, er
 		dName = n.Spec.DriverConfig.Name
 	}
 
-	d, drvcap := na.drvRegistry.Driver(dName)
+	d, drvcap := na.networkRegistry.Driver(dName)
 	if d == nil {
 		err := na.loadDriver(dName)
 		if err != nil {
 			return nil, err
 		}
 
-		d, drvcap = na.drvRegistry.Driver(dName)
+		d, drvcap = na.networkRegistry.Driver(dName)
 		if d == nil {
 			return nil, fmt.Errorf("could not resolve network driver %s", dName)
 		}
 	}
 
-	return &networkDriver{driver: d, capability: drvcap, name: dName}, nil
+	return &networkDriver{driver: d, capability: &drvcap, name: dName}, nil
 }
 
 func (na *cnmNetworkAllocator) loadDriver(name string) error {
-	pg := na.drvRegistry.GetPluginGetter()
-	if pg == nil {
+	if na.pg == nil {
 		return errors.New("plugin store is uninitialized")
 	}
-	_, err := pg.Get(name, driverapi.NetworkPluginEndpointType, plugingetter.Lookup)
+	_, err := na.pg.Get(name, driverapi.NetworkPluginEndpointType, plugingetter.Lookup)
 	return err
 }
 
@@ -853,7 +855,7 @@ func (na *cnmNetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string
 		dOptions = n.Spec.IPAM.Driver.Options
 	}
 
-	ipam, _ := na.drvRegistry.IPAM(dName)
+	ipam, _ := na.ipamRegistry.IPAM(dName)
 	if ipam == nil {
 		return nil, "", nil, fmt.Errorf("could not resolve IPAM driver %s", dName)
 	}
@@ -893,7 +895,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 
 	// We don't support user defined address spaces yet so just
 	// retrieve default address space names for the driver.
-	_, asName, err := na.drvRegistry.IPAMDefaultAddressSpaces(dName)
+	_, asName, err := ipam.GetDefaultAddressSpaces()
 	if err != nil {
 		return nil, err
 	}
@@ -978,15 +980,6 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 	return pools, nil
 }
 
-func initializeDrivers(reg *drvregistry.DrvRegistry) error {
-	for _, i := range initializers {
-		if err := reg.AddDriver(i.ntype, i.fn, nil); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func serviceNetworks(s *api.Service) []*api.NetworkAttachmentConfig {
 	// Always prefer NetworkAttachmentConfig in the TaskSpec
 	if len(s.Spec.Task.Networks) == 0 && len(s.Spec.Networks) != 0 {
@@ -1011,12 +1004,8 @@ func (na *cnmNetworkAllocator) IsVIPOnIngressNetwork(vip *api.Endpoint_VirtualIP
 // IsBuiltInDriver returns whether the passed driver is an internal network driver
 func IsBuiltInDriver(name string) bool {
 	n := strings.ToLower(name)
-	for _, d := range initializers {
-		if n == d.ntype {
-			return true
-		}
-	}
-	return false
+	_, ok := initializers[n]
+	return ok
 }
 
 // setIPAMSerialAlloc sets the ipam allocation method to serial
