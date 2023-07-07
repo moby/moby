@@ -46,13 +46,6 @@ type network struct {
 	subnets []*subnet
 }
 
-// Init registers a new instance of the overlay driver.
-//
-// Deprecated: use [Register].
-func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
-	return Register(dc)
-}
-
 // Register registers a new instance of the overlay driver.
 func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(networkType, newDriver(), driverapi.Capability{

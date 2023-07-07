@@ -4,16 +4,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	builtinIpam "github.com/docker/docker/libnetwork/ipams/builtin"
 	nullIpam "github.com/docker/docker/libnetwork/ipams/null"
-	remoteIpam "github.com/docker/docker/libnetwork/ipams/remote"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/sirupsen/logrus"
 )
 
-func initIPAMDrivers(r *drvregistry.DrvRegistry, netConfig *NetworkConfig) error {
+func initIPAMDrivers(r ipamapi.Registerer, netConfig *NetworkConfig) error {
 	var addressPool []*ipamutils.NetworkToSplit
 	var str strings.Builder
 	str.WriteString("Subnetlist - ")
@@ -40,12 +38,11 @@ func initIPAMDrivers(r *drvregistry.DrvRegistry, netConfig *NetworkConfig) error
 		logrus.Infof("Swarm initialized global default address pool to: " + str.String())
 	}
 
-	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
-		builtinIpam.Init,
-		remoteIpam.Init,
-		nullIpam.Init,
+	for _, fn := range [](func(ipamapi.Registerer) error){
+		builtinIpam.Register,
+		nullIpam.Register,
 	} {
-		if err := fn(r, nil, nil); err != nil {
+		if err := fn(r); err != nil {
 			return err
 		}
 	}

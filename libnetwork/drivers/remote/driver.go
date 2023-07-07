@@ -29,14 +29,6 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 	return &driver{networkType: name, endpoint: client}
 }
 
-// Init makes sure a remote driver is registered when a network driver
-// plugin is activated.
-//
-// Deprecated: use [Register].
-func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
-	return Register(dc, dc.GetPluginGetter())
-}
-
 // Register makes sure a remote driver is registered with r when a network
 // driver plugin is activated.
 func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {

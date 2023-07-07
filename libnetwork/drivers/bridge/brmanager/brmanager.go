@@ -11,13 +11,6 @@ const networkType = "bridge"
 
 type driver struct{}
 
-// Init registers a new instance of bridge manager driver.
-//
-// Deprecated: use [Register].
-func Init(dc driverapi.DriverCallback, _ map[string]interface{}) error {
-	return Register(dc)
-}
-
 // Register registers a new instance of the bridge manager driver with r.
 func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(networkType, &driver{}, driverapi.Capability{
