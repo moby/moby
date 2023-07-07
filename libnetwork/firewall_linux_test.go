@@ -111,6 +111,6 @@ func resetIptables(t *testing.T) {
 
 		_, err := iptable.Raw("-F", fwdChainName)
 		assert.Check(t, err)
-		_ = iptable.RemoveExistingChain(usrChainName, "")
+		_ = iptable.RemoveExistingChain(usrChainName, iptables.Filter)
 	}
 }
