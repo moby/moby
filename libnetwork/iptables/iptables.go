@@ -66,7 +66,6 @@ var (
 	iptablesPath  string
 	ip6tablesPath string
 	supportsXlock = false
-	xLockWaitMsg  = "Another app is currently holding the xtables lock"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
 	initOnce       sync.Once
@@ -474,9 +473,13 @@ func (iptable IPTable) exists(native bool, table Table, chain string, rule ...st
 	return err == nil
 }
 
-// Maximum duration that an iptables operation can take
-// before flagging a warning.
-const opWarnTime = 2 * time.Second
+const (
+	// opWarnTime is the maximum duration that an iptables operation can take before flagging a warning.
+	opWarnTime = 2 * time.Second
+
+	// xLockWaitMsg is the iptables warning about xtables lock that can be suppressed.
+	xLockWaitMsg = "Another app is currently holding the xtables lock"
+)
 
 func filterOutput(start time.Time, output []byte, args ...string) []byte {
 	// Flag operations that have taken a long time to complete
