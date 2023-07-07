@@ -21,15 +21,6 @@ import (
 // Action signifies the iptable action.
 type Action string
 
-// Policy is the default iptable policies
-type Policy string
-
-// Table refers to Nat, Filter or Mangle.
-type Table string
-
-// IPVersion refers to IP version, v4 or v6
-type IPVersion string
-
 const (
 	// Append appends the rule at the end of the chain.
 	Append Action = "-A"
@@ -37,19 +28,37 @@ const (
 	Delete Action = "-D"
 	// Insert inserts the rule at the top of the chain.
 	Insert Action = "-I"
+)
+
+// Policy is the default iptable policies
+type Policy string
+
+const (
+	// Drop is the default iptables DROP policy.
+	Drop Policy = "DROP"
+	// Accept is the default iptables ACCEPT policy.
+	Accept Policy = "ACCEPT"
+)
+
+// Table refers to Nat, Filter or Mangle.
+type Table string
+
+const (
 	// Nat table is used for nat translation rules.
 	Nat Table = "nat"
 	// Filter table is used for filter rules.
 	Filter Table = "filter"
 	// Mangle table is used for mangling the packet.
 	Mangle Table = "mangle"
-	// Drop is the default iptables DROP policy
-	Drop Policy = "DROP"
-	// Accept is the default iptables ACCEPT policy
-	Accept Policy = "ACCEPT"
-	// IPv4 is version 4
+)
+
+// IPVersion refers to IP version, v4 or v6
+type IPVersion string
+
+const (
+	// IPv4 is version 4.
 	IPv4 IPVersion = "IPV4"
-	// IPv6 is version 6
+	// IPv6 is version 6.
 	IPv6 IPVersion = "IPV6"
 )
 
