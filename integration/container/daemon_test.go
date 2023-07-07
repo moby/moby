@@ -43,7 +43,7 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 	assert.Assert(t, inspect.State.Running)
 
 	assert.NilError(t, d.Kill())
-	d.Start(t)
+	d.Start(t, "--iptables=false")
 
 	inspect, err = client.ContainerInspect(ctx, id)
 	assert.Check(t, is.Nil(err))
