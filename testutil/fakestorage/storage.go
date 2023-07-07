@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/environment"
@@ -112,7 +113,7 @@ func (f *remoteFileServer) Close() error {
 			f.ctx.Close()
 		}
 		if f.image != "" {
-			if _, err := f.client.ImageRemove(context.Background(), f.image, types.ImageRemoveOptions{
+			if _, err := f.client.ImageRemove(context.Background(), f.image, image.RemoveOptions{
 				Force: true,
 			}); err != nil {
 				fmt.Fprintf(os.Stderr, "Error closing remote file server : %v\n", err)

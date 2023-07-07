@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
@@ -47,7 +48,7 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	_, err = client.ImageImport(ctx,
 		types.ImageImportSource{Source: imageRdr, SourceName: "-"},
 		reference,
-		types.ImageImportOptions{})
+		imagetypes.ImportOptions{})
 	assert.NilError(t, err)
 }
 
@@ -110,7 +111,7 @@ func TestImportWithCustomPlatform(t *testing.T) {
 			_, err = client.ImageImport(ctx,
 				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
-				types.ImageImportOptions{Platform: tc.platform})
+				imagetypes.ImportOptions{Platform: tc.platform})
 			assert.NilError(t, err)
 
 			inspect, _, err := client.ImageInspectWithRaw(ctx, reference)
@@ -176,7 +177,7 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 			_, err = client.ImageImport(ctx,
 				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
-				types.ImageImportOptions{Platform: tc.platform})
+				imagetypes.ImportOptions{Platform: tc.platform})
 
 			assert.ErrorContains(t, err, tc.expectedErr)
 		})

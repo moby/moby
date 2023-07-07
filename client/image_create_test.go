@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -20,7 +20,7 @@ func TestImageCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageCreate(context.Background(), "reference", types.ImageCreateOptions{})
+	_, err := client.ImageCreate(context.Background(), "reference", image.CreateOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -58,7 +58,7 @@ func TestImageCreate(t *testing.T) {
 		}),
 	}
 
-	createResponse, err := client.ImageCreate(context.Background(), expectedReference, types.ImageCreateOptions{
+	createResponse, err := client.ImageCreate(context.Background(), expectedReference, image.CreateOptions{
 		RegistryAuth: expectedRegistryAuth,
 	})
 	if err != nil {

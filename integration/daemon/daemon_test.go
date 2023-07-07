@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/config"
@@ -219,12 +219,12 @@ func TestDaemonProxy(t *testing.T) {
 		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
 		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
 
-		_, err := c.ImagePull(ctx, "example.org:5000/some/image:latest", types.ImagePullOptions{})
+		_, err := c.ImagePull(ctx, "example.org:5000/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5000")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5000", "should not have used proxy")
 	})
@@ -270,12 +270,12 @@ func TestDaemonProxy(t *testing.T) {
 		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
 		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
 
-		_, err := c.ImagePull(ctx, "example.org:5001/some/image:latest", types.ImagePullOptions{})
+		_, err := c.ImagePull(ctx, "example.org:5001/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001", "should not have used proxy")
 	})
@@ -320,12 +320,12 @@ func TestDaemonProxy(t *testing.T) {
 			"NO_PROXY",
 		))
 
-		_, err := c.ImagePull(ctx, "example.org:5002/some/image:latest", types.ImagePullOptions{})
+		_, err := c.ImagePull(ctx, "example.org:5002/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002")
 
 		// Test NoProxy: example.com should not hit the proxy, and "received" variable should not be changed.
-		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
+		_, err = c.ImagePull(ctx, "example.com/some/image:latest", image.PullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002", "should not have used proxy")
 	})

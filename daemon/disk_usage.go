@@ -36,7 +36,7 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context) ([]*types.Containe
 func (daemon *Daemon) imageDiskUsage(ctx context.Context) ([]*image.Summary, error) {
 	imgs, _, err := daemon.usageImages.Do(ctx, struct{}{}, func(ctx context.Context) ([]*image.Summary, error) {
 		// Get all top images with extra attributes
-		imgs, err := daemon.imageService.Images(ctx, types.ImageListOptions{
+		imgs, err := daemon.imageService.Images(ctx, image.ListOptions{
 			Filters:        filters.NewArgs(),
 			SharedSize:     true,
 			ContainerCount: true,

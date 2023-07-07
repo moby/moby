@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/errdefs"
 	"gotest.tools/v3/assert"
@@ -22,7 +21,7 @@ func TestImageRemoveError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
+	_, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{})
 	assert.Check(t, is.ErrorType(err, errdefs.IsSystem))
 }
 
@@ -31,7 +30,7 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "no such image: unknown")),
 	}
 
-	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
+	_, err := client.ImageRemove(context.Background(), "unknown", image.RemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "no such image: unknown"))
 	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
@@ -93,7 +92,7 @@ func TestImageRemove(t *testing.T) {
 				}, nil
 			}),
 		}
-		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{
+		imageDeletes, err := client.ImageRemove(context.Background(), "image_id", image.RemoveOptions{
 			Force:         removeCase.force,
 			PruneChildren: removeCase.pruneChildren,
 		})

@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil"
@@ -34,7 +35,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	importResp, err := apiClient.ImageImport(ctx, types.ImageImportSource{
 		Source:     exportResp,
 		SourceName: "-",
-	}, reference, types.ImageImportOptions{})
+	}, reference, image.ImportOptions{})
 	assert.NilError(t, err)
 
 	// If the import is successfully, then the message output should contain
@@ -45,7 +46,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	err = dec.Decode(&jm)
 	assert.NilError(t, err)
 
-	images, err := apiClient.ImageList(ctx, types.ImageListOptions{
+	images, err := apiClient.ImageList(ctx, image.ListOptions{
 		Filters: filters.NewArgs(filters.Arg("reference", reference)),
 	})
 	assert.NilError(t, err)

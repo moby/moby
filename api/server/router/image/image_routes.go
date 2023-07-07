@@ -190,7 +190,7 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 
 	var ref reference.Named
 
-	// Tag is empty only in case ImagePushOptions.All is true.
+	// Tag is empty only in case PushOptions.All is true.
 	if tag != "" {
 		r, err := httputils.RepoTagReference(img, tag)
 		if err != nil {
@@ -396,7 +396,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		sharedSize = httputils.BoolValue(r, "shared-size")
 	}
 
-	images, err := ir.backend.Images(ctx, types.ImageListOptions{
+	images, err := ir.backend.Images(ctx, imagetypes.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
 		SharedSize: sharedSize,

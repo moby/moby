@@ -34,7 +34,7 @@ type ImageService interface {
 	ExportImage(ctx context.Context, names []string, outStream io.Writer) error
 	PerformWithBaseFS(ctx context.Context, c *container.Container, fn func(string) error) error
 	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
-	Images(ctx context.Context, opts types.ImageListOptions) ([]*imagetype.Summary, error)
+	Images(ctx context.Context, opts imagetype.ListOptions) ([]*imagetype.Summary, error)
 	LogImageEvent(imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)

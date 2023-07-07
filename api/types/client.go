@@ -157,40 +157,10 @@ type ImageBuildResponse struct {
 	OSType string
 }
 
-// ImageCreateOptions holds information to create images.
-type ImageCreateOptions struct {
-	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry.
-	Platform     string // Platform is the target platform of the image if it needs to be pulled from the registry.
-}
-
 // ImageImportSource holds source information for ImageImport
 type ImageImportSource struct {
 	Source     io.Reader // Source is the data to send to the server to create this image from. You must set SourceName to "-" to leverage this.
 	SourceName string    // SourceName is the name of the image to pull. Set to "-" to leverage the Source attribute.
-}
-
-// ImageImportOptions holds information to import images from the client host.
-type ImageImportOptions struct {
-	Tag      string   // Tag is the name to tag this image with. This attribute is deprecated.
-	Message  string   // Message is the message to tag the image with
-	Changes  []string // Changes are the raw changes to apply to this image
-	Platform string   // Platform is the target platform of the image
-}
-
-// ImageListOptions holds parameters to list images with.
-type ImageListOptions struct {
-	// All controls whether all images in the graph are filtered, or just
-	// the heads.
-	All bool
-
-	// Filters is a JSON-encoded set of filter arguments.
-	Filters filters.Args
-
-	// SharedSize indicates whether the shared size of images should be computed.
-	SharedSize bool
-
-	// ContainerCount indicates whether container count should be computed.
-	ContainerCount bool
 }
 
 // ImageLoadResponse returns information to the client about a load process.
@@ -200,14 +170,6 @@ type ImageLoadResponse struct {
 	JSON bool
 }
 
-// ImagePullOptions holds information to pull images.
-type ImagePullOptions struct {
-	All           bool
-	RegistryAuth  string // RegistryAuth is the base64 encoded credentials for the registry
-	PrivilegeFunc RequestPrivilegeFunc
-	Platform      string
-}
-
 // RequestPrivilegeFunc is a function interface that
 // clients can supply to retry operations after
 // getting an authorization error.
@@ -215,15 +177,6 @@ type ImagePullOptions struct {
 // header value in base 64 format, or an error
 // if the privilege request fails.
 type RequestPrivilegeFunc func() (string, error)
-
-// ImagePushOptions holds information to push images.
-type ImagePushOptions ImagePullOptions
-
-// ImageRemoveOptions holds parameters to remove images.
-type ImageRemoveOptions struct {
-	Force         bool
-	PruneChildren bool
-}
 
 // ImageSearchOptions holds parameters to search images with.
 type ImageSearchOptions struct {
