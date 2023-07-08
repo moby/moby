@@ -141,7 +141,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	// Verify the IP in /etc/hosts is same as host-gateway-ip
 	d := daemon.New(t)
 	// Verify the IP in /etc/hosts is same as the default bridge's IP
-	d.StartWithBusybox(t)
+	d.StartWithBusybox(t, "--iptables=false")
 	c := d.NewClientT(t)
 	ctx := context.Background()
 	cID := container.Run(ctx, t, c,
@@ -158,7 +158,7 @@ func TestDaemonHostGatewayIP(t *testing.T) {
 	d.Stop(t)
 
 	// Verify the IP in /etc/hosts is same as host-gateway-ip
-	d.StartWithBusybox(t, "--host-gateway-ip=6.7.8.9")
+	d.StartWithBusybox(t, "--iptables=false", "--host-gateway-ip=6.7.8.9")
 	cID = container.Run(ctx, t, c,
 		container.WithExtraHost("host.docker.internal:host-gateway"),
 	)
@@ -221,7 +221,7 @@ func TestRestartDaemonWithRestartingContainer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, os.WriteFile(configPath, configBytes, 0600))
 
-	d.Start(t)
+	d.Start(t, "--iptables=false")
 
 	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
