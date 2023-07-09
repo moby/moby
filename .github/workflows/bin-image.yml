@@ -15,6 +15,7 @@ on:
   pull_request:
 
 env:
+  MOBYBIN_REPO_SLUG: moby/moby-bin
   PLATFORM: Moby Engine
   PRODUCT: Moby
   DEFAULT_PRODUCT_LICENSE: Moby
@@ -37,12 +38,29 @@ jobs:
         id: platforms
         run: |
           echo "matrix=$(docker buildx bake bin-image-cross --print | jq -cr '.target."bin-image-cross".platforms')" >>${GITHUB_OUTPUT}
+
+  build:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+      - prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       -
         name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: moby-bin
+          images: |
+            ${{ env.MOBYBIN_REPO_SLUG }}
           ### versioning strategy
           ## push semver tag v23.0.0
           # moby/moby-bin:23.0.0
@@ -69,28 +87,11 @@ jobs:
           path: /tmp/bake-meta.json
           if-no-files-found: error
           retention-days: 1
-
-  build:
-    runs-on: ubuntu-20.04
-    needs:
-      - validate-dco
-      - prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
-    steps:
       -
-        name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      -
-        name: Download meta bake definition
-        uses: actions/download-artifact@v3
-        with:
-          name: bake-meta
-          path: /tmp
+        name: Remove tags from meta bake definition
+        run: |
+          # we just want labels being set in this job
+          jq -r 'del(.target."docker-metadata-action".tags)' "/tmp/bake-meta.json" > "${{ steps.meta.outputs.bake-file }}"
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -98,13 +99,77 @@ jobs:
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       -
+        name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_MOBYBIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_MOBYBIN_TOKEN }}
+      -
         name: Build
-        uses: docker/bake-action@v2
+        id: bake
+        uses: docker/bake-action@v3
         with:
           files: |
             ./docker-bake.hcl
-            /tmp/bake-meta.json
+            ${{ steps.meta.outputs.bake-file }}
           targets: bin-image
           set: |
             *.platform=${{ matrix.platform }}
-            *.output=type=cacheonly
+            *.output=type=image,name=${{ env.MOBYBIN_REPO_SLUG }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+      -
+        name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.digest'] }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      -
+        name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v3
+        with:
+          name: digests
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-20.04
+    if: github.event_name != 'pull_request'
+    needs:
+      - build
+    steps:
+      -
+        name: Download meta bake definition
+        uses: actions/download-artifact@v3
+        with:
+          name: bake-meta
+          path: /tmp
+      -
+        name: Download digests
+        uses: actions/download-artifact@v3
+        with:
+          name: digests
+          path: /tmp/digests
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_MOBYBIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_MOBYBIN_TOKEN }}
+      -
+        name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          set -x
+          docker buildx imagetools create $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' /tmp/bake.json) \
+            $(printf '${{ env.MOBYBIN_REPO_SLUG }}@sha256:%s ' *)
+      -
+        name: Inspect image
+        run: |
+          set -x
+          docker buildx imagetools inspect ${{ env.MOBYBIN_REPO_SLUG }}:$(jq -cr '.target."docker-metadata-action".args.DOCKER_META_VERSION' /tmp/bake.json)
