@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/url"
 
 	"github.com/docker/docker/api/types"
@@ -53,7 +54,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 		}
 	}
 
-	headers := map[string][]string{}
+	headers := http.Header{}
 	if versions.LessThan(cli.version, "1.30") {
 		// the custom "version" header was used by engine API before 20.10
 		// (API 1.30) to switch between client- and server-side lookup of

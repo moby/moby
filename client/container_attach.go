@@ -2,6 +2,7 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 
 	"github.com/docker/docker/api/types"
@@ -52,8 +53,7 @@ func (cli *Client) ContainerAttach(ctx context.Context, container string, option
 		query.Set("logs", "1")
 	}
 
-	headers := map[string][]string{
+	return cli.postHijacked(ctx, "/containers/"+container+"/attach", query, nil, http.Header{
 		"Content-Type": {"text/plain"},
-	}
-	return cli.postHijacked(ctx, "/containers/"+container+"/attach", query, nil, headers)
+	})
 }
