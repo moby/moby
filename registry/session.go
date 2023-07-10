@@ -192,8 +192,8 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	if limit < 1 || limit > 100 {
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
-	log.G(context.TODO()).Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
+	log.G(context.TODO()).WithField("url", u).Debug("searchRepositories")
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
