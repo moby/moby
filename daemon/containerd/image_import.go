@@ -392,8 +392,11 @@ func containerConfigToOciImageConfig(cfg *container.Config) ocispec.ImageConfig 
 		StopSignal:  cfg.StopSignal,
 		ArgsEscaped: cfg.ArgsEscaped,
 	}
-	for k, v := range cfg.ExposedPorts {
-		ociCfg.ExposedPorts[string(k)] = v
+	if len(cfg.ExposedPorts) > 0 {
+		ociCfg.ExposedPorts = map[string]struct{}{}
+		for k, v := range cfg.ExposedPorts {
+			ociCfg.ExposedPorts[string(k)] = v
+		}
 	}
 
 	return ociCfg
