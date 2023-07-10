@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -165,7 +166,7 @@ type SwarmAPIClient interface {
 // SystemAPIClient defines API client methods for the system
 type SystemAPIClient interface {
 	Events(ctx context.Context, options types.EventsOptions) (<-chan events.Message, <-chan error)
-	Info(ctx context.Context) (types.Info, error)
+	Info(ctx context.Context) (system.Info, error)
 	RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error)
 	DiskUsage(ctx context.Context, options types.DiskUsageOptions) (types.DiskUsage, error)
 	Ping(ctx context.Context) (types.Ping, error)

@@ -2,7 +2,7 @@ package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 	buildkit "github.com/docker/docker/builder/builder-next"
 	"resenje.org/singleflight"
 )
@@ -19,7 +19,7 @@ type systemRouter struct {
 	// collectSystemInfo is a single-flight for the /info endpoint,
 	// unique per API version (as different API versions may return
 	// a different API response).
-	collectSystemInfo singleflight.Group[string, *types.Info]
+	collectSystemInfo singleflight.Group[string, *system.Info]
 }
 
 // NewRouter initializes a new system router

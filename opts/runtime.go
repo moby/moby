@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 )
 
 // RuntimeOpt defines a map of Runtimes
 type RuntimeOpt struct {
 	name             string
 	stockRuntimeName string
-	values           *map[string]types.Runtime
+	values           *map[string]system.Runtime
 }
 
 // NewNamedRuntimeOpt creates a new RuntimeOpt
-func NewNamedRuntimeOpt(name string, ref *map[string]types.Runtime, stockRuntime string) *RuntimeOpt {
+func NewNamedRuntimeOpt(name string, ref *map[string]system.Runtime, stockRuntime string) *RuntimeOpt {
 	if ref == nil {
-		ref = &map[string]types.Runtime{}
+		ref = &map[string]system.Runtime{}
 	}
 	return &RuntimeOpt{name: name, values: ref, stockRuntimeName: stockRuntime}
 }
@@ -51,7 +51,7 @@ func (o *RuntimeOpt) Set(val string) error {
 		return fmt.Errorf("runtime '%s' was already defined", k)
 	}
 
-	(*o.values)[k] = types.Runtime{Path: v}
+	(*o.values)[k] = system.Runtime{Path: v}
 
 	return nil
 }
@@ -67,12 +67,12 @@ func (o *RuntimeOpt) String() string {
 }
 
 // GetMap returns a map of Runtimes (name: path)
-func (o *RuntimeOpt) GetMap() map[string]types.Runtime {
+func (o *RuntimeOpt) GetMap() map[string]system.Runtime {
 	if o.values != nil {
 		return *o.values
 	}
 
-	return map[string]types.Runtime{}
+	return map[string]system.Runtime{}
 }
 
 // Type returns the type of the option

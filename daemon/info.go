@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/cli/debug"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/logger"
@@ -27,13 +28,13 @@ import (
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
-func (daemon *Daemon) SystemInfo() *types.Info {
+func (daemon *Daemon) SystemInfo() *system.Info {
 	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
 
 	sysInfo := daemon.RawSysInfo()
 	cfg := daemon.config()
 
-	v := &types.Info{
+	v := &system.Info{
 		ID:                 daemon.id,
 		Images:             daemon.imageService.CountImages(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
@@ -122,7 +123,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 	return v
 }
 
-func (daemon *Daemon) fillDriverInfo(v *types.Info) {
+func (daemon *Daemon) fillDriverInfo(v *system.Info) {
 	v.Driver = daemon.imageService.StorageDriver()
 	v.DriverStatus = daemon.imageService.LayerStoreStatus()
 
@@ -138,8 +139,8 @@ WARNING: The %s storage-driver is deprecated, and will be removed in a future re
 	fillDriverWarnings(v)
 }
 
-func (daemon *Daemon) fillPluginsInfo(v *types.Info, cfg *config.Config) {
-	v.Plugins = types.PluginsInfo{
+func (daemon *Daemon) fillPluginsInfo(v *system.Info, cfg *config.Config) {
+	v.Plugins = system.PluginsInfo{
 		Volume:  daemon.volumes.GetDriverList(),
 		Network: daemon.GetNetworkDriverList(),
 
@@ -150,7 +151,7 @@ func (daemon *Daemon) fillPluginsInfo(v *types.Info, cfg *config.Config) {
 	}
 }
 
-func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
+func (daemon *Daemon) fillSecurityOptions(v *system.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
 	var securityOptions []string
 	if sysInfo.AppArmor {
 		securityOptions = append(securityOptions, "name=apparmor")
@@ -180,7 +181,7 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	v.SecurityOptions = securityOptions
 }
 
-func (daemon *Daemon) fillContainerStates(v *types.Info) {
+func (daemon *Daemon) fillContainerStates(v *system.Info) {
 	cRunning, cPaused, cStopped := stateCtr.get()
 	v.Containers = cRunning + cPaused + cStopped
 	v.ContainersPaused = cPaused
@@ -196,14 +197,14 @@ func (daemon *Daemon) fillContainerStates(v *types.Info) {
 // this information optional (cli to request "with debugging information"), or
 // only collect it if the daemon has debug enabled. For the CLI code, see
 // https://github.com/docker/cli/blob/v20.10.12/cli/command/system/info.go#L239-L244
-func (daemon *Daemon) fillDebugInfo(v *types.Info) {
+func (daemon *Daemon) fillDebugInfo(v *system.Info) {
 	v.Debug = debug.IsEnabled()
 	v.NFd = fileutils.GetTotalUsedFds()
 	v.NGoroutines = runtime.NumGoroutine()
 	v.NEventsListener = daemon.EventsService.SubscribersCount()
 }
 
-func (daemon *Daemon) fillAPIInfo(v *types.Info, cfg *config.Config) {
+func (daemon *Daemon) fillAPIInfo(v *system.Info, cfg *config.Config) {
 	const warn string = `
          Access to the remote API is equivalent to root access on the host. Refer
          to the 'Docker daemon attack surface' section in the documentation for
@@ -226,9 +227,9 @@ func (daemon *Daemon) fillAPIInfo(v *types.Info, cfg *config.Config) {
 	}
 }
 
-func (daemon *Daemon) fillDefaultAddressPools(v *types.Info, cfg *config.Config) {
+func (daemon *Daemon) fillDefaultAddressPools(v *system.Info, cfg *config.Config) {
 	for _, pool := range cfg.DefaultAddressPools.Value() {
-		v.DefaultAddressPools = append(v.DefaultAddressPools, types.NetworkAddressPool{
+		v.DefaultAddressPools = append(v.DefaultAddressPools, system.NetworkAddressPool{
 			Base: pool.Base,
 			Size: pool.Size,
 		})

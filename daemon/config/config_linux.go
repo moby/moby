@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/cgroups/v3"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/rootless"
@@ -61,22 +61,22 @@ type Config struct {
 	CommonConfig
 
 	// Fields below here are platform specific.
-	Runtimes             map[string]types.Runtime `json:"runtimes,omitempty"`
-	DefaultInitBinary    string                   `json:"default-init,omitempty"`
-	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
-	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
-	RemappedRoot         string                   `json:"userns-remap,omitempty"`
-	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
-	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty"`
-	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty"`
-	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"` // Deprecated: configure the daemon's oom-score-adjust using a process manager instead.
-	Init                 bool                     `json:"init,omitempty"`
-	InitPath             string                   `json:"init-path,omitempty"`
-	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
-	ShmSize              opts.MemBytes            `json:"default-shm-size,omitempty"`
-	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty"`
-	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
-	CgroupNamespaceMode  string                   `json:"default-cgroupns-mode,omitempty"`
+	Runtimes             map[string]system.Runtime `json:"runtimes,omitempty"`
+	DefaultInitBinary    string                    `json:"default-init,omitempty"`
+	CgroupParent         string                    `json:"cgroup-parent,omitempty"`
+	EnableSelinuxSupport bool                      `json:"selinux-enabled,omitempty"`
+	RemappedRoot         string                    `json:"userns-remap,omitempty"`
+	Ulimits              map[string]*units.Ulimit  `json:"default-ulimits,omitempty"`
+	CPURealtimePeriod    int64                     `json:"cpu-rt-period,omitempty"`
+	CPURealtimeRuntime   int64                     `json:"cpu-rt-runtime,omitempty"`
+	OOMScoreAdjust       int                       `json:"oom-score-adjust,omitempty"` // Deprecated: configure the daemon's oom-score-adjust using a process manager instead.
+	Init                 bool                      `json:"init,omitempty"`
+	InitPath             string                    `json:"init-path,omitempty"`
+	SeccompProfile       string                    `json:"seccomp-profile,omitempty"`
+	ShmSize              opts.MemBytes             `json:"default-shm-size,omitempty"`
+	NoNewPrivileges      bool                      `json:"no-new-privileges,omitempty"`
+	IpcMode              string                    `json:"default-ipc-mode,omitempty"`
+	CgroupNamespaceMode  string                    `json:"default-cgroupns-mode,omitempty"`
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
 	Rootless   bool   `json:"rootless,omitempty"`
@@ -184,7 +184,7 @@ func setPlatformDefaults(cfg *Config) error {
 	cfg.ShmSize = opts.MemBytes(DefaultShmSize)
 	cfg.SeccompProfile = SeccompProfileDefault
 	cfg.IpcMode = string(DefaultIpcMode)
-	cfg.Runtimes = make(map[string]types.Runtime)
+	cfg.Runtimes = make(map[string]system.Runtime)
 
 	if cgroups.Mode() != cgroups.Unified {
 		cfg.CgroupNamespaceMode = string(DefaultCgroupV1NamespaceMode)

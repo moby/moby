@@ -18,6 +18,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
@@ -234,11 +235,11 @@ func TestPluginsWithRuntimes(t *testing.T) {
 	assert.NilError(t, os.WriteFile(p, []byte(script), 0o777))
 
 	type config struct {
-		Runtimes map[string]types.Runtime `json:"runtimes"`
+		Runtimes map[string]system.Runtime `json:"runtimes"`
 	}
 
 	cfg, err := json.Marshal(config{
-		Runtimes: map[string]types.Runtime{
+		Runtimes: map[string]system.Runtime{
 			"myrt":     {Path: p},
 			"myrtArgs": {Path: p, Args: []string{"someArg"}},
 		},
