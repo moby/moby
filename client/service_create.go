@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -17,13 +18,6 @@ import (
 // ServiceCreate creates a new service.
 func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options types.ServiceCreateOptions) (types.ServiceCreateResponse, error) {
 	var response types.ServiceCreateResponse
-	headers := map[string][]string{
-		"version": {cli.version},
-	}
-
-	if options.EncodedRegistryAuth != "" {
-		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
-	}
 
 	// Make sure containerSpec is not nil when no runtime is set or the runtime is set to container
 	if service.TaskTemplate.ContainerSpec == nil && (service.TaskTemplate.Runtime == "" || service.TaskTemplate.Runtime == swarm.RuntimeContainer) {
@@ -53,6 +47,16 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		}
 	}
 
+	headers := map[string][]string{}
+	if versions.LessThan(cli.version, "1.30") {
+		// the custom "version" header was used by engine API before 20.10
+		// (API 1.30) to switch between client- and server-side lookup of
+		// image digests.
+		headers["version"] = []string{cli.version}
+	}
+	if options.EncodedRegistryAuth != "" {
+		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
+	}
 	resp, err := cli.post(ctx, "/services/create", nil, service, headers)
 	defer ensureReaderClosed(resp)
 	if err != nil {
