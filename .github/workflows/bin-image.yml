@@ -34,27 +34,6 @@ jobs:
         name: Checkout
         uses: actions/checkout@v3
       -
-        name: Create platforms matrix
-        id: platforms
-        run: |
-          echo "matrix=$(docker buildx bake bin-image-cross --print | jq -cr '.target."bin-image-cross".platforms')" >>${GITHUB_OUTPUT}
-
-  build:
-    runs-on: ubuntu-20.04
-    needs:
-      - validate-dco
-      - prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      -
         name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
@@ -76,6 +55,45 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
       -
+        name: Rename meta bake definition file
+        run: |
+          mv "${{ steps.meta.outputs.bake-file }}" "/tmp/bake-meta.json"
+      -
+        name: Upload meta bake definition
+        uses: actions/upload-artifact@v3
+        with:
+          name: bake-meta
+          path: /tmp/bake-meta.json
+          if-no-files-found: error
+          retention-days: 1
+      -
+        name: Create platforms matrix
+        id: platforms
+        run: |
+          echo "matrix=$(docker buildx bake bin-image-cross --print | jq -cr '.target."bin-image-cross".platforms')" >>${GITHUB_OUTPUT}
+
+  build:
+    runs-on: ubuntu-20.04
+    needs:
+      - validate-dco
+      - prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare.outputs.platforms) }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      -
+        name: Download meta bake definition
+        uses: actions/download-artifact@v3
+        with:
+          name: bake-meta
+          path: /tmp
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       -
@@ -95,7 +113,7 @@ jobs:
         with:
           files: |
             ./docker-bake.hcl
-            ${{ steps.meta.outputs.bake-file }}
+            /tmp/bake-meta.json
           targets: bin-image
           set: |
             *.platform=${{ matrix.platform }}
@@ -115,18 +133,6 @@ jobs:
         with:
           name: digests
           path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-      -
-        name: Rename meta bake definition file
-        run: |
-          mv "${{ steps.meta.outputs.bake-file }}" "/tmp/bake-meta.json"
-      -
-        name: Upload meta bake definition
-        uses: actions/upload-artifact@v3
-        with:
-          name: bake-meta
-          path: /tmp/bake-meta.json
           if-no-files-found: error
           retention-days: 1
 
@@ -162,10 +168,10 @@ jobs:
         working-directory: /tmp/digests
         run: |
           set -x
-          docker buildx imagetools create $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' /tmp/bake.json) \
+          docker buildx imagetools create $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' /tmp/bake-meta.json) \
             $(printf '${{ env.MOBYBIN_REPO_SLUG }}@sha256:%s ' *)
       -
         name: Inspect image
         run: |
           set -x
-          docker buildx imagetools inspect ${{ env.MOBYBIN_REPO_SLUG }}:$(jq -cr '.target."docker-metadata-action".args.DOCKER_META_VERSION' /tmp/bake.json)
+          docker buildx imagetools inspect ${{ env.MOBYBIN_REPO_SLUG }}:$(jq -cr '.target."docker-metadata-action".args.DOCKER_META_VERSION' /tmp/bake-meta.json)
