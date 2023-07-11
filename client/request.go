@@ -28,17 +28,17 @@ type serverResponse struct {
 }
 
 // head sends an http request to the docker API using the method HEAD.
-func (cli *Client) head(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+func (cli *Client) head(ctx context.Context, path string, query url.Values, headers http.Header) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodHead, path, query, nil, headers)
 }
 
 // get sends an http request to the docker API using the method GET with a specific Go context.
-func (cli *Client) get(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+func (cli *Client) get(ctx context.Context, path string, query url.Values, headers http.Header) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodGet, path, query, nil, headers)
 }
 
 // post sends an http request to the docker API using the method POST with a specific Go context.
-func (cli *Client) post(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
+func (cli *Client) post(ctx context.Context, path string, query url.Values, obj interface{}, headers http.Header) (serverResponse, error) {
 	body, headers, err := encodeBody(obj, headers)
 	if err != nil {
 		return serverResponse{}, err
@@ -46,11 +46,11 @@ func (cli *Client) post(ctx context.Context, path string, query url.Values, obj 
 	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
 }
 
-func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
+func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers http.Header) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
 }
 
-func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (serverResponse, error) {
+func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers http.Header) (serverResponse, error) {
 	body, headers, err := encodeBody(obj, headers)
 	if err != nil {
 		return serverResponse{}, err
@@ -59,7 +59,7 @@ func (cli *Client) put(ctx context.Context, path string, query url.Values, obj i
 }
 
 // putRaw sends an http request to the docker API using the method PUT.
-func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error) {
+func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers http.Header) (serverResponse, error) {
 	// PUT requests are expected to always have a body (apparently)
 	// so explicitly pass an empty body to sendRequest to signal that
 	// it should set the Content-Type header if not already present.
@@ -70,13 +70,11 @@ func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, bo
 }
 
 // delete sends an http request to the docker API using the method DELETE.
-func (cli *Client) delete(ctx context.Context, path string, query url.Values, headers map[string][]string) (serverResponse, error) {
+func (cli *Client) delete(ctx context.Context, path string, query url.Values, headers http.Header) (serverResponse, error) {
 	return cli.sendRequest(ctx, http.MethodDelete, path, query, nil, headers)
 }
 
-type headers map[string][]string
-
-func encodeBody(obj interface{}, headers headers) (io.Reader, headers, error) {
+func encodeBody(obj interface{}, headers http.Header) (io.Reader, http.Header, error) {
 	if obj == nil {
 		return nil, headers, nil
 	}
@@ -98,7 +96,7 @@ func encodeBody(obj interface{}, headers headers) (io.Reader, headers, error) {
 	return body, headers, nil
 }
 
-func (cli *Client) buildRequest(method, path string, body io.Reader, headers headers) (*http.Request, error) {
+func (cli *Client) buildRequest(method, path string, body io.Reader, headers http.Header) (*http.Request, error) {
 	req, err := http.NewRequest(method, path, body)
 	if err != nil {
 		return nil, err
@@ -123,7 +121,7 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 	return req, nil
 }
 
-func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers headers) (serverResponse, error) {
+func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers http.Header) (serverResponse, error) {
 	req, err := cli.buildRequest(method, cli.getAPIPath(ctx, path, query), body, headers)
 	if err != nil {
 		return serverResponse{}, err
@@ -161,19 +159,19 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 			return serverResp, err
 		}
 
-		if nErr, ok := err.(*url.Error); ok {
-			if nErr, ok := nErr.Err.(*net.OpError); ok {
+		if uErr, ok := err.(*url.Error); ok {
+			if nErr, ok := uErr.Err.(*net.OpError); ok {
 				if os.IsPermission(nErr.Err) {
 					return serverResp, errors.Wrapf(err, "permission denied while trying to connect to the Docker daemon socket at %v", cli.host)
 				}
 			}
 		}
 
-		if err, ok := err.(net.Error); ok {
-			if err.Timeout() {
+		if nErr, ok := err.(net.Error); ok {
+			if nErr.Timeout() {
 				return serverResp, ErrorConnectionFailed(cli.host)
 			}
-			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
+			if strings.Contains(nErr.Error(), "connection refused") || strings.Contains(nErr.Error(), "dial unix") {
 				return serverResp, ErrorConnectionFailed(cli.host)
 			}
 		}
@@ -253,7 +251,7 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 	return errors.Wrap(errors.New(errorMessage), "Error response from daemon")
 }
 
-func (cli *Client) addHeaders(req *http.Request, headers headers) *http.Request {
+func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Request {
 	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
 	// then the user can't change OUR headers
 	for k, v := range cli.customHTTPHeaders {

@@ -23,13 +23,13 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 		return types.ImageBuildResponse{}, err
 	}
 
-	headers := http.Header(make(map[string][]string))
 	buf, err := json.Marshal(options.AuthConfigs)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}
-	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 
+	headers := http.Header{}
+	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 	headers.Set("Content-Type", "application/x-tar")
 
 	serverResp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
@@ -37,11 +37,9 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 		return types.ImageBuildResponse{}, err
 	}
 
-	osType := getDockerOS(serverResp.header.Get("Server"))
-
 	return types.ImageBuildResponse{
 		Body:   serverResp.body,
-		OSType: osType,
+		OSType: getDockerOS(serverResp.header.Get("Server")),
 	}, nil
 }
 

@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"io"
+	"net/http"
 	"net/url"
 
 	"github.com/docker/distribution/reference"
@@ -35,6 +36,7 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types
 }
 
 func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (serverResponse, error) {
-	headers := map[string][]string{registry.AuthHeader: {registryAuth}}
-	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, headers)
+	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, http.Header{
+		registry.AuthHeader: {registryAuth},
+	})
 }

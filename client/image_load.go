@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"io"
+	"net/http"
 	"net/url"
 
 	"github.com/docker/docker/api/types"
@@ -17,8 +18,9 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, quiet bool) (
 	if quiet {
 		v.Set("quiet", "1")
 	}
-	headers := map[string][]string{"Content-Type": {"application/x-tar"}}
-	resp, err := cli.postRaw(ctx, "/images/load", v, input, headers)
+	resp, err := cli.postRaw(ctx, "/images/load", v, input, http.Header{
+		"Content-Type": {"application/x-tar"},
+	})
 	if err != nil {
 		return types.ImageLoadResponse{}, err
 	}
