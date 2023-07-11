@@ -23,7 +23,7 @@ import (
 	api "github.com/containerd/containerd/api/services/namespaces/v1"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/gogo/protobuf/types"
+	"github.com/containerd/containerd/protobuf/types"
 )
 
 // NewNamespaceStoreFromClient returns a new namespace store
@@ -38,7 +38,7 @@ type remoteNamespaces struct {
 func (r *remoteNamespaces) Create(ctx context.Context, namespace string, labels map[string]string) error {
 	var req api.CreateNamespaceRequest
 
-	req.Namespace = api.Namespace{
+	req.Namespace = &api.Namespace{
 		Name:   namespace,
 		Labels: labels,
 	}
@@ -66,7 +66,7 @@ func (r *remoteNamespaces) Labels(ctx context.Context, namespace string) (map[st
 func (r *remoteNamespaces) SetLabel(ctx context.Context, namespace, key, value string) error {
 	var req api.UpdateNamespaceRequest
 
-	req.Namespace = api.Namespace{
+	req.Namespace = &api.Namespace{
 		Name:   namespace,
 		Labels: map[string]string{key: value},
 	}

@@ -23,8 +23,12 @@ import (
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
-	ptypes "github.com/gogo/protobuf/types"
+	"github.com/containerd/containerd/pkg/epoch"
+	"github.com/containerd/containerd/protobuf"
+	ptypes "github.com/containerd/containerd/protobuf/types"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type remoteImages struct {
@@ -61,14 +65,18 @@ func (s *remoteImages) List(ctx context.Context, filters ...string) ([]images.Im
 }
 
 func (s *remoteImages) Create(ctx context.Context, image images.Image) (images.Image, error) {
-	created, err := s.client.Create(ctx, &imagesapi.CreateImageRequest{
+	req := &imagesapi.CreateImageRequest{
 		Image: imageToProto(&image),
-	})
+	}
+	if tm := epoch.FromContext(ctx); tm != nil {
+		req.SourceDateEpoch = timestamppb.New(*tm)
+	}
+	created, err := s.client.Create(ctx, req)
 	if err != nil {
 		return images.Image{}, errdefs.FromGRPC(err)
 	}
 
-	return imageFromProto(&created.Image), nil
+	return imageFromProto(created.Image), nil
 }
 
 func (s *remoteImages) Update(ctx context.Context, image images.Image, fieldpaths ...string) (images.Image, error) {
@@ -78,16 +86,19 @@ func (s *remoteImages) Update(ctx context.Context, image images.Image, fieldpath
 			Paths: fieldpaths,
 		}
 	}
-
-	updated, err := s.client.Update(ctx, &imagesapi.UpdateImageRequest{
+	req := &imagesapi.UpdateImageRequest{
 		Image:      imageToProto(&image),
 		UpdateMask: updateMask,
-	})
+	}
+	if tm := epoch.FromContext(ctx); tm != nil {
+		req.SourceDateEpoch = timestamppb.New(*tm)
+	}
+	updated, err := s.client.Update(ctx, req)
 	if err != nil {
 		return images.Image{}, errdefs.FromGRPC(err)
 	}
 
-	return imageFromProto(&updated.Image), nil
+	return imageFromProto(updated.Image), nil
 }
 
 func (s *remoteImages) Delete(ctx context.Context, name string, opts ...images.DeleteOpt) error {
@@ -105,13 +116,13 @@ func (s *remoteImages) Delete(ctx context.Context, name string, opts ...images.D
 	return errdefs.FromGRPC(err)
 }
 
-func imageToProto(image *images.Image) imagesapi.Image {
-	return imagesapi.Image{
+func imageToProto(image *images.Image) *imagesapi.Image {
+	return &imagesapi.Image{
 		Name:      image.Name,
 		Labels:    image.Labels,
 		Target:    descToProto(&image.Target),
-		CreatedAt: image.CreatedAt,
-		UpdatedAt: image.UpdatedAt,
+		CreatedAt: protobuf.ToTimestamp(image.CreatedAt),
+		UpdatedAt: protobuf.ToTimestamp(image.UpdatedAt),
 	}
 }
 
@@ -119,18 +130,18 @@ func imageFromProto(imagepb *imagesapi.Image) images.Image {
 	return images.Image{
 		Name:      imagepb.Name,
 		Labels:    imagepb.Labels,
-		Target:    descFromProto(&imagepb.Target),
-		CreatedAt: imagepb.CreatedAt,
-		UpdatedAt: imagepb.UpdatedAt,
+		Target:    descFromProto(imagepb.Target),
+		CreatedAt: protobuf.FromTimestamp(imagepb.CreatedAt),
+		UpdatedAt: protobuf.FromTimestamp(imagepb.UpdatedAt),
 	}
 }
 
-func imagesFromProto(imagespb []imagesapi.Image) []images.Image {
+func imagesFromProto(imagespb []*imagesapi.Image) []images.Image {
 	var images []images.Image
 
 	for _, image := range imagespb {
 		image := image
-		images = append(images, imageFromProto(&image))
+		images = append(images, imageFromProto(image))
 	}
 
 	return images
@@ -139,17 +150,17 @@ func imagesFromProto(imagespb []imagesapi.Image) []images.Image {
 func descFromProto(desc *types.Descriptor) ocispec.Descriptor {
 	return ocispec.Descriptor{
 		MediaType:   desc.MediaType,
-		Size:        desc.Size_,
-		Digest:      desc.Digest,
+		Size:        desc.Size,
+		Digest:      digest.Digest(desc.Digest),
 		Annotations: desc.Annotations,
 	}
 }
 
-func descToProto(desc *ocispec.Descriptor) types.Descriptor {
-	return types.Descriptor{
+func descToProto(desc *ocispec.Descriptor) *types.Descriptor {
+	return &types.Descriptor{
 		MediaType:   desc.MediaType,
-		Size_:       desc.Size,
-		Digest:      desc.Digest,
+		Size:        desc.Size,
+		Digest:      desc.Digest.String(),
 		Annotations: desc.Annotations,
 	}
 }

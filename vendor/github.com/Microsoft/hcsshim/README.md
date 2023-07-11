@@ -75,24 +75,6 @@ certify they either authored the work themselves or otherwise have permission to
 more info, as well as to make sure that you can attest to the rules listed. Our CI uses the [DCO Github app](https://github.com/apps/dco) to ensure
 that all commits in a given PR are signed-off.
 
-### Test Directory (Important to note)
-
-This project has tried to trim some dependencies from the root Go modules file that would be cumbersome to get transitively included if this
-project is being vendored/used as a library. Some of these dependencies were only being used for tests, so the /test directory in this project also has
-its own go.mod file where these are now included to get around this issue. Our tests rely on the code in this project to run, so the test Go modules file
-has a relative path replace directive to pull in the latest hcsshim code that the tests actually touch from this project
-(which is the repo itself on your disk).
-
-```
-replace (
-	github.com/Microsoft/hcsshim => ../
-)
-```
-
-Because of this, for most code changes you may need to run `go mod vendor` + `go mod tidy` in the /test directory in this repository, as the
-CI in this project will check if the files are out of date and will fail if this is true.
-
-
 ## Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
@@ -101,7 +83,7 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Dependencies
 
-This project requires Golang 1.9 or newer to build.
+This project requires Golang 1.17 or newer to build.
 
 For system requirements to run this project, see the Microsoft docs on [Windows Container requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/system-requirements).
 

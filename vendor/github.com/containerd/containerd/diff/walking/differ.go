@@ -18,11 +18,11 @@ package walking
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"time"
 
 	"github.com/containerd/containerd/archive"
@@ -30,8 +30,10 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/pkg/epoch"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -41,7 +43,6 @@ type walkingDiff struct {
 }
 
 var emptyDesc = ocispec.Descriptor{}
-var uncompressed = "containerd.io/uncompressed"
 
 // NewWalkingDiff is a generic implementation of diff.Comparer.  The diff is
 // calculated by mounting both the upper and lower mount sets and walking the
@@ -63,6 +64,14 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 		if err := opt(&config); err != nil {
 			return emptyDesc, err
 		}
+	}
+	if tm := epoch.FromContext(ctx); tm != nil && config.SourceDateEpoch == nil {
+		config.SourceDateEpoch = tm
+	}
+
+	var writeDiffOpts []archive.WriteDiffOpt
+	if config.SourceDateEpoch != nil {
+		writeDiffOpts = append(writeDiffOpts, archive.WithSourceDateEpoch(config.SourceDateEpoch))
 	}
 
 	var isCompressed bool
@@ -136,7 +145,7 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 						return fmt.Errorf("failed to get compressed stream: %w", errOpen)
 					}
 				}
-				errOpen = archive.WriteDiff(ctx, io.MultiWriter(compressed, dgstr.Hash()), lowerRoot, upperRoot)
+				errOpen = archive.WriteDiff(ctx, io.MultiWriter(compressed, dgstr.Hash()), lowerRoot, upperRoot, writeDiffOpts...)
 				compressed.Close()
 				if errOpen != nil {
 					return fmt.Errorf("failed to write compressed diff: %w", errOpen)
@@ -145,9 +154,9 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 				if config.Labels == nil {
 					config.Labels = map[string]string{}
 				}
-				config.Labels[uncompressed] = dgstr.Digest().String()
+				config.Labels[labels.LabelUncompressed] = dgstr.Digest().String()
 			} else {
-				if errOpen = archive.WriteDiff(ctx, cw, lowerRoot, upperRoot); errOpen != nil {
+				if errOpen = archive.WriteDiff(ctx, cw, lowerRoot, upperRoot, writeDiffOpts...); errOpen != nil {
 					return fmt.Errorf("failed to write diff: %w", errOpen)
 				}
 			}
@@ -172,10 +181,10 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 			if info.Labels == nil {
 				info.Labels = make(map[string]string)
 			}
-			// Set uncompressed label if digest already existed without label
-			if _, ok := info.Labels[uncompressed]; !ok {
-				info.Labels[uncompressed] = config.Labels[uncompressed]
-				if _, err := s.store.Update(ctx, info, "labels."+uncompressed); err != nil {
+			// Set "containerd.io/uncompressed" label if digest already existed without label
+			if _, ok := info.Labels[labels.LabelUncompressed]; !ok {
+				info.Labels[labels.LabelUncompressed] = config.Labels[labels.LabelUncompressed]
+				if _, err := s.store.Update(ctx, info, "labels."+labels.LabelUncompressed); err != nil {
 					return fmt.Errorf("error setting uncompressed label: %w", err)
 				}
 			}

@@ -104,17 +104,17 @@ func (c *Config) ValidateV2() error {
 		return nil
 	}
 	for _, p := range c.DisabledPlugins {
-		if len(strings.Split(p, ".")) < 4 {
+		if !strings.HasPrefix(p, "io.containerd.") || len(strings.SplitN(p, ".", 4)) < 4 {
 			return fmt.Errorf("invalid disabled plugin URI %q expect io.containerd.x.vx", p)
 		}
 	}
 	for _, p := range c.RequiredPlugins {
-		if len(strings.Split(p, ".")) < 4 {
+		if !strings.HasPrefix(p, "io.containerd.") || len(strings.SplitN(p, ".", 4)) < 4 {
 			return fmt.Errorf("invalid required plugin URI %q expect io.containerd.x.vx", p)
 		}
 	}
 	for p := range c.Plugins {
-		if len(strings.Split(p, ".")) < 4 {
+		if !strings.HasPrefix(p, "io.containerd.") || len(strings.SplitN(p, ".", 4)) < 4 {
 			return fmt.Errorf("invalid plugin key URI %q expect io.containerd.x.vx", p)
 		}
 	}
@@ -147,7 +147,7 @@ type Debug struct {
 	UID     int    `toml:"uid"`
 	GID     int    `toml:"gid"`
 	Level   string `toml:"level"`
-	// Format represents the logging format
+	// Format represents the logging format. Supported values are 'text' and 'json'.
 	Format string `toml:"format"`
 }
 
@@ -166,44 +166,6 @@ type CgroupConfig struct {
 type ProxyPlugin struct {
 	Type    string `toml:"type"`
 	Address string `toml:"address"`
-}
-
-// BoltConfig defines the configuration values for the bolt plugin, which is
-// loaded here, rather than back registered in the metadata package.
-type BoltConfig struct {
-	// ContentSharingPolicy sets the sharing policy for content between
-	// namespaces.
-	//
-	// The default mode "shared" will make blobs available in all
-	// namespaces once it is pulled into any namespace. The blob will be pulled
-	// into the namespace if a writer is opened with the "Expected" digest that
-	// is already present in the backend.
-	//
-	// The alternative mode, "isolated" requires that clients prove they have
-	// access to the content by providing all of the content to the ingest
-	// before the blob is added to the namespace.
-	//
-	// Both modes share backing data, while "shared" will reduce total
-	// bandwidth across namespaces, at the cost of allowing access to any blob
-	// just by knowing its digest.
-	ContentSharingPolicy string `toml:"content_sharing_policy"`
-}
-
-const (
-	// SharingPolicyShared represents the "shared" sharing policy
-	SharingPolicyShared = "shared"
-	// SharingPolicyIsolated represents the "isolated" sharing policy
-	SharingPolicyIsolated = "isolated"
-)
-
-// Validate validates if BoltConfig is valid
-func (bc *BoltConfig) Validate() error {
-	switch bc.ContentSharingPolicy {
-	case SharingPolicyShared, SharingPolicyIsolated:
-		return nil
-	default:
-		return fmt.Errorf("unknown policy: %s: %w", bc.ContentSharingPolicy, errdefs.ErrInvalidArgument)
-	}
 }
 
 // Decode unmarshals a plugin specific configuration by plugin id

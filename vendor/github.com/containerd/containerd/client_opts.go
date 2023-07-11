@@ -200,6 +200,8 @@ func WithChildLabelMap(fn func(ocispec.Descriptor) []string) RemoteOpt {
 // WithSchema1Conversion is used to convert Docker registry schema 1
 // manifests to oci manifests on pull. Without this option schema 1
 // manifests will return a not supported error.
+//
+// Deprecated: use Schema 2 or OCI images.
 func WithSchema1Conversion(client *Client, c *RemoteContext) error {
 	c.ConvertSchema1 = true
 	return nil

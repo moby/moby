@@ -116,7 +116,7 @@ func (ssp *simpleSpanProcessor) ForceFlush(context.Context) error {
 	return nil
 }
 
-// MarshalLog is the marshaling function used by the logging system to represent this exporter.
+// MarshalLog is the marshaling function used by the logging system to represent this Span Processor.
 func (ssp *simpleSpanProcessor) MarshalLog() interface{} {
 	return struct {
 		Type     string

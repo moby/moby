@@ -18,41 +18,41 @@ package shim
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net"
 	"os"
 
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/ttrpc"
 	"github.com/sirupsen/logrus"
 )
 
 func setupSignals(config Config) (chan os.Signal, error) {
-	return nil, errors.New("not supported")
+	return nil, errdefs.ErrNotImplemented
 }
 
 func newServer(opts ...ttrpc.ServerOpt) (*ttrpc.Server, error) {
-	return nil, errors.New("not supported")
+	return nil, errdefs.ErrNotImplemented
 }
 
 func subreaper() error {
-	return errors.New("not supported")
+	return errdefs.ErrNotImplemented
 }
 
 func setupDumpStacks(dump chan<- os.Signal) {
 }
 
 func serveListener(path string) (net.Listener, error) {
-	return nil, errors.New("not supported")
+	return nil, errdefs.ErrNotImplemented
 }
 
 func reap(ctx context.Context, logger *logrus.Entry, signals chan os.Signal) error {
-	return errors.New("not supported")
+	return errdefs.ErrNotImplemented
 }
 
 func handleExitSignals(ctx context.Context, logger *logrus.Entry, cancel context.CancelFunc) {
 }
 
 func openLog(ctx context.Context, _ string) (io.Writer, error) {
-	return nil, errors.New("not supported")
+	return nil, errdefs.ErrNotImplemented
 }

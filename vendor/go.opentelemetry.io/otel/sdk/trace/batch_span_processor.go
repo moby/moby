@@ -35,8 +35,11 @@ const (
 	DefaultMaxExportBatchSize = 512
 )
 
+// BatchSpanProcessorOption configures a BatchSpanProcessor.
 type BatchSpanProcessorOption func(o *BatchSpanProcessorOptions)
 
+// BatchSpanProcessorOptions is configuration settings for a
+// BatchSpanProcessor.
 type BatchSpanProcessorOptions struct {
 	// MaxQueueSize is the maximum queue size to buffer spans for delayed processing. If the
 	// queue gets full it drops the spans. Use BlockOnQueueFull to change this behavior.
@@ -181,7 +184,7 @@ func (bsp *batchSpanProcessor) ForceFlush(ctx context.Context) error {
 	var err error
 	if bsp.e != nil {
 		flushCh := make(chan struct{})
-		if bsp.enqueueBlockOnQueueFull(ctx, forceFlushSpan{flushed: flushCh}, true) {
+		if bsp.enqueueBlockOnQueueFull(ctx, forceFlushSpan{flushed: flushCh}) {
 			select {
 			case <-flushCh:
 				// Processed any items in queue prior to ForceFlush being called
@@ -205,30 +208,43 @@ func (bsp *batchSpanProcessor) ForceFlush(ctx context.Context) error {
 	return err
 }
 
+// WithMaxQueueSize returns a BatchSpanProcessorOption that configures the
+// maximum queue size allowed for a BatchSpanProcessor.
 func WithMaxQueueSize(size int) BatchSpanProcessorOption {
 	return func(o *BatchSpanProcessorOptions) {
 		o.MaxQueueSize = size
 	}
 }
 
+// WithMaxExportBatchSize returns a BatchSpanProcessorOption that configures
+// the maximum export batch size allowed for a BatchSpanProcessor.
 func WithMaxExportBatchSize(size int) BatchSpanProcessorOption {
 	return func(o *BatchSpanProcessorOptions) {
 		o.MaxExportBatchSize = size
 	}
 }
 
+// WithBatchTimeout returns a BatchSpanProcessorOption that configures the
+// maximum delay allowed for a BatchSpanProcessor before it will export any
+// held span (whether the queue is full or not).
 func WithBatchTimeout(delay time.Duration) BatchSpanProcessorOption {
 	return func(o *BatchSpanProcessorOptions) {
 		o.BatchTimeout = delay
 	}
 }
 
+// WithExportTimeout returns a BatchSpanProcessorOption that configures the
+// amount of time a BatchSpanProcessor waits for an exporter to export before
+// abandoning the export.
 func WithExportTimeout(timeout time.Duration) BatchSpanProcessorOption {
 	return func(o *BatchSpanProcessorOptions) {
 		o.ExportTimeout = timeout
 	}
 }
 
+// WithBlocking returns a BatchSpanProcessorOption that configures a
+// BatchSpanProcessor to wait for enqueue operations to succeed instead of
+// dropping data when the queue is full.
 func WithBlocking() BatchSpanProcessorOption {
 	return func(o *BatchSpanProcessorOptions) {
 		o.BlockOnQueueFull = true
@@ -237,7 +253,6 @@ func WithBlocking() BatchSpanProcessorOption {
 
 // exportSpans is a subroutine of processing and draining the queue.
 func (bsp *batchSpanProcessor) exportSpans(ctx context.Context) error {
-
 	bsp.timer.Reset(bsp.o.BatchTimeout)
 
 	bsp.batchMutex.Lock()
@@ -250,7 +265,7 @@ func (bsp *batchSpanProcessor) exportSpans(ctx context.Context) error {
 	}
 
 	if l := len(bsp.batch); l > 0 {
-		global.Debug("exporting spans", "count", len(bsp.batch), "dropped", atomic.LoadUint32(&bsp.dropped))
+		global.Debug("exporting spans", "count", len(bsp.batch), "total_dropped", atomic.LoadUint32(&bsp.dropped))
 		err := bsp.e.ExportSpans(ctx, bsp.batch)
 
 		// A new batch is always created after exporting, even if the batch failed to be exported.
@@ -335,28 +350,35 @@ func (bsp *batchSpanProcessor) drainQueue() {
 }
 
 func (bsp *batchSpanProcessor) enqueue(sd ReadOnlySpan) {
-	bsp.enqueueBlockOnQueueFull(context.TODO(), sd, bsp.o.BlockOnQueueFull)
+	ctx := context.TODO()
+	if bsp.o.BlockOnQueueFull {
+		bsp.enqueueBlockOnQueueFull(ctx, sd)
+	} else {
+		bsp.enqueueDrop(ctx, sd)
+	}
 }
 
-func (bsp *batchSpanProcessor) enqueueBlockOnQueueFull(ctx context.Context, sd ReadOnlySpan, block bool) bool {
+func recoverSendOnClosedChan() {
+	x := recover()
+	switch err := x.(type) {
+	case nil:
+		return
+	case runtime.Error:
+		if err.Error() == "send on closed channel" {
+			return
+		}
+	}
+	panic(x)
+}
+
+func (bsp *batchSpanProcessor) enqueueBlockOnQueueFull(ctx context.Context, sd ReadOnlySpan) bool {
 	if !sd.SpanContext().IsSampled() {
 		return false
 	}
 
 	// This ensures the bsp.queue<- below does not panic as the
 	// processor shuts down.
-	defer func() {
-		x := recover()
-		switch err := x.(type) {
-		case nil:
-			return
-		case runtime.Error:
-			if err.Error() == "send on closed channel" {
-				return
-			}
-		}
-		panic(x)
-	}()
+	defer recoverSendOnClosedChan()
 
 	select {
 	case <-bsp.stopCh:
@@ -364,13 +386,27 @@ func (bsp *batchSpanProcessor) enqueueBlockOnQueueFull(ctx context.Context, sd R
 	default:
 	}
 
-	if block {
-		select {
-		case bsp.queue <- sd:
-			return true
-		case <-ctx.Done():
-			return false
-		}
+	select {
+	case bsp.queue <- sd:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func (bsp *batchSpanProcessor) enqueueDrop(ctx context.Context, sd ReadOnlySpan) bool {
+	if !sd.SpanContext().IsSampled() {
+		return false
+	}
+
+	// This ensures the bsp.queue<- below does not panic as the
+	// processor shuts down.
+	defer recoverSendOnClosedChan()
+
+	select {
+	case <-bsp.stopCh:
+		return false
+	default:
 	}
 
 	select {

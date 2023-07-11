@@ -24,7 +24,9 @@ import (
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
-	ptypes "github.com/gogo/protobuf/types"
+	"github.com/containerd/containerd/protobuf"
+	ptypes "github.com/containerd/containerd/protobuf/types"
+	"github.com/containerd/typeurl/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -50,7 +52,7 @@ func (r *remoteContainers) Get(ctx context.Context, id string) (containers.Conta
 		return containers.Container{}, errdefs.FromGRPC(err)
 	}
 
-	return containerFromProto(&resp.Container), nil
+	return containerFromProto(resp.Container), nil
 }
 
 func (r *remoteContainers) List(ctx context.Context, filters ...string) ([]containers.Container, error) {
@@ -114,7 +116,7 @@ func (r *remoteContainers) Create(ctx context.Context, container containers.Cont
 		return containers.Container{}, errdefs.FromGRPC(err)
 	}
 
-	return containerFromProto(&created.Container), nil
+	return containerFromProto(created.Container), nil
 
 }
 
@@ -134,7 +136,7 @@ func (r *remoteContainers) Update(ctx context.Context, container containers.Cont
 		return containers.Container{}, errdefs.FromGRPC(err)
 	}
 
-	return containerFromProto(&updated.Container), nil
+	return containerFromProto(updated.Container), nil
 
 }
 
@@ -147,19 +149,24 @@ func (r *remoteContainers) Delete(ctx context.Context, id string) error {
 
 }
 
-func containerToProto(container *containers.Container) containersapi.Container {
-	return containersapi.Container{
+func containerToProto(container *containers.Container) *containersapi.Container {
+	extensions := make(map[string]*ptypes.Any)
+	for k, v := range container.Extensions {
+		extensions[k] = protobuf.FromAny(v)
+	}
+	return &containersapi.Container{
 		ID:     container.ID,
 		Labels: container.Labels,
 		Image:  container.Image,
 		Runtime: &containersapi.Container_Runtime{
 			Name:    container.Runtime.Name,
-			Options: container.Runtime.Options,
+			Options: protobuf.FromAny(container.Runtime.Options),
 		},
-		Spec:        container.Spec,
+		Spec:        protobuf.FromAny(container.Spec),
 		Snapshotter: container.Snapshotter,
 		SnapshotKey: container.SnapshotKey,
-		Extensions:  container.Extensions,
+		Extensions:  extensions,
+		Sandbox:     container.SandboxID,
 	}
 }
 
@@ -171,6 +178,11 @@ func containerFromProto(containerpb *containersapi.Container) containers.Contain
 			Options: containerpb.Runtime.Options,
 		}
 	}
+	extensions := make(map[string]typeurl.Any)
+	for k, v := range containerpb.Extensions {
+		v := v
+		extensions[k] = v
+	}
 	return containers.Container{
 		ID:          containerpb.ID,
 		Labels:      containerpb.Labels,
@@ -179,18 +191,19 @@ func containerFromProto(containerpb *containersapi.Container) containers.Contain
 		Spec:        containerpb.Spec,
 		Snapshotter: containerpb.Snapshotter,
 		SnapshotKey: containerpb.SnapshotKey,
-		CreatedAt:   containerpb.CreatedAt,
-		UpdatedAt:   containerpb.UpdatedAt,
-		Extensions:  containerpb.Extensions,
+		CreatedAt:   protobuf.FromTimestamp(containerpb.CreatedAt),
+		UpdatedAt:   protobuf.FromTimestamp(containerpb.UpdatedAt),
+		Extensions:  extensions,
+		SandboxID:   containerpb.Sandbox,
 	}
 }
 
-func containersFromProto(containerspb []containersapi.Container) []containers.Container {
+func containersFromProto(containerspb []*containersapi.Container) []containers.Container {
 	var containers []containers.Container
 
 	for _, container := range containerspb {
 		container := container
-		containers = append(containers, containerFromProto(&container))
+		containers = append(containers, containerFromProto(container))
 	}
 
 	return containers

@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sys/windows"
 )
@@ -39,29 +38,31 @@ func DefaultSpec() specs.Platform {
 	}
 }
 
-type matchComparer struct {
-	defaults        Matcher
+type windowsmatcher struct {
+	specs.Platform
 	osVersionPrefix string
+	defaultMatcher  Matcher
 }
 
 // Match matches platform with the same windows major, minor
 // and build version.
-func (m matchComparer) Match(p specs.Platform) bool {
-	match := m.defaults.Match(p)
+func (m windowsmatcher) Match(p specs.Platform) bool {
+	match := m.defaultMatcher.Match(p)
 
-	if match && p.OS == "windows" {
+	if match && m.OS == "windows" {
 		if strings.HasPrefix(p.OSVersion, m.osVersionPrefix) {
 			return true
 		}
 		return p.OSVersion == ""
 	}
-	return false
+
+	return match
 }
 
 // Less sorts matched platforms in front of other platforms.
 // For matched platforms, it puts platforms with larger revision
 // number in front.
-func (m matchComparer) Less(p1, p2 imagespec.Platform) bool {
+func (m windowsmatcher) Less(p1, p2 specs.Platform) bool {
 	m1, m2 := m.Match(p1), m.Match(p2)
 	if m1 && m2 {
 		r1, r2 := revision(p1.OSVersion), revision(p2.OSVersion)
@@ -82,14 +83,15 @@ func revision(v string) int {
 	return r
 }
 
+func prefix(v string) string {
+	parts := strings.Split(v, ".")
+	if len(parts) < 4 {
+		return v
+	}
+	return strings.Join(parts[0:3], ".")
+}
+
 // Default returns the current platform's default platform specification.
 func Default() MatchComparer {
-	major, minor, build := windows.RtlGetNtVersionNumbers()
-	return matchComparer{
-		defaults: Ordered(DefaultSpec(), specs.Platform{
-			OS:           "linux",
-			Architecture: runtime.GOARCH,
-		}),
-		osVersionPrefix: fmt.Sprintf("%d.%d.%d", major, minor, build),
-	}
+	return Only(DefaultSpec())
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/pkg/kmutex"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
@@ -64,6 +65,8 @@ type Image interface {
 	Metadata() images.Image
 	// Platform returns the platform match comparer. Can be nil.
 	Platform() platforms.MatchComparer
+	// Spec returns the OCI image spec for a given image.
+	Spec(ctx context.Context) (ocispec.Image, error)
 }
 
 type usageOptions struct {
@@ -279,6 +282,26 @@ func (i *image) IsUnpacked(ctx context.Context, snapshotterName string) (bool, e
 	return false, nil
 }
 
+func (i *image) Spec(ctx context.Context) (ocispec.Image, error) {
+	var ociImage ocispec.Image
+
+	desc, err := i.Config(ctx)
+	if err != nil {
+		return ociImage, fmt.Errorf("get image config descriptor: %w", err)
+	}
+
+	blob, err := content.ReadBlob(ctx, i.ContentStore(), desc)
+	if err != nil {
+		return ociImage, fmt.Errorf("read image config from content store: %w", err)
+	}
+
+	if err := json.Unmarshal(blob, &ociImage); err != nil {
+		return ociImage, fmt.Errorf("unmarshal image config %s: %w", blob, err)
+	}
+
+	return ociImage, nil
+}
+
 // UnpackConfig provides configuration for the unpack of an image
 type UnpackConfig struct {
 	// ApplyOpts for applying a diff to a snapshotter
@@ -370,10 +393,10 @@ func (i *image) Unpack(ctx context.Context, snapshotterName string, opts ...Unpa
 			cinfo := content.Info{
 				Digest: layer.Blob.Digest,
 				Labels: map[string]string{
-					"containerd.io/uncompressed": layer.Diff.Digest.String(),
+					labels.LabelUncompressed: layer.Diff.Digest.String(),
 				},
 			}
-			if _, err := cs.Update(ctx, cinfo, "labels.containerd.io/uncompressed"); err != nil {
+			if _, err := cs.Update(ctx, cinfo, "labels."+labels.LabelUncompressed); err != nil {
 				return err
 			}
 		}

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -33,10 +32,6 @@ import (
 	"github.com/containerd/continuity/sysx"
 	"golang.org/x/sys/unix"
 )
-
-func tarName(p string) (string, error) {
-	return p, nil
-}
 
 func chmodTarEntry(perm os.FileMode) os.FileMode {
 	return perm

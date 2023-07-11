@@ -18,10 +18,9 @@ syntax = "proto3";
 
 package containerd.events;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "github.com/containerd/containerd/api/types/mount.proto";
-import weak "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
+import "github.com/containerd/containerd/protobuf/plugin/fieldpath.proto";
 
 option go_package = "github.com/containerd/containerd/api/events;events";
 option (containerd.plugin.fieldpath_all) = true;
@@ -30,7 +29,7 @@ message TaskCreate {
 	string container_id = 1;
 	string bundle = 2;
 	repeated containerd.types.Mount rootfs = 3;
-	TaskIO io = 4 [(gogoproto.customname) = "IO"];
+	TaskIO io = 4;
 	string checkpoint = 5;
 	uint32 pid = 6;
 }
@@ -44,7 +43,7 @@ message TaskDelete {
 	string container_id = 1;
 	uint32 pid = 2;
 	uint32 exit_status = 3;
-	google.protobuf.Timestamp exited_at = 4 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp exited_at = 4;
 	// id is the specific exec. By default if omitted will be `""` thus matches
 	// the init exec of the task matching `container_id`.
 	string id = 5;
@@ -62,7 +61,7 @@ message TaskExit {
 	string id = 2;
 	uint32 pid = 3;
 	uint32 exit_status = 4;
-	google.protobuf.Timestamp exited_at = 5 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp exited_at = 5;
 }
 
 message TaskOOM {

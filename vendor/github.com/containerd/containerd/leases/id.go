@@ -17,9 +17,9 @@
 package leases
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"math/rand"
 	"time"
 )
 

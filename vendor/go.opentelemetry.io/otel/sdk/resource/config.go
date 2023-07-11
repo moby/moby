@@ -110,7 +110,16 @@ func WithOSDescription() Option {
 }
 
 // WithProcess adds all the Process attributes to the configured Resource.
-// See individual WithProcess* functions to configure specific attributes.
+//
+// Warning! This option will include process command line arguments. If these
+// contain sensitive information it will be included in the exported resource.
+//
+// This option is equivalent to calling WithProcessPID,
+// WithProcessExecutableName, WithProcessExecutablePath,
+// WithProcessCommandArgs, WithProcessOwner, WithProcessRuntimeName,
+// WithProcessRuntimeVersion, and WithProcessRuntimeDescription. See each
+// option function for information about what resource attributes each
+// includes.
 func WithProcess() Option {
 	return WithDetectors(
 		processPIDDetector{},
@@ -143,7 +152,11 @@ func WithProcessExecutablePath() Option {
 }
 
 // WithProcessCommandArgs adds an attribute with all the command arguments (including
-// the command/executable itself) as received by the process the configured Resource.
+// the command/executable itself) as received by the process to the configured
+// Resource.
+//
+// Warning! This option will include process command line arguments. If these
+// contain sensitive information it will be included in the exported resource.
 func WithProcessCommandArgs() Option {
 	return WithDetectors(processCommandArgsDetector{})
 }
@@ -170,4 +183,19 @@ func WithProcessRuntimeVersion() Option {
 // about the runtime of the process to the configured Resource.
 func WithProcessRuntimeDescription() Option {
 	return WithDetectors(processRuntimeDescriptionDetector{})
+}
+
+// WithContainer adds all the Container attributes to the configured Resource.
+// See individual WithContainer* functions to configure specific attributes.
+func WithContainer() Option {
+	return WithDetectors(
+		cgroupContainerIDDetector{},
+	)
+}
+
+// WithContainerID adds an attribute with the id of the container to the configured Resource.
+// Note: WithContainerID will not extract the correct container ID in an ECS environment.
+// Please use the ECS resource detector instead (https://pkg.go.dev/go.opentelemetry.io/contrib/detectors/aws/ecs).
+func WithContainerID() Option {
+	return WithDetectors(cgroupContainerIDDetector{})
 }
