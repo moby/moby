@@ -76,23 +76,6 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
       -
-        name: Rename meta bake definition file
-        run: |
-          mv "${{ steps.meta.outputs.bake-file }}" "/tmp/bake-meta.json"
-      -
-        name: Upload meta bake definition
-        uses: actions/upload-artifact@v3
-        with:
-          name: bake-meta
-          path: /tmp/bake-meta.json
-          if-no-files-found: error
-          retention-days: 1
-      -
-        name: Remove tags from meta bake definition
-        run: |
-          # we just want labels being set in this job
-          jq -r 'del(.target."docker-metadata-action".tags)' "/tmp/bake-meta.json" > "${{ steps.meta.outputs.bake-file }}"
-      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       -
@@ -117,6 +100,7 @@ jobs:
           set: |
             *.platform=${{ matrix.platform }}
             *.output=type=image,name=${{ env.MOBYBIN_REPO_SLUG }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+            *.tags=
       -
         name: Export digest
         if: github.event_name != 'pull_request'
@@ -131,6 +115,18 @@ jobs:
         with:
           name: digests
           path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+      -
+        name: Rename meta bake definition file
+        run: |
+          mv "${{ steps.meta.outputs.bake-file }}" "/tmp/bake-meta.json"
+      -
+        name: Upload meta bake definition
+        uses: actions/upload-artifact@v3
+        with:
+          name: bake-meta
+          path: /tmp/bake-meta.json
           if-no-files-found: error
           retention-days: 1
 
