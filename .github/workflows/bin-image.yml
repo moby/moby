@@ -106,7 +106,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
-          digest="${{ fromJSON(steps.bake.outputs.metadata).image['containerimage.digest'] }}"
+          digest="${{ fromJSON(steps.bake.outputs.metadata)['bin-image']['containerimage.digest'] }}"
           touch "/tmp/digests/${digest#sha256:}"
       -
         name: Upload digest
