@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 // versionMatcher defines a variable matcher to be parsed by the router
@@ -53,7 +54,9 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			statusCode := httpstatus.FromError(err)
 			if statusCode >= 500 {
-				log.G(ctx).Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
+				log.G(ctx).WithFields(logrus.Fields{"error": err, "method": r.Method, "path": r.URL.Path}).Error("Handler for endpoint returned error")
+			} else {
+				log.G(ctx).WithFields(logrus.Fields{"error": err, "method": r.Method, "path": r.URL.Path}).Debug("Handler for endpoint returned error")
 			}
 			makeErrorHandler(err)(w, r)
 		}
