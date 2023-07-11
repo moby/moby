@@ -3,7 +3,7 @@
 set -e
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOTDIR="$(git -C "$SCRIPTDIR" rev-parse --show-toplevel)"
+ROOTDIR="$(cd "${SCRIPTDIR}/.." && pwd)"
 
 set -x
 
