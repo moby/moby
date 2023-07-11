@@ -8,10 +8,10 @@ import (
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 func ResolveCacheExporterFunc() remotecache.ResolveCacheExporterFunc {
@@ -85,7 +85,7 @@ func (ce *exporter) ExportForLayers(ctx context.Context, layers []digest.Digest)
 	}
 
 	if len(cfg.Layers) == 0 {
-		logrus.Warn("failed to match any cache with layers")
+		bklog.G(ctx).Warn("failed to match any cache with layers")
 		return nil, nil
 	}
 

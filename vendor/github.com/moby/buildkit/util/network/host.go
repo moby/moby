@@ -35,3 +35,7 @@ func (h *hostNS) Set(s *specs.Spec) error {
 func (h *hostNS) Close() error {
 	return nil
 }
+
+func (h *hostNS) Sample() (*Sample, error) {
+	return nil, nil
+}

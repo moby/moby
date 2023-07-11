@@ -7,6 +7,7 @@ import (
 // Config provides containerd configuration data for the server
 type Config struct {
 	Debug bool `toml:"debug"`
+	Trace bool `toml:"trace"`
 
 	// Root is the path to a directory where buildkit will store persistent data
 	Root string `toml:"root"`
@@ -47,7 +48,7 @@ type TLSConfig struct {
 
 type GCConfig struct {
 	GC            *bool      `toml:"gc"`
-	GCKeepStorage int64      `toml:"gckeepstorage"`
+	GCKeepStorage DiskSpace  `toml:"gckeepstorage"`
 	GCPolicy      []GCPolicy `toml:"gcpolicy"`
 }
 
@@ -114,10 +115,10 @@ type ContainerdConfig struct {
 }
 
 type GCPolicy struct {
-	All          bool     `toml:"all"`
-	KeepBytes    int64    `toml:"keepBytes"`
-	KeepDuration int64    `toml:"keepDuration"`
-	Filters      []string `toml:"filters"`
+	All          bool      `toml:"all"`
+	KeepBytes    DiskSpace `toml:"keepBytes"`
+	KeepDuration Duration  `toml:"keepDuration"`
+	Filters      []string  `toml:"filters"`
 }
 
 type DNSConfig struct {
@@ -127,6 +128,6 @@ type DNSConfig struct {
 }
 
 type HistoryConfig struct {
-	MaxAge     int64 `toml:"maxAge"`
-	MaxEntries int64 `toml:"maxEntries"`
+	MaxAge     Duration `toml:"maxAge"`
+	MaxEntries int64    `toml:"maxEntries"`
 }

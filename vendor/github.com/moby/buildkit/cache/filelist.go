@@ -20,7 +20,7 @@ const keyFileList = "filelist"
 // are in the tar stream (AUFS whiteout format). If the reference does not have a
 // a blob associated with it, the list is empty.
 func (sr *immutableRef) FileList(ctx context.Context, s session.Group) ([]string, error) {
-	res, err := g.Do(ctx, fmt.Sprintf("filelist-%s", sr.ID()), func(ctx context.Context) (interface{}, error) {
+	return gFileList.Do(ctx, fmt.Sprintf("filelist-%s", sr.ID()), func(ctx context.Context) ([]string, error) {
 		dt, err := sr.GetExternal(keyFileList)
 		if err == nil && dt != nil {
 			var files []string
@@ -80,11 +80,4 @@ func (sr *immutableRef) FileList(ctx context.Context, s session.Group) ([]string
 		}
 		return files, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	if res == nil {
-		return nil, nil
-	}
-	return res.([]string), nil
 }

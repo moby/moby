@@ -96,7 +96,7 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 		}
 		if mount.ReadOnly {
 			mountOpts = append(mountOpts, llb.Readonly)
-		} else if mount.Type == instructions.MountTypeBind && opt.llbCaps.Supports(pb.CapExecMountBindReadWriteNoOuput) == nil {
+		} else if mount.Type == instructions.MountTypeBind && opt.llbCaps.Supports(pb.CapExecMountBindReadWriteNoOutput) == nil {
 			mountOpts = append(mountOpts, llb.ForceNoOutput)
 		}
 		if mount.Type == instructions.MountTypeCache {

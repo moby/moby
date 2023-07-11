@@ -265,7 +265,7 @@ func EnumSlice(val, sep string, enumValMap map[string]int32) ([]int32, error) {
 }
 
 /*
-	Support fot google.protobuf.wrappers on top of primitive types
+	Support for google.protobuf.wrappers on top of primitive types
 */
 
 // StringValue well-known type support as wrapper around string type

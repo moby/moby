@@ -15,6 +15,7 @@ import (
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
@@ -22,13 +23,12 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	actionscache "github.com/tonistiigi/go-actions-cache"
 	"golang.org/x/sync/errgroup"
 )
 
 func init() {
-	actionscache.Log = logrus.Debugf
+	actionscache.Log = bklog.L.Debugf
 }
 
 const (
@@ -92,7 +92,7 @@ func NewExporter(c *Config) (remotecache.Exporter, error) {
 }
 
 func (*exporter) Name() string {
-	return "exporting to GitHub cache"
+	return "exporting to GitHub Actions Cache"
 }
 
 func (ce *exporter) Config() remotecache.Config {

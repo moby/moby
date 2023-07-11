@@ -24,7 +24,7 @@ type DefinitionOp struct {
 	platforms  map[digest.Digest]*ocispecs.Platform
 	dgst       digest.Digest
 	index      pb.OutputIndex
-	inputCache map[digest.Digest][]*DefinitionOp
+	inputCache *sync.Map // shared and written among DefinitionOps so avoid race on this map using sync.Map
 }
 
 // NewDefinitionOp returns a new operation from a marshalled definition.
@@ -70,7 +70,7 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 				state := NewState(op)
 				st = &state
 			}
-			sourceMaps[i] = NewSourceMap(st, info.Filename, info.Data)
+			sourceMaps[i] = NewSourceMap(st, info.Filename, info.Language, info.Data)
 		}
 
 		for dgst, locs := range def.Source.Locations {
@@ -101,7 +101,7 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		platforms:  platforms,
 		dgst:       dgst,
 		index:      index,
-		inputCache: make(map[digest.Digest][]*DefinitionOp),
+		inputCache: new(sync.Map),
 	}, nil
 }
 
@@ -180,6 +180,18 @@ func (d *DefinitionOp) Output() Output {
 	}}
 }
 
+func (d *DefinitionOp) loadInputCache(dgst digest.Digest) ([]*DefinitionOp, bool) {
+	a, ok := d.inputCache.Load(dgst.String())
+	if ok {
+		return a.([]*DefinitionOp), true
+	}
+	return nil, false
+}
+
+func (d *DefinitionOp) storeInputCache(dgst digest.Digest, c []*DefinitionOp) {
+	d.inputCache.Store(dgst.String(), c)
+}
+
 func (d *DefinitionOp) Inputs() []Output {
 	if d.dgst == "" {
 		return nil
@@ -195,7 +207,7 @@ func (d *DefinitionOp) Inputs() []Output {
 	for _, input := range op.Inputs {
 		var vtx *DefinitionOp
 		d.mu.Lock()
-		if existingIndexes, ok := d.inputCache[input.Digest]; ok {
+		if existingIndexes, ok := d.loadInputCache(input.Digest); ok {
 			if int(input.Index) < len(existingIndexes) && existingIndexes[input.Index] != nil {
 				vtx = existingIndexes[input.Index]
 			}
@@ -211,14 +223,14 @@ func (d *DefinitionOp) Inputs() []Output {
 				inputCache: d.inputCache,
 				sources:    d.sources,
 			}
-			existingIndexes := d.inputCache[input.Digest]
+			existingIndexes, _ := d.loadInputCache(input.Digest)
 			indexDiff := int(input.Index) - len(existingIndexes)
 			if indexDiff >= 0 {
 				// make room in the slice for the new index being set
 				existingIndexes = append(existingIndexes, make([]*DefinitionOp, indexDiff+1)...)
 			}
 			existingIndexes[input.Index] = vtx
-			d.inputCache[input.Digest] = existingIndexes
+			d.storeInputCache(input.Digest, existingIndexes)
 		}
 		d.mu.Unlock()
 

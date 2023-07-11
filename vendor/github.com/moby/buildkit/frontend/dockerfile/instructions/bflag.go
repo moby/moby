@@ -156,14 +156,7 @@ func (bf *BFlags) Parse() error {
 			return nil
 		}
 
-		arg = arg[2:]
-		value := ""
-
-		index := strings.Index(arg, "=")
-		if index >= 0 {
-			value = arg[index+1:]
-			arg = arg[:index]
-		}
+		arg, value, hasValue := strings.Cut(arg[2:], "=")
 
 		flag, ok := bf.flags[arg]
 		if !ok {
@@ -180,27 +173,27 @@ func (bf *BFlags) Parse() error {
 		switch flag.flagType {
 		case boolType:
 			// value == "" is only ok if no "=" was specified
-			if index >= 0 && value == "" {
+			if hasValue && value == "" {
 				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 
-			lower := strings.ToLower(value)
-			if lower == "" {
+			switch strings.ToLower(value) {
+			case "true", "":
 				flag.Value = "true"
-			} else if lower == "true" || lower == "false" {
-				flag.Value = lower
-			} else {
+			case "false":
+				flag.Value = "false"
+			default:
 				return errors.Errorf("expecting boolean value for flag %s, not: %s", arg, value)
 			}
 
 		case stringType:
-			if index < 0 {
+			if !hasValue {
 				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.Value = value
 
 		case stringsType:
-			if index < 0 {
+			if !hasValue {
 				return errors.Errorf("missing a value on flag: %s", arg)
 			}
 			flag.StringValues = append(flag.StringValues, value)

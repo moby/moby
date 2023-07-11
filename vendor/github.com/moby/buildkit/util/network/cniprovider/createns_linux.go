@@ -4,10 +4,11 @@
 package cniprovider
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
-	"unsafe"
 
 	"github.com/containerd/containerd/oci"
 	"github.com/moby/buildkit/util/bklog"
@@ -38,7 +39,16 @@ func cleanOldNamespaces(c *cniProvider) {
 	}()
 }
 
-func createNetNS(c *cniProvider, id string) (string, error) {
+// unshareAndMount needs to be called in a separate thread
+func unshareAndMountNetNS(target string) error {
+	if err := syscall.Unshare(syscall.CLONE_NEWNET); err != nil {
+		return err
+	}
+
+	return syscall.Mount(fmt.Sprintf("/proc/self/task/%d/ns/net", syscall.Gettid()), target, "", syscall.MS_BIND, "")
+}
+
+func createNetNS(c *cniProvider, id string) (_ string, err error) {
 	nsPath := filepath.Join(c.root, "net/cni", id)
 	if err := os.MkdirAll(filepath.Dir(nsPath), 0700); err != nil {
 		return "", err
@@ -46,55 +56,34 @@ func createNetNS(c *cniProvider, id string) (string, error) {
 
 	f, err := os.Create(nsPath)
 	if err != nil {
-		deleteNetNS(nsPath)
 		return "", err
 	}
-	if err := f.Close(); err != nil {
-		deleteNetNS(nsPath)
-		return "", err
-	}
-	procNetNSBytes, err := syscall.BytePtrFromString("/proc/self/ns/net")
-	if err != nil {
-		deleteNetNS(nsPath)
-		return "", err
-	}
-	nsPathBytes, err := syscall.BytePtrFromString(nsPath)
-	if err != nil {
-		deleteNetNS(nsPath)
-		return "", err
-	}
-	beforeFork()
-
-	pid, _, errno := syscall.RawSyscall6(syscall.SYS_CLONE, uintptr(syscall.SIGCHLD)|unix.CLONE_NEWNET, 0, 0, 0, 0, 0)
-	if errno != 0 {
-		afterFork()
-		deleteNetNS(nsPath)
-		return "", errno
-	}
-
-	if pid != 0 {
-		afterFork()
-		var ws unix.WaitStatus
-		_, err = unix.Wait4(int(pid), &ws, 0, nil)
-		for err == syscall.EINTR {
-			_, err = unix.Wait4(int(pid), &ws, 0, nil)
-		}
-
+	defer func() {
 		if err != nil {
 			deleteNetNS(nsPath)
-			return "", errors.Wrapf(err, "failed to find pid=%d process", pid)
 		}
-		errno = syscall.Errno(ws.ExitStatus())
-		if errno != 0 {
-			deleteNetNS(nsPath)
-			return "", errors.Wrapf(errno, "failed to mount %s (pid=%d)", nsPath, pid)
-		}
-		return nsPath, nil
+	}()
+	if err := f.Close(); err != nil {
+		return "", err
 	}
-	afterForkInChild()
-	_, _, errno = syscall.RawSyscall6(syscall.SYS_MOUNT, uintptr(unsafe.Pointer(procNetNSBytes)), uintptr(unsafe.Pointer(nsPathBytes)), 0, uintptr(unix.MS_BIND), 0, 0)
-	syscall.RawSyscall(syscall.SYS_EXIT, uintptr(errno), 0, 0)
-	panic("unreachable")
+
+	errCh := make(chan error)
+
+	go func() {
+		defer close(errCh)
+		runtime.LockOSThread()
+
+		if err := unshareAndMountNetNS(nsPath); err != nil {
+			errCh <- err
+		}
+
+		// we leave the thread locked so go runtime terminates the thread
+	}()
+
+	if err := <-errCh; err != nil {
+		return "", err
+	}
+	return nsPath, nil
 }
 
 func setNetNS(s *specs.Spec, nsPath string) error {

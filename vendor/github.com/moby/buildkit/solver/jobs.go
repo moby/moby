@@ -342,6 +342,13 @@ func (jl *Solver) loadUnlocked(v, parent Vertex, j *Job, cache map[Vertex]Vertex
 	// if same vertex is already loaded without cache just use that
 	st, ok := jl.actives[dgstWithoutCache]
 
+	if ok {
+		// When matching an existing active vertext by dgstWithoutCache, set v to the
+		// existing active vertex, as otherwise the original vertex will use an
+		// incorrect digest and can incorrectly delete it while it is still in use.
+		v = st.vtx
+	}
+
 	if !ok {
 		st, ok = jl.actives[dgst]
 
@@ -533,6 +540,8 @@ func (wp *withProvenance) WalkProvenance(ctx context.Context, f func(ProvenanceP
 	if wp.j == nil {
 		return nil
 	}
+	wp.j.list.mu.RLock()
+	defer wp.j.list.mu.RUnlock()
 	m := map[digest.Digest]struct{}{}
 	return wp.j.walkProvenance(ctx, wp.e, f, m)
 }
@@ -652,9 +661,11 @@ type execRes struct {
 }
 
 type sharedOp struct {
-	resolver ResolveOpFunc
-	st       *state
-	g        flightcontrol.Group
+	resolver  ResolveOpFunc
+	st        *state
+	gDigest   flightcontrol.Group[digest.Digest]
+	gCacheRes flightcontrol.Group[[]*CacheMap]
+	gExecRes  flightcontrol.Group[*execRes]
 
 	opOnce     sync.Once
 	op         Op
@@ -679,7 +690,18 @@ func (s *sharedOp) IgnoreCache() bool {
 }
 
 func (s *sharedOp) Cache() CacheManager {
-	return s.st.combinedCacheManager()
+	return &cacheWithCacheOpts{s.st.combinedCacheManager(), s.st}
+}
+
+type cacheWithCacheOpts struct {
+	CacheManager
+	st *state
+}
+
+func (c cacheWithCacheOpts) Records(ctx context.Context, ck *CacheKey) ([]*CacheRecord, error) {
+	// Allow Records accessing to cache opts through ctx. This enable to use remote provider
+	// during checking the cache existence.
+	return c.CacheManager.Records(withAncestorCacheOpts(ctx, c.st), ck)
 }
 
 func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, error) {
@@ -705,7 +727,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
 	flightControlKey := fmt.Sprintf("slow-compute-%d", index)
-	key, err := s.g.Do(ctx, flightControlKey, func(ctx context.Context) (interface{}, error) {
+	key, err := s.gDigest.Do(ctx, flightControlKey, func(ctx context.Context) (digest.Digest, error) {
 		s.slowMu.Lock()
 		// TODO: add helpers for these stored values
 		if res, ok := s.slowCacheRes[index]; ok {
@@ -714,7 +736,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 		}
 		if err := s.slowCacheErr[index]; err != nil {
 			s.slowMu.Unlock()
-			return nil, err
+			return "", err
 		}
 		s.slowMu.Unlock()
 
@@ -722,7 +744,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 		if p != nil {
 			st := s.st.solver.getState(s.st.vtx.Inputs()[index])
 			if st == nil {
-				return nil, errors.Errorf("failed to get state for index %d on %v", index, s.st.vtx.Name())
+				return "", errors.Errorf("failed to get state for index %d on %v", index, s.st.vtx.Name())
 			}
 			ctx2 := progress.WithProgress(ctx, st.mpw)
 			if st.mspan.Span != nil {
@@ -773,7 +795,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessF
 		notifyCompleted(err, false)
 		return "", err
 	}
-	return key.(digest.Digest), nil
+	return key, nil
 }
 
 func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp, err error) {
@@ -786,7 +808,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 		return nil, err
 	}
 	flightControlKey := fmt.Sprintf("cachemap-%d", index)
-	res, err := s.g.Do(ctx, flightControlKey, func(ctx context.Context) (ret interface{}, retErr error) {
+	res, err := s.gCacheRes.Do(ctx, flightControlKey, func(ctx context.Context) (ret []*CacheMap, retErr error) {
 		if s.cacheRes != nil && s.cacheDone || index < len(s.cacheRes) {
 			return s.cacheRes, nil
 		}
@@ -842,11 +864,11 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 		return nil, err
 	}
 
-	if len(res.([]*CacheMap)) <= index {
+	if len(res) <= index {
 		return s.CacheMap(ctx, index)
 	}
 
-	return &cacheMapResp{CacheMap: res.([]*CacheMap)[index], complete: s.cacheDone}, nil
+	return &cacheMapResp{CacheMap: res[index], complete: s.cacheDone}, nil
 }
 
 func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result, exporters []ExportableCacheKey, err error) {
@@ -859,7 +881,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 		return nil, nil, err
 	}
 	flightControlKey := "exec"
-	res, err := s.g.Do(ctx, flightControlKey, func(ctx context.Context) (ret interface{}, retErr error) {
+	res, err := s.gExecRes.Do(ctx, flightControlKey, func(ctx context.Context) (ret *execRes, retErr error) {
 		if s.execDone {
 			if s.execErr != nil {
 				return nil, s.execErr
@@ -921,8 +943,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 	if res == nil || err != nil {
 		return nil, nil, err
 	}
-	r := res.(*execRes)
-	return unwrapShared(r.execRes), r.execExporters, nil
+	return unwrapShared(res.execRes), res.execExporters, nil
 }
 
 func (s *sharedOp) getOp() (Op, error) {

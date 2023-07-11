@@ -52,11 +52,11 @@ func ForwardResponseStream(ctx context.Context, mux *ServeMux, marshaler Marshal
 			return
 		}
 		if err != nil {
-			handleForwardResponseStreamError(ctx, wroteHeader, marshaler, w, req, mux, err)
+			handleForwardResponseStreamError(ctx, wroteHeader, marshaler, w, req, mux, err, delimiter)
 			return
 		}
 		if err := handleForwardResponseOptions(ctx, w, resp, opts); err != nil {
-			handleForwardResponseStreamError(ctx, wroteHeader, marshaler, w, req, mux, err)
+			handleForwardResponseStreamError(ctx, wroteHeader, marshaler, w, req, mux, err, delimiter)
 			return
 		}
 
@@ -82,7 +82,7 @@ func ForwardResponseStream(ctx context.Context, mux *ServeMux, marshaler Marshal
 
 		if err != nil {
 			grpclog.Infof("Failed to marshal response chunk: %v", err)
-			handleForwardResponseStreamError(ctx, wroteHeader, marshaler, w, req, mux, err)
+			handleForwardResponseStreamError(ctx, wroteHeader, marshaler, w, req, mux, err, delimiter)
 			return
 		}
 		if _, err = w.Write(buf); err != nil {
@@ -200,7 +200,7 @@ func handleForwardResponseOptions(ctx context.Context, w http.ResponseWriter, re
 	return nil
 }
 
-func handleForwardResponseStreamError(ctx context.Context, wroteHeader bool, marshaler Marshaler, w http.ResponseWriter, req *http.Request, mux *ServeMux, err error) {
+func handleForwardResponseStreamError(ctx context.Context, wroteHeader bool, marshaler Marshaler, w http.ResponseWriter, req *http.Request, mux *ServeMux, err error, delimiter []byte) {
 	st := mux.streamErrorHandler(ctx, err)
 	msg := errorChunk(st)
 	if !wroteHeader {
@@ -214,6 +214,10 @@ func handleForwardResponseStreamError(ctx context.Context, wroteHeader bool, mar
 	}
 	if _, werr := w.Write(buf); werr != nil {
 		grpclog.Infof("Failed to notify error to client: %v", werr)
+		return
+	}
+	if _, derr := w.Write(delimiter); derr != nil {
+		grpclog.Infof("Failed to send delimiter chunk: %v", err)
 		return
 	}
 }

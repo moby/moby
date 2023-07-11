@@ -44,6 +44,10 @@ const (
 	// /etc/hosts for containers created via gateway exec.
 	CapGatewayExecExtraHosts apicaps.CapID = "gateway.exec.extrahosts"
 
+	// CapGatewayExecExtraHosts is the capability to set secrets as env vars for
+	// containers created via gateway exec.
+	CapGatewayExecSecretEnv apicaps.CapID = "gateway.exec.secretenv"
+
 	// CapGatewayExecExtraHosts is the capability to send signals to a process
 	// created via gateway exec.
 	CapGatewayExecSignals apicaps.CapID = "gateway.exec.signals"
@@ -175,6 +179,13 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapGatewayExecExtraHosts,
 		Name:    "gateway exec extra-hosts",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapGatewayExecSecretEnv,
+		Name:    "gateway exec secret env",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

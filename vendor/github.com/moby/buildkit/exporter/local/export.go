@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/moby/buildkit/cache"
@@ -18,10 +19,6 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
-)
-
-const (
-	keyAttestationPrefix = "attestation-prefix"
 )
 
 type Opt struct {
@@ -39,23 +36,12 @@ func New(opt Opt) (exporter.Exporter, error) {
 }
 
 func (e *localExporter) Resolve(ctx context.Context, opt map[string]string) (exporter.ExporterInstance, error) {
-	tm, _, err := epoch.ParseExporterAttrs(opt)
-	if err != nil {
-		return nil, err
-	}
-
 	i := &localExporterInstance{
 		localExporter: e,
-		opts: CreateFSOpts{
-			Epoch: tm,
-		},
 	}
-
-	for k, v := range opt {
-		switch k {
-		case keyAttestationPrefix:
-			i.opts.AttestationPrefix = v
-		}
+	_, err := i.opts.Load(opt)
+	if err != nil {
+		return nil, err
 	}
 
 	return i, nil
@@ -107,6 +93,9 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 	now := time.Now().Truncate(time.Second)
 
+	visitedPath := map[string]string{}
+	var visitedMu sync.Mutex
+
 	export := func(ctx context.Context, k string, ref cache.ImmutableRef, attestations []exporter.Attestation) func() error {
 		return func() error {
 			outputFS, cleanup, err := CreateFS(ctx, sessionID, k, ref, attestations, now, e.opts)
@@ -117,20 +106,43 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 				defer cleanup()
 			}
 
+			if !e.opts.PlatformSplit {
+				// check for duplicate paths
+				err = outputFS.Walk(ctx, func(p string, fi os.FileInfo, err error) error {
+					if fi.IsDir() {
+						return nil
+					}
+					if err != nil && !errors.Is(err, os.ErrNotExist) {
+						return err
+					}
+					visitedMu.Lock()
+					defer visitedMu.Unlock()
+					if vp, ok := visitedPath[p]; ok {
+						return errors.Errorf("cannot overwrite %s from %s with %s when split option is disabled", p, vp, k)
+					}
+					visitedPath[p] = k
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+
 			lbl := "copying files"
 			if isMap {
 				lbl += " " + k
-				st := fstypes.Stat{
-					Mode: uint32(os.ModeDir | 0755),
-					Path: strings.Replace(k, "/", "_", -1),
-				}
-				if e.opts.Epoch != nil {
-					st.ModTime = e.opts.Epoch.UnixNano()
-				}
-
-				outputFS, err = fsutil.SubDirFS([]fsutil.Dir{{FS: outputFS, Stat: st}})
-				if err != nil {
-					return err
+				if e.opts.PlatformSplit {
+					st := fstypes.Stat{
+						Mode: uint32(os.ModeDir | 0755),
+						Path: strings.Replace(k, "/", "_", -1),
+					}
+					if e.opts.Epoch != nil {
+						st.ModTime = e.opts.Epoch.UnixNano()
+					}
+					outputFS, err = fsutil.SubDirFS([]fsutil.Dir{{FS: outputFS, Stat: st}})
+					if err != nil {
+						return err
+					}
 				}
 			}
 

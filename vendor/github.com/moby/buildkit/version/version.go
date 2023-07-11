@@ -17,13 +17,8 @@
 
 package version
 
-import (
-	"regexp"
-	"sync"
-)
-
 const (
-	defaultVersion = "0.0.0+unknown"
+	defaultVersion = "v0.0.0+unknown"
 )
 
 var (
@@ -37,26 +32,3 @@ var (
 	// the program at linking time.
 	Revision = ""
 )
-
-var (
-	reRelease *regexp.Regexp
-	reDev     *regexp.Regexp
-	reOnce    sync.Once
-)
-
-func UserAgent() string {
-	uaVersion := defaultVersion
-
-	reOnce.Do(func() {
-		reRelease = regexp.MustCompile(`^(v[0-9]+\.[0-9]+)\.[0-9]+$`)
-		reDev = regexp.MustCompile(`^(v[0-9]+\.[0-9]+)\.[0-9]+`)
-	})
-
-	if matches := reRelease.FindAllStringSubmatch(Version, 1); len(matches) > 0 {
-		uaVersion = matches[0][1]
-	} else if matches := reDev.FindAllStringSubmatch(Version, 1); len(matches) > 0 {
-		uaVersion = matches[0][1] + "-dev"
-	}
-
-	return "buildkit/" + uaVersion
-}

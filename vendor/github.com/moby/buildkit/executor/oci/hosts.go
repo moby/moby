@@ -20,9 +20,9 @@ func GetHostsFile(ctx context.Context, stateDir string, extraHosts []executor.Ho
 		return makeHostsFile(stateDir, extraHosts, idmap, hostname)
 	}
 
-	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (interface{}, error) {
+	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (struct{}, error) {
 		_, _, err := makeHostsFile(stateDir, nil, idmap, hostname)
-		return nil, err
+		return struct{}{}, err
 	})
 	if err != nil {
 		return "", nil, err

@@ -7,6 +7,7 @@ import (
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -112,12 +113,20 @@ func (e *Engine) evaluatePolicies(ctx context.Context, srcOp *pb.SourceOp) (bool
 //
 // For Allow/Deny rules, the last matching rule wins.
 // E.g. `ALLOW foo; DENY foo` will deny `foo`, `DENY foo; ALLOW foo` will allow `foo`.
-func (e *Engine) evaluatePolicy(ctx context.Context, pol *spb.Policy, srcOp *pb.SourceOp) (bool, error) {
+func (e *Engine) evaluatePolicy(ctx context.Context, pol *spb.Policy, srcOp *pb.SourceOp) (retMut bool, retErr error) {
 	ident := srcOp.GetIdentifier()
 
-	ctx = bklog.WithLogger(ctx, bklog.G(ctx).WithFields(map[string]interface{}{
-		"ref": ident,
-	}))
+	ctx = bklog.WithLogger(ctx, bklog.G(ctx).WithField("ref", ident))
+	defer func() {
+		if retMut || retErr != nil {
+			bklog.G(ctx).WithFields(
+				logrus.Fields{
+					"mutated":       retMut,
+					"updated":       srcOp.GetIdentifier(),
+					logrus.ErrorKey: retErr,
+				}).Debug("Evaluated source policy")
+		}
+	}()
 
 	var deny bool
 	for _, rule := range pol.Rules {

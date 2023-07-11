@@ -31,3 +31,7 @@ func (h *noneNS) Set(s *specs.Spec) error {
 func (h *noneNS) Close() error {
 	return nil
 }
+
+func (h *noneNS) Sample() (*Sample, error) {
+	return nil, nil
+}

@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
@@ -13,17 +12,19 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var valuesKeyRegexp = regexp.MustCompile(`^(.*)\[(.*)\]$`)
 
-var currentQueryParser QueryParameterParser = &defaultQueryParser{}
+var currentQueryParser QueryParameterParser = &DefaultQueryParser{}
 
 // QueryParameterParser defines interface for all query parameter parsers
 type QueryParameterParser interface {
@@ -36,11 +37,15 @@ func PopulateQueryParameters(msg proto.Message, values url.Values, filter *utili
 	return currentQueryParser.Parse(msg, values, filter)
 }
 
-type defaultQueryParser struct{}
+// DefaultQueryParser is a QueryParameterParser which implements the default
+// query parameters parsing behavior.
+//
+// See https://github.com/grpc-ecosystem/grpc-gateway/issues/2632 for more context.
+type DefaultQueryParser struct{}
 
 // Parse populates "values" into "msg".
 // A value is ignored if its key starts with one of the elements in "filter".
-func (*defaultQueryParser) Parse(msg proto.Message, values url.Values, filter *utilities.DoubleArray) error {
+func (*DefaultQueryParser) Parse(msg proto.Message, values url.Values, filter *utilities.DoubleArray) error {
 	for key, values := range values {
 		match := valuesKeyRegexp.FindStringSubmatch(key)
 		if len(match) == 3 {
@@ -234,7 +239,7 @@ func parseField(fieldDescriptor protoreflect.FieldDescriptor, value string) (pro
 	case protoreflect.StringKind:
 		return protoreflect.ValueOfString(value), nil
 	case protoreflect.BytesKind:
-		v, err := base64.URLEncoding.DecodeString(value)
+		v, err := Bytes(value)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
@@ -250,18 +255,12 @@ func parseMessage(msgDescriptor protoreflect.MessageDescriptor, value string) (p
 	var msg proto.Message
 	switch msgDescriptor.FullName() {
 	case "google.protobuf.Timestamp":
-		if value == "null" {
-			break
-		}
 		t, err := time.Parse(time.RFC3339Nano, value)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
 		msg = timestamppb.New(t)
 	case "google.protobuf.Duration":
-		if value == "null" {
-			break
-		}
 		d, err := time.ParseDuration(value)
 		if err != nil {
 			return protoreflect.Value{}, err
@@ -312,7 +311,7 @@ func parseMessage(msgDescriptor protoreflect.MessageDescriptor, value string) (p
 	case "google.protobuf.StringValue":
 		msg = &wrapperspb.StringValue{Value: value}
 	case "google.protobuf.BytesValue":
-		v, err := base64.URLEncoding.DecodeString(value)
+		v, err := Bytes(value)
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
@@ -321,6 +320,20 @@ func parseMessage(msgDescriptor protoreflect.MessageDescriptor, value string) (p
 		fm := &field_mask.FieldMask{}
 		fm.Paths = append(fm.Paths, strings.Split(value, ",")...)
 		msg = fm
+	case "google.protobuf.Value":
+		var v structpb.Value
+		err := protojson.Unmarshal([]byte(value), &v)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		msg = &v
+	case "google.protobuf.Struct":
+		var v structpb.Struct
+		err := protojson.Unmarshal([]byte(value), &v)
+		if err != nil {
+			return protoreflect.Value{}, err
+		}
+		msg = &v
 	default:
 		return protoreflect.Value{}, fmt.Errorf("unsupported message type: %q", string(msgDescriptor.FullName()))
 	}
