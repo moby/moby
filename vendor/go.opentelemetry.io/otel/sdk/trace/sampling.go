@@ -53,17 +53,17 @@ type SamplingParameters struct {
 // SamplingDecision indicates whether a span is dropped, recorded and/or sampled.
 type SamplingDecision uint8
 
-// Valid sampling decisions
+// Valid sampling decisions.
 const (
-	// Drop will not record the span and all attributes/events will be dropped
+	// Drop will not record the span and all attributes/events will be dropped.
 	Drop SamplingDecision = iota
 
 	// Record indicates the span's `IsRecording() == true`, but `Sampled` flag
-	// *must not* be set
+	// *must not* be set.
 	RecordOnly
 
 	// RecordAndSample has span's `IsRecording() == true` and `Sampled` flag
-	// *must* be set
+	// *must* be set.
 	RecordAndSample
 )
 
@@ -81,7 +81,7 @@ type traceIDRatioSampler struct {
 
 func (ts traceIDRatioSampler) ShouldSample(p SamplingParameters) SamplingResult {
 	psc := trace.SpanContextFromContext(p.ParentContext)
-	x := binary.BigEndian.Uint64(p.TraceID[0:8]) >> 1
+	x := binary.BigEndian.Uint64(p.TraceID[8:16]) >> 1
 	if x < ts.traceIDUpperBound {
 		return SamplingResult{
 			Decision:   RecordAndSample,
@@ -102,6 +102,7 @@ func (ts traceIDRatioSampler) Description() string {
 // always sample. Fractions < 0 are treated as zero. To respect the
 // parent trace's `SampledFlag`, the `TraceIDRatioBased` sampler should be used
 // as a delegate of a `Parent` sampler.
+//
 //nolint:revive // revive complains about stutter of `trace.TraceIDRatioBased`
 func TraceIDRatioBased(fraction float64) Sampler {
 	if fraction >= 1 {
@@ -162,10 +163,10 @@ func NeverSample() Sampler {
 // the root(Sampler) is used to make sampling decision. If the span has
 // a parent, depending on whether the parent is remote and whether it
 // is sampled, one of the following samplers will apply:
-// - remoteParentSampled(Sampler) (default: AlwaysOn)
-// - remoteParentNotSampled(Sampler) (default: AlwaysOff)
-// - localParentSampled(Sampler) (default: AlwaysOn)
-// - localParentNotSampled(Sampler) (default: AlwaysOff)
+//   - remoteParentSampled(Sampler) (default: AlwaysOn)
+//   - remoteParentNotSampled(Sampler) (default: AlwaysOff)
+//   - localParentSampled(Sampler) (default: AlwaysOn)
+//   - localParentNotSampled(Sampler) (default: AlwaysOff)
 func ParentBased(root Sampler, samplers ...ParentBasedSamplerOption) Sampler {
 	return parentBased{
 		root:   root,

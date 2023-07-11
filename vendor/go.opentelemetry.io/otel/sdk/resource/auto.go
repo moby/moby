@@ -27,7 +27,7 @@ var (
 	ErrPartialResource = errors.New("partial resource")
 )
 
-// Detector detects OpenTelemetry resource information
+// Detector detects OpenTelemetry resource information.
 type Detector interface {
 	// DO NOT CHANGE: any modification will not be backwards compatible and
 	// must never be done outside of a new major release.

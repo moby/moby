@@ -2,35 +2,28 @@
 
 ## Semantic Convention Generation
 
-If a new version of the OpenTelemetry Specification has been released it will be necessary to generate a new
-semantic convention package from the YAML definitions in the specification repository. There is a `semconvgen` utility
-installed by `make tools` that can be used to generate the a package with the name matching the specification
-version number under the `semconv` package. This will ideally be done soon after the specification release is
-tagged. Make sure that the specification repo contains a checkout of the the latest tagged release so that the
-generated files match the released semantic conventions.
+New versions of the [OpenTelemetry specification] mean new versions of the `semconv` package need to be generated.
+The `semconv-generate` make target is used for this.
 
-There are currently two categories of semantic conventions that must be generated, `resource` and `trace`.
+1. Checkout a local copy of the [OpenTelemetry specification] to the desired release tag.
+2. Pull the latest `otel/semconvgen` image: `docker pull otel/semconvgen:latest`
+3. Run the `make semconv-generate ...` target from this repository.
 
+For example,
+
+```sh
+export TAG="v1.13.0" # Change to the release version you are generating.
+export OTEL_SPEC_REPO="/absolute/path/to/opentelemetry-specification"
+git -C "$OTEL_SPEC_REPO" checkout "tags/$TAG" -b "$TAG"
+docker pull otel/semconvgen:latest
+make semconv-generate # Uses the exported TAG and OTEL_SPEC_REPO.
 ```
-.tools/semconvgen -i /path/to/specification/repo/semantic_conventions/resource -t semconv/template.j2
-.tools/semconvgen -i /path/to/specification/repo/semantic_conventions/trace -t semconv/template.j2
-```
 
-Using default values for all options other than `input` will result in using the `template.j2` template to
-generate `resource.go` and `trace.go` in `/path/to/otelgo/repo/semconv/<version>`.
+This should create a new sub-package of [`semconv`](./semconv).
+Ensure things look correct before submitting a pull request to include the addition.
 
-There are several ancillary files that are not generated and should be copied into the new package from the
-prior package, with updates made as appropriate to canonical import path statements and constant values.
-These files include:
-
-* doc.go
-* exception.go
-* http(_test)?.go
-* schema.go
-
-Uses of the previous schema version in this repository should be updated to use the newly generated version.
-No tooling for this exists at present, so use find/replace in your editor of choice or craft a `grep | sed`
-pipeline if you like living on the edge.
+**Note**, the generation code was changed to generate versions >= 1.13.
+To generate versions prior to this, checkout the old release of this repository (i.e. [2fe8861](https://github.com/open-telemetry/opentelemetry-go/commit/2fe8861a24e20088c065b116089862caf9e3cd8b)).
 
 ## Pre-Release
 
@@ -130,3 +123,5 @@ Once verified be sure to [make a release for the `contrib` repository](https://g
 
 Update [the documentation](./website_docs) for [the OpenTelemetry website](https://opentelemetry.io/docs/go/).
 Importantly, bump any package versions referenced to be the latest one you just released and ensure all code examples still compile and are accurate.
+
+[OpenTelemetry specification]: https://github.com/open-telemetry/opentelemetry-specification

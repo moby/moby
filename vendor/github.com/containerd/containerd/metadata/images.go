@@ -31,6 +31,7 @@ import (
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/metadata/boltutil"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/pkg/epoch"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	bolt "go.etcd.io/bbolt"
@@ -144,7 +145,15 @@ func (s *imageStore) Create(ctx context.Context, image images.Image) (images.Ima
 			return fmt.Errorf("image %q: %w", image.Name, errdefs.ErrAlreadyExists)
 		}
 
-		image.CreatedAt = time.Now().UTC()
+		// The value of `image.CreatedAt` passed from the caller is discarded here.
+		// Ideally we should return an error when the value is already set.
+		// However, as `image.CreatedAt` is defined as a non-pointer `time.Time`, we can't compare it to nil.
+		// And we can't compare it to `time.Time{}` either, as `time.Time{}` is a proper timestamp (1970-01-01 00:00:00).
+		if tm := epoch.FromContext(ctx); tm != nil {
+			image.CreatedAt = tm.UTC()
+		} else {
+			image.CreatedAt = time.Now().UTC()
+		}
 		image.UpdatedAt = image.CreatedAt
 		return writeImage(ibkt, &image)
 	}); err != nil {
@@ -228,7 +237,11 @@ func (s *imageStore) Update(ctx context.Context, image images.Image, fieldpaths 
 		}
 
 		updated.CreatedAt = createdat
-		updated.UpdatedAt = time.Now().UTC()
+		if tm := epoch.FromContext(ctx); tm != nil {
+			updated.UpdatedAt = tm.UTC()
+		} else {
+			updated.UpdatedAt = time.Now().UTC()
+		}
 		return writeImage(ibkt, &updated)
 	}); err != nil {
 		return images.Image{}, err

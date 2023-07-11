@@ -25,6 +25,10 @@ issues:
 
   # Only using / doesn't work due to https://github.com/golangci/golangci-lint/issues/1398.
   exclude-rules:
+    - path: 'cmd[\\/]containerd[\\/]builtins[\\/]'
+      text: "blank-imports:"
+    - path: 'contrib[\\/]fuzz[\\/]'
+      text: "exported: func name will be used as fuzz.Fuzz"
     - path: 'archive[\\/]tarheader[\\/]'
       # conversion is necessary on Linux, unnecessary on macOS
       text: "unnecessary conversion"

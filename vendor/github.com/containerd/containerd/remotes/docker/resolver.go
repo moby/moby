@@ -32,12 +32,12 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker/schema1"
+	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
+	remoteerrors "github.com/containerd/containerd/remotes/errors"
+	"github.com/containerd/containerd/tracing"
 	"github.com/containerd/containerd/version"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context/ctxhttp"
 )
 
 var (
@@ -70,6 +70,9 @@ type Authorizer interface {
 	// unmodified. It may also add an `Authorization` header as
 	//  "bearer <some bearer token>"
 	//  "basic <base64 encoded credentials>"
+	//
+	// It may return remotes/errors.ErrUnexpectedStatus, which for example,
+	// can be used by the caller to find out the status code returned by the registry.
 	Authorize(context.Context, *http.Request) error
 
 	// AddResponses adds a 401 response for the authorizer to consider when
@@ -160,7 +163,8 @@ func NewResolver(options ResolverOptions) remotes.Resolver {
 			images.MediaTypeDockerSchema2Manifest,
 			images.MediaTypeDockerSchema2ManifestList,
 			ocispec.MediaTypeImageManifest,
-			ocispec.MediaTypeImageIndex, "*/*"}, ", "))
+			ocispec.MediaTypeImageIndex, "*/*",
+		}, ", "))
 	} else {
 		resolveHeader["Accept"] = options.Headers["Accept"]
 		delete(options.Headers, "Accept")
@@ -307,11 +311,11 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 				if resp.StatusCode > 399 {
 					// Set firstErr when encountering the first non-404 status code.
 					if firstErr == nil {
-						firstErr = fmt.Errorf("pulling from host %s failed with status code %v: %v", host.Host, u, resp.Status)
+						firstErr = remoteerrors.NewUnexpectedStatusErr(resp)
 					}
 					continue // try another host
 				}
-				return "", ocispec.Descriptor{}, fmt.Errorf("pulling from host %s failed with unexpected status code %v: %v", host.Host, u, resp.Status)
+				return "", ocispec.Descriptor{}, remoteerrors.NewUnexpectedStatusErr(resp)
 			}
 			size := resp.ContentLength
 			contentType := getManifestMediaType(resp)
@@ -348,26 +352,31 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 				if err != nil {
 					return "", ocispec.Descriptor{}, err
 				}
-				defer resp.Body.Close()
 
 				bodyReader := countingReader{reader: resp.Body}
 
 				contentType = getManifestMediaType(resp)
-				if dgst == "" {
+				err = func() error {
+					defer resp.Body.Close()
+					if dgst != "" {
+						_, err = io.Copy(io.Discard, &bodyReader)
+						return err
+					}
+
 					if contentType == images.MediaTypeDockerSchema1Manifest {
 						b, err := schema1.ReadStripSignature(&bodyReader)
 						if err != nil {
-							return "", ocispec.Descriptor{}, err
+							return err
 						}
 
 						dgst = digest.FromBytes(b)
-					} else {
-						dgst, err = digest.FromReader(&bodyReader)
-						if err != nil {
-							return "", ocispec.Descriptor{}, err
-						}
+						return nil
 					}
-				} else if _, err := io.Copy(io.Discard, &bodyReader); err != nil {
+
+					dgst, err = digest.FromReader(&bodyReader)
+					return err
+				}()
+				if err != nil {
 					return "", ocispec.Descriptor{}, err
 				}
 				size = bodyReader.bytesRead
@@ -533,7 +542,7 @@ type request struct {
 
 func (r *request) do(ctx context.Context) (*http.Response, error) {
 	u := r.host.Scheme + "://" + r.host.Host + r.path
-	req, err := http.NewRequest(r.method, u, nil)
+	req, err := http.NewRequestWithContext(ctx, r.method, u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +569,7 @@ func (r *request) do(ctx context.Context) (*http.Response, error) {
 		return nil, fmt.Errorf("failed to authorize: %w", err)
 	}
 
-	var client = &http.Client{}
+	client := &http.Client{}
 	if r.host.Client != nil {
 		*client = *r.host.Client
 	}
@@ -575,11 +584,18 @@ func (r *request) do(ctx context.Context) (*http.Response, error) {
 			return nil
 		}
 	}
-
-	resp, err := ctxhttp.Do(ctx, client, req)
+	_, httpSpan := tracing.StartSpan(
+		ctx,
+		tracing.Name("remotes.docker.resolver", "HTTPRequest"),
+		tracing.WithHTTPRequest(req),
+	)
+	defer httpSpan.End()
+	resp, err := client.Do(req)
 	if err != nil {
+		httpSpan.SetStatus(err)
 		return nil, fmt.Errorf("failed to do request: %w", err)
 	}
+	httpSpan.SetAttributes(tracing.HTTPStatusCodeAttributes(resp.StatusCode)...)
 	log.G(ctx).WithFields(responseFields(resp)).Debug("fetch response received")
 	return resp, nil
 }
@@ -639,7 +655,7 @@ func (r *request) String() string {
 	return r.host.Scheme + "://" + r.host.Host + r.path
 }
 
-func requestFields(req *http.Request) logrus.Fields {
+func requestFields(req *http.Request) log.Fields {
 	fields := map[string]interface{}{
 		"request.method": req.Method,
 	}
@@ -657,10 +673,10 @@ func requestFields(req *http.Request) logrus.Fields {
 		}
 	}
 
-	return logrus.Fields(fields)
+	return fields
 }
 
-func responseFields(resp *http.Response) logrus.Fields {
+func responseFields(resp *http.Response) log.Fields {
 	fields := map[string]interface{}{
 		"response.status": resp.Status,
 	}
@@ -675,7 +691,7 @@ func responseFields(resp *http.Response) logrus.Fields {
 		}
 	}
 
-	return logrus.Fields(fields)
+	return fields
 }
 
 // IsLocalhost checks if the registry host is local.

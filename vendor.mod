@@ -26,7 +26,7 @@ require (
 	github.com/cloudflare/cfssl v1.6.4
 	github.com/container-orchestrated-devices/container-device-interface v0.6.1
 	github.com/containerd/cgroups/v3 v3.0.2
-	github.com/containerd/containerd v1.6.24
+	github.com/containerd/containerd v1.7.6
 	github.com/containerd/continuity v0.4.2
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/typeurl/v2 v2.1.1
@@ -91,12 +91,12 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4
 	go.etcd.io/bbolt v1.3.7
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.29.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.29.0
-	go.opentelemetry.io/otel v1.4.1
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.4.1
-	go.opentelemetry.io/otel/sdk v1.4.1
-	go.opentelemetry.io/otel/trace v1.4.1
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.40.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.40.0
+	go.opentelemetry.io/otel v1.14.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.14.0
+	go.opentelemetry.io/otel/sdk v1.14.0
+	go.opentelemetry.io/otel/trace v1.14.0
 	golang.org/x/mod v0.10.0
 	golang.org/x/net v0.10.0
 	golang.org/x/sync v0.3.0
@@ -105,6 +105,7 @@ require (
 	golang.org/x/time v0.3.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
 	google.golang.org/grpc v1.56.2
+	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
 	resenje.org/singleflight v0.4.0
 )
@@ -113,6 +114,7 @@ require (
 	cloud.google.com/go v0.110.0 // indirect
 	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/longrunning v0.4.1 // indirect
+	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
@@ -155,7 +157,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.7.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
@@ -190,13 +192,12 @@ require (
 	go.etcd.io/etcd/raft/v3 v3.5.6 // indirect
 	go.etcd.io/etcd/server/v3 v3.5.6 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.29.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.4.1 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.4.1 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.4.1 // indirect
-	go.opentelemetry.io/otel/internal/metric v0.27.0 // indirect
-	go.opentelemetry.io/otel/metric v0.27.0 // indirect
-	go.opentelemetry.io/proto/otlp v0.12.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.40.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.14.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.14.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.14.0 // indirect
+	go.opentelemetry.io/otel/metric v0.37.0 // indirect
+	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
@@ -205,7 +206,6 @@ require (
 	golang.org/x/tools v0.8.0 // indirect
 	google.golang.org/api v0.114.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

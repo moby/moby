@@ -17,11 +17,13 @@ package resource // import "go.opentelemetry.io/otel/sdk/resource"
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 const (
@@ -42,10 +44,10 @@ var (
 // builtin.
 type fromEnv struct{}
 
-// compile time assertion that FromEnv implements Detector interface
+// compile time assertion that FromEnv implements Detector interface.
 var _ Detector = fromEnv{}
 
-// Detect collects resources from environment
+// Detect collects resources from environment.
 func (fromEnv) Detect(context.Context) (*Resource, error) {
 	attrs := strings.TrimSpace(os.Getenv(resourceAttrKey))
 	svcName := strings.TrimSpace(os.Getenv(svcNameKey))
@@ -57,7 +59,7 @@ func (fromEnv) Detect(context.Context) (*Resource, error) {
 	var res *Resource
 
 	if svcName != "" {
-		res = NewSchemaless(semconv.ServiceNameKey.String(svcName))
+		res = NewSchemaless(semconv.ServiceName(svcName))
 	}
 
 	r2, err := constructOTResources(attrs)
@@ -88,7 +90,14 @@ func constructOTResources(s string) (*Resource, error) {
 			invalid = append(invalid, p)
 			continue
 		}
-		k, v := strings.TrimSpace(field[0]), strings.TrimSpace(field[1])
+		k := strings.TrimSpace(field[0])
+		v, err := url.QueryUnescape(strings.TrimSpace(field[1]))
+		if err != nil {
+			// Retain original value if decoding fails, otherwise it will be
+			// an empty string.
+			v = field[1]
+			otel.Handle(err)
+		}
 		attrs = append(attrs, attribute.String(k, v))
 	}
 	var err error

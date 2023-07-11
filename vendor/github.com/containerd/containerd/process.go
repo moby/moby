@@ -26,6 +26,7 @@ import (
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/protobuf"
 )
 
 // Process represents a system process
@@ -166,7 +167,7 @@ func (p *process) Wait(ctx context.Context) (<-chan ExitStatus, error) {
 		}
 		c <- ExitStatus{
 			code:     r.ExitStatus,
-			exitedAt: r.ExitedAt,
+			exitedAt: protobuf.FromTimestamp(r.ExitedAt),
 		}
 	}()
 	return c, nil
@@ -226,7 +227,7 @@ func (p *process) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitS
 		p.io.Wait()
 		p.io.Close()
 	}
-	return &ExitStatus{code: r.ExitStatus, exitedAt: r.ExitedAt}, nil
+	return &ExitStatus{code: r.ExitStatus, exitedAt: protobuf.FromTimestamp(r.ExitedAt)}, nil
 }
 
 func (p *process) Status(ctx context.Context) (Status, error) {

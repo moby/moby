@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelhttp
+package otelhttp // import "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/semconv/v1.17.0/httpconv"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -46,7 +46,7 @@ var _ http.RoundTripper = &Transport{}
 // starts a span and injects the span context into the outbound request headers.
 //
 // If the provided http.RoundTripper is nil, http.DefaultTransport will be used
-// as the base http.RoundTripper
+// as the base http.RoundTripper.
 func NewTransport(base http.RoundTripper, opts ...Option) *Transport {
 	if base == nil {
 		base = http.DefaultTransport
@@ -110,7 +110,7 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 
 	r = r.WithContext(ctx)
-	span.SetAttributes(semconv.HTTPClientAttributesFromHTTPRequest(r)...)
+	span.SetAttributes(httpconv.ClientRequest(r)...)
 	t.propagators.Inject(ctx, propagation.HeaderCarrier(r.Header))
 
 	res, err := t.rt.RoundTrip(r)
@@ -121,8 +121,8 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 		return res, err
 	}
 
-	span.SetAttributes(semconv.HTTPAttributesFromHTTPStatusCode(res.StatusCode)...)
-	span.SetStatus(semconv.SpanStatusFromHTTPStatusCode(res.StatusCode))
+	span.SetAttributes(httpconv.ClientResponse(res)...)
+	span.SetStatus(httpconv.ClientStatus(res.StatusCode))
 	res.Body = newWrappedBody(span, res.Body)
 
 	return res, err
@@ -186,5 +186,8 @@ func (wb *wrappedBody) Read(b []byte) (int, error) {
 
 func (wb *wrappedBody) Close() error {
 	wb.span.End()
-	return wb.body.Close()
+	if wb.body != nil {
+		return wb.body.Close()
+	}
+	return nil
 }

@@ -18,7 +18,6 @@ syntax = "proto3";
 
 package containerd.services.containers.v1;
 
-import weak "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
@@ -99,10 +98,10 @@ message Container {
 	string snapshot_key = 7;
 
 	// CreatedAt is the time the container was first created.
-	google.protobuf.Timestamp created_at = 8 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp created_at = 8;
 
 	// UpdatedAt is the last time the container was mutated.
-	google.protobuf.Timestamp updated_at = 9 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp updated_at = 9;
 
 	// Extensions allow clients to provide zero or more blobs that are directly
 	// associated with the container. One may provide protobuf, json, or other
@@ -113,7 +112,10 @@ message Container {
 	// that should be unique against other extensions. When updating extension
 	// data, one should only update the specified extension using field paths
 	// to select a specific map key.
-	map<string, google.protobuf.Any> extensions = 10 [(gogoproto.nullable) = false];
+	map<string, google.protobuf.Any> extensions = 10;
+
+	// Sandbox ID this container belongs to.
+	string sandbox = 11;
 }
 
 message GetContainerRequest {
@@ -121,7 +123,7 @@ message GetContainerRequest {
 }
 
 message GetContainerResponse {
-	Container container = 1 [(gogoproto.nullable) = false];
+	Container container = 1;
 }
 
 message ListContainersRequest {
@@ -139,15 +141,15 @@ message ListContainersRequest {
 }
 
 message ListContainersResponse {
-	repeated Container containers = 1 [(gogoproto.nullable) = false];
+	repeated Container containers = 1;
 }
 
 message CreateContainerRequest {
-	Container container = 1 [(gogoproto.nullable) = false];
+	Container container = 1;
 }
 
 message CreateContainerResponse {
-	Container container = 1 [(gogoproto.nullable) = false];
+	Container container = 1;
 }
 
 // UpdateContainerRequest updates the metadata on one or more container.
@@ -159,7 +161,7 @@ message UpdateContainerRequest {
 	// Container provides the target values, as declared by the mask, for the update.
 	//
 	// The ID field must be set.
-	Container container = 1 [(gogoproto.nullable) = false];
+	Container container = 1;
 
 	// UpdateMask specifies which fields to perform the update on. If empty,
 	// the operation applies to all fields.
@@ -167,7 +169,7 @@ message UpdateContainerRequest {
 }
 
 message UpdateContainerResponse {
-	Container container = 1 [(gogoproto.nullable) = false];
+	Container container = 1;
 }
 
 message DeleteContainerRequest {

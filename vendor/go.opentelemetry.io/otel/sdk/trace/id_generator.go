@@ -52,7 +52,7 @@ func (gen *randomIDGenerator) NewSpanID(ctx context.Context, traceID trace.Trace
 	gen.Lock()
 	defer gen.Unlock()
 	sid := trace.SpanID{}
-	gen.randSource.Read(sid[:])
+	_, _ = gen.randSource.Read(sid[:])
 	return sid
 }
 
@@ -62,9 +62,9 @@ func (gen *randomIDGenerator) NewIDs(ctx context.Context) (trace.TraceID, trace.
 	gen.Lock()
 	defer gen.Unlock()
 	tid := trace.TraceID{}
-	gen.randSource.Read(tid[:])
+	_, _ = gen.randSource.Read(tid[:])
 	sid := trace.SpanID{}
-	gen.randSource.Read(sid[:])
+	_, _ = gen.randSource.Read(sid[:])
 	return tid, sid
 }
 

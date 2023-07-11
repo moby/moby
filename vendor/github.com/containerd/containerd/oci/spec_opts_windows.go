@@ -21,51 +21,18 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/containerd/containerd/containers"
-
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/windows"
+
+	"github.com/containerd/containerd/containers"
 )
 
-// WithWindowsCPUCount sets the `Windows.Resources.CPU.Count` section to the
-// `count` specified.
-func WithWindowsCPUCount(count uint64) SpecOpts {
-	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
-		if s.Windows.Resources == nil {
-			s.Windows.Resources = &specs.WindowsResources{}
-		}
-		if s.Windows.Resources.CPU == nil {
-			s.Windows.Resources.CPU = &specs.WindowsCPUResources{}
-		}
-		s.Windows.Resources.CPU.Count = &count
-		return nil
+func escapeAndCombineArgs(args []string) string {
+	escaped := make([]string, len(args))
+	for i, a := range args {
+		escaped[i] = windows.EscapeArg(a)
 	}
-}
-
-// WithWindowsIgnoreFlushesDuringBoot sets `Windows.IgnoreFlushesDuringBoot`.
-func WithWindowsIgnoreFlushesDuringBoot() SpecOpts {
-	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
-		if s.Windows == nil {
-			s.Windows = &specs.Windows{}
-		}
-		s.Windows.IgnoreFlushesDuringBoot = true
-		return nil
-	}
-}
-
-// WithWindowNetworksAllowUnqualifiedDNSQuery sets `Windows.Network.AllowUnqualifiedDNSQuery`.
-func WithWindowNetworksAllowUnqualifiedDNSQuery() SpecOpts {
-	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
-		if s.Windows == nil {
-			s.Windows = &specs.Windows{}
-		}
-		if s.Windows.Network == nil {
-			s.Windows.Network = &specs.WindowsNetwork{}
-		}
-
-		s.Windows.Network.AllowUnqualifiedDNSQuery = true
-		return nil
-	}
+	return strings.Join(escaped, " ")
 }
 
 // WithProcessCommandLine replaces the command line on the generated spec
@@ -89,24 +56,9 @@ func DeviceFromPath(path string) (*specs.LinuxDevice, error) {
 	return nil, errors.New("device from path not supported on Windows")
 }
 
-// WithWindowsNetworkNamespace sets the network namespace for a Windows container.
-func WithWindowsNetworkNamespace(ns string) SpecOpts {
-	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
-		if s.Windows == nil {
-			s.Windows = &specs.Windows{}
-		}
-		if s.Windows.Network == nil {
-			s.Windows.Network = &specs.WindowsNetwork{}
-		}
-		s.Windows.Network.NetworkNamespace = ns
+// WithDevices does nothing on Windows.
+func WithDevices(devicePath, containerPath, permissions string) SpecOpts {
+	return func(ctx context.Context, client Client, container *containers.Container, spec *Spec) error {
 		return nil
 	}
-}
-
-func escapeAndCombineArgs(args []string) string {
-	escaped := make([]string, len(args))
-	for i, a := range args {
-		escaped[i] = windows.EscapeArg(a)
-	}
-	return strings.Join(escaped, " ")
 }

@@ -35,6 +35,7 @@ import (
 	introspectionapi "github.com/containerd/containerd/api/services/introspection/v1"
 	leasesapi "github.com/containerd/containerd/api/services/leases/v1"
 	namespacesapi "github.com/containerd/containerd/api/services/namespaces/v1"
+	sandboxsapi "github.com/containerd/containerd/api/services/sandbox/v1"
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	versionservice "github.com/containerd/containerd/api/services/version/v1"
@@ -52,15 +53,17 @@ import (
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
+	ptypes "github.com/containerd/containerd/protobuf/types"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/sandbox"
+	sandboxproxy "github.com/containerd/containerd/sandbox/proxy"
 	"github.com/containerd/containerd/services/introspection"
 	"github.com/containerd/containerd/snapshots"
 	snproxy "github.com/containerd/containerd/snapshots/proxy"
-	"github.com/containerd/typeurl"
-	ptypes "github.com/gogo/protobuf/types"
+	"github.com/containerd/typeurl/v2"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -183,6 +186,12 @@ func NewWithConn(conn *grpc.ClientConn, opts ...ClientOpt) (*Client, error) {
 		defaultns: copts.defaultns,
 		conn:      conn,
 		runtime:   fmt.Sprintf("%s.%s", plugin.RuntimePlugin, runtime.GOOS),
+	}
+
+	if copts.defaultPlatform != nil {
+		c.platform = copts.defaultPlatform
+	} else {
+		c.platform = platforms.Default()
 	}
 
 	// check namespace labels for default runtime
@@ -346,6 +355,8 @@ type RemoteContext struct {
 	// ConvertSchema1 is whether to convert Docker registry schema 1
 	// manifests. If this option is false then any image which resolves
 	// to schema 1 will return an error since schema 1 is not supported.
+	//
+	// Deprecated: use Schema 2 or OCI images.
 	ConvertSchema1 bool
 
 	// Platforms defines which platforms to handle when doing the image operation.
@@ -621,6 +632,11 @@ func (c *Client) SnapshotService(snapshotterName string) snapshots.Snapshotter {
 	return snproxy.NewSnapshotter(snapshotsapi.NewSnapshotsClient(c.conn), snapshotterName)
 }
 
+// DefaultNamespace return the default namespace
+func (c *Client) DefaultNamespace() string {
+	return c.defaultns
+}
+
 // TaskService returns the underlying TasksClient
 func (c *Client) TaskService() tasks.TasksClient {
 	if c.taskService != nil {
@@ -686,6 +702,26 @@ func (c *Client) EventService() EventService {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return NewEventServiceFromClient(eventsapi.NewEventsClient(c.conn))
+}
+
+// SandboxStore returns the underlying sandbox store client
+func (c *Client) SandboxStore() sandbox.Store {
+	if c.sandboxStore != nil {
+		return c.sandboxStore
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return sandboxproxy.NewSandboxStore(sandboxsapi.NewStoreClient(c.conn))
+}
+
+// SandboxController returns the underlying sandbox controller client
+func (c *Client) SandboxController() sandbox.Controller {
+	if c.sandboxController != nil {
+		return c.sandboxController
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return sandboxproxy.NewSandboxController(sandboxsapi.NewControllerClient(c.conn))
 }
 
 // VersionService returns the underlying VersionClient
@@ -819,7 +855,7 @@ func (c *Client) GetSnapshotterSupportedPlatforms(ctx context.Context, snapshott
 	return platforms.Any(snPlatforms...), nil
 }
 
-func toPlatforms(pt []apitypes.Platform) []ocispec.Platform {
+func toPlatforms(pt []*apitypes.Platform) []ocispec.Platform {
 	platforms := make([]ocispec.Platform, len(pt))
 	for i, p := range pt {
 		platforms[i] = ocispec.Platform{
@@ -829,4 +865,22 @@ func toPlatforms(pt []apitypes.Platform) []ocispec.Platform {
 		}
 	}
 	return platforms
+}
+
+// GetSnapshotterCapabilities returns the capabilities of a snapshotter.
+func (c *Client) GetSnapshotterCapabilities(ctx context.Context, snapshotterName string) ([]string, error) {
+	filters := []string{fmt.Sprintf("type==%s, id==%s", plugin.SnapshotPlugin, snapshotterName)}
+	in := c.IntrospectionService()
+
+	resp, err := in.Plugins(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Plugins) <= 0 {
+		return nil, fmt.Errorf("inspection service could not find snapshotter %s plugin", snapshotterName)
+	}
+
+	sn := resp.Plugins[0]
+	return sn.Capabilities, nil
 }
