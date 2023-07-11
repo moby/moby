@@ -329,8 +329,8 @@ github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f h1:o/kfcElHqOi
 github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f/go.mod h1:i/u985jwjWRlyHXQbwatDASoW0RMlZ/3i9yJHE2xLkI=
 github.com/codahale/hdrhistogram v0.0.0-20160425231609-f8ad88b59a58/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
 github.com/codahale/rfc6979 v0.0.0-20141003034818-6a90f24967eb h1:EDmT6Q9Zs+SbUoc7Ik9EfrFqcylYqgPZ9ANSbTAntnE=
-github.com/container-orchestrated-devices/container-device-interface v0.5.5-0.20230516140309-1e6752771dc5 h1:qJTKvM6AD0paTZodYyHV540e01I6+Uhq5vkKBi4byvQ=
-github.com/container-orchestrated-devices/container-device-interface v0.5.5-0.20230516140309-1e6752771dc5/go.mod h1:OQlgtJtDrOxSQ1BWODC8OZK1tzi9W69wek+Jy17ndzo=
+github.com/container-orchestrated-devices/container-device-interface v0.6.0 h1:aWwcz/Ep0Fd7ZuBjQGjU/jdPloM7ydhMW13h85jZNvk=
+github.com/container-orchestrated-devices/container-device-interface v0.6.0/go.mod h1:OQlgtJtDrOxSQ1BWODC8OZK1tzi9W69wek+Jy17ndzo=
 github.com/container-storage-interface/spec v1.5.0 h1:lvKxe3uLgqQeVQcrnL2CPQKISoKjTJxojEs9cBk+HXo=
 github.com/container-storage-interface/spec v1.5.0/go.mod h1:8K96oQNkJ7pFcC2R9Z1ynGGBB1I93kcS6PGg3SsOk8s=
 github.com/containerd/aufs v0.0.0-20200908144142-dab0cbea06f4/go.mod h1:nukgQABAEopAHvB6j7cnP5zJ+/3aVcE7hCYqvIwAHyE=
