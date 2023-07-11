@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -192,8 +193,8 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	if limit < 1 || limit > 100 {
 		return nil, invalidParamf("limit %d is outside the range of [1, 100]", limit)
 	}
-	log.G(context.TODO()).Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
+	log.G(context.TODO()).WithField("url", u).Debug("searchRepositories")
 
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -208,10 +209,14 @@ func (r *session) searchRepositories(term string, limit int) (*registry.SearchRe
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		return nil, errdefs.Unknown(&jsonmessage.JSONError{
-			Message: fmt.Sprintf("Unexpected status code %d", res.StatusCode),
+			Message: "Unexpected status code " + strconv.Itoa(res.StatusCode),
 			Code:    res.StatusCode,
 		})
 	}
-	result := new(registry.SearchResults)
-	return result, errors.Wrap(json.NewDecoder(res.Body).Decode(result), "error decoding registry search results")
+	result := &registry.SearchResults{}
+	err = json.NewDecoder(res.Body).Decode(result)
+	if err != nil {
+		return nil, errdefs.System(errors.Wrap(err, "error decoding registry search results"))
+	}
+	return result, nil
 }
