@@ -18,6 +18,12 @@ import (
 
 const (
 	defaultTimeOut = 30
+
+	// dummyHost is a hostname used for local communication.
+	//
+	// For local communications (npipe://, unix://), the hostname is not used,
+	// but we need valid and meaningful hostname.
+	dummyHost = "plugin.moby.localhost"
 )
 
 func newTransport(addr string, tlsConfig *tlsconfig.Options) (transport.Transport, error) {
@@ -44,8 +50,12 @@ func newTransport(addr string, tlsConfig *tlsconfig.Options) (transport.Transpor
 		return nil, err
 	}
 	scheme := httpScheme(u)
-
-	return transport.NewHTTPTransport(tr, scheme, socket), nil
+	hostName := u.Host
+	if hostName == "" || u.Scheme == "unix" || u.Scheme == "npipe" {
+		// For local communications, it doesn't matter what the host is.
+		hostName = dummyHost
+	}
+	return transport.NewHTTPTransport(tr, scheme, hostName), nil
 }
 
 // NewClient creates a new plugin client (http).
