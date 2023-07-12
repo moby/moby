@@ -72,7 +72,7 @@ func (daemon *Daemon) ContainerInspectCurrent(ctx context.Context, name string, 
 
 	mountPoints := ctr.GetMountPoints()
 	networkSettings := &types.NetworkSettings{
-		NetworkSettingsBase: types.NetworkSettingsBase{
+		NetworkSettingsBase: types.NetworkSettingsBase{ //nolint:staticcheck // ignore SA1019: NetworkSettingsBase is deprecated since v26.0.
 			Bridge:     ctr.NetworkSettings.Bridge,
 			SandboxID:  ctr.NetworkSettings.SandboxID,
 			SandboxKey: ctr.NetworkSettings.SandboxKey,
@@ -270,7 +270,7 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 
 func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {
 	result := &v1p20.NetworkSettings{
-		NetworkSettingsBase: types.NetworkSettingsBase{
+		NetworkSettingsBase: types.NetworkSettingsBase{ //nolint:staticcheck // ignore SA1019: NetworkSettingsBase is deprecated since v26.0.
 			Bridge:     settings.Bridge,
 			SandboxID:  settings.SandboxID,
 			SandboxKey: settings.SandboxKey,

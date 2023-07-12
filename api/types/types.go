@@ -328,7 +328,7 @@ type ContainerJSON struct {
 
 // NetworkSettings holds the networking state of a specific container when inspecting it.
 type NetworkSettings struct {
-	NetworkSettingsBase
+	NetworkSettingsBase    // Deprecated: NetworkSettingsBase is deprecated since API v1.21 and will be removed in a future release.
 	DefaultNetworkSettings // Deprecated: DefaultNetworkSettings is deprecated since API v1.21 and will be removed in a future release.
 	Networks               map[string]*network.EndpointSettings
 }
@@ -340,6 +340,8 @@ type SummaryNetworkSettings struct {
 }
 
 // NetworkSettingsBase holds the networking state of a specific container when inspecting it.
+//
+// Deprecated: this struct mostly contains deprecated fields and will be removed in v26.0.
 type NetworkSettingsBase struct {
 	Bridge     string      // Bridge contains the name of the default bridge interface iff it was set through the daemon --bridge flag.
 	SandboxID  string      // SandboxID uniquely represents a container's network stack
