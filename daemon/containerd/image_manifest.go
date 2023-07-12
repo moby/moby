@@ -51,7 +51,7 @@ func (i *ImageService) walkImageManifests(ctx context.Context, img containerdima
 type ImageManifest struct {
 	containerd.Image
 
-	// Parent of the manifest (index/manifest list)
+	// The manifest this image points to
 	RealTarget ocispec.Descriptor
 
 	manifest *ocispec.Manifest
@@ -62,13 +62,12 @@ func (i *ImageService) NewImageManifest(ctx context.Context, img containerdimage
 		return nil, errNotManifest
 	}
 
-	parent := img.Target
 	img.Target = manifestDesc
 
 	c8dImg := containerd.NewImageWithPlatform(i.client, img, cplatforms.All)
 	return &ImageManifest{
 		Image:      c8dImg,
-		RealTarget: parent,
+		RealTarget: manifestDesc,
 	}, nil
 }
 
