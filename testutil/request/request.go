@@ -126,6 +126,11 @@ func newRequest(endpoint string, opts *Options) (*http.Request, error) {
 	}
 	req.URL.Host = hostURL.Host
 
+	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
+		// Override host header for non-tcp connections.
+		req.Host = client.DummyHost
+	}
+
 	for _, config := range opts.requestModifiers {
 		if err := config(req); err != nil {
 			return nil, err
