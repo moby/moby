@@ -25,6 +25,7 @@ const (
 
 // regression test for deadlock in handlers
 func TestPluginAddHandler(t *testing.T) {
+	t.Parallel()
 	// make a plugin which is pre-activated
 	p := &Plugin{activateWait: sync.NewCond(&sync.Mutex{})}
 	p.Manifest = &Manifest{Implements: []string{"bananas"}}
@@ -36,6 +37,7 @@ func TestPluginAddHandler(t *testing.T) {
 }
 
 func TestPluginWaitBadPlugin(t *testing.T) {
+	t.Parallel()
 	p := &Plugin{activateWait: sync.NewCond(&sync.Mutex{})}
 	p.activateErr = errors.New("some junk happened")
 	testActive(t, p)
@@ -57,6 +59,7 @@ func testActive(t *testing.T, p *Plugin) {
 }
 
 func TestGet(t *testing.T) {
+	t.Parallel()
 	p := &Plugin{name: fruitPlugin, activateWait: sync.NewCond(&sync.Mutex{})}
 	p.Manifest = &Manifest{Implements: []string{fruitImplements}}
 	storage.plugins[fruitPlugin] = p
@@ -85,6 +88,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestPluginWithNoManifest(t *testing.T) {
+	t.Parallel()
 	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{fruitImplements}}
@@ -122,6 +126,7 @@ func TestPluginWithNoManifest(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
+	t.Parallel()
 	tmpdir, unregister, r := Setup(t)
 	defer unregister()
 
