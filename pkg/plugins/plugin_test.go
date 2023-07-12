@@ -85,8 +85,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestPluginWithNoManifest(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{fruitImplements}}
 	var buf bytes.Buffer

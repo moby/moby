@@ -18,21 +18,15 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-var (
-	mux    *http.ServeMux
-	server *httptest.Server
-)
-
-func setupRemotePluginServer() string {
+func setupRemotePluginServer(t *testing.T) (mux *http.ServeMux, addr string) {
+	t.Helper()
 	mux = http.NewServeMux()
-	server = httptest.NewServer(mux)
-	return server.URL
-}
-
-func teardownRemotePluginServer() {
-	if server != nil {
+	server := httptest.NewServer(mux)
+	t.Logf("started remote plugin server listening on: %s", server.URL)
+	t.Cleanup(func() {
 		server.Close()
-	}
+	})
+	return mux, server.URL
 }
 
 func TestFailedConnection(t *testing.T) {
@@ -44,8 +38,7 @@ func TestFailedConnection(t *testing.T) {
 }
 
 func TestFailOnce(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	mux, addr := setupRemotePluginServer(t)
 
 	failed := false
 	mux.HandleFunc("/Test.FailOnce", func(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +57,7 @@ func TestFailOnce(t *testing.T) {
 }
 
 func TestEchoInputOutput(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 
@@ -157,8 +149,7 @@ func TestClientScheme(t *testing.T) {
 }
 
 func TestNewClientWithTimeout(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 
@@ -178,8 +169,7 @@ func TestNewClientWithTimeout(t *testing.T) {
 }
 
 func TestClientStream(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 	var output Manifest
@@ -208,8 +198,7 @@ func TestClientStream(t *testing.T) {
 }
 
 func TestClientSendFile(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 	var output Manifest
