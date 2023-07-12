@@ -252,8 +252,8 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestExistsRaw(t *testing.T) {
-	testChain1 := "ABCD"
-	testChain2 := "EFGH"
+	const testChain1 = "ABCD"
+	const testChain2 = "EFGH"
 
 	iptable := GetIptable(IPv4)
 

@@ -19,15 +19,11 @@ func TestFirewalldInit(t *testing.T) {
 }
 
 func TestReloaded(t *testing.T) {
-	var err error
-	var fwdChain *ChainInfo
-
 	iptable := GetIptable(IPv4)
-	fwdChain, err = iptable.NewChain("FWD", Filter, false)
+	fwdChain, err := iptable.NewChain("FWD", Filter, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bridgeName := "lo"
 
 	err = iptable.ProgramChain(fwdChain, bridgeName, false, true)
 	if err != nil {
@@ -38,8 +34,8 @@ func TestReloaded(t *testing.T) {
 	// copy-pasted from iptables_test:TestLink
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
-	port := 1234
-	proto := "tcp"
+	const port = 1234
+	const proto = "tcp"
 
 	err = fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
@@ -75,6 +71,9 @@ func TestReloaded(t *testing.T) {
 }
 
 func TestPassthrough(t *testing.T) {
+	if !firewalldRunning {
+		t.Skip("firewalld is not running")
+	}
 	rule1 := []string{
 		"-i", "lo",
 		"-p", "udp",
@@ -82,14 +81,11 @@ func TestPassthrough(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	iptable := GetIptable(IPv4)
-	if firewalldRunning {
-		_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !iptable.Exists(Filter, "INPUT", rule1...) {
-			t.Fatal("rule1 does not exist")
-		}
+	_, err := Passthrough(Iptables, append([]string{"-A"}, rule1...)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !GetIptable(IPv4).Exists(Filter, "INPUT", rule1...) {
+		t.Fatal("rule1 does not exist")
 	}
 }

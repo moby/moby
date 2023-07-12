@@ -17,6 +17,7 @@ import (
 // DockerChain: DOCKER iptable chain name
 const (
 	DockerChain = "DOCKER"
+
 	// Isolation between bridge networks is achieved in two stages by means
 	// of the following two chains in the filter table. The first chain matches
 	// on the source interface being a bridge network's bridge and the
@@ -26,6 +27,7 @@ const (
 	// bridge. A positive match identifies a packet originated from one bridge
 	// network's bridge destined to another bridge network's bridge and will
 	// result in the packet being dropped. No match returns to the parent chain.
+
 	IsolationChain1 = "DOCKER-ISOLATION-STAGE-1"
 	IsolationChain2 = "DOCKER-ISOLATION-STAGE-2"
 )
@@ -224,38 +226,37 @@ func setupIPTablesInternal(hostIP net.IP, bridgeIface string, addr *net.IPNet, i
 	natRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: natArgs}
 	hpNatRule := iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: hpNatArgs}
 
-	ipVersion := iptables.IPv4
-
+	ipVer := iptables.IPv4
 	if addr.IP.To4() == nil {
-		ipVersion = iptables.IPv6
+		ipVer = iptables.IPv6
 	}
 
 	// Set NAT.
 	if ipmasq {
-		if err := programChainRule(ipVersion, natRule, "NAT", enable); err != nil {
+		if err := programChainRule(ipVer, natRule, "NAT", enable); err != nil {
 			return err
 		}
 	}
 
 	if ipmasq && !hairpin {
-		if err := programChainRule(ipVersion, skipDNAT, "SKIP DNAT", enable); err != nil {
+		if err := programChainRule(ipVer, skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
 	}
 
 	// In hairpin mode, masquerade traffic from localhost. If hairpin is disabled or if we're tearing down
 	// that bridge, make sure the iptables rule isn't lying around.
-	if err := programChainRule(ipVersion, hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
+	if err := programChainRule(ipVer, hpNatRule, "MASQ LOCAL HOST", enable && hairpin); err != nil {
 		return err
 	}
 
 	// Set Inter Container Communication.
-	if err := setIcc(ipVersion, bridgeIface, icc, enable); err != nil {
+	if err := setIcc(ipVer, bridgeIface, icc, enable); err != nil {
 		return err
 	}
 
 	// Set Accept on all non-intercontainer outgoing packets.
-	return programChainRule(ipVersion, outRule, "ACCEPT NON_ICC OUTGOING", enable)
+	return programChainRule(ipVer, outRule, "ACCEPT NON_ICC OUTGOING", enable)
 }
 
 func programChainRule(version iptables.IPVersion, rule iptRule, ruleDescr string, insert bool) error {
@@ -382,11 +383,11 @@ func removeIPChains(version iptables.IPVersion) {
 
 	// Remove chains
 	for _, chainInfo := range []iptables.ChainInfo{
-		{Name: DockerChain, Table: iptables.Nat, IPTable: ipt},
-		{Name: DockerChain, Table: iptables.Filter, IPTable: ipt},
-		{Name: IsolationChain1, Table: iptables.Filter, IPTable: ipt},
-		{Name: IsolationChain2, Table: iptables.Filter, IPTable: ipt},
-		{Name: oldIsolationChain, Table: iptables.Filter, IPTable: ipt},
+		{Name: DockerChain, Table: iptables.Nat, IPVersion: version},
+		{Name: DockerChain, Table: iptables.Filter, IPVersion: version},
+		{Name: IsolationChain1, Table: iptables.Filter, IPVersion: version},
+		{Name: IsolationChain2, Table: iptables.Filter, IPVersion: version},
+		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
 	} {
 		if err := chainInfo.Remove(); err != nil {
 			log.G(context.TODO()).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)

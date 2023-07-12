@@ -60,9 +60,7 @@ var (
 	xLockWaitMsg  = "Another app is currently holding the xtables lock"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
-	// ErrIptablesNotFound is returned when the rule is not found.
-	ErrIptablesNotFound = errors.New("Iptables not found")
-	initOnce            sync.Once
+	initOnce       sync.Once
 )
 
 // IPTable defines struct with IPVersion
@@ -75,7 +73,7 @@ type ChainInfo struct {
 	Name        string
 	Table       Table
 	HairpinMode bool
-	IPTable     IPTable
+	IPVersion   IPVersion
 }
 
 // ChainError is returned to represent errors during ip table operation.
@@ -85,7 +83,7 @@ type ChainError struct {
 }
 
 func (e ChainError) Error() string {
-	return fmt.Sprintf("Error iptables %s: %s", e.Chain, string(e.Output))
+	return fmt.Sprintf("error iptables %s: %s", e.Chain, string(e.Output))
 }
 
 func detectIptables() {
@@ -133,7 +131,7 @@ func initCheck() error {
 	initOnce.Do(initDependencies)
 
 	if iptablesPath == "" {
-		return ErrIptablesNotFound
+		return errors.New("iptables not found")
 	}
 	return nil
 }
@@ -145,25 +143,23 @@ func GetIptable(version IPVersion) *IPTable {
 
 // NewChain adds a new chain to ip table.
 func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
-	c := &ChainInfo{
+	if table == "" {
+		table = Filter
+	}
+	// Add chain if it doesn't exist
+	if _, err := iptable.Raw("-t", string(table), "-n", "-L", name); err != nil {
+		if output, err := iptable.Raw("-t", string(table), "-N", name); err != nil {
+			return nil, err
+		} else if len(output) != 0 {
+			return nil, fmt.Errorf("could not create %s/%s chain: %s", table, name, output)
+		}
+	}
+	return &ChainInfo{
 		Name:        name,
 		Table:       table,
 		HairpinMode: hairpinMode,
-		IPTable:     iptable,
-	}
-	if string(c.Table) == "" {
-		c.Table = Filter
-	}
-
-	// Add chain if it doesn't exist
-	if _, err := iptable.Raw("-t", string(c.Table), "-n", "-L", c.Name); err != nil {
-		if output, err := iptable.Raw("-t", string(c.Table), "-N", c.Name); err != nil {
-			return nil, err
-		} else if len(output) != 0 {
-			return nil, fmt.Errorf("Could not create %s/%s chain: %s", c.Table, c.Name, output)
-		}
-	}
-	return c, nil
+		IPVersion:   iptable.Version,
+	}, nil
 }
 
 // LoopbackByVersion returns loopback address by version
@@ -177,7 +173,7 @@ func (iptable IPTable) LoopbackByVersion() string {
 // ProgramChain is used to add rules to a chain
 func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
 	if c.Name == "" {
-		return errors.New("Could not program chain, missing chain name")
+		return errors.New("could not program chain, missing chain name")
 	}
 
 	// Either add or remove the interface from the firewalld zone
@@ -202,11 +198,11 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 		}
 		if !iptable.Exists(Nat, "PREROUTING", preroute...) && enable {
 			if err := c.Prerouting(Append, preroute...); err != nil {
-				return fmt.Errorf("Failed to inject %s in PREROUTING chain: %s", c.Name, err)
+				return fmt.Errorf("failed to inject %s in PREROUTING chain: %s", c.Name, err)
 			}
 		} else if iptable.Exists(Nat, "PREROUTING", preroute...) && !enable {
 			if err := c.Prerouting(Delete, preroute...); err != nil {
-				return fmt.Errorf("Failed to remove %s in PREROUTING chain: %s", c.Name, err)
+				return fmt.Errorf("failed to remove %s in PREROUTING chain: %s", c.Name, err)
 			}
 		}
 		output := []string{
@@ -219,17 +215,16 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 		}
 		if !iptable.Exists(Nat, "OUTPUT", output...) && enable {
 			if err := c.Output(Append, output...); err != nil {
-				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
+				return fmt.Errorf("failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		} else if iptable.Exists(Nat, "OUTPUT", output...) && !enable {
 			if err := c.Output(Delete, output...); err != nil {
-				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
+				return fmt.Errorf("failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		}
 	case Filter:
 		if bridgeName == "" {
-			return fmt.Errorf("Could not program chain %s/%s, missing bridge name",
-				c.Table, c.Name)
+			return fmt.Errorf("could not program chain %s/%s, missing bridge name", c.Table, c.Name)
 		}
 		link := []string{
 			"-o", bridgeName,
@@ -240,14 +235,14 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 			if output, err := iptable.Raw(insert...); err != nil {
 				return err
 			} else if len(output) != 0 {
-				return fmt.Errorf("Could not create linking rule to %s/%s: %s", c.Table, c.Name, output)
+				return fmt.Errorf("could not create linking rule to %s/%s: %s", c.Table, c.Name, output)
 			}
 		} else if iptable.Exists(Filter, "FORWARD", link...) && !enable {
 			del := append([]string{string(Delete), "FORWARD"}, link...)
 			if output, err := iptable.Raw(del...); err != nil {
 				return err
 			} else if len(output) != 0 {
-				return fmt.Errorf("Could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
+				return fmt.Errorf("could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
 			}
 		}
 		establish := []string{
@@ -261,14 +256,14 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 			if output, err := iptable.Raw(insert...); err != nil {
 				return err
 			} else if len(output) != 0 {
-				return fmt.Errorf("Could not create establish rule to %s: %s", c.Table, output)
+				return fmt.Errorf("could not create establish rule to %s: %s", c.Table, output)
 			}
 		} else if iptable.Exists(Filter, "FORWARD", establish...) && !enable {
 			del := append([]string{string(Delete), "FORWARD"}, establish...)
 			if output, err := iptable.Raw(del...); err != nil {
 				return err
 			} else if len(output) != 0 {
-				return fmt.Errorf("Could not delete establish rule from %s: %s", c.Table, output)
+				return fmt.Errorf("could not delete establish rule from %s: %s", c.Table, output)
 			}
 		}
 	}
@@ -277,20 +272,20 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 
 // RemoveExistingChain removes existing chain from the table.
 func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
-	c := &ChainInfo{
-		Name:    name,
-		Table:   table,
-		IPTable: iptable,
+	if table == "" {
+		table = Filter
 	}
-	if string(c.Table) == "" {
-		c.Table = Filter
+	c := &ChainInfo{
+		Name:      name,
+		Table:     table,
+		IPVersion: iptable.Version,
 	}
 	return c.Remove()
 }
 
 // Forward adds forwarding rule to 'filter' table and corresponding nat rule to 'nat' table.
 func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int, bridgeName string) error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	daddr := ip.String()
 	if ip.IsUnspecified() {
 		// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
@@ -363,7 +358,7 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.
 // Traffic is allowed from ip1 to ip2 and vice-versa
 func (c *ChainInfo) Link(action Action, ip1, ip2 net.IP, port int, proto string, bridgeName string) error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	// forward
 	args := []string{
 		"-i", bridgeName, "-o", bridgeName,
@@ -395,7 +390,7 @@ func (iptable IPTable) ProgramRule(table Table, chain string, action Action, arg
 
 // Prerouting adds linking rule to nat/PREROUTING chain.
 func (c *ChainInfo) Prerouting(action Action, args ...string) error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	a := []string{"-t", string(Nat), string(action), "PREROUTING"}
 	if len(args) > 0 {
 		a = append(a, args...)
@@ -410,12 +405,11 @@ func (c *ChainInfo) Prerouting(action Action, args ...string) error {
 
 // Output adds linking rule to an OUTPUT chain.
 func (c *ChainInfo) Output(action Action, args ...string) error {
-	iptable := GetIptable(c.IPTable.Version)
 	a := []string{"-t", string(c.Table), string(action), "OUTPUT"}
 	if len(args) > 0 {
 		a = append(a, args...)
 	}
-	if output, err := iptable.Raw(a...); err != nil {
+	if output, err := GetIptable(c.IPVersion).Raw(a...); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return ChainError{Chain: "OUTPUT", Output: output}
@@ -425,18 +419,17 @@ func (c *ChainInfo) Output(action Action, args ...string) error {
 
 // Remove removes the chain.
 func (c *ChainInfo) Remove() error {
-	iptable := GetIptable(c.IPTable.Version)
+	iptable := GetIptable(c.IPVersion)
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
-		c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)
-		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", iptable.LoopbackByVersion(), "-j", c.Name)
-		c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name) // Created in versions <= 0.1.6
-
-		c.Prerouting(Delete)
-		c.Output(Delete)
+		_ = c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)
+		_ = c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "!", "--dst", iptable.LoopbackByVersion(), "-j", c.Name)
+		_ = c.Output(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name) // Created in versions <= 0.1.6
+		_ = c.Prerouting(Delete)
+		_ = c.Output(Delete)
 	}
-	iptable.Raw("-t", string(c.Table), "-F", c.Name)
-	iptable.Raw("-t", string(c.Table), "-X", c.Name)
+	_, _ = iptable.Raw("-t", string(c.Table), "-F", c.Name)
+	_, _ = iptable.Raw("-t", string(c.Table), "-X", c.Name)
 	return nil
 }
 
@@ -452,19 +445,19 @@ func (iptable IPTable) ExistsNative(table Table, chain string, rule ...string) b
 }
 
 func (iptable IPTable) exists(native bool, table Table, chain string, rule ...string) bool {
+	if err := initCheck(); err != nil {
+		// The exists() signature does not allow us to return an error, but at least
+		// we can skip the (likely invalid) exec invocation.
+		return false
+	}
+
 	f := iptable.Raw
 	if native {
 		f = iptable.raw
 	}
 
-	if string(table) == "" {
+	if table == "" {
 		table = Filter
-	}
-
-	if err := initCheck(); err != nil {
-		// The exists() signature does not allow us to return an error, but at least
-		// we can skip the (likely invalid) exec invocation.
-		return false
 	}
 
 	// if exit status is 0 then return true, the rule exists
@@ -577,18 +570,13 @@ func (iptable IPTable) SetDefaultPolicy(table Table, chain string, policy Policy
 
 // AddReturnRule adds a return rule for the chain in the filter table
 func (iptable IPTable) AddReturnRule(chain string) error {
-	var (
-		table = Filter
-		args  = []string{"-j", "RETURN"}
-	)
-
-	if iptable.Exists(table, chain, args...) {
+	if iptable.Exists(Filter, chain, "-j", "RETURN") {
 		return nil
 	}
 
-	err := iptable.RawCombinedOutput(append([]string{"-A", chain}, args...)...)
+	err := iptable.RawCombinedOutput("-A", chain, "-j", "RETURN")
 	if err != nil {
-		return fmt.Errorf("unable to add return rule in %s chain: %s", chain, err.Error())
+		return fmt.Errorf("unable to add return rule in %s chain: %v", chain, err)
 	}
 
 	return nil
@@ -596,21 +584,16 @@ func (iptable IPTable) AddReturnRule(chain string) error {
 
 // EnsureJumpRule ensures the jump rule is on top
 func (iptable IPTable) EnsureJumpRule(fromChain, toChain string) error {
-	var (
-		table = Filter
-		args  = []string{"-j", toChain}
-	)
-
-	if iptable.Exists(table, fromChain, args...) {
-		err := iptable.RawCombinedOutput(append([]string{"-D", fromChain}, args...)...)
+	if iptable.Exists(Filter, fromChain, "-j", toChain) {
+		err := iptable.RawCombinedOutput("-D", fromChain, "-j", toChain)
 		if err != nil {
-			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
 		}
 	}
 
-	err := iptable.RawCombinedOutput(append([]string{"-I", fromChain}, args...)...)
+	err := iptable.RawCombinedOutput("-I", fromChain, "-j", toChain)
 	if err != nil {
-		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %v", toChain, fromChain, err)
 	}
 
 	return nil
