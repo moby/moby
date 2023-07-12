@@ -234,7 +234,14 @@ func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, m
 		return nil, nil, errors.Wrap(err, "could not create new request")
 	}
 	req.URL.Scheme = "http"
-	req.URL.Host = hostURL.Host
+
+	// FIXME(thaJeztah): this should really be done by client.ParseHostURL
+	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
+		// For local communications, it doesn't matter what the host is.
+		req.URL.Host = client.DummyHost
+	} else {
+		req.URL.Host = hostURL.Host
+	}
 
 	for _, opt := range modifiers {
 		opt(req)

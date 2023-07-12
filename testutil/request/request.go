@@ -123,8 +123,13 @@ func newRequest(endpoint string, opts *Options) (*http.Request, error) {
 	} else {
 		req.URL.Scheme = "http"
 	}
-	req.URL.Host = hostURL.Host
-
+	// FIXME(thaJeztah): this should really be done by client.ParseHostURL
+	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
+		// For local communications, it doesn't matter what the host is.
+		req.URL.Host = client.DummyHost
+	} else {
+		req.URL.Host = hostURL.Host
+	}
 	for _, config := range opts.requestModifiers {
 		if err := config(req); err != nil {
 			return nil, err
