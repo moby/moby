@@ -27,12 +27,12 @@ func TestSetHostHeader(t *testing.T) {
 	}{
 		{
 			host:            "unix:///var/run/docker.sock",
-			expectedHost:    "docker",
+			expectedHost:    DummyHost,
 			expectedURLHost: "/var/run/docker.sock",
 		},
 		{
 			host:            "npipe:////./pipe/docker_engine",
-			expectedHost:    "docker",
+			expectedHost:    DummyHost,
 			expectedURLHost: "//./pipe/docker_engine",
 		},
 		{
