@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -37,11 +38,6 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		return nil, err
 	}
 
-	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
-	if options.Platform != nil {
-		platform = cplatforms.OnlyStrict(*options.Platform)
-	}
-
 	cs := i.client.ContentStore()
 
 	var presentImages []ocispec.Image
@@ -62,6 +58,11 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 	}
 	if len(presentImages) == 0 {
 		return nil, errdefs.NotFound(errors.New("failed to find image manifest"))
+	}
+
+	platform := platforms.AllPlatformsWithPreference(cplatforms.Default())
+	if options.Platform != nil {
+		platform = cplatforms.OnlyStrict(*options.Platform)
 	}
 
 	sort.SliceStable(presentImages, func(i, j int) bool {
@@ -281,9 +282,38 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 			return containerdimages.Image{}, err
 		}
 
+		// Slow path, case where the ref is the digest of a manifest
 		if len(imgs) == 0 {
+			imgs, err := is.List(ctx)
+			if err != nil {
+				return containerdimages.Image{}, err
+			}
+
+			var imageManifests []containerdimages.Image
+			for _, img := range imgs {
+				if err := i.walkImageManifests(ctx, img, func(img *ImageManifest) error {
+					digest := img.Image.Target().Digest.String()
+					if digest == refOrID || strings.HasPrefix(digest, "sha256:"+refOrID) {
+						imageManifests = append(imageManifests, img.Metadata())
+					}
+
+					return nil
+				}); err != nil {
+					return containerdimages.Image{}, err
+				}
+			}
+
+			if len(imageManifests) > 1 {
+				return containerdimages.Image{}, errdefs.NotFound(errors.New("ambiguous reference"))
+			}
+
+			if len(imageManifests) == 1 {
+				return imageManifests[0], nil
+			}
+
 			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
+
 		if len(imgs) > 1 {
 			digests := map[digest.Digest]struct{}{}
 			for _, img := range imgs {
