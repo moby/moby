@@ -618,7 +618,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.11.7-0.20230525183624-798ad6b0ce9f
+# github.com/moby/buildkit v0.11.7-0.20230712171151-0a15675913b7
 ## explicit; go 1.18
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
