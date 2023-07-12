@@ -50,10 +50,13 @@ jobs:
           # moby/moby-bin:master
           ## push on 23.0 branch
           # moby/moby-bin:23.0
+          ## any push
+          # moby/moby-bin:sha-ad132f5
           tags: |
             type=semver,pattern={{version}}
             type=ref,event=branch
             type=ref,event=pr
+            type=sha
       -
         name: Rename meta bake definition file
         run: |
