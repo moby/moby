@@ -64,7 +64,10 @@ func fallbackDial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
 }
 
 func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto string) (net.Conn, string, error) {
-	req.Host = cli.addr
+	if cli.proto == "unix" || cli.proto == "npipe" {
+		// For local communications, it doesn't matter what the host is.
+		req.URL.Host = DummyHost
+	}
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
