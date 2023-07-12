@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.20.5
+ARG GO_VERSION=1.20.6
 ARG BASE_DEBIAN_DISTRO="bullseye"
 ARG PROTOC_VERSION=3.11.4
 
