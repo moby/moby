@@ -5,14 +5,7 @@ import (
 	"strings"
 
 	"github.com/moby/buildkit/exporter"
-)
-
-// TODO(vvoland): Use buildkit consts once they're public
-// https://github.com/moby/buildkit/pull/3694
-const (
-	keyImageName      = "name"
-	keyUnpack         = "unpack"
-	keyDanglingPrefix = "dangling-name-prefix"
+	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 )
 
 // Wraps the containerimage exporter's Resolve method to apply moby-specific
@@ -30,14 +23,14 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, exporterAttrs ma
 	if exporterAttrs == nil {
 		exporterAttrs = make(map[string]string)
 	}
-	reposAndTags, err := SanitizeRepoAndTags(strings.Split(exporterAttrs[keyImageName], ","))
+	reposAndTags, err := SanitizeRepoAndTags(strings.Split(exporterAttrs[string(exptypes.OptKeyName)], ","))
 	if err != nil {
 		return nil, err
 	}
-	exporterAttrs[keyImageName] = strings.Join(reposAndTags, ",")
-	exporterAttrs[keyUnpack] = "true"
-	if _, has := exporterAttrs[keyDanglingPrefix]; !has {
-		exporterAttrs[keyDanglingPrefix] = "moby-dangling"
+	exporterAttrs[string(exptypes.OptKeyName)] = strings.Join(reposAndTags, ",")
+	exporterAttrs[string(exptypes.OptKeyUnpack)] = "true"
+	if _, has := exporterAttrs[string(exptypes.OptKeyDanglingPrefix)]; !has {
+		exporterAttrs[string(exptypes.OptKeyDanglingPrefix)] = "moby-dangling"
 	}
 
 	return e.exp.Resolve(ctx, exporterAttrs)
