@@ -18,7 +18,7 @@ import (
 // via HostConfig.Devices through to the implementation in hcsshim.
 func TestWindowsDevices(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 

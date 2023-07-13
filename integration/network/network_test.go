@@ -67,7 +67,7 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 // TestNetworkInvalidJSON tests that POST endpoints that expect a body return
 // the correct error when sending invalid JSON requests.
 func TestNetworkInvalidJSON(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 
 	// POST endpoints that accept / expect a JSON body;
 	endpoints := []string{
@@ -126,7 +126,7 @@ func TestNetworkInvalidJSON(t *testing.T) {
 // TestNetworkList verifies that /networks returns a list of networks either
 // with, or without a trailing slash (/networks/). Regression test for https://github.com/moby/moby/issues/24595
 func TestNetworkList(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 
 	endpoints := []string{
 		"/networks",

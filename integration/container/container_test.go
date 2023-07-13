@@ -13,7 +13,7 @@ import (
 // TestContainerInvalidJSON tests that POST endpoints that expect a body return
 // the correct error when sending invalid JSON requests.
 func TestContainerInvalidJSON(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 
 	// POST endpoints that accept / expect a JSON body;
 	endpoints := []string{
