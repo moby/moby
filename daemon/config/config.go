@@ -185,6 +185,7 @@ type CommonConfig struct {
 	Debug     bool     `json:"debug,omitempty"`
 	Hosts     []string `json:"hosts,omitempty"`
 	LogLevel  string   `json:"log-level,omitempty"`
+	LogFormat string   `json:"log-format,omitempty"`
 	TLS       *bool    `json:"tls,omitempty"`
 	TLSVerify *bool    `json:"tlsverify,omitempty"`
 
@@ -589,6 +590,16 @@ func Validate(config *Config) error {
 	if config.LogLevel != "" {
 		if _, err := logrus.ParseLevel(config.LogLevel); err != nil {
 			return errors.Errorf("invalid logging level: %s", config.LogLevel)
+		}
+	}
+
+	// validate log-format
+	if logFormat := config.LogFormat; logFormat != "" {
+		switch logFormat {
+		case log.TextFormat, log.JSONFormat:
+			// These are valid
+		default:
+			return errors.Errorf("invalid log format: %s", logFormat)
 		}
 	}
 

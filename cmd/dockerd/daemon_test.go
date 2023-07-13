@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -153,6 +154,26 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Equal("warn", loadedConfig.LogLevel))
+}
+
+func TestLoadDaemonCliConfigWithLogFormat(t *testing.T) {
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"log-format": "json"}`))
+	defer tempFile.Remove()
+
+	opts := defaultOptions(t, tempFile.Path())
+	loadedConfig, err := loadDaemonCliConfig(opts)
+	assert.NilError(t, err)
+	assert.Assert(t, loadedConfig != nil)
+	assert.Check(t, is.Equal(log.JSONFormat, loadedConfig.LogFormat))
+}
+
+func TestLoadDaemonCliConfigWithInvalidLogFormat(t *testing.T) {
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"log-format": "foo"}`))
+	defer tempFile.Remove()
+
+	opts := defaultOptions(t, tempFile.Path())
+	_, err := loadDaemonCliConfig(opts)
+	assert.Check(t, is.ErrorContains(err, "invalid log format: foo"))
 }
 
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {

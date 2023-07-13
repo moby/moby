@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
@@ -72,6 +74,7 @@ type daemonOptions struct {
 	Debug        bool
 	Hosts        []string
 	LogLevel     string
+	LogFormat    string
 	TLS          bool
 	TLSVerify    bool
 	TLSOptions   *tlsconfig.Options
@@ -104,6 +107,8 @@ func (o *daemonOptions) installFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&o.Debug, "debug", "D", false, "Enable debug mode")
 	flags.BoolVar(&o.Validate, "validate", false, "Validate daemon configuration and exit")
 	flags.StringVarP(&o.LogLevel, "log-level", "l", "info", `Set the logging level ("debug"|"info"|"warn"|"error"|"fatal")`)
+	flags.StringVar(&o.LogFormat, "log-format", log.TextFormat,
+		fmt.Sprintf(`Set the logging format ("%s"|"%s")`, log.TextFormat, log.JSONFormat))
 	flags.BoolVar(&o.TLS, FlagTLS, DefaultTLSValue, "Use TLS; implied by --tlsverify")
 	flags.BoolVar(&o.TLSVerify, FlagTLSVerify, dockerTLSVerify || DefaultTLSValue, "Use TLS and verify the remote")
 
