@@ -436,22 +436,25 @@ func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 	interval, _ := gogotypes.DurationFromProto(h.Interval)
 	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
 	startPeriod, _ := gogotypes.DurationFromProto(h.StartPeriod)
+	startInterval, _ := gogotypes.DurationFromProto(h.StartInterval)
 	return &container.HealthConfig{
-		Test:        h.Test,
-		Interval:    interval,
-		Timeout:     timeout,
-		Retries:     int(h.Retries),
-		StartPeriod: startPeriod,
+		Test:          h.Test,
+		Interval:      interval,
+		Timeout:       timeout,
+		Retries:       int(h.Retries),
+		StartPeriod:   startPeriod,
+		StartInterval: startInterval,
 	}
 }
 
 func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 	return &swarmapi.HealthConfig{
-		Test:        h.Test,
-		Interval:    gogotypes.DurationProto(h.Interval),
-		Timeout:     gogotypes.DurationProto(h.Timeout),
-		Retries:     int32(h.Retries),
-		StartPeriod: gogotypes.DurationProto(h.StartPeriod),
+		Test:          h.Test,
+		Interval:      gogotypes.DurationProto(h.Interval),
+		Timeout:       gogotypes.DurationProto(h.Timeout),
+		Retries:       int32(h.Retries),
+		StartPeriod:   gogotypes.DurationProto(h.StartPeriod),
+		StartInterval: gogotypes.DurationProto(h.StartInterval),
 	}
 }
 
