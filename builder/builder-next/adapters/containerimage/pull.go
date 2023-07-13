@@ -34,6 +34,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/source"
 	srctypes "github.com/moby/buildkit/source/types"
+	policy "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/leaseutil"
@@ -92,8 +93,9 @@ func (is *Source) resolveLocal(refStr string) (*image.Image, error) {
 	return img, nil
 }
 
-func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
 	type t struct {
+		ref  string
 		dgst digest.Digest
 		dt   []byte
 	}
@@ -105,32 +107,32 @@ func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocisp
 	key := "getconfig::" + ref + "::" + platforms.Format(p)
 	res, err := is.g.Do(ctx, key, func(ctx context.Context) (interface{}, error) {
 		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
-		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform)
+		ref, dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform, []*policy.Policy{})
 		if err != nil {
 			return nil, err
 		}
-		return &t{dgst: dgst, dt: dt}, nil
+		return &t{ref: ref, dgst: dgst, dt: dt}, nil
 	})
 	var typed *t
 	if err != nil {
-		return "", nil, err
+		return ref, "", nil, err
 	}
 	typed = res.(*t)
-	return typed.dgst, typed.dt, nil
+	return typed.ref, typed.dgst, typed.dt, nil
 }
 
 // ResolveImageConfig returns image config for an image
-func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
 	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
 	if err != nil {
-		return "", nil, err
+		return ref, "", nil, err
 	}
 	switch resolveMode {
 	case source.ResolveModeForcePull:
-		dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm, g)
+		ref, dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
-		return dgst, dt, err
+		return ref, dgst, dt, err
 		/*
 			if err == nil {
 				return dgst, dt, err
@@ -152,14 +154,14 @@ func (is *Source) ResolveImageConfig(ctx context.Context, ref string, opt llb.Re
 					path.Join(img.OS, img.Architecture, img.Variant),
 				)
 			} else {
-				return "", img.RawJSON(), err
+				return ref, "", img.RawJSON(), err
 			}
 		}
 		// fallback to remote
 		return is.resolveRemote(ctx, ref, opt.Platform, sm, g)
 	}
 	// should never happen
-	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ResolveMode)
+	return ref, "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ResolveMode)
 }
 
 // Resolve returns access to pulling for an identifier
@@ -289,11 +291,12 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 			if err != nil {
 				return nil, err
 			}
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm, g)
+			newRef, _, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm, g)
 			if err != nil {
 				return nil, err
 			}
 
+			p.ref = newRef
 			p.config = dt
 		}
 		return nil, nil
