@@ -91,7 +91,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 func TestMountDaemonRoot(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 	info, err := client.Info(ctx)

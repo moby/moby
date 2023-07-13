@@ -22,7 +22,7 @@ import (
 )
 
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 
 	cases := []struct {
 		name                           string
@@ -577,7 +577,7 @@ COPY --from=intermediate C:\\stuff C:\\stuff
 func TestBuildWithEmptyDockerfile(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 	ctx := context.TODO()
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 
 	tests := []struct {
 		name        string
