@@ -643,6 +643,14 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
+	if versions.LessThan(version, "1.48") {
+		for _, epConfig := range networkingConfig.EndpointsConfig {
+			// Before 1.48, all endpoints had the same priority, so
+			// reinitialize this field.
+			epConfig.GwPriority = 0
+		}
+	}
+
 	var warnings []string
 	if warn := handleVolumeDriverBC(version, hostConfig); warn != "" {
 		warnings = append(warnings, warn)

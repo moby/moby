@@ -2927,6 +2927,16 @@ definitions:
         example:
           com.example.some-label: "some-value"
           com.example.some-other-label: "some-other-value"
+      GwPriority:
+        description: |
+          This property determines which endpoint will provide the default
+          gateway for a container. The endpoint with the highest priority will
+          be used. If multiple endpoints have the same priority, endpoints are
+          lexicographically sorted based on their network name, and the one
+          that sorts first is picked.
+        type: "number"
+        example:
+          - 10
 
       # Operational data
       NetworkID:
@@ -10910,6 +10920,7 @@ paths:
                   IPv4Address: "172.24.56.89"
                   IPv6Address: "2001:db8::5689"
                 MacAddress: "02:42:ac:12:05:02"
+                Priority: 100
       tags: ["Network"]
 
   /networks/{id}/disconnect:

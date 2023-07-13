@@ -50,6 +50,14 @@ keywords: "API, Docker, rcli, REST, documentation"
   daemon has experimental features enabled.
 * `GET /networks/{id}` now returns an `EnableIPv4` field showing whether the
   network has IPv4 IPAM enabled.
+* `POST /networks/{id}/connect` and `POST /containers/create` now accept a
+  `GwPriority` field in `EndpointsConfig`. This value is used to determine which
+  network endpoint provides the default gateway for the container. The endpoint
+  with the highest priority is selected. If multiple endpoints have the same
+  priority, endpoints are sorted lexicographically by their network name, and
+  the one that sorts first is picked.
+* `GET /containers/json` now returns a `GwPriority` field in `NetworkSettings`
+  for each network endpoint.
 
 ## v1.47 API changes
 

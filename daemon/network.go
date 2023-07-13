@@ -1120,7 +1120,10 @@ func buildJoinOptions(settings *network.Settings, n interface{ Name() string }) 
 		return []libnetwork.EndpointOption{}, nil
 	}
 
-	var joinOptions []libnetwork.EndpointOption
+	joinOptions := []libnetwork.EndpointOption{
+		libnetwork.JoinOptionPriority(epConfig.GwPriority),
+	}
+
 	for _, str := range epConfig.Links {
 		name, alias, err := opts.ParseLink(str)
 		if err != nil {

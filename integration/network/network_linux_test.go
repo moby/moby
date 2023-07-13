@@ -2,13 +2,19 @@ package network // import "github.com/docker/docker/integration/network"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/internal/testutils/networking"
@@ -217,4 +223,173 @@ func TestHostGatewayFromDocker0(t *testing.T) {
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	assert.Check(t, is.Contains(res.Stdout.String(), "192.168.50.1\thg"))
 	assert.Check(t, is.Contains(res.Stdout.String(), "fddd:6ff4:6e08::1\thg"))
+}
+
+func TestCreateWithPriority(t *testing.T) {
+	// This feature should work on Windows, but the test is skipped because:
+	// 1. Linux-specific tools are used here; 2. 'windows' IPAM driver doesn't
+	// support static allocations.
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "requires API v1.48")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	network.CreateNoError(ctx, t, apiClient, "testnet1",
+		network.WithIPv6(),
+		network.WithIPAM("10.100.20.0/24", "10.100.20.1"),
+		network.WithIPAM("fd54:7a1b:8269::/64", "fd54:7a1b:8269::1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet1")
+
+	network.CreateNoError(ctx, t, apiClient, "testnet2",
+		network.WithIPv6(),
+		network.WithIPAM("10.100.30.0/24", "10.100.30.1"),
+		network.WithIPAM("fdff:6dfe:37d2::/64", "fdff:6dfe:37d2::1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet2")
+
+	ctrID := container.Run(ctx, t, apiClient,
+		container.WithCmd("sleep", "infinity"),
+		container.WithNetworkMode("testnet1"),
+		container.WithEndpointSettings("testnet1", &networktypes.EndpointSettings{GwPriority: 10}),
+		container.WithEndpointSettings("testnet2", &networktypes.EndpointSettings{GwPriority: 100}))
+	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 3, "default via 10.100.30.1 dev")
+	// IPv6 routing table will contain for each interface, one route for the LL
+	// address, one for the ULA, and one multicast.
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 7, "default via fdff:6dfe:37d2::1 dev")
+}
+
+func TestConnectWithPriority(t *testing.T) {
+	// This feature should work on Windows, but the test is skipped because:
+	// 1. Linux-specific tools are used here; 2. 'windows' IPAM driver doesn't
+	// support static allocations.
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "requires API v1.48")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	network.CreateNoError(ctx, t, apiClient, "testnet1",
+		network.WithIPv6(),
+		network.WithIPAM("10.100.10.0/24", "10.100.10.1"),
+		network.WithIPAM("fddd:4901:f594::/64", "fddd:4901:f594::1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet1")
+
+	network.CreateNoError(ctx, t, apiClient, "testnet2",
+		network.WithIPv6(),
+		network.WithIPAM("10.100.20.0/24", "10.100.20.1"),
+		network.WithIPAM("fd83:7683:7008::/64", "fd83:7683:7008::1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet2")
+
+	network.CreateNoError(ctx, t, apiClient, "testnet3",
+		network.WithDriver("bridge"),
+		network.WithIPv6(),
+		network.WithIPAM("10.100.30.0/24", "10.100.30.1"),
+		network.WithIPAM("fd72:de0:adad::/64", "fd72:de0:adad::1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet3")
+
+	network.CreateNoError(ctx, t, apiClient, "testnet4",
+		network.WithIPv6(),
+		network.WithIPAM("10.100.40.0/24", "10.100.40.1"),
+		network.WithIPAM("fd4c:c927:7d90::/64", "fd4c:c927:7d90::1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet4")
+
+	network.CreateNoError(ctx, t, apiClient, "testnet5",
+		network.WithIPv6(),
+		network.WithIPAM("10.100.50.0/24", "10.100.50.1"),
+		network.WithIPAM("fd4c:364b:1110::/64", "fd4c:364b:1110::1"))
+	defer network.RemoveNoError(ctx, t, apiClient, "testnet5")
+
+	ctrID := container.Run(ctx, t, apiClient,
+		container.WithCmd("sleep", "infinity"),
+		container.WithNetworkMode("testnet1"),
+		container.WithEndpointSettings("testnet1", &networktypes.EndpointSettings{}))
+	defer container.Remove(ctx, t, apiClient, ctrID, containertypes.RemoveOptions{Force: true})
+
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 2, "default via 10.100.10.1 dev eth0")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 4, "default via fddd:4901:f594::1 dev eth0")
+
+	// testnet5 has a negative priority -- the default gateway should not change.
+	err := apiClient.NetworkConnect(ctx, "testnet5", ctrID, &networktypes.EndpointSettings{GwPriority: -100})
+	assert.NilError(t, err)
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 3, "default via 10.100.10.1 dev eth0")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 7, "default via fddd:4901:f594::1 dev eth0")
+
+	// testnet2 has a higher priority. It should now provide the default gateway.
+	err = apiClient.NetworkConnect(ctx, "testnet2", ctrID, &networktypes.EndpointSettings{GwPriority: 100})
+	assert.NilError(t, err)
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 4, "default via 10.100.20.1 dev eth2")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 10, "default via fd83:7683:7008::1 dev eth2")
+
+	// testnet3 has a lower priority, so testnet2 should still provide the default gateway.
+	err = apiClient.NetworkConnect(ctx, "testnet3", ctrID, &networktypes.EndpointSettings{GwPriority: 10})
+	assert.NilError(t, err)
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 5, "default via 10.100.20.1 dev eth2")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 13, "default via fd83:7683:7008::1 dev eth2")
+
+	// testnet4 has the same priority as testnet3, but it sorts after in
+	// lexicographic order. For now, testnet2 stays the default gateway.
+	err = apiClient.NetworkConnect(ctx, "testnet4", ctrID, &networktypes.EndpointSettings{GwPriority: 10})
+	assert.NilError(t, err)
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 6, "default via 10.100.20.1 dev eth2")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 16, "default via fd83:7683:7008::1 dev eth2")
+
+	inspect := container.Inspect(ctx, t, apiClient, ctrID)
+	assert.Equal(t, inspect.NetworkSettings.Networks["testnet1"].GwPriority, 0)
+	assert.Equal(t, inspect.NetworkSettings.Networks["testnet2"].GwPriority, 100)
+	assert.Equal(t, inspect.NetworkSettings.Networks["testnet3"].GwPriority, 10)
+	assert.Equal(t, inspect.NetworkSettings.Networks["testnet4"].GwPriority, 10)
+	assert.Equal(t, inspect.NetworkSettings.Networks["testnet5"].GwPriority, -100)
+
+	// Disconnect testnet2, so testnet3 should now provide the default gateway.
+	// When two endpoints have the same priority (eg. testnet3 vs testnet4),
+	// the one that sorts first in lexicographic order is picked.
+	err = apiClient.NetworkDisconnect(ctx, "testnet2", ctrID, true)
+	assert.NilError(t, err)
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 5, "default via 10.100.30.1 dev eth3")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 13, "default via fd72:de0:adad::1 dev eth3")
+
+	// Disconnect testnet3, so testnet4 should now provide the default gateway.
+	err = apiClient.NetworkDisconnect(ctx, "testnet3", ctrID, true)
+	assert.NilError(t, err)
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 4, "default via 10.100.40.1 dev eth4")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 10, "default via fd4c:c927:7d90::1 dev eth4")
+
+	// Disconnect testnet4, so testnet1 should now provide the default gateway.
+	err = apiClient.NetworkDisconnect(ctx, "testnet4", ctrID, true)
+	assert.NilError(t, err)
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET, 3, "default via 10.100.10.1 dev eth0")
+	checkCtrRoutes(t, ctx, apiClient, ctrID, syscall.AF_INET6, 7, "default via fddd:4901:f594::1 dev eth0")
+}
+
+// checkCtrRoutes execute 'ip route show' in a container, and check that the
+// number of routes matches expRoutes. It also checks that the default route
+// matches expDefRoute. A substring match is used to avoid issues with
+// non-stable interface names.
+func checkCtrRoutes(t *testing.T, ctx context.Context, apiClient client.APIClient, ctrID string, af, expRoutes int, expDefRoute string) {
+	t.Helper()
+
+	fam := "-4"
+	if af == syscall.AF_INET6 {
+		fam = "-6"
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	res, err := container.Exec(ctx, apiClient, ctrID, []string{"ip", "-o", fam, "route", "show"})
+	assert.NilError(t, err)
+
+	assert.Equal(t, res.ExitCode, 0)
+	assert.Equal(t, res.Stderr(), "")
+
+	routes := slices.DeleteFunc(strings.Split(res.Stdout(), "\n"), func(s string) bool {
+		return s == ""
+	})
+
+	assert.Equal(t, len(routes), expRoutes, "expected %d routes, got %d:\n%s", expRoutes, len(routes), strings.Join(routes, "\n"))
+	defFound := slices.ContainsFunc(routes, func(s string) bool {
+		return strings.Contains(s, expDefRoute)
+	})
+	assert.Assert(t, defFound, "default route %q not found:\n%s", expDefRoute, strings.Join(routes, "\n"))
 }
