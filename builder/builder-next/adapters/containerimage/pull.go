@@ -64,7 +64,7 @@ type SourceOpt struct {
 // Source is the source implementation for accessing container images
 type Source struct {
 	SourceOpt
-	g flightcontrol.Group
+	g flightcontrol.Group[interface{}]
 }
 
 // NewSource creates a new image source
@@ -189,7 +189,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
-	g                flightcontrol.Group
+	g                flightcontrol.Group[interface{}]
 	src              *source.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
