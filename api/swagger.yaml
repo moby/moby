@@ -2460,6 +2460,10 @@ definitions:
         example:
           - "server_x"
           - "server_y"
+      Priority:
+        type: "number"
+        example:
+          - 10
 
       # Operational data
       NetworkID:
@@ -10044,6 +10048,7 @@ paths:
                 IPAMConfig:
                   IPv4Address: "172.24.56.89"
                   IPv6Address: "2001:db8::5689"
+                Priority: 100
       tags: ["Network"]
 
   /networks/{id}/disconnect:
