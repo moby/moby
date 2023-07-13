@@ -33,18 +33,15 @@ func getIPVersion(config *networkConfiguration) ipVersion {
 
 func setupBridgeNetFiltering(config *networkConfiguration, _ *bridgeInterface) error {
 	if err := checkBridgeNetFiltering(config); err != nil {
-		if ptherr, ok := err.(*os.PathError); ok {
-			if errno, ok := ptherr.Err.(syscall.Errno); ok && errno == syscall.ENOENT {
-				if isRunningInContainer() {
-					log.G(context.TODO()).Warnf("running inside docker container, ignoring missing kernel params: %v", err)
-					return nil
-				}
-				err = errors.New("please ensure that br_netfilter kernel module is loaded")
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) && errors.Is(pathErr, syscall.ENOENT) {
+			if isRunningInContainer() {
+				log.G(context.TODO()).WithError(err).Warnf("running inside docker container, ignoring missing kernel params")
+				return nil
 			}
+			err = errors.New("ensure that the br_netfilter kernel module is loaded")
 		}
-		if err != nil {
-			return fmt.Errorf("cannot restrict inter-container communication: %v", err)
-		}
+		return fmt.Errorf("cannot restrict inter-container communication: %v", err)
 	}
 	return nil
 }
