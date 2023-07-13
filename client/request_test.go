@@ -21,7 +21,7 @@ import (
 // TestSetHostHeader should set fake host for local communications, set real host
 // for normal communications.
 func TestSetHostHeader(t *testing.T) {
-	testURL := "/test"
+	const testEndpoint = "/test"
 	testCases := []struct {
 		host            string
 		expectedHost    string
@@ -49,34 +49,37 @@ func TestSetHostHeader(t *testing.T) {
 		},
 	}
 
-	for c, test := range testCases {
-		hostURL, err := ParseHostURL(test.host)
-		assert.NilError(t, err)
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.host, func(t *testing.T) {
+			hostURL, err := ParseHostURL(tc.host)
+			assert.Check(t, err)
 
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, testURL) {
-					return nil, fmt.Errorf("Test Case #%d: Expected URL %q, got %q", c, testURL, req.URL)
-				}
-				if req.Host != test.expectedHost {
-					return nil, fmt.Errorf("Test Case #%d: Expected host %q, got %q", c, test.expectedHost, req.Host)
-				}
-				if req.URL.Host != test.expectedURLHost {
-					return nil, fmt.Errorf("Test Case #%d: Expected URL host %q, got %q", c, test.expectedURLHost, req.URL.Host)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-				}, nil
-			}),
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					if !strings.HasPrefix(req.URL.Path, testEndpoint) {
+						return nil, fmt.Errorf("expected URL %q, got %q", testEndpoint, req.URL)
+					}
+					if req.Host != tc.expectedHost {
+						return nil, fmt.Errorf("wxpected host %q, got %q", tc.expectedHost, req.Host)
+					}
+					if req.URL.Host != tc.expectedURLHost {
+						return nil, fmt.Errorf("expected URL host %q, got %q", tc.expectedURLHost, req.URL.Host)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+					}, nil
+				}),
 
-			proto:    hostURL.Scheme,
-			addr:     hostURL.Host,
-			basePath: hostURL.Path,
-		}
+				proto:    hostURL.Scheme,
+				addr:     hostURL.Host,
+				basePath: hostURL.Path,
+			}
 
-		_, err = client.sendRequest(context.Background(), http.MethodGet, testURL, nil, nil, nil)
-		assert.NilError(t, err)
+			_, err = client.sendRequest(context.Background(), http.MethodGet, testEndpoint, nil, nil, nil)
+			assert.Check(t, err)
+		})
 	}
 }
 
@@ -95,9 +98,11 @@ func TestInfiniteError(t *testing.T) {
 	infinitR := rand.New(rand.NewSource(42))
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			resp := &http.Response{StatusCode: http.StatusInternalServerError}
-			resp.Header = http.Header{}
-			resp.Body = io.NopCloser(infinitR)
+			resp := &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Header:     http.Header{},
+				Body:       io.NopCloser(infinitR),
+			}
 			return resp, nil
 		}),
 	}
@@ -107,32 +112,30 @@ func TestInfiniteError(t *testing.T) {
 }
 
 func TestCanceledContext(t *testing.T) {
-	testURL := "/test"
+	const testEndpoint = "/test"
 
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			assert.Equal(t, req.Context().Err(), context.Canceled)
-
-			return &http.Response{}, context.Canceled
+			assert.Check(t, is.ErrorType(req.Context().Err(), context.Canceled))
+			return nil, context.Canceled
 		}),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := client.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
-	assert.Equal(t, true, errdefs.IsCancelled(err))
-	assert.Equal(t, true, errors.Is(err, context.Canceled))
+	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
+	assert.Check(t, is.ErrorType(err, errdefs.IsCancelled))
+	assert.Check(t, errors.Is(err, context.Canceled))
 }
 
 func TestDeadlineExceededContext(t *testing.T) {
-	testURL := "/test"
+	const testEndpoint = "/test"
 
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			assert.Equal(t, req.Context().Err(), context.DeadlineExceeded)
-
-			return &http.Response{}, context.DeadlineExceeded
+			assert.Check(t, is.ErrorType(req.Context().Err(), context.DeadlineExceeded))
+			return nil, context.DeadlineExceeded
 		}),
 	}
 
@@ -141,7 +144,7 @@ func TestDeadlineExceededContext(t *testing.T) {
 
 	<-ctx.Done()
 
-	_, err := client.sendRequest(ctx, http.MethodGet, testURL, nil, nil, nil)
-	assert.Equal(t, true, errdefs.IsDeadline(err))
-	assert.Equal(t, true, errors.Is(err, context.DeadlineExceeded))
+	_, err := client.sendRequest(ctx, http.MethodGet, testEndpoint, nil, nil, nil)
+	assert.Check(t, is.ErrorType(err, errdefs.IsDeadline))
+	assert.Check(t, errors.Is(err, context.DeadlineExceeded))
 }
