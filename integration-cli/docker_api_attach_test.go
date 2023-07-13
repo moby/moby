@@ -239,6 +239,7 @@ func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, m
 	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
 		// For local communications, it doesn't matter what the host is.
 		req.URL.Host = client.DummyHost
+		req.Host = client.DummyHost
 	} else {
 		req.URL.Host = hostURL.Host
 	}

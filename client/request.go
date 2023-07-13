@@ -106,6 +106,7 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers htt
 	if cli.proto == "unix" || cli.proto == "npipe" {
 		// For local communications, it doesn't matter what the host is.
 		req.URL.Host = DummyHost
+		req.Host = DummyHost
 	} else {
 		req.URL.Host = cli.addr
 	}

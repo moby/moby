@@ -127,6 +127,7 @@ func newRequest(endpoint string, opts *Options) (*http.Request, error) {
 	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
 		// For local communications, it doesn't matter what the host is.
 		req.URL.Host = client.DummyHost
+		req.Host = client.DummyHost
 	} else {
 		req.URL.Host = hostURL.Host
 	}
