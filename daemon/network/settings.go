@@ -2,6 +2,7 @@ package network // import "github.com/docker/docker/daemon/network"
 
 import (
 	"net"
+	"sort"
 	"sync"
 
 	networktypes "github.com/docker/docker/api/types/network"
@@ -78,4 +79,40 @@ func (store *AttachmentStore) GetIPForNetwork(networkID string) (net.IP, bool) {
 	defer store.Unlock()
 	ip, exists := store.networkToNodeLBIP[networkID]
 	return ip, exists
+}
+
+// SortNetworks takes a map of network names/IDs associated to EndpointSettings. It returns a list of sorted map keys.
+// It sorts the EndpointSettings Priority field in descending order.
+func SortNetworks(networks map[string]*EndpointSettings) []string {
+	l := make(epPriorityList, 0, len(networks))
+	for k, v := range networks {
+		l = append(l, epPriority{network: k, priority: v.Priority})
+	}
+
+	sort.Sort(sort.Reverse(l))
+
+	sortedKeys := make([]string, 0, len(networks))
+	for _, ep := range l {
+		sortedKeys = append(sortedKeys, ep.network)
+	}
+
+	return sortedKeys
+}
+
+type epPriorityList []epPriority
+
+type epPriority struct {
+	network  string
+	priority int
+}
+
+func (l epPriorityList) Len() int {
+	return len(l)
+}
+
+func (l epPriorityList) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+func (l epPriorityList) Less(i, j int) bool {
+	return l[i].priority < l[j].priority
 }

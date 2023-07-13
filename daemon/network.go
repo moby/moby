@@ -1076,7 +1076,7 @@ func buildEndpointInfo(networkSettings *internalnetwork.Settings, n libnetwork.N
 }
 
 // buildJoinOptions builds endpoint Join options from a given network.
-func buildJoinOptions(networkSettings *internalnetwork.Settings, n interface{ Name() string }) ([]libnetwork.EndpointOption, error) {
+func buildJoinOptions(networkSettings *internalnetwork.Settings, n libnetwork.Network, priority int) ([]libnetwork.EndpointOption, error) {
 	var joinOptions []libnetwork.EndpointOption
 	if epConfig, ok := networkSettings.Networks[n.Name()]; ok {
 		for _, str := range epConfig.Links {
@@ -1090,6 +1090,8 @@ func buildJoinOptions(networkSettings *internalnetwork.Settings, n interface{ Na
 			joinOptions = append(joinOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}
 	}
+
+	joinOptions = append(joinOptions, libnetwork.JoinOptionPriority(priority))
 
 	return joinOptions, nil
 }
