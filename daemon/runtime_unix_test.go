@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/errdefs"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/imdario/mergo"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -334,7 +335,10 @@ func TestGetRuntime(t *testing.T) {
 			if tt.want != nil {
 				assert.Check(t, err)
 				got := &shimConfig{Shim: shim, Opts: opts}
-				assert.Check(t, is.DeepEqual(got, tt.want))
+				assert.Check(t, is.DeepEqual(got, tt.want,
+					cmpopts.IgnoreUnexported(runtimeoptions_v1.Options{}),
+					cmpopts.IgnoreUnexported(v2runcoptions.Options{}),
+				))
 			} else {
 				assert.Check(t, is.Equal(shim, ""))
 				assert.Check(t, is.Nil(opts))
