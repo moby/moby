@@ -291,7 +291,7 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 			if err != nil {
 				return nil, err
 			}
-			newRef, _, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm, g)
+			newRef, _, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: p.src.ResolveMode.String()}, p.sm, g)
 			if err != nil {
 				return nil, err
 			}
@@ -838,20 +838,6 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 		return ""
 	}
 	return identity.ChainID(img.RootFS.DiffIDs)
-}
-
-// resolveModeToString is the equivalent of github.com/moby/buildkit/solver/llb.ResolveMode.String()
-// FIXME: add String method on source.ResolveMode
-func resolveModeToString(rm source.ResolveMode) string {
-	switch rm {
-	case source.ResolveModeDefault:
-		return "default"
-	case source.ResolveModeForcePull:
-		return "pull"
-	case source.ResolveModePreferLocal:
-		return "local"
-	}
-	return ""
 }
 
 func platformMatches(img *image.Image, p *ocispec.Platform) bool {
