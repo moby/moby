@@ -26,12 +26,7 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		return err
 	}
 
-	done := make(chan error)
-	err = goInChroot(root, func() { done <- archive.Unpack(decompressedArchive, relDest, options) })
-	if err != nil {
-		return err
-	}
-	return <-done
+	return doUnpack(decompressedArchive, relDest, root, options)
 }
 
 func invokePack(srcPath string, options *archive.TarOptions, root string) (io.ReadCloser, error) {
@@ -45,15 +40,7 @@ func invokePack(srcPath string, options *archive.TarOptions, root string) (io.Re
 		relSrc += "/"
 	}
 
-	tb, err := archive.NewTarballer(relSrc, options)
-	if err != nil {
-		return nil, errors.Wrap(err, "error processing tar file")
-	}
-	err = goInChroot(root, tb.Do)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not chroot")
-	}
-	return tb.Reader(), nil
+	return doPack(relSrc, root, options)
 }
 
 // resolvePathInChroot returns the equivalent to path inside a chroot rooted at root.

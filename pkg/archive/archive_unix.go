@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -43,6 +44,20 @@ func chmodTarEntry(perm os.FileMode) os.FileMode {
 // statUnix populates hdr from system-dependent fields of fi without performing
 // any OS lookups.
 func statUnix(fi os.FileInfo, hdr *tar.Header) error {
+	// Devmajor and Devminor are only needed for special devices.
+
+	// In FreeBSD, RDev for regular files is -1 (unless overridden by FS):
+	// https://cgit.freebsd.org/src/tree/sys/kern/vfs_default.c?h=stable/13#n1531
+	// (NODEV is -1: https://cgit.freebsd.org/src/tree/sys/sys/param.h?h=stable/13#n241).
+
+	// ZFS in particular does not override the default:
+	// https://cgit.freebsd.org/src/tree/sys/contrib/openzfs/module/os/freebsd/zfs/zfs_vnops_os.c?h=stable/13#n2027
+
+	// Since `Stat_t.Rdev` is uint64, the cast turns -1 into (2^64 - 1).
+	// Such large values cannot be encoded in a tar header.
+	if runtime.GOOS == "freebsd" && hdr.Typeflag != tar.TypeBlock && hdr.Typeflag != tar.TypeChar {
+		return nil
+	}
 	s, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil
