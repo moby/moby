@@ -6,9 +6,11 @@ import (
 	"io"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	cplatforms "github.com/containerd/containerd/platforms"
@@ -58,15 +60,25 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 		archive.WithPlatform(platform),
 	}
 
-	ctx, release, err := i.client.WithLease(ctx)
+	contentStore := i.client.ContentStore()
+	leasesManager := i.client.LeasesService()
+	lease, err := leasesManager.Create(ctx, leases.WithRandomID())
 	if err != nil {
 		return errdefs.System(err)
 	}
-	defer release(ctx)
+	defer func() {
+		if err := leasesManager.Delete(ctx, lease); err != nil {
+			log.G(ctx).WithError(err).Warn("cleaning up lease")
+		}
+	}()
 
 	for _, name := range names {
 		target, err := i.resolveDescriptor(ctx, name)
 		if err != nil {
+			return err
+		}
+
+		if err = leaseContent(ctx, contentStore, leasesManager, lease, target); err != nil {
 			return err
 		}
 
@@ -99,6 +111,30 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, outStrea
 	}
 
 	return i.client.Export(ctx, outStream, opts...)
+}
+
+// leaseContent will add a resource to the lease for each child of the descriptor making sure that it and
+// its children won't be deleted while the lease exists
+func leaseContent(ctx context.Context, store content.Store, leasesManager leases.Manager, lease leases.Lease, desc ocispec.Descriptor) error {
+	return containerdimages.Walk(ctx, containerdimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		_, err := store.Info(ctx, desc.Digest)
+		if err != nil {
+			if errors.Is(err, cerrdefs.ErrNotFound) {
+				return nil, nil
+			}
+			return nil, errdefs.System(err)
+		}
+
+		r := leases.Resource{
+			ID:   desc.Digest.String(),
+			Type: "content",
+		}
+		if err := leasesManager.AddResource(ctx, lease, r); err != nil {
+			return nil, errdefs.System(err)
+		}
+
+		return containerdimages.Children(ctx, store, desc)
+	}), desc)
 }
 
 // LoadImage uploads a set of images into the repository. This is the
