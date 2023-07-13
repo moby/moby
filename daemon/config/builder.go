@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/filters"
+	bkconfig "github.com/moby/buildkit/cmd/buildkitd/config"
 )
 
 // BuilderGCRule represents a GC rule for buildkit cache
@@ -62,8 +63,8 @@ type BuilderGCConfig struct {
 
 // BuilderHistoryConfig contains history config for a buildkit builder
 type BuilderHistoryConfig struct {
-	MaxAge     int64 `json:",omitempty"`
-	MaxEntries int64 `json:",omitempty"`
+	MaxAge     bkconfig.Duration `json:",omitempty"`
+	MaxEntries int64             `json:",omitempty"`
 }
 
 // BuilderEntitlements contains settings to enable/disable entitlements
