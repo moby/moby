@@ -16,7 +16,7 @@ import (
 )
 
 func TestWaitNonBlocked(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	cli := request.NewAPIClient(t)
 
 	testCases := []struct {
@@ -59,7 +59,7 @@ func TestWaitBlocked(t *testing.T) {
 	// Windows busybox does not support trap in this way, not sleep with sub-second
 	// granularity. It will always exit 0x40010004.
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	cli := request.NewAPIClient(t)
 
 	testCases := []struct {
@@ -104,7 +104,7 @@ func TestWaitBlocked(t *testing.T) {
 }
 
 func TestWaitConditions(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	cli := request.NewAPIClient(t)
 
 	testCases := []struct {
@@ -179,7 +179,7 @@ func TestWaitConditions(t *testing.T) {
 }
 
 func TestWaitRestartedContainer(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	cli := request.NewAPIClient(t)
 
 	testCases := []struct {

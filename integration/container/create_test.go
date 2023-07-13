@@ -24,7 +24,7 @@ import (
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 
 	testCases := []struct {
@@ -90,7 +90,7 @@ func TestCreateLinkToNonExistingContainer(t *testing.T) {
 }
 
 func TestCreateWithInvalidEnv(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 
 	testCases := []struct {
@@ -337,7 +337,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 }
 
 func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
@@ -532,7 +532,7 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 func TestCreateInvalidHostConfig(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	apiClient := testEnv.APIClient()
 	ctx := context.Background()
 
