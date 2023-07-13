@@ -86,11 +86,11 @@ func Do(endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCl
 	if err != nil {
 		return nil, nil, err
 	}
-	client, err := newHTTPClient(opts.host)
+	httpClient, err := newHTTPClient(opts.host)
 	if err != nil {
 		return nil, nil, err
 	}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	var body io.ReadCloser
 	if resp != nil {
 		body = ioutils.NewReadCloserWrapper(resp.Body, func() error {
