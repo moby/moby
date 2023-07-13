@@ -7,6 +7,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/docker/docker/libnetwork/osl"
+
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/ipamapi"
@@ -26,6 +28,7 @@ type Endpoint struct {
 	id                string
 	network           *network
 	iface             *endpointInterface
+	osIface           osl.Interface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
 	exposedPorts      []types.TransportPort
@@ -365,6 +368,18 @@ func (ep *Endpoint) Exists() bool {
 
 func (ep *Endpoint) Skip() bool {
 	return ep.getNetwork().Skip()
+}
+
+// Statistics returns a pointer to InterfaceStatistics from the underlying interface, or an error if this endpoint does
+// not have an underlying interface.
+//
+// FIXME(neersighted): This is a horrible kludge and relies on ep.osIface being set in sbox.populateNetworkResources().
+func (ep *Endpoint) Statistics() (*types.InterfaceStatistics, error) {
+	if ep.osIface == nil {
+		return nil, fmt.Errorf("invalid osIface in endpoint %s", ep.Name())
+	}
+
+	return ep.osIface.Statistics()
 }
 
 func (ep *Endpoint) processOptions(options ...EndpointOption) {

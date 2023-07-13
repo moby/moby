@@ -427,7 +427,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
 	sbox := n.sbox
 
-	if err := sbox.AddInterface(brName, "br",
+	if _, err := sbox.AddInterface(brName, "br",
 		sbox.InterfaceOptions().Address(s.gwIP),
 		sbox.InterfaceOptions().Bridge(true)); err != nil {
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
@@ -438,7 +438,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		return err
 	}
 
-	if err := sbox.AddInterface(vxlanName, "vxlan",
+	if _, err := sbox.AddInterface(vxlanName, "vxlan",
 		sbox.InterfaceOptions().Master(brName)); err != nil {
 		// If adding vxlan device to the overlay namespace fails, remove the bridge interface we
 		// already added to the namespace. This allows the caller to try the setup again.

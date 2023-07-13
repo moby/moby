@@ -38,7 +38,7 @@ type Sandbox interface {
 	// interface according to the specified settings. The caller is expected
 	// to only provide a prefix for DstName. The AddInterface api will auto-generate
 	// an appropriate suffix for the DstName to disambiguate.
-	AddInterface(SrcName string, DstPrefix string, options ...IfaceOption) error
+	AddInterface(SrcName string, DstPrefix string, options ...IfaceOption) (Interface, error)
 
 	// SetGateway sets the default IPv4 gateway for the sandbox.
 	SetGateway(gw net.IP) error

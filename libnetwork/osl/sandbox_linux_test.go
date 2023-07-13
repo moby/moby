@@ -406,7 +406,7 @@ func TestSandboxCreate(t *testing.T) {
 	}
 
 	for _, i := range tbox.Info().Interfaces() {
-		err = s.AddInterface(i.SrcName(), i.DstName(),
+		_, err = s.AddInterface(i.SrcName(), i.DstName(),
 			tbox.InterfaceOptions().Bridge(i.Bridge()),
 			tbox.InterfaceOptions().Address(i.Address()),
 			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
@@ -505,7 +505,7 @@ func TestAddRemoveInterface(t *testing.T) {
 	}
 
 	for _, i := range tbox.Info().Interfaces() {
-		err = s.AddInterface(i.SrcName(), i.DstName(),
+		_, err = s.AddInterface(i.SrcName(), i.DstName(),
 			tbox.InterfaceOptions().Bridge(i.Bridge()),
 			tbox.InterfaceOptions().Address(i.Address()),
 			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
@@ -524,7 +524,7 @@ func TestAddRemoveInterface(t *testing.T) {
 	verifySandbox(t, s, []string{"1", "2"})
 
 	i := tbox.Info().Interfaces()[0]
-	if err := s.AddInterface(i.SrcName(), i.DstName(),
+	if _, err := s.AddInterface(i.SrcName(), i.DstName(),
 		tbox.InterfaceOptions().Bridge(i.Bridge()),
 		tbox.InterfaceOptions().Address(i.Address()),
 		tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6())); err != nil {

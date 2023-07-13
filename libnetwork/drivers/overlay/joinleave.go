@@ -73,7 +73,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err = sbox.AddInterface(overlayIfName, "veth",
+	if _, err = sbox.AddInterface(overlayIfName, "veth",
 		sbox.InterfaceOptions().Master(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
