@@ -196,7 +196,7 @@ func TestVolumesInspect(t *testing.T) {
 // TestVolumesInvalidJSON tests that POST endpoints that expect a body return
 // the correct error when sending invalid JSON requests.
 func TestVolumesInvalidJSON(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 
 	// POST endpoints that accept / expect a JSON body;
 	endpoints := []string{"/volumes/create"}
