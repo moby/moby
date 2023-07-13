@@ -21,7 +21,7 @@ import (
 // TestSetHostHeader should set fake host for local communications, set real host
 // for normal communications.
 func TestSetHostHeader(t *testing.T) {
-	testURL := "/test"
+	const testURL = "/test"
 	testCases := []struct {
 		host            string
 		expectedHost    string
@@ -49,34 +49,37 @@ func TestSetHostHeader(t *testing.T) {
 		},
 	}
 
-	for c, test := range testCases {
-		hostURL, err := ParseHostURL(test.host)
-		assert.NilError(t, err)
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.host, func(t *testing.T) {
+			hostURL, err := ParseHostURL(tc.host)
+			assert.Check(t, err)
 
-		client := &Client{
-			client: newMockClient(func(req *http.Request) (*http.Response, error) {
-				if !strings.HasPrefix(req.URL.Path, testURL) {
-					return nil, fmt.Errorf("Test Case #%d: Expected URL %q, got %q", c, testURL, req.URL)
-				}
-				if req.Host != test.expectedHost {
-					return nil, fmt.Errorf("Test Case #%d: Expected host %q, got %q", c, test.expectedHost, req.Host)
-				}
-				if req.URL.Host != test.expectedURLHost {
-					return nil, fmt.Errorf("Test Case #%d: Expected URL host %q, got %q", c, test.expectedURLHost, req.URL.Host)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
-				}, nil
-			}),
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					if !strings.HasPrefix(req.URL.Path, testURL) {
+						return nil, fmt.Errorf("expected URL %q, got %q", testURL, req.URL)
+					}
+					if req.Host != tc.expectedHost {
+						return nil, fmt.Errorf("wxpected host %q, got %q", tc.expectedHost, req.Host)
+					}
+					if req.URL.Host != tc.expectedURLHost {
+						return nil, fmt.Errorf("expected URL host %q, got %q", tc.expectedURLHost, req.URL.Host)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+					}, nil
+				}),
 
-			proto:    hostURL.Scheme,
-			addr:     hostURL.Host,
-			basePath: hostURL.Path,
-		}
+				proto:    hostURL.Scheme,
+				addr:     hostURL.Host,
+				basePath: hostURL.Path,
+			}
 
-		_, err = client.sendRequest(context.Background(), http.MethodGet, testURL, nil, nil, nil)
-		assert.NilError(t, err)
+			_, err = client.sendRequest(context.Background(), http.MethodGet, testURL, nil, nil, nil)
+			assert.Check(t, err)
+		})
 	}
 }
 
