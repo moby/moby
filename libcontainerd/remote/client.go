@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/opencontainers/go-digest"
+
 	"github.com/containerd/containerd"
 	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
@@ -165,7 +167,7 @@ func (c *container) Start(ctx context.Context, checkpointDir string, withStdin b
 		// remove the checkpoint when we're done
 		defer func() {
 			if checkpoint != nil {
-				err := c.client.client.ContentStore().Delete(ctx, checkpoint.Digest)
+				err := c.client.client.ContentStore().Delete(ctx, digest.Digest(checkpoint.Digest))
 				if err != nil {
 					c.client.logger.WithError(err).WithFields(logrus.Fields{
 						"ref":    checkpointDir,
@@ -344,7 +346,7 @@ func (t *task) Stats(ctx context.Context) (*libcontainerdtypes.Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	return libcontainerdtypes.InterfaceToStats(m.Timestamp, v), nil
+	return libcontainerdtypes.InterfaceToStats(m.Timestamp.AsTime(), v), nil
 }
 
 func (t *task) Summary(ctx context.Context) ([]libcontainerdtypes.Summary, error) {
@@ -687,7 +689,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 					ProcessID:   t.ID,
 					Pid:         t.Pid,
 					ExitCode:    t.ExitStatus,
-					ExitedAt:    t.ExitedAt,
+					ExitedAt:    t.ExitedAt.AsTime(),
 				}
 			case *apievents.TaskOOM:
 				et = libcontainerdtypes.EventOOM
@@ -757,8 +759,8 @@ func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.R
 	}
 	return &types.Descriptor{
 		MediaType: mediaType,
-		Digest:    writer.Digest(),
-		Size_:     size,
+		Digest:    string(writer.Digest()),
+		Size:      size,
 	}, nil
 }
 
