@@ -27,7 +27,7 @@ import (
 // a timeout works as documented, i.e. in case of negative timeout
 // waiting is not limited (issue #35311).
 func TestStopContainerWithTimeout(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
