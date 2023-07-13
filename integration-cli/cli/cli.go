@@ -32,22 +32,26 @@ func DockerCmd(t testing.TB, args ...string) *icmd.Result {
 
 // BuildCmd executes the specified docker build command and expect a success
 func BuildCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
+	t.Helper()
 	return Docker(Args("build", "-t", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // InspectCmd executes the specified docker inspect command and expect a success
 func InspectCmd(t testing.TB, name string, cmdOperators ...CmdOperator) *icmd.Result {
+	t.Helper()
 	return Docker(Args("inspect", name), cmdOperators...).Assert(t, icmd.Success)
 }
 
 // WaitRun will wait for the specified container to be running, maximum 5 seconds.
 func WaitRun(t testing.TB, name string, cmdOperators ...CmdOperator) {
+	t.Helper()
 	waitForInspectResult(t, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
 }
 
 // WaitExited will wait for the specified container to state exit, subject
 // to a maximum time limit in seconds supplied by the caller
 func WaitExited(t testing.TB, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	t.Helper()
 	waitForInspectResult(t, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
 }
 
