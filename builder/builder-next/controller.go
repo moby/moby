@@ -38,6 +38,7 @@ import (
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
+	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/entitlements"
@@ -124,7 +125,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		SessionManager:   opt.SessionManager,
 		WorkerController: wc,
 		Frontends:        frontends,
-		CacheKeyStorage:  cacheStorage,
+		CacheManager:     solver.NewCacheManager(context.TODO(), "local", cacheStorage, worker.NewCacheResultStorage(wc)),
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
 			"gha":      gha.ResolveCacheImporterFunc(),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
@@ -346,7 +347,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		SessionManager:   opt.SessionManager,
 		WorkerController: wc,
 		Frontends:        frontends,
-		CacheKeyStorage:  cacheStorage,
+		CacheManager:     solver.NewCacheManager(context.TODO(), "local", cacheStorage, worker.NewCacheResultStorage(wc)),
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
 			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.RegistryHosts, store, dist.ReferenceStore, dist.ImageStore),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
