@@ -191,7 +191,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, errors.Errorf("could not access graphdriver")
 	}
 
-	store, err := local.NewStore(filepath.Join(root, "content"))
+	innerStore, err := local.NewStore(filepath.Join(root, "content"))
 	if err != nil {
 		return nil, err
 	}
@@ -201,21 +201,24 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, errors.WithStack(err)
 	}
 
-	mdb := ctdmetadata.NewDB(db, store, map[string]snapshots.Snapshotter{})
+	mdb := ctdmetadata.NewDB(db, innerStore, map[string]snapshots.Snapshotter{})
 
-	store = containerdsnapshot.NewContentStore(mdb.ContentStore(), "buildkit")
+	store := containerdsnapshot.NewContentStore(mdb.ContentStore(), "buildkit")
 
-	lm := leaseutil.WithNamespace(ctdmetadata.NewLeaseManager(mdb), "buildkit")
+	ilm := leaseutil.WithNamespace(ctdmetadata.NewLeaseManager(mdb), "buildkit")
 
-	snapshotter, lm, err := snapshot.NewSnapshotter(snapshot.Opt{
+	snapshotter, wlm, err := snapshot.NewSnapshotter(snapshot.Opt{
 		GraphDriver:     driver,
 		LayerStore:      dist.LayerStore,
 		Root:            root,
 		IdentityMapping: opt.IdentityMapping,
-	}, lm)
+	}, ilm)
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO(neersighted): figure out a better way to handle the types here, instead of triple-wrapping
+	lm := leaseutil.WithNamespace(wlm, "buildkit")
 
 	if err := cache.MigrateV2(context.Background(), filepath.Join(root, "metadata.db"), filepath.Join(root, "metadata_v2.db"), store, snapshotter, lm); err != nil {
 		return nil, err
