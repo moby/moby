@@ -4,22 +4,13 @@ import (
 	"context"
 	"strings"
 
-	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/server/router"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/moby/buildkit/util/grpcerrors"
-	"github.com/moby/buildkit/util/tracing/detect"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 )
-
-func init() {
-	// enable in memory recording for grpc traces
-	detect.Recorder = detect.NewTraceRecorder()
-}
 
 type grpcRouter struct {
 	routes     []router.Route
@@ -27,26 +18,14 @@ type grpcRouter struct {
 	h2Server   *http2.Server
 }
 
-var propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
-
 // NewRouter initializes a new grpc http router
 func NewRouter(backends ...Backend) router.Router {
-	tp, err := detect.TracerProvider()
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Error("failed to detect trace provider")
-	}
-
-	opts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor), grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor)}
-	if tp != nil {
-		streamTracer := otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(tp), otelgrpc.WithPropagators(propagators))
-		unary := grpc_middleware.ChainUnaryServer(unaryInterceptor(tp), grpcerrors.UnaryServerInterceptor)
-		stream := grpc_middleware.ChainStreamServer(streamTracer, grpcerrors.StreamServerInterceptor)
-		opts = []grpc.ServerOption{grpc.UnaryInterceptor(unary), grpc.StreamInterceptor(stream)}
-	}
+	unary := grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptor(), grpcerrors.UnaryServerInterceptor))
+	stream := grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(otelgrpc.StreamServerInterceptor(), grpcerrors.StreamServerInterceptor))
 
 	r := &grpcRouter{
 		h2Server:   &http2.Server{},
-		grpcServer: grpc.NewServer(opts...),
+		grpcServer: grpc.NewServer(unary, stream),
 	}
 	for _, b := range backends {
 		b.RegisterGRPC(r.grpcServer)
@@ -66,8 +45,8 @@ func (gr *grpcRouter) initRoutes() {
 	}
 }
 
-func unaryInterceptor(tp trace.TracerProvider) grpc.UnaryServerInterceptor {
-	withTrace := otelgrpc.UnaryServerInterceptor(otelgrpc.WithTracerProvider(tp), otelgrpc.WithPropagators(propagators))
+func unaryInterceptor() grpc.UnaryServerInterceptor {
+	withTrace := otelgrpc.UnaryServerInterceptor()
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		// This method is used by the clients to send their traces to buildkit so they can be included

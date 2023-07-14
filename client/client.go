@@ -56,6 +56,8 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // DummyHost is a hostname used for local communication.
@@ -123,6 +125,12 @@ type Client struct {
 
 	// negotiated indicates that API version negotiation took place
 	negotiated bool
+
+	tp trace.TracerProvider
+
+	// When the client transport is an *http.Transport (default) we need to do some extra things (like closing idle connections).
+	// Store the original transport as the http.Client transport will be wrapped with tracing libs.
+	baseTransport *http.Transport
 }
 
 // ErrRedirect is the error returned by checkRedirect when the request is non-GET.
@@ -188,6 +196,12 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 		}
 	}
 
+	if tr, ok := c.client.Transport.(*http.Transport); ok {
+		// Store the base transport before we wrap it in tracing libs below
+		// This is used, as an example, to close idle connections when the client is closed
+		c.baseTransport = tr
+	}
+
 	if c.scheme == "" {
 		// TODO(stevvooe): This isn't really the right way to write clients in Go.
 		// `NewClient` should probably only take an `*http.Client` and work from there.
@@ -201,7 +215,22 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 		}
 	}
 
+	c.client.Transport = otelhttp.NewTransport(
+		c.client.Transport,
+		otelhttp.WithTracerProvider(c.tp),
+		otelhttp.WithSpanNameFormatter(func(_ string, req *http.Request) string {
+			return req.Method + " " + req.URL.Path
+		}),
+	)
+
 	return c, nil
+}
+
+func (cli *Client) tlsConfig() *tls.Config {
+	if cli.baseTransport == nil {
+		return nil
+	}
+	return cli.baseTransport.TLSClientConfig
 }
 
 func defaultHTTPClient(hostURL *url.URL) (*http.Client, error) {
@@ -216,20 +245,11 @@ func defaultHTTPClient(hostURL *url.URL) (*http.Client, error) {
 	}, nil
 }
 
-// tlsConfig returns the TLS configuration from the client's transport.
-// It returns nil if the transport is not a [http.Transport], or if no
-// TLSClientConfig is set.
-func (cli *Client) tlsConfig() *tls.Config {
-	if tr, ok := cli.client.Transport.(*http.Transport); ok {
-		return tr.TLSClientConfig
-	}
-	return nil
-}
-
 // Close the transport used by the client
 func (cli *Client) Close() error {
-	if t, ok := cli.client.Transport.(*http.Transport); ok {
-		t.CloseIdleConnections()
+	if cli.baseTransport != nil {
+		cli.baseTransport.CloseIdleConnections()
+		return nil
 	}
 	return nil
 }
@@ -356,6 +376,20 @@ func ParseHostURL(host string) (*url.URL, error) {
 	}, nil
 }
 
+func (cli *Client) dialerFromTransport() func(context.Context, string, string) (net.Conn, error) {
+	if cli.baseTransport == nil || cli.baseTransport.DialContext == nil {
+		return nil
+	}
+
+	if cli.baseTransport.TLSClientConfig != nil {
+		// When using a tls config we don't use the configured dialer but instead a fallback dialer...
+		// Note: It seems like this should use the normal dialer and wrap the returned net.Conn in a tls.Conn
+		// I honestly don't know why it doesn't do that, but it doesn't and such a change is entirely unrelated to the change in this commit.
+		return nil
+	}
+	return cli.baseTransport.DialContext
+}
+
 // Dialer returns a dialer for a raw stream connection, with an HTTP/1.1 header,
 // that can be used for proxying the daemon connection. It is used by
 // ["docker dial-stdio"].
@@ -363,10 +397,8 @@ func ParseHostURL(host string) (*url.URL, error) {
 // ["docker dial-stdio"]: https://github.com/docker/cli/pull/1014
 func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
 	return func(ctx context.Context) (net.Conn, error) {
-		if transport, ok := cli.client.Transport.(*http.Transport); ok {
-			if transport.DialContext != nil && transport.TLSClientConfig == nil {
-				return transport.DialContext(ctx, cli.proto, cli.addr)
-			}
+		if dialFn := cli.dialerFromTransport(); dialFn != nil {
+			return dialFn(ctx, cli.proto, cli.addr)
 		}
 		switch cli.proto {
 		case "unix":

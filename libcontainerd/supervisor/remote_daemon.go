@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/containerd/sys"
@@ -19,6 +20,9 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -295,7 +299,17 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
-			client, err = containerd.New(r.GRPC.Address, containerd.WithTimeout(60*time.Second))
+			client, err = containerd.New(
+				r.GRPC.Address,
+				containerd.WithTimeout(60*time.Second),
+				containerd.WithDialOpts([]grpc.DialOption{
+					grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+					grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+					grpc.WithTransportCredentials(insecure.NewCredentials()),
+					grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
+					grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+				}),
+			)
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")
 				delay = 100 * time.Millisecond

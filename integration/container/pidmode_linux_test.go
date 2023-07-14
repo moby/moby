@@ -40,9 +40,8 @@ func TestPIDModeHost(t *testing.T) {
 func TestPIDModeContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	t.Run("non-existing container", func(t *testing.T) {
 		_, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(container.WithPIDMode("container:nosuchcontainer")))

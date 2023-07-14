@@ -2,21 +2,25 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
-// loadOrCreateID loads the engine's ID from idPath, or generates a new ID
+const idFilename = "engine-id"
+
+// LoadOrCreateID loads the engine's ID from the given root, or generates a new ID
 // if it doesn't exist. It returns the ID, and any error that occurred when
 // saving the file.
 //
 // Note that this function expects the daemon's root directory to already have
 // been created with the right permissions and ownership (usually this would
 // be done by daemon.CreateDaemonRoot().
-func loadOrCreateID(idPath string) (string, error) {
+func LoadOrCreateID(root string) (string, error) {
 	var id string
+	idPath := filepath.Join(root, idFilename)
 	idb, err := os.ReadFile(idPath)
 	if os.IsNotExist(err) {
 		id = uuid.New().String()

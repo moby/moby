@@ -11,6 +11,7 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Opt is a configuration option to initialize a [Client].
@@ -218,6 +219,15 @@ func WithVersionFromEnv() Opt {
 func WithAPIVersionNegotiation() Opt {
 	return func(c *Client) error {
 		c.negotiateVersion = true
+		return nil
+	}
+}
+
+// WithTraceProvider sets the trace provider for the client.
+// If this is not set then the global trace provider will be used.
+func WithTraceProvider(provider trace.TracerProvider) Opt {
+	return func(c *Client) error {
+		c.tp = provider
 		return nil
 	}
 }

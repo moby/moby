@@ -101,9 +101,9 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 
 			if tc.envs["DOCKER_TLS_VERIFY"] != "" {
 				// pedantic checking that this is handled correctly
-				tr := client.client.Transport.(*http.Transport)
-				assert.Assert(t, tr.TLSClientConfig != nil)
-				assert.Check(t, is.Equal(tr.TLSClientConfig.InsecureSkipVerify, false))
+				tlsConfig := client.tlsConfig()
+				assert.Assert(t, tlsConfig != nil)
+				assert.Check(t, is.Equal(tlsConfig.InsecureSkipVerify, false))
 			}
 		})
 	}
