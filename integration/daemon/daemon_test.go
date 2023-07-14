@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/integration/daemon"
 
 import (
 	"context"
+	"os"
 	"runtime"
 	"testing"
 
