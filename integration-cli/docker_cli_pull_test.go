@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -17,8 +18,8 @@ type DockerCLIPullSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPullSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIPullSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIPullSuite) OnTimeout(c *testing.T) {

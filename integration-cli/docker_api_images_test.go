@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
@@ -20,14 +20,15 @@ func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	buildImageSuccessfully(c, "saveandload", build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, "saveandload")
 
-	res, body, err := request.Get("/images/" + id + "/get")
+	ctx := testutil.GetContext(c)
+	res, body, err := request.Get(ctx, "/images/"+id+"/get")
 	assert.NilError(c, err)
 	defer body.Close()
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
 	dockerCmd(c, "rmi", id)
 
-	res, loadBody, err := request.Post("/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
+	res, loadBody, err := request.Post(ctx, "/images/load", request.RawContent(body), request.ContentType("application/x-tar"))
 	assert.NilError(c, err)
 	defer loadBody.Close()
 	assert.Equal(c, res.StatusCode, http.StatusOK)
@@ -50,13 +51,13 @@ func (s *DockerAPISuite) TestAPIImagesDelete(c *testing.T) {
 
 	dockerCmd(c, "tag", name, "test:tag1")
 
-	_, err = apiClient.ImageRemove(context.Background(), id, types.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), id, types.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "unable to delete")
 
-	_, err = apiClient.ImageRemove(context.Background(), "test:noexist", types.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:noexist", types.ImageRemoveOptions{})
 	assert.ErrorContains(c, err, "No such image")
 
-	_, err = apiClient.ImageRemove(context.Background(), "test:tag1", types.ImageRemoveOptions{})
+	_, err = apiClient.ImageRemove(testutil.GetContext(c), "test:tag1", types.ImageRemoveOptions{})
 	assert.NilError(c, err)
 }
 
@@ -72,7 +73,7 @@ func (s *DockerAPISuite) TestAPIImagesHistory(c *testing.T) {
 	buildImageSuccessfully(c, name, build.WithDockerfile("FROM busybox\nENV FOO bar"))
 	id := getIDByName(c, name)
 
-	historydata, err := apiClient.ImageHistory(context.Background(), id)
+	historydata, err := apiClient.ImageHistory(testutil.GetContext(c), id)
 	assert.NilError(c, err)
 
 	assert.Assert(c, len(historydata) != 0)
@@ -102,8 +103,9 @@ func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 		{http.StatusInternalServerError, "%2Fdata%2Ffile.tar"},
 	}
 
+	ctx := testutil.GetContext(c)
 	for _, te := range tt {
-		res, _, err := request.Post(strings.Join([]string{"/images/create?fromSrc=", te.fromSrc}, ""), request.JSON)
+		res, _, err := request.Post(ctx, strings.Join([]string{"/images/create?fromSrc=", te.fromSrc}, ""), request.JSON)
 		assert.NilError(c, err)
 		assert.Equal(c, res.StatusCode, te.statusExp)
 		assert.Equal(c, res.Header.Get("Content-Type"), "application/json")
@@ -114,7 +116,7 @@ func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 func (s *DockerAPISuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
 	testRequires(c, Network)
 
-	res, b, err := request.Get("/images/search?term=test", request.JSON)
+	res, b, err := request.Get(testutil.GetContext(c), "/images/search?term=test", request.JSON)
 	assert.NilError(c, err)
 	b.Close()
 	assert.Equal(c, res.StatusCode, http.StatusOK)
@@ -127,7 +129,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	apiclient := testEnv.APIClient()
 	defer apiclient.Close()
 
-	images, err := apiclient.ImageList(context.Background(), types.ImageListOptions{})
+	images, err := apiclient.ImageList(testutil.GetContext(c), types.ImageListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(images) != 0)
 	for _, image := range images {
@@ -138,7 +140,7 @@ func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiclient.Close()
 
-	v124Images, err := apiclient.ImageList(context.Background(), types.ImageListOptions{})
+	v124Images, err := apiclient.ImageList(testutil.GetContext(c), types.ImageListOptions{})
 	assert.NilError(c, err)
 	assert.Assert(c, len(v124Images) != 0)
 	for _, image := range v124Images {

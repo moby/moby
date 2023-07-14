@@ -51,9 +51,10 @@ type authorizationController struct {
 	resUser         string
 }
 
-func setupTestV1(t *testing.T) func() {
+func setupTestV1(t *testing.T) context.Context {
+	ctx := setupTest(t)
+
 	ctrl = &authorizationController{}
-	teardown := setupTest(t)
 
 	err := os.MkdirAll("/etc/docker/plugins", 0o755)
 	assert.NilError(t, err)
@@ -62,13 +63,12 @@ func setupTestV1(t *testing.T) func() {
 	err = os.WriteFile(fileName, []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
-	return func() {
+	t.Cleanup(func() {
 		err := os.RemoveAll("/etc/docker/plugins")
 		assert.NilError(t, err)
-
-		teardown()
 		ctrl = nil
-	}
+	})
+	return ctx
 }
 
 // check for always allowed endpoints to not inhibit test framework functions
@@ -82,13 +82,13 @@ func isAllowed(reqURI string) bool {
 }
 
 func TestAuthZPluginAllowRequest(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
+
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Allow = true
-	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin)
+	d.StartWithBusybox(ctx, t, "--authorization-plugin="+testAuthZPlugin)
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
 	// Ensure command successful
 	cID := container.Run(ctx, t, c)
@@ -103,7 +103,7 @@ func TestAuthZPluginAllowRequest(t *testing.T) {
 }
 
 func TestAuthZPluginTLS(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
 	const (
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 		cacertPath          = "../../testdata/https/ca.pem"
@@ -127,7 +127,7 @@ func TestAuthZPluginTLS(t *testing.T) {
 	c, err := newTLSAPIClient(testDaemonHTTPSAddr, cacertPath, clientCertPath, clientKeyPath)
 	assert.NilError(t, err)
 
-	_, err = c.ServerVersion(context.Background())
+	_, err = c.ServerVersion(ctx)
 	assert.NilError(t, err)
 
 	assert.Equal(t, "client", ctrl.reqUser)
@@ -146,7 +146,8 @@ func newTLSAPIClient(host, cacertPath, certPath, keyPath string) (client.APIClie
 }
 
 func TestAuthZPluginDenyRequest(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
+
 	d.Start(t, "--authorization-plugin="+testAuthZPlugin)
 	ctrl.reqRes.Allow = false
 	ctrl.reqRes.Msg = unauthorizedMessage
@@ -154,7 +155,7 @@ func TestAuthZPluginDenyRequest(t *testing.T) {
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(context.Background())
+	_, err := c.ServerVersion(ctx)
 	assert.Assert(t, err != nil)
 	assert.Equal(t, 1, ctrl.versionReqCount)
 	assert.Equal(t, 0, ctrl.versionResCount)
@@ -166,7 +167,8 @@ func TestAuthZPluginDenyRequest(t *testing.T) {
 // TestAuthZPluginAPIDenyResponse validates that when authorization
 // plugin deny the request, the status code is forbidden
 func TestAuthZPluginAPIDenyResponse(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
+
 	d.Start(t, "--authorization-plugin="+testAuthZPlugin)
 	ctrl.reqRes.Allow = false
 	ctrl.resRes.Msg = unauthorizedMessage
@@ -179,6 +181,7 @@ func TestAuthZPluginAPIDenyResponse(t *testing.T) {
 	c := httputil.NewClientConn(conn, nil)
 	req, err := http.NewRequest(http.MethodGet, "/version", nil)
 	assert.NilError(t, err)
+	req = req.WithContext(ctx)
 	resp, err := c.Do(req)
 
 	assert.NilError(t, err)
@@ -186,7 +189,8 @@ func TestAuthZPluginAPIDenyResponse(t *testing.T) {
 }
 
 func TestAuthZPluginDenyResponse(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
+
 	d.Start(t, "--authorization-plugin="+testAuthZPlugin)
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Allow = false
@@ -195,7 +199,7 @@ func TestAuthZPluginDenyResponse(t *testing.T) {
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(context.Background())
+	_, err := c.ServerVersion(ctx)
 	assert.Assert(t, err != nil)
 	assert.Equal(t, 1, ctrl.versionReqCount)
 	assert.Equal(t, 1, ctrl.versionResCount)
@@ -210,16 +214,15 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Allow = true
-	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin)
+	d.StartWithBusybox(ctx, t, "--authorization-plugin="+testAuthZPlugin)
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
-	startTime := strconv.FormatInt(systemTime(t, c, testEnv).Unix(), 10)
-	events, errs, cancel := systemEventsSince(c, startTime)
+	startTime := strconv.FormatInt(systemTime(ctx, t, c, testEnv).Unix(), 10)
+	events, errs, cancel := systemEventsSince(ctx, c, startTime)
 	defer cancel()
 
 	// Create a container and wait for the creation events
@@ -257,12 +260,11 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", cID))
 }
 
-func systemTime(t *testing.T, client client.APIClient, testEnv *environment.Execution) time.Time {
+func systemTime(ctx context.Context, t *testing.T, client client.APIClient, testEnv *environment.Execution) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
 
-	ctx := context.Background()
 	info, err := client.Info(ctx)
 	assert.NilError(t, err)
 
@@ -271,18 +273,18 @@ func systemTime(t *testing.T, client client.APIClient, testEnv *environment.Exec
 	return dt
 }
 
-func systemEventsSince(client client.APIClient, since string) (<-chan eventtypes.Message, <-chan error, func()) {
+func systemEventsSince(ctx context.Context, client client.APIClient, since string) (<-chan eventtypes.Message, <-chan error, func()) {
 	eventOptions := types.EventsOptions{
 		Since: since,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	events, errs := client.Events(ctx, eventOptions)
 
 	return events, errs, cancel
 }
 
 func TestAuthZPluginErrorResponse(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
 	d.Start(t, "--authorization-plugin="+testAuthZPlugin)
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Err = errorMessage
@@ -290,26 +292,26 @@ func TestAuthZPluginErrorResponse(t *testing.T) {
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(context.Background())
+	_, err := c.ServerVersion(ctx)
 	assert.Assert(t, err != nil)
 	assert.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiResponse, errorMessage), err.Error())
 }
 
 func TestAuthZPluginErrorRequest(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
 	d.Start(t, "--authorization-plugin="+testAuthZPlugin)
 	ctrl.reqRes.Err = errorMessage
 
 	c := d.NewClientT(t)
 
 	// Ensure command is blocked
-	_, err := c.ServerVersion(context.Background())
+	_, err := c.ServerVersion(ctx)
 	assert.Assert(t, err != nil)
 	assert.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiRequest, errorMessage), err.Error())
 }
 
 func TestAuthZPluginEnsureNoDuplicatePluginRegistration(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
 	d.Start(t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 
 	ctrl.reqRes.Allow = true
@@ -317,7 +319,7 @@ func TestAuthZPluginEnsureNoDuplicatePluginRegistration(t *testing.T) {
 
 	c := d.NewClientT(t)
 
-	_, err := c.ServerVersion(context.Background())
+	_, err := c.ServerVersion(ctx)
 	assert.NilError(t, err)
 
 	// assert plugin is only called once..
@@ -326,13 +328,13 @@ func TestAuthZPluginEnsureNoDuplicatePluginRegistration(t *testing.T) {
 }
 
 func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
+
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Allow = true
-	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
+	d.StartWithBusybox(ctx, t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
 	tmp, err := os.MkdirTemp("", "test-authz-load-import")
 	assert.NilError(t, err)
@@ -340,16 +342,16 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 	savedImagePath := filepath.Join(tmp, "save.tar")
 
-	err = imageSave(c, savedImagePath, "busybox")
+	err = imageSave(ctx, c, savedImagePath, "busybox")
 	assert.NilError(t, err)
-	err = imageLoad(c, savedImagePath)
+	err = imageLoad(ctx, c, savedImagePath)
 	assert.NilError(t, err)
 
 	exportedImagePath := filepath.Join(tmp, "export.tar")
 
 	cID := container.Run(ctx, t, c)
 
-	responseReader, err := c.ContainerExport(context.Background(), cID)
+	responseReader, err := c.ContainerExport(ctx, cID)
 	assert.NilError(t, err)
 	defer responseReader.Close()
 	file, err := os.Create(exportedImagePath)
@@ -358,15 +360,15 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 	_, err = io.Copy(file, responseReader)
 	assert.NilError(t, err)
 
-	err = imageImport(c, exportedImagePath)
+	err = imageImport(ctx, c, exportedImagePath)
 	assert.NilError(t, err)
 }
 
 func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Allow = true
-	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
+	d.StartWithBusybox(ctx, t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 
 	dir, err := os.MkdirTemp("", t.Name())
 	assert.NilError(t, err)
@@ -385,7 +387,6 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	}
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
@@ -411,8 +412,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func imageSave(client client.APIClient, path, image string) error {
-	ctx := context.Background()
+func imageSave(ctx context.Context, client client.APIClient, path, image string) error {
 	responseReader, err := client.ImageSave(ctx, []string{image})
 	if err != nil {
 		return err
@@ -427,14 +427,13 @@ func imageSave(client client.APIClient, path, image string) error {
 	return err
 }
 
-func imageLoad(client client.APIClient, path string) error {
+func imageLoad(ctx context.Context, client client.APIClient, path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 	quiet := true
-	ctx := context.Background()
 	response, err := client.ImageLoad(ctx, file, quiet)
 	if err != nil {
 		return err
@@ -443,7 +442,7 @@ func imageLoad(client client.APIClient, path string) error {
 	return nil
 }
 
-func imageImport(client client.APIClient, path string) error {
+func imageImport(ctx context.Context, client client.APIClient, path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -455,7 +454,6 @@ func imageImport(client client.APIClient, path string) error {
 		Source:     file,
 		SourceName: "-",
 	}
-	ctx := context.Background()
 	responseReader, err := client.ImageImport(ctx, source, ref, options)
 	if err != nil {
 		return err
@@ -465,10 +463,11 @@ func imageImport(client client.APIClient, path string) error {
 }
 
 func TestAuthZPluginHeader(t *testing.T) {
-	defer setupTestV1(t)()
+	ctx := setupTestV1(t)
+
 	ctrl.reqRes.Allow = true
 	ctrl.resRes.Allow = true
-	d.StartWithBusybox(t, "--debug", "--authorization-plugin="+testAuthZPlugin)
+	d.StartWithBusybox(ctx, t, "--debug", "--authorization-plugin="+testAuthZPlugin)
 
 	daemonURL, err := url.Parse(d.Sock())
 	assert.NilError(t, err)
@@ -478,6 +477,7 @@ func TestAuthZPluginHeader(t *testing.T) {
 	client := httputil.NewClientConn(conn, nil)
 	req, err := http.NewRequest(http.MethodGet, "/version", nil)
 	assert.NilError(t, err)
+	req = req.WithContext(ctx)
 	resp, err := client.Do(req)
 	assert.NilError(t, err)
 	assert.Equal(t, "application/json", resp.Header["Content-Type"][0])

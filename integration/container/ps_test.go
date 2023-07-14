@@ -1,20 +1,19 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestPsFilter(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	prev := container.Create(ctx, t, apiClient)
 	top := container.Create(ctx, t, apiClient)
@@ -29,6 +28,7 @@ func TestPsFilter(t *testing.T) {
 	}
 
 	t.Run("since", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		results, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("since", top)),
@@ -38,6 +38,7 @@ func TestPsFilter(t *testing.T) {
 	})
 
 	t.Run("before", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		results, err := apiClient.ContainerList(ctx, types.ContainerListOptions{
 			All:     true,
 			Filters: filters.NewArgs(filters.Arg("before", top)),

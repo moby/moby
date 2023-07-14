@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"strings"
@@ -18,8 +19,8 @@ type DockerCLIRestartSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIRestartSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIRestartSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIRestartSuite) OnTimeout(c *testing.T) {

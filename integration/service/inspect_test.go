@@ -1,7 +1,6 @@
 package service // import "github.com/docker/docker/integration/service"
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -19,8 +18,8 @@ import (
 func TestInspect(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
@@ -29,14 +28,13 @@ func TestInspect(t *testing.T) {
 	var instances uint64 = 2
 	serviceSpec := fullSwarmServiceSpec("test-service-inspect"+t.Name(), instances)
 
-	ctx := context.Background()
 	resp, err := client.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
 	})
 	assert.NilError(t, err)
 
 	id := resp.ID
-	poll.WaitOn(t, swarm.RunningTasksCount(client, id, instances))
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, id, instances))
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
 	assert.NilError(t, err)

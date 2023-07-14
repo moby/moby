@@ -23,10 +23,10 @@ func TestNetworkNat(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	msg := "it works"
-	startServerContainer(t, msg, 8080)
+	startServerContainer(ctx, t, msg, 8080)
 
 	endpoint := getExternalAddress(t)
 	conn, err := net.Dial("tcp", net.JoinHostPort(endpoint.String(), "8080"))
@@ -41,10 +41,10 @@ func TestNetworkNat(t *testing.T) {
 func TestNetworkLocalhostTCPNat(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	msg := "hi yall"
-	startServerContainer(t, msg, 8081)
+	startServerContainer(ctx, t, msg, 8081)
 
 	conn, err := net.Dial("tcp", "localhost:8081")
 	assert.NilError(t, err)
@@ -60,15 +60,14 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	msg := "it works"
-	serverContainerID := startServerContainer(t, msg, 8080)
+	serverContainerID := startServerContainer(ctx, t, msg, 8080)
 
 	endpoint := getExternalAddress(t)
 
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient,
 		container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 1 %s 8080", endpoint.String())),
@@ -91,10 +90,9 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	assert.Check(t, is.Equal(msg, strings.TrimSpace(b.String())))
 }
 
-func startServerContainer(t *testing.T, msg string, port int) string {
+func startServerContainer(ctx context.Context, t *testing.T, msg string, port int) string {
 	t.Helper()
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient,
 		container.WithName("server-"+t.Name()),

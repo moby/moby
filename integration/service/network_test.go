@@ -1,7 +1,6 @@
 package service // import "github.com/docker/docker/integration/service"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -16,12 +15,12 @@ import (
 
 func TestDockerNetworkConnectAlias(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
-	ctx := context.Background()
 
 	name := t.Name() + "test-alias"
 	net.CreateNoError(ctx, t, client, name,
@@ -78,12 +77,12 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 
 func TestDockerNetworkReConnect(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
-	ctx := context.Background()
 
 	name := t.Name() + "dummyNet"
 	net.CreateNoError(ctx, t, client, name,

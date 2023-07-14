@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -21,9 +20,9 @@ func TestCreateJob(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)
+	ctx := setupTest(t)
 
-	d := swarm.NewSwarm(t, testEnv)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
@@ -33,9 +32,9 @@ func TestCreateJob(t *testing.T) {
 		{ReplicatedJob: &swarmtypes.ReplicatedJob{}},
 		{GlobalJob: &swarmtypes.GlobalJob{}},
 	} {
-		id := swarm.CreateService(t, d, swarm.ServiceWithMode(mode))
+		id := swarm.CreateService(ctx, t, d, swarm.ServiceWithMode(mode))
 
-		poll.WaitOn(t, swarm.RunningTasksCount(client, id, 1), swarm.ServicePoll)
+		poll.WaitOn(t, swarm.RunningTasksCount(ctx, client, id, 1), swarm.ServicePoll)
 	}
 }
 
@@ -44,6 +43,8 @@ func TestCreateJob(t *testing.T) {
 func TestReplicatedJob(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
 
 	// we need variables, because the replicas field takes a pointer
 	maxConcurrent := uint64(2)
@@ -56,15 +57,13 @@ func TestReplicatedJob(t *testing.T) {
 	// after 15 seconds. this means 7 completions ought not be too many.
 	total := uint64(7)
 
-	defer setupTest(t)
-
-	d := swarm.NewSwarm(t, testEnv)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
 	defer client.Close()
 
-	id := swarm.CreateService(t, d,
+	id := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithMode(swarmtypes.ServiceMode{
 			ReplicatedJob: &swarmtypes.ReplicatedJob{
 				MaxConcurrent:    &maxConcurrent,
@@ -76,11 +75,11 @@ func TestReplicatedJob(t *testing.T) {
 	)
 
 	service, _, err := client.ServiceInspectWithRaw(
-		context.Background(), id, types.ServiceInspectOptions{},
+		ctx, id, types.ServiceInspectOptions{},
 	)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, swarm.JobComplete(client, service), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, client, service), swarm.ServicePoll)
 }
 
 // TestUpdateJob tests that a job can be updated, and that it runs with the
@@ -89,19 +88,16 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	d := swarm.NewSwarm(t, testEnv)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
 	defer client.Close()
 
-	// avoid writing "context.Background()" over and over again
-	ctx := context.Background()
-
 	// Create the job service
-	id := swarm.CreateService(t, d,
+	id := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithMode(swarmtypes.ServiceMode{
 			ReplicatedJob: &swarmtypes.ReplicatedJob{
 				// use the default, empty values.
@@ -117,7 +113,7 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	assert.NilError(t, err)
 
 	// wait for the job to completed
-	poll.WaitOn(t, swarm.JobComplete(client, service), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, client, service), swarm.ServicePoll)
 
 	// update the job.
 	spec := service.Spec
@@ -139,5 +135,5 @@ func TestUpdateReplicatedJob(t *testing.T) {
 	)
 
 	// now wait for the service to complete a second time.
-	poll.WaitOn(t, swarm.JobComplete(client, service2), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.JobComplete(ctx, client, service2), swarm.ServicePoll)
 }

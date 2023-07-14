@@ -25,10 +25,12 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/testutil"
+	testdaemon "github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/sys/mountinfo"
@@ -42,8 +44,8 @@ type DockerCLIRunSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIRunSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIRunSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIRunSuite) OnTimeout(c *testing.T) {
@@ -3795,7 +3797,7 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	container, err := apiClient.ContainerInspect(context.Background(), strings.TrimSpace(cid))
+	container, err := apiClient.ContainerInspect(testutil.GetContext(c), strings.TrimSpace(cid))
 	assert.NilError(c, err)
 	var vname string
 	for _, v := range container.Mounts {
@@ -3816,19 +3818,40 @@ func (s *DockerCLIRunSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunAttachFailedNoLeak(c *testing.T) {
-	nroutines, err := getGoroutineNumber()
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	ctx := testutil.GetContext(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvVars("OTEL_SDK_DISABLED=1"))
+	defer func() {
+		if c.Failed() {
+			d.Daemon.DumpStackAndQuit()
+		} else {
+			d.Stop(c)
+		}
+		d.Cleanup(c)
+	}()
+	d.StartWithBusybox(ctx, c)
+
+	// Run a dummy container to ensure all goroutines are up and running before we get a count
+	_, err := d.Cmd("run", "--rm", "busybox", "true")
 	assert.NilError(c, err)
 
-	runSleepingContainer(c, "--name=test", "-p", "8000:8000")
+	client := d.NewClientT(c)
+
+	nroutines := waitForStableGourtineCount(ctx, c, client)
+
+	out, err := d.Cmd(append([]string{"run", "-d", "--name=test", "-p", "8000:8000", "busybox"}, sleepCommandForDaemonPlatform()...)...)
+	assert.NilError(c, err, out)
 
 	// Wait until container is fully up and running
-	assert.Assert(c, waitRun("test") == nil)
+	assert.NilError(c, d.WaitRun("test"))
 
-	out, _, err := dockerCmdWithError("run", "--name=fail", "-p", "8000:8000", "busybox", "true")
+	out, err = d.Cmd("run", "--name=fail", "-p", "8000:8000", "busybox", "true")
+
 	// We will need the following `inspect` to diagnose the issue if test fails (#21247)
-	out1, err1 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "test")
-	out2, err2 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "fail")
+	out1, err1 := d.Cmd("inspect", "--format", "{{json .State}}", "test")
+	out2, err2 := d.Cmd("inspect", "--format", "{{json .State}}", "fail")
 	assert.Assert(c, err != nil, "Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2)
+
 	// check for windows error as well
 	// TODO Windows Post TP5. Fix the error message string
 	outLowerCase := strings.ToLower(out)
@@ -3837,10 +3860,12 @@ func (s *DockerCLIRunSuite) TestRunAttachFailedNoLeak(c *testing.T) {
 		strings.Contains(outLowerCase, "the specified port already exists") ||
 		strings.Contains(outLowerCase, "hns failed with error : failed to create endpoint") ||
 		strings.Contains(outLowerCase, "hns failed with error : the object already exists"), fmt.Sprintf("Output: %s", out))
-	dockerCmd(c, "rm", "-f", "test")
+
+	out, err = d.Cmd("rm", "-f", "test")
+	assert.NilError(c, err, out)
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.Assert(c, waitForGoroutines(nroutines) == nil)
+	waitForGoroutines(ctx, c, client, nroutines)
 }
 
 // Test for one character directory name case (#20122)
@@ -3993,35 +4018,44 @@ exec "$@"`,
 }
 
 func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *testing.T) {
-	s.d.StartWithBusybox(c, "--debug", "--default-ulimit=nofile=65535")
+	ctx := testutil.GetContext(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvVars("OTEL_SDK_DISABLED=1"))
+	defer func() {
+		d.Stop(c)
+		d.Cleanup(c)
+	}()
+	d.StartWithBusybox(ctx, c, "--debug", "--default-ulimit=nofile=65535")
 
 	name := "test-A"
-	_, err := s.d.Cmd("run", "--name", name, "-d", "busybox", "top")
+	_, err := d.Cmd("run", "--name", name, "-d", "busybox", "top")
 	assert.NilError(c, err)
-	assert.NilError(c, s.d.WaitRun(name))
+	assert.NilError(c, d.WaitRun(name))
 
-	out, err := s.d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
+	out, err := d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(out, "[nofile=65535:65535]"))
 	name = "test-B"
-	_, err = s.d.Cmd("run", "--name", name, "--ulimit=nofile=42", "-d", "busybox", "top")
+	_, err = d.Cmd("run", "--name", name, "--ulimit=nofile=42", "-d", "busybox", "top")
 	assert.NilError(c, err)
-	assert.NilError(c, s.d.WaitRun(name))
+	assert.NilError(c, d.WaitRun(name))
 
-	out, err = s.d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
+	out, err = d.Cmd("inspect", "--format", "{{.HostConfig.Ulimits}}", name)
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(out, "[nofile=42:42]"))
 }
 
 func (s *DockerCLIRunSuite) TestRunStoppedLoggingDriverNoLeak(c *testing.T) {
-	nroutines, err := getGoroutineNumber()
+	client := testEnv.APIClient()
+	ctx := testutil.GetContext(c)
+	nroutines, err := getGoroutineNumber(ctx, client)
 	assert.NilError(c, err)
 
 	out, _, err := dockerCmdWithError("run", "--name=fail", "--log-driver=splunk", "busybox", "true")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, strings.Contains(out, "failed to initialize logging driver"), "error should be about logging driver, got output %s", out)
+
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.Assert(c, waitForGoroutines(nroutines) == nil)
+	waitForGoroutines(ctx, c, client, nroutines)
 }
 
 // Handles error conditions for --credentialspec. Validating E2E success cases

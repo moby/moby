@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -48,7 +48,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 	cmd := fmt.Sprintf("echo %s > %s", text, containerPipeName)
 	name := "test-bind-npipe"
 
-	ctx := context.Background()
+	ctx := testutil.GetContext(c)
 	client := testEnv.APIClient()
 	_, err = client.ContainerCreate(ctx,
 		&container.Config{

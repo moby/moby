@@ -3,11 +3,11 @@
 package main
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -21,7 +21,7 @@ func (s *DockerCLIInfoSuite) TestInfoSecurityOptions(c *testing.T) {
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
-	info, err := apiClient.Info(context.Background())
+	info, err := apiClient.Info(testutil.GetContext(c))
 	assert.NilError(c, err)
 
 	if Apparmor() {

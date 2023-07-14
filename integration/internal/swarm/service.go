@@ -49,7 +49,7 @@ func ContainerPoll(config *poll.Settings) {
 }
 
 // NewSwarm creates a swarm daemon for testing
-func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...daemon.Option) *daemon.Daemon {
+func NewSwarm(ctx context.Context, t *testing.T, testEnv *environment.Execution, ops ...daemon.Option) *daemon.Daemon {
 	t.Helper()
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
@@ -58,7 +58,7 @@ func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...daemon.Option
 		ops = append(ops, daemon.WithExperimental())
 	}
 	d := daemon.New(t, ops...)
-	d.StartAndSwarmInit(t)
+	d.StartAndSwarmInit(ctx, t)
 	return d
 }
 
@@ -66,14 +66,14 @@ func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...daemon.Option
 type ServiceSpecOpt func(*swarmtypes.ServiceSpec)
 
 // CreateService creates a service on the passed in swarm daemon.
-func CreateService(t *testing.T, d *daemon.Daemon, opts ...ServiceSpecOpt) string {
+func CreateService(ctx context.Context, t *testing.T, d *daemon.Daemon, opts ...ServiceSpecOpt) string {
 	t.Helper()
 
 	client := d.NewClientT(t)
 	defer client.Close()
 
 	spec := CreateServiceSpec(t, opts...)
-	resp, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{})
+	resp, err := client.ServiceCreate(ctx, spec, types.ServiceCreateOptions{})
 	assert.NilError(t, err, "error creating service")
 	return resp.ID
 }
@@ -206,10 +206,10 @@ func ServiceWithPidsLimit(limit int64) ServiceSpecOpt {
 }
 
 // GetRunningTasks gets the list of running tasks for a service
-func GetRunningTasks(t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
+func GetRunningTasks(ctx context.Context, t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()
 
-	tasks, err := c.TaskList(context.Background(), types.TaskListOptions{
+	tasks, err := c.TaskList(ctx, types.TaskListOptions{
 		Filters: filters.NewArgs(
 			filters.Arg("service", serviceID),
 			filters.Arg("desired-state", "running"),
@@ -221,12 +221,11 @@ func GetRunningTasks(t *testing.T, c client.ServiceAPIClient, serviceID string) 
 }
 
 // ExecTask runs the passed in exec config on the given task
-func ExecTask(t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types.ExecConfig) types.HijackedResponse {
+func ExecTask(ctx context.Context, t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types.ExecConfig) types.HijackedResponse {
 	t.Helper()
 	client := d.NewClientT(t)
 	defer client.Close()
 
-	ctx := context.Background()
 	resp, err := client.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, config)
 	assert.NilError(t, err, "error creating exec")
 

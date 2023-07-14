@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -20,9 +19,9 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 	hosts, err := os.ReadFile("/etc/hosts")
 	skip.If(t, os.IsNotExist(err))
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
+
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, container.WithNetworkMode("host"))
 	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/etc/hosts"})
@@ -36,9 +35,8 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 func TestLinksContainerNames(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	containerA := "first_" + t.Name()
 	containerB := "second_" + t.Name()

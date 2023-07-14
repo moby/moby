@@ -26,9 +26,9 @@ import (
 
 func TestImagePullPlatformInvalid(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "experimental in older versions")
-	defer setupTest(t)()
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	_, err := client.ImagePull(ctx, "docker.io/library/hello-world:latest", types.ImagePullOptions{Platform: "foobar"})
 	assert.Assert(t, err != nil)
@@ -117,13 +117,11 @@ func TestImagePullStoredfDigestForOtherRepo(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "We don't run a test registry on Windows")
 	skip.If(t, testEnv.IsRootless, "Rootless has a different view of localhost (needed for test registry access)")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	reg := registry.NewV2(t, registry.WithStdout(os.Stdout), registry.WithStderr(os.Stderr))
 	defer reg.Close()
 	reg.WaitReady(t)
-
-	ctx := context.Background()
 
 	// First create an image and upload it to our local registry
 	// Then we'll download it so that we can make sure the content is available in dockerd's manifest cache.

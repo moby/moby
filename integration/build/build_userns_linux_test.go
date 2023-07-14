@@ -3,7 +3,6 @@ package build // import "github.com/docker/docker/integration/build"
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/fixtures/load"
@@ -30,6 +30,8 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	skip.If(t, !testEnv.IsUserNamespaceInKernel())
 	skip.If(t, testEnv.IsRootless())
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	const imageTag = "capabilities:1.0"
 
 	tmp, err := os.MkdirTemp("", "integration-")
@@ -38,11 +40,10 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 
 	dUserRemap := daemon.New(t)
 	dUserRemap.Start(t, "--userns-remap", "default")
-	ctx := context.Background()
 	clientUserRemap := dUserRemap.NewClientT(t)
 	defer clientUserRemap.Close()
 
-	err = load.FrozenImagesLinux(clientUserRemap, "debian:bullseye-slim")
+	err = load.FrozenImagesLinux(ctx, clientUserRemap, "debian:bullseye-slim")
 	assert.NilError(t, err)
 
 	dUserRemapRunning := true

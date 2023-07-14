@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 )
 
@@ -13,8 +14,8 @@ type DockerCLIPluginLogDriverSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPluginLogDriverSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIPluginLogDriverSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIPluginLogDriverSuite) OnTimeout(c *testing.T) {
@@ -51,7 +52,7 @@ func (s *DockerCLIPluginLogDriverSuite) TestPluginLogDriverInfoList(c *testing.T
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	info, err := apiClient.Info(context.Background())
+	info, err := apiClient.Info(testutil.GetContext(c))
 	assert.NilError(c, err)
 
 	drivers := strings.Join(info.Plugins.Log, " ")

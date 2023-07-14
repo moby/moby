@@ -1,11 +1,11 @@
 package volumes
 
 import (
-	"context"
 	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fixtures/plugin"
 	"gotest.tools/v3/assert"
@@ -20,18 +20,19 @@ func TestPluginWithDevMounts(t *testing.T) {
 	skip.If(t, testEnv.IsRootless)
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
 	testDir, err := os.MkdirTemp("", "test-dir")
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 
-	createPlugin(t, c, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
+	createPlugin(ctx, t, c, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
 		root := "/"
 		dev := "/dev"
 		mounts := []types.PluginMount{

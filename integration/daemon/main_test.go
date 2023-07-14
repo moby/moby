@@ -1,28 +1,44 @@
 package daemon // import "github.com/docker/docker/integration/daemon"
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"testing"
 
 	"github.com/docker/docker/testutil/environment"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
-var testEnv *environment.Execution
+var (
+	testEnv     *environment.Execution
+	baseContext context.Context
+)
 
 func TestMain(m *testing.M) {
 	var err error
-	testEnv, err = environment.New()
+
+	ctx, span := otel.Tracer("").Start(context.Background(), "integration/daemon/TestMain")
+	baseContext = ctx
+
+	testEnv, err = environment.New(ctx)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		panic(err)
 	}
-	err = environment.EnsureFrozenImagesLinux(testEnv)
+	err = environment.EnsureFrozenImagesLinux(ctx, testEnv)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		panic(err)
 	}
 
 	testEnv.Print()
-	os.Exit(m.Run())
+
+	code := m.Run()
+	if code != 0 {
+		span.SetStatus(codes.Error, "m.Run() exited with non-zero code")
+	}
+	os.Exit(code)
 }

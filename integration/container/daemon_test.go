@@ -1,11 +1,11 @@
 package container
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -21,14 +21,15 @@ func TestContainerKillOnDaemonStart(t *testing.T) {
 
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 
-	d.StartWithBusybox(t, "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--iptables=false")
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
-	ctx := context.Background()
 
 	// The intention of this container is to ignore stop signals.
 	// Sadly this means the test will take longer, but at least this test can be parallelized.

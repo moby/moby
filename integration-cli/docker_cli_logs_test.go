@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -11,6 +12,9 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/testutil"
+	testdaemon "github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -19,8 +23,8 @@ type DockerCLILogsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLILogsSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLILogsSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLILogsSuite) OnTimeout(c *testing.T) {
@@ -282,24 +286,39 @@ func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, s
 }
 
 func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	c.Parallel()
 
-	nroutines, err := getGoroutineNumber()
+	ctx := testutil.GetContext(c)
+	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvVars("OTEL_SDK_DISABLED=1"))
+	defer func() {
+		d.Stop(c)
+		d.Cleanup(c)
+	}()
+	d.StartWithBusybox(ctx, c, "--iptables=false")
+
+	out, err := d.Cmd("run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
 	assert.NilError(c, err)
-	cmd := exec.Command(dockerBinary, "logs", "-f", id)
+
+	id := strings.TrimSpace(out)
+	assert.NilError(c, d.WaitRun(id))
+
+	client := d.NewClientT(c)
+	nroutines := waitForStableGourtineCount(ctx, c, client)
+
+	cmd := d.Command("logs", "-f", id)
 	r, w := io.Pipe()
 	defer r.Close()
 	defer w.Close()
 
 	cmd.Stdout = w
-	assert.NilError(c, cmd.Start())
-	defer cmd.Process.Kill()
+	res := icmd.StartCmd(cmd)
+	assert.NilError(c, res.Error)
+	defer res.Cmd.Process.Kill()
 
 	finished := make(chan error)
 	go func() {
-		finished <- cmd.Wait()
+		finished <- res.Cmd.Wait()
 	}()
 
 	// Make sure pipe is written to
@@ -314,35 +333,52 @@ func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesWithStdout(c *testing.T) {
 	// Check read from pipe succeeded
 	assert.NilError(c, <-chErr)
 
-	assert.NilError(c, cmd.Process.Kill())
+	assert.NilError(c, res.Cmd.Process.Kill())
 	<-finished
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.NilError(c, waitForGoroutines(nroutines))
+	waitForGoroutines(ctx, c, client, nroutines)
 }
 
 func (s *DockerCLILogsSuite) TestLogsFollowGoroutinesNoOutput(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	c.Parallel()
 
-	nroutines, err := getGoroutineNumber()
+	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvVars("OTEL_SDK_DISABLED=1"))
+	defer func() {
+		d.Stop(c)
+		d.Cleanup(c)
+	}()
+
+	ctx := testutil.GetContext(c)
+
+	d.StartWithBusybox(ctx, c, "--iptables=false")
+
+	out, err := d.Cmd("run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	assert.NilError(c, err)
-	cmd := exec.Command(dockerBinary, "logs", "-f", id)
-	assert.NilError(c, cmd.Start())
+	id := strings.TrimSpace(out)
+	assert.NilError(c, d.WaitRun(id))
+
+	client := d.NewClientT(c)
+	nroutines := waitForStableGourtineCount(ctx, c, client)
+	assert.NilError(c, err)
+
+	cmd := d.Command("logs", "-f", id)
+	res := icmd.StartCmd(cmd)
+	assert.NilError(c, res.Error)
 
 	finished := make(chan error)
 	go func() {
-		finished <- cmd.Wait()
+		finished <- res.Cmd.Wait()
 	}()
 
 	time.Sleep(200 * time.Millisecond)
-	assert.NilError(c, cmd.Process.Kill())
+	assert.NilError(c, res.Cmd.Process.Kill())
 
 	<-finished
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	assert.NilError(c, waitForGoroutines(nroutines))
+	waitForGoroutines(ctx, c, client, nroutines)
 }
 
 func (s *DockerCLILogsSuite) TestLogsCLIContainerNotFound(c *testing.T) {

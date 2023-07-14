@@ -3,7 +3,6 @@ package image // import "github.com/docker/docker/integration/image"
 import (
 	"archive/tar"
 	"bytes"
-	"context"
 	"io"
 	"runtime"
 	"strconv"
@@ -25,6 +24,8 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "TODO enable on windows")
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	// Spin up a new daemon, so that we can run this test in parallel (it's a slow test)
 	d := daemon.New(t)
 	d.Start(t, "--iptables=false")
@@ -43,7 +44,7 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	imageRdr := io.MultiReader(&tarBuffer, io.LimitReader(testutil.DevZero, 8*1024*1024*1024))
 	reference := strings.ToLower(t.Name()) + ":v42"
 
-	_, err = client.ImageImport(context.Background(),
+	_, err = client.ImageImport(ctx,
 		types.ImageImportSource{Source: imageRdr, SourceName: "-"},
 		reference,
 		types.ImageImportOptions{})
@@ -53,9 +54,9 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 func TestImportWithCustomPlatform(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "TODO enable on windows")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	// Construct an empty tar archive.
 	var tarBuffer bytes.Buffer
@@ -127,8 +128,9 @@ func TestImportWithCustomPlatform(t *testing.T) {
 	for i, tc := range tests {
 		tc := tc
 		t.Run(tc.platform, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			reference := "import-with-platform:tc-" + strconv.Itoa(i)
-			_, err = client.ImageImport(context.Background(),
+			_, err = client.ImageImport(ctx,
 				types.ImageImportSource{Source: imageRdr, SourceName: "-"},
 				reference,
 				types.ImageImportOptions{Platform: tc.platform})

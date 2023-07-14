@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -24,8 +23,7 @@ import (
 func TestRenameLinkedContainer(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	aName := "a0" + t.Name()
@@ -49,8 +47,7 @@ func TestRenameLinkedContainer(t *testing.T) {
 }
 
 func TestRenameStoppedContainer(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
@@ -71,8 +68,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 }
 
 func TestRenameRunningContainerAndReuse(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
@@ -99,8 +95,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 }
 
 func TestRenameInvalidName(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
@@ -123,8 +118,7 @@ func TestRenameInvalidName(t *testing.T) {
 // This test is to make sure once the container has been renamed,
 // the service discovery for the (re)named container works.
 func TestRenameAnonymousContainer(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	networkName := "network1" + t.Name()
@@ -169,8 +163,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 
 // TODO: should be a unit test
 func TestRenameContainerWithSameName(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	oldName := "old" + t.Name()
@@ -192,8 +185,7 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	db1Name := "db1" + t.Name()

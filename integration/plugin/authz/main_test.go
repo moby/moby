@@ -3,6 +3,7 @@
 package authz // import "github.com/docker/docker/integration/plugin/authz"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,28 +15,43 @@ import (
 
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/environment"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gotest.tools/v3/skip"
 )
 
 var (
-	testEnv *environment.Execution
-	d       *daemon.Daemon
-	server  *httptest.Server
+	testEnv     *environment.Execution
+	d           *daemon.Daemon
+	server      *httptest.Server
+	baseContext context.Context
 )
 
 func TestMain(m *testing.M) {
+	shutdown := testutil.ConfigureTracing()
+
+	ctx, span := otel.Tracer("").Start(context.Background(), "integration/plugin/authz.TestMain")
+	baseContext = ctx
+
 	var err error
-	testEnv, err = environment.New()
+	testEnv, err = environment.New(ctx)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		shutdown(ctx)
+		panic(err)
 	}
-	err = environment.EnsureFrozenImagesLinux(testEnv)
+	err = environment.EnsureFrozenImagesLinux(ctx, testEnv)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		span.SetStatus(codes.Error, err.Error())
+		span.End()
+		shutdown(ctx)
+		panic(err)
 	}
 
 	testEnv.Print()
@@ -43,28 +59,37 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 	teardownSuite()
 
+	if exitCode != 0 {
+		span.SetAttributes(attribute.Int("exit", exitCode))
+		span.SetStatus(codes.Error, "m.Run() exited with non-zero exit code")
+	}
+	shutdown(ctx)
+
 	os.Exit(exitCode)
 }
 
-func setupTest(t *testing.T) func() {
+func setupTest(t *testing.T) context.Context {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode has different view of localhost")
-	environment.ProtectAll(t, testEnv)
+
+	ctx := testutil.StartSpan(baseContext, t)
+	environment.ProtectAll(ctx, t, testEnv)
 
 	d = daemon.New(t, daemon.WithExperimental())
 
-	return func() {
+	t.Cleanup(func() {
 		if d != nil {
 			d.Stop(t)
 		}
-		testEnv.Clean(t)
-	}
+		testEnv.Clean(ctx, t)
+	})
+	return ctx
 }
 
 func setupSuite() {
 	mux := http.NewServeMux()
-	server = httptest.NewServer(mux)
+	server = httptest.NewServer(otelhttp.NewHandler(mux, ""))
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(plugins.Manifest{Implements: []string{authorization.AuthZApiImplements}})

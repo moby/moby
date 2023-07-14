@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -24,13 +25,11 @@ import (
 func TestSecretInspect(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-
-	ctx := context.Background()
 
 	testName := t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -48,12 +47,11 @@ func TestSecretInspect(t *testing.T) {
 func TestSecretList(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-	ctx := context.Background()
 
 	configs, err := c.SecretList(ctx, types.SecretListOptions{})
 	assert.NilError(t, err)
@@ -128,12 +126,11 @@ func createSecret(ctx context.Context, t *testing.T, client client.APIClient, na
 func TestSecretsCreateAndDelete(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-	ctx := context.Background()
 
 	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -176,12 +173,11 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 func TestSecretsUpdate(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-	ctx := context.Background()
 
 	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("TESTINGDATA"), nil)
@@ -227,11 +223,13 @@ func TestSecretsUpdate(t *testing.T) {
 
 func TestTemplatedSecret(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	d := swarm.NewSwarm(t, testEnv)
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-	ctx := context.Background()
 
 	referencedSecretName := "referencedsecret_" + t.Name()
 	referencedSecretSpec := swarmtypes.SecretSpec{
@@ -270,7 +268,7 @@ func TestTemplatedSecret(t *testing.T) {
 	assert.Check(t, err)
 
 	serviceName := "svc_" + t.Name()
-	serviceID := swarm.CreateService(t, d,
+	serviceID := swarm.CreateService(ctx, t, d,
 		swarm.ServiceWithSecret(
 			&swarmtypes.SecretReference{
 				File: &swarmtypes.SecretReferenceFileTarget{
@@ -310,12 +308,12 @@ func TestTemplatedSecret(t *testing.T) {
 		swarm.ServiceWithName(serviceName),
 	)
 
-	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, 1), swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, 1), swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
 
-	tasks := swarm.GetRunningTasks(t, c, serviceID)
+	tasks := swarm.GetRunningTasks(ctx, t, c, serviceID)
 	assert.Assert(t, len(tasks) > 0, "no running tasks found for service %s", serviceID)
 
-	attach := swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
+	attach := swarm.ExecTask(ctx, t, d, tasks[0], types.ExecConfig{
 		Cmd:          []string{"/bin/cat", "/run/secrets/templated_secret"},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -326,7 +324,7 @@ func TestTemplatedSecret(t *testing.T) {
 		"this is a config\n"
 	assertAttachedStream(t, attach, expect)
 
-	attach = swarm.ExecTask(t, d, tasks[0], types.ExecConfig{
+	attach = swarm.ExecTask(ctx, t, d, tasks[0], types.ExecConfig{
 		Cmd:          []string{"mount"},
 		AttachStdout: true,
 		AttachStderr: true,
@@ -338,13 +336,11 @@ func TestTemplatedSecret(t *testing.T) {
 func TestSecretCreateResolve(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
 	defer c.Close()
-
-	ctx := context.Background()
 
 	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, c, testName, []byte("foo"), nil)

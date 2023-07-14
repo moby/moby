@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -34,8 +35,8 @@ type DockerCLIBuildSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIBuildSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIBuildSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIBuildSuite) OnTimeout(c *testing.T) {

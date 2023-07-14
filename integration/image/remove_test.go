@@ -1,7 +1,6 @@
 package image // import "github.com/docker/docker/integration/image"
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -14,8 +13,8 @@ import (
 )
 
 func TestRemoveImageOrphaning(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
 
 	imgName := strings.ToLower(t.Name())

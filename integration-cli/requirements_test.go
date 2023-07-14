@@ -37,12 +37,12 @@ func MinimumAPIVersion(version string) func() bool {
 	}
 }
 
-func OnlyDefaultNetworks() bool {
+func OnlyDefaultNetworks(ctx context.Context) bool {
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return false
 	}
-	networks, err := apiClient.NetworkList(context.TODO(), types.NetworkListOptions{})
+	networks, err := apiClient.NetworkList(ctx, types.NetworkListOptions{})
 	if err != nil || len(networks) > 0 {
 		return false
 	}

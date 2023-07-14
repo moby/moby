@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
@@ -30,7 +30,7 @@ func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
 	}
 
 	chLog := make(chan logOut, 1)
-	res, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
+	res, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusOK)
 
@@ -62,7 +62,7 @@ func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	_, err = apiClient.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{})
+	_, err = apiClient.ContainerLogs(testutil.GetContext(c), name, types.ContainerLogsOptions{})
 	assert.ErrorContains(c, err, "Bad parameters: you must choose at least one stream")
 }
 
@@ -72,7 +72,7 @@ func (s *DockerAPISuite) TestLogsAPIFollowEmptyOutput(c *testing.T) {
 	t0 := time.Now()
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
 
-	_, body, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
+	_, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	t1 := time.Now()
 	assert.NilError(c, err)
 	body.Close()
@@ -84,7 +84,7 @@ func (s *DockerAPISuite) TestLogsAPIFollowEmptyOutput(c *testing.T) {
 
 func (s *DockerAPISuite) TestLogsAPIContainerNotFound(c *testing.T) {
 	name := "nonExistentContainer"
-	resp, _, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
+	resp, _, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	assert.NilError(c, err)
 	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
 }
@@ -106,7 +106,7 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	}
 
 	cfg := types.ContainerLogsOptions{Until: until.Format(time.RFC3339Nano), Follow: true, ShowStdout: true, Timestamps: true}
-	reader, err := client.ContainerLogs(context.Background(), name, cfg)
+	reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
 	assert.NilError(c, err)
 
 	type logOut struct {
@@ -168,7 +168,7 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	}
 
 	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
-		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+		reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)
@@ -205,7 +205,7 @@ func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
 	}
 
 	extractBody := func(c *testing.T, cfg types.ContainerLogsOptions) []string {
-		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+		reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)

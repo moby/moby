@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -16,8 +17,8 @@ type DockerBenchmarkSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerBenchmarkSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerBenchmarkSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerBenchmarkSuite) OnTimeout(c *testing.T) {

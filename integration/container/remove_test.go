@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -28,8 +27,7 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
@@ -54,8 +52,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 
 // Test case for #2099/#2125
 func TestRemoveContainerWithVolume(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
@@ -81,8 +78,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 }
 
 func TestRemoveContainerRunning(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient)
@@ -92,8 +88,7 @@ func TestRemoveContainerRunning(t *testing.T) {
 }
 
 func TestRemoveContainerForceRemoveRunning(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient)
@@ -105,8 +100,7 @@ func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 }
 
 func TestRemoveInvalidContainer(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	err := apiClient.ContainerRemove(ctx, "unknown", types.ContainerRemoveOptions{})

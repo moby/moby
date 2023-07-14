@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/integration/daemon"
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -27,6 +27,8 @@ import (
 
 func TestConfigDaemonID(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
+
+	_ = testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	defer d.Stop(t)
@@ -53,6 +55,7 @@ func TestConfigDaemonID(t *testing.T) {
 
 func TestDaemonConfigValidation(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
+	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	dockerBinary, err := d.BinaryPath()
@@ -105,6 +108,7 @@ func TestDaemonConfigValidation(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			_ = testutil.StartSpan(ctx, t)
 			cmd := exec.Command(dockerBinary, tc.args...)
 			out, err := cmd.CombinedOutput()
 			assert.Check(t, is.Contains(string(out), tc.expectedOut))
@@ -119,6 +123,7 @@ func TestDaemonConfigValidation(t *testing.T) {
 
 func TestConfigDaemonSeccompProfiles(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
+	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	defer d.Stop(t)
@@ -148,6 +153,8 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
+			_ = testutil.StartSpan(ctx, t)
+
 			d.Start(t, "--seccomp-profile="+tc.profile)
 			info := d.Info(t)
 			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
@@ -168,6 +175,7 @@ func TestConfigDaemonSeccompProfiles(t *testing.T) {
 func TestDaemonProxy(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, os.Getenv("DOCKER_ROOTLESS") != "", "cannot connect to localhost proxy in rootless environment")
+	ctx := testutil.StartSpan(baseContext, t)
 
 	newProxy := func(rcvd *string, t *testing.T) *httptest.Server {
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +193,7 @@ func TestDaemonProxy(t *testing.T) {
 	t.Run("environment variables", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := testutil.StartSpan(ctx, t)
 		var received string
 		proxyServer := newProxy(&received, t)
 
@@ -218,7 +226,7 @@ func TestDaemonProxy(t *testing.T) {
 	t.Run("command-line options", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := testutil.StartSpan(ctx, t)
 		var received string
 		proxyServer := newProxy(&received, t)
 
@@ -267,7 +275,7 @@ func TestDaemonProxy(t *testing.T) {
 	// Configure proxy through configuration file
 	t.Run("configuration file", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := testutil.StartSpan(ctx, t)
 
 		var received string
 		proxyServer := newProxy(&received, t)
@@ -316,7 +324,7 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Conflicting options (passed both through command-line options and config file)
 	t.Run("conflicting options", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := testutil.StartSpan(ctx, t)
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
@@ -342,7 +350,7 @@ func TestDaemonProxy(t *testing.T) {
 	t.Run("reload sanitized", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := testutil.StartSpan(ctx, t)
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
@@ -363,25 +371,27 @@ func TestDaemonProxy(t *testing.T) {
 
 func TestLiveRestore(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
+	_ = testutil.StartSpan(baseContext, t)
 
 	t.Run("volume references", testLiveRestoreVolumeReferences)
 }
 
 func testLiveRestoreVolumeReferences(t *testing.T) {
 	t.Parallel()
+	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(t, "--live-restore", "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--live-restore", "--iptables=false")
 	defer func() {
 		d.Stop(t)
 		d.Cleanup(t)
 	}()
 
 	c := d.NewClientT(t)
-	ctx := context.Background()
 
 	runTest := func(t *testing.T, policy string) {
 		t.Run(policy, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			volName := "test-live-restore-volume-references-" + policy
 			_, err := c.VolumeCreate(ctx, volume.CreateOptions{Name: volName})
 			assert.NilError(t, err)
@@ -408,6 +418,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	}
 
 	t.Run("restartPolicy", func(t *testing.T) {
+		_ = testutil.StartSpan(ctx, t)
 		runTest(t, "always")
 		runTest(t, "unless-stopped")
 		runTest(t, "on-failure")
@@ -417,6 +428,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	// Make sure that the local volume driver's mount ref count is restored
 	// Addresses https://github.com/moby/moby/issues/44422
 	t.Run("local volume with mount options", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		v, err := c.VolumeCreate(ctx, volume.CreateOptions{
 			Driver: "local",
 			Name:   "test-live-restore-volume-references-local",
@@ -454,6 +466,7 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 	// (which should not be "restored")
 	// Regression test for https://github.com/moby/moby/issues/45898
 	t.Run("container with bind-mounts", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
 		m := mount.Mount{
 			Type:   mount.TypeBind,
 			Source: os.TempDir(),
@@ -472,6 +485,8 @@ func testLiveRestoreVolumeReferences(t *testing.T) {
 func TestDaemonDefaultBridgeWithFixedCidrButNoBip(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	bridgeName := "ext-bridge1"
 	d := daemon.New(t, daemon.WithEnvVars("DOCKER_TEST_CREATE_DEFAULT_BRIDGE="+bridgeName))
 	defer func() {
@@ -487,7 +502,7 @@ func TestDaemonDefaultBridgeWithFixedCidrButNoBip(t *testing.T) {
 			deleteInterface(t, bridgeName)
 		}
 	}()
-	d.StartWithBusybox(t, "--bridge", bridgeName, "--fixed-cidr", "192.168.130.0/24")
+	d.StartWithBusybox(ctx, t, "--bridge", bridgeName, "--fixed-cidr", "192.168.130.0/24")
 }
 
 func deleteInterface(t *testing.T, ifName string) {

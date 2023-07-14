@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,8 +18,8 @@ type DockerCLISaveLoadSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLISaveLoadSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLISaveLoadSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLISaveLoadSuite) OnTimeout(c *testing.T) {

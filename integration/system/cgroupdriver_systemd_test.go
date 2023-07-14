@@ -1,12 +1,12 @@
 package system
 
 import (
-	"context"
 	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 
 	"gotest.tools/v3/assert"
@@ -32,15 +32,16 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	skip.If(t, !hasSystemd())
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
-	d.StartWithBusybox(t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false")
+	d.StartWithBusybox(ctx, t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false")
 	defer d.Stop(t)
 
 	const mem = int64(64 * 1024 * 1024) // 64 MB
 
-	ctx := context.Background()
 	ctrID := container.Create(ctx, t, c, func(ctr *container.TestContainerConfig) {
 		ctr.HostConfig.Resources.Memory = mem
 	})

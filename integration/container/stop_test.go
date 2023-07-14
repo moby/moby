@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -15,9 +14,8 @@ import (
 const StopContainerWindowsPollTimeout = 75 * time.Second
 
 func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	names := []string{"verifyRestart1-" + t.Name(), "verifyRestart2-" + t.Name()}
 	for _, name := range names {

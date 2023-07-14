@@ -19,6 +19,7 @@ import (
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -28,8 +29,8 @@ type DockerCLIEventSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIEventSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIEventSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIEventSuite) OnTimeout(c *testing.T) {
@@ -462,7 +463,7 @@ func (s *DockerCLIEventSuite) TestEventsResize(c *testing.T) {
 		Height: 80,
 		Width:  24,
 	}
-	err = apiClient.ContainerResize(context.Background(), cID, options)
+	err = apiClient.ContainerResize(testutil.GetContext(c), cID, options)
 	assert.NilError(c, err)
 
 	dockerCmd(c, "stop", cID)

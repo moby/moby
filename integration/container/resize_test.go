@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -17,9 +16,8 @@ import (
 )
 
 func TestResize(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true))
 
@@ -34,24 +32,22 @@ func TestResize(t *testing.T) {
 
 func TestResizeWithInvalidSize(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient)
 
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	endpoint := "/containers/" + cID + "/resize?h=foo&w=bar"
-	res, _, err := req.Post(endpoint)
+	res, _, err := req.Post(ctx, endpoint)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(http.StatusBadRequest, res.StatusCode))
 }
 
 func TestResizeWhenContainerNotStarted(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("echo"))
 

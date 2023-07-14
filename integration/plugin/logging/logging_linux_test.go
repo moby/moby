@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -19,21 +20,25 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "test requires daemon on the same host")
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
-	d.StartWithBusybox(t, "--iptables=false", "--init")
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--init")
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
-	createPlugin(t, client, "test", "close_on_start", asLogDriver)
+	createPlugin(ctx, t, client, "test", "close_on_start", asLogDriver)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	assert.Assert(t, client.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30}))
+	ctxT, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	assert.Assert(t, client.PluginEnable(ctxT, "test", types.PluginEnableOptions{Timeout: 30}))
 	cancel()
-	defer client.PluginRemove(context.Background(), "test", types.PluginRemoveOptions{Force: true})
+	defer client.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
 
-	ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
+	ctxT, cancel = context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
 
-	id := container.Run(ctx, t, client,
+	id := container.Run(ctxT, t, client,
 		container.WithAutoRemove,
 		container.WithLogDriver("test"),
 		container.WithCmd(
@@ -41,10 +46,10 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 		),
 	)
 	cancel()
-	defer client.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{Force: true})
+	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 
 	// Attach to the container to make sure it's written a few times to stdout
-	attach, err := client.ContainerAttach(context.Background(), id, types.ContainerAttachOptions{Stream: true, Stdout: true})
+	attach, err := client.ContainerAttach(ctx, id, types.ContainerAttachOptions{Stream: true, Stdout: true})
 	assert.NilError(t, err)
 
 	chErr := make(chan error, 1)

@@ -2,7 +2,6 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -14,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,15 +24,16 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "CDI devices are only supported on Linux")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run cdi tests with a remote daemon")
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	cwd, err := os.Getwd()
 	assert.NilError(t, err)
 	d := daemon.New(t, daemon.WithExperimental())
-	d.StartWithBusybox(t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
+	d.StartWithBusybox(ctx, t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
 
-	ctx := context.Background()
 	id := container.Run(ctx, t, apiClient,
 		container.WithCmd("/bin/sh", "-c", "env"),
 		container.WithCDIDevices("vendor1.com/device=foo"),

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,13 +15,14 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 )
 
-func (s *DockerCLIPruneSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIPruneSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIPruneSuite) OnTimeout(c *testing.T) {
@@ -49,7 +51,8 @@ func pruneNetworkAndVerify(c *testing.T, d *daemon.Daemon, kept, pruned []string
 }
 
 func (s *DockerSwarmSuite) TestPruneNetwork(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 	_, err := d.Cmd("network", "create", "n1") // used by container (testprune)
 	assert.NilError(c, err)
 	_, err = d.Cmd("network", "create", "n2")
@@ -72,7 +75,7 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *testing.T) {
 		"busybox", "top")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
-	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(replicas+1)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(replicas+1)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// prune and verify
 	pruneNetworkAndVerify(c, d, []string{"n1", "n3"}, []string{"n2", "n4"})
@@ -82,13 +85,14 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *testing.T) {
 	assert.NilError(c, err)
 	_, err = d.Cmd("service", "rm", serviceName)
 	assert.NilError(c, err)
-	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
+	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	pruneNetworkAndVerify(c, d, []string{}, []string{"n1", "n3"})
 }
 
 func (s *DockerDaemonSuite) TestPruneImageDangling(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	result := cli.BuildCmd(c, "test", cli.Daemon(s.d),
 		build.WithDockerfile(`FROM busybox
@@ -258,7 +262,8 @@ func (s *DockerCLIPruneSuite) TestPruneNetworkLabel(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestPruneImageLabel(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	result := cli.BuildCmd(c, "test1", cli.Daemon(s.d),
 		build.WithDockerfile(`FROM busybox

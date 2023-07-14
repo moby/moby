@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -12,8 +13,8 @@ type DockerCLITopSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLITopSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLITopSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLITopSuite) OnTimeout(c *testing.T) {

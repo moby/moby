@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	testContainer "github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -20,6 +21,9 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support live-restore")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
 	type testCase struct {
 		desc       string
 		config     *container.Config
@@ -83,6 +87,8 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 				t.Run(fmt.Sprintf("live-restore=%v/%s/%s", liveRestoreEnabled, tc.desc, fnName), func(t *testing.T) {
 					t.Parallel()
 
+					ctx := testutil.StartSpan(ctx, t)
+
 					d := daemon.New(t)
 					apiClient := d.NewClientT(t)
 
@@ -91,9 +97,8 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						args = append(args, "--live-restore")
 					}
 
-					d.StartWithBusybox(t, args...)
+					d.StartWithBusybox(ctx, t, args...)
 					defer d.Stop(t)
-					ctx := context.Background()
 
 					resp, err := apiClient.ContainerCreate(ctx, tc.config, tc.hostConfig, nil, nil, "")
 					assert.NilError(t, err)
@@ -157,9 +162,8 @@ func pollForNewHealthCheck(ctx context.Context, client *client.Client, startTime
 // Container started with --rm should be able to be restarted.
 // It should be removed only if killed or stopped
 func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	noWaitTimeout := 0
 
@@ -182,6 +186,7 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
+			testutil.StartSpan(ctx, t)
 			cID := testContainer.Run(ctx, t, apiClient,
 				testContainer.WithName("autoremove-restart-and-"+tc.desc),
 				testContainer.WithAutoRemove,

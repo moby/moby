@@ -1,12 +1,12 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"testing"
 
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -14,10 +14,10 @@ import (
 )
 
 func TestInfoAPI(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
-	info, err := client.Info(context.Background())
+	info, err := client.Info(ctx)
 	assert.NilError(t, err)
 
 	// always shown fields
@@ -49,13 +49,16 @@ func TestInfoAPI(t *testing.T) {
 func TestInfoAPIWarnings(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
 	d.Start(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
 	defer d.Stop(t)
 
-	info, err := c.Info(context.Background())
+	info, err := c.Info(ctx)
 	assert.NilError(t, err)
 
 	stringsToCheck := []string{
@@ -72,6 +75,8 @@ func TestInfoAPIWarnings(t *testing.T) {
 func TestInfoDebug(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test starts daemon with -H unix://.....")
+
+	_ = testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	d.Start(t, "--debug")

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -24,7 +25,7 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartHostConfig(c *testing.T)
 	config := map[string]interface{}{
 		"Binds": []string{"/aa:/bb"},
 	}
-	res, body, err := request.Post("/containers/"+name+"/start", request.JSONBody(config))
+	res, body, err := request.Post(testutil.GetContext(c), "/containers/"+name+"/start", request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
@@ -50,7 +51,7 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartVolumeBinds(c *testing.T
 		"Volumes": map[string]struct{}{path: {}},
 	}
 
-	res, _, err := request.Post(formatV123StartAPIURL("/containers/create?name="+name), request.JSONBody(config))
+	res, _, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/create?name="+name), request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusCreated)
 
@@ -58,7 +59,7 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartVolumeBinds(c *testing.T
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":" + path},
 	}
-	res, _, err = request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.JSONBody(config))
+	res, _, err = request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+name+"/start"), request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent)
 
@@ -77,7 +78,7 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *testin
 		"Volumes": map[string]struct{}{"/tmp": {}},
 	}
 
-	res, _, err := request.Post(formatV123StartAPIURL("/containers/create?name="+name), request.JSONBody(config))
+	res, _, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/create?name="+name), request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusCreated)
 
@@ -87,7 +88,7 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *testin
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
 	}
-	res, body, err := request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.JSONBody(config))
+	res, body, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+name+"/start"), request.JSONBody(config))
 	assert.NilError(c, err)
 
 	buf, err := request.ReadBody(body)
@@ -115,14 +116,14 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartVolumesFrom(c *testing.T
 		"Volumes": map[string]struct{}{volPath: {}},
 	}
 
-	res, _, err := request.Post(formatV123StartAPIURL("/containers/create?name="+name), request.JSONBody(config))
+	res, _, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/create?name="+name), request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusCreated)
 
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
 	}
-	res, _, err = request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.JSONBody(config))
+	res, _, err = request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+name+"/start"), request.JSONBody(config))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent)
 
@@ -145,7 +146,7 @@ func (s *DockerAPISuite) TestDeprecatedPostContainerBindNormalVolume(c *testing.
 	dockerCmd(c, "create", "-v", "/foo", "--name=two", "busybox")
 
 	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
-	res, _, err := request.Post(formatV123StartAPIURL("/containers/two/start"), request.JSONBody(bindSpec))
+	res, _, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/two/start"), request.JSONBody(bindSpec))
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent)
 
@@ -166,7 +167,7 @@ func (s *DockerAPISuite) TestDeprecatedStartWithTooLowMemoryLimit(c *testing.T) 
                 "Memory":    524287
         }`
 
-	res, body, err := request.Post(formatV123StartAPIURL("/containers/"+containerID+"/start"), request.RawString(config), request.JSON)
+	res, body, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+containerID+"/start"), request.RawString(config), request.JSON)
 	assert.NilError(c, err)
 	b, err := request.ReadBody(body)
 	assert.NilError(c, err)
@@ -189,7 +190,7 @@ func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithoutLinksInHostConf
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
-	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
+	res, b, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent)
 	b.Close()
@@ -207,7 +208,7 @@ func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithLinksInHostConfig(
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
-	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
+	res, b, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent)
 	b.Close()
@@ -227,7 +228,7 @@ func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithLinksInHostConfigI
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
-	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
+	res, b, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+name+"/start"), request.RawString(config), request.JSON)
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent)
 	b.Close()
@@ -241,7 +242,7 @@ func (s *DockerAPISuite) TestDeprecatedStartWithNilDNS(c *testing.T) {
 
 	config := `{"HostConfig": {"Dns": null}}`
 
-	res, b, err := request.Post(formatV123StartAPIURL("/containers/"+containerID+"/start"), request.RawString(config), request.JSON)
+	res, b, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+containerID+"/start"), request.RawString(config), request.JSON)
 	assert.NilError(c, err)
 	assert.Equal(c, res.StatusCode, http.StatusNoContent)
 	b.Close()

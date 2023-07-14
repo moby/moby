@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -13,7 +14,7 @@ import (
 // TestContainerInvalidJSON tests that POST endpoints that expect a body return
 // the correct error when sending invalid JSON requests.
 func TestContainerInvalidJSON(t *testing.T) {
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
 
 	// POST endpoints that accept / expect a JSON body;
 	endpoints := []string{
@@ -39,7 +40,8 @@ func TestContainerInvalidJSON(t *testing.T) {
 			t.Parallel()
 
 			t.Run("invalid content type", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString("{}"), request.ContentType("text/plain"))
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString("{}"), request.ContentType("text/plain"))
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -49,7 +51,8 @@ func TestContainerInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("invalid JSON", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString("{invalid json"), request.JSON)
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString("{invalid json"), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -59,7 +62,8 @@ func TestContainerInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("extra content after JSON", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString(`{} trailing content`), request.JSON)
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString(`{} trailing content`), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -69,10 +73,11 @@ func TestContainerInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("empty body", func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
 				// empty body should not produce an 500 internal server error, or
 				// any 5XX error (this is assuming the request does not produce
 				// an internal server error for another reason, but it shouldn't)
-				res, _, err := request.Post(ep, request.RawString(``), request.JSON)
+				res, _, err := request.Post(ctx, ep, request.RawString(``), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, res.StatusCode < http.StatusInternalServerError)
 			})

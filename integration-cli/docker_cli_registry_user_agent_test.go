@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/registry"
 	"gotest.tools/v3/assert"
 )
@@ -71,6 +72,7 @@ func registerUserAgentHandler(reg *registry.Mock, result *string) {
 // a registry, the registry should see a User-Agent string of the form
 // [docker engine UA] UpstreamClientSTREAM-CLIENT([client UA])
 func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
+	ctx := testutil.GetContext(c)
 	var ua string
 
 	reg, err := registry.NewMock(c)
@@ -80,7 +82,7 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *testing.T) {
 	registerUserAgentHandler(reg, &ua)
 	repoName := fmt.Sprintf("%s/busybox", reg.URL())
 
-	s.d.StartWithBusybox(c, "--insecure-registry", reg.URL())
+	s.d.StartWithBusybox(ctx, c, "--insecure-registry", reg.URL())
 
 	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)

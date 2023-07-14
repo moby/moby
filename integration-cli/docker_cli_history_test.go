@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -16,8 +17,8 @@ type DockerCLIHistorySuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIHistorySuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIHistorySuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIHistorySuite) OnTimeout(c *testing.T) {

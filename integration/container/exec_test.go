@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"io"
 	"testing"
 	"time"
@@ -19,9 +18,8 @@ import (
 func TestExecWithCloseStdin(t *testing.T) {
 	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME. Hang on Windows + containerd combination")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 
 	// run top with detached mode
@@ -86,8 +84,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 
 func TestExec(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/root"))
@@ -129,8 +126,7 @@ func TestExec(t *testing.T) {
 func TestExecUser(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithUser("1:1"))

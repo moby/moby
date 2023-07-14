@@ -496,6 +496,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	cmd := exec.Command(dockerdBinary, d.args...)
 	cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
 	cmd.Env = append(cmd.Env, d.extraEnv...)
+	cmd.Env = append(cmd.Env, "OTEL_SERVICE_NAME=dockerd-"+d.id)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	d.logFile = out
@@ -581,10 +582,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
-func (d *Daemon) StartWithBusybox(t testing.TB, arg ...string) {
+func (d *Daemon) StartWithBusybox(ctx context.Context, t testing.TB, arg ...string) {
 	t.Helper()
 	d.Start(t, arg...)
-	d.LoadBusybox(t)
+	d.LoadBusybox(ctx, t)
 }
 
 // Kill will send a SIGKILL to the daemon
@@ -764,7 +765,7 @@ func (d *Daemon) ReloadConfig() error {
 	errCh := make(chan error, 1)
 	started := make(chan struct{})
 	go func() {
-		_, body, err := request.Get("/events", request.Host(d.Sock()))
+		_, body, err := request.Get(context.TODO(), "/events", request.Host(d.Sock()))
 		close(started)
 		if err != nil {
 			errCh <- err
@@ -805,13 +806,12 @@ func (d *Daemon) ReloadConfig() error {
 }
 
 // LoadBusybox image into the daemon
-func (d *Daemon) LoadBusybox(t testing.TB) {
+func (d *Daemon) LoadBusybox(ctx context.Context, t testing.TB) {
 	t.Helper()
 	clientHost, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
-	ctx := context.Background()
 	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest"})
 	assert.NilError(t, err, "[%s] failed to download busybox", d.id)
 	defer reader.Close()

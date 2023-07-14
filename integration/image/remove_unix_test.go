@@ -3,7 +3,6 @@
 package image // import "github.com/docker/docker/integration/image"
 
 import (
-	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/v3/assert"
@@ -34,13 +34,14 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support overlay2 on most distros")
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	// Create daemon with overlay2 graphdriver because vfs uses disk differently
 	// and this test case would not work with it.
 	d := daemon.New(t, daemon.WithStorageDriver("overlay2"))
 	d.Start(t)
 	defer d.Stop(t)
 
-	ctx := context.Background()
 	client := d.NewClientT(t)
 
 	layerStore, _ := layer.NewStoreFromOptions(layer.StoreOptions{

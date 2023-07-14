@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 	"strings"
@@ -16,8 +17,8 @@ type DockerCLIHealthSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIHealthSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIHealthSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIHealthSuite) OnTimeout(c *testing.T) {
