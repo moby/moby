@@ -13,6 +13,7 @@ on:
   pull_request:
 
 env:
+  # FIXME(thaJeztah): update to newer go versions once BuildKit's vendoring has the fix from https://github.com/moby/moby/pull/45942
   GO_VERSION: "1.20.5"
   DESTDIR: ./build
 
