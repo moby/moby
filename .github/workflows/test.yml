@@ -225,6 +225,8 @@ jobs:
           tar -xzf /tmp/reports.tar.gz -C /tmp/reports
           sudo chown -R $(id -u):$(id -g) /tmp/reports
           tree -nh /tmp/reports
+
+          curl -sSLf localhost:16686/api/traces?service=integration-test-client > /tmp/reports/jaeger-trace.json
       -
         name: Test daemon logs
         if: always()
@@ -332,6 +334,8 @@ jobs:
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
+
+          curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
         uses: codecov/codecov-action@v3
@@ -460,6 +464,8 @@ jobs:
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
+
+          curl -sSLf localhost:16686/api/traces?service=integration-test-client > $reportsPath/jaeger-trace.json
       -
         name: Send to Codecov
         uses: codecov/codecov-action@v3
