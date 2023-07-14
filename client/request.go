@@ -96,8 +96,8 @@ func encodeBody(obj interface{}, headers http.Header) (io.Reader, http.Header, e
 	return body, headers, nil
 }
 
-func (cli *Client) buildRequest(method, path string, body io.Reader, headers http.Header) (*http.Request, error) {
-	req, err := http.NewRequest(method, path, body)
+func (cli *Client) buildRequest(ctx context.Context, method, path string, body io.Reader, headers http.Header) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -117,12 +117,12 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers htt
 }
 
 func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers http.Header) (serverResponse, error) {
-	req, err := cli.buildRequest(method, cli.getAPIPath(ctx, path, query), body, headers)
+	req, err := cli.buildRequest(ctx, method, cli.getAPIPath(ctx, path, query), body, headers)
 	if err != nil {
 		return serverResponse{}, err
 	}
 
-	resp, err := cli.doRequest(ctx, req)
+	resp, err := cli.doRequest(req)
 	switch {
 	case errors.Is(err, context.Canceled):
 		return serverResponse{}, errdefs.Cancelled(err)
@@ -134,10 +134,9 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	return resp, errdefs.FromStatusCode(err, resp.statusCode)
 }
 
-func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResponse, error) {
+func (cli *Client) doRequest(req *http.Request) (serverResponse, error) {
 	serverResp := serverResponse{statusCode: -1, reqURL: req.URL}
 
-	req = req.WithContext(ctx)
 	resp, err := cli.client.Do(req)
 	if err != nil {
 		if cli.scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
