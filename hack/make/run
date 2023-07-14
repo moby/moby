@@ -58,6 +58,7 @@ args=(
 	--host="unix://${socket}"
 	--storage-driver="${DOCKER_GRAPHDRIVER}"
 	--userland-proxy="${DOCKER_USERLANDPROXY}"
+	--tls=false
 	$storage_params
 	$extra_params
 )
