@@ -25,3 +25,12 @@ runs:
     - run: |
         docker info
       shell: bash
+    # TODO: Remove this step once the separate action is merged
+    # Github doesn't let you add a composite action and use it in the same PR (apparently)
+    # Ref: https://github.com/moby/moby/actions/runs/5581571995/jobs/10199909170?pr=45652#step:9:1
+    - run: |
+        set -e
+        docker run -d --net=host --name jaeger -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:1.46
+        docker0_ip="$(ip -f inet addr show docker0 | grep -Po 'inet \K[\d.]+')"
+        echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://${docker0_ip}:4318" >> "${GITHUB_ENV}"
+      shell: bash
