@@ -220,6 +220,15 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 		}
 		adjustForAPIVersion(v, &service)
 	}
+
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.44") {
+		if service.TaskTemplate.ContainerSpec != nil && service.TaskTemplate.ContainerSpec.Healthcheck != nil {
+			// StartInterval was added in API 1.44
+			service.TaskTemplate.ContainerSpec.Healthcheck.StartInterval = 0
+		}
+	}
+
 	resp, err := sr.backend.CreateService(service, encodedAuth, queryRegistry)
 	if err != nil {
 		log.G(ctx).WithFields(logrus.Fields{

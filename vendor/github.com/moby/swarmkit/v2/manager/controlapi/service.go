@@ -222,6 +222,16 @@ func validateHealthCheck(hc *api.HealthConfig) error {
 		}
 	}
 
+	if hc.StartInterval != nil {
+		interval, err := gogotypes.DurationFromProto(hc.StartInterval)
+		if err != nil {
+			return err
+		}
+		if interval != 0 && interval < minimumDuration {
+			return status.Errorf(codes.InvalidArgument, "ContainerSpec: StartInterval in HealthConfig cannot be less than %s", minimumDuration)
+		}
+	}
+
 	if hc.Retries < 0 {
 		return status.Errorf(codes.InvalidArgument, "ContainerSpec: Retries in HealthConfig cannot be negative")
 	}

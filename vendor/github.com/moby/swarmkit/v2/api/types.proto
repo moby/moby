@@ -1103,6 +1103,12 @@ message HealthConfig {
 	// which health check failures will note count towards the maximum
 	// number of retries.
 	google.protobuf.Duration start_period = 5;
+
+	// StartInterval is the time to wait between checks during the start period.
+	// Zero means inherit.
+	// Note: can't use stdduration because this field needs to be nullable.
+	google.protobuf.Duration start_interval = 6;
+
 }
 
 message MaybeEncryptedRecord {

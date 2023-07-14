@@ -2621,6 +2621,36 @@ file {
         }
         json_name: "nonrecursive"
       }
+      field {
+        name: "createmountpoint"
+        number: 3
+        label: LABEL_OPTIONAL
+        type: TYPE_BOOL
+        options {
+          65004: "CreateMountpoint"
+        }
+        json_name: "createmountpoint"
+      }
+      field {
+        name: "readonlynonrecursive"
+        number: 4
+        label: LABEL_OPTIONAL
+        type: TYPE_BOOL
+        options {
+          65004: "ReadOnlyNonRecursive"
+        }
+        json_name: "readonlynonrecursive"
+      }
+      field {
+        name: "readonlyforcerecursive"
+        number: 5
+        label: LABEL_OPTIONAL
+        type: TYPE_BOOL
+        options {
+          65004: "ReadOnlyForceRecursive"
+        }
+        json_name: "readonlyforcerecursive"
+      }
       enum_type {
         name: "Propagation"
         value {
@@ -2735,8 +2765,8 @@ file {
         label: LABEL_OPTIONAL
         type: TYPE_UINT32
         options {
-          65001: 0
           65003: "os.FileMode"
+          65001: 0
         }
         json_name: "mode"
       }
@@ -2904,8 +2934,8 @@ file {
       type: TYPE_MESSAGE
       type_name: ".google.protobuf.Duration"
       options {
-        65001: 0
         65011: 1
+        65001: 0
       }
       json_name: "delay"
     }
@@ -3348,8 +3378,8 @@ file {
         }
       }
       options {
-        62001: 0
         62023: "PublishMode"
+        62001: 0
       }
     }
   }
@@ -4055,8 +4085,8 @@ file {
       label: LABEL_OPTIONAL
       type: TYPE_UINT32
       options {
-        65001: 0
         65003: "os.FileMode"
+        65001: 0
       }
       json_name: "mode"
     }
@@ -4181,6 +4211,14 @@ file {
       type: TYPE_MESSAGE
       type_name: ".google.protobuf.Duration"
       json_name: "startPeriod"
+    }
+    field {
+      name: "start_interval"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".google.protobuf.Duration"
+      json_name: "startInterval"
     }
   }
   message_type {
@@ -5052,8 +5090,8 @@ file {
       }
     }
     options {
-      62001: 0
       62023: "NodeRole"
+      62001: 0
     }
   }
   syntax: "proto3"
@@ -9739,8 +9777,8 @@ file {
       type: TYPE_MESSAGE
       type_name: ".google.protobuf.Duration"
       options {
-        65001: 0
         65011: 1
+        65001: 0
       }
       json_name: "period"
     }
@@ -10958,14 +10996,14 @@ file {
     }
   }
   options {
+    63017: 1
+    63020: 1
+    63018: 1
     63001: 0
     63002: 0
-    63017: 1
-    63018: 1
-    63020: 1
+    63035: 0
     63026: 0
     63034: 0
-    63035: 0
   }
 }
 file {
