@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"runtime"
 	"testing"
 	"time"
@@ -9,6 +8,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -17,9 +17,8 @@ import (
 )
 
 func TestKillContainerInvalidSignal(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 	id := container.Run(ctx, t, apiClient)
 
 	err := apiClient.ContainerKill(ctx, id, "0")
@@ -34,7 +33,7 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 }
 
 func TestKillContainer(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
@@ -72,7 +71,7 @@ func TestKillContainer(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			skip.If(t, testEnv.DaemonInfo.OSType == tc.skipOs, "Windows does not support SIGWINCH")
-			ctx := context.Background()
+			ctx := testutil.StartSpan(ctx, t)
 			id := container.Run(ctx, t, apiClient)
 			err := apiClient.ContainerKill(ctx, id, tc.signal)
 			assert.NilError(t, err)
@@ -83,7 +82,7 @@ func TestKillContainer(t *testing.T) {
 }
 
 func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	testCases := []struct {
@@ -111,7 +110,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := testutil.StartSpan(ctx, t)
 			id := container.Run(ctx, t, apiClient,
 				container.WithRestartPolicy(containertypes.RestartPolicyAlways),
 				func(c *container.TestContainerConfig) {
@@ -126,8 +125,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 }
 
 func TestKillStoppedContainer(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 	id := container.Create(ctx, t, apiClient)
 	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
@@ -137,8 +135,7 @@ func TestKillStoppedContainer(t *testing.T) {
 
 func TestKillStoppedContainerAPIPre120(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports 1.25 or later")
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t, client.WithVersion("1.19"))
 	id := container.Create(ctx, t, apiClient)
 	err := apiClient.ContainerKill(ctx, id, "SIGKILL")
@@ -149,8 +146,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	// TODO Windows: Windows does not yet support -u (Feb 2016).
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "User containers (container.Config.User) are not yet supported on %q platform", testEnv.DaemonInfo.OSType)
 
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t, client.WithVersion("1.19"))
 
 	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
@@ -169,8 +165,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
 	skip.If(t, testEnv.DaemonInfo.CgroupVersion == "2", "FIXME: flaky on cgroup v2 (https://github.com/moby/moby/issues/41929)")
 
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
@@ -187,8 +182,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 func TestInspectOomKilledFalse(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
 
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", "echo hello world"))

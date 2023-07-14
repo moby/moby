@@ -9,7 +9,7 @@ import (
 )
 
 // ActiveContainers returns the list of ids of the currently running containers
-func (d *Daemon) ActiveContainers(t testing.TB) []string {
+func (d *Daemon) ActiveContainers(ctx context.Context, t testing.TB) []string {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()

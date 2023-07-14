@@ -25,9 +25,9 @@ func (d *Daemon) StartNode(t testing.TB) {
 }
 
 // StartNodeWithBusybox starts daemon to be used as a swarm node, and loads the busybox image
-func (d *Daemon) StartNodeWithBusybox(t testing.TB) {
+func (d *Daemon) StartNodeWithBusybox(ctx context.Context, t testing.TB) {
 	t.Helper()
-	d.StartWithBusybox(t, startArgs...)
+	d.StartWithBusybox(ctx, t, startArgs...)
 }
 
 // RestartNode restarts a daemon to be used as a swarm node
@@ -39,15 +39,15 @@ func (d *Daemon) RestartNode(t testing.TB) {
 }
 
 // StartAndSwarmInit starts the daemon (with busybox) and init the swarm
-func (d *Daemon) StartAndSwarmInit(t testing.TB) {
-	d.StartNodeWithBusybox(t)
-	d.SwarmInit(t, swarm.InitRequest{})
+func (d *Daemon) StartAndSwarmInit(ctx context.Context, t testing.TB) {
+	d.StartNodeWithBusybox(ctx, t)
+	d.SwarmInit(ctx, t, swarm.InitRequest{})
 }
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
-func (d *Daemon) StartAndSwarmJoin(t testing.TB, leader *Daemon, manager bool) {
+func (d *Daemon) StartAndSwarmJoin(ctx context.Context, t testing.TB, leader *Daemon, manager bool) {
 	t.Helper()
-	d.StartNodeWithBusybox(t)
+	d.StartNodeWithBusybox(ctx, t)
 
 	tokens := leader.JoinTokens(t)
 	token := tokens.Worker
@@ -55,7 +55,7 @@ func (d *Daemon) StartAndSwarmJoin(t testing.TB, leader *Daemon, manager bool) {
 		token = tokens.Manager
 	}
 	t.Logf("[%s] joining swarm manager [%s]@%s, swarm listen addr %s", d.id, leader.id, leader.SwarmListenAddr(), d.SwarmListenAddr())
-	d.SwarmJoin(t, swarm.JoinRequest{
+	d.SwarmJoin(ctx, t, swarm.JoinRequest{
 		RemoteAddrs: []string{leader.SwarmListenAddr()},
 		JoinToken:   token,
 	})
@@ -75,7 +75,7 @@ func (d *Daemon) NodeID() string {
 }
 
 // SwarmInit initializes a new swarm cluster.
-func (d *Daemon) SwarmInit(t testing.TB, req swarm.InitRequest) {
+func (d *Daemon) SwarmInit(ctx context.Context, t testing.TB, req swarm.InitRequest) {
 	t.Helper()
 	if req.ListenAddr == "" {
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
@@ -89,20 +89,20 @@ func (d *Daemon) SwarmInit(t testing.TB, req swarm.InitRequest) {
 	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
-	_, err := cli.SwarmInit(context.Background(), req)
+	_, err := cli.SwarmInit(ctx, req)
 	assert.NilError(t, err, "initializing swarm")
 	d.CachedInfo = d.Info(t)
 }
 
 // SwarmJoin joins a daemon to an existing cluster.
-func (d *Daemon) SwarmJoin(t testing.TB, req swarm.JoinRequest) {
+func (d *Daemon) SwarmJoin(ctx context.Context, t testing.TB, req swarm.JoinRequest) {
 	t.Helper()
 	if req.ListenAddr == "" {
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
 	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
-	err := cli.SwarmJoin(context.Background(), req)
+	err := cli.SwarmJoin(ctx, req)
 	assert.NilError(t, err, "[%s] joining swarm", d.id)
 	d.CachedInfo = d.Info(t)
 }
@@ -112,17 +112,17 @@ func (d *Daemon) SwarmJoin(t testing.TB, req swarm.JoinRequest) {
 // The passed in testing.TB is only used to validate that the client was successfully created
 // Some tests rely on error checking the result of the actual unlock, so allow
 // the error to be returned.
-func (d *Daemon) SwarmLeave(t testing.TB, force bool) error {
+func (d *Daemon) SwarmLeave(ctx context.Context, t testing.TB, force bool) error {
 	cli := d.NewClientT(t)
 	defer cli.Close()
-	return cli.SwarmLeave(context.Background(), force)
+	return cli.SwarmLeave(ctx, force)
 }
 
 // SwarmInfo returns the swarm information of the daemon
-func (d *Daemon) SwarmInfo(t testing.TB) swarm.Info {
+func (d *Daemon) SwarmInfo(ctx context.Context, t testing.TB) swarm.Info {
 	t.Helper()
 	cli := d.NewClientT(t)
-	info, err := cli.Info(context.Background())
+	info, err := cli.Info(ctx)
 	assert.NilError(t, err, "get swarm info")
 	return info.Swarm
 }

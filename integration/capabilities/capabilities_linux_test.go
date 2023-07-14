@@ -2,7 +2,6 @@ package capabilities
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/fakecontext"
 
 	"gotest.tools/v3/assert"
@@ -18,7 +18,7 @@ import (
 )
 
 func TestNoNewPrivileges(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	withFileCapability := `
 		FROM debian:bullseye-slim
@@ -35,7 +35,6 @@ func TestNoNewPrivileges(t *testing.T) {
 	client := testEnv.APIClient()
 
 	// Build image
-	ctx := context.TODO()
 	resp, err := client.ImageBuild(ctx,
 		source.AsTarReader(t),
 		types.ImageBuildOptions{
@@ -72,6 +71,8 @@ func TestNoNewPrivileges(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
 			// Run the container with the image
 			opts := append(tc.opts,
 				container.WithImage(imageTag),

@@ -1,7 +1,6 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -17,14 +16,14 @@ import (
 func TestLoginFailsWithBadCredentials(t *testing.T) {
 	skip.If(t, !requirement.HasHubConnectivity(t))
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
 	config := registry.AuthConfig{
 		Username: "no-user",
 		Password: "no-password",
 	}
-	_, err := client.RegistryLogin(context.Background(), config)
+	_, err := client.RegistryLogin(ctx, config)
 	assert.Assert(t, err != nil)
 	assert.Check(t, is.ErrorContains(err, "unauthorized: incorrect username or password"))
 	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("https://%s/v2/", registrypkg.DefaultRegistryHost)))

@@ -1,12 +1,12 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -17,13 +17,13 @@ func TestDiskUsage(t *testing.T) {
 
 	t.Parallel()
 
+	ctx := testutil.StartSpan(baseContext, t)
+
 	d := daemon.New(t)
 	defer d.Cleanup(t)
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 	client := d.NewClientT(t)
-
-	ctx := context.Background()
 
 	var stepDU types.DiskUsage
 	for _, step := range []struct {
@@ -47,7 +47,7 @@ func TestDiskUsage(t *testing.T) {
 		{
 			doc: "after LoadBusybox",
 			next: func(t *testing.T, _ types.DiskUsage) types.DiskUsage {
-				d.LoadBusybox(t)
+				d.LoadBusybox(ctx, t)
 
 				du, err := client.DiskUsage(ctx, types.DiskUsageOptions{})
 				assert.NilError(t, err)
@@ -116,6 +116,7 @@ func TestDiskUsage(t *testing.T) {
 		},
 	} {
 		t.Run(step.doc, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			stepDU = step.next(t, stepDU)
 
 			for _, tc := range []struct {
@@ -263,6 +264,7 @@ func TestDiskUsage(t *testing.T) {
 			} {
 				tc := tc
 				t.Run(tc.doc, func(t *testing.T) {
+					ctx := testutil.StartSpan(ctx, t)
 					// TODO: Run in parallel once https://github.com/moby/moby/pull/42560 is merged.
 
 					du, err := client.DiskUsage(ctx, tc.options)

@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -24,9 +25,9 @@ import (
 // a timeout works as documented, i.e. in case of negative timeout
 // waiting is not limited (issue #35311).
 func TestStopContainerWithTimeout(t *testing.T) {
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
+
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
 	testData := []struct {
@@ -58,6 +59,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		d := d
 		t.Run(strconv.Itoa(d.timeout), func(t *testing.T) {
 			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
 			id := container.Run(ctx, t, apiClient, testCmd)
 
 			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &d.timeout})
@@ -78,17 +80,17 @@ func TestStopContainerWithTimeout(t *testing.T) {
 // See issue https://github.com/moby/moby/issues/45731
 func TestStopContainerWithTimeoutCancel(t *testing.T) {
 	t.Parallel()
-	defer setupTest(t)()
+
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 	t.Cleanup(func() { _ = apiClient.Close() })
 
-	ctx := context.Background()
 	id := container.Run(ctx, t, apiClient,
 		container.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"),
 	)
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, id, "running"))
 
-	ctxCancel, cancel := context.WithCancel(context.Background())
+	ctxCancel, cancel := context.WithCancel(ctx)
 	t.Cleanup(cancel)
 	const stopTimeout = 3
 

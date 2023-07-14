@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"reflect"
@@ -20,9 +19,8 @@ func TestStats(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	info, err := apiClient.Info(ctx)
 	assert.NilError(t, err)

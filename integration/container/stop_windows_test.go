@@ -1,13 +1,13 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"strconv"
 	"testing"
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -18,9 +18,9 @@ import (
 // waiting is not limited (issue #35311).
 func TestStopContainerWithTimeout(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
+
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
 	testData := []struct {
@@ -52,6 +52,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		d := d
 		t.Run(strconv.Itoa(d.timeout), func(t *testing.T) {
 			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
 			id := container.Run(ctx, t, apiClient, testCmd)
 
 			err := apiClient.ContainerStop(ctx, id, containertypes.StopOptions{Timeout: &d.timeout})

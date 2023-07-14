@@ -9,11 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 )
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.T) {
-	s.d.StartWithBusybox(c)
+	ctx := testutil.GetContext(c)
+	s.d.StartWithBusybox(ctx, c)
 
 	workingDir, err := os.Getwd()
 	assert.NilError(c, err)

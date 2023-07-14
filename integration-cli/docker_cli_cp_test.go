@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -30,8 +31,8 @@ type DockerCLICpSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLICpSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLICpSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLICpSuite) OnTimeout(c *testing.T) {

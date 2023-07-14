@@ -19,8 +19,7 @@ import (
 // working-dir.
 func TestHealthCheckWorkdir(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/foo"), func(c *container.TestContainerConfig) {
@@ -38,9 +37,8 @@ func TestHealthCheckWorkdir(t *testing.T) {
 // Do not stop healthchecks just because we sent a signal to the container
 func TestHealthKillContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows only supports SIGKILL and SIGTERM? See https://github.com/moby/moby/issues/39574")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 
 	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
@@ -96,8 +94,7 @@ while true; do sleep 1; done
 
 // TestHealthCheckProcessKilled verifies that health-checks exec get killed on time-out.
 func TestHealthCheckProcessKilled(t *testing.T) {
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
@@ -113,8 +110,7 @@ func TestHealthCheckProcessKilled(t *testing.T) {
 
 func TestHealthStartInterval(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The shell commands used in the test healthcheck do not work on Windows")
-	defer setupTest(t)()
-	ctx := context.Background()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
 	// Note: Windows is much slower than linux so this use longer intervals/timeouts

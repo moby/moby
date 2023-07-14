@@ -13,26 +13,28 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 )
 
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--mount", "type=volume,source=foo,target=/foo,volume-nocopy", "busybox", "top")
 	assert.NilError(c, err, out)
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, id)
+		tasks = d.GetServiceTasks(ctx, c, id)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(c, task.ID)
+			task = d.GetTask(ctx, c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -66,7 +68,8 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	serviceName := "test-service-secret"
 	testName := "test_secret"
@@ -100,7 +103,8 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	testPaths := map[string]string{
 		"app":                  "/etc/secret",
@@ -139,14 +143,14 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, serviceName)
+		tasks = d.GetServiceTasks(ctx, c, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(c, task.ID)
+			task = d.GetTask(ctx, c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -166,7 +170,8 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *testi
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	id := d.CreateSecret(c, swarm.SecretSpec{
 		Annotations: swarm.Annotations{
@@ -189,14 +194,14 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, serviceName)
+		tasks = d.GetServiceTasks(ctx, c, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(c, task.ID)
+			task = d.GetTask(ctx, c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -214,7 +219,8 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *testing
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	serviceName := "test-service-config"
 	testName := "test_config"
@@ -248,7 +254,8 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	testPaths := map[string]string{
 		"app":             "/etc/config",
@@ -286,14 +293,14 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testi
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, serviceName)
+		tasks = d.GetServiceTasks(ctx, c, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(c, task.ID)
+			task = d.GetTask(ctx, c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -313,7 +320,8 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *testi
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	id := d.CreateConfig(c, swarm.ConfigSpec{
 		Annotations: swarm.Annotations{
@@ -336,14 +344,14 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, serviceName)
+		tasks = d.GetServiceTasks(ctx, c, serviceName)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(c, task.ID)
+			task = d.GetTask(ctx, c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -361,21 +369,22 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; exec tail -f /dev/null")
 	assert.NilError(c, err, out)
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, id)
+		tasks = d.GetServiceTasks(ctx, c, id)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(c, task.ID)
+			task = d.GetTask(ctx, c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -414,7 +423,8 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 	out, err := d.Cmd("network", "create", "--scope=swarm", "test_swarm_br")
 	assert.NilError(c, err, out)
 
@@ -424,14 +434,14 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, id)
+		tasks = d.GetServiceTasks(ctx, c, id)
 		return len(tasks) > 0, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	task := tasks[0]
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
 		if task.NodeID == "" || task.Status.ContainerStatus == nil {
-			task = d.GetTask(c, task.ID)
+			task = d.GetTask(ctx, c, task.ID)
 		}
 		return task.NodeID != "" && task.Status.ContainerStatus != nil, ""
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))

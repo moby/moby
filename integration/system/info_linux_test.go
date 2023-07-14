@@ -3,20 +3,20 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
+	"github.com/docker/docker/testutil"
 	req "github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestInfoBinaryCommits(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
-	info, err := client.Info(context.Background())
+	info, err := client.Info(ctx)
 	assert.NilError(t, err)
 
 	assert.Check(t, "N/A" != info.ContainerdCommit.ID)
@@ -30,9 +30,10 @@ func TestInfoBinaryCommits(t *testing.T) {
 }
 
 func TestInfoAPIVersioned(t *testing.T) {
+	ctx := testutil.StartSpan(baseContext, t)
 	// Windows only supports 1.25 or later
 
-	res, body, err := req.Get("/v1.20/info")
+	res, body, err := req.Get(ctx, "/v1.20/info")
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(res.StatusCode, http.StatusOK))
 

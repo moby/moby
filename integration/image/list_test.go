@@ -1,7 +1,6 @@
 package image // import "github.com/docker/docker/integration/image"
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -20,9 +20,9 @@ import (
 // Regression : #38171
 func TestImagesFilterMultiReference(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	name := strings.ToLower(t.Name())
 	repoTags := []string{
@@ -57,9 +57,9 @@ func TestImagesFilterMultiReference(t *testing.T) {
 }
 
 func TestImagesFilterBeforeSince(t *testing.T) {
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	name := strings.ToLower(t.Name())
 	ctr := container.Create(ctx, t, client, container.WithName(name))
@@ -95,9 +95,8 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 }
 
 func TestAPIImagesFilters(t *testing.T) {
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	for _, n := range []string{"utest:tag1", "utest/docker:tag2", "utest:5000/docker:tag3"} {
 		err := client.ImageTag(ctx, "busybox:latest", n)
@@ -140,7 +139,9 @@ func TestAPIImagesFilters(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			images, err := client.ImageList(context.Background(), types.ImageListOptions{
+
+			ctx := testutil.StartSpan(ctx, t)
+			images, err := client.ImageList(ctx, types.ImageListOptions{
 				Filters: filters.NewArgs(tc.filters...),
 			})
 			assert.Check(t, err)

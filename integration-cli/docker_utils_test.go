@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -249,7 +250,7 @@ func daemonTime(c *testing.T) time.Time {
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	info, err := apiClient.Info(context.Background())
+	info, err := apiClient.Info(testutil.GetContext(c))
 	assert.NilError(c, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
@@ -327,7 +328,7 @@ func getInspectBody(c *testing.T, version, id string) []byte {
 	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
 	assert.NilError(c, err)
 	defer apiClient.Close()
-	_, body, err := apiClient.ContainerInspectWithRaw(context.Background(), id, false)
+	_, body, err := apiClient.ContainerInspectWithRaw(testutil.GetContext(c), id, false)
 	assert.NilError(c, err)
 	return body
 }
@@ -356,43 +357,69 @@ func minimalBaseImage() string {
 	return testEnv.PlatformDefaults.BaseImage
 }
 
-func getGoroutineNumber() (int, error) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return 0, err
-	}
-	defer apiClient.Close()
-
-	info, err := apiClient.Info(context.Background())
+func getGoroutineNumber(ctx context.Context, apiClient client.APIClient) (int, error) {
+	info, err := apiClient.Info(ctx)
 	if err != nil {
 		return 0, err
 	}
 	return info.NGoroutines, nil
 }
 
-func waitForGoroutines(expected int) error {
-	t := time.After(30 * time.Second)
-	for {
-		select {
-		case <-t:
-			n, err := getGoroutineNumber()
-			if err != nil {
-				return err
-			}
-			if n > expected {
-				return fmt.Errorf("leaked goroutines: expected less than or equal to %d, got: %d", expected, n)
-			}
-		default:
-			n, err := getGoroutineNumber()
-			if err != nil {
-				return err
-			}
-			if n <= expected {
-				return nil
-			}
-			time.Sleep(200 * time.Millisecond)
+func waitForStableGourtineCount(ctx context.Context, t poll.TestingT, apiClient client.APIClient) int {
+	var out int
+	poll.WaitOn(t, stableGoroutineCount(ctx, apiClient, &out), poll.WithTimeout(30*time.Second))
+	return out
+}
+
+func stableGoroutineCount(ctx context.Context, apiClient client.APIClient, count *int) poll.Check {
+	var (
+		numStable int
+		nRoutines int
+	)
+
+	return func(t poll.LogT) poll.Result {
+		n, err := getGoroutineNumber(ctx, apiClient)
+		if err != nil {
+			return poll.Error(err)
 		}
+
+		last := nRoutines
+
+		if nRoutines == n {
+			numStable++
+		} else {
+			numStable = 0
+			nRoutines = n
+		}
+
+		if numStable > 3 {
+			*count = n
+			return poll.Success()
+		}
+		return poll.Continue("goroutine count is not stable: last %d, current %d, stable iters: %d", last, n, numStable)
 	}
+}
+
+func checkGoroutineCount(ctx context.Context, apiClient client.APIClient, expected int) poll.Check {
+	first := true
+	return func(t poll.LogT) poll.Result {
+		n, err := getGoroutineNumber(ctx, apiClient)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if n > expected {
+			if first {
+				t.Log("Waiting for goroutines to stabilize")
+				first = false
+			}
+			return poll.Continue("exepcted %d goroutines, got %d", expected, n)
+		}
+		return poll.Success()
+	}
+}
+
+func waitForGoroutines(ctx context.Context, t poll.TestingT, apiClient client.APIClient, expected int) {
+	poll.WaitOn(t, checkGoroutineCount(ctx, apiClient, expected), poll.WithDelay(500*time.Millisecond), poll.WithTimeout(30*time.Second))
 }
 
 // getErrorMessage returns the error message from an error API response

@@ -1,7 +1,6 @@
 package volume
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/docker/testutil/request"
@@ -26,9 +26,8 @@ import (
 )
 
 func TestVolumesCreateAndList(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	name := t.Name()
 	// Windows file system is case insensitive
@@ -67,9 +66,8 @@ func TestVolumesCreateAndList(t *testing.T) {
 }
 
 func TestVolumesRemove(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
@@ -114,16 +112,15 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "TODO enable on windows")
 	t.Parallel()
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	// Spin up a new daemon, so that we can run this test in parallel (it's a slow test)
 	d := daemon.New(t)
-	d.StartAndSwarmInit(t)
+	d.StartAndSwarmInit(ctx, t)
 	defer d.Stop(t)
 
 	client := d.NewClientT(t)
 
-	ctx := context.Background()
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	id := container.Create(ctx, t, client, container.WithVolume(prefix+slash+"foo"))
 
@@ -159,9 +156,8 @@ func TestVolumesRemoveSwarmEnabled(t *testing.T) {
 }
 
 func TestVolumesInspect(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	now := time.Now()
 	vol, err := client.VolumeCreate(ctx, volume.CreateOptions{})
@@ -196,7 +192,7 @@ func TestVolumesInspect(t *testing.T) {
 // TestVolumesInvalidJSON tests that POST endpoints that expect a body return
 // the correct error when sending invalid JSON requests.
 func TestVolumesInvalidJSON(t *testing.T) {
-	t.Cleanup(setupTest(t))
+	ctx := setupTest(t)
 
 	// POST endpoints that accept / expect a JSON body;
 	endpoints := []string{"/volumes/create"}
@@ -205,9 +201,11 @@ func TestVolumesInvalidJSON(t *testing.T) {
 		ep := ep
 		t.Run(ep[1:], func(t *testing.T) {
 			t.Parallel()
+			ctx := testutil.StartSpan(ctx, t)
 
 			t.Run("invalid content type", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString("{}"), request.ContentType("text/plain"))
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString("{}"), request.ContentType("text/plain"))
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -217,7 +215,8 @@ func TestVolumesInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("invalid JSON", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString("{invalid json"), request.JSON)
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString("{invalid json"), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -227,7 +226,8 @@ func TestVolumesInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("extra content after JSON", func(t *testing.T) {
-				res, body, err := request.Post(ep, request.RawString(`{} trailing content`), request.JSON)
+				ctx := testutil.StartSpan(ctx, t)
+				res, body, err := request.Post(ctx, ep, request.RawString(`{} trailing content`), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, is.Equal(res.StatusCode, http.StatusBadRequest))
 
@@ -237,10 +237,11 @@ func TestVolumesInvalidJSON(t *testing.T) {
 			})
 
 			t.Run("empty body", func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
 				// empty body should not produce an 500 internal server error, or
 				// any 5XX error (this is assuming the request does not produce
 				// an internal server error for another reason, but it shouldn't)
-				res, _, err := request.Post(ep, request.RawString(``), request.JSON)
+				res, _, err := request.Post(ctx, ep, request.RawString(``), request.JSON)
 				assert.NilError(t, err)
 				assert.Check(t, res.StatusCode < http.StatusInternalServerError)
 			})
@@ -256,10 +257,9 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 }
 
 func TestVolumePruneAnonymous(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	// Create an anonymous volume
 	v, err := client.VolumeCreate(ctx, volume.CreateOptions{})
@@ -307,7 +307,7 @@ func TestVolumePruneAnonymous(t *testing.T) {
 }
 
 func TestVolumePruneAnonFromImage(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
 
 	volDest := "/foo"
@@ -318,7 +318,6 @@ func TestVolumePruneAnonFromImage(t *testing.T) {
 	dockerfile := `FROM busybox
 VOLUME ` + volDest
 
-	ctx := context.Background()
 	img := build.Do(ctx, t, client, fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile)))
 
 	id := container.Create(ctx, t, client, container.WithImage(img))

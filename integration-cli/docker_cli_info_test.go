@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -13,8 +14,8 @@ type DockerCLIInfoSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIInfoSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIInfoSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIInfoSuite) OnTimeout(c *testing.T) {

@@ -21,9 +21,8 @@ import (
 )
 
 //nolint:unused // false positive: linter detects this as "unused"
-func containerExec(t *testing.T, client client.APIClient, cID string, cmd []string) {
+func containerExec(ctx context.Context, t *testing.T, client client.APIClient, cID string, cmd []string) {
 	t.Logf("Exec: %s", cmd)
-	ctx := context.Background()
 	r, err := container.Exec(ctx, client, cID, cmd)
 	assert.NilError(t, err)
 	t.Log(r.Combined())
@@ -35,13 +34,12 @@ func TestCheckpoint(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	stdoutStderr, err := exec.Command("criu", "check").CombinedOutput()
 	t.Logf("%s", stdoutStderr)
 	assert.NilError(t, err)
 
-	ctx := context.Background()
 	apiClient := request.NewAPIClient(t)
 
 	t.Log("Start a container")
@@ -101,7 +99,7 @@ func TestCheckpoint(t *testing.T) {
 	assert.Equal(t, checkpoints[0].Name, "test")
 
 	// Create a test file on a tmpfs mount.
-	containerExec(t, apiClient, cID, []string{"touch", "/tmp/test-file"})
+	containerExec(ctx, t, apiClient, cID, []string{"touch", "/tmp/test-file"})
 
 	// Do a second checkpoint
 	t.Log("Do a checkpoint and stop the container")
@@ -144,7 +142,7 @@ func TestCheckpoint(t *testing.T) {
 	assert.Check(t, is.Equal(true, inspect.State.Running))
 
 	// Check that the test file has been restored.
-	containerExec(t, apiClient, cID, []string{"test", "-f", "/tmp/test-file"})
+	containerExec(ctx, t, apiClient, cID, []string{"test", "-f", "/tmp/test-file"})
 
 	for _, id := range []string{"test", "test2"} {
 		err = apiClient.CheckpointDelete(ctx, cID, checkpoint.DeleteOptions{

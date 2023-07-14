@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -22,8 +23,8 @@ type DockerCLIPsSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIPsSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIPsSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIPsSuite) OnTimeout(c *testing.T) {

@@ -1,19 +1,19 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestAttach(t *testing.T) {
-	t.Cleanup(setupTest(t))
-	apiClient := testEnv.APIClient()
+	ctx := setupTest(t)
+	client := testEnv.APIClient()
 
 	tests := []struct {
 		doc               string
@@ -34,7 +34,9 @@ func TestAttach(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
-			resp, err := apiClient.ContainerCreate(context.Background(),
+
+			ctx := testutil.StartSpan(ctx, t)
+			resp, err := client.ContainerCreate(ctx,
 				&container.Config{
 					Image: "busybox",
 					Cmd:   []string{"echo", "hello"},
@@ -46,7 +48,7 @@ func TestAttach(t *testing.T) {
 				"",
 			)
 			assert.NilError(t, err)
-			attach, err := apiClient.ContainerAttach(context.Background(), resp.ID, types.ContainerAttachOptions{
+			attach, err := client.ContainerAttach(ctx, resp.ID, types.ContainerAttachOptions{
 				Stdout: true,
 				Stderr: true,
 			})

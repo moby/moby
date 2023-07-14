@@ -14,7 +14,7 @@ import (
 // ServiceConstructor defines a swarm service constructor function
 type ServiceConstructor func(*swarm.Service)
 
-func (d *Daemon) createServiceWithOptions(t testing.TB, opts types.ServiceCreateOptions, f ...ServiceConstructor) string {
+func (d *Daemon) createServiceWithOptions(ctx context.Context, t testing.TB, opts types.ServiceCreateOptions, f ...ServiceConstructor) string {
 	t.Helper()
 	var service swarm.Service
 	for _, fn := range f {
@@ -24,7 +24,7 @@ func (d *Daemon) createServiceWithOptions(t testing.TB, opts types.ServiceCreate
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	res, err := cli.ServiceCreate(ctx, service.Spec, opts)
@@ -33,24 +33,24 @@ func (d *Daemon) createServiceWithOptions(t testing.TB, opts types.ServiceCreate
 }
 
 // CreateService creates a swarm service given the specified service constructor
-func (d *Daemon) CreateService(t testing.TB, f ...ServiceConstructor) string {
+func (d *Daemon) CreateService(ctx context.Context, t testing.TB, f ...ServiceConstructor) string {
 	t.Helper()
-	return d.createServiceWithOptions(t, types.ServiceCreateOptions{}, f...)
+	return d.createServiceWithOptions(ctx, t, types.ServiceCreateOptions{}, f...)
 }
 
 // GetService returns the swarm service corresponding to the specified id
-func (d *Daemon) GetService(t testing.TB, id string) *swarm.Service {
+func (d *Daemon) GetService(ctx context.Context, t testing.TB, id string) *swarm.Service {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	service, _, err := cli.ServiceInspectWithRaw(context.Background(), id, types.ServiceInspectOptions{})
+	service, _, err := cli.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	return &service
 }
 
 // GetServiceTasks returns the swarm tasks for the specified service
-func (d *Daemon) GetServiceTasks(t testing.TB, service string, additionalFilters ...filters.KeyValuePair) []swarm.Task {
+func (d *Daemon) GetServiceTasks(ctx context.Context, t testing.TB, service string, additionalFilters ...filters.KeyValuePair) []swarm.Task {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
@@ -67,13 +67,13 @@ func (d *Daemon) GetServiceTasks(t testing.TB, service string, additionalFilters
 		Filters: filterArgs,
 	}
 
-	tasks, err := cli.TaskList(context.Background(), options)
+	tasks, err := cli.TaskList(ctx, options)
 	assert.NilError(t, err)
 	return tasks
 }
 
 // UpdateService updates a swarm service with the specified service constructor
-func (d *Daemon) UpdateService(t testing.TB, service *swarm.Service, f ...ServiceConstructor) {
+func (d *Daemon) UpdateService(ctx context.Context, t testing.TB, service *swarm.Service, f ...ServiceConstructor) {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
@@ -82,38 +82,38 @@ func (d *Daemon) UpdateService(t testing.TB, service *swarm.Service, f ...Servic
 		fn(service)
 	}
 
-	_, err := cli.ServiceUpdate(context.Background(), service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	_, err := cli.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
 }
 
 // RemoveService removes the specified service
-func (d *Daemon) RemoveService(t testing.TB, id string) {
+func (d *Daemon) RemoveService(ctx context.Context, t testing.TB, id string) {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	err := cli.ServiceRemove(context.Background(), id)
+	err := cli.ServiceRemove(ctx, id)
 	assert.NilError(t, err)
 }
 
 // ListServices returns the list of the current swarm services
-func (d *Daemon) ListServices(t testing.TB) []swarm.Service {
+func (d *Daemon) ListServices(ctx context.Context, t testing.TB) []swarm.Service {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	services, err := cli.ServiceList(context.Background(), types.ServiceListOptions{})
+	services, err := cli.ServiceList(ctx, types.ServiceListOptions{})
 	assert.NilError(t, err)
 	return services
 }
 
 // GetTask returns the swarm task identified by the specified id
-func (d *Daemon) GetTask(t testing.TB, id string) swarm.Task {
+func (d *Daemon) GetTask(ctx context.Context, t testing.TB, id string) swarm.Task {
 	t.Helper()
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	task, _, err := cli.TaskInspectWithRaw(context.Background(), id)
+	task, _, err := cli.TaskInspectWithRaw(ctx, id)
 	assert.NilError(t, err)
 	return task
 }

@@ -1,7 +1,6 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -13,9 +12,8 @@ import (
 )
 
 func TestUpdateRestartPolicy(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", "sleep 1 && false"), func(c *container.TestContainerConfig) {
 		c.HostConfig.RestartPolicy = containertypes.RestartPolicy{
@@ -46,9 +44,8 @@ func TestUpdateRestartPolicy(t *testing.T) {
 }
 
 func TestUpdateRestartWithAutoRemove(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, container.WithAutoRemove)
 

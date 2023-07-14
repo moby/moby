@@ -1,7 +1,6 @@
 package image // import "github.com/docker/docker/integration/image"
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -16,9 +15,9 @@ import (
 func TestCommitInheritsEnv(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.36"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	defer setupTest(t)()
+	ctx := setupTest(t)
+
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID1 := container.Create(ctx, t, client)
 	imgName := strings.ToLower(t.Name())

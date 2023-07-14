@@ -1,7 +1,6 @@
 package image
 
 import (
-	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types/filters"
@@ -16,9 +15,8 @@ import (
 func TestPruneDontDeleteUsedDangling(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: hack/make/.build-empty-images doesn't run on Windows")
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	client := testEnv.APIClient()
-	ctx := context.Background()
 
 	danglingID := environment.GetTestDanglingImageId(testEnv)
 

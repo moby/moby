@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"compress/gzip"
+	"context"
 	"os"
 	"os/exec"
 	"regexp"
@@ -18,8 +19,8 @@ type DockerCLIImportSuite struct {
 	ds *DockerSuite
 }
 
-func (s *DockerCLIImportSuite) TearDownTest(c *testing.T) {
-	s.ds.TearDownTest(c)
+func (s *DockerCLIImportSuite) TearDownTest(ctx context.Context, c *testing.T) {
+	s.ds.TearDownTest(ctx, c)
 }
 
 func (s *DockerCLIImportSuite) OnTimeout(c *testing.T) {

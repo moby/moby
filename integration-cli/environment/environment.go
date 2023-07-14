@@ -1,6 +1,7 @@
 package environment // import "github.com/docker/docker/integration-cli/environment"
 
 import (
+	"context"
 	"os"
 	"os/exec"
 
@@ -29,8 +30,8 @@ func (e *Execution) DockerBinary() string {
 }
 
 // New returns details about the testing environment
-func New() (*Execution, error) {
-	env, err := environment.New()
+func New(ctx context.Context) (*Execution, error) {
+	env, err := environment.New(ctx)
 	if err != nil {
 		return nil, err
 	}

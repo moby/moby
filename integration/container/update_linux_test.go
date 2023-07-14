@@ -10,6 +10,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -23,9 +24,8 @@ func TestUpdateMemory(t *testing.T) {
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit)
 	skip.If(t, !testEnv.DaemonInfo.SwapLimit)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.HostConfig.Resources = containertypes.Resources{
@@ -85,9 +85,8 @@ func TestUpdateMemory(t *testing.T) {
 
 func TestUpdateCPUQuota(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	cID := container.Run(ctx, t, apiClient)
 
@@ -155,10 +154,9 @@ func TestUpdatePidsLimit(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
 	skip.If(t, !testEnv.DaemonInfo.PidsLimit)
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 	oldAPIClient := request.NewAPIClient(t, client.WithVersion("1.24"))
-	ctx := context.Background()
 
 	intPtr := func(i int64) *int64 {
 		return &i
@@ -186,6 +184,7 @@ func TestUpdatePidsLimit(t *testing.T) {
 		}
 
 		t.Run(test.desc, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
 			// Using "network=host" to speed up creation (13.96s vs 6.54s)
 			cID := container.Run(ctx, t, apiClient, container.WithPidsLimit(test.initial), container.WithNetworkMode("host"))
 

@@ -2,7 +2,6 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"bufio"
-	"context"
 	"os"
 	"regexp"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -53,7 +53,7 @@ func testIpcCheckDevExists(mm string) (bool, error) {
 // testIpcNonePrivateShareable is a helper function to test "none",
 // "private" and "shareable" modes.
 func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, mustBeShared bool) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	cfg := containertypes.Config{
 		Image: "busybox",
@@ -63,7 +63,6 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 		IpcMode: containertypes.IpcMode(mode),
 	}
 	apiClient := testEnv.APIClient()
-	ctx := context.Background()
 
 	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 	assert.NilError(t, err)
@@ -124,7 +123,7 @@ func TestIpcModeShareable(t *testing.T) {
 func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	t.Helper()
 
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	cfg := containertypes.Config{
 		Image: "busybox",
@@ -133,7 +132,6 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 	hostCfg := containertypes.HostConfig{
 		IpcMode: containertypes.IpcMode(donorMode),
 	}
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 
 	// create and start the "donor" container
@@ -199,7 +197,8 @@ func TestAPIIpcModeHost(t *testing.T) {
 	hostCfg := containertypes.HostConfig{
 		IpcMode: containertypes.IPCModeHost,
 	}
-	ctx := context.Background()
+
+	ctx := testutil.StartSpan(baseContext, t)
 
 	apiClient := testEnv.APIClient()
 	resp, err := apiClient.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
@@ -225,10 +224,10 @@ func TestAPIIpcModeHost(t *testing.T) {
 
 // testDaemonIpcPrivateShareable is a helper function to test "private" and "shareable" daemon default ipc modes.
 func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...string) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(t, arg...)
+	d.StartWithBusybox(ctx, t, arg...)
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
@@ -237,7 +236,6 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 		Image: "busybox",
 		Cmd:   []string{"top"},
 	}
-	ctx := context.Background()
 
 	resp, err := c.ContainerCreate(ctx, &cfg, &containertypes.HostConfig{}, nil, nil, "")
 	assert.NilError(t, err)
@@ -308,7 +306,7 @@ func TestIpcModeOlderClient(t *testing.T) {
 
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := testutil.StartSpan(baseContext, t)
 
 	// pre-check: default ipc mode in daemon is private
 	cID := container.Create(ctx, t, apiClient, container.WithAutoRemove)

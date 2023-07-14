@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
@@ -22,7 +23,8 @@ import (
 func (s *DockerSwarmSuite) TestServiceHealthRun(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	// build image with health-check
 	imageName := "testhealth"
@@ -41,7 +43,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *testing.T) {
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, id)
+		tasks = d.GetServiceTasks(ctx, c, id)
 		return tasks, ""
 	}, checker.HasLen(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
@@ -49,7 +51,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *testing.T) {
 
 	// wait for task to start
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		task = d.GetTask(c, task.ID)
+		task = d.GetTask(ctx, c, task.ID)
 		return task.Status.State, ""
 	}, checker.Equals(swarm.TaskStateRunning)), poll.WithTimeout(defaultReconciliationTimeout))
 
@@ -71,7 +73,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *testing.T) {
 
 	// Task should be terminated
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		task = d.GetTask(c, task.ID)
+		task = d.GetTask(ctx, c, task.ID)
 		return task.Status.State, ""
 	}, checker.Equals(swarm.TaskStateFailed)), poll.WithTimeout(defaultReconciliationTimeout))
 
@@ -85,7 +87,8 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *testing.T) {
 func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
-	d := s.AddDaemon(c, true, true)
+	ctx := testutil.GetContext(c)
+	d := s.AddDaemon(ctx, c, true, true)
 
 	// service started from this image won't pass health check
 	imageName := "testhealth"
@@ -103,7 +106,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 
 	var tasks []swarm.Task
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		tasks = d.GetServiceTasks(c, id)
+		tasks = d.GetServiceTasks(ctx, c, id)
 		return tasks, ""
 	}, checker.HasLen(1)), poll.WithTimeout(defaultReconciliationTimeout))
 
@@ -111,7 +114,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 
 	// wait for task to start
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		task = d.GetTask(c, task.ID)
+		task = d.GetTask(ctx, c, task.ID)
 		return task.Status.State, ""
 	}, checker.Equals(swarm.TaskStateStarting)), poll.WithTimeout(defaultReconciliationTimeout))
 
@@ -125,7 +128,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 	}, checker.GreaterThan(0)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// task should be blocked at starting status
-	task = d.GetTask(c, task.ID)
+	task = d.GetTask(ctx, c, task.ID)
 	assert.Equal(c, task.Status.State, swarm.TaskStateStarting)
 
 	// make it healthy
@@ -133,7 +136,7 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *testing.T) {
 
 	// Task should be at running status
 	poll.WaitOn(c, pollCheck(c, func(c *testing.T) (interface{}, string) {
-		task = d.GetTask(c, task.ID)
+		task = d.GetTask(ctx, c, task.ID)
 		return task.Status.State, ""
 	}, checker.Equals(swarm.TaskStateRunning)), poll.WithTimeout(defaultReconciliationTimeout))
 }

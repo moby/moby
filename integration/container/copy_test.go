@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"archive/tar"
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -22,9 +21,8 @@ import (
 )
 
 func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiClient)
 
@@ -34,9 +32,8 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 }
 
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiClient)
 
@@ -51,9 +48,8 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 }
 
 func TestCopyToContainerPathDoesNotExist(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiClient)
 
@@ -63,9 +59,8 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 }
 
 func TestCopyEmptyFile(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiClient)
 
@@ -120,9 +115,8 @@ func makeEmptyArchive(t *testing.T) (string, io.ReadCloser) {
 }
 
 func TestCopyToContainerPathIsNotDir(t *testing.T) {
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 	cid := container.Create(ctx, t, apiClient)
 
@@ -136,9 +130,8 @@ func TestCopyToContainerPathIsNotDir(t *testing.T) {
 
 func TestCopyFromContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	defer setupTest(t)()
+	ctx := setupTest(t)
 
-	ctx := context.Background()
 	apiClient := testEnv.APIClient()
 
 	dir, err := os.MkdirTemp("", t.Name())
