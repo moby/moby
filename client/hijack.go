@@ -23,14 +23,10 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
-
-	apiPath := cli.getAPIPath(ctx, path, query)
-	req, err := http.NewRequest(http.MethodPost, apiPath, bodyEncoded)
+	req, err := cli.buildRequest(http.MethodPost, cli.getAPIPath(ctx, path, query), bodyEncoded, headers)
 	if err != nil {
 		return types.HijackedResponse{}, err
 	}
-	req = cli.addHeaders(req, headers)
-
 	conn, mediaType, err := cli.setupHijackConn(ctx, req, "tcp")
 	if err != nil {
 		return types.HijackedResponse{}, err
@@ -64,11 +60,6 @@ func fallbackDial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
 }
 
 func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto string) (net.Conn, string, error) {
-	req.URL.Host = cli.addr
-	if cli.proto == "unix" || cli.proto == "npipe" {
-		// Override host header for non-tcp connections.
-		req.Host = DummyHost
-	}
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
