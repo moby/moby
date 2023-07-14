@@ -71,6 +71,7 @@ import (
 	"github.com/moby/locker"
 	"github.com/pkg/errors"
 	"go.etcd.io/bbolt"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -922,10 +923,17 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// TODO(stevvooe): We may need to allow configuration of this on the client.
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 	}
 
 	if cfgStore.ContainerdAddr != "" {
-		d.containerdClient, err = containerd.New(cfgStore.ContainerdAddr, containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+		d.containerdClient, err = containerd.New(
+			cfgStore.ContainerdAddr,
+			containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace),
+			containerd.WithDialOpts(gopts),
+			containerd.WithTimeout(60*time.Second),
+		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 		}
@@ -935,7 +943,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		var pluginCli *containerd.Client
 
 		if cfgStore.ContainerdAddr != "" {
-			pluginCli, err = containerd.New(cfgStore.ContainerdAddr, containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+			pluginCli, err = containerd.New(
+				cfgStore.ContainerdAddr,
+				containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace),
+				containerd.WithDialOpts(gopts),
+				containerd.WithTimeout(60*time.Second),
+			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 			}
@@ -992,7 +1005,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.id, err = loadOrCreateID(filepath.Join(cfgStore.Root, "engine-id"))
+	d.id, err = LoadOrCreateID(cfgStore.Root)
 	if err != nil {
 		return nil, err
 	}

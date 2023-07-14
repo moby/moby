@@ -17,6 +17,7 @@ import (
 	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/tracing"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
 	buildbackend "github.com/docker/docker/api/server/backend/build"
@@ -56,10 +57,13 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/tracing/detect"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // DaemonCli represents the daemon CLI.
@@ -227,6 +231,35 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// Notify that the API is active, but before daemon is set up.
 	preNotifyReady()
 
+	// Setup buildkit trace recorder
+	detect.Recorder = detect.NewTraceRecorder()
+
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+
+	if _, ok := os.LookupEnv(otelServiceNameEnv); !ok {
+		id, err := daemon.LoadOrCreateID(cli.Config.Root)
+		if err != nil {
+			return err
+		}
+		os.Setenv(otelServiceNameEnv, filepath.Base(os.Args[0])+"-"+id)
+	}
+	tp, err := getTracerProvider(ctx, os.Getenv)
+	if err != nil {
+		if errors.Is(err, errTracingDisabled) {
+			// Make sure other components don't try to setup tracing
+			// Namely this is for buildkit
+			os.Setenv(otelTracesExporterEnv, "none")
+			log.G(ctx).WithError(err).Info("Tracing is disabled")
+		} else {
+			log.G(ctx).WithError(err).Warn("Failed to initialize tracing, skipping")
+		}
+	}
+
+	if tp != nil {
+		otel.SetTracerProvider(tp)
+		log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
+	}
+
 	pluginStore := plugin.NewStore()
 
 	var apiServer apiserver.Server
@@ -328,6 +361,10 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	if err, ok := <-errAPI; ok {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
+	}
+
+	if tp != nil {
+		tp.Shutdown(context.Background())
 	}
 
 	log.G(ctx).Info("Daemon shutdown complete")

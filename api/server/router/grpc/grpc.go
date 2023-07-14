@@ -16,11 +16,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-func init() {
-	// enable in memory recording for grpc traces
-	detect.Recorder = detect.NewTraceRecorder()
-}
-
 type grpcRouter struct {
 	routes     []router.Route
 	grpcServer *grpc.Server
@@ -38,7 +33,7 @@ func NewRouter(backends ...Backend) router.Router {
 
 	opts := []grpc.ServerOption{grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor), grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor)}
 	if tp != nil {
-		streamTracer := otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(tp), otelgrpc.WithPropagators(propagators))
+		streamTracer := otelgrpc.StreamServerInterceptor(otelgrpc.WithTracerProvider(tp))
 		unary := grpc_middleware.ChainUnaryServer(unaryInterceptor(tp), grpcerrors.UnaryServerInterceptor)
 		stream := grpc_middleware.ChainStreamServer(streamTracer, grpcerrors.StreamServerInterceptor)
 		opts = []grpc.ServerOption{grpc.UnaryInterceptor(unary), grpc.StreamInterceptor(stream)}
