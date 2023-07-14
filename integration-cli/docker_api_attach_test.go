@@ -237,6 +237,11 @@ func requestHijack(method, endpoint string, data io.Reader, ct, daemon string, m
 	req.URL.Scheme = "http"
 	req.URL.Host = hostURL.Host
 
+	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
+		// Override host header for non-tcp connections.
+		req.Host = client.DummyHost
+	}
+
 	for _, opt := range modifiers {
 		opt(req)
 	}

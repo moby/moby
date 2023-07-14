@@ -56,6 +56,36 @@ import (
 	"github.com/pkg/errors"
 )
 
+// DummyHost is a hostname used for local communication.
+//
+// It acts as a valid formatted hostname for local connections (such as "unix://"
+// or "npipe://") which do not require a hostname. It should never be resolved,
+// but uses the special-purpose ".localhost" TLD (as defined in [RFC 2606, Section 2]
+// and [RFC 6761, Section 6.3]).
+//
+// [RFC 7230, Section 5.4] defines that an empty header must be used for such
+// cases:
+//
+//	If the authority component is missing or undefined for the target URI,
+//	then a client MUST send a Host header field with an empty field-value.
+//
+// However, [Go stdlib] enforces the semantics of HTTP(S) over TCP, does not
+// allow an empty header to be used, and requires req.URL.Scheme to be either
+// "http" or "https".
+//
+// For further details, refer to:
+//
+//   - https://github.com/docker/engine-api/issues/189
+//   - https://github.com/golang/go/issues/13624
+//   - https://github.com/golang/go/issues/61076
+//   - https://github.com/moby/moby/issues/45935
+//
+// [RFC 2606, Section 2]: https://www.rfc-editor.org/rfc/rfc2606.html#section-2
+// [RFC 6761, Section 6.3]: https://www.rfc-editor.org/rfc/rfc6761#section-6.3
+// [RFC 7230, Section 5.4]: https://datatracker.ietf.org/doc/html/rfc7230#section-5.4
+// [Go stdlib]: https://github.com/golang/go/blob/6244b1946bc2101b01955468f1be502dbadd6807/src/net/http/transport.go#L558-L569
+const DummyHost = "api.moby.localhost"
+
 // ErrRedirect is the error returned by checkRedirect when the request is non-GET.
 var ErrRedirect = errors.New("unexpected redirect in response")
 
