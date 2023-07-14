@@ -28,24 +28,24 @@ func TestSetHostHeader(t *testing.T) {
 		expectedURLHost string
 	}{
 		{
-			"unix:///var/run/docker.sock",
-			"docker",
-			"/var/run/docker.sock",
+			host:            "unix:///var/run/docker.sock",
+			expectedHost:    DummyHost,
+			expectedURLHost: "/var/run/docker.sock",
 		},
 		{
-			"npipe:////./pipe/docker_engine",
-			"docker",
-			"//./pipe/docker_engine",
+			host:            "npipe:////./pipe/docker_engine",
+			expectedHost:    DummyHost,
+			expectedURLHost: "//./pipe/docker_engine",
 		},
 		{
-			"tcp://0.0.0.0:4243",
-			"",
-			"0.0.0.0:4243",
+			host:            "tcp://0.0.0.0:4243",
+			expectedHost:    "",
+			expectedURLHost: "0.0.0.0:4243",
 		},
 		{
-			"tcp://localhost:4243",
-			"",
-			"localhost:4243",
+			host:            "tcp://localhost:4243",
+			expectedHost:    "",
+			expectedURLHost: "localhost:4243",
 		},
 	}
 

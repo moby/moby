@@ -102,18 +102,13 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers htt
 		return nil, err
 	}
 	req = cli.addHeaders(req, headers)
+	req.URL.Scheme = cli.scheme
+	req.URL.Host = cli.addr
 
 	if cli.proto == "unix" || cli.proto == "npipe" {
-		// For local communications, it doesn't matter what the host is. We just
-		// need a valid and meaningful host name. For details, see:
-		//
-		// - https://github.com/docker/engine-api/issues/189
-		// - https://github.com/golang/go/issues/13624
-		req.Host = "docker"
+		// Override host header for non-tcp connections.
+		req.Host = DummyHost
 	}
-
-	req.URL.Host = cli.addr
-	req.URL.Scheme = cli.scheme
 
 	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
