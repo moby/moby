@@ -135,6 +135,10 @@ func WithScheme(scheme string) Opt {
 // WithTLSClientConfig applies a TLS config to the client transport.
 func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	return func(c *Client) error {
+		transport, ok := c.client.Transport.(*http.Transport)
+		if !ok {
+			return errors.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+		}
 		config, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:             cacertPath,
 			CertFile:           certPath,
@@ -144,11 +148,8 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 		if err != nil {
 			return errors.Wrap(err, "failed to create tls config")
 		}
-		if transport, ok := c.client.Transport.(*http.Transport); ok {
-			transport.TLSClientConfig = config
-			return nil
-		}
-		return errors.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+		transport.TLSClientConfig = config
+		return nil
 	}
 }
 
