@@ -110,26 +110,69 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 }
 
 func TestGetAPIPath(t *testing.T) {
-	testcases := []struct {
+	tests := []struct {
 		version  string
 		path     string
 		query    url.Values
 		expected string
 	}{
-		{"", "/containers/json", nil, "/v" + api.DefaultVersion + "/containers/json"},
-		{"", "/containers/json", url.Values{}, "/v" + api.DefaultVersion + "/containers/json"},
-		{"", "/containers/json", url.Values{"s": []string{"c"}}, "/v" + api.DefaultVersion + "/containers/json?s=c"},
-		{"1.22", "/containers/json", nil, "/v1.22/containers/json"},
-		{"1.22", "/containers/json", url.Values{}, "/v1.22/containers/json"},
-		{"1.22", "/containers/json", url.Values{"s": []string{"c"}}, "/v1.22/containers/json?s=c"},
-		{"v1.22", "/containers/json", nil, "/v1.22/containers/json"},
-		{"v1.22", "/containers/json", url.Values{}, "/v1.22/containers/json"},
-		{"v1.22", "/containers/json", url.Values{"s": []string{"c"}}, "/v1.22/containers/json?s=c"},
-		{"v1.22", "/networks/kiwl$%^", nil, "/v1.22/networks/kiwl$%25%5E"},
+		{
+			path:     "/containers/json",
+			expected: "/v" + api.DefaultVersion + "/containers/json",
+		},
+		{
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v" + api.DefaultVersion + "/containers/json",
+		},
+		{
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v" + api.DefaultVersion + "/containers/json?s=c",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v1.22/containers/json?s=c",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v1.22/containers/json?s=c",
+		},
+		{
+			version:  "v1.22",
+			path:     "/networks/kiwl$%^",
+			expected: "/v1.22/networks/kiwl$%25%5E",
+		},
 	}
 
 	ctx := context.TODO()
-	for _, tc := range testcases {
+	for _, tc := range tests {
 		client, err := NewClientWithOpts(
 			WithVersion(tc.version),
 			WithHost("tcp://localhost:2375"),
