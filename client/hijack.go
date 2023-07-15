@@ -84,8 +84,8 @@ func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto
 	// state. Setting TCP KeepAlive on the socket connection will prohibit
 	// ECONNTIMEOUT unless the socket connection truly is broken
 	if tcpConn, ok := conn.(*net.TCPConn); ok {
-		tcpConn.SetKeepAlive(true)
-		tcpConn.SetKeepAlivePeriod(30 * time.Second)
+		_ = tcpConn.SetKeepAlive(true)
+		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}
 
 	clientconn := httputil.NewClientConn(conn, nil)
@@ -100,7 +100,7 @@ func (cli *Client) setupHijackConn(ctx context.Context, req *http.Request, proto
 			return nil, "", err
 		}
 		if resp.StatusCode != http.StatusSwitchingProtocols {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil, "", fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
 		}
 	}
