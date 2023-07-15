@@ -13,23 +13,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Opt is a configuration option to initialize a client
+// Opt is a configuration option to initialize a [Client].
 type Opt func(*Client) error
 
-// FromEnv configures the client with values from environment variables.
+// FromEnv configures the client with values from environment variables. It
+// is the equivalent of using the [WithTLSClientConfigFromEnv], [WithHostFromEnv],
+// and [WithVersionFromEnv] options.
 //
 // FromEnv uses the following environment variables:
 //
-// DOCKER_HOST (EnvOverrideHost) to set the URL to the docker server.
-//
-// DOCKER_API_VERSION (EnvOverrideAPIVersion) to set the version of the API to
-// use, leave empty for latest.
-//
-// DOCKER_CERT_PATH (EnvOverrideCertPath) to specify the directory from which to
-// load the TLS certificates (ca.pem, cert.pem, key.pem).
-//
-// DOCKER_TLS_VERIFY (EnvTLSVerify) to enable or disable TLS verification (off by
-// default).
+//   - DOCKER_HOST ([EnvOverrideHost]) to set the URL to the docker server.
+//   - DOCKER_API_VERSION ([EnvOverrideAPIVersion]) to set the version of the
+//     API to use, leave empty for latest.
+//   - DOCKER_CERT_PATH ([EnvOverrideCertPath]) to specify the directory from
+//     which to load the TLS certificates ("ca.pem", "cert.pem", "key.pem').
+//   - DOCKER_TLS_VERIFY ([EnvTLSVerify]) to enable or disable TLS verification
+//     (off by default).
 func FromEnv(c *Client) error {
 	ops := []Opt{
 		WithTLSClientConfigFromEnv(),
@@ -45,7 +44,8 @@ func FromEnv(c *Client) error {
 }
 
 // WithDialContext applies the dialer to the client transport. This can be
-// used to set the Timeout and KeepAlive settings of the client.
+// used to set the Timeout and KeepAlive settings of the client. It returns
+// an error if the client does not have a [http.Transport] configured.
 func WithDialContext(dialContext func(ctx context.Context, network, addr string) (net.Conn, error)) Opt {
 	return func(c *Client) error {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
@@ -75,7 +75,7 @@ func WithHost(host string) Opt {
 }
 
 // WithHostFromEnv overrides the client host with the host specified in the
-// DOCKER_HOST (EnvOverrideHost) environment variable. If DOCKER_HOST is not set,
+// DOCKER_HOST ([EnvOverrideHost]) environment variable. If DOCKER_HOST is not set,
 // or set to an empty value, the host is not modified.
 func WithHostFromEnv() Opt {
 	return func(c *Client) error {
@@ -86,7 +86,7 @@ func WithHostFromEnv() Opt {
 	}
 }
 
-// WithHTTPClient overrides the client http client with the specified one
+// WithHTTPClient overrides the client's HTTP client with the specified one.
 func WithHTTPClient(client *http.Client) Opt {
 	return func(c *Client) error {
 		if client != nil {
@@ -96,7 +96,7 @@ func WithHTTPClient(client *http.Client) Opt {
 	}
 }
 
-// WithTimeout configures the time limit for requests made by the HTTP client
+// WithTimeout configures the time limit for requests made by the HTTP client.
 func WithTimeout(timeout time.Duration) Opt {
 	return func(c *Client) error {
 		c.client.Timeout = timeout
@@ -114,7 +114,9 @@ func WithUserAgent(ua string) Opt {
 	}
 }
 
-// WithHTTPHeaders overrides the client default http headers
+// WithHTTPHeaders appends custom HTTP headers to the client's default headers.
+// It does not allow for built-in headers (such as "User-Agent", if set) to
+// be overridden. Also see [WithUserAgent].
 func WithHTTPHeaders(headers map[string]string) Opt {
 	return func(c *Client) error {
 		c.customHTTPHeaders = headers
@@ -122,7 +124,7 @@ func WithHTTPHeaders(headers map[string]string) Opt {
 	}
 }
 
-// WithScheme overrides the client scheme with the specified one
+// WithScheme overrides the client scheme with the specified one.
 func WithScheme(scheme string) Opt {
 	return func(c *Client) error {
 		c.scheme = scheme
@@ -130,7 +132,7 @@ func WithScheme(scheme string) Opt {
 	}
 }
 
-// WithTLSClientConfig applies a tls config to the client transport.
+// WithTLSClientConfig applies a TLS config to the client transport.
 func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	return func(c *Client) error {
 		opts := tlsconfig.Options{
@@ -152,16 +154,16 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 }
 
 // WithTLSClientConfigFromEnv configures the client's TLS settings with the
-// settings in the DOCKER_CERT_PATH and DOCKER_TLS_VERIFY environment variables.
-// If DOCKER_CERT_PATH is not set or empty, TLS configuration is not modified.
+// settings in the DOCKER_CERT_PATH ([EnvOverrideCertPath]) and DOCKER_TLS_VERIFY
+// ([EnvTLSVerify]) environment variables. If DOCKER_CERT_PATH is not set or empty,
+// TLS configuration is not modified.
 //
 // WithTLSClientConfigFromEnv uses the following environment variables:
 //
-// DOCKER_CERT_PATH (EnvOverrideCertPath) to specify the directory from which to
-// load the TLS certificates (ca.pem, cert.pem, key.pem).
-//
-// DOCKER_TLS_VERIFY (EnvTLSVerify) to enable or disable TLS verification (off by
-// default).
+//   - DOCKER_CERT_PATH ([EnvOverrideCertPath]) to specify the directory from
+//     which to load the TLS certificates ("ca.pem", "cert.pem", "key.pem").
+//   - DOCKER_TLS_VERIFY ([EnvTLSVerify]) to enable or disable TLS verification
+//     (off by default).
 func WithTLSClientConfigFromEnv() Opt {
 	return func(c *Client) error {
 		dockerCertPath := os.Getenv(EnvOverrideCertPath)
@@ -188,7 +190,8 @@ func WithTLSClientConfigFromEnv() Opt {
 }
 
 // WithVersion overrides the client version with the specified one. If an empty
-// version is specified, the value will be ignored to allow version negotiation.
+// version is provided, the value is ignored to allow version negotiation
+// (see [WithAPIVersionNegotiation]).
 func WithVersion(version string) Opt {
 	return func(c *Client) error {
 		if version != "" {
@@ -200,8 +203,9 @@ func WithVersion(version string) Opt {
 }
 
 // WithVersionFromEnv overrides the client version with the version specified in
-// the DOCKER_API_VERSION environment variable. If DOCKER_API_VERSION is not set,
-// the version is not modified.
+// the DOCKER_API_VERSION ([EnvOverrideAPIVersion]) environment variable.
+// If DOCKER_API_VERSION is not set, or set to an empty value, the version
+// is not modified.
 func WithVersionFromEnv() Opt {
 	return func(c *Client) error {
 		return WithVersion(os.Getenv(EnvOverrideAPIVersion))(c)
@@ -211,7 +215,7 @@ func WithVersionFromEnv() Opt {
 // WithAPIVersionNegotiation enables automatic API version negotiation for the client.
 // With this option enabled, the client automatically negotiates the API version
 // to use when making requests. API version negotiation is performed on the first
-// request; subsequent requests will not re-negotiate.
+// request; subsequent requests do not re-negotiate.
 func WithAPIVersionNegotiation() Opt {
 	return func(c *Client) error {
 		c.negotiateVersion = true
