@@ -135,13 +135,12 @@ func WithScheme(scheme string) Opt {
 // WithTLSClientConfig applies a TLS config to the client transport.
 func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	return func(c *Client) error {
-		opts := tlsconfig.Options{
+		config, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:             cacertPath,
 			CertFile:           certPath,
 			KeyFile:            keyPath,
 			ExclusiveRootPools: true,
-		}
-		config, err := tlsconfig.Client(opts)
+		})
 		if err != nil {
 			return errors.Wrap(err, "failed to create tls config")
 		}
@@ -170,13 +169,12 @@ func WithTLSClientConfigFromEnv() Opt {
 		if dockerCertPath == "" {
 			return nil
 		}
-		options := tlsconfig.Options{
+		tlsc, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
 			CertFile:           filepath.Join(dockerCertPath, "cert.pem"),
 			KeyFile:            filepath.Join(dockerCertPath, "key.pem"),
 			InsecureSkipVerify: os.Getenv(EnvTLSVerify) == "",
-		}
-		tlsc, err := tlsconfig.Client(options)
+		})
 		if err != nil {
 			return err
 		}
