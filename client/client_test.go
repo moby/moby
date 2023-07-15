@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -384,28 +385,43 @@ func TestClientRedirect(t *testing.T) {
 		CheckRedirect: CheckRedirect,
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.String() == "/bla" {
-				return &http.Response{StatusCode: 404}, nil
+				return &http.Response{StatusCode: http.StatusNotFound}, nil
 			}
 			return &http.Response{
-				StatusCode: 301,
-				Header:     map[string][]string{"Location": {"/bla"}},
+				StatusCode: http.StatusMovedPermanently,
+				Header:     http.Header{"Location": {"/bla"}},
 				Body:       bytesBufferClose{bytes.NewBuffer(nil)},
 			}, nil
 		}),
 	}
 
-	cases := []struct {
+	tests := []struct {
 		httpMethod  string
 		expectedErr *url.Error
 		statusCode  int
 	}{
-		{http.MethodGet, nil, 301},
-		{http.MethodPost, &url.Error{Op: "Post", URL: "/bla", Err: ErrRedirect}, 301},
-		{http.MethodPut, &url.Error{Op: "Put", URL: "/bla", Err: ErrRedirect}, 301},
-		{http.MethodDelete, &url.Error{Op: "Delete", URL: "/bla", Err: ErrRedirect}, 301},
+		{
+			httpMethod: http.MethodGet,
+			statusCode: http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodPost,
+			expectedErr: &url.Error{Op: "Post", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodPut,
+			expectedErr: &url.Error{Op: "Put", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodDelete,
+			expectedErr: &url.Error{Op: "Delete", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
 	}
 
-	for _, tc := range cases {
+	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.httpMethod, func(t *testing.T) {
 			req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
@@ -413,10 +429,11 @@ func TestClientRedirect(t *testing.T) {
 			resp, err := client.Do(req)
 			assert.Check(t, is.Equal(resp.StatusCode, tc.statusCode))
 			if tc.expectedErr == nil {
-				assert.NilError(t, err)
+				assert.Check(t, err)
 			} else {
-				urlError, ok := err.(*url.Error)
-				assert.Assert(t, ok, "%T is not *url.Error", err)
+				assert.Check(t, is.ErrorType(err, &url.Error{}))
+				var urlError *url.Error
+				assert.Assert(t, errors.As(err, &urlError), "%T is not *url.Error", err)
 				assert.Check(t, is.Equal(*urlError, *tc.expectedErr))
 			}
 		})
