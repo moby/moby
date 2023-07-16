@@ -151,8 +151,11 @@ func GetIptable(version IPVersion) *IPTable {
 
 // NewChain adds a new chain to ip table.
 func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
+	if name == "" {
+		return nil, fmt.Errorf("could not create chain: chain name is empty")
+	}
 	if table == "" {
-		table = Filter
+		return nil, fmt.Errorf("could not create chain %s: invalid table name: table name is empty", name)
 	}
 	// Add chain if it doesn't exist
 	if _, err := iptable.Raw("-t", string(table), "-n", "-L", name); err != nil {
@@ -280,8 +283,11 @@ func (iptable IPTable) ProgramChain(c *ChainInfo, bridgeName string, hairpinMode
 
 // RemoveExistingChain removes existing chain from the table.
 func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
+	if name == "" {
+		return fmt.Errorf("could not remove chain: chain name is empty")
+	}
 	if table == "" {
-		table = Filter
+		return fmt.Errorf("could not remove chain %s: invalid table name: table name is empty", name)
 	}
 	c := &ChainInfo{
 		Name:      name,
