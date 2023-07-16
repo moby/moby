@@ -376,7 +376,7 @@ func setINC(version iptables.IPVersion, iface string, enable bool) error {
 const oldIsolationChain = "DOCKER-ISOLATION"
 
 func removeIPChains(version iptables.IPVersion) {
-	ipt := iptables.IPTable{Version: version}
+	ipt := iptables.GetIptable(version)
 
 	// Remove obsolete rules from default chains
 	ipt.ProgramRule(iptables.Filter, "FORWARD", iptables.Delete, []string{"-j", oldIsolationChain})

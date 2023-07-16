@@ -71,9 +71,9 @@ var (
 	initOnce       sync.Once
 )
 
-// IPTable defines struct with IPVersion
+// IPTable defines struct with [IPVersion].
 type IPTable struct {
-	Version IPVersion
+	ipVersion IPVersion
 }
 
 // ChainInfo defines the iptables chain.
@@ -146,7 +146,7 @@ func initCheck() error {
 
 // GetIptable returns an instance of IPTable with specified version
 func GetIptable(version IPVersion) *IPTable {
-	return &IPTable{Version: version}
+	return &IPTable{ipVersion: version}
 }
 
 // NewChain adds a new chain to ip table.
@@ -169,13 +169,13 @@ func (iptable IPTable) NewChain(name string, table Table, hairpinMode bool) (*Ch
 		Name:        name,
 		Table:       table,
 		HairpinMode: hairpinMode,
-		IPVersion:   iptable.Version,
+		IPVersion:   iptable.ipVersion,
 	}, nil
 }
 
 // LoopbackByVersion returns loopback address by version
 func (iptable IPTable) LoopbackByVersion() string {
-	if iptable.Version == IPv6 {
+	if iptable.ipVersion == IPv6 {
 		return "::1/128"
 	}
 	return "127.0.0.0/8"
@@ -292,7 +292,7 @@ func (iptable IPTable) RemoveExistingChain(name string, table Table) error {
 	c := &ChainInfo{
 		Name:      name,
 		Table:     table,
-		IPVersion: iptable.Version,
+		IPVersion: iptable.ipVersion,
 	}
 	return c.Remove()
 }
@@ -506,7 +506,7 @@ func (iptable IPTable) Raw(args ...string) ([]byte, error) {
 	if firewalldRunning {
 		// select correct IP version for firewalld
 		ipv := Iptables
-		if iptable.Version == IPv6 {
+		if iptable.ipVersion == IPv6 {
 			ipv = IP6Tables
 		}
 
@@ -525,7 +525,7 @@ func (iptable IPTable) raw(args ...string) ([]byte, error) {
 	}
 	path := iptablesPath
 	commandName := "iptables"
-	if iptable.Version == IPv6 {
+	if iptable.ipVersion == IPv6 {
 		if ip6tablesPath == "" {
 			return nil, fmt.Errorf("ip6tables is missing")
 		}
