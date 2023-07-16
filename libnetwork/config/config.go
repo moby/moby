@@ -25,7 +25,7 @@ type Config struct {
 	DefaultNetwork         string
 	DefaultDriver          string
 	Labels                 []string
-	DriverCfg              map[string]interface{}
+	driverCfg              map[string]map[string]any
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
@@ -37,7 +37,7 @@ type Config struct {
 // New creates a new Config and initializes it with the given Options.
 func New(opts ...Option) *Config {
 	cfg := &Config{
-		DriverCfg: make(map[string]interface{}),
+		driverCfg: make(map[string]map[string]any),
 	}
 
 	for _, opt := range opts {
@@ -51,6 +51,10 @@ func New(opts ...Option) *Config {
 		cfg.Scope = datastore.DefaultScope(cfg.DataDir)
 	}
 	return cfg
+}
+
+func (c *Config) DriverConfig(name string) map[string]any {
+	return c.driverCfg[name]
 }
 
 // Option is an option setter function type used to pass various configurations
@@ -81,9 +85,9 @@ func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Opt
 }
 
 // OptionDriverConfig returns an option setter for driver configuration.
-func OptionDriverConfig(networkType string, config map[string]interface{}) Option {
+func OptionDriverConfig(networkType string, config map[string]any) Option {
 	return func(c *Config) {
-		c.DriverCfg[networkType] = config
+		c.driverCfg[networkType] = config
 	}
 }
 

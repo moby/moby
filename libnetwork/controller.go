@@ -335,11 +335,9 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 		cfg[key] = val
 	}
 
-	drvCfg, ok := c.cfg.DriverCfg[ntype]
-	if ok {
-		for k, v := range drvCfg.(map[string]interface{}) {
-			cfg[k] = v
-		}
+	// Merge in the existing config for this driver.
+	for k, v := range c.cfg.DriverConfig(ntype) {
+		cfg[k] = v
 	}
 
 	if c.cfg.Scope.IsValid() {
@@ -1146,10 +1144,7 @@ func (c *Controller) iptablesEnabled() bool {
 		return false
 	}
 	// parse map cfg["bridge"]["generic"]["EnableIPTable"]
-	cfgBridge, ok := c.cfg.DriverCfg["bridge"].(map[string]interface{})
-	if !ok {
-		return false
-	}
+	cfgBridge := c.cfg.DriverConfig("bridge")
 	cfgGeneric, ok := cfgBridge[netlabel.GenericData].(options.Generic)
 	if !ok {
 		return false
@@ -1170,10 +1165,7 @@ func (c *Controller) ip6tablesEnabled() bool {
 		return false
 	}
 	// parse map cfg["bridge"]["generic"]["EnableIP6Table"]
-	cfgBridge, ok := c.cfg.DriverCfg["bridge"].(map[string]interface{})
-	if !ok {
-		return false
-	}
+	cfgBridge := c.cfg.DriverConfig("bridge")
 	cfgGeneric, ok := cfgBridge[netlabel.GenericData].(options.Generic)
 	if !ok {
 		return false
