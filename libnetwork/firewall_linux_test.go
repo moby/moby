@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
@@ -52,15 +53,14 @@ func TestUserChain(t *testing.T) {
 			defer testutils.SetupTestOSContext(t)()
 			defer resetIptables(t)
 
-			c, err := New()
-			assert.NilError(t, err)
-			defer c.Stop()
-			c.cfg.DriverCfg["bridge"] = map[string]interface{}{
+			c, err := New(config.OptionDriverConfig("bridge", map[string]any{
 				netlabel.GenericData: options.Generic{
 					"EnableIPTables":  tc.iptables,
 					"EnableIP6Tables": tc.iptables,
 				},
-			}
+			}))
+			assert.NilError(t, err)
+			defer c.Stop()
 
 			// init. condition, FORWARD chain empty DOCKER-USER not exist
 			assert.DeepEqual(t, getRules(t, iptables.IPv4, fwdChainName), []string{"-P FORWARD ACCEPT"})
