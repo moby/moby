@@ -42,12 +42,7 @@ func (e TypeMismatchError) Error() string {
 }
 
 // Generic is a basic type to store arbitrary settings.
-type Generic map[string]interface{}
-
-// NewGeneric returns a new Generic instance.
-func NewGeneric() Generic {
-	return make(Generic)
-}
+type Generic map[string]any
 
 // GenerateFromModel takes the generic options, and tries to build a new
 // instance of the model's type by matching keys from the generic options to
