@@ -440,12 +440,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.config = config
 	d.Unlock()
 
-	err = d.initStore(option)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.initStore(option)
 }
 
 func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
