@@ -664,7 +664,14 @@ addToStore:
 		arrangeIngressFilterRule()
 		c.mu.Unlock()
 	}
-	arrangeUserFilterRule()
+
+	// Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6)
+	// that's enabled in the controller's configuration.
+	for _, ipVersion := range c.enabledIptablesVersions() {
+		if err := setupUserChain(ipVersion); err != nil {
+			log.G(context.TODO()).WithError(err).Warnf("Controller.NewNetwork %s:", name)
+		}
+	}
 
 	return nw, nil
 }
