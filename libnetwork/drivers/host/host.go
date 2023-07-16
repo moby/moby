@@ -43,7 +43,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	defer d.Unlock()
 
 	if d.network != "" {
-		return types.ForbiddenErrorf("only one instance of \"%s\" network is allowed", NetworkType)
+		return types.ForbiddenErrorf("only one instance of %q network is allowed", NetworkType)
 	}
 
 	d.network = id
@@ -52,7 +52,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 }
 
 func (d *driver) DeleteNetwork(nid string) error {
-	return types.ForbiddenErrorf("network of type \"%s\" cannot be deleted", NetworkType)
+	return types.ForbiddenErrorf("network of type %q cannot be deleted", NetworkType)
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {

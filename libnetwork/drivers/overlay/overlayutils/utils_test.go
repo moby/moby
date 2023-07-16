@@ -43,14 +43,14 @@ func TestAppendVNIList(t *testing.T) {
 			slice:   []uint32{4, 5, 6},
 			csv:     "1,2,3,abc",
 			want:    []uint32{4, 5, 6, 1, 2, 3},
-			wantErr: "invalid vxlan id value \"abc\" passed",
+			wantErr: `invalid vxlan id value "abc" passed`,
 		},
 		{
 			name:    "InvalidVNI2",
 			slice:   []uint32{4, 5, 6},
 			csv:     "abc,1,2,3",
 			want:    []uint32{4, 5, 6},
-			wantErr: "invalid vxlan id value \"abc\" passed",
+			wantErr: `invalid vxlan id value "abc" passed`,
 		},
 	}
 	for _, tt := range cases {
