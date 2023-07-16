@@ -135,11 +135,6 @@ func OptionNetworkControlPlaneMTU(exp int) Option {
 	}
 }
 
-// IsValidName validates configuration objects supported by libnetwork
-func IsValidName(name string) bool {
-	return strings.TrimSpace(name) != ""
-}
-
 // OptionActiveSandboxes function returns an option setter for passing the sandboxes
 // which were active during previous daemon life
 func OptionActiveSandboxes(sandboxes map[string]interface{}) Option {
