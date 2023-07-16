@@ -69,9 +69,9 @@ func TestUserChain(t *testing.T) {
 
 			if tc.insert {
 				_, err = iptable4.Raw("-A", fwdChainName, "-j", "DROP")
-				assert.NilError(t, err)
+				assert.Check(t, err)
 				_, err = iptable6.Raw("-A", fwdChainName, "-j", "DROP")
-				assert.NilError(t, err)
+				assert.Check(t, err)
 			}
 			arrangeUserFilterRule()
 
@@ -81,10 +81,10 @@ func TestUserChain(t *testing.T) {
 				assert.Check(t, is.DeepEqual(getRules(t, iptable4, usrChainName), tc.userChain))
 				assert.Check(t, is.DeepEqual(getRules(t, iptable6, usrChainName), tc.userChain))
 			} else {
-				_, err := iptable4.Raw("-S", usrChainName)
-				assert.Assert(t, err != nil, "ipv4 chain %v: created unexpectedly", usrChainName)
+				_, err = iptable4.Raw("-S", usrChainName)
+				assert.Check(t, is.ErrorContains(err, "No chain/target/match by that name"), "ipv4 chain %v: created unexpectedly", usrChainName)
 				_, err = iptable6.Raw("-S", usrChainName)
-				assert.Assert(t, err != nil, "ipv6 chain %v: created unexpectedly", usrChainName)
+				assert.Check(t, is.ErrorContains(err, "No chain/target/match by that name"), "ipv6 chain %v: created unexpectedly", usrChainName)
 			}
 		})
 	}
