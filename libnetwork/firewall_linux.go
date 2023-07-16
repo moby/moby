@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -18,6 +19,18 @@ func setupArrangeUserFilterRule(c *Controller) {
 
 // arrangeUserFilterRule sets up the DOCKER-USER chain for each iptables version
 // (IPv4, IPv6) that's enabled in the controller's configuration.
+func arrangeUserFilterRule() {
+	if ctrl == nil {
+		return
+	}
+	for _, ipVersion := range ctrl.enabledIptablesVersions() {
+		if err := setupUserChain(ipVersion); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("arrangeUserFilterRule")
+		}
+	}
+}
+
+// setupUserChain sets up the DOCKER-USER chain for the given [iptables.IPVersion].
 //
 // This chain allows users to configure firewall policies in a way that
 // persist daemon operations/restarts. The daemon does not delete or modify
@@ -26,23 +39,16 @@ func setupArrangeUserFilterRule(c *Controller) {
 // Once the DOCKER-USER chain is created, the daemon does not remove it when
 // IPTableForwarding is disabled, because it contains rules configured by user
 // that are beyond the daemon's control.
-func arrangeUserFilterRule() {
-	if ctrl == nil {
-		return
+func setupUserChain(ipVersion iptables.IPVersion) error {
+	ipt := iptables.GetIptable(ipVersion)
+	if _, err := ipt.NewChain(userChain, iptables.Filter, false); err != nil {
+		return fmt.Errorf("failed to create %s %v chain: %v", userChain, ipVersion, err)
 	}
-
-	for _, ipVersion := range ctrl.enabledIptablesVersions() {
-		ipt := iptables.GetIptable(ipVersion)
-		if _, err := ipt.NewChain(userChain, iptables.Filter, false); err != nil {
-			log.G(context.TODO()).WithError(err).Warnf("Failed to create %s %v chain", userChain, ipVersion)
-			return
-		}
-		if err := ipt.AddReturnRule(userChain); err != nil {
-			log.G(context.TODO()).WithError(err).Warnf("Failed to add the RETURN rule for %s %v", userChain, ipVersion)
-			return
-		}
-		if err := ipt.EnsureJumpRule("FORWARD", userChain); err != nil {
-			log.G(context.TODO()).WithError(err).Warnf("Failed to ensure the jump rule for %s %v", userChain, ipVersion)
-		}
+	if err := ipt.AddReturnRule(userChain); err != nil {
+		return fmt.Errorf("failed to add the RETURN rule for %s %v: %w", userChain, ipVersion, err)
 	}
+	if err := ipt.EnsureJumpRule("FORWARD", userChain); err != nil {
+		return fmt.Errorf("failed to ensure the jump rule for %s %v: %w", userChain, ipVersion, err)
+	}
+	return nil
 }
