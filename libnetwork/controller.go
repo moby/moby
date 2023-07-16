@@ -64,7 +64,6 @@ import (
 	"github.com/docker/docker/libnetwork/drvregistry"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -1134,42 +1133,4 @@ func (c *Controller) IsDiagnosticEnabled() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.DiagnosticServer.IsDiagnosticEnabled()
-}
-
-func (c *Controller) iptablesEnabled() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.cfg == nil {
-		return false
-	}
-	// parse map cfg["bridge"]["generic"]["EnableIPTable"]
-	cfgBridge := c.cfg.DriverConfig("bridge")
-	cfgGeneric, ok := cfgBridge[netlabel.GenericData].(options.Generic)
-	if !ok {
-		return false
-	}
-	enabled, ok := cfgGeneric["EnableIPTables"].(bool)
-	if !ok {
-		// unless user explicitly stated, assume iptable is enabled
-		enabled = true
-	}
-	return enabled
-}
-
-func (c *Controller) ip6tablesEnabled() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.cfg == nil {
-		return false
-	}
-	// parse map cfg["bridge"]["generic"]["EnableIP6Table"]
-	cfgBridge := c.cfg.DriverConfig("bridge")
-	cfgGeneric, ok := cfgBridge[netlabel.GenericData].(options.Generic)
-	if !ok {
-		return false
-	}
-	enabled, _ := cfgGeneric["EnableIP6Tables"].(bool)
-	return enabled
 }
