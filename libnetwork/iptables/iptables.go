@@ -144,8 +144,18 @@ func initCheck() error {
 	return nil
 }
 
-// GetIptable returns an instance of IPTable with specified version
+// GetIptable returns an instance of IPTable with specified version ([IPv4]
+// or [IPv6]). It panics if an invalid [IPVersion] is provided.
 func GetIptable(version IPVersion) *IPTable {
+	switch version {
+	case IPv4, IPv6:
+		// valid version
+	case "":
+		// default is IPv4 for backward-compatibility
+		version = IPv4
+	default:
+		panic("unknown IP version: " + version)
+	}
 	return &IPTable{ipVersion: version}
 }
 
