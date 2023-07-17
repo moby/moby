@@ -250,11 +250,11 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS dockercli
 WORKDIR /go/src/github.com/docker/cli
-COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
 ARG DOCKERCLI_REPOSITORY
 ARG DOCKERCLI_VERSION
 ARG TARGETPLATFORM
-RUN --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
+RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
+    --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
      && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build \
@@ -262,12 +262,12 @@ RUN --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./
 
 FROM base AS dockercli-integration
 WORKDIR /go/src/github.com/docker/cli
-COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
 ARG DOCKERCLI_INTEGRATION_REPOSITORY
 ARG DOCKERCLI_INTEGRATION_VERSION
 ARG TARGETPLATFORM
-RUN --mount=type=cache,id=dockercli-integration-git-$TARGETPLATFORM,sharing=locked,target=./.git \
-    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-integration-build-$TARGETPLATFORM \
+RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
+    --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
+    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
      && /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build \
      && /build/docker --version
@@ -368,8 +368,8 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
   xx-go build -o /build/rootlesskit-docker-proxy -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit-docker-proxy
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit-docker-proxy
 EOT
-COPY ./contrib/dockerd-rootless.sh /build/
-COPY ./contrib/dockerd-rootless-setuptool.sh /build/
+COPY --link ./contrib/dockerd-rootless.sh /build/
+COPY --link ./contrib/dockerd-rootless-setuptool.sh /build/
 
 FROM rootlesskit-build AS rootlesskit-linux
 FROM binary-dummy AS rootlesskit-windows
