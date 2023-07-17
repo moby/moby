@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,24 +19,19 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-var (
-	mux    *http.ServeMux
-	server *httptest.Server
-)
-
-func setupRemotePluginServer() string {
+func setupRemotePluginServer(t *testing.T) (mux *http.ServeMux, addr string) {
+	t.Helper()
 	mux = http.NewServeMux()
-	server = httptest.NewServer(mux)
-	return server.URL
-}
-
-func teardownRemotePluginServer() {
-	if server != nil {
+	server := httptest.NewServer(mux)
+	t.Logf("started remote plugin server listening on: %s", server.URL)
+	t.Cleanup(func() {
 		server.Close()
-	}
+	})
+	return mux, server.URL
 }
 
 func TestFailedConnection(t *testing.T) {
+	t.Parallel()
 	c, _ := NewClient("tcp://127.0.0.1:1", &tlsconfig.Options{InsecureSkipVerify: true})
 	_, err := c.callWithRetry("Service.Method", nil, false)
 	if err == nil {
@@ -44,14 +40,14 @@ func TestFailedConnection(t *testing.T) {
 }
 
 func TestFailOnce(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	t.Parallel()
+	mux, addr := setupRemotePluginServer(t)
 
 	failed := false
 	mux.HandleFunc("/Test.FailOnce", func(w http.ResponseWriter, r *http.Request) {
 		if !failed {
 			failed = true
-			panic("Plugin not ready")
+			panic("Plugin not ready (intentional panic for test)")
 		}
 	})
 
@@ -64,8 +60,8 @@ func TestFailOnce(t *testing.T) {
 }
 
 func TestEchoInputOutput(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	t.Parallel()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 
@@ -95,47 +91,56 @@ func TestEchoInputOutput(t *testing.T) {
 }
 
 func TestBackoff(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		retries    int
 		expTimeOff time.Duration
 	}{
-		{0, time.Duration(1)},
-		{1, time.Duration(2)},
-		{2, time.Duration(4)},
-		{4, time.Duration(16)},
-		{6, time.Duration(30)},
-		{10, time.Duration(30)},
+		{expTimeOff: time.Duration(1)},
+		{retries: 1, expTimeOff: time.Duration(2)},
+		{retries: 2, expTimeOff: time.Duration(4)},
+		{retries: 4, expTimeOff: time.Duration(16)},
+		{retries: 6, expTimeOff: time.Duration(30)},
+		{retries: 10, expTimeOff: time.Duration(30)},
 	}
 
-	for _, c := range cases {
-		s := c.expTimeOff * time.Second
-		if d := backoff(c.retries); d != s {
-			t.Fatalf("Retry %v, expected %v, was %v\n", c.retries, s, d)
-		}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("retries: %v", tc.retries), func(t *testing.T) {
+			s := tc.expTimeOff * time.Second
+			if d := backoff(tc.retries); d != s {
+				t.Fatalf("Retry %v, expected %v, was %v\n", tc.retries, s, d)
+			}
+		})
 	}
 }
 
 func TestAbortRetry(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		timeOff  time.Duration
 		expAbort bool
 	}{
-		{time.Duration(1), false},
-		{time.Duration(2), false},
-		{time.Duration(10), false},
-		{time.Duration(30), true},
-		{time.Duration(40), true},
+		{timeOff: time.Duration(1)},
+		{timeOff: time.Duration(2)},
+		{timeOff: time.Duration(10)},
+		{timeOff: time.Duration(30), expAbort: true},
+		{timeOff: time.Duration(40), expAbort: true},
 	}
 
-	for _, c := range cases {
-		s := c.timeOff * time.Second
-		if a := abort(time.Now(), s); a != c.expAbort {
-			t.Fatalf("Duration %v, expected %v, was %v\n", c.timeOff, s, a)
-		}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(fmt.Sprintf("duration: %v", tc.timeOff), func(t *testing.T) {
+			s := tc.timeOff * time.Second
+			if a := abort(time.Now(), s); a != tc.expAbort {
+				t.Fatalf("Duration %v, expected %v, was %v\n", tc.timeOff, s, a)
+			}
+		})
 	}
 }
 
 func TestClientScheme(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"tcp://127.0.0.1:8080":          "http",
 		"unix:///usr/local/plugins/foo": "http",
@@ -146,7 +151,7 @@ func TestClientScheme(t *testing.T) {
 	for addr, scheme := range cases {
 		u, err := url.Parse(addr)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 		s := httpScheme(u)
 
@@ -157,8 +162,8 @@ func TestClientScheme(t *testing.T) {
 }
 
 func TestNewClientWithTimeout(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	t.Parallel()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 
@@ -178,8 +183,8 @@ func TestNewClientWithTimeout(t *testing.T) {
 }
 
 func TestClientStream(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	t.Parallel()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 	var output Manifest
@@ -208,8 +213,8 @@ func TestClientStream(t *testing.T) {
 }
 
 func TestClientSendFile(t *testing.T) {
-	addr := setupRemotePluginServer()
-	defer teardownRemotePluginServer()
+	t.Parallel()
+	mux, addr := setupRemotePluginServer(t)
 
 	m := Manifest{[]string{"VolumeDriver", "NetworkDriver"}}
 	var output Manifest
@@ -236,6 +241,7 @@ func TestClientSendFile(t *testing.T) {
 }
 
 func TestClientWithRequestTimeout(t *testing.T) {
+	t.Parallel()
 	type timeoutError interface {
 		Timeout() bool
 	}
