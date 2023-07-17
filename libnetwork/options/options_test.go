@@ -7,10 +7,11 @@ import (
 )
 
 func TestGenerate(t *testing.T) {
-	gen := NewGeneric()
-	gen["Int"] = 1
-	gen["Rune"] = 'b'
-	gen["Float64"] = 2.0
+	gen := Generic{
+		"Int":     1,
+		"Rune":    'b',
+		"Float64": 2.0,
+	}
 
 	type Model struct {
 		Int     int
@@ -39,10 +40,11 @@ func TestGenerate(t *testing.T) {
 }
 
 func TestGeneratePtr(t *testing.T) {
-	gen := NewGeneric()
-	gen["Int"] = 1
-	gen["Rune"] = 'b'
-	gen["Float64"] = 2.0
+	gen := Generic{
+		"Int":     1,
+		"Rune":    'b',
+		"Float64": 2.0,
+	}
 
 	type Model struct {
 		Int     int
