@@ -25,9 +25,7 @@ import (
 	"path/filepath"
 )
 
-var (
-	errTooManyLinks = errors.New("too many links")
-)
+var errTooManyLinks = errors.New("too many links")
 
 type currentPath struct {
 	path     string

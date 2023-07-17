@@ -18,7 +18,6 @@ package fs
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -111,7 +110,7 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 		}
 	}
 
-	fis, err := ioutil.ReadDir(src)
+	entries, err := os.ReadDir(src)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", src, err)
 	}
@@ -124,18 +123,23 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 		return fmt.Errorf("failed to copy xattrs: %w", err)
 	}
 
-	for _, fi := range fis {
-		source := filepath.Join(src, fi.Name())
-		target := filepath.Join(dst, fi.Name())
+	for _, entry := range entries {
+		source := filepath.Join(src, entry.Name())
+		target := filepath.Join(dst, entry.Name())
+
+		fileInfo, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("failed to get file info for %s: %w", entry.Name(), err)
+		}
 
 		switch {
-		case fi.IsDir():
+		case entry.IsDir():
 			if err := copyDirectory(target, source, inodes, o); err != nil {
 				return err
 			}
 			continue
-		case (fi.Mode() & os.ModeType) == 0:
-			link, err := getLinkSource(target, fi, inodes)
+		case (fileInfo.Mode() & os.ModeType) == 0:
+			link, err := getLinkSource(target, fileInfo, inodes)
 			if err != nil {
 				return fmt.Errorf("failed to get hardlink: %w", err)
 			}
@@ -146,7 +150,7 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 			} else if err := CopyFile(target, source); err != nil {
 				return fmt.Errorf("failed to copy files: %w", err)
 			}
-		case (fi.Mode() & os.ModeSymlink) == os.ModeSymlink:
+		case (fileInfo.Mode() & os.ModeSymlink) == os.ModeSymlink:
 			link, err := os.Readlink(source)
 			if err != nil {
 				return fmt.Errorf("failed to read link: %s: %w", source, err)
@@ -154,18 +158,18 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 			if err := os.Symlink(link, target); err != nil {
 				return fmt.Errorf("failed to create symlink: %s: %w", target, err)
 			}
-		case (fi.Mode() & os.ModeDevice) == os.ModeDevice,
-			(fi.Mode() & os.ModeNamedPipe) == os.ModeNamedPipe,
-			(fi.Mode() & os.ModeSocket) == os.ModeSocket:
-			if err := copyIrregular(target, fi); err != nil {
+		case (fileInfo.Mode() & os.ModeDevice) == os.ModeDevice,
+			(fileInfo.Mode() & os.ModeNamedPipe) == os.ModeNamedPipe,
+			(fileInfo.Mode() & os.ModeSocket) == os.ModeSocket:
+			if err := copyIrregular(target, fileInfo); err != nil {
 				return fmt.Errorf("failed to create irregular file: %w", err)
 			}
 		default:
-			logrus.Warnf("unsupported mode: %s: %s", source, fi.Mode())
+			logrus.Warnf("unsupported mode: %s: %s", source, fileInfo.Mode())
 			continue
 		}
 
-		if err := copyFileInfo(fi, source, target); err != nil {
+		if err := copyFileInfo(fileInfo, source, target); err != nil {
 			return fmt.Errorf("failed to copy file info: %w", err)
 		}
 
@@ -180,6 +184,10 @@ func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) er
 // CopyFile copies the source file to the target.
 // The most efficient means of copying is used for the platform.
 func CopyFile(target, source string) error {
+	return copyFile(target, source)
+}
+
+func openAndCopyFile(target, source string) error {
 	src, err := os.Open(source)
 	if err != nil {
 		return fmt.Errorf("failed to open source %s: %w", source, err)
