@@ -480,7 +480,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		}
 	}
 
-	if !config.IsValidName(name) {
+	if strings.TrimSpace(name) == "" {
 		return nil, ErrInvalidName(name)
 	}
 

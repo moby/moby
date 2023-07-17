@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/log"
-	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/etchosts"
@@ -1150,7 +1149,7 @@ func (n *network) addEndpoint(ep *Endpoint) error {
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (*Endpoint, error) {
 	var err error
-	if !config.IsValidName(name) {
+	if strings.TrimSpace(name) == "" {
 		return nil, ErrInvalidName(name)
 	}
 
