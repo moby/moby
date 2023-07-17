@@ -9,12 +9,10 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -194,42 +192,20 @@ func (daemon *Daemon) UsesSnapshotter() bool {
 // RegistryHosts returns the registry hosts configuration for the host component
 // of a distribution image reference.
 func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	var (
-		conf        = daemon.config()
-		registryKey = "docker.io"
-		mirrors     = make([]string, len(conf.Mirrors))
-		m           = map[string]resolverconfig.RegistryConfig{}
-	)
-	// must trim "https://" or "http://" prefix
-	for i, v := range conf.Mirrors {
-		if uri, err := url.Parse(v); err == nil {
-			v = uri.Host
-		}
-		mirrors[i] = v
-	}
-	// set mirrors for default registry
-	m[registryKey] = resolverconfig.RegistryConfig{Mirrors: mirrors}
+	var m = map[string]resolverconfig.RegistryConfig{}
 
-	for _, v := range conf.InsecureRegistries {
-		u, err := url.Parse(v)
-		if err != nil && !strings.HasPrefix(v, "http://") && !strings.HasPrefix(v, "https://") {
-			originalErr := err
-			u, err = url.Parse("http://" + v)
-			if err != nil {
-				err = originalErr
-			}
-		}
+	mirrors := daemon.registryService.ServiceConfig().Mirrors
+	m["docker.io"] = resolverconfig.RegistryConfig{Mirrors: mirrors}
+
+	conf := daemon.registryService.ServiceConfig().IndexConfigs
+	for k, v := range conf {
 		c := resolverconfig.RegistryConfig{}
-		if err == nil {
-			v = u.Host
+		if !v.Secure {
 			t := true
-			if u.Scheme == "http" {
-				c.PlainHTTP = &t
-			} else {
-				c.Insecure = &t
-			}
+			c.PlainHTTP = &t
+			c.Insecure = &t
 		}
-		m[v] = c
+		m[k] = c
 	}
 
 	for k, v := range m {
