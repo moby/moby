@@ -227,13 +227,8 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 		return fmt.Errorf("request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), serverResp.reqURL)
 	}
 
-	var ct string
-	if serverResp.header != nil {
-		ct = serverResp.header.Get("Content-Type")
-	}
-
 	var errorMessage string
-	if (cli.version == "" || versions.GreaterThan(cli.version, "1.23")) && ct == "application/json" {
+	if serverResp.header.Get("Content-Type") == "application/json" && (cli.version == "" || versions.GreaterThan(cli.version, "1.23")) {
 		var errorResponse types.ErrorResponse
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return errors.Wrap(err, "Error reading JSON")
