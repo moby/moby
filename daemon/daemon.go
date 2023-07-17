@@ -207,6 +207,13 @@ func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) 
 		}
 		m[k] = c
 	}
+	if _, ok := m[host]; !ok && daemon.registryService.IsInsecureRegistry(host) {
+		c := resolverconfig.RegistryConfig{}
+		t := true
+		c.PlainHTTP = &t
+		c.Insecure = &t
+		m[host] = c
+	}
 
 	for k, v := range m {
 		v.TLSConfigDir = []string{registry.HostCertsDir(k)}
