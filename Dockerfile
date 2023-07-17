@@ -33,8 +33,7 @@ FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS base
 COPY --from=xx / /
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 ARG APT_MIRROR
-RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
- && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
+RUN test -n "$APT_MIRROR" && sed -ri "s#(httpredir|deb|security).debian.org#${APT_MIRROR}#g" /etc/apt/sources.list || true
 ARG DEBIAN_FRONTEND
 RUN apt-get update && apt-get install --no-install-recommends -y file
 ENV GO111MODULE=off
@@ -251,11 +250,11 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS dockercli
 WORKDIR /go/src/github.com/docker/cli
-COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
 ARG DOCKERCLI_REPOSITORY
 ARG DOCKERCLI_VERSION
 ARG TARGETPLATFORM
-RUN --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
+RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
+    --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
     --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
      && /download-or-build-cli.sh ${DOCKERCLI_VERSION} ${DOCKERCLI_REPOSITORY} /build \
@@ -263,12 +262,12 @@ RUN --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./
 
 FROM base AS dockercli-integration
 WORKDIR /go/src/github.com/docker/cli
-COPY hack/dockerfile/cli.sh /download-or-build-cli.sh
 ARG DOCKERCLI_INTEGRATION_REPOSITORY
 ARG DOCKERCLI_INTEGRATION_VERSION
 ARG TARGETPLATFORM
-RUN --mount=type=cache,id=dockercli-integration-git-$TARGETPLATFORM,sharing=locked,target=./.git \
-    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-integration-build-$TARGETPLATFORM \
+RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
+    --mount=type=cache,id=dockercli-git-$TARGETPLATFORM,sharing=locked,target=./.git \
+    --mount=type=cache,target=/root/.cache/go-build,id=dockercli-build-$TARGETPLATFORM \
         rm -f ./.git/*.lock \
      && /download-or-build-cli.sh ${DOCKERCLI_INTEGRATION_VERSION} ${DOCKERCLI_INTEGRATION_REPOSITORY} /build \
      && /build/docker --version
@@ -369,8 +368,8 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
   xx-go build -o /build/rootlesskit-docker-proxy -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit-docker-proxy
   xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit-docker-proxy
 EOT
-COPY ./contrib/dockerd-rootless.sh /build/
-COPY ./contrib/dockerd-rootless-setuptool.sh /build/
+COPY --link ./contrib/dockerd-rootless.sh /build/
+COPY --link ./contrib/dockerd-rootless-setuptool.sh /build/
 
 FROM rootlesskit-build AS rootlesskit-linux
 FROM binary-dummy AS rootlesskit-windows
