@@ -2258,7 +2258,7 @@ docker.com>"
   `))
 
 	res := inspectField(c, name, "Author")
-	if res != "\"Docker IO <io@docker.com>\"" {
+	if res != `"Docker IO <io@docker.com>"` {
 		c.Fatalf("Parsed string did not match the escaped string. Got: %q", res)
 	}
 }
@@ -2272,7 +2272,7 @@ func (s *DockerCLIBuildSuite) TestBuildVerifyIntString(c *testing.T) {
 	MAINTAINER 123`))
 
 	out, _ := dockerCmd(c, "inspect", name)
-	if !strings.Contains(out, "\"123\"") {
+	if !strings.Contains(out, `"123"`) {
 		c.Fatalf("Output does not contain the int as a string:\n%s", out)
 	}
 }

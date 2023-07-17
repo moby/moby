@@ -750,7 +750,7 @@ func (s *DockerCLIEventSuite) TestEventsFormatBadFunc(c *testing.T) {
 	result.Assert(c, icmd.Expected{
 		Error:    "exit status 64",
 		ExitCode: 64,
-		Err:      "Error parsing format: template: :1: function \"badFuncString\" not defined",
+		Err:      `Error parsing format: template: :1: function "badFuncString" not defined`,
 	})
 }
 
@@ -760,6 +760,6 @@ func (s *DockerCLIEventSuite) TestEventsFormatBadField(c *testing.T) {
 	result.Assert(c, icmd.Expected{
 		Error:    "exit status 64",
 		ExitCode: 64,
-		Err:      "Error parsing format: template: :1:2: executing \"\" at <.badFieldString>: can't evaluate field badFieldString in type *events.Message",
+		Err:      `Error parsing format: template: :1:2: executing "" at <.badFieldString>: can't evaluate field badFieldString in type *events.Message`,
 	})
 }

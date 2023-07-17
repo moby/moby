@@ -291,6 +291,16 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		return nil, PredefinedNetworkError(create.Name)
 	}
 
+	c := daemon.netController
+	driver := create.Driver
+	if driver == "" {
+		driver = c.Config().DefaultDriver
+	}
+
+	if driver == "overlay" && !daemon.cluster.IsManager() && !agent {
+		return nil, errdefs.Forbidden(errors.New(`This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.`))
+	}
+
 	var warning string
 	nw, err := daemon.GetNetworkByName(create.Name)
 	if err != nil {
@@ -307,12 +317,6 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 			}
 		}
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
-	}
-
-	c := daemon.netController
-	driver := create.Driver
-	if driver == "" {
-		driver = c.Config().DefaultDriver
 	}
 
 	networkOptions := make(map[string]string)
@@ -373,10 +377,6 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 
 	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
 	if err != nil {
-		if errors.Is(err, libnetwork.ErrDataStoreNotInitialized) {
-			//nolint: revive
-			return nil, errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
-		}
 		return nil, err
 	}
 

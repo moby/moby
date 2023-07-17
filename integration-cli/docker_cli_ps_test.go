@@ -176,7 +176,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersSize(c *testing.T) {
 	select {
 	case <-wait:
 	case <-time.After(3 * time.Second):
-		c.Fatalf("Calling \"docker ps -s\" timed out!")
+		c.Fatalf(`Calling "docker ps -s" timed out!`)
 	}
 	result.Assert(c, icmd.Success)
 	lines := strings.Split(strings.Trim(result.Combined(), "\n "), "\n")
@@ -634,8 +634,8 @@ func (s *DockerCLIPsSuite) TestPsShowMounts(c *testing.T) {
 	var bindMountSource string
 	var bindMountDestination string
 	if DaemonIsWindows() {
-		bindMountSource = "c:\\"
-		bindMountDestination = "c:\\t"
+		bindMountSource = `c:\`
+		bindMountDestination = `c:\t`
 	} else {
 		bindMountSource = "/tmp"
 		bindMountDestination = "/t"

@@ -218,7 +218,7 @@ func (s *DockerCLILinksSuite) TestLinkShortDefinition(c *testing.T) {
 	assert.Assert(c, waitRun(cid2) == nil)
 
 	links := inspectFieldJSON(c, cid2, "HostConfig.Links")
-	assert.Equal(c, links, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
+	assert.Equal(c, links, `["/shortlinkdef:/link2/shortlinkdef"]`)
 }
 
 func (s *DockerCLILinksSuite) TestLinksNetworkHostContainer(c *testing.T) {

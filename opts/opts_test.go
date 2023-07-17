@@ -71,10 +71,10 @@ func TestListOptsWithoutValidator(t *testing.T) {
 		t.Errorf("%d != 3", o.Len())
 	}
 	if !o.Get("bar") {
-		t.Error("o.Get(\"bar\") == false")
+		t.Error(`o.Get("bar") == false`)
 	}
 	if o.Get("baz") {
-		t.Error("o.Get(\"baz\") == true")
+		t.Error(`o.Get("baz") == true`)
 	}
 	o.Delete("foo")
 	if o.String() != "[bar bar]" {
@@ -106,10 +106,10 @@ func TestListOptsWithValidator(t *testing.T) {
 		t.Errorf("%d != 1", o.Len())
 	}
 	if !o.Get("max-file=2") {
-		t.Error("o.Get(\"max-file=2\") == false")
+		t.Error(`o.Get("max-file=2") == false`)
 	}
 	if o.Get("baz") {
-		t.Error("o.Get(\"baz\") == true")
+		t.Error(`o.Get("baz") == true`)
 	}
 	o.Delete("max-file=2")
 	if o.String() != "" {
@@ -361,7 +361,7 @@ func TestMapMapOpts(t *testing.T) {
 	o.Set("r1=k12=v12")
 	assert.Check(t, is.DeepEqual(tmpMap["r1"], map[string]string{"k11": "v11", "k12": "v12"}))
 
-	if o.Set("invalid-key={\"k\":\"v\"}") == nil {
+	if o.Set(`invalid-key={"k":"v"}`) == nil {
 		t.Error("validator is not being called")
 	}
 }

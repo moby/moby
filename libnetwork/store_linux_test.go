@@ -24,7 +24,7 @@ func TestNoPersist(t *testing.T) {
 	defer ctrl.Stop()
 	nw, err := ctrl.NewNetwork("host", "host", "", NetworkOptionPersist(false))
 	if err != nil {
-		t.Fatalf("Error creating default \"host\" network: %v", err)
+		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}
 	ep, err := nw.CreateEndpoint("newendpoint", []EndpointOption{}...)
 	if err != nil {

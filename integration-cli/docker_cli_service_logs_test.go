@@ -230,7 +230,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *testing.T) {
 	assert.Assert(c, id != "")
 	// so, right here, we're basically inspecting by id and returning only
 	// the ID. if they don't match, the service doesn't exist.
-	result = icmd.RunCmd(d.Command("service", "inspect", "--format=\"{{.ID}}\"", id))
+	result = icmd.RunCmd(d.Command("service", "inspect", `--format="{{.ID}}"`, id))
 	result.Assert(c, icmd.Expected{Out: id})
 
 	// make sure task has been deployed.
@@ -283,7 +283,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTTY(c *testing.T) {
 	assert.Assert(c, id != "")
 	// so, right here, we're basically inspecting by id and returning only
 	// the ID. if they don't match, the service doesn't exist.
-	result = icmd.RunCmd(d.Command("service", "inspect", "--format=\"{{.ID}}\"", id))
+	result = icmd.RunCmd(d.Command("service", "inspect", `--format="{{.ID}}"`, id))
 	result.Assert(c, icmd.Expected{Out: id})
 
 	// make sure task has been deployed.

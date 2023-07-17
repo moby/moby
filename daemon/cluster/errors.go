@@ -5,13 +5,13 @@ const (
 	errNoSwarm notAvailableError = "This node is not part of a swarm"
 
 	// errSwarmExists is returned on initialize or join request for a cluster that has already been activated
-	errSwarmExists notAvailableError = "This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one."
+	errSwarmExists notAvailableError = `This node is already part of a swarm. Use "docker swarm leave" to leave this swarm and join another one.`
 
 	// errSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
-	errSwarmJoinTimeoutReached notAvailableError = "Timeout was reached before node joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node."
+	errSwarmJoinTimeoutReached notAvailableError = `Timeout was reached before node joined. The attempt to join the swarm will continue in the background. Use the "docker info" command to see the current swarm status of your node.`
 
 	// errSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
-	errSwarmLocked notAvailableError = "Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it."
+	errSwarmLocked notAvailableError = `Swarm is encrypted and needs to be unlocked before it can be used. Please use "docker swarm unlock" to unlock it.`
 
 	// errSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
 	errSwarmCertificatesExpired notAvailableError = "Swarm certificates have expired. To replace them, leave the swarm and join again."

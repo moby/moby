@@ -304,7 +304,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, errors.Errorf("snapshotter doesn't support differ")
 	}
 
-	leases, err := lm.List(ctx, "labels.\"buildkit/lease.temporary\"")
+	leases, err := lm.List(ctx, `labels."buildkit/lease.temporary"`)
 	if err != nil {
 		return nil, err
 	}

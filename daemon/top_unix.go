@@ -29,7 +29,7 @@ func validatePSArgs(psArgs string) error {
 			k := group[1]
 			v := group[2]
 			if k != "pid" {
-				return fmt.Errorf("specifying \"%s=%s\" is not allowed", k, v)
+				return fmt.Errorf(`specifying "%s=%s" is not allowed`, k, v)
 			}
 		}
 	}
