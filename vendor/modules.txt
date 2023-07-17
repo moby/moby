@@ -969,8 +969,8 @@ github.com/syndtr/gocapability/capability
 # github.com/tinylib/msgp v1.1.8
 ## explicit; go 1.15
 github.com/tinylib/msgp/msgp
-# github.com/tonistiigi/fsutil v0.0.0-20230105215944-fb433841cbfa
-## explicit; go 1.18
+# github.com/tonistiigi/fsutil v0.0.0-20230629203738-36ef4d8c0dbb
+## explicit; go 1.19
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types

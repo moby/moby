@@ -13,53 +13,83 @@ const (
 	seTakeOwnershipPrivilege = "SeTakeOwnershipPrivilege"
 )
 
+func getUIDGID(fi os.FileInfo) (uid, gid int) {
+	return 0, 0
+}
+
+func getFileSecurityInfo(name string) (*windows.SID, *windows.ACL, error) {
+	secInfo, err := windows.GetNamedSecurityInfo(
+		name, windows.SE_FILE_OBJECT,
+		windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION)
+
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "fetching security info")
+	}
+	sid, _, err := secInfo.Owner()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "fetching owner SID")
+	}
+	dacl, _, err := secInfo.DACL()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "fetching dacl")
+	}
+	return sid, dacl, nil
+}
+
 func (c *copier) copyFileInfo(fi os.FileInfo, src, name string) error {
 	if err := os.Chmod(name, fi.Mode()); err != nil {
 		return errors.Wrapf(err, "failed to chmod %s", name)
 	}
 
-	// Copy file ownership and ACL
-	// We need SeRestorePrivilege and SeTakeOwnershipPrivilege in order
-	// to restore security info on a file, especially if we're trying to
-	// apply security info which includes SIDs not necessarily present on
-	// the host.
-	privileges := []string{winio.SeRestorePrivilege, seTakeOwnershipPrivilege}
-	if err := winio.EnableProcessPrivileges(privileges); err != nil {
-		return err
-	}
-	defer winio.DisableProcessPrivileges(privileges)
-
-	secInfo, err := windows.GetNamedSecurityInfo(
-		src, windows.SE_FILE_OBJECT,
-		windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION)
-
+	sid, dacl, err := getFileSecurityInfo(src)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "getting file info")
 	}
 
-	dacl, _, err := secInfo.DACL()
-	if err != nil {
-		return err
+	if c.chown != nil {
+		// Use the defined chowner.
+		usr := &User{SID: sid.String()}
+		if err := Chown(name, usr, c.chown); err != nil {
+			return errors.Wrapf(err, "failed to chown %s", name)
+		}
+		return nil
+	} else {
+		// Copy file ownership and ACL from the source file.
+		// We need SeRestorePrivilege and SeTakeOwnershipPrivilege in order
+		// to restore security info on a file, especially if we're trying to
+		// apply security info which includes SIDs not necessarily present on
+		// the host.
+		privileges := []string{winio.SeRestorePrivilege, seTakeOwnershipPrivilege}
+		if err := winio.EnableProcessPrivileges(privileges); err != nil {
+			return err
+		}
+		defer winio.DisableProcessPrivileges(privileges)
+
+		if err := windows.SetNamedSecurityInfo(
+			name, windows.SE_FILE_OBJECT,
+			windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION,
+			sid, nil, dacl, nil); err != nil {
+
+			return err
+		}
 	}
 
-	sid, _, err := secInfo.Owner()
-	if err != nil {
-		return err
-	}
-
-	if err := windows.SetNamedSecurityInfo(
-		name, windows.SE_FILE_OBJECT,
-		windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION,
-		sid, nil, dacl, nil); err != nil {
-
+	if err := c.copyFileTimestamp(fi, name); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (c *copier) copyFileTimestamp(fi os.FileInfo, name string) error {
-	// TODO: copy windows specific metadata
+	if c.utime != nil {
+		return Utimes(name, c.utime)
+	}
 
+	if fi.Mode()&os.ModeSymlink == 0 {
+		if err := os.Chtimes(name, fi.ModTime(), fi.ModTime()); err != nil {
+			return errors.Wrap(err, "changing mtime")
+		}
+	}
 	return nil
 }
 
