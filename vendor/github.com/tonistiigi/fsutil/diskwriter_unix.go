@@ -51,3 +51,10 @@ func handleTarTypeBlockCharFifo(path string, stat *types.Stat) error {
 	}
 	return nil
 }
+
+func renameFile(src, dst string) error {
+	if err := os.Rename(src, dst); err != nil {
+		return errors.Wrapf(err, "failed to rename %s to %s", src, dst)
+	}
+	return nil
+}

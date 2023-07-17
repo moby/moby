@@ -2,6 +2,7 @@ package fsutil
 
 import (
 	"context"
+	gofs "io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,11 +48,11 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 	if err != nil {
 		return errors.WithStack(&os.PathError{Op: "resolve", Path: root, Err: err})
 	}
-	fi, err := os.Stat(root)
+	rootFI, err := os.Stat(root)
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	if !fi.IsDir() {
+	if !rootFI.IsDir() {
 		return errors.WithStack(&os.PathError{Op: "walk", Path: root, Err: syscall.ENOTDIR})
 	}
 
@@ -126,7 +127,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 	var parentDirs []visitedDir
 
 	seenFiles := make(map[uint64]string)
-	return filepath.Walk(root, func(path string, fi os.FileInfo, walkErr error) (retErr error) {
+	return filepath.WalkDir(root, func(path string, dirEntry gofs.DirEntry, walkErr error) (retErr error) {
 		defer func() {
 			if retErr != nil && isNotExist(retErr) {
 				retErr = filepath.SkipDir
@@ -146,9 +147,10 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		var (
 			dir   visitedDir
 			isDir bool
+			fi    gofs.FileInfo
 		)
-		if fi != nil {
-			isDir = fi.IsDir()
+		if dirEntry != nil {
+			isDir = dirEntry.IsDir()
 		}
 
 		if includeMatcher != nil || excludeMatcher != nil {
@@ -161,6 +163,11 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 			}
 
 			if isDir {
+				fi, err = dirEntry.Info()
+				if err != nil {
+					return err
+				}
+
 				dir = visitedDir{
 					fi:          fi,
 					path:        path,
@@ -267,6 +274,14 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		}
 
 		dir.calledFn = true
+
+		// The FileInfo might have already been read further up.
+		if fi == nil {
+			fi, err = dirEntry.Info()
+			if err != nil {
+				return err
+			}
+		}
 
 		stat, err := mkstat(origpath, path, fi, seenFiles)
 		if err != nil {
