@@ -10,7 +10,10 @@ if [ -n "$BUILDKIT_REF" ]; then
 fi
 
 # get buildkit version from vendor.mod
-BUILDKIT_REF=$(./hack/with-go-mod.sh go list -mod=mod -modfile=vendor.mod -u -m -f '{{.Version}}' "github.com/${BUILDKIT_REPO}")
+BUILDKIT_REF=$(./hack/with-go-mod.sh go list -mod=mod -modfile=vendor.mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "github.com/${BUILDKIT_REPO}")
+BUILDKIT_REPO=$(./hack/with-go-mod.sh go list -mod=mod -modfile=vendor.mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{else}}{{.Path}}{{end}}' "github.com/${BUILDKIT_REPO}")
+BUILDKIT_REPO=${BUILDKIT_REPO#github.com/}
+
 if [[ "${BUILDKIT_REF}" == *-*-* ]]; then
 	# if pseudo-version, figure out just the uncommon sha (https://github.com/golang/go/issues/34745)
 	BUILDKIT_REF=$(echo "${BUILDKIT_REF}" | awk -F"-" '{print $NF}' | awk 'BEGIN{FIELDWIDTHS="7"} {print $1}')
@@ -18,4 +21,5 @@ if [[ "${BUILDKIT_REF}" == *-*-* ]]; then
 	BUILDKIT_REF=$(curl -s "https://api.github.com/repos/${BUILDKIT_REPO}/commits/${BUILDKIT_REF}" | jq -r .sha)
 fi
 
-echo "$BUILDKIT_REF"
+echo "BUILDKIT_REPO=$BUILDKIT_REPO"
+echo "BUILDKIT_REF=$BUILDKIT_REF"
