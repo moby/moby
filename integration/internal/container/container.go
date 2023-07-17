@@ -3,6 +3,7 @@ package container
 import (
 	"bytes"
 	"context"
+	"errors"
 	"runtime"
 	"sync"
 	"testing"
@@ -73,6 +74,45 @@ func Run(ctx context.Context, t *testing.T, client client.APIClient, ops ...func
 	assert.NilError(t, err)
 
 	return id
+}
+
+type RunResult struct {
+	ContainerID string
+	ExitCode    int
+	Stdout      *bytes.Buffer
+	Stderr      *bytes.Buffer
+}
+
+func RunAttach(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(config *TestContainerConfig)) RunResult {
+	t.Helper()
+
+	ops = append(ops, func(c *TestContainerConfig) {
+		c.Config.AttachStdout = true
+		c.Config.AttachStderr = true
+	})
+	id := Create(ctx, t, client, ops...)
+
+	aresp, err := client.ContainerAttach(ctx, id, types.ContainerAttachOptions{
+		Stream: true,
+		Stdout: true,
+		Stderr: true,
+	})
+	assert.NilError(t, err)
+
+	err = client.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	s, err := demultiplexStreams(ctx, aresp)
+	if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+		assert.NilError(t, err)
+	}
+
+	// Inspect to get the exit code. A new context is used here to make sure that if the context passed as argument as
+	// reached timeout during the demultiplexStream call, we still return a RunResult.
+	resp, err := client.ContainerInspect(context.Background(), id)
+	assert.NilError(t, err)
+
+	return RunResult{ContainerID: id, ExitCode: resp.State.ExitCode, Stdout: &s.stdout, Stderr: &s.stderr}
 }
 
 type streams struct {
