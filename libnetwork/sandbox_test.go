@@ -1,8 +1,8 @@
 package libnetwork
 
 import (
-	"fmt"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/config"
@@ -17,17 +17,12 @@ import (
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []Network) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	netType := "bridge"
-
-	option := options.Generic{
-		"EnableIPForwarding": true,
-	}
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = option
-
+	const netType = "bridge"
 	c, err := New(
 		OptionBoltdbWithRandomDBFile(t),
-		config.OptionDriverConfig(netType, genericOption),
+		config.OptionDriverConfig(netType, map[string]any{
+			netlabel.GenericData: options.Generic{"EnableIPForwarding": true},
+		}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -40,14 +35,12 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []Network) 
 
 	nwList := make([]Network, 0, len(opts))
 	for i, opt := range opts {
-		name := fmt.Sprintf("test_nw_%d", i)
-		netOption := options.Generic{
-			netlabel.GenericData: options.Generic{
-				"BridgeName": name,
-			},
+		name := "test_nw_" + strconv.Itoa(i)
+		newOptions := []NetworkOption{
+			NetworkOptionGeneric(options.Generic{
+				netlabel.GenericData: options.Generic{"BridgeName": name},
+			}),
 		}
-		newOptions := make([]NetworkOption, 1, len(opt)+1)
-		newOptions[0] = NetworkOptionGeneric(netOption)
 		newOptions = append(newOptions, opt...)
 		n, err := c.NewNetwork(netType, name, "", newOptions...)
 		if err != nil {

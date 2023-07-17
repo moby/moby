@@ -52,7 +52,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 
 	err = setupDevice(config, br)
 	if err == nil {
-		t.Fatal("Expected bridge creation failure with \"non default name\", succeeded")
+		t.Fatal(`Expected bridge creation failure with "non default name", succeeded`)
 	}
 
 	if _, ok := err.(NonDefaultBridgeExistError); !ok {
