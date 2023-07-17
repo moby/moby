@@ -9,7 +9,7 @@ DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$(xx-info march)/d
 
 mkdir "$outdir"
 if curl --head --silent --fail "${DOWNLOAD_URL}" 1> /dev/null 2>&1; then
-	curl -Ls "${DOWNLOAD_URL}" | tar -xz docker/docker
+	curl -fsSL "${DOWNLOAD_URL}" | tar -xz docker/docker
 	mv docker/docker "${outdir}/docker"
 else
 	git init -q .
