@@ -16,7 +16,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func (daemon *Daemon) configureLocalContentStore(ns string) (content.Store, leases.Manager, error) {
+func (daemon *Daemon) configureLocalContentStore(ns string) (*namespacedContent, *namespacedLeases, error) {
 	if err := os.MkdirAll(filepath.Join(daemon.root, "content"), 0o700); err != nil {
 		return nil, nil, errors.Wrap(err, "error creating dir for content store")
 	}
@@ -30,7 +30,15 @@ func (daemon *Daemon) configureLocalContentStore(ns string) (content.Store, leas
 	}
 	md := metadata.NewDB(db, cs, nil)
 	daemon.mdDB = db
-	return namespacedContentProvider(md.ContentStore(), ns), namespacedLeaseManager(metadata.NewLeaseManager(md), ns), nil
+	cp := &namespacedContent{
+		ns:       ns,
+		provider: md.ContentStore(),
+	}
+	lm := &namespacedLeases{
+		ns:      ns,
+		manager: metadata.NewLeaseManager(md),
+	}
+	return cp, lm, nil
 }
 
 // withDefaultNamespace sets the given namespace on the context if the current
@@ -105,14 +113,6 @@ func (cp namespacedContent) ReaderAt(ctx context.Context, desc ocispec.Descripto
 	return cp.provider.ReaderAt(withDefaultNamespace(ctx, cp.ns), desc)
 }
 
-// namespacedContentProvider sets the namespace if missing before calling the inner provider
-func namespacedContentProvider(provider content.Store, ns string) content.Store {
-	return namespacedContent{
-		ns,
-		provider,
-	}
-}
-
 type namespacedLeases struct {
 	ns      string
 	manager leases.Manager
@@ -146,12 +146,4 @@ func (nl namespacedLeases) List(ctx context.Context, filter ...string) ([]leases
 // ListResources lists all the resources referenced by the lease.
 func (nl namespacedLeases) ListResources(ctx context.Context, lease leases.Lease) ([]leases.Resource, error) {
 	return nl.manager.ListResources(withDefaultNamespace(ctx, nl.ns), lease)
-}
-
-// namespacedLeaseManager sets the namespace if missing before calling the inner manager
-func namespacedLeaseManager(manager leases.Manager, ns string) leases.Manager {
-	return namespacedLeases{
-		ns,
-		manager,
-	}
 }
