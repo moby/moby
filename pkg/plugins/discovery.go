@@ -26,7 +26,7 @@ type LocalRegistry struct {
 
 func NewLocalRegistry() LocalRegistry {
 	return LocalRegistry{
-		SpecsPaths,
+		SpecsPaths: specsPaths,
 	}
 }
 
@@ -109,6 +109,25 @@ func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
 		}
 	}
 	return nil, errors.Wrapf(ErrNotFound, "could not find plugin %s in v1 plugin registry", name)
+}
+
+// SpecsPaths returns paths in which to look for plugins, in order of priority.
+//
+// On Windows:
+//
+//   - "%programdata%\docker\plugins"
+//
+// On Unix in non-rootless mode:
+//
+//   - "/etc/docker/plugins"
+//   - "/usr/lib/docker/plugins"
+//
+// On Unix in rootless-mode:
+//
+//   - "$XDG_CONFIG_HOME/docker/plugins" (or "/etc/docker/plugins" if $XDG_CONFIG_HOME is not set)
+//   - "$HOME/.local/lib/docker/plugins" (pr "/usr/lib/docker/plugins" if $HOME is set)
+func SpecsPaths() []string {
+	return specsPaths()
 }
 
 func readPluginInfo(name, path string) (*Plugin, error) {
