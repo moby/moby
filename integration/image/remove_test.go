@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestRemoveImageOrphaning(t *testing.T) {
@@ -56,4 +58,37 @@ func TestRemoveImageOrphaning(t *testing.T) {
 	// check if the second image has been deleted
 	_, _, err = client.ImageInspectWithRaw(ctx, commitResp2.ID)
 	assert.Check(t, is.ErrorContains(err, "No such image:"))
+}
+
+func TestRemoveByDigest(t *testing.T) {
+	skip.If(t, !testEnv.UsingSnapshotter(), "RepoDigests doesn't include tags when using graphdrivers")
+
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	err := client.ImageTag(ctx, "busybox", "test-remove-by-digest:latest")
+	assert.NilError(t, err)
+
+	inspect, _, err := client.ImageInspectWithRaw(ctx, "test-remove-by-digest")
+	assert.NilError(t, err)
+
+	id := ""
+	for _, ref := range inspect.RepoDigests {
+		if strings.Contains(ref, "test-remove-by-digest") {
+			id = ref
+			break
+		}
+	}
+	assert.Assert(t, id != "")
+
+	t.Logf("removing %s", id)
+	_, err = client.ImageRemove(ctx, id, types.ImageRemoveOptions{})
+	assert.NilError(t, err)
+
+	inspect, _, err = client.ImageInspectWithRaw(ctx, "busybox")
+	assert.Check(t, err, "busybox image got deleted")
+
+	inspect, _, err = client.ImageInspectWithRaw(ctx, "test-remove-by-digest")
+	assert.Check(t, is.ErrorType(err, errdefs.IsNotFound))
 }
