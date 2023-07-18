@@ -13,10 +13,3 @@ const VersionMimetype = "application/vnd.docker.plugins.v1.2+json"
 type RequestFactory interface {
 	NewRequest(path string, data io.Reader) (*http.Request, error)
 }
-
-// Transport defines an interface that plugin transports
-// must implement.
-type Transport interface {
-	http.RoundTripper
-	RequestFactory
-}
