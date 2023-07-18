@@ -55,7 +55,7 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.
 	if len(ec.User) > 0 {
 		var err error
 		if daemon.UsesSnapshotter() {
-			p.User, err = getUserFromContainerd(ctx, daemon.containerdCli, ec)
+			p.User, err = getUserFromContainerd(ctx, daemon.containerdClient, ec)
 			if err != nil {
 				return err
 			}

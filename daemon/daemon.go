@@ -110,7 +110,7 @@ type Daemon struct {
 	PluginStore           *plugin.Store // TODO: remove
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
-	containerdCli         *containerd.Client
+	containerdClient      *containerd.Client
 	containerd            libcontainerdtypes.Client
 	defaultIsolation      containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider       cluster.Provider
@@ -944,7 +944,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	if configStore.ContainerdAddr != "" {
-		d.containerdCli, err = containerd.New(configStore.ContainerdAddr, containerd.WithDefaultNamespace(configStore.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+		d.containerdClient, err = containerd.New(configStore.ContainerdAddr, containerd.WithDefaultNamespace(configStore.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to dial %q", configStore.ContainerdAddr)
 		}
@@ -1059,7 +1059,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			return nil, err
 		}
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
-			Client:          d.containerdCli,
+			Client:          d.containerdClient,
 			Containers:      d.containers,
 			Snapshotter:     driverName,
 			RegistryHosts:   d.RegistryHosts,
@@ -1137,9 +1137,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// containerd is not currently supported with Windows.
 		// So sometimes d.containerdCli will be nil
 		// In that case we'll create a local content store... but otherwise we'll use containerd
-		if d.containerdCli != nil {
-			imgSvcConfig.Leases = d.containerdCli.LeasesService()
-			imgSvcConfig.ContentStore = d.containerdCli.ContentStore()
+		if d.containerdClient != nil {
+			imgSvcConfig.Leases = d.containerdClient.LeasesService()
+			imgSvcConfig.ContentStore = d.containerdClient.ContentStore()
 		} else {
 			cs, lm, err := d.configureLocalContentStore(config.ContainerdNamespace)
 			if err != nil {
@@ -1316,8 +1316,8 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		daemon.netController.Stop()
 	}
 
-	if daemon.containerdCli != nil {
-		daemon.containerdCli.Close()
+	if daemon.containerdClient != nil {
+		daemon.containerdClient.Close()
 	}
 
 	if daemon.mdDB != nil {

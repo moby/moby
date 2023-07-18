@@ -144,7 +144,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, config ty
 		container.RWLayer = nil
 	} else {
 		if daemon.UsesSnapshotter() {
-			ls := daemon.containerdCli.LeasesService()
+			ls := daemon.containerdClient.LeasesService()
 			lease := leases.Lease{
 				ID: container.ID,
 			}
