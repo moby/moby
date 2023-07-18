@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 # This script returns the current BuildKit ref and source repository being used.
 # This script will only work with a BuildKit repository hosted on GitHub.
-# If BUILDKIT_REF is already set in the environment, it will be returned as-is.
 #
 # The output of this script may be valid shell script, but is intended for use with
 # GitHub Actions' $GITHUB_ENV.
 
 buildkit_pkg=github.com/moby/buildkit
-
-if [ -n "$BUILDKIT_REF" ]; then
-	echo "$BUILDKIT_REF"
-	exit 0
-fi
 
 # get buildkit version from vendor.mod
 buildkit_ref=$(./hack/with-go-mod.sh go list -mod=mod -modfile=vendor.mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")
