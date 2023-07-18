@@ -49,8 +49,6 @@ jobs:
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 120
-    env:
-      BUILDKIT_REPO: moby/buildkit
     needs:
       - build
     strategy:
