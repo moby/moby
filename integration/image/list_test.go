@@ -93,3 +93,59 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 	// the assertion must therefore be order-independent.
 	assert.DeepEqual(t, listedIDs, imgs[1:len(imgs)-1], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
 }
+
+func TestAPIImagesFilters(t *testing.T) {
+	t.Cleanup(setupTest(t))
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	for _, n := range []string{"utest:tag1", "utest/docker:tag2", "utest:5000/docker:tag3"} {
+		err := client.ImageTag(ctx, "busybox:latest", n)
+		assert.NilError(t, err)
+	}
+
+	testcases := []struct {
+		name             string
+		filters          []filters.KeyValuePair
+		expectedImages   int
+		expectedRepoTags int
+	}{
+		{
+			name:             "repository regex",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest*/*")},
+			expectedImages:   1,
+			expectedRepoTags: 2,
+		},
+		{
+			name:             "image name regex",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest*")},
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+		{
+			name:             "image name without a tag",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest")},
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+		{
+			name:             "registry port regex",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "*5000*/*")},
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+	}
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			images, err := client.ImageList(context.Background(), types.ImageListOptions{
+				Filters: filters.NewArgs(tc.filters...),
+			})
+			assert.Check(t, err)
+			assert.Assert(t, is.Len(images, tc.expectedImages))
+			assert.Check(t, is.Len(images[0].RepoTags, tc.expectedRepoTags))
+		})
+	}
+}
