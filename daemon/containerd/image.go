@@ -274,6 +274,24 @@ func (i *ImageService) resolveImage(ctx context.Context, refOrID string) (contai
 			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
 		}
 
+		// If reference is both Named and Digested, make sure we don't match
+		// images with a different repository even if digest matches.
+		// For example, busybox@sha256:abcdef..., shouldn't match asdf@sha256:abcdef...
+		if parsedNamed, ok := parsed.(reference.Named); ok {
+			for _, img := range imgs {
+				imgNamed, err := reference.ParseNormalizedNamed(img.Name)
+				if err != nil {
+					logrus.WithError(err).WithField("image", img.Name).Warn("image with invalid name encountered")
+					continue
+				}
+
+				if parsedNamed.Name() == imgNamed.Name() {
+					return img, nil
+				}
+			}
+			return containerdimages.Image{}, images.ErrImageDoesNotExist{Ref: parsed}
+		}
+
 		return imgs[0], nil
 	}
 
