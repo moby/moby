@@ -54,30 +54,29 @@ func (l *LocalRegistry) Scan() ([]string, error) {
 	}
 
 	for _, p := range l.SpecsPaths() {
-		dirEntries, err := os.ReadDir(p)
+		dirEntries, err = os.ReadDir(p)
 		if err != nil && !os.IsNotExist(err) {
 			return nil, errors.Wrap(err, "error reading dir entries")
 		}
 
-		for _, fi := range dirEntries {
-			if fi.IsDir() {
-				infos, err := os.ReadDir(filepath.Join(p, fi.Name()))
+		for _, entry := range dirEntries {
+			if entry.IsDir() {
+				infos, err := os.ReadDir(filepath.Join(p, entry.Name()))
 				if err != nil {
 					continue
 				}
 
 				for _, info := range infos {
-					if strings.TrimSuffix(info.Name(), filepath.Ext(info.Name())) == fi.Name() {
-						fi = info
+					if strings.TrimSuffix(info.Name(), filepath.Ext(info.Name())) == entry.Name() {
+						entry = info
 						break
 					}
 				}
 			}
 
-			ext := filepath.Ext(fi.Name())
-			switch ext {
+			switch ext := filepath.Ext(entry.Name()); ext {
 			case ".spec", ".json":
-				plugin := strings.TrimSuffix(fi.Name(), ext)
+				plugin := strings.TrimSuffix(entry.Name(), ext)
 				names = append(names, plugin)
 			default:
 			}
@@ -88,21 +87,20 @@ func (l *LocalRegistry) Scan() ([]string, error) {
 
 // Plugin returns the plugin registered with the given name (or returns an error).
 func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
-	socketpaths := pluginPaths(socketsPath, name, ".sock")
-
-	for _, p := range socketpaths {
+	socketPaths := pluginPaths(socketsPath, name, ".sock")
+	for _, p := range socketPaths {
 		if fi, err := os.Stat(p); err == nil && fi.Mode()&os.ModeSocket != 0 {
 			return NewLocalPlugin(name, "unix://"+p), nil
 		}
 	}
 
-	var txtspecpaths []string
+	var txtSpecPaths []string
 	for _, p := range l.SpecsPaths() {
-		txtspecpaths = append(txtspecpaths, pluginPaths(p, name, ".spec")...)
-		txtspecpaths = append(txtspecpaths, pluginPaths(p, name, ".json")...)
+		txtSpecPaths = append(txtSpecPaths, pluginPaths(p, name, ".spec")...)
+		txtSpecPaths = append(txtSpecPaths, pluginPaths(p, name, ".json")...)
 	}
 
-	for _, p := range txtspecpaths {
+	for _, p := range txtSpecPaths {
 		if _, err := os.Stat(p); err == nil {
 			if strings.HasSuffix(p, ".json") {
 				return readPluginJSONInfo(name, p)
