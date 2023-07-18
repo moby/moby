@@ -26,7 +26,7 @@ const (
 	dummyHost = "plugin.moby.localhost"
 )
 
-func newTransport(addr string, tlsConfig *tlsconfig.Options) (transport.Transport, error) {
+func newTransport(addr string, tlsConfig *tlsconfig.Options) (*transport.HTTPTransport, error) {
 	tr := &http.Transport{}
 
 	if tlsConfig != nil {
@@ -77,7 +77,7 @@ func NewClientWithTimeout(addr string, tlsConfig *tlsconfig.Options, timeout tim
 }
 
 // newClientWithTransport creates a new plugin client with a given transport.
-func newClientWithTransport(tr transport.Transport, timeout time.Duration) *Client {
+func newClientWithTransport(tr *transport.HTTPTransport, timeout time.Duration) *Client {
 	return &Client{
 		http: &http.Client{
 			Transport: tr,
