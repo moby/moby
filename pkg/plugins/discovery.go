@@ -21,12 +21,12 @@ var (
 
 // LocalRegistry defines a registry that is local (using unix socket).
 type LocalRegistry struct {
-	SpecsPaths func() []string
+	specsPaths []string
 }
 
 func NewLocalRegistry() LocalRegistry {
 	return LocalRegistry{
-		SpecsPaths: specsPaths,
+		specsPaths: specsPaths(),
 	}
 }
 
@@ -53,7 +53,7 @@ func (l *LocalRegistry) Scan() ([]string, error) {
 		}
 	}
 
-	for _, p := range l.SpecsPaths() {
+	for _, p := range l.specsPaths {
 		dirEntries, err = os.ReadDir(p)
 		if err != nil && !os.IsNotExist(err) {
 			return nil, errors.Wrap(err, "error reading dir entries")
@@ -95,7 +95,7 @@ func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
 	}
 
 	var txtSpecPaths []string
-	for _, p := range l.SpecsPaths() {
+	for _, p := range l.specsPaths {
 		txtSpecPaths = append(txtSpecPaths, pluginPaths(p, name, ".spec")...)
 		txtSpecPaths = append(txtSpecPaths, pluginPaths(p, name, ".json")...)
 	}

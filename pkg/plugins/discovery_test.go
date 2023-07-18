@@ -15,13 +15,9 @@ func Setup(t *testing.T) (string, func(), LocalRegistry) {
 	socketsPath = tmpdir
 
 	return tmpdir, func() {
-			socketsPath = backup
-			os.RemoveAll(tmpdir)
-		}, LocalRegistry{
-			func() []string {
-				return []string{tmpdir}
-			},
-		}
+		socketsPath = backup
+		os.RemoveAll(tmpdir)
+	}, LocalRegistry{specsPaths: []string{tmpdir}}
 }
 
 func TestFileSpecPlugin(t *testing.T) {
