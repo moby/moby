@@ -130,7 +130,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 			return nil, err
 		}
 
-		// Each image will result in 2 references (named and digested).
+		// Usually each image will result in 2 references (named and digested).
 		refs := make([]reference.Named, 0, len(tagged)*2)
 		for _, i := range tagged {
 			if i.UpdatedAt.After(lastUpdated) {
@@ -154,6 +154,11 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 				continue
 			}
 			refs = append(refs, name)
+
+			if _, ok := name.(reference.Digested); ok {
+				// Image name already contains a digest, so no need to create a digested reference.
+				continue
+			}
 
 			digested, err := reference.WithDigest(reference.TrimNamed(name), desc.Target.Digest)
 			if err != nil {
