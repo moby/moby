@@ -576,7 +576,7 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config)
 	case windowsV1RuntimeName:
 		daemon.containerd, err = local.NewClient(
 			ctx,
-			daemon.containerdCli,
+			daemon.containerdClient,
 			filepath.Join(cfg.ExecRoot, "containerd"),
 			cfg.ContainerdNamespace,
 			daemon,
@@ -587,7 +587,7 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config)
 		}
 		daemon.containerd, err = remote.NewClient(
 			ctx,
-			daemon.containerdCli,
+			daemon.containerdClient,
 			filepath.Join(cfg.ExecRoot, "containerd"),
 			cfg.ContainerdNamespace,
 			daemon,

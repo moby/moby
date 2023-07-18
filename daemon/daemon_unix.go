@@ -1493,7 +1493,7 @@ func (daemon *Daemon) initLibcontainerd(ctx context.Context, cfg *config.Config)
 	var err error
 	daemon.containerd, err = remote.NewClient(
 		ctx,
-		daemon.containerdCli,
+		daemon.containerdClient,
 		filepath.Join(cfg.ExecRoot, "containerd"),
 		cfg.ContainerdNamespace,
 		daemon,

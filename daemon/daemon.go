@@ -110,7 +110,7 @@ type Daemon struct {
 	PluginStore           *plugin.Store // TODO: remove
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
-	containerdCli         *containerd.Client
+	containerdClient      *containerd.Client
 	containerd            libcontainerdtypes.Client
 	defaultIsolation      containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider       cluster.Provider
@@ -554,14 +554,14 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 	}
 	group.Wait()
 
-	for c, notifier := range restartContainers {
+	for c, notifyChan := range restartContainers {
 		group.Add(1)
 		go func(c *container.Container, chNotify chan struct{}) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			log := log.G(context.TODO()).WithField("container", c.ID)
+			logger := log.G(context.TODO()).WithField("container", c.ID)
 
-			log.Debug("starting container")
+			logger.Debug("starting container")
 
 			// ignore errors here as this is a best effort to wait for children to be
 			//   running before we try to start the container
@@ -579,16 +579,16 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 			}
 
 			if err := daemon.prepareMountPoints(c); err != nil {
-				log.WithError(err).Error("failed to prepare mount points for container")
+				logger.WithError(err).Error("failed to prepare mount points for container")
 			}
 			if err := daemon.containerStart(context.Background(), cfg, c, "", "", true); err != nil {
-				log.WithError(err).Error("failed to start container")
+				logger.WithError(err).Error("failed to start container")
 			}
 			close(chNotify)
 
 			sem.Release(1)
 			group.Done()
-		}(c, notifier)
+		}(c, notifyChan)
 	}
 	group.Wait()
 
@@ -822,7 +822,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err := initRuntimesDir(config); err != nil {
 		return nil, err
 	}
-	runtimes, err := setupRuntimes(config)
+	rts, err := setupRuntimes(config)
 	if err != nil {
 		return nil, err
 	}
@@ -831,11 +831,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
 	}
-	configStore := &configStore{
+	cfgStore := &configStore{
 		Config:   *config,
-		Runtimes: runtimes,
+		Runtimes: rts,
 	}
-	d.configStore.Store(configStore)
+	d.configStore.Store(cfgStore)
 
 	// TEST_INTEGRATION_USE_SNAPSHOTTER is used for integration tests only.
 	if os.Getenv("TEST_INTEGRATION_USE_SNAPSHOTTER") != "" {
@@ -855,27 +855,27 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}()
 
-	if err := d.setGenericResources(&configStore.Config); err != nil {
+	if err := d.setGenericResources(&cfgStore.Config); err != nil {
 		return nil, err
 	}
 	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
 	// on Windows to dump Go routine stacks
-	stackDumpDir := configStore.Root
-	if execRoot := configStore.GetExecRoot(); execRoot != "" {
+	stackDumpDir := cfgStore.Root
+	if execRoot := cfgStore.GetExecRoot(); execRoot != "" {
 		stackDumpDir = execRoot
 	}
 	d.setupDumpStackTrap(stackDumpDir)
 
-	if err := d.setupSeccompProfile(&configStore.Config); err != nil {
+	if err := d.setupSeccompProfile(&cfgStore.Config); err != nil {
 		return nil, err
 	}
 
 	// Set the default isolation mode (only applicable on Windows)
-	if err := d.setDefaultIsolation(&configStore.Config); err != nil {
+	if err := d.setDefaultIsolation(&cfgStore.Config); err != nil {
 		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
-	if err := configureMaxThreads(&configStore.Config); err != nil {
+	if err := configureMaxThreads(&cfgStore.Config); err != nil {
 		log.G(ctx).Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
@@ -884,7 +884,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		log.G(ctx).Errorf(err.Error())
 	}
 
-	daemonRepo := filepath.Join(configStore.Root, "containers")
+	daemonRepo := filepath.Join(cfgStore.Root, "containers")
 	if err := idtools.MkdirAllAndChown(daemonRepo, 0o710, idtools.Identity{
 		UID: idtools.CurrentIdentity().UID,
 		GID: rootIDs.GID,
@@ -896,7 +896,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// Note that permissions (0o700) are ignored on Windows; passing them to
 		// show intent only. We could consider using idtools.MkdirAndChown here
 		// to apply an ACL.
-		if err = os.Mkdir(filepath.Join(configStore.Root, "credentialspecs"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		if err = os.Mkdir(filepath.Join(cfgStore.Root, "credentialspecs"), 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
 	}
@@ -904,7 +904,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.registryService = registryService
 	dlogger.RegisterPluginGetter(d.PluginStore)
 
-	metricsSockPath, err := d.listenMetricsSock(&configStore.Config)
+	metricsSockPath, err := d.listenMetricsSock(&cfgStore.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -943,20 +943,20 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 	}
 
-	if configStore.ContainerdAddr != "" {
-		d.containerdCli, err = containerd.New(configStore.ContainerdAddr, containerd.WithDefaultNamespace(configStore.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+	if cfgStore.ContainerdAddr != "" {
+		d.containerdClient, err = containerd.New(cfgStore.ContainerdAddr, containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to dial %q", configStore.ContainerdAddr)
+			return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 		}
 	}
 
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
 		var pluginCli *containerd.Client
 
-		if configStore.ContainerdAddr != "" {
-			pluginCli, err = containerd.New(configStore.ContainerdAddr, containerd.WithDefaultNamespace(configStore.ContainerdPluginNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
+		if cfgStore.ContainerdAddr != "" {
+			pluginCli, err = containerd.New(cfgStore.ContainerdAddr, containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace), containerd.WithDialOpts(gopts), containerd.WithTimeout(60*time.Second))
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to dial %q", configStore.ContainerdAddr)
+				return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 			}
 		}
 
@@ -965,22 +965,22 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			shimOpts interface{}
 		)
 		if runtime.GOOS != "windows" {
-			shim, shimOpts, err = runtimes.Get("")
+			shim, shimOpts, err = rts.Get("")
 			if err != nil {
 				return nil, err
 			}
 		}
-		return pluginexec.New(ctx, getPluginExecRoot(&configStore.Config), pluginCli, configStore.ContainerdPluginNamespace, m, shim, shimOpts)
+		return pluginexec.New(ctx, getPluginExecRoot(&cfgStore.Config), pluginCli, cfgStore.ContainerdPluginNamespace, m, shim, shimOpts)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
 	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
-		Root:               filepath.Join(configStore.Root, "plugins"),
-		ExecRoot:           getPluginExecRoot(&configStore.Config),
+		Root:               filepath.Join(cfgStore.Root, "plugins"),
+		ExecRoot:           getPluginExecRoot(&cfgStore.Config),
 		Store:              d.PluginStore,
 		CreateExecutor:     createPluginExec,
 		RegistryService:    registryService,
-		LiveRestoreEnabled: configStore.LiveRestoreEnabled,
+		LiveRestoreEnabled: cfgStore.LiveRestoreEnabled,
 		LogPluginEvent:     d.LogPluginEvent, // todo: make private
 		AuthzMiddleware:    authzMiddleware,
 	})
@@ -988,13 +988,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.Wrap(err, "couldn't create plugin manager")
 	}
 
-	d.defaultLogConfig, err = defaultLogConfig(&configStore.Config)
+	d.defaultLogConfig, err = defaultLogConfig(&cfgStore.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set log opts")
 	}
 	log.G(ctx).Debugf("Using default logging driver %s", d.defaultLogConfig.Type)
 
-	d.volumes, err = volumesservice.NewVolumeService(configStore.Root, d.PluginStore, rootIDs, d)
+	d.volumes, err = volumesservice.NewVolumeService(cfgStore.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
 		return nil, err
 	}
@@ -1007,11 +1007,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// at this point.
 	//
 	// TODO(thaJeztah) add a utility to only collect the CgroupDevicesEnabled information
-	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(&configStore.Config).CgroupDevicesEnabled {
+	if runtime.GOOS == "linux" && !userns.RunningInUserNS() && !getSysInfo(&cfgStore.Config).CgroupDevicesEnabled {
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.id, err = loadOrCreateID(filepath.Join(configStore.Root, "engine-id"))
+	d.id, err = loadOrCreateID(filepath.Join(cfgStore.Root, "engine-id"))
 	if err != nil {
 		return nil, err
 	}
@@ -1024,7 +1024,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()
-	d.root = configStore.Root
+	d.root = cfgStore.Root
 	d.idMapping = idMapping
 
 	d.linkIndex = newLinkIndex()
@@ -1039,7 +1039,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	} else if driverName != "" {
 		log.G(ctx).Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 	} else {
-		driverName = configStore.GraphDriver
+		driverName = cfgStore.GraphDriver
 	}
 
 	if d.UsesSnapshotter() {
@@ -1055,11 +1055,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-		if err := configureKernelSecuritySupport(&configStore.Config, driverName); err != nil {
+		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
 			return nil, err
 		}
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
-			Client:          d.containerdCli,
+			Client:          d.containerdClient,
 			Containers:      d.containers,
 			Snapshotter:     driverName,
 			RegistryHosts:   d.RegistryHosts,
@@ -1069,13 +1069,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		})
 	} else {
 		layerStore, err := layer.NewStoreFromOptions(layer.StoreOptions{
-			Root:                      configStore.Root,
-			MetadataStorePathTemplate: filepath.Join(configStore.Root, "image", "%s", "layerdb"),
+			Root:                      cfgStore.Root,
+			MetadataStorePathTemplate: filepath.Join(cfgStore.Root, "image", "%s", "layerdb"),
 			GraphDriver:               driverName,
-			GraphDriverOptions:        configStore.GraphOptions,
+			GraphDriverOptions:        cfgStore.GraphOptions,
 			IDMapping:                 idMapping,
 			PluginGetter:              d.PluginStore,
-			ExperimentalEnabled:       configStore.Experimental,
+			ExperimentalEnabled:       cfgStore.Experimental,
 		})
 		if err != nil {
 			return nil, err
@@ -1083,11 +1083,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 		// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 		// operation only, so it is safe to pass *just* the runtime OS graphdriver.
-		if err := configureKernelSecuritySupport(&configStore.Config, layerStore.DriverName()); err != nil {
+		if err := configureKernelSecuritySupport(&cfgStore.Config, layerStore.DriverName()); err != nil {
 			return nil, err
 		}
 
-		imageRoot := filepath.Join(configStore.Root, "image", layerStore.DriverName())
+		imageRoot := filepath.Join(cfgStore.Root, "image", layerStore.DriverName())
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
 			return nil, err
@@ -1137,16 +1137,14 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// containerd is not currently supported with Windows.
 		// So sometimes d.containerdCli will be nil
 		// In that case we'll create a local content store... but otherwise we'll use containerd
-		if d.containerdCli != nil {
-			imgSvcConfig.Leases = d.containerdCli.LeasesService()
-			imgSvcConfig.ContentStore = d.containerdCli.ContentStore()
+		if d.containerdClient != nil {
+			imgSvcConfig.Leases = d.containerdClient.LeasesService()
+			imgSvcConfig.ContentStore = d.containerdClient.ContentStore()
 		} else {
-			cs, lm, err := d.configureLocalContentStore(config.ContainerdNamespace)
+			imgSvcConfig.ContentStore, imgSvcConfig.Leases, err = d.configureLocalContentStore(config.ContainerdNamespace)
 			if err != nil {
 				return nil, err
 			}
-			imgSvcConfig.ContentStore = cs
-			imgSvcConfig.Leases = lm
 		}
 
 		// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
@@ -1161,11 +1159,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	go d.execCommandGC()
 
-	if err := d.initLibcontainerd(ctx, &configStore.Config); err != nil {
+	if err := d.initLibcontainerd(ctx, &cfgStore.Config); err != nil {
 		return nil, err
 	}
 
-	if err := d.restore(configStore); err != nil {
+	if err := d.restore(cfgStore); err != nil {
 		return nil, err
 	}
 	close(d.startupDone)
@@ -1316,8 +1314,8 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		daemon.netController.Stop()
 	}
 
-	if daemon.containerdCli != nil {
-		daemon.containerdCli.Close()
+	if daemon.containerdClient != nil {
+		daemon.containerdClient.Close()
 	}
 
 	if daemon.mdDB != nil {
