@@ -201,10 +201,6 @@ func (p *Plugin) implements(kind string) bool {
 	return false
 }
 
-func load(name string) (*Plugin, error) {
-	return loadWithRetry(name, true)
-}
-
 func loadWithRetry(name string, retry bool) (*Plugin, error) {
 	registry := NewLocalRegistry()
 	start := time.Now()
@@ -254,7 +250,7 @@ func get(name string) (*Plugin, error) {
 	if ok {
 		return pl, pl.activate()
 	}
-	return load(name)
+	return loadWithRetry(name, true)
 }
 
 // Get returns the plugin given the specified name and requested implementation.
