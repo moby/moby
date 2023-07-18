@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	"golang.org/x/sys/unix"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/fs"
 )
 
 const imageSize = 64 * 1024 * 1024
@@ -79,10 +77,7 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 			mountOptions = mountOptions + ",prjquota"
 		}
 
-		mountPointDir := fs.NewDir(t, "xfs-mountPoint")
-		defer mountPointDir.Remove()
-		mountPoint := mountPointDir.Path()
-
+		mountPoint := t.TempDir()
 		out, err := exec.Command("mount", "-o", mountOptions, imageFileName, mountPoint).CombinedOutput()
 		if err != nil {
 			_, err := os.Stat("/proc/fs/xfs")
@@ -91,17 +86,25 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 			}
 		}
 
-		assert.NilError(t, err, "mount failed: %s", out)
+		if err != nil {
+			t.Fatalf("assertion failed: error is not nil: %v: mount failed: %s", err, out)
+		}
 
 		defer func() {
-			assert.NilError(t, unix.Unmount(mountPoint, 0))
+			if err := unix.Unmount(mountPoint, 0); err != nil {
+				t.Fatalf("assertion failed: error is not nil: %v", err)
+			}
 		}()
 
 		backingFsDev, err := makeBackingFsDev(mountPoint)
-		assert.NilError(t, err)
+		if err != nil {
+			t.Fatalf("assertion failed: error is not nil: %v", err)
+		}
 
 		testDir, err := os.MkdirTemp(mountPoint, "per-test")
-		assert.NilError(t, err)
+		if err != nil {
+			t.Fatalf("assertion failed: error is not nil: %v", err)
+		}
 		defer os.RemoveAll(testDir)
 
 		testFunc(t, mountPoint, backingFsDev, testDir)
@@ -113,10 +116,14 @@ func WrapMountTest(imageFileName string, enableQuota bool, testFunc func(t *test
 func WrapQuotaTest(testFunc func(t *testing.T, ctrl *Control, mountPoint, testDir, testSubDir string)) func(t *testing.T, mountPoint, backingFsDev, testDir string) {
 	return func(t *testing.T, mountPoint, backingFsDev, testDir string) {
 		ctrl, err := NewControl(testDir)
-		assert.NilError(t, err)
+		if err != nil {
+			t.Fatalf("assertion failed: error is not nil: %v", err)
+		}
 
 		testSubDir, err := os.MkdirTemp(testDir, "quota-test")
-		assert.NilError(t, err)
+		if err != nil {
+			t.Fatalf("assertion failed: error is not nil: %v", err)
+		}
 		testFunc(t, ctrl, mountPoint, testDir, testSubDir)
 	}
 }
