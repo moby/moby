@@ -127,8 +127,11 @@ func TestPluginWithNoManifest(t *testing.T) {
 
 func TestGetAll(t *testing.T) {
 	t.Parallel()
-	tmpdir, unregister, r := Setup(t)
-	defer unregister()
+	tmpdir := t.TempDir()
+	r := LocalRegistry{
+		socketsPath: tmpdir,
+		specsPaths:  []string{tmpdir},
+	}
 
 	p := filepath.Join(tmpdir, "example.json")
 	spec := `{

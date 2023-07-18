@@ -13,34 +13,35 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// ErrNotFound plugin not found
-	ErrNotFound = errors.New("plugin not found")
-	socketsPath = "/run/docker/plugins"
-)
+// ErrNotFound plugin not found
+var ErrNotFound = errors.New("plugin not found")
+
+const defaultSocketsPath = "/run/docker/plugins"
 
 // LocalRegistry defines a registry that is local (using unix socket).
 type LocalRegistry struct {
-	specsPaths []string
+	socketsPath string
+	specsPaths  []string
 }
 
 func NewLocalRegistry() LocalRegistry {
 	return LocalRegistry{
-		specsPaths: specsPaths(),
+		socketsPath: defaultSocketsPath,
+		specsPaths:  specsPaths(),
 	}
 }
 
 // Scan scans all the plugin paths and returns all the names it found
 func (l *LocalRegistry) Scan() ([]string, error) {
 	var names []string
-	dirEntries, err := os.ReadDir(socketsPath)
+	dirEntries, err := os.ReadDir(l.socketsPath)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, errors.Wrap(err, "error reading dir entries")
 	}
 
 	for _, entry := range dirEntries {
 		if entry.IsDir() {
-			fi, err := os.Stat(filepath.Join(socketsPath, entry.Name(), entry.Name()+".sock"))
+			fi, err := os.Stat(filepath.Join(l.socketsPath, entry.Name(), entry.Name()+".sock"))
 			if err != nil {
 				continue
 			}
@@ -87,7 +88,7 @@ func (l *LocalRegistry) Scan() ([]string, error) {
 
 // Plugin returns the plugin registered with the given name (or returns an error).
 func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
-	socketPaths := pluginPaths(socketsPath, name, ".sock")
+	socketPaths := pluginPaths(l.socketsPath, name, ".sock")
 	for _, p := range socketPaths {
 		if fi, err := os.Stat(p); err == nil && fi.Mode()&os.ModeSocket != 0 {
 			return NewLocalPlugin(name, "unix://"+p), nil
