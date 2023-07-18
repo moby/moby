@@ -3,7 +3,6 @@ package transport // import "github.com/docker/docker/pkg/plugins/transport"
 import (
 	"io"
 	"net/http"
-	"strings"
 )
 
 // VersionMimetype is the Content-Type the engine sends to plugins.
@@ -20,17 +19,4 @@ type RequestFactory interface {
 type Transport interface {
 	http.RoundTripper
 	RequestFactory
-}
-
-// newHTTPRequest creates a new request with a path and a body.
-func newHTTPRequest(path string, data io.Reader) (*http.Request, error) {
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-	req, err := http.NewRequest(http.MethodPost, path, data)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Accept", VersionMimetype)
-	return req, nil
 }

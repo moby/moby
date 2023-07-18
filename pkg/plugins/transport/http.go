@@ -3,6 +3,7 @@ package transport // import "github.com/docker/docker/pkg/plugins/transport"
 import (
 	"io"
 	"net/http"
+	"strings"
 )
 
 // httpTransport holds an http.RoundTripper
@@ -26,10 +27,14 @@ func NewHTTPTransport(r http.RoundTripper, scheme, addr string) Transport {
 // NewRequest creates a new http.Request and sets the URL
 // scheme and address with the transport's fields.
 func (t httpTransport) NewRequest(path string, data io.Reader) (*http.Request, error) {
-	req, err := newHTTPRequest(path, data)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	req, err := http.NewRequest(http.MethodPost, path, data)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Accept", VersionMimetype)
 	req.URL.Scheme = t.scheme
 	req.URL.Host = t.addr
 	return req, nil
