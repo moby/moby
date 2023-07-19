@@ -47,7 +47,6 @@ const (
 // Different APIs can support different monitored resource types. APIs generally
 // provide a `list` method that returns the monitored resource descriptors used
 // by the API.
-//
 type MonitoredResourceDescriptor struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -163,9 +162,9 @@ func (x *MonitoredResourceDescriptor) GetLaunchStage() api.LaunchStage {
 // [MonitoredResourceDescriptor][google.api.MonitoredResourceDescriptor] for `"gce_instance"` has labels
 // `"instance_id"` and `"zone"`:
 //
-//     { "type": "gce_instance",
-//       "labels": { "instance_id": "12345678901234",
-//                   "zone": "us-central1-a" }}
+//	{ "type": "gce_instance",
+//	  "labels": { "instance_id": "12345678901234",
+//	              "zone": "us-central1-a" }}
 type MonitoredResource struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

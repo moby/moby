@@ -175,7 +175,6 @@ func (MetricDescriptor_ValueType) EnumDescriptor() ([]byte, []int) {
 // Defines a metric type and its schema. Once a metric descriptor is created,
 // deleting or altering it stops data collection and makes the metric type's
 // existing data unusable.
-//
 type MetricDescriptor struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -1,9 +1,12 @@
-# cloud.google.com/go v0.102.1
-## explicit; go 1.15
+# cloud.google.com/go v0.104.0
+## explicit; go 1.17
 cloud.google.com/go
 cloud.google.com/go/internal/version
-# cloud.google.com/go/compute v1.7.0
-## explicit; go 1.15
+# cloud.google.com/go/compute v1.12.1
+## explicit; go 1.19
+cloud.google.com/go/compute/internal
+# cloud.google.com/go/compute/metadata v0.2.1
+## explicit; go 1.19
 cloud.google.com/go/compute/metadata
 # cloud.google.com/go/logging v1.4.2
 ## explicit; go 1.11
@@ -528,8 +531,8 @@ github.com/google/uuid
 ## explicit; go 1.19
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
-# github.com/googleapis/gax-go/v2 v2.4.0
-## explicit; go 1.15
+# github.com/googleapis/gax-go/v2 v2.7.0
+## explicit; go 1.19
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
@@ -1198,8 +1201,8 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.3.0
 ## explicit
 golang.org/x/time/rate
-# google.golang.org/api v0.93.0
-## explicit; go 1.15
+# google.golang.org/api v0.102.0
+## explicit; go 1.19
 google.golang.org/api/googleapi
 google.golang.org/api/internal
 google.golang.org/api/internal/impersonate
@@ -1225,8 +1228,8 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220706185917-7780775163c4
-## explicit; go 1.15
+# google.golang.org/genproto v0.0.0-20221024183307-1bc688fe9f3e
+## explicit; go 1.19
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/distribution

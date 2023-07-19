@@ -1,5 +1,19 @@
 # Changes
 
+## [0.104.0](https://github.com/googleapis/google-cloud-go/compare/v0.103.0...v0.104.0) (2022-08-24)
+
+
+### Features
+
+* **godocfx:** add friendlyAPIName ([#6447](https://github.com/googleapis/google-cloud-go/issues/6447)) ([c6d3ba4](https://github.com/googleapis/google-cloud-go/commit/c6d3ba401b7b3ae9b710a8850c6ec5d49c4c1490))
+
+## [0.103.0](https://github.com/googleapis/google-cloud-go/compare/v0.102.1...v0.103.0) (2022-06-29)
+
+
+### Features
+
+* **privateca:** temporarily remove REGAPIC support ([199b725](https://github.com/googleapis/google-cloud-go/commit/199b7250f474b1a6f53dcf0aac0c2966f4987b68))
+
 ## [0.102.1](https://github.com/googleapis/google-cloud-go/compare/v0.102.0...v0.102.1) (2022-06-17)
 
 

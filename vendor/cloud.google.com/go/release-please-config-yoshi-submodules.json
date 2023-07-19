@@ -21,6 +21,12 @@
         "apigeeconnect": {
             "component": "apigeeconnect"
         },
+        "apigeeregistry": {
+            "component": "apigeeregistry"
+        },
+        "apikeys": {
+            "component": "apikeys"
+        },
         "appengine": {
             "component": "appengine"
         },
@@ -44,6 +50,9 @@
         },
         "batch": {
             "component": "batch"
+        },
+        "beyondcorp": {
+            "component": "beyondcorp"
         },
         "billing": {
             "component": "billing"
@@ -83,6 +92,9 @@
         },
         "dataflow": {
             "component": "dataflow"
+        },
+        "dataform": {
+            "component": "dataform"
         },
         "datafusion": {
             "component": "datafusion"

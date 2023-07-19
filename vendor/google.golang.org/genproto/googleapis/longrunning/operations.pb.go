@@ -519,13 +519,13 @@ func (x *WaitOperationRequest) GetTimeout() *durationpb.Duration {
 //
 // Example:
 //
-//   rpc LongRunningRecognize(LongRunningRecognizeRequest)
-//       returns (google.longrunning.Operation) {
-//     option (google.longrunning.operation_info) = {
-//       response_type: "LongRunningRecognizeResponse"
-//       metadata_type: "LongRunningRecognizeMetadata"
-//     };
-//   }
+//	rpc LongRunningRecognize(LongRunningRecognizeRequest)
+//	    returns (google.longrunning.Operation) {
+//	  option (google.longrunning.operation_info) = {
+//	    response_type: "LongRunningRecognizeResponse"
+//	    metadata_type: "LongRunningRecognizeMetadata"
+//	  };
+//	}
 type OperationInfo struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
