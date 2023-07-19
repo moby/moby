@@ -124,7 +124,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cilium/ebpf v0.9.1 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
-	github.com/containerd/cgroups v1.0.4 // indirect
+	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/go-cni v1.1.6 // indirect
 	github.com/containerd/go-runc v1.1.0 // indirect

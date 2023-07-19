@@ -220,7 +220,7 @@ github.com/container-orchestrated-devices/container-device-interface/specs-go
 # github.com/container-storage-interface/spec v1.5.0
 ## explicit; go 1.16
 github.com/container-storage-interface/spec/lib/go/csi
-# github.com/containerd/cgroups v1.0.4
+# github.com/containerd/cgroups v1.1.0
 ## explicit; go 1.17
 github.com/containerd/cgroups/stats/v1
 # github.com/containerd/cgroups/v3 v3.0.2
