@@ -6,5 +6,6 @@
     ".": {
       "component": "main"
     }
-  }
+  },
+  "plugins": ["sentence-case"]
 }

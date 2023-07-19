@@ -1,3 +1,77 @@
+# v1.18.6 (2023-03-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.5 (2023-02-22)
+
+* **Bug Fix**: Prevent nil pointer dereference when retrieving error codes.
+
+# v1.18.4 (2023-02-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.3 (2023-02-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade smithy to 1.27.2 and correct empty query list serialization.
+
+# v1.18.2 (2023-01-25)
+
+* **Documentation**: Doc only change to update wording in a key topic
+
+# v1.18.1 (2023-01-23)
+
+* No change notes available for this release.
+
+# v1.18.0 (2023-01-05)
+
+* **Feature**: Add `ErrorCodeOverride` field to all error structs (aws/smithy-go#401).
+
+# v1.17.7 (2022-12-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.6 (2022-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.5 (2022-11-22)
+
+* No change notes available for this release.
+
+# v1.17.4 (2022-11-17)
+
+* **Documentation**: Documentation updates for AWS Security Token Service.
+
+# v1.17.3 (2022-11-16)
+
+* No change notes available for this release.
+
+# v1.17.2 (2022-11-10)
+
+* No change notes available for this release.
+
+# v1.17.1 (2022-10-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.0 (2022-10-21)
+
+* **Feature**: Add presign functionality for sts:AssumeRole operation
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.19 (2022-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.18 (2022-09-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.16.17 (2022-09-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.16.16 (2022-08-31)
 
 * **Dependency Update**: Updated to the latest SDK module versions

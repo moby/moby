@@ -35,10 +35,10 @@ For an updated list of all of our released APIs please see our
 Our libraries are compatible with at least the three most recent, major Go
 releases. They are currently compatible with:
 
+- Go 1.20
+- Go 1.19
 - Go 1.18
 - Go 1.17
-- Go 1.16
-- Go 1.15
 
 ## Authorization
 

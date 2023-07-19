@@ -2,7 +2,7 @@
 Package xml holds the XMl encoder utility. This utility is written in accordance to our design to delegate to
 shape serializer function in which a xml.Value will be passed around.
 
-Resources followed: https://awslabs.github.io/smithy/1.0/spec/core/xml-traits.html#
+Resources followed: https://smithy.io/2.0/spec/protocol-traits.html#xml-bindings
 
 Member Element
 

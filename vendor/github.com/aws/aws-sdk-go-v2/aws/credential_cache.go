@@ -178,6 +178,12 @@ func (p *CredentialsCache) Invalidate() {
 	p.creds.Store((*Credentials)(nil))
 }
 
+// IsCredentialsProvider returns whether credential provider wrapped by CredentialsCache
+// matches the target provider type.
+func (p *CredentialsCache) IsCredentialsProvider(target CredentialsProvider) bool {
+	return IsCredentialsProvider(p.provider, target)
+}
+
 // HandleFailRefreshCredentialsCacheStrategy is an interface for
 // CredentialsCache to allow CredentialsProvider  how failed to refresh
 // credentials is handled.

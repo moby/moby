@@ -93,7 +93,7 @@ func (a *AdaptiveMode) IsErrorRetryable(err error) bool {
 }
 
 // MaxAttempts returns the maximum number of attempts that can be made for
-// a attempt before failing. A value of 0 implies that the attempt should
+// an attempt before failing. A value of 0 implies that the attempt should
 // be retried until it succeeds if the errors are retryable.
 func (a *AdaptiveMode) MaxAttempts() int {
 	return a.retryer.MaxAttempts()
@@ -127,7 +127,7 @@ func (a *AdaptiveMode) GetInitialToken() (releaseToken func(error) error) {
 
 // GetAttemptToken returns the attempt token that can be used to rate limit
 // attempt calls. Will be used by the SDK's retry package's Attempt
-// middleware to get a attempt token prior to calling the temp and releasing
+// middleware to get an attempt token prior to calling the temp and releasing
 // the attempt token after the attempt has been made.
 func (a *AdaptiveMode) GetAttemptToken(ctx context.Context) (func(error) error, error) {
 	for {

@@ -136,6 +136,14 @@ var defaultPartitions = endpoints.Partitions{
 		IsRegionalized: true,
 		Endpoints: endpoints.Endpoints{
 			endpoints.EndpointKey{
+				Region: "af-south-1",
+			}: endpoints.Endpoint{
+				Hostname: "portal.sso.af-south-1.amazonaws.com",
+				CredentialScope: endpoints.CredentialScope{
+					Region: "af-south-1",
+				},
+			},
+			endpoints.EndpointKey{
 				Region: "ap-east-1",
 			}: endpoints.Endpoint{
 				Hostname: "portal.sso.ap-east-1.amazonaws.com",
@@ -189,6 +197,14 @@ var defaultPartitions = endpoints.Partitions{
 				Hostname: "portal.sso.ap-southeast-2.amazonaws.com",
 				CredentialScope: endpoints.CredentialScope{
 					Region: "ap-southeast-2",
+				},
+			},
+			endpoints.EndpointKey{
+				Region: "ap-southeast-3",
+			}: endpoints.Endpoint{
+				Hostname: "portal.sso.ap-southeast-3.amazonaws.com",
+				CredentialScope: endpoints.CredentialScope{
+					Region: "ap-southeast-3",
 				},
 			},
 			endpoints.EndpointKey{
@@ -277,6 +293,14 @@ var defaultPartitions = endpoints.Partitions{
 				Hostname: "portal.sso.us-east-2.amazonaws.com",
 				CredentialScope: endpoints.CredentialScope{
 					Region: "us-east-2",
+				},
+			},
+			endpoints.EndpointKey{
+				Region: "us-west-1",
+			}: endpoints.Endpoint{
+				Hostname: "portal.sso.us-west-1.amazonaws.com",
+				CredentialScope: endpoints.CredentialScope{
+					Region: "us-west-1",
 				},
 			},
 			endpoints.EndpointKey{

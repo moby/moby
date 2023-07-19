@@ -208,8 +208,7 @@ func genPackageKnownComment(f *fileInfo) protogen.Comments {
  "google.golang.org/protobuf/encoding/protojson" package
  ensures that they will be serialized as their JSON equivalent.
 
-
- Conversion to and from a Go interface
+ # Conversion to and from a Go interface
 
  The standard Go "encoding/json" package has functionality to serialize
  arbitrary types to a large degree. The Value.AsInterface, Struct.AsMap, and
@@ -222,8 +221,7 @@ func genPackageKnownComment(f *fileInfo) protogen.Comments {
  forms back as Value, Struct, and ListValue messages, use the NewStruct,
  NewList, and NewValue constructor functions.
 
-
- Example usage
+ # Example usage
 
  Consider the following example JSON object:
 
@@ -282,7 +280,6 @@ func genPackageKnownComment(f *fileInfo) protogen.Comments {
 		... // handle error
 	}
 	... // make use of m as a *structpb.Value
-
 `
 	case genid.File_google_protobuf_field_mask_proto:
 		return ` Package fieldmaskpb contains generated types for ` + genid.File_google_protobuf_field_mask_proto + `.
@@ -656,8 +653,9 @@ func genMessageKnownFunctions(g *protogen.GeneratedFile, f *fileInfo, m *message
 		g.P("// AsMap converts x to a general-purpose Go map.")
 		g.P("// The map values are converted by calling Value.AsInterface.")
 		g.P("func (x *Struct) AsMap() map[string]interface{} {")
-		g.P("	vs := make(map[string]interface{})")
-		g.P("	for k, v := range x.GetFields() {")
+		g.P("	f := x.GetFields()")
+		g.P("	vs := make(map[string]interface{}, len(f))")
+		g.P("	for k, v := range f {")
 		g.P("		vs[k] = v.AsInterface()")
 		g.P("	}")
 		g.P("	return vs")
@@ -693,8 +691,9 @@ func genMessageKnownFunctions(g *protogen.GeneratedFile, f *fileInfo, m *message
 		g.P("// AsSlice converts x to a general-purpose Go slice.")
 		g.P("// The slice elements are converted by calling Value.AsInterface.")
 		g.P("func (x *ListValue) AsSlice() []interface{} {")
-		g.P("	vs := make([]interface{}, len(x.GetValues()))")
-		g.P("	for i, v := range x.GetValues() {")
+		g.P("	vals := x.GetValues()")
+		g.P("	vs := make([]interface{}, len(vals))")
+		g.P("	for i, v := range vals {")
 		g.P("		vs[i] = v.AsInterface()")
 		g.P("	}")
 		g.P("	return vs")

@@ -22,8 +22,8 @@ package oauth
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"sync"
 
 	"golang.org/x/oauth2"
@@ -73,7 +73,7 @@ type jwtAccess struct {
 
 // NewJWTAccessFromFile creates PerRPCCredentials from the given keyFile.
 func NewJWTAccessFromFile(keyFile string) (credentials.PerRPCCredentials, error) {
-	jsonKey, err := ioutil.ReadFile(keyFile)
+	jsonKey, err := os.ReadFile(keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: failed to read the service account key file: %v", err)
 	}
@@ -121,6 +121,8 @@ type oauthAccess struct {
 }
 
 // NewOauthAccess constructs the PerRPCCredentials using a given token.
+//
+// Deprecated: use oauth.TokenSource instead.
 func NewOauthAccess(token *oauth2.Token) credentials.PerRPCCredentials {
 	return oauthAccess{token: *token}
 }
@@ -190,7 +192,7 @@ func NewServiceAccountFromKey(jsonKey []byte, scope ...string) (credentials.PerR
 // NewServiceAccountFromFile constructs the PerRPCCredentials using the JSON key file
 // of a Google Developers service account.
 func NewServiceAccountFromFile(keyFile string, scope ...string) (credentials.PerRPCCredentials, error) {
-	jsonKey, err := ioutil.ReadFile(keyFile)
+	jsonKey, err := os.ReadFile(keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: failed to read the service account key file: %v", err)
 	}

@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/internal/sdk"
@@ -128,4 +129,42 @@ type CredentialsProviderFunc func(context.Context) (Credentials, error)
 // Retrieve delegates to the function value the CredentialsProviderFunc wraps.
 func (fn CredentialsProviderFunc) Retrieve(ctx context.Context) (Credentials, error) {
 	return fn(ctx)
+}
+
+type isCredentialsProvider interface {
+	IsCredentialsProvider(CredentialsProvider) bool
+}
+
+// IsCredentialsProvider returns whether the target CredentialProvider is the same type as provider when comparing the
+// implementation type.
+//
+// If provider has a method IsCredentialsProvider(CredentialsProvider) bool it will be responsible for validating
+// whether target matches the credential provider type.
+//
+// When comparing the CredentialProvider implementations provider and target for equality, the following rules are used:
+//
+//	If provider is of type T and target is of type V, true if type *T is the same as type *V, otherwise false
+//	If provider is of type *T and target is of type V, true if type *T is the same as type *V, otherwise false
+//	If provider is of type T and target is of type *V, true if type *T is the same as type *V, otherwise false
+//	If provider is of type *T and target is of type *V,true if type *T is the same as type *V, otherwise false
+func IsCredentialsProvider(provider, target CredentialsProvider) bool {
+	if target == nil || provider == nil {
+		return provider == target
+	}
+
+	if x, ok := provider.(isCredentialsProvider); ok {
+		return x.IsCredentialsProvider(target)
+	}
+
+	targetType := reflect.TypeOf(target)
+	if targetType.Kind() != reflect.Ptr {
+		targetType = reflect.PtrTo(targetType)
+	}
+
+	providerType := reflect.TypeOf(provider)
+	if providerType.Kind() != reflect.Ptr {
+		providerType = reflect.PtrTo(providerType)
+	}
+
+	return targetType.AssignableTo(providerType)
 }

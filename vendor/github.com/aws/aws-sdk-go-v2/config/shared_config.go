@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/internal/ini"
+	"github.com/aws/aws-sdk-go-v2/internal/shareddefaults"
 	"github.com/aws/smithy-go/logging"
 )
 
@@ -108,7 +108,7 @@ var defaultSharedConfigProfile = DefaultSharedConfigProfile
 //   - Linux/Unix: $HOME/.aws/credentials
 //   - Windows: %USERPROFILE%\.aws\credentials
 func DefaultSharedCredentialsFilename() string {
-	return filepath.Join(userHomeDir(), ".aws", "credentials")
+	return filepath.Join(shareddefaults.UserHomeDir(), ".aws", "credentials")
 }
 
 // DefaultSharedConfigFilename returns the SDK's default file path for
@@ -119,7 +119,7 @@ func DefaultSharedCredentialsFilename() string {
 //   - Linux/Unix: $HOME/.aws/config
 //   - Windows: %USERPROFILE%\.aws\config
 func DefaultSharedConfigFilename() string {
-	return filepath.Join(userHomeDir(), ".aws", "config")
+	return filepath.Join(shareddefaults.UserHomeDir(), ".aws", "config")
 }
 
 // DefaultSharedConfigFiles is a slice of the default shared config files that
@@ -142,18 +142,10 @@ type SSOSession struct {
 	SSOStartURL string
 }
 
-func (s *SSOSession) setFromIniSection(section ini.Section) error {
+func (s *SSOSession) setFromIniSection(section ini.Section) {
+	updateString(&s.Name, section, ssoSessionNameKey)
 	updateString(&s.SSORegion, section, ssoRegionKey)
 	updateString(&s.SSOStartURL, section, ssoStartURLKey)
-
-	if s.SSORegion == "" || s.SSOStartURL == "" {
-		return fmt.Errorf(
-			"%v and %v are required parameters in sso-session section",
-			ssoRegionKey, ssoStartURLKey,
-		)
-	}
-
-	return nil
 }
 
 // SharedConfig represents the configuration fields of the SDK config files.
@@ -846,9 +838,8 @@ func (c *SharedConfig) setFromIniSections(profiles map[string]struct{}, profile 
 		// profile only have credential provider options.
 		c.clearAssumeRoleOptions()
 	} else {
-		// First time a profile has been seen, It must either be a assume role
-		// credentials, or SSO. Assert if the credential type requires a role ARN,
-		// the ARN is also set, or validate that the SSO configuration is complete.
+		// First time a profile has been seen. Assert if the credential type
+		// requires a role ARN, the ARN is also set
 		if err := c.validateCredentialsConfig(profile); err != nil {
 			return err
 		}
@@ -900,29 +891,18 @@ func (c *SharedConfig) setFromIniSections(profiles map[string]struct{}, profile 
 	// as a section in the config file. Load the SSO session using the name
 	// provided. If the session section is not found or incomplete an error
 	// will be returned.
-	if c.SSOSessionName != "" {
-		c.SSOSession, err = getSSOSession(c.SSOSessionName, sections, logger)
-		if err != nil {
-			return err
+	if c.hasSSOTokenProviderConfiguration() {
+		section, ok := sections.GetSection(ssoSectionPrefix + strings.TrimSpace(c.SSOSessionName))
+		if !ok {
+			return fmt.Errorf("failed to find SSO session section, %v", c.SSOSessionName)
 		}
+		var ssoSession SSOSession
+		ssoSession.setFromIniSection(section)
+		ssoSession.Name = c.SSOSessionName
+		c.SSOSession = &ssoSession
 	}
 
 	return nil
-}
-
-func getSSOSession(name string, sections ini.Sections, logger logging.Logger) (*SSOSession, error) {
-	section, ok := sections.GetSection(ssoSectionPrefix + strings.TrimSpace(name))
-	if !ok {
-		return nil, fmt.Errorf("failed to find SSO session section, %v", name)
-	}
-
-	var ssoSession SSOSession
-	if err := ssoSession.setFromIniSection(section); err != nil {
-		return nil, fmt.Errorf("failed to load SSO session %v, %w", name, err)
-	}
-	ssoSession.Name = name
-
-	return &ssoSession, nil
 }
 
 // setFromIniSection loads the configuration from the profile section defined in
@@ -1088,17 +1068,66 @@ func (c *SharedConfig) validateCredentialType() error {
 		len(c.CredentialProcess) != 0,
 		len(c.WebIdentityTokenFile) != 0,
 	) {
-		return fmt.Errorf("only one credential type may be specified per profile: source profile, credential source, credential process, web identity token, or sso")
+		return fmt.Errorf("only one credential type may be specified per profile: source profile, credential source, credential process, web identity token")
 	}
 
 	return nil
 }
 
 func (c *SharedConfig) validateSSOConfiguration() error {
-	if !c.hasSSOConfiguration() {
+	if c.hasSSOTokenProviderConfiguration() {
+		err := c.validateSSOTokenProviderConfiguration()
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
+	if c.hasLegacySSOConfiguration() {
+		err := c.validateLegacySSOConfiguration()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *SharedConfig) validateSSOTokenProviderConfiguration() error {
+	var missing []string
+
+	if len(c.SSOSessionName) == 0 {
+		missing = append(missing, ssoSessionNameKey)
+	}
+
+	if c.SSOSession == nil {
+		missing = append(missing, ssoSectionPrefix)
+	} else {
+		if len(c.SSOSession.SSORegion) == 0 {
+			missing = append(missing, ssoRegionKey)
+		}
+
+		if len(c.SSOSession.SSOStartURL) == 0 {
+			missing = append(missing, ssoStartURLKey)
+		}
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("profile %q is configured to use SSO but is missing required configuration: %s",
+			c.Profile, strings.Join(missing, ", "))
+	}
+
+	if len(c.SSORegion) > 0 && c.SSORegion != c.SSOSession.SSORegion {
+		return fmt.Errorf("%s in profile %q must match %s in %s", ssoRegionKey, c.Profile, ssoRegionKey, ssoSectionPrefix)
+	}
+
+	if len(c.SSOStartURL) > 0 && c.SSOStartURL != c.SSOSession.SSOStartURL {
+		return fmt.Errorf("%s in profile %q must match %s in %s", ssoStartURLKey, c.Profile, ssoStartURLKey, ssoSectionPrefix)
+	}
+
+	return nil
+}
+
+func (c *SharedConfig) validateLegacySSOConfiguration() error {
 	var missing []string
 
 	if len(c.SSORegion) == 0 {
@@ -1109,11 +1138,18 @@ func (c *SharedConfig) validateSSOConfiguration() error {
 		missing = append(missing, ssoStartURLKey)
 	}
 
+	if len(c.SSOAccountID) == 0 {
+		missing = append(missing, ssoAccountIDKey)
+	}
+
+	if len(c.SSORoleName) == 0 {
+		missing = append(missing, ssoRoleNameKey)
+	}
+
 	if len(missing) > 0 {
 		return fmt.Errorf("profile %q is configured to use SSO but is missing required configuration: %s",
 			c.Profile, strings.Join(missing, ", "))
 	}
-
 	return nil
 }
 
@@ -1133,15 +1169,15 @@ func (c *SharedConfig) hasCredentials() bool {
 }
 
 func (c *SharedConfig) hasSSOConfiguration() bool {
-	switch {
-	case len(c.SSOAccountID) != 0:
-	case len(c.SSORegion) != 0:
-	case len(c.SSORoleName) != 0:
-	case len(c.SSOStartURL) != 0:
-	default:
-		return false
-	}
-	return true
+	return c.hasSSOTokenProviderConfiguration() || c.hasLegacySSOConfiguration()
+}
+
+func (c *SharedConfig) hasSSOTokenProviderConfiguration() bool {
+	return len(c.SSOSessionName) > 0
+}
+
+func (c *SharedConfig) hasLegacySSOConfiguration() bool {
+	return len(c.SSORegion) > 0 || len(c.SSOAccountID) > 0 || len(c.SSOStartURL) > 0 || len(c.SSORoleName) > 0
 }
 
 func (c *SharedConfig) clearAssumeRoleOptions() {
@@ -1230,22 +1266,6 @@ func (e CredentialRequiresARNError) Error() string {
 		"credential type %s requires role_arn, profile %s",
 		e.Type, e.Profile,
 	)
-}
-
-func userHomeDir() string {
-	// Ignore errors since we only care about Windows and *nix.
-	home, _ := os.UserHomeDir()
-
-	if len(home) > 0 {
-		return home
-	}
-
-	currUser, _ := user.Current()
-	if currUser != nil {
-		home = currUser.HomeDir
-	}
-
-	return home
 }
 
 func oneOrNone(bs ...bool) bool {

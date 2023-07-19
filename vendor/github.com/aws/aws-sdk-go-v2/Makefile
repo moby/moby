@@ -120,6 +120,7 @@ gen-config-asserts:
 gen-internal-codegen:
 	@echo "Generating internal/codegen"
 	cd internal/codegen \
+		&& go mod tidy \
 		&& go generate
 
 gen-repo-mod-replace:
@@ -244,7 +245,6 @@ unit-race-modules-%:
 		"go vet ${BUILD_TAGS} --all ./..." \
 		"go test ${BUILD_TAGS} ${RUN_NONE} ./..." \
 		"go test -timeout=1m ${UNIT_TEST_TAGS} -race -cpu=4 ./..."
-
 
 unit-modules-%:
 	@# unit command that uses the pattern to define the root path that the
@@ -407,7 +407,6 @@ bench-modules-%:
 		&& go run . -p $(subst _,/,$(subst bench-modules-,,$@)) ${EACHMODULE_FLAGS} \
 		"go test -timeout=10m -bench . --benchmem ${BUILD_TAGS} ${RUN_NONE} ./..."
 
-
 #####################
 #  Release Process  #
 #####################
@@ -498,14 +497,22 @@ list-deps-%:
 ###################
 .PHONY: sandbox-tests sandbox-build-% sandbox-run-% sandbox-test-% update-aws-golang-tip
 
-sandbox-tests: sandbox-test-go1.15 sandbox-test-go1.16 sandbox-test-go1.17 sandbox-test-gotip
+sandbox-tests: sandbox-test-go1.15 sandbox-test-go1.16 sandbox-test-go1.17 sandbox-test-go1.18 sandbox-test-go1.19 sandbox-test-go1.20 sandbox-test-gotip
 
 sandbox-build-%:
 	@# sandbox-build-go1.17
 	@# sandbox-build-gotip
-	docker build \
-		-f ./internal/awstesting/sandbox/Dockerfile.test.$(subst sandbox-build-,,$@) \
-		-t "aws-sdk-go-$(subst sandbox-build-,,$@)" .
+	@if [ $@ == sandbox-build-gotip ]; then\
+		docker build \
+			-f ./internal/awstesting/sandbox/Dockerfile.test.gotip \
+			-t "aws-sdk-go-$(subst sandbox-build-,,$@)" . ;\
+	else\
+		docker build \
+			--build-arg GO_VERSION=$(subst sandbox-build-go,,$@) \
+			-f ./internal/awstesting/sandbox/Dockerfile.test.goversion \
+			-t "aws-sdk-go-$(subst sandbox-build-,,$@)" . ;\
+	fi
+
 sandbox-run-%: sandbox-build-%
 	@# sandbox-run-go1.17
 	@# sandbox-run-gotip

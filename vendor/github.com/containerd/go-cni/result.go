@@ -32,13 +32,18 @@ type IPConfig struct {
 // Result contains the network information returned by CNI.Setup
 //
 // a) Interfaces list. Depending on the plugin, this can include the sandbox
-//    (eg, container or hypervisor) interface name and/or the host interface
-//    name, the hardware addresses of each interface, and details about the
-//    sandbox (if any) the interface is in.
+//
+//	(eg, container or hypervisor) interface name and/or the host interface
+//	name, the hardware addresses of each interface, and details about the
+//	sandbox (if any) the interface is in.
+//
 // b) IP configuration assigned to each  interface. The IPv4 and/or IPv6 addresses,
-//    gateways, and routes assigned to sandbox and/or host interfaces.
+//
+//	gateways, and routes assigned to sandbox and/or host interfaces.
+//
 // c) DNS information. Dictionary that includes DNS information for nameservers,
-//     domain, search domains and options.
+//
+//	domain, search domains and options.
 type Result struct {
 	Interfaces map[string]*Config
 	DNS        []types.DNS

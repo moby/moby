@@ -86,11 +86,30 @@ func addRequestMiddleware(stack *middleware.Stack,
 		return err
 	}
 
+	err = stack.Deserialize.Add(&smithyhttp.RequestResponseLogger{
+		LogRequest:          options.ClientLogMode.IsRequest(),
+		LogRequestWithBody:  options.ClientLogMode.IsRequestWithBody(),
+		LogResponse:         options.ClientLogMode.IsResponse(),
+		LogResponseWithBody: options.ClientLogMode.IsResponseWithBody(),
+	}, middleware.After)
+	if err != nil {
+		return err
+	}
+
+	err = addSetLoggerMiddleware(stack, options)
+	if err != nil {
+		return err
+	}
+
 	// Retry support
 	return retry.AddRetryMiddlewares(stack, retry.AddRetryMiddlewaresOptions{
 		Retryer:          options.Retryer,
 		LogRetryAttempts: options.ClientLogMode.IsRetries(),
 	})
+}
+
+func addSetLoggerMiddleware(stack *middleware.Stack, o Options) error {
+	return middleware.AddSetLoggerMiddleware(stack, o.Logger)
 }
 
 type serializeRequest struct {

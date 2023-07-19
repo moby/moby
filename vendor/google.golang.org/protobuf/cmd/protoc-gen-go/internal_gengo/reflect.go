@@ -12,6 +12,8 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protopath"
+	"google.golang.org/protobuf/reflect/protorange"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -233,10 +235,29 @@ func genReflectFileDescriptor(gen *protogen.Plugin, g *protogen.GeneratedFile, f
 	g.P("}")
 }
 
+// stripSourceRetentionFieldsFromMessage walks the given message tree recursively
+// and clears any fields with the field option: [retention = RETENTION_SOURCE]
+func stripSourceRetentionFieldsFromMessage(m protoreflect.Message) {
+	protorange.Range(m, func(ppv protopath.Values) error {
+		m2, ok := ppv.Index(-1).Value.Interface().(protoreflect.Message)
+		if !ok {
+			return nil
+		}
+		m2.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+			fdo, ok := fd.Options().(*descriptorpb.FieldOptions)
+			if ok && fdo.GetRetention() == descriptorpb.FieldOptions_RETENTION_SOURCE {
+				m2.Clear(fd)
+			}
+			return true
+		})
+		return nil
+	})
+}
+
 func genFileDescriptor(gen *protogen.Plugin, g *protogen.GeneratedFile, f *fileInfo) {
 	descProto := proto.Clone(f.Proto).(*descriptorpb.FileDescriptorProto)
 	descProto.SourceCodeInfo = nil // drop source code information
-
+	stripSourceRetentionFieldsFromMessage(descProto.ProtoReflect())
 	b, err := proto.MarshalOptions{AllowPartial: true, Deterministic: true}.Marshal(descProto)
 	if err != nil {
 		gen.Error(err)

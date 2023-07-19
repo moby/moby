@@ -28,9 +28,9 @@ func (c *Client) StartDeviceAuthorization(ctx context.Context, params *StartDevi
 
 type StartDeviceAuthorizationInput struct {
 
-	// The unique identifier string for the client that is registered with AWS SSO.
-	// This value should come from the persisted result of the RegisterClient API
-	// operation.
+	// The unique identifier string for the client that is registered with IAM Identity
+	// Center. This value should come from the persisted result of the RegisterClient
+	// API operation.
 	//
 	// This member is required.
 	ClientId *string
@@ -41,10 +41,10 @@ type StartDeviceAuthorizationInput struct {
 	// This member is required.
 	ClientSecret *string
 
-	// The URL for the AWS SSO user portal. For more information, see Using the User
-	// Portal
+	// The URL for the AWS access portal. For more information, see Using the AWS
+	// access portal
 	// (https://docs.aws.amazon.com/singlesignon/latest/userguide/using-the-portal.html)
-	// in the AWS Single Sign-On User Guide.
+	// in the IAM Identity Center User Guide.
 	//
 	// This member is required.
 	StartUrl *string

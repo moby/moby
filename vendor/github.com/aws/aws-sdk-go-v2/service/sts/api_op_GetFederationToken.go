@@ -43,28 +43,29 @@ import (
 // Temporary credentials obtained by using the Amazon Web Services account root
 // user credentials have a maximum duration of 3,600 seconds (1 hour). Permissions
 // You can use the temporary credentials created by GetFederationToken in any
-// Amazon Web Services service except the following:
+// Amazon Web Services service with the following exceptions:
 //
-// * You cannot call any IAM
-// operations using the CLI or the Amazon Web Services API.
+// * You cannot call
+// any IAM operations using the CLI or the Amazon Web Services API. This limitation
+// does not apply to console sessions.
 //
-// * You cannot call any
-// STS operations except GetCallerIdentity.
+// * You cannot call any STS operations except
+// GetCallerIdentity.
 //
-// You must pass an inline or managed
-// session policy
+// You can use temporary credentials for single sign-on (SSO)
+// to the console. You must pass an inline or managed session policy
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 // to this operation. You can pass a single JSON policy document to use as an
-// inline session policy. You can also specify up to 10 managed policies to use as
-// managed session policies. The plaintext that you use for both inline and managed
-// session policies can't exceed 2,048 characters. Though the session policy
-// parameters are optional, if you do not pass a policy, then the resulting
-// federated user session has no permissions. When you pass session policies, the
-// session permissions are the intersection of the IAM user policies and the
-// session policies that you pass. This gives you a way to further restrict the
-// permissions for a federated user. You cannot use session policies to grant more
-// permissions than those that are defined in the permissions policy of the IAM
-// user. For more information, see Session Policies
+// inline session policy. You can also specify up to 10 managed policy Amazon
+// Resource Names (ARNs) to use as managed session policies. The plaintext that you
+// use for both inline and managed session policies can't exceed 2,048 characters.
+// Though the session policy parameters are optional, if you do not pass a policy,
+// then the resulting federated user session has no permissions. When you pass
+// session policies, the session permissions are the intersection of the IAM user
+// policies and the session policies that you pass. This gives you a way to further
+// restrict the permissions for a federated user. You cannot use session policies
+// to grant more permissions than those that are defined in the permissions policy
+// of the IAM user. For more information, see Session Policies
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 // in the IAM User Guide. For information about using GetFederationToken to create
 // temporary security credentials, see GetFederationToken—Federation Through a
@@ -135,15 +136,15 @@ type GetFederationTokenInput struct {
 	// You must pass an inline or managed session policy
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 	// to this operation. You can pass a single JSON policy document to use as an
-	// inline session policy. You can also specify up to 10 managed policies to use as
-	// managed session policies. This parameter is optional. However, if you do not
-	// pass any session policies, then the resulting federated user session has no
-	// permissions. When you pass session policies, the session permissions are the
-	// intersection of the IAM user policies and the session policies that you pass.
-	// This gives you a way to further restrict the permissions for a federated user.
-	// You cannot use session policies to grant more permissions than those that are
-	// defined in the permissions policy of the IAM user. For more information, see
-	// Session Policies
+	// inline session policy. You can also specify up to 10 managed policy Amazon
+	// Resource Names (ARNs) to use as managed session policies. This parameter is
+	// optional. However, if you do not pass any session policies, then the resulting
+	// federated user session has no permissions. When you pass session policies, the
+	// session permissions are the intersection of the IAM user policies and the
+	// session policies that you pass. This gives you a way to further restrict the
+	// permissions for a federated user. You cannot use session policies to grant more
+	// permissions than those that are defined in the permissions policy of the IAM
+	// user. For more information, see Session Policies
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 	// in the IAM User Guide. The resulting credentials can be used to access a
 	// resource that has a resource-based policy. If that policy specifically
@@ -155,11 +156,11 @@ type GetFederationTokenInput struct {
 	// from the space character to the end of the valid character list (\u0020 through
 	// \u00FF). It can also include the tab (\u0009), linefeed (\u000A), and carriage
 	// return (\u000D) characters. An Amazon Web Services conversion compresses the
-	// passed session policies and session tags into a packed binary format that has a
-	// separate limit. Your request can fail for this limit even if your plaintext
-	// meets the other requirements. The PackedPolicySize response element indicates by
-	// percentage how close the policies and tags for your request are to the upper
-	// size limit.
+	// passed inline session policy, managed policy ARNs, and session tags into a
+	// packed binary format that has a separate limit. Your request can fail for this
+	// limit even if your plaintext meets the other requirements. The PackedPolicySize
+	// response element indicates by percentage how close the policies and tags for
+	// your request are to the upper size limit.
 	Policy *string
 
 	// The Amazon Resource Names (ARNs) of the IAM managed policies that you want to
@@ -168,11 +169,11 @@ type GetFederationTokenInput struct {
 	// managed session policy
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 	// to this operation. You can pass a single JSON policy document to use as an
-	// inline session policy. You can also specify up to 10 managed policies to use as
-	// managed session policies. The plaintext that you use for both inline and managed
-	// session policies can't exceed 2,048 characters. You can provide up to 10 managed
-	// policy ARNs. For more information about ARNs, see Amazon Resource Names (ARNs)
-	// and Amazon Web Services Service Namespaces
+	// inline session policy. You can also specify up to 10 managed policy Amazon
+	// Resource Names (ARNs) to use as managed session policies. The plaintext that you
+	// use for both inline and managed session policies can't exceed 2,048 characters.
+	// You can provide up to 10 managed policy ARNs. For more information about ARNs,
+	// see Amazon Resource Names (ARNs) and Amazon Web Services Service Namespaces
 	// (https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) in
 	// the Amazon Web Services General Reference. This parameter is optional. However,
 	// if you do not pass any session policies, then the resulting federated user
@@ -188,11 +189,12 @@ type GetFederationTokenInput struct {
 	// references the federated user session in the Principal element of the policy,
 	// the session has the permissions allowed by the policy. These permissions are
 	// granted in addition to the permissions that are granted by the session policies.
-	// An Amazon Web Services conversion compresses the passed session policies and
-	// session tags into a packed binary format that has a separate limit. Your request
-	// can fail for this limit even if your plaintext meets the other requirements. The
-	// PackedPolicySize response element indicates by percentage how close the policies
-	// and tags for your request are to the upper size limit.
+	// An Amazon Web Services conversion compresses the passed inline session policy,
+	// managed policy ARNs, and session tags into a packed binary format that has a
+	// separate limit. Your request can fail for this limit even if your plaintext
+	// meets the other requirements. The PackedPolicySize response element indicates by
+	// percentage how close the policies and tags for your request are to the upper
+	// size limit.
 	PolicyArns []types.PolicyDescriptorType
 
 	// A list of session tags. Each session tag consists of a key name and an
@@ -205,15 +207,15 @@ type GetFederationTokenInput struct {
 	// Character Limits
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length)
 	// in the IAM User Guide. An Amazon Web Services conversion compresses the passed
-	// session policies and session tags into a packed binary format that has a
-	// separate limit. Your request can fail for this limit even if your plaintext
-	// meets the other requirements. The PackedPolicySize response element indicates by
-	// percentage how close the policies and tags for your request are to the upper
-	// size limit. You can pass a session tag with the same key as a tag that is
-	// already attached to the user you are federating. When you do, session tags
-	// override a user tag with the same key. Tag key–value pairs are not case
-	// sensitive, but case is preserved. This means that you cannot have separate
-	// Department and department tag keys. Assume that the role has the
+	// inline session policy, managed policy ARNs, and session tags into a packed
+	// binary format that has a separate limit. Your request can fail for this limit
+	// even if your plaintext meets the other requirements. The PackedPolicySize
+	// response element indicates by percentage how close the policies and tags for
+	// your request are to the upper size limit. You can pass a session tag with the
+	// same key as a tag that is already attached to the user you are federating. When
+	// you do, session tags override a user tag with the same key. Tag key–value pairs
+	// are not case sensitive, but case is preserved. This means that you cannot have
+	// separate Department and department tag keys. Assume that the role has the
 	// Department=Marketing tag and you pass the department=engineering session tag.
 	// Department and department are not saved as separate tags, and the session tag
 	// passed in the request takes precedence over the role tag.
