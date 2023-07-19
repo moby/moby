@@ -8,43 +8,52 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestAttachWithTTY(t *testing.T) {
-	testAttach(t, true, types.MediaTypeRawStream)
-}
-
-func TestAttachWithoutTTy(t *testing.T) {
-	testAttach(t, false, types.MediaTypeMultiplexedStream)
-}
-
-func testAttach(t *testing.T, tty bool, expected string) {
-	defer setupTest(t)()
+func TestAttach(t *testing.T) {
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 
-	resp, err := client.ContainerCreate(context.Background(),
-		&container.Config{
-			Image: "busybox",
-			Cmd:   []string{"echo", "hello"},
-			Tty:   tty,
+	tests := []struct {
+		doc               string
+		tty               bool
+		expectedMediaType string
+	}{
+		{
+			doc:               "without TTY",
+			expectedMediaType: types.MediaTypeMultiplexedStream,
 		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		nil,
-		"",
-	)
-	assert.NilError(t, err)
-	container := resp.ID
-	defer client.ContainerRemove(context.Background(), container, types.ContainerRemoveOptions{
-		Force: true,
-	})
-
-	attach, err := client.ContainerAttach(context.Background(), container, types.ContainerAttachOptions{
-		Stdout: true,
-		Stderr: true,
-	})
-	assert.NilError(t, err)
-	mediaType, ok := attach.MediaType()
-	assert.Check(t, ok)
-	assert.Check(t, mediaType == expected)
+		{
+			doc:               "with TTY",
+			tty:               true,
+			expectedMediaType: types.MediaTypeRawStream,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			resp, err := client.ContainerCreate(context.Background(),
+				&container.Config{
+					Image: "busybox",
+					Cmd:   []string{"echo", "hello"},
+					Tty:   tc.tty,
+				},
+				&container.HostConfig{},
+				&network.NetworkingConfig{},
+				nil,
+				"",
+			)
+			assert.NilError(t, err)
+			attach, err := client.ContainerAttach(context.Background(), resp.ID, types.ContainerAttachOptions{
+				Stdout: true,
+				Stderr: true,
+			})
+			assert.NilError(t, err)
+			mediaType, ok := attach.MediaType()
+			assert.Check(t, ok)
+			assert.Check(t, is.Equal(mediaType, tc.expectedMediaType))
+		})
+	}
 }
