@@ -41,8 +41,10 @@ type CreateTokenInput struct {
 	// This member is required.
 	ClientSecret *string
 
-	// Supports grant types for authorization code, refresh token, and device code
-	// request.
+	// Supports grant types for the authorization code, refresh token, and device code
+	// request. For device code requests, specify the following value:
+	// urn:ietf:params:oauth:grant-type:device_code  For information about how to
+	// obtain the device code, see the StartDeviceAuthorization topic.
 	//
 	// This member is required.
 	GrantType *string
@@ -60,8 +62,13 @@ type CreateTokenInput struct {
 	// authorize the service to send the request to this location.
 	RedirectUri *string
 
+	// Currently, refreshToken is not yet implemented and is not supported. For more
+	// information about the features and limitations of the current IAM Identity
+	// Center OIDC implementation, see Considerations for Using this Guide in the IAM
+	// Identity Center OIDC API Reference
+	// (https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/Welcome.html).
 	// The token used to obtain an access token in the event that the access token is
-	// invalid or expired. This token is not issued by the service.
+	// invalid or expired.
 	RefreshToken *string
 
 	// The list of scopes that is defined by the client. Upon authorization, this list
@@ -73,15 +80,25 @@ type CreateTokenInput struct {
 
 type CreateTokenOutput struct {
 
-	// An opaque token to access AWS SSO resources assigned to a user.
+	// An opaque token to access IAM Identity Center resources assigned to a user.
 	AccessToken *string
 
 	// Indicates the time in seconds when an access token will expire.
 	ExpiresIn int32
 
+	// Currently, idToken is not yet implemented and is not supported. For more
+	// information about the features and limitations of the current IAM Identity
+	// Center OIDC implementation, see Considerations for Using this Guide in the IAM
+	// Identity Center OIDC API Reference
+	// (https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/Welcome.html).
 	// The identifier of the user that associated with the access token, if present.
 	IdToken *string
 
+	// Currently, refreshToken is not yet implemented and is not supported. For more
+	// information about the features and limitations of the current IAM Identity
+	// Center OIDC implementation, see Considerations for Using this Guide in the IAM
+	// Identity Center OIDC API Reference
+	// (https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/Welcome.html).
 	// A token that, if present, can be used to refresh a previously issued access
 	// token that might have expired.
 	RefreshToken *string

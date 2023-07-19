@@ -12,12 +12,11 @@ import (
 )
 
 // Returns a set of temporary security credentials that you can use to access
-// Amazon Web Services resources that you might not normally have access to. These
-// temporary credentials consist of an access key ID, a secret access key, and a
-// security token. Typically, you use AssumeRole within your account or for
-// cross-account access. For a comparison of AssumeRole with other API operations
-// that produce temporary credentials, see Requesting Temporary Security
-// Credentials
+// Amazon Web Services resources. These temporary credentials consist of an access
+// key ID, a secret access key, and a security token. Typically, you use AssumeRole
+// within your account or for cross-account access. For a comparison of AssumeRole
+// with other API operations that produce temporary credentials, see Requesting
+// Temporary Security Credentials
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html)
 // and Comparing the Amazon Web Services STS API operations
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#stsapi_comparison)
@@ -28,16 +27,16 @@ import (
 // inline or managed session policies
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 // to this operation. You can pass a single JSON policy document to use as an
-// inline session policy. You can also specify up to 10 managed policies to use as
-// managed session policies. The plaintext that you use for both inline and managed
-// session policies can't exceed 2,048 characters. Passing policies to this
-// operation returns new temporary credentials. The resulting session's permissions
-// are the intersection of the role's identity-based policy and the session
-// policies. You can use the role's temporary credentials in subsequent Amazon Web
-// Services API calls to access resources in the account that owns the role. You
-// cannot use session policies to grant more permissions than those allowed by the
-// identity-based policy of the role that is being assumed. For more information,
-// see Session Policies
+// inline session policy. You can also specify up to 10 managed policy Amazon
+// Resource Names (ARNs) to use as managed session policies. The plaintext that you
+// use for both inline and managed session policies can't exceed 2,048 characters.
+// Passing policies to this operation returns new temporary credentials. The
+// resulting session's permissions are the intersection of the role's
+// identity-based policy and the session policies. You can use the role's temporary
+// credentials in subsequent Amazon Web Services API calls to access resources in
+// the account that owns the role. You cannot use session policies to grant more
+// permissions than those allowed by the identity-based policy of the role that is
+// being assumed. For more information, see Session Policies
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 // in the IAM User Guide. When you create a role, you create two policies: A role
 // trust policy that specifies who can assume the role and a permissions policy
@@ -189,11 +188,11 @@ type AssumeRoleInput struct {
 	// be any ASCII character from the space character to the end of the valid
 	// character list (\u0020 through \u00FF). It can also include the tab (\u0009),
 	// linefeed (\u000A), and carriage return (\u000D) characters. An Amazon Web
-	// Services conversion compresses the passed session policies and session tags into
-	// a packed binary format that has a separate limit. Your request can fail for this
-	// limit even if your plaintext meets the other requirements. The PackedPolicySize
-	// response element indicates by percentage how close the policies and tags for
-	// your request are to the upper size limit.
+	// Services conversion compresses the passed inline session policy, managed policy
+	// ARNs, and session tags into a packed binary format that has a separate limit.
+	// Your request can fail for this limit even if your plaintext meets the other
+	// requirements. The PackedPolicySize response element indicates by percentage how
+	// close the policies and tags for your request are to the upper size limit.
 	Policy *string
 
 	// The Amazon Resource Names (ARNs) of the IAM managed policies that you want to
@@ -204,18 +203,18 @@ type AssumeRoleInput struct {
 	// Amazon Resource Names (ARNs) and Amazon Web Services Service Namespaces
 	// (https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) in
 	// the Amazon Web Services General Reference. An Amazon Web Services conversion
-	// compresses the passed session policies and session tags into a packed binary
-	// format that has a separate limit. Your request can fail for this limit even if
-	// your plaintext meets the other requirements. The PackedPolicySize response
-	// element indicates by percentage how close the policies and tags for your request
-	// are to the upper size limit. Passing policies to this operation returns new
-	// temporary credentials. The resulting session's permissions are the intersection
-	// of the role's identity-based policy and the session policies. You can use the
-	// role's temporary credentials in subsequent Amazon Web Services API calls to
-	// access resources in the account that owns the role. You cannot use session
-	// policies to grant more permissions than those allowed by the identity-based
-	// policy of the role that is being assumed. For more information, see Session
-	// Policies
+	// compresses the passed inline session policy, managed policy ARNs, and session
+	// tags into a packed binary format that has a separate limit. Your request can
+	// fail for this limit even if your plaintext meets the other requirements. The
+	// PackedPolicySize response element indicates by percentage how close the policies
+	// and tags for your request are to the upper size limit. Passing policies to this
+	// operation returns new temporary credentials. The resulting session's permissions
+	// are the intersection of the role's identity-based policy and the session
+	// policies. You can use the role's temporary credentials in subsequent Amazon Web
+	// Services API calls to access resources in the account that owns the role. You
+	// cannot use session policies to grant more permissions than those allowed by the
+	// identity-based policy of the role that is being assumed. For more information,
+	// see Session Policies
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session)
 	// in the IAM User Guide.
 	PolicyArns []types.PolicyDescriptorType
@@ -257,22 +256,23 @@ type AssumeRoleInput struct {
 	// Character Limits
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length)
 	// in the IAM User Guide. An Amazon Web Services conversion compresses the passed
-	// session policies and session tags into a packed binary format that has a
-	// separate limit. Your request can fail for this limit even if your plaintext
-	// meets the other requirements. The PackedPolicySize response element indicates by
-	// percentage how close the policies and tags for your request are to the upper
-	// size limit. You can pass a session tag with the same key as a tag that is
-	// already attached to the role. When you do, session tags override a role tag with
-	// the same key. Tag key–value pairs are not case sensitive, but case is preserved.
-	// This means that you cannot have separate Department and department tag keys.
-	// Assume that the role has the Department=Marketing tag and you pass the
-	// department=engineering session tag. Department and department are not saved as
-	// separate tags, and the session tag passed in the request takes precedence over
-	// the role tag. Additionally, if you used temporary credentials to perform this
-	// operation, the new session inherits any transitive session tags from the calling
-	// session. If you pass a session tag with the same key as an inherited tag, the
-	// operation fails. To view the inherited tags for a session, see the CloudTrail
-	// logs. For more information, see Viewing Session Tags in CloudTrail
+	// inline session policy, managed policy ARNs, and session tags into a packed
+	// binary format that has a separate limit. Your request can fail for this limit
+	// even if your plaintext meets the other requirements. The PackedPolicySize
+	// response element indicates by percentage how close the policies and tags for
+	// your request are to the upper size limit. You can pass a session tag with the
+	// same key as a tag that is already attached to the role. When you do, session
+	// tags override a role tag with the same key. Tag key–value pairs are not case
+	// sensitive, but case is preserved. This means that you cannot have separate
+	// Department and department tag keys. Assume that the role has the
+	// Department=Marketing tag and you pass the department=engineering session tag.
+	// Department and department are not saved as separate tags, and the session tag
+	// passed in the request takes precedence over the role tag. Additionally, if you
+	// used temporary credentials to perform this operation, the new session inherits
+	// any transitive session tags from the calling session. If you pass a session tag
+	// with the same key as an inherited tag, the operation fails. To view the
+	// inherited tags for a session, see the CloudTrail logs. For more information, see
+	// Viewing Session Tags in CloudTrail
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html#id_session-tags_ctlogs)
 	// in the IAM User Guide.
 	Tags []types.Tag
@@ -414,4 +414,28 @@ func newServiceMetadataMiddleware_opAssumeRole(region string) *awsmiddleware.Reg
 		SigningName:   "sts",
 		OperationName: "AssumeRole",
 	}
+}
+
+// PresignAssumeRole is used to generate a presigned HTTP Request which contains
+// presigned URL, signed headers and HTTP method used.
+func (c *PresignClient) PresignAssumeRole(ctx context.Context, params *AssumeRoleInput, optFns ...func(*PresignOptions)) (*v4.PresignedHTTPRequest, error) {
+	if params == nil {
+		params = &AssumeRoleInput{}
+	}
+	options := c.options.copy()
+	for _, fn := range optFns {
+		fn(&options)
+	}
+	clientOptFns := append(options.ClientOptions, withNopHTTPClientAPIOption)
+
+	result, _, err := c.client.invokeOperation(ctx, "AssumeRole", params, clientOptFns,
+		c.client.addOperationAssumeRoleMiddlewares,
+		presignConverter(options).convertToPresignMiddleware,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	out := result.(*v4.PresignedHTTPRequest)
+	return out, nil
 }

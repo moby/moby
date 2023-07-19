@@ -11,7 +11,7 @@
 // # Loading credentials with the SDK's AWS Config
 //
 // The EC2 Instance role credentials provider will automatically be the resolved
-// credential provider int he credential chain if no other credential provider is
+// credential provider in the credential chain if no other credential provider is
 // resolved first.
 //
 // To explicitly instruct the SDK's credentials resolving to use the EC2 Instance

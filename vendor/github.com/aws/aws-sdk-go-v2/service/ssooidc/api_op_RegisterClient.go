@@ -9,8 +9,8 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Registers a client with AWS SSO. This allows clients to initiate device
-// authorization. The output should be persisted for reuse through many
+// Registers a client with IAM Identity Center. This allows clients to initiate
+// device authorization. The output should be persisted for reuse through many
 // authentication requests.
 func (c *Client) RegisterClient(ctx context.Context, params *RegisterClientInput, optFns ...func(*Options)) (*RegisterClientOutput, error) {
 	if params == nil {

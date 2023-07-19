@@ -1,3 +1,44 @@
+# v1.12.24 (2023-03-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.23 (2023-02-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.22 (2023-02-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.21 (2022-12-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.20 (2022-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.19 (2022-10-24)
+
+* **Bug Fix**: Fixes an issue that prevented logging of the API request or responses when the respective log modes were enabled.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.18 (2022-10-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.17 (2022-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.16 (2022-09-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.12.15 (2022-09-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.12.14 (2022-08-31)
 
 * **Dependency Update**: Updated to the latest SDK module versions
