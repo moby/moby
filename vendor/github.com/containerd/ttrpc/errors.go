@@ -16,28 +16,19 @@
 
 package ttrpc
 
-import (
-	"fmt"
+import "errors"
 
-	"google.golang.org/protobuf/proto"
+var (
+	// ErrProtocol is a general error in the handling the protocol.
+	ErrProtocol = errors.New("protocol error")
+
+	// ErrClosed is returned by client methods when the underlying connection is
+	// closed.
+	ErrClosed = errors.New("ttrpc: closed")
+
+	// ErrServerClosed is returned when the Server has closed its connection.
+	ErrServerClosed = errors.New("ttrpc: server closed")
+
+	// ErrStreamClosed is when the streaming connection is closed.
+	ErrStreamClosed = errors.New("ttrpc: stream closed")
 )
-
-type codec struct{}
-
-func (c codec) Marshal(msg interface{}) ([]byte, error) {
-	switch v := msg.(type) {
-	case proto.Message:
-		return proto.Marshal(v)
-	default:
-		return nil, fmt.Errorf("ttrpc: cannot marshal unknown type: %T", msg)
-	}
-}
-
-func (c codec) Unmarshal(p []byte, msg interface{}) error {
-	switch v := msg.(type) {
-	case proto.Message:
-		return proto.Unmarshal(p, v)
-	default:
-		return fmt.Errorf("ttrpc: cannot unmarshal into unknown type: %T", msg)
-	}
-}
