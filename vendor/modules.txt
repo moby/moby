@@ -171,7 +171,7 @@ github.com/bsphere/le_go
 # github.com/cenkalti/backoff/v4 v4.1.2
 ## explicit; go 1.13
 github.com/cenkalti/backoff/v4
-# github.com/cespare/xxhash/v2 v2.1.2
+# github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
 # github.com/cilium/ebpf v0.9.1

@@ -119,7 +119,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.16 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cilium/ebpf v0.9.1 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect
