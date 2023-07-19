@@ -54,20 +54,9 @@ func resolveBearerAuthTokenProviderChain(ctx context.Context, cfg *aws.Config, c
 
 	var provider smithybearer.TokenProvider
 
-	if sharedConfig.SSOSession != nil || (sharedConfig.SSORegion != "" && sharedConfig.SSOStartURL != "") {
-		ssoSession := sharedConfig.SSOSession
-		if ssoSession == nil {
-			// Fallback to legacy SSO session config parameters, if the
-			// sso-session section wasn't used.
-			ssoSession = &SSOSession{
-				Name:        sharedConfig.SSOStartURL,
-				SSORegion:   sharedConfig.SSORegion,
-				SSOStartURL: sharedConfig.SSOStartURL,
-			}
-		}
-
+	if sharedConfig.SSOSession != nil {
 		provider, err = resolveBearerAuthSSOTokenProvider(
-			ctx, cfg, ssoSession, configs)
+			ctx, cfg, sharedConfig.SSOSession, configs)
 	}
 
 	if err == nil && provider != nil {

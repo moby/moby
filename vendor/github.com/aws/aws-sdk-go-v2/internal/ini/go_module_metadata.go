@@ -3,4 +3,4 @@
 package ini
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.3.21"
+const goModuleVersion = "1.3.31"
