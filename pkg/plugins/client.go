@@ -105,6 +105,9 @@ type Client struct {
 // RequestOpts is the set of options that can be passed into a request
 type RequestOpts struct {
 	Timeout time.Duration
+
+	// testTimeOut is used during tests to limit the max timeout in [abort]
+	testTimeOut int
 }
 
 // WithRequestTimeout sets a timeout duration for plugin requests
@@ -195,7 +198,7 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool,
 			}
 
 			timeOff := backoff(retries)
-			if abort(start, timeOff) {
+			if abort(start, timeOff, opts.testTimeOut) {
 				return nil, err
 			}
 			retries++
@@ -247,8 +250,15 @@ func backoff(retries int) time.Duration {
 	return time.Duration(b) * time.Second
 }
 
-func abort(start time.Time, timeOff time.Duration) bool {
-	return timeOff+time.Since(start) >= time.Duration(defaultTimeOut)*time.Second
+// testNonExistingPlugin is a special plugin-name, which overrides defaultTimeOut in tests.
+const testNonExistingPlugin = "this-plugin-does-not-exist"
+
+func abort(start time.Time, timeOff time.Duration, overrideTimeout int) bool {
+	to := defaultTimeOut
+	if overrideTimeout > 0 {
+		to = overrideTimeout
+	}
+	return timeOff+time.Since(start) >= time.Duration(to)*time.Second
 }
 
 func httpScheme(u *url.URL) string {

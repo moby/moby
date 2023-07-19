@@ -93,7 +93,7 @@ func TestGet(t *testing.T) {
 
 	// check negative case where plugin vegetable doesn't exist
 	t.Run("not exists", func(t *testing.T) {
-		_, err := Get("vegetable", "potato")
+		_, err := Get(testNonExistingPlugin, "no-such-implementation")
 		assert.Assert(t, errors.Is(err, ErrNotFound))
 	})
 }
