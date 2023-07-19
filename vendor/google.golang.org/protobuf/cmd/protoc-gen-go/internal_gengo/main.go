@@ -228,6 +228,7 @@ func genEnum(g *protogen.GeneratedFile, f *fileInfo, e *enumInfo) {
 	// Enum type declaration.
 	g.Annotate(e.GoIdent.GoName, e.Location)
 	leadingComments := appendDeprecationSuffix(e.Comments.Leading,
+		e.Desc.ParentFile(),
 		e.Desc.Options().(*descriptorpb.EnumOptions).GetDeprecated())
 	g.P(leadingComments,
 		"type ", e.GoIdent, " int32")
@@ -237,6 +238,7 @@ func genEnum(g *protogen.GeneratedFile, f *fileInfo, e *enumInfo) {
 	for _, value := range e.Values {
 		g.Annotate(value.GoIdent.GoName, value.Location)
 		leadingComments := appendDeprecationSuffix(value.Comments.Leading,
+			value.Desc.ParentFile(),
 			value.Desc.Options().(*descriptorpb.EnumValueOptions).GetDeprecated())
 		g.P(leadingComments,
 			value.GoIdent, " ", e.GoIdent, " = ", value.Desc.Number(),
@@ -322,6 +324,7 @@ func genMessage(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo) {
 	// Message type declaration.
 	g.Annotate(m.GoIdent.GoName, m.Location)
 	leadingComments := appendDeprecationSuffix(m.Comments.Leading,
+		m.Desc.ParentFile(),
 		m.Desc.Options().(*descriptorpb.MessageOptions).GetDeprecated())
 	g.P(leadingComments,
 		"type ", m.GoIdent, " struct {")
@@ -421,6 +424,7 @@ func genMessageField(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo, fie
 	}
 	g.Annotate(m.GoIdent.GoName+"."+name, field.Location)
 	leadingComments := appendDeprecationSuffix(field.Comments.Leading,
+		field.Desc.ParentFile(),
 		field.Desc.Options().(*descriptorpb.FieldOptions).GetDeprecated())
 	g.P(leadingComments,
 		name, " ", goType, tags,
@@ -561,6 +565,7 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 		defaultValue := fieldDefaultValue(g, f, m, field)
 		g.Annotate(m.GoIdent.GoName+".Get"+field.GoName, field.Location)
 		leadingComments := appendDeprecationSuffix("",
+			field.Desc.ParentFile(),
 			field.Desc.Options().(*descriptorpb.FieldOptions).GetDeprecated())
 		switch {
 		case field.Desc.IsWeak():
@@ -611,6 +616,7 @@ func genMessageSetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 
 		g.Annotate(m.GoIdent.GoName+".Set"+field.GoName, field.Location)
 		leadingComments := appendDeprecationSuffix("",
+			field.Desc.ParentFile(),
 			field.Desc.Options().(*descriptorpb.FieldOptions).GetDeprecated())
 		g.P(leadingComments, "func (x *", m.GoIdent, ") Set", field.GoName, "(v ", protoPackage.Ident("Message"), ") {")
 		g.P("var w *", protoimplPackage.Ident("WeakFields"))
@@ -773,6 +779,7 @@ func genExtensions(g *protogen.GeneratedFile, f *fileInfo) {
 			leadingComments += protogen.Comments(fmt.Sprintf(" %v %v %v = %v;\n",
 				xd.Cardinality(), typeName, fieldName, xd.Number()))
 			leadingComments = appendDeprecationSuffix(leadingComments,
+				x.Desc.ParentFile(),
 				x.Desc.Options().(*descriptorpb.FieldOptions).GetDeprecated())
 			g.P(leadingComments,
 				"E_", x.GoIdent, " = &", extensionTypesVarName(f), "[", allExtensionsByPtr[x], "]",
@@ -807,6 +814,7 @@ func genMessageOneofWrapperTypes(g *protogen.GeneratedFile, f *fileInfo, m *mess
 				tags = append(tags, gotrackTags...)
 			}
 			leadingComments := appendDeprecationSuffix(field.Comments.Leading,
+				field.Desc.ParentFile(),
 				field.Desc.Options().(*descriptorpb.FieldOptions).GetDeprecated())
 			g.P(leadingComments,
 				field.GoName, " ", goType, tags,
@@ -860,14 +868,18 @@ func (tags structTags) String() string {
 }
 
 // appendDeprecationSuffix optionally appends a deprecation notice as a suffix.
-func appendDeprecationSuffix(prefix protogen.Comments, deprecated bool) protogen.Comments {
-	if !deprecated {
+func appendDeprecationSuffix(prefix protogen.Comments, parentFile protoreflect.FileDescriptor, deprecated bool) protogen.Comments {
+	fileDeprecated := parentFile.Options().(*descriptorpb.FileOptions).GetDeprecated()
+	if !deprecated && !fileDeprecated {
 		return prefix
 	}
 	if prefix != "" {
 		prefix += "\n"
 	}
-	return prefix + " Deprecated: Do not use.\n"
+	if fileDeprecated {
+		return prefix + " Deprecated: The entire proto file " + protogen.Comments(parentFile.Path()) + " is marked as deprecated.\n"
+	}
+	return prefix + " Deprecated: Marked as deprecated in " + protogen.Comments(parentFile.Path()) + ".\n"
 }
 
 // trailingComment is like protogen.Comments, but lacks a trailing newline.
