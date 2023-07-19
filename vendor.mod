@@ -44,7 +44,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
