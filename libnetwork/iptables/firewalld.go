@@ -65,8 +65,8 @@ var (
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
-// FirewalldInit initializes firewalld management code.
-func FirewalldInit() error {
+// firewalldInit initializes firewalld management code.
+func firewalldInit() error {
 	var err error
 
 	if connection, err = newConnection(); err != nil {
