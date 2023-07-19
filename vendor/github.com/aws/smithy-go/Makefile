@@ -14,6 +14,9 @@ REPOTOOLS_CMD_CHANGELOG = ${REPOTOOLS_MODULE}/cmd/changelog@${REPOTOOLS_VERSION}
 REPOTOOLS_CMD_TAG_RELEASE = ${REPOTOOLS_MODULE}/cmd/tagrelease@${REPOTOOLS_VERSION}
 REPOTOOLS_CMD_MODULE_VERSION = ${REPOTOOLS_MODULE}/cmd/moduleversion@${REPOTOOLS_VERSION}
 
+UNIT_TEST_TAGS=
+BUILD_TAGS=
+
 ifneq ($(PRE_RELEASE_VERSION),)
 	REPOTOOLS_CMD_CALCULATE_RELEASE_ADDITIONAL_ARGS += -preview=${PRE_RELEASE_VERSION}
 endif
@@ -26,6 +29,37 @@ smithy-build:
 
 smithy-clean:
 	cd codegen && ./gradlew clean
+
+##################
+# Linting/Verify #
+##################
+.PHONY: verify vet
+
+verify: vet
+
+vet:
+	go vet ${BUILD_TAGS} --all ./...
+
+################
+# Unit Testing #
+################
+.PHONY: unit unit-race unit-test unit-race-test
+
+unit: verify
+	go vet ${BUILD_TAGS} --all ./... && \
+	go test ${BUILD_TAGS} ${RUN_NONE} ./... && \
+	go test -timeout=1m ${UNIT_TEST_TAGS} ./...
+
+unit-race: verify
+	go vet ${BUILD_TAGS} --all ./... && \
+	go test ${BUILD_TAGS} ${RUN_NONE} ./... && \
+	go test -timeout=1m ${UNIT_TEST_TAGS} -race -cpu=4 ./...
+
+unit-test: verify
+	go test -timeout=1m ${UNIT_TEST_TAGS} ./...
+
+unit-race-test: verify
+	go test -timeout=1m ${UNIT_TEST_TAGS} -race -cpu=4 ./...
 
 #####################
 #  Release Process  #
