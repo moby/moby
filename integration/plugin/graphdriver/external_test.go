@@ -126,7 +126,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 	}
 
 	respond := func(w http.ResponseWriter, data interface{}) {
-		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", plugins.VersionMimetype)
 		switch t := data.(type) {
 		case error:
 			fmt.Fprintf(w, "{\"Err\": %q}\n", t.Error())
