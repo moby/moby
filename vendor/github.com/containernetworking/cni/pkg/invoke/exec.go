@@ -50,6 +50,12 @@ func fixupResultVersion(netconf, result []byte) (string, []byte, error) {
 		return "", nil, fmt.Errorf("failed to unmarshal raw result: %w", err)
 	}
 
+	// plugin output of "null" is successfully unmarshalled, but results in a nil
+	// map which causes a panic when the confVersion is assigned below.
+	if rawResult == nil {
+		rawResult = make(map[string]interface{})
+	}
+
 	// Manually decode Result version; we need to know whether its cniVersion
 	// is empty, while built-in decoders (correctly) substitute 0.1.0 for an
 	// empty version per the CNI spec.

@@ -18,14 +18,13 @@ package cni
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 )
 
 func makeTmpDir(prefix string) (string, error) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), prefix)
+	tmpDir, err := os.MkdirTemp("", prefix)
 	if err != nil {
 		return "", err
 	}

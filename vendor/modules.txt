@@ -325,8 +325,8 @@ github.com/containerd/continuity/sysx
 # github.com/containerd/fifo v1.1.0
 ## explicit; go 1.18
 github.com/containerd/fifo
-# github.com/containerd/go-cni v1.1.6
-## explicit; go 1.17
+# github.com/containerd/go-cni v1.1.9
+## explicit; go 1.19
 github.com/containerd/go-cni
 # github.com/containerd/go-runc v1.1.0
 ## explicit; go 1.18
@@ -349,7 +349,7 @@ github.com/containerd/typeurl
 # github.com/containerd/typeurl/v2 v2.1.1
 ## explicit; go 1.13
 github.com/containerd/typeurl/v2
-# github.com/containernetworking/cni v1.1.1
+# github.com/containernetworking/cni v1.1.2
 ## explicit; go 1.14
 github.com/containernetworking/cni/libcni
 github.com/containernetworking/cni/pkg/invoke
