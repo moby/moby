@@ -96,7 +96,9 @@ func (w withScopes) Apply(o *internal.DialSettings) {
 	copy(o.Scopes, w)
 }
 
-// WithUserAgent returns a ClientOption that sets the User-Agent.
+// WithUserAgent returns a ClientOption that sets the User-Agent. This option
+// is incompatible with the [WithHTTPClient] option. If you wish to provide a
+// custom client you will need to add this header via RoundTripper middleware.
 func WithUserAgent(ua string) ClientOption {
 	return withUA(ua)
 }

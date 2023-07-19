@@ -7,8 +7,8 @@ module github.com/docker/docker
 go 1.18
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.1
-	cloud.google.com/go/logging v1.4.2
+	cloud.google.com/go/compute/metadata v0.2.3
+	cloud.google.com/go/logging v1.7.0
 	code.cloudfoundry.org/clock v1.0.0
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221118232415-3345c89a7c72
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
@@ -99,15 +99,16 @@ require (
 	golang.org/x/sys v0.8.0
 	golang.org/x/text v0.9.0
 	golang.org/x/time v0.3.0
-	google.golang.org/genproto v0.0.0-20221024183307-1bc688fe9f3e
-	google.golang.org/grpc v1.50.1
+	google.golang.org/genproto v0.0.0-20230222225845-10f96fb3dbec
+	google.golang.org/grpc v1.53.0
 	gotest.tools/v3 v3.4.0
 	resenje.org/singleflight v0.3.0
 )
 
 require (
-	cloud.google.com/go v0.104.0 // indirect
-	cloud.google.com/go/compute v1.12.1 // indirect
+	cloud.google.com/go v0.107.0 // indirect
+	cloud.google.com/go/compute v1.18.0 // indirect
+	cloud.google.com/go/longrunning v0.3.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
@@ -197,7 +198,7 @@ require (
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.2.0 // indirect
 	golang.org/x/oauth2 v0.5.0 // indirect
-	google.golang.org/api v0.102.0 // indirect
+	google.golang.org/api v0.110.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

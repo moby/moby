@@ -78,6 +78,9 @@
         "compute": {
             "component": "compute"
         },
+        "compute/metadata": {
+            "component": "compute/metadata"
+        },
         "contactcenterinsights": {
             "component": "contactcenterinsights"
         },
@@ -128,6 +131,9 @@
         },
         "domains": {
             "component": "domains"
+        },
+        "edgecontainer": {
+            "component": "edgecontainer"
         },
         "essentialcontacts": {
             "component": "essentialcontacts"
@@ -183,8 +189,14 @@
         "lifesciences": {
             "component": "lifesciences"
         },
+        "longrunning": {
+            "component": "longrunning"
+        },
         "managedidentities": {
             "component": "managedidentities"
+        },
+        "maps": {
+            "component": "maps"
         },
         "mediatranslation": {
             "component": "mediatranslation"
@@ -330,5 +342,6 @@
         "workflows": {
             "component": "workflows"
         }
-    }
+    },
+    "plugins": ["sentence-case"]
 }

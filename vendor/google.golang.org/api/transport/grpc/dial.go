@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	grpcgoogle "google.golang.org/grpc/credentials/google"
+	grpcinsecure "google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/credentials/oauth"
 
 	// Install grpclb, which is required for direct path.
@@ -126,10 +127,26 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 	if err != nil {
 		return nil, err
 	}
-	var grpcOpts []grpc.DialOption
+
+	var transportCreds credentials.TransportCredentials
 	if insecure {
-		grpcOpts = []grpc.DialOption{grpc.WithInsecure()}
-	} else if !o.NoAuth {
+		transportCreds = grpcinsecure.NewCredentials()
+	} else {
+		transportCreds = credentials.NewTLS(&tls.Config{
+			GetClientCertificate: clientCertSource,
+		})
+	}
+
+	// Initialize gRPC dial options with transport-level security options.
+	grpcOpts := []grpc.DialOption{
+		grpc.WithTransportCredentials(transportCreds),
+	}
+
+	// Authentication can only be sent when communicating over a secure connection.
+	//
+	// TODO: Should we be more lenient in the future and allow sending credentials
+	// when dialing an insecure connection?
+	if !o.NoAuth && !insecure {
 		if o.APIKey != "" {
 			log.Print("API keys are not supported for gRPC APIs. Remove the WithAPIKey option from your client-creating call.")
 		}
@@ -142,8 +159,17 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 			o.QuotaProject = internal.QuotaProjectFromCreds(creds)
 		}
 
+		grpcOpts = append(grpcOpts,
+			grpc.WithPerRPCCredentials(grpcTokenSource{
+				TokenSource:   oauth.TokenSource{creds.TokenSource},
+				quotaProject:  o.QuotaProject,
+				requestReason: o.RequestReason,
+			}),
+		)
+
 		// Attempt Direct Path:
 		if isDirectPathEnabled(endpoint, o) && isTokenSourceDirectPathCompatible(creds.TokenSource, o) && metadata.OnGCE() {
+			// Overwrite all of the previously specific DialOptions, DirectPath uses its own set of credentials and certificates.
 			grpcOpts = []grpc.DialOption{
 				grpc.WithCredentialsBundle(grpcgoogle.NewDefaultCredentialsWithOptions(grpcgoogle.DefaultCredentialsOptions{oauth.TokenSource{creds.TokenSource}}))}
 			if timeoutDialerOption != nil {
@@ -153,9 +179,9 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 			if strings.EqualFold(os.Getenv(enableDirectPathXds), "true") {
 				// google-c2p resolver target must not have a port number
 				if addr, _, err := net.SplitHostPort(endpoint); err == nil {
-					endpoint = "google-c2p-experimental:///" + addr
+					endpoint = "google-c2p:///" + addr
 				} else {
-					endpoint = "google-c2p-experimental:///" + endpoint
+					endpoint = "google-c2p:///" + endpoint
 				}
 			} else {
 				if !strings.HasPrefix(endpoint, "dns:///") {
@@ -169,18 +195,6 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 					grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"grpclb":{"childPolicy":[{"pick_first":{}}]}}]}`))
 			}
 			// TODO(cbro): add support for system parameters (quota project, request reason) via chained interceptor.
-		} else {
-			tlsConfig := &tls.Config{
-				GetClientCertificate: clientCertSource,
-			}
-			grpcOpts = []grpc.DialOption{
-				grpc.WithPerRPCCredentials(grpcTokenSource{
-					TokenSource:   oauth.TokenSource{creds.TokenSource},
-					quotaProject:  o.QuotaProject,
-					requestReason: o.RequestReason,
-				}),
-				grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-			}
 		}
 	}
 

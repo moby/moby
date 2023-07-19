@@ -15,12 +15,11 @@
 package logging
 
 import (
-	"io/ioutil"
-	"os"
+	"runtime"
 	"strings"
 	"sync"
 
-	"cloud.google.com/go/compute/metadata"
+	"cloud.google.com/go/logging/internal"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
 )
 
@@ -34,198 +33,222 @@ type commonResource struct{ *mrpb.MonitoredResource }
 
 func (r commonResource) set(l *Logger) { l.commonResource = r.MonitoredResource }
 
-var detectedResource struct {
-	pb   *mrpb.MonitoredResource
-	once sync.Once
+type resource struct {
+	pb    *mrpb.MonitoredResource
+	attrs internal.ResourceAttributesGetter
+	once  *sync.Once
+}
+
+var detectedResource = &resource{
+	attrs: internal.ResourceAttributes(),
+	once:  new(sync.Once),
+}
+
+func (r *resource) metadataProjectID() string {
+	return r.attrs.Metadata("project/project-id")
+}
+
+func (r *resource) metadataZone() string {
+	zone := r.attrs.Metadata("instance/zone")
+	if zone != "" {
+		return zone[strings.LastIndex(zone, "/")+1:]
+	}
+	return ""
+}
+
+func (r *resource) metadataRegion() string {
+	region := r.attrs.Metadata("instance/region")
+	if region != "" {
+		return region[strings.LastIndex(region, "/")+1:]
+	}
+	return ""
+}
+
+// isMetadataActive queries valid response on "/computeMetadata/v1/" URL
+func (r *resource) isMetadataActive() bool {
+	data := r.attrs.Metadata("")
+	return data != ""
 }
 
 // isAppEngine returns true for both standard and flex
-func isAppEngine() bool {
-	_, service := os.LookupEnv("GAE_SERVICE")
-	_, version := os.LookupEnv("GAE_VERSION")
-	_, instance := os.LookupEnv("GAE_INSTANCE")
-
-	return service && version && instance
+func (r *resource) isAppEngine() bool {
+	service := r.attrs.EnvVar("GAE_SERVICE")
+	version := r.attrs.EnvVar("GAE_VERSION")
+	instance := r.attrs.EnvVar("GAE_INSTANCE")
+	return service != "" && version != "" && instance != ""
 }
 
 func detectAppEngineResource() *mrpb.MonitoredResource {
-	projectID, err := metadata.ProjectID()
-	if err != nil {
-		return nil
+	projectID := detectedResource.metadataProjectID()
+	if projectID == "" {
+		projectID = detectedResource.attrs.EnvVar("GOOGLE_CLOUD_PROJECT")
 	}
 	if projectID == "" {
-		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	}
-	zone, err := metadata.Zone()
-	if err != nil {
 		return nil
 	}
+	zone := detectedResource.metadataZone()
+	service := detectedResource.attrs.EnvVar("GAE_SERVICE")
+	version := detectedResource.attrs.EnvVar("GAE_VERSION")
 
 	return &mrpb.MonitoredResource{
 		Type: "gae_app",
 		Labels: map[string]string{
-			"project_id":  projectID,
-			"module_id":   os.Getenv("GAE_SERVICE"),
-			"version_id":  os.Getenv("GAE_VERSION"),
-			"instance_id": os.Getenv("GAE_INSTANCE"),
-			"runtime":     os.Getenv("GAE_RUNTIME"),
-			"zone":        zone,
+			"project_id": projectID,
+			"module_id":  service,
+			"version_id": version,
+			"zone":       zone,
 		},
 	}
 }
 
-func isCloudFunction() bool {
-	// Reserved envvars in older function runtimes, e.g. Node.js 8, Python 3.7 and Go 1.11.
-	_, name := os.LookupEnv("FUNCTION_NAME")
-	_, region := os.LookupEnv("FUNCTION_REGION")
-	_, entry := os.LookupEnv("ENTRY_POINT")
-
-	// Reserved envvars in newer function runtimes.
-	_, target := os.LookupEnv("FUNCTION_TARGET")
-	_, signature := os.LookupEnv("FUNCTION_SIGNATURE_TYPE")
-	_, service := os.LookupEnv("K_SERVICE")
-	return (name && region && entry) || (target && signature && service)
+func (r *resource) isCloudFunction() bool {
+	target := r.attrs.EnvVar("FUNCTION_TARGET")
+	signature := r.attrs.EnvVar("FUNCTION_SIGNATURE_TYPE")
+	// note that this envvar is also present in Cloud Run environments
+	service := r.attrs.EnvVar("K_SERVICE")
+	return target != "" && signature != "" && service != ""
 }
 
 func detectCloudFunction() *mrpb.MonitoredResource {
-	projectID, err := metadata.ProjectID()
-	if err != nil {
+	projectID := detectedResource.metadataProjectID()
+	if projectID == "" {
 		return nil
 	}
-	zone, err := metadata.Zone()
-	if err != nil {
-		return nil
-	}
-	// Newer functions runtimes store name in K_SERVICE.
-	functionName, exists := os.LookupEnv("K_SERVICE")
-	if !exists {
-		functionName, _ = os.LookupEnv("FUNCTION_NAME")
-	}
+	region := detectedResource.metadataRegion()
+	functionName := detectedResource.attrs.EnvVar("K_SERVICE")
 	return &mrpb.MonitoredResource{
 		Type: "cloud_function",
 		Labels: map[string]string{
 			"project_id":    projectID,
-			"region":        regionFromZone(zone),
+			"region":        region,
 			"function_name": functionName,
 		},
 	}
 }
 
-func isCloudRun() bool {
-	_, config := os.LookupEnv("K_CONFIGURATION")
-	_, service := os.LookupEnv("K_SERVICE")
-	_, revision := os.LookupEnv("K_REVISION")
-	return config && service && revision
+func (r *resource) isCloudRun() bool {
+	config := r.attrs.EnvVar("K_CONFIGURATION")
+	// note that this envvar is also present in Cloud Function environments
+	service := r.attrs.EnvVar("K_SERVICE")
+	revision := r.attrs.EnvVar("K_REVISION")
+	return config != "" && service != "" && revision != ""
 }
 
 func detectCloudRunResource() *mrpb.MonitoredResource {
-	projectID, err := metadata.ProjectID()
-	if err != nil {
+	projectID := detectedResource.metadataProjectID()
+	if projectID == "" {
 		return nil
 	}
-	zone, err := metadata.Zone()
-	if err != nil {
-		return nil
-	}
+	region := detectedResource.metadataRegion()
+	config := detectedResource.attrs.EnvVar("K_CONFIGURATION")
+	service := detectedResource.attrs.EnvVar("K_SERVICE")
+	revision := detectedResource.attrs.EnvVar("K_REVISION")
 	return &mrpb.MonitoredResource{
 		Type: "cloud_run_revision",
 		Labels: map[string]string{
 			"project_id":         projectID,
-			"location":           regionFromZone(zone),
-			"service_name":       os.Getenv("K_SERVICE"),
-			"revision_name":      os.Getenv("K_REVISION"),
-			"configuration_name": os.Getenv("K_CONFIGURATION"),
+			"location":           region,
+			"service_name":       service,
+			"revision_name":      revision,
+			"configuration_name": config,
 		},
 	}
 }
 
-func isKubernetesEngine() bool {
-	clusterName, err := metadata.InstanceAttributeValue("cluster-name")
-	// Note: InstanceAttributeValue can return "", nil
-	if err != nil || clusterName == "" {
+func (r *resource) isKubernetesEngine() bool {
+	clusterName := r.attrs.Metadata("instance/attributes/cluster-name")
+	if clusterName == "" {
 		return false
 	}
 	return true
 }
 
 func detectKubernetesResource() *mrpb.MonitoredResource {
-	projectID, err := metadata.ProjectID()
-	if err != nil {
+	projectID := detectedResource.metadataProjectID()
+	if projectID == "" {
 		return nil
 	}
-	zone, err := metadata.Zone()
-	if err != nil {
-		return nil
+	zone := detectedResource.metadataZone()
+	clusterName := detectedResource.attrs.Metadata("instance/attributes/cluster-name")
+	namespaceName := detectedResource.attrs.ReadAll("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if namespaceName == "" {
+		// if automountServiceAccountToken is disabled allow to customize
+		// the namespace via environment
+		namespaceName = detectedResource.attrs.EnvVar("NAMESPACE_NAME")
 	}
-	clusterName, err := metadata.InstanceAttributeValue("cluster-name")
-	if err != nil {
-		return nil
-	}
-	namespaceBytes, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	namespaceName := ""
-	if err == nil {
-		namespaceName = string(namespaceBytes)
-	}
+	// note: if deployment customizes hostname, HOSTNAME envvar will have invalid content
+	podName := detectedResource.attrs.EnvVar("HOSTNAME")
+	// there is no way to derive container name from within container; use custom envvar if available
+	containerName := detectedResource.attrs.EnvVar("CONTAINER_NAME")
 	return &mrpb.MonitoredResource{
 		Type: "k8s_container",
 		Labels: map[string]string{
 			"cluster_name":   clusterName,
 			"location":       zone,
 			"project_id":     projectID,
-			"pod_name":       os.Getenv("HOSTNAME"),
+			"pod_name":       podName,
 			"namespace_name": namespaceName,
-			// To get the `container_name` label, users need to explicitly provide it.
-			"container_name": os.Getenv("CONTAINER_NAME"),
+			"container_name": containerName,
 		},
 	}
 }
 
-func detectGCEResource() *mrpb.MonitoredResource {
-	projectID, err := metadata.ProjectID()
-	if err != nil {
+func (r *resource) isComputeEngine() bool {
+	preempted := r.attrs.Metadata("instance/preempted")
+	platform := r.attrs.Metadata("instance/cpu-platform")
+	appBucket := r.attrs.Metadata("instance/attributes/gae_app_bucket")
+	return preempted != "" && platform != "" && appBucket == ""
+}
+
+func detectComputeEngineResource() *mrpb.MonitoredResource {
+	projectID := detectedResource.metadataProjectID()
+	if projectID == "" {
 		return nil
 	}
-	id, err := metadata.InstanceID()
-	if err != nil {
-		return nil
-	}
-	zone, err := metadata.Zone()
-	if err != nil {
-		return nil
-	}
-	name, err := metadata.InstanceName()
-	if err != nil {
-		return nil
-	}
+	id := detectedResource.attrs.Metadata("instance/id")
+	zone := detectedResource.metadataZone()
 	return &mrpb.MonitoredResource{
 		Type: "gce_instance",
 		Labels: map[string]string{
-			"project_id":    projectID,
-			"instance_id":   id,
-			"instance_name": name,
-			"zone":          zone,
+			"project_id":  projectID,
+			"instance_id": id,
+			"zone":        zone,
 		},
 	}
 }
 
 func detectResource() *mrpb.MonitoredResource {
 	detectedResource.once.Do(func() {
-		switch {
-		// AppEngine, Functions, CloudRun, Kubernetes are detected first,
-		// as metadata.OnGCE() erroneously returns true on these runtimes.
-		case isAppEngine():
-			detectedResource.pb = detectAppEngineResource()
-		case isCloudFunction():
-			detectedResource.pb = detectCloudFunction()
-		case isCloudRun():
-			detectedResource.pb = detectCloudRunResource()
-		case isKubernetesEngine():
-			detectedResource.pb = detectKubernetesResource()
-		case metadata.OnGCE():
-			detectedResource.pb = detectGCEResource()
+		if detectedResource.isMetadataActive() {
+			name := systemProductName()
+			switch {
+			case name == "Google App Engine", detectedResource.isAppEngine():
+				detectedResource.pb = detectAppEngineResource()
+			case name == "Google Cloud Functions", detectedResource.isCloudFunction():
+				detectedResource.pb = detectCloudFunction()
+			case name == "Google Cloud Run", detectedResource.isCloudRun():
+				detectedResource.pb = detectCloudRunResource()
+			// cannot use name validation for GKE and GCE because
+			// both of them set product name to "Google Compute Engine"
+			case detectedResource.isKubernetesEngine():
+				detectedResource.pb = detectKubernetesResource()
+			case detectedResource.isComputeEngine():
+				detectedResource.pb = detectComputeEngineResource()
+			}
 		}
 	})
 	return detectedResource.pb
+}
+
+// systemProductName reads resource type on the Linux-based environments such as
+// Cloud Functions, Cloud Run, GKE, GCE, GAE, etc.
+func systemProductName() string {
+	if runtime.GOOS != "linux" {
+		// We don't have any non-Linux clues available, at least yet.
+		return ""
+	}
+	slurp := detectedResource.attrs.ReadAll("/sys/class/dmi/id/product_name")
+	return strings.TrimSpace(slurp)
 }
 
 var resourceInfo = map[string]struct{ rtype, label string }{
@@ -248,14 +271,6 @@ func monitoredResource(parent string) *mrpb.MonitoredResource {
 		Type:   info.rtype,
 		Labels: map[string]string{info.label: parts[1]},
 	}
-}
-
-func regionFromZone(zone string) string {
-	cutoff := strings.LastIndex(zone, "-")
-	if cutoff > 0 {
-		return zone[:cutoff]
-	}
-	return zone
 }
 
 func globalResource(projectID string) *mrpb.MonitoredResource {

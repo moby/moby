@@ -18,10 +18,10 @@
 
 package googlecloud
 
-import "io/ioutil"
+import "os"
 
 const linuxProductNameFile = "/sys/class/dmi/id/product_name"
 
 func manufacturer() ([]byte, error) {
-	return ioutil.ReadFile(linuxProductNameFile)
+	return os.ReadFile(linuxProductNameFile)
 }

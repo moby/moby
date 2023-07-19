@@ -40,6 +40,7 @@ const cfeClusterAuthorityName = "traffic-director-c2p.xds.googleapis.com"
 //     "xdstp://traffic-director-c2p.xds.googleapis.com/envoy.config.cluster.v3.Cluster/google_cfe_",
 //     use TLS
 //   - otherwise, use ALTS
+//
 // - else, do TLS
 //
 // On the server, ServerHandshake always does TLS.

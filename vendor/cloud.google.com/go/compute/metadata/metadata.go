@@ -70,6 +70,7 @@ func newDefaultHTTPClient() *http.Client {
 				Timeout:   2 * time.Second,
 				KeepAlive: 30 * time.Second,
 			}).Dial,
+			IdleConnTimeout: 60 * time.Second,
 		},
 		Timeout: 5 * time.Second,
 	}
@@ -146,7 +147,7 @@ func testOnGCE() bool {
 
 	go func() {
 		resolver := &net.Resolver{}
-		addrs, err := resolver.LookupHost(ctx, "metadata.google.internal")
+		addrs, err := resolver.LookupHost(ctx, "metadata.google.internal.")
 		if err != nil || len(addrs) == 0 {
 			resc <- false
 			return

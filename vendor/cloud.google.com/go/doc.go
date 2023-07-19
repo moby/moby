@@ -22,6 +22,24 @@ of sub-packages.
 All clients in sub-packages are configurable via client options. These options are
 described here: https://godoc.org/google.golang.org/api/option.
 
+## Endpoint Override
+
+Endpoint configuration is used to specify the URL to which requests are
+sent. It is used for services that support or require regional endpoints, as well
+as for other use cases such as [testing against fake
+servers](https://github.com/googleapis/google-cloud-go/blob/main/testing.md#testing-grpc-services-using-fakes).
+
+For example, the Vertex AI service recommends that you configure the endpoint to the
+location with the features you want that is closest to your physical location or the
+location of your users. There is no global endpoint for Vertex AI. See
+[Vertex AI - Locations](https://cloud.google.com/vertex-ai/docs/general/locations)
+for more details. The following example demonstrates configuring a Vertex AI client
+with a regional endpoint:
+
+	ctx := context.Background()
+	endpoint := "us-central1-aiplatform.googleapis.com:443"
+	client, err := aiplatform.NewDatasetClient(ctx, option.WithEndpoint(endpoint))
+
 # Authentication and Authorization
 
 All the clients in sub-packages support authentication via Google Application Default
@@ -164,15 +182,16 @@ For HTTP logging, set the GODEBUG environment variable to "http2debug=1" or "htt
 # Inspecting errors
 
 Most of the errors returned by the generated clients are wrapped in an
-`apierror.APIError` (https://pkg.go.dev/github.com/googleapis/gax-go/v2/apierror)
-and can be further unwrapped into a `grpc.Status` or `googleapi.Error` depending
+[github.com/googleapis/gax-go/v2/apierror.APIError] and can be further unwrapped
+into a [google.golang.org/grpc/status.Status] or
+[google.golang.org/api/googleapi.Error] depending
 on the transport used to make the call (gRPC or REST). Converting your errors to
 these types can be a useful way to get more information about what went wrong
 while debugging.
 
-`apierror.APIError` gives access to specific details in the
-error. The transport-specific errors can still be unwrapped using the
-`apierror.APIError`.
+[github.com/googleapis/gax-go/v2/apierror.APIError] gives access to specific
+details in the error. The transport-specific errors can still be unwrapped using
+the [github.com/googleapis/gax-go/v2/apierror.APIError].
 
 	if err != nil {
 	   var ae *apierror.APIError
@@ -182,8 +201,8 @@ error. The transport-specific errors can still be unwrapped using the
 	   }
 	}
 
-If the gRPC transport was used, the `grpc.Status` can still be parsed using the
-`status.FromError` function.
+If the gRPC transport was used, the [google.golang.org/grpc/status.Status] can
+still be parsed using the [google.golang.org/grpc/status.FromError] function.
 
 	if err != nil {
 	   if s, ok := status.FromError(err); ok {
@@ -194,8 +213,9 @@ If the gRPC transport was used, the `grpc.Status` can still be parsed using the
 	   }
 	}
 
-If the REST transport was used, the `googleapi.Error` can be parsed in a similar
-way.
+If the REST transport was used, the [google.golang.org/api/googleapi.Error] can
+be parsed in a similar way, allowing access to details such as the HTTP response
+code.
 
 	if err != nil {
 	   var gerr *googleapi.Error
