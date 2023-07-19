@@ -16,6 +16,10 @@ type ExecResult struct {
 	errBuffer *bytes.Buffer
 }
 
+func (res *ExecResult) RawStdout() *bytes.Buffer {
+	return res.outBuffer
+}
+
 // Stdout returns stdout output of a command run by Exec()
 func (res *ExecResult) Stdout() string {
 	return res.outBuffer.String()

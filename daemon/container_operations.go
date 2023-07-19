@@ -1067,12 +1067,19 @@ func errRemovalContainer(containerID string) error {
 }
 
 // ConnectToNetwork connects a container to a network
-func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, autoPriority bool) error {
 	if endpointConfig == nil {
 		endpointConfig = &networktypes.EndpointSettings{}
 	}
 	container.Lock()
 	defer container.Unlock()
+
+	var priority int
+	if len(container.NetworkSettings.Networks) > 0 {
+		sorted := network.SortNetworks(container.NetworkSettings.Networks)
+		priority = container.NetworkSettings.Networks[sorted[len(sorted)-1]].Priority - 1
+	}
+	endpointConfig.Priority = priority
 
 	if !container.Running {
 		if container.RemovalInProgress || container.Dead {
@@ -1090,7 +1097,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 			}
 		}
 	} else {
-		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, true); err != nil {
+		if err := daemon.connectToNetwork(&daemon.config().Config, container, idOrName, endpointConfig, autoPriority); err != nil {
 			return err
 		}
 	}

@@ -1,16 +1,21 @@
 package network // import "github.com/docker/docker/integration/network"
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
+	ctypes "github.com/docker/docker/api/types/container"
 	ntypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
@@ -247,5 +252,70 @@ func TestDefaultNetworkOpts(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.Contains(result.Combined(), fmt.Sprintf(" mtu %d ", tc.mtu)), "Network MTU should have been set to %d", tc.mtu)
 		})
+	}
+}
+
+func TestEndpointOrderIsStable(t *testing.T) {
+	d := daemon.New(t)
+	d.StartWithBusybox(t)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+	ctx := context.Background()
+
+	network.CreateNoError(ctx, t, c, "testnet1")
+	defer c.NetworkRemove(ctx, "testnet1")
+
+	priority := 17
+	cid := container.Run(ctx, t, c,
+		container.WithNetworkMode("testnet1"),
+		container.WithNetworkPriority("testnet1", priority))
+	priority--
+	defer c.ContainerRemove(ctx, cid, types.ContainerRemoveOptions{Force: true})
+
+	// More calls to NetworkConnect means more map resizing, so more chance to trigger this bug.
+	for i := 2; i < 18; i++ {
+		nw := "testnet" + strconv.Itoa(i)
+		network.CreateNoError(ctx, t, c, nw)
+		defer c.NetworkRemove(ctx, nw)
+
+		err := c.NetworkConnect(ctx, nw, cid, &ntypes.EndpointSettings{
+			Priority: priority,
+		})
+		priority--
+		assert.NilError(t, err)
+	}
+
+	err := c.ContainerRestart(ctx, cid, ctypes.StopOptions{Signal: "9"})
+	assert.NilError(t, err)
+
+	attachCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	// Unlike `ip link show`, this command doesn't output the @ifX bits in the interface name (see below).
+	res, err := container.Exec(attachCtx, c, cid, []string{"ip", "-o", "addr", "show"})
+	assert.NilError(t, err)
+
+	lastIfaceID := math.MinInt
+	scanner := bufio.NewScanner(res.RawStdout())
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		// The expected output is:
+		// 1: lo    inet 127.0.0.1/8 scope host lo\       valid_lft forever preferred_lft forever
+		// 160: eth3    inet 172.22.0.2/16 brd 172.22.255.255 scope global eth3\       valid_lft forever preferred_lft forever
+		if len(fields) < 11 {
+			continue
+		}
+
+		ifaceName := fields[1]
+		if len(ifaceName) < 3 || ifaceName[:3] != "eth" {
+			continue
+		}
+
+		ifaceID, err := strconv.Atoi(ifaceName[3:])
+		assert.NilError(t, err)
+		if ifaceID < lastIfaceID {
+			t.Fatalf("Interface %d appeared before interface %d.", lastIfaceID, ifaceID)
+		}
+		lastIfaceID = ifaceID
 	}
 }

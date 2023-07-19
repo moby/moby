@@ -306,7 +306,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {
-			if err := c.backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
+			if err := c.backend.ConnectContainerToNetwork(cr.ID, n, ep, false); err != nil {
 				return err
 			}
 		}
