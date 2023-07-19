@@ -194,10 +194,6 @@ func UnmarshalToByTypeURL(typeURL string, value []byte, out interface{}) error {
 }
 
 func unmarshal(typeURL string, value []byte, v interface{}) (interface{}, error) {
-	if value == nil {
-		return nil, nil
-	}
-
 	t, err := getTypeByUrl(typeURL)
 	if err != nil {
 		return nil, err

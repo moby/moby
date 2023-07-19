@@ -29,7 +29,7 @@ require (
 	github.com/containerd/containerd v1.6.21
 	github.com/containerd/continuity v0.4.1
 	github.com/containerd/fifo v1.1.0
-	github.com/containerd/typeurl/v2 v2.1.0
+	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/cpuguy83/tar2go v0.3.1
 	github.com/creack/pty v1.1.18
