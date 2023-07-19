@@ -83,6 +83,7 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string, options ima
 		ID:           string(desc.Target.Digest),
 		OS:           ociimage.OS,
 		Architecture: ociimage.Architecture,
+		Variant:      ociimage.Variant,
 		Created:      ociimage.Created,
 		Config: &containertypes.Config{
 			Entrypoint:   ociimage.Config.Entrypoint,
