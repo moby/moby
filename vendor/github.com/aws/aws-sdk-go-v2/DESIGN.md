@@ -12,4 +12,4 @@ Past Discussions
 ---
 The issues listed here are for documentation purposes, and is used to capture issues and their associated discussions.
 
-[Code of Conduct]: https://github.com/aws/aws-sdk-go-v2/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/aws/aws-sdk-go-v2/blob/main/CODE_OF_CONDUCT.md

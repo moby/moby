@@ -83,7 +83,7 @@ github.com/armon/circbuf
 # github.com/armon/go-metrics v0.4.1
 ## explicit; go 1.12
 github.com/armon/go-metrics
-# github.com/aws/aws-sdk-go-v2 v1.16.13
+# github.com/aws/aws-sdk-go-v2 v1.17.6
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2
 github.com/aws/aws-sdk-go-v2/aws

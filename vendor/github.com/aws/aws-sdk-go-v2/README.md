@@ -1,13 +1,12 @@
 # AWS SDK for Go v2
 
-[![Go Build status](https://github.com/aws/aws-sdk-go-v2/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/aws/aws-sdk-go-v2/actions/workflows/go.yml)[![Codegen Build status](https://github.com/aws/aws-sdk-go-v2/actions/workflows/codegen.yml/badge.svg?branch=main)](https://github.com/aws/aws-sdk-go-v2/actions/workflows/codegen.yml) [![SDK Documentation](https://img.shields.io/badge/SDK-Documentation-blue)](https://aws.github.io/aws-sdk-go-v2/docs/) [![Migration Guide](https://img.shields.io/badge/Migration-Guide-blue)](https://aws.github.io/aws-sdk-go-v2/docs/migrating/) [![API Reference](https://img.shields.io/badge/api-reference-blue.svg)](https://pkg.go.dev/mod/github.com/aws/aws-sdk-go-v2) [![Apache V2 License](https://img.shields.io/badge/license-Apache%20V2-blue.svg)](https://github.com/aws/aws-sdk-go/blob/master/LICENSE.txt)
-
+[![Go Build status](https://github.com/aws/aws-sdk-go-v2/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/aws/aws-sdk-go-v2/actions/workflows/go.yml)[![Codegen Build status](https://github.com/aws/aws-sdk-go-v2/actions/workflows/codegen.yml/badge.svg?branch=main)](https://github.com/aws/aws-sdk-go-v2/actions/workflows/codegen.yml) [![SDK Documentation](https://img.shields.io/badge/SDK-Documentation-blue)](https://aws.github.io/aws-sdk-go-v2/docs/) [![Migration Guide](https://img.shields.io/badge/Migration-Guide-blue)](https://aws.github.io/aws-sdk-go-v2/docs/migrating/) [![API Reference](https://img.shields.io/badge/api-reference-blue.svg)](https://pkg.go.dev/mod/github.com/aws/aws-sdk-go-v2) [![Apache V2 License](https://img.shields.io/badge/license-Apache%20V2-blue.svg)](https://github.com/aws/aws-sdk-go-v2/blob/main/LICENSE.txt)
 
 `aws-sdk-go-v2` is the v2 AWS SDK for the Go programming language.
 
 The v2 SDK requires a minimum version of `Go 1.15`.
 
-Checkout out the [release notes](https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md) for information about the latest bug
+Check out the [release notes](https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md) for information about the latest bug
 fixes, updates, and features added to the SDK.
 
 Jump To:
@@ -87,7 +86,7 @@ func main() {
 ###### Compile and Execute
 ```sh
 $ go run .
-Table:
+Tables:
 tableOne
 tableTwo
 ```
@@ -97,9 +96,9 @@ tableTwo
 Please use these community resources for getting help. We use the GitHub issues
 for tracking bugs and feature requests.
 
-* Ask a question on [StackOverflow](http://stackoverflow.com/) and tag it with the [`aws-sdk-go`](http://stackoverflow.com/questions/tagged/aws-sdk-go) tag.
-* Open a support ticket with [AWS Support](http://docs.aws.amazon.com/awssupport/latest/user/getting-started.html).
+* Ask us a [question](https://github.com/aws/aws-sdk-go-v2/discussions/new?category=q-a) or open a [discussion](https://github.com/aws/aws-sdk-go-v2/discussions/new?category=general).
 * If you think you may have found a bug, please open an [issue](https://github.com/aws/aws-sdk-go-v2/issues/new/choose).
+* Open a support ticket with [AWS Support](http://docs.aws.amazon.com/awssupport/latest/user/getting-started.html).
 
 This SDK implements AWS service APIs. For general issues regarding the AWS services and their limitations, you may also take a look at the [Amazon Web Services Discussion Forums](https://forums.aws.amazon.com/).
 
@@ -107,7 +106,7 @@ This SDK implements AWS service APIs. For general issues regarding the AWS servi
 
 If you encounter a bug with the AWS SDK for Go we would like to hear about it.
 Search the [existing issues][Issues] and see
-if others are also experiencing the issue before opening a new issue. Please
+if others are also experiencing the same issue before opening a new issue. Please
 include the version of AWS SDK for Go, Go language, and OS you’re using. Please
 also include reproduction case when appropriate.
 
@@ -118,7 +117,7 @@ Keeping the list of open issues lean will help us respond in a timely manner.
 
 ## Feedback and contributing
 
-The v2 SDK will use GitHub [Issues] to track feature requests and issues with the SDK. In addition, we'll use GitHub [Projects] to track large tasks spanning multiple pull requests, such as refactoring the SDK's internal request lifecycle. You can provide feedback to us in several ways. 
+The v2 SDK will use GitHub [Issues] to track feature requests and issues with the SDK. In addition, we'll use GitHub [Projects] to track large tasks spanning multiple pull requests, such as refactoring the SDK's internal request lifecycle. You can provide feedback to us in several ways.
 
 **GitHub issues**. To provide feedback or report bugs, file GitHub [Issues] on the SDK. This is the preferred mechanism to give feedback so that other users can engage in the conversation, +1 issues, etc. Issues you open will be evaluated, and included in our roadmap for the GA launch.
 
@@ -139,8 +138,8 @@ API operation require parameters.
 
 [Service Documentation](https://aws.amazon.com/documentation/) - Use this
 documentation to learn how to interface with AWS services. These guides are
-great for getting started with a service, or when looking for more 
-information about a service. While this document is not required for coding, 
+great for getting started with a service, or when looking for more
+information about a service. While this document is not required for coding,
 services may supply helpful samples to look out for.
 
 [Forum](https://forums.aws.amazon.com/forum.jspa?forumID=293) - Ask questions, get help, and give feedback
@@ -151,7 +150,7 @@ services may supply helpful samples to look out for.
 [Dep]: https://github.com/golang/dep
 [Issues]: https://github.com/aws/aws-sdk-go-v2/issues
 [Projects]: https://github.com/aws/aws-sdk-go-v2/projects
-[CHANGELOG]: https://github.com/aws/aws-sdk-go-v2/blob/master/CHANGELOG.md
+[CHANGELOG]: https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md
 [Amazon DynamoDB]: https://aws.amazon.com/dynamodb/
-[design]: https://github.com/aws/aws-sdk-go-v2/blob/master/DESIGN.md  
+[design]: https://github.com/aws/aws-sdk-go-v2/blob/main/DESIGN.md
 [license]: http://aws.amazon.com/apache2.0/

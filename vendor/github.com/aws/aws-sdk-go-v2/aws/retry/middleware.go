@@ -11,7 +11,6 @@ import (
 	awsmiddle "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/internal/sdk"
 	"github.com/aws/smithy-go/logging"
-	"github.com/aws/smithy-go/middleware"
 	smithymiddle "github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/transport/http"
 )
@@ -292,7 +291,7 @@ type retryMetadataKey struct{}
 // Scoped to stack values. Use github.com/aws/smithy-go/middleware#ClearStackValues
 // to clear all stack values.
 func getRetryMetadata(ctx context.Context) (metadata retryMetadata, ok bool) {
-	metadata, ok = middleware.GetStackValue(ctx, retryMetadataKey{}).(retryMetadata)
+	metadata, ok = smithymiddle.GetStackValue(ctx, retryMetadataKey{}).(retryMetadata)
 	return metadata, ok
 }
 
@@ -301,7 +300,7 @@ func getRetryMetadata(ctx context.Context) (metadata retryMetadata, ok bool) {
 // Scoped to stack values. Use github.com/aws/smithy-go/middleware#ClearStackValues
 // to clear all stack values.
 func setRetryMetadata(ctx context.Context, metadata retryMetadata) context.Context {
-	return middleware.WithStackValue(ctx, retryMetadataKey{}, metadata)
+	return smithymiddle.WithStackValue(ctx, retryMetadataKey{}, metadata)
 }
 
 // AddRetryMiddlewaresOptions is the set of options that can be passed to

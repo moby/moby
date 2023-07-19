@@ -21,26 +21,18 @@ func GetErrorResponseComponents(r io.Reader, noErrorWrapping bool) (ErrorCompone
 		if err := xml.NewDecoder(r).Decode(&errResponse); err != nil && err != io.EOF {
 			return ErrorComponents{}, fmt.Errorf("error while deserializing xml error response: %w", err)
 		}
-		return ErrorComponents{
-			Code:      errResponse.Code,
-			Message:   errResponse.Message,
-			RequestID: errResponse.RequestID,
-		}, nil
+		return ErrorComponents(errResponse), nil
 	}
 
 	var errResponse wrappedErrorResponse
 	if err := xml.NewDecoder(r).Decode(&errResponse); err != nil && err != io.EOF {
 		return ErrorComponents{}, fmt.Errorf("error while deserializing xml error response: %w", err)
 	}
-	return ErrorComponents{
-		Code:      errResponse.Code,
-		Message:   errResponse.Message,
-		RequestID: errResponse.RequestID,
-	}, nil
+	return ErrorComponents(errResponse), nil
 }
 
 // noWrappedErrorResponse represents the error response body with
-// no internal <Error></Error wrapping
+// no internal Error wrapping
 type noWrappedErrorResponse struct {
 	Code      string `xml:"Code"`
 	Message   string `xml:"Message"`
@@ -48,7 +40,7 @@ type noWrappedErrorResponse struct {
 }
 
 // wrappedErrorResponse represents the error response body
-// wrapped within <Error>...</Error>
+// wrapped within Error
 type wrappedErrorResponse struct {
 	Code      string `xml:"Error>Code"`
 	Message   string `xml:"Error>Message"`

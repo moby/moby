@@ -6,7 +6,7 @@ modules-download-mode = "readonly"
 allow-parallel-runners = true
 skip-dirs = ["internal/repotools"]
 skip-dirs-use-default = true
-
+skip-files = ["service/transcribestreaming/eventstream_test.go"]
 [output]
 format = "github-actions"
 

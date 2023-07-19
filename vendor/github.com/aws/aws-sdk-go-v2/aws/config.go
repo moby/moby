@@ -26,9 +26,9 @@ type Config struct {
 	// information on AWS regions.
 	Region string
 
-	// The credentials object to use when signing requests. Defaults to a
-	// chain of credential providers to search for credentials in environment
-	// variables, shared credential file, and EC2 Instance Roles.
+	// The credentials object to use when signing requests.
+	// Use the LoadDefaultConfig to load configuration from all the SDK's supported
+	// sources, and resolve credentials using the SDK's default credential chain.
 	Credentials CredentialsProvider
 
 	// The Bearer Authentication token provider to use for authenticating API
