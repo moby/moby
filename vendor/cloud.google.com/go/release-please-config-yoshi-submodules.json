@@ -330,6 +330,9 @@
         "vmmigration": {
             "component": "vmmigration"
         },
+        "vmwareengine": {
+            "component": "vmwareengine"
+        },
         "vpcaccess": {
             "component": "vpcaccess"
         },

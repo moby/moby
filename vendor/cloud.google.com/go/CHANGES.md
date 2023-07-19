@@ -1,5 +1,39 @@
 # Changes
 
+## [0.110.0](https://github.com/googleapis/google-cloud-go/compare/v0.109.0...v0.110.0) (2023-02-15)
+
+
+### Features
+
+* **internal/postprocessor:** Detect and initialize new modules ([#7288](https://github.com/googleapis/google-cloud-go/issues/7288)) ([59ce02c](https://github.com/googleapis/google-cloud-go/commit/59ce02c13f265741a8f1f0f7ad5109bf83e3df82))
+* **internal/postprocessor:** Only regen snippets for changed modules ([#7300](https://github.com/googleapis/google-cloud-go/issues/7300)) ([220f8a5](https://github.com/googleapis/google-cloud-go/commit/220f8a5ad2fd64b75c5a1af531b1ab4597cf17d7))
+
+
+### Bug Fixes
+
+* **internal/postprocessor:** Add scopes without OwlBot api-name feature ([#7404](https://github.com/googleapis/google-cloud-go/issues/7404)) ([f7fe4f6](https://github.com/googleapis/google-cloud-go/commit/f7fe4f68ebf2ca28efd282f3419329dd2c09d245))
+* **internal/postprocessor:** Include module and package in scope ([#7294](https://github.com/googleapis/google-cloud-go/issues/7294)) ([d2c5c84](https://github.com/googleapis/google-cloud-go/commit/d2c5c8449f6939301f0fd506282e8fc73fc84f96))
+
+## [0.109.0](https://github.com/googleapis/google-cloud-go/compare/v0.108.0...v0.109.0) (2023-01-18)
+
+
+### Features
+
+* **internal/postprocessor:** Make OwlBot postprocessor ([#7202](https://github.com/googleapis/google-cloud-go/issues/7202)) ([7a1022e](https://github.com/googleapis/google-cloud-go/commit/7a1022e215261d679c8496cdd35a9cad1f13e527))
+
+## [0.108.0](https://github.com/googleapis/google-cloud-go/compare/v0.107.0...v0.108.0) (2023-01-05)
+
+
+### Features
+
+* **all:** Enable REGAPIC and REST numeric enums ([#6999](https://github.com/googleapis/google-cloud-go/issues/6999)) ([28f3572](https://github.com/googleapis/google-cloud-go/commit/28f3572addb0f563a2a42a76977b4e083191613f))
+* **debugger:** Add REST client ([06a54a1](https://github.com/googleapis/google-cloud-go/commit/06a54a16a5866cce966547c51e203b9e09a25bc0))
+
+
+### Bug Fixes
+
+* **internal/gapicgen:** Disable rest for non-rest APIs ([#7157](https://github.com/googleapis/google-cloud-go/issues/7157)) ([ab332ce](https://github.com/googleapis/google-cloud-go/commit/ab332ced06f6c07909444e4528c02a8b6a0a70a6))
+
 ## [0.107.0](https://github.com/googleapis/google-cloud-go/compare/v0.106.0...v0.107.0) (2022-11-15)
 
 
