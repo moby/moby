@@ -26,6 +26,9 @@ const (
 	dummyHost = "plugin.moby.localhost"
 )
 
+// VersionMimetype is the Content-Type the engine sends to plugins.
+const VersionMimetype = transport.VersionMimetype
+
 func newTransport(addr string, tlsConfig *tlsconfig.Options) (*transport.HTTPTransport, error) {
 	tr := &http.Transport{}
 
