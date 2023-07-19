@@ -3,7 +3,7 @@
 # Check that no one is trying to commit a go.mod.
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOTDIR="$(git -C "$SCRIPTDIR" rev-parse --show-toplevel)"
+ROOTDIR="$(cd "${SCRIPTDIR}/../.." && pwd)"
 
 if test -e "${ROOTDIR}/go.mod"; then
 	{
