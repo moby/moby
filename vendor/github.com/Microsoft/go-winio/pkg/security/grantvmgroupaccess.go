@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package security
@@ -44,6 +45,7 @@ const (
 	desiredAccessReadControl desiredAccess = 0x20000
 	desiredAccessWriteDac    desiredAccess = 0x40000
 
+	//cspell:disable-next-line
 	gvmga = "GrantVmGroupAccess:"
 
 	inheritModeNoInheritance                  inheritMode = 0x0
@@ -56,9 +58,9 @@ const (
 	shareModeRead  shareMode = 0x1
 	shareModeWrite shareMode = 0x2
 
-	sidVmGroup = "S-1-5-83-0"
+	sidVMGroup = "S-1-5-83-0"
 
-	trusteeFormIsSid trusteeForm = 0
+	trusteeFormIsSID trusteeForm = 0
 
 	trusteeTypeWellKnownGroup trusteeType = 5
 )
@@ -67,6 +69,8 @@ const (
 // include Grant ACE entries for the VM Group SID. This is a golang re-
 // implementation of the same function in vmcompute, just not exported in
 // RS5. Which kind of sucks. Sucks a lot :/
+//
+//revive:disable-next-line:var-naming VM, not Vm
 func GrantVmGroupAccess(name string) error {
 	// Stat (to determine if `name` is a directory).
 	s, err := os.Stat(name)
@@ -79,7 +83,7 @@ func GrantVmGroupAccess(name string) error {
 	if err != nil {
 		return err // Already wrapped
 	}
-	defer syscall.CloseHandle(fd)
+	defer syscall.CloseHandle(fd) //nolint:errcheck
 
 	// Get the current DACL and Security Descriptor. Must defer LocalFree on success.
 	ot := objectTypeFileObject
@@ -89,7 +93,7 @@ func GrantVmGroupAccess(name string) error {
 	if err := getSecurityInfo(fd, uint32(ot), uint32(si), nil, nil, &origDACL, nil, &sd); err != nil {
 		return fmt.Errorf("%s GetSecurityInfo %s: %w", gvmga, name, err)
 	}
-	defer syscall.LocalFree((syscall.Handle)(unsafe.Pointer(sd)))
+	defer syscall.LocalFree((syscall.Handle)(unsafe.Pointer(sd))) //nolint:errcheck
 
 	// Generate a new DACL which is the current DACL with the required ACEs added.
 	// Must defer LocalFree on success.
@@ -97,7 +101,7 @@ func GrantVmGroupAccess(name string) error {
 	if err != nil {
 		return err // Already wrapped
 	}
-	defer syscall.LocalFree((syscall.Handle)(unsafe.Pointer(newDACL)))
+	defer syscall.LocalFree((syscall.Handle)(unsafe.Pointer(newDACL))) //nolint:errcheck
 
 	// And finally use SetSecurityInfo to apply the updated DACL.
 	if err := setSecurityInfo(fd, uint32(ot), uint32(si), uintptr(0), uintptr(0), newDACL, uintptr(0)); err != nil {
@@ -110,16 +114,19 @@ func GrantVmGroupAccess(name string) error {
 // createFile is a helper function to call [Nt]CreateFile to get a handle to
 // the file or directory.
 func createFile(name string, isDir bool) (syscall.Handle, error) {
-	namep := syscall.StringToUTF16(name)
+	namep, err := syscall.UTF16FromString(name)
+	if err != nil {
+		return syscall.InvalidHandle, fmt.Errorf("could not convernt name to UTF-16: %w", err)
+	}
 	da := uint32(desiredAccessReadControl | desiredAccessWriteDac)
 	sm := uint32(shareModeRead | shareModeWrite)
 	fa := uint32(syscall.FILE_ATTRIBUTE_NORMAL)
 	if isDir {
-		fa = uint32(fa | syscall.FILE_FLAG_BACKUP_SEMANTICS)
+		fa |= syscall.FILE_FLAG_BACKUP_SEMANTICS
 	}
 	fd, err := syscall.CreateFile(&namep[0], da, sm, nil, syscall.OPEN_EXISTING, fa, 0)
 	if err != nil {
-		return 0, fmt.Errorf("%s syscall.CreateFile %s: %w", gvmga, name, err)
+		return syscall.InvalidHandle, fmt.Errorf("%s syscall.CreateFile %s: %w", gvmga, name, err)
 	}
 	return fd, nil
 }
@@ -128,9 +135,9 @@ func createFile(name string, isDir bool) (syscall.Handle, error) {
 // The caller is responsible for LocalFree of the returned DACL on success.
 func generateDACLWithAcesAdded(name string, isDir bool, origDACL uintptr) (uintptr, error) {
 	// Generate pointers to the SIDs based on the string SIDs
-	sid, err := syscall.StringToSid(sidVmGroup)
+	sid, err := syscall.StringToSid(sidVMGroup)
 	if err != nil {
-		return 0, fmt.Errorf("%s syscall.StringToSid %s %s: %w", gvmga, name, sidVmGroup, err)
+		return 0, fmt.Errorf("%s syscall.StringToSid %s %s: %w", gvmga, name, sidVMGroup, err)
 	}
 
 	inheritance := inheritModeNoInheritance
@@ -139,12 +146,12 @@ func generateDACLWithAcesAdded(name string, isDir bool, origDACL uintptr) (uintp
 	}
 
 	eaArray := []explicitAccess{
-		explicitAccess{
+		{
 			accessPermissions: accessMaskDesiredPermission,
 			accessMode:        accessModeGrant,
 			inheritance:       inheritance,
 			trustee: trustee{
-				trusteeForm: trusteeFormIsSid,
+				trusteeForm: trusteeFormIsSID,
 				trusteeType: trusteeTypeWellKnownGroup,
 				name:        uintptr(unsafe.Pointer(sid)),
 			},
