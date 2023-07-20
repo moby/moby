@@ -17,7 +17,7 @@ func TestFixedBufferCap(t *testing.T) {
 func TestFixedBufferLen(t *testing.T) {
 	buf := &fixedBuffer{buf: make([]byte, 0, 10)}
 
-	buf.Write([]byte("hello"))
+	_, _ = buf.Write([]byte("hello"))
 	l := buf.Len()
 	if l != 5 {
 		t.Fatalf("expected buffer length to be 5 bytes, got %d", l)
@@ -31,7 +31,7 @@ func TestFixedBufferLen(t *testing.T) {
 
 	// read 5 bytes
 	b := make([]byte, 5)
-	buf.Read(b)
+	_, _ = buf.Read(b)
 
 	l = buf.Len()
 	if l != 5 {
@@ -61,8 +61,8 @@ func TestFixedBufferLen(t *testing.T) {
 func TestFixedBufferString(t *testing.T) {
 	buf := &fixedBuffer{buf: make([]byte, 0, 10)}
 
-	buf.Write([]byte("hello"))
-	buf.Write([]byte("world"))
+	_, _ = buf.Write([]byte("hello"))
+	_, _ = buf.Write([]byte("world"))
 
 	out := buf.String()
 	if out != "helloworld" {
@@ -71,7 +71,7 @@ func TestFixedBufferString(t *testing.T) {
 
 	// read 5 bytes
 	b := make([]byte, 5)
-	buf.Read(b)
+	_, _ = buf.Read(b)
 
 	// test that fixedBuffer.String() only returns the part that hasn't been read
 	out = buf.String()
