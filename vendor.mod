@@ -6,6 +6,9 @@ module github.com/docker/docker
 
 go 1.18
 
+// FIXME(thaJeztah): vendoring from https://github.com/moby/buildkit/pull/4042
+replace github.com/moby/buildkit => github.com/thaJeztah/buildkit v0.0.0-20230720122947-d3f0bf720238
+
 require (
 	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/logging v1.7.0
@@ -162,8 +165,6 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/onsi/ginkgo/v2 v2.1.4 // indirect
-	github.com/onsi/gomega v1.20.1 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect
 	github.com/package-url/packageurl-go v0.1.1-0.20220428063043-89078438f170 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect

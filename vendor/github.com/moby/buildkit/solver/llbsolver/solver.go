@@ -416,8 +416,11 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	defer j.Discard()
 
-	usage := s.sysSampler.Record()
-	defer usage.Close(false)
+	var usage *resources.Sub[*resourcetypes.SysSample]
+	if s.sysSampler != nil {
+		usage = s.sysSampler.Record()
+		defer usage.Close(false)
+	}
 
 	var res *frontend.Result
 	var resProv *Result
