@@ -24,6 +24,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Subset of ocispec.Image that only contains Labels
+type configLabels struct {
+	Config struct {
+		Labels map[string]string `json:"Labels,omitempty"`
+	} `json:"config,omitempty"`
+}
+
 var acceptedImageFilterTags = map[string]bool{
 	"dangling":  true,
 	"label":     true,
@@ -45,7 +52,6 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 // Images returns a filtered list of images.
 //
 // TODO(thaJeztah): implement opts.ContainerCount (used for docker system df); see https://github.com/moby/moby/issues/43853
-// TODO(thaJeztah): add labels to results; see https://github.com/moby/moby/issues/43852
 // TODO(thaJeztah): verify behavior of `RepoDigests` and `RepoTags` for images without (untagged) or multiple tags; see https://github.com/moby/moby/issues/43861
 // TODO(thaJeztah): verify "Size" vs "VirtualSize" in images; see https://github.com/moby/moby/issues/43862
 func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
@@ -236,6 +242,15 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		}
 	}
 
+	cfgDesc, err := image.Image.Config(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	var cfg configLabels
+	if err := readConfig(ctx, contentStore, cfgDesc, &cfg); err != nil {
+		return nil, nil, err
+	}
+
 	summary := &types.ImageSummary{
 		ParentID:    "",
 		ID:          target.String(),
@@ -243,6 +258,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		RepoDigests: repoDigests,
 		RepoTags:    repoTags,
 		Size:        totalSize,
+		Labels:      cfg.Config.Labels,
 		// -1 indicates that the value has not been set (avoids ambiguity
 		// between 0 (default) and "not set". We cannot use a pointer (nil)
 		// for this, as the JSON representation uses "omitempty", which would
@@ -417,12 +433,7 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 			if !images.IsConfigType(desc.MediaType) {
 				return nil, nil
 			}
-			// Subset of ocispec.Image that only contains Labels
-			var cfg struct {
-				Config struct {
-					Labels map[string]string `json:"Labels,omitempty"`
-				} `json:"Config,omitempty"`
-			}
+			var cfg configLabels
 			if err := readConfig(ctx, store, desc, &cfg); err != nil {
 				return nil, err
 			}
