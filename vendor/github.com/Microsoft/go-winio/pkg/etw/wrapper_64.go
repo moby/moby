@@ -1,3 +1,4 @@
+//go:build windows && (amd64 || arm64)
 // +build windows
 // +build amd64 arm64
 
@@ -19,7 +20,6 @@ func eventWriteTransfer(
 	relatedActivityID *windows.GUID,
 	dataDescriptorCount uint32,
 	dataDescriptors *eventDataDescriptor) (win32err error) {
-
 	return eventWriteTransfer_64(
 		providerHandle,
 		descriptor,
@@ -34,7 +34,6 @@ func eventSetInformation(
 	class eventInfoClass,
 	information uintptr,
 	length uint32) (win32err error) {
-
 	return eventSetInformation_64(
 		providerHandle,
 		class,
@@ -46,7 +45,21 @@ func eventSetInformation(
 // for provider notifications. Because Go has trouble with callback arguments of
 // different size, it has only pointer-sized arguments, which are then cast to
 // the appropriate types when calling providerCallback.
-func providerCallbackAdapter(sourceID *guid.GUID, state uintptr, level uintptr, matchAnyKeyword uintptr, matchAllKeyword uintptr, filterData uintptr, i uintptr) uintptr {
-	providerCallback(*sourceID, ProviderState(state), Level(level), uint64(matchAnyKeyword), uint64(matchAllKeyword), filterData, i)
+func providerCallbackAdapter(
+	sourceID *guid.GUID,
+	state uintptr,
+	level uintptr,
+	matchAnyKeyword uintptr,
+	matchAllKeyword uintptr,
+	filterData uintptr,
+	i uintptr,
+) uintptr {
+	providerCallback(*sourceID,
+		ProviderState(state),
+		Level(level),
+		uint64(matchAnyKeyword),
+		uint64(matchAllKeyword),
+		filterData,
+		i)
 	return 0
 }

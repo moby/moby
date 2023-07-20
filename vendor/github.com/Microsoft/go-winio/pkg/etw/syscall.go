@@ -1,13 +1,8 @@
-// Package etw provides support for TraceLogging-based ETW (Event Tracing
-// for Windows). TraceLogging is a format of ETW events that are self-describing
-// (the event contains information on its own schema). This allows them to be
-// decoded without needing a separate manifest with event information. The
-// implementation here is based on the information found in
-// TraceLoggingProvider.h in the Windows SDK, which implements TraceLogging as a
-// set of C macros.
+//go:build windows
+
 package etw
 
-//go:generate go run mksyscall_windows.go -output zsyscall_windows.go etw.go
+//go:generate go run github.com/Microsoft/go-winio/tools/mkwinsyscall -output zsyscall_windows.go syscall.go
 
 //sys eventRegister(providerId *windows.GUID, callback uintptr, callbackContext uintptr, providerHandle *providerHandle) (win32err error) = advapi32.EventRegister
 
