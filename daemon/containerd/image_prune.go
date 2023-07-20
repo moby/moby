@@ -53,7 +53,7 @@ func (i *ImageService) ImagesPrune(ctx context.Context, fltrs filters.Args) (*ty
 		fltrs.Del("dangling", v)
 	}
 
-	_, filterFunc, err := i.setupFilters(ctx, fltrs)
+	filterFunc, err := i.setupFilters(ctx, fltrs)
 	if err != nil {
 		return nil, err
 	}
