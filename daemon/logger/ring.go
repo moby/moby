@@ -8,6 +8,7 @@ import (
 
 const (
 	defaultRingMaxSize = 1e6 // 1MB
+	defaultQueueSize   = 1000
 )
 
 // RingLogger is a ring buffer that implements the Logger interface.
@@ -36,8 +37,11 @@ func (r *ringWithReader) ReadLogs(cfg ReadConfig) *LogWatcher {
 }
 
 func newRingLogger(driver Logger, logInfo Info, maxSize int64) *RingLogger {
+	if maxSize < 0 {
+		maxSize = defaultRingMaxSize
+	}
 	l := &RingLogger{
-		buffer:  newRing(maxSize),
+		buffer:  newRing(maxSize, defaultQueueSize),
 		l:       driver,
 		logInfo: logInfo,
 	}
@@ -49,9 +53,6 @@ func newRingLogger(driver Logger, logInfo Info, maxSize int64) *RingLogger {
 // NewRingLogger creates a new Logger that is implemented as a RingBuffer wrapping
 // the passed in logger.
 func NewRingLogger(driver Logger, logInfo Info, maxSize int64) Logger {
-	if maxSize < 0 {
-		maxSize = defaultRingMaxSize
-	}
 	l := newRingLogger(driver, logInfo, maxSize)
 	if _, ok := driver.(LogReader); ok {
 		return &ringWithReader{l}
@@ -141,19 +142,39 @@ type messageRing struct {
 	maxBytes  int64 // max buffer size size
 	queue     []*Message
 	closed    bool
+
+	// head: index of the next message to dequeue from
+	// tail: index of the next message to enqueue to
+	// count: number of messages in the queue
+	head, tail, count int
+
+	// tracks the number of times the queue has been grown
+	// Used to determine if we can shrink the queue back down on dequeue
+	growCount int
+
+	dropped int64
 }
 
-func newRing(maxBytes int64) *messageRing {
-	queueSize := 1000
-	if maxBytes == 0 || maxBytes == 1 {
-		// With 0 or 1 max byte size, the maximum size of the queue would only ever be 1
-		// message long.
-		queueSize = 1
+func newRing(maxBytes int64, queueSize int) *messageRing {
+	if queueSize == 0 {
+		queueSize = defaultQueueSize
 	}
 
-	r := &messageRing{queue: make([]*Message, 0, queueSize), maxBytes: maxBytes}
+	r := &messageRing{queue: make([]*Message, queueSize), maxBytes: maxBytes}
 	r.wait = sync.NewCond(&r.mu)
 	return r
+}
+
+func (r *messageRing) isEmpty() bool {
+	return r.head == r.tail && !r.isFull()
+}
+
+func (r *messageRing) isFull() bool {
+	return r.count == cap(r.queue)
+}
+
+func (r *messageRing) next(i int) int {
+	return (i + 1) % cap(r.queue)
 }
 
 // Enqueue adds a message to the buffer queue
@@ -167,14 +188,31 @@ func (r *messageRing) Enqueue(m *Message) error {
 		r.mu.Unlock()
 		return errClosed
 	}
-	if mSize+r.sizeBytes > r.maxBytes && len(r.queue) > 0 {
-		r.wait.Signal()
-		r.mu.Unlock()
-		return nil
+
+	// drop old messages until there is enough space for the new message
+	// This is not accounting for slots in the queue, just the size of the messages
+	for mSize+r.sizeBytes > r.maxBytes && !r.isEmpty() {
+		r.dequeue()
+		r.dropped++
 	}
 
-	r.queue = append(r.queue, m)
+	if r.isFull() {
+		// We've run out of space to store messages in the circular buffer even though we have not reached our byte limit.
+		// This means we need to resize the queue to make room for more messages.
+		//
+		r.growCount++
+		buf := make([]*Message, len(r.queue)*2)
+		r.copyTo(buf)
+		r.queue = buf
+		r.head = 0
+		r.tail = r.count
+	}
+
+	r.queue[r.tail] = m
+	r.tail = r.next(r.tail)
 	r.sizeBytes += mSize
+	r.count++
+
 	r.wait.Signal()
 	r.mu.Unlock()
 	return nil
@@ -185,7 +223,7 @@ func (r *messageRing) Enqueue(m *Message) error {
 // If the buffer is closed, it will return immediately.
 func (r *messageRing) Dequeue() (*Message, error) {
 	r.mu.Lock()
-	for len(r.queue) == 0 && !r.closed {
+	for r.isEmpty() && !r.closed {
 		r.wait.Wait()
 	}
 
@@ -194,11 +232,31 @@ func (r *messageRing) Dequeue() (*Message, error) {
 		return nil, errClosed
 	}
 
-	msg := r.queue[0]
-	r.queue = r.queue[1:]
-	r.sizeBytes -= int64(len(msg.Line))
+	msg := r.dequeue()
 	r.mu.Unlock()
 	return msg, nil
+}
+
+// callers must validate that there is at least one message in the queue
+// callers must hold the lock
+func (r *messageRing) dequeue() *Message {
+	msg := r.queue[r.head]
+	r.queue[r.head] = nil
+	r.head = r.next(r.head)
+	r.sizeBytes -= int64(len(msg.Line))
+	r.count--
+
+	if r.growCount > 0 && r.count <= cap(r.queue)/4 {
+		// We've shrunk the queue enough that we can resize it back down.
+		// This is to prevent the queue from growing too large and never shrinking back down.
+		buf := make([]*Message, cap(r.queue)/2)
+		r.copyTo(buf)
+		r.queue = buf
+		r.head = 0
+		r.tail = r.count
+		r.growCount--
+	}
+	return msg
 }
 
 var errClosed = errors.New("closed")
@@ -217,14 +275,55 @@ func (r *messageRing) Close() {
 	r.mu.Unlock()
 }
 
+func (r *messageRing) Len() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.count
+}
+
+func (r *messageRing) copyTo(buf []*Message) {
+	if r.isEmpty() {
+		return
+	}
+
+	// Here we have a circular buffer that we need to copy to the passed in slice.
+	// The assumption here is that `ls` is at least as large enough to hold all the messages in the queue.
+	// It maybe larger than the queue, but it must not be smaller.
+
+	// +---+---+---+---+---+---+---+---+---+---+
+	// | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+	// +---+---+---+---+---+---+---+---+---+---+
+	//   ^                                   ^
+	//   |                                   |
+	// head                                tail
+
+	// The above example is a simplified view of the queue. The head is at index 0 (beginning) and the tail is at index 9 (end).
+	// In reality this could happen at any point in the queue. The head could be at index 5 and the tail at index 4.
+
+	// Copy from head marker of the slice
+	// Since this is a circular buffer we need to account for the wrap around.
+	if r.head < r.tail {
+		copy(buf, r.queue[r.head:r.tail])
+	} else {
+		n := copy(buf, r.queue[r.head:])
+		copy(buf[n:], r.queue[:r.tail])
+	}
+
+}
+
 // Drain drains all messages from the queue.
 // This can be used after `Close()` to get any remaining messages that were in queue.
 func (r *messageRing) Drain() []*Message {
 	r.mu.Lock()
-	ls := make([]*Message, 0, len(r.queue))
-	ls = append(ls, r.queue...)
+	ls := make([]*Message, r.count)
+
+	r.copyTo(ls)
+
 	r.sizeBytes = 0
-	r.queue = r.queue[:0]
+	r.head = 0
+	r.tail = 0
+	r.count = 0
+
 	r.mu.Unlock()
 	return ls
 }

@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type mockLogger struct{ c chan *Message }
@@ -34,9 +37,7 @@ func TestRingLogger(t *testing.T) {
 
 	select {
 	case msg := <-mockLog.c:
-		if string(msg.Line) != "1" {
-			t.Fatalf("got unexpected msg: %q", string(msg.Line))
-		}
+		assert.Equal(t, string(msg.Line), "3")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("timeout reading log message")
 	}
@@ -46,102 +47,77 @@ func TestRingLogger(t *testing.T) {
 		t.Fatalf("expected no more messages in the queue, got: %q", string(msg.Line))
 	default:
 	}
+
+	assert.Equal(t, ring.buffer.dropped, int64(2))
 }
 
 func TestRingCap(t *testing.T) {
-	r := newRing(5)
+	r := newRing(5, 0)
 	for i := 0; i < 10; i++ {
 		// queue messages with "0" to "10"
-		// the "5" to "10" messages should be dropped since we only allow 5 bytes in the buffer
-		if err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
-			t.Fatal(err)
-		}
+		// the "0" to "4" messages should be dropped since we only allow 5 bytes in the buffer
+		err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))})
+		assert.NilError(t, err)
 	}
 
 	// should have messages in the queue for "0" to "4"
-	for i := 0; i < 5; i++ {
+	for i := 5; i < 10; i++ {
 		m, err := r.Dequeue()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(m.Line) != strconv.Itoa(i) {
-			t.Fatalf("got unexpected message for iter %d: %s", i, string(m.Line))
-		}
+		assert.NilError(t, err)
+		assert.Equal(t, string(m.Line), strconv.Itoa(i))
 	}
 
 	// queue a message that's bigger than the buffer cap
-	if err := r.Enqueue(&Message{Line: []byte("hello world")}); err != nil {
-		t.Fatal(err)
-	}
+
+	err := r.Enqueue(&Message{Line: []byte("hello world")})
+	assert.NilError(t, err)
 
 	// queue another message that's bigger than the buffer cap
-	if err := r.Enqueue(&Message{Line: []byte("eat a banana")}); err != nil {
-		t.Fatal(err)
-	}
+	err = r.Enqueue(&Message{Line: []byte("eat a banana")})
+	assert.NilError(t, err)
 
 	m, err := r.Dequeue()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(m.Line) != "hello world" {
-		t.Fatalf("got unexpected message: %s", string(m.Line))
-	}
-	if len(r.queue) != 0 {
-		t.Fatalf("expected queue to be empty, got: %d", len(r.queue))
-	}
+	assert.NilError(t, err)
+	assert.Equal(t, string(m.Line), "eat a banana")
+	assert.Equal(t, r.count, 0)
 }
 
 func TestRingClose(t *testing.T) {
-	r := newRing(1)
-	if err := r.Enqueue(&Message{Line: []byte("hello")}); err != nil {
-		t.Fatal(err)
-	}
+	r := newRing(1, 0)
+	err := r.Enqueue(&Message{Line: []byte("hello")})
+	assert.NilError(t, err)
+
 	r.Close()
-	if err := r.Enqueue(&Message{}); err != errClosed {
-		t.Fatalf("expected errClosed, got: %v", err)
-	}
-	if len(r.queue) != 1 {
-		t.Fatal("expected empty queue")
-	}
-	if m, err := r.Dequeue(); err == nil || m != nil {
-		t.Fatal("expected err on Dequeue after close")
-	}
+
+	assert.ErrorIs(t, r.Enqueue(&Message{}), errClosed)
+	assert.Equal(t, r.count, 1)
+
+	m, err := r.Dequeue()
+	assert.ErrorIs(t, err, errClosed)
+	assert.Assert(t, is.Nil(m))
 
 	ls := r.Drain()
-	if len(ls) != 1 {
-		t.Fatalf("expected one message: %v", ls)
-	}
-	if string(ls[0].Line) != "hello" {
-		t.Fatalf("got unexpected message: %s", string(ls[0].Line))
-	}
+	assert.Assert(t, is.Len(ls, 1))
+	assert.Equal(t, string(ls[0].Line), "hello")
 }
 
 func TestRingDrain(t *testing.T) {
-	r := newRing(5)
+	r := newRing(5, 0)
 	for i := 0; i < 5; i++ {
-		if err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
-			t.Fatal(err)
-		}
+		err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))})
+		assert.NilError(t, err)
 	}
 
 	ls := r.Drain()
-	if len(ls) != 5 {
-		t.Fatal("got unexpected length after drain")
-	}
+	assert.Assert(t, is.Len(ls, 5))
 
 	for i := 0; i < 5; i++ {
-		if string(ls[i].Line) != strconv.Itoa(i) {
-			t.Fatalf("got unexpected message at position %d: %s", i, string(ls[i].Line))
-		}
+		assert.Check(t, is.Equal(string(ls[i].Line), strconv.Itoa(i)))
 	}
-	if r.sizeBytes != 0 {
-		t.Fatalf("expected buffer size to be 0 after drain, got: %d", r.sizeBytes)
-	}
+	assert.Check(t, is.Equal(r.count, 0))
 
 	ls = r.Drain()
-	if len(ls) != 0 {
-		t.Fatalf("expected 0 messages on 2nd drain: %v", ls)
-	}
+	assert.Assert(t, is.Len(ls, 0))
 }
 
 type nopLogger struct{}
