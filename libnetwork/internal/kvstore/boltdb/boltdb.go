@@ -45,11 +45,6 @@ const (
 	transientTimeout = time.Duration(10) * time.Second
 )
 
-// Register registers boltdb to libkv
-func Register() {
-	store.AddStore(store.BOLTDB, New)
-}
-
 // New opens a new BoltDB connection to the specified path and bucket
 func New(endpoints []string, options *store.Config) (store.Store, error) {
 	if len(endpoints) > 1 {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/libnetwork/discoverapi"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
+	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -138,27 +139,16 @@ func Key(key ...string) string {
 
 // newClient used to connect to KV Store
 func newClient(kv string, addr string, config *store.Config) (*Store, error) {
+	if kv != string(store.BOLTDB) {
+		return nil, fmt.Errorf("unsupported KV store")
+	}
+
 	if config == nil {
 		config = &store.Config{}
 	}
 
-	var addrs []string
-
-	if kv == string(store.BOLTDB) {
-		// Parse file path
-		addrs = strings.Split(addr, ",")
-	} else {
-		// Parse URI
-		parts := strings.SplitN(addr, "/", 2)
-		addrs = strings.Split(parts[0], ",")
-
-		// Add the custom prefix to the root chain
-		if len(parts) == 2 {
-			rootChain = append([]string{parts[1]}, defaultRootChain...)
-		}
-	}
-
-	s, err := store.New(store.Backend(kv), addrs, config)
+	// Parse file path
+	s, err := boltdb.New(strings.Split(addr, ","), config)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +380,7 @@ func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
 
 	if kvObject.Skip() {
-		goto del_cache
+		goto deleteCache
 	}
 
 	if err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
@@ -400,7 +390,7 @@ func (ds *Store) DeleteObjectAtomic(kvObject KVObject) error {
 		return err
 	}
 
-del_cache:
+deleteCache:
 	// cleanup the cache only if AtomicDelete went through successfully
 	if ds.cache != nil {
 		// If persistent store is skipped, sequencing needs to

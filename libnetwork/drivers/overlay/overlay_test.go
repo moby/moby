@@ -6,13 +6,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/driverapi"
-	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 	"github.com/docker/docker/pkg/plugingetter"
 )
-
-func init() {
-	boltdb.Register()
-}
 
 type driverTester struct {
 	t *testing.T

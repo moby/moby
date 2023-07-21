@@ -7,16 +7,9 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
 )
 
-func registerKVStores() {
-	boltdb.Register()
-}
-
 func (c *Controller) initStores() error {
-	registerKVStores()
-
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
