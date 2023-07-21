@@ -23,13 +23,20 @@ func (l *link) String() string {
 	return fmt.Sprintf("%s <-> %s [%v] on %s", l.parentIP, l.childIP, l.ports, l.bridge)
 }
 
-func newLink(parentIP, childIP net.IP, ports []types.TransportPort, bridge string) *link {
+func newLink(parentIP, childIP net.IP, ports []types.TransportPort, bridge string) (*link, error) {
+	if parentIP == nil {
+		return nil, fmt.Errorf("cannot link to a container with an empty parent IP address")
+	}
+	if childIP == nil {
+		return nil, fmt.Errorf("cannot link to a container with an empty child IP address")
+	}
+
 	return &link{
 		childIP:  childIP,
 		parentIP: parentIP,
 		ports:    ports,
 		bridge:   bridge,
-	}
+	}, nil
 }
 
 func (l *link) Enable() error {

@@ -29,7 +29,10 @@ func TestLinkNew(t *testing.T) {
 	parentIP := net.ParseIP(pIP)
 	childIP := net.ParseIP(cIP)
 
-	l := newLink(parentIP, childIP, ports, bridgeName)
+	l, err := newLink(parentIP, childIP, ports, bridgeName)
+	if err != nil {
+		t.Errorf("unexpected error from newlink(): %v", err)
+	}
 	if l == nil {
 		t.FailNow()
 	}
