@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/options"
@@ -21,17 +20,6 @@ func TestKey(t *testing.T) {
 	sKey := Key(eKey...)
 	if sKey != "docker/network/v1.0/hello/world/" {
 		t.Fatalf("unexpected key : %s", sKey)
-	}
-}
-
-func TestParseKey(t *testing.T) {
-	keySlice, err := ParseKey("/docker/network/v1.0/hello/world/")
-	if err != nil {
-		t.Fatal(err)
-	}
-	eKey := []string{"hello", "world"}
-	if len(keySlice) < 2 || !reflect.DeepEqual(eKey, keySlice) {
-		t.Fatalf("unexpected unkey : %s", keySlice)
 	}
 }
 

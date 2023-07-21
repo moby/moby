@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -130,17 +129,6 @@ func Key(key ...string) string {
 	keychain := append(rootChain, key...)
 	str := strings.Join(keychain, "/")
 	return str + "/"
-}
-
-// ParseKey provides convenient method to unpack the key to complement the Key function
-func ParseKey(key string) ([]string, error) {
-	chain := strings.Split(strings.Trim(key, "/"), "/")
-
-	// The key must at least be equal to the rootChain in order to be considered as valid
-	if len(chain) <= len(rootChain) || !reflect.DeepEqual(chain[0:len(rootChain)], rootChain) {
-		return nil, types.BadRequestErrorf("invalid Key : %s", key)
-	}
-	return chain[len(rootChain):], nil
 }
 
 // newClient used to connect to KV Store
