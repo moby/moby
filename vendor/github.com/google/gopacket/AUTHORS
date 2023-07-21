@@ -1,0 +1,54 @@
+AUTHORS AND MAINTAINERS:
+
+MAIN DEVELOPERS:
+Graeme Connell   <gconnell@google.com, gsconnell@gmail.com>
+
+AUTHORS:
+Nigel Tao <nigeltao@google.com>
+Cole Mickens <cole.mickens@gmail.com>
+Ben Daglish <bdaglish@restorepoint.com>
+Luis Martinez <martinezlc99@gmail.com>
+Remco Verhoef <remco@dutchcoders.io>
+Hiroaki Kawai <Hiroaki.Kawai@gmail.com>
+Lukas Lueg <lukas.lueg@gmail.com>
+Laurent Hausermann <laurent.hausermann@gmail.com>
+Bill Green <bgreen@newrelic.com>
+Christian Mäder <christian.maeder@nine.ch>
+Gernot Vormayr <gvormayr@gmail.com>
+Vitor Garcia Graveto <victor.graveto@gmail.com>
+Elias Chavarria Reyes <elchavar@cisco.com>
+Daniel Rittweiler <ripx80@protonmail.com>
+
+CONTRIBUTORS:
+Attila Oláh <attila@attilaolah.eu>
+Vittus Mikiassen <matt.miki.vimik@gmail.com>
+Matthias Radestock <matthias.radestock@gmail.com>
+Matthew Sackman <matthew@wellquite.org>
+Loic Prylli <loicp@google.com>
+Alexandre Fiori <fiorix@gmail.com>
+Adrian Tam <adrian.c.m.tam@gmail.com>
+Satoshi Matsumoto <kaorimatz@gmail.com>
+David Stainton <dstainton415@gmail.com>
+Jesse Ward <jesse@jesseward.com>
+Kane Mathers <kane@kanemathers.name>
+Jose Selvi <jselvi@pentester.es>
+Yerden Zhumabekov <yerden.zhumabekov@gmail.com>
+Jensen Hwa <jensenhwa@gmail.com>
+
+-----------------------------------------------
+FORKED FROM github.com/akrennmair/gopcap
+ALL THE FOLLOWING ARE FOR THAT PROJECT
+
+MAIN DEVELOPERS:
+Andreas Krennmair <ak@synflood.at>
+
+CONTRIBUTORS:
+Andrea Nall <anall@andreanall.com>
+Daniel Arndt <danielarndt@gmail.com>
+Dustin Sallings <dustin@spy.net>
+Graeme Connell <gconnell@google.com, gsconnell@gmail.com>
+Guillaume Savary <guillaume@savary.name>
+Mark Smith <mark@qq.is>
+Miek Gieben <miek@miek.nl>
+Mike Bell <mike@mikebell.org>
+Trevor Strohman <strohman@google.com>
