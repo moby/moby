@@ -20,7 +20,7 @@ import (
 // Regression : #38171
 func TestImagesFilterMultiReference(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
@@ -42,13 +42,13 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	filter.Add("reference", repoTags[1])
 	filter.Add("reference", repoTags[2])
 	options := types.ImageListOptions{
-		All:     false,
 		Filters: filter,
 	}
 	images, err := client.ImageList(ctx, options)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal(len(images[0].RepoTags), 3))
+	assert.Assert(t, is.Len(images, 1))
+	assert.Check(t, is.Len(images[0].RepoTags, 3))
 	for _, repoTag := range images[0].RepoTags {
 		if repoTag != repoTags[0] && repoTag != repoTags[1] && repoTag != repoTags[2] {
 			t.Errorf("list images doesn't match any repoTag we expected, repoTag: %s", repoTag)
@@ -57,7 +57,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 }
 
 func TestImagesFilterBeforeSince(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 

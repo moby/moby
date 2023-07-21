@@ -357,22 +357,23 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		})
 	}
 
-	err = imageFilters.WalkValues("reference", func(value string) error {
+	if refs := imageFilters.Get("reference"); len(refs) != 0 {
 		fltrs = append(fltrs, func(image images.Image) bool {
 			ref, err := reference.ParseNormalizedNamed(image.Name)
 			if err != nil {
 				return false
 			}
-			found, err := reference.FamiliarMatch(value, ref)
-			if err != nil {
-				return false
+			for _, value := range refs {
+				found, err := reference.FamiliarMatch(value, ref)
+				if err != nil {
+					return false
+				}
+				if found {
+					return found
+				}
 			}
-			return found
+			return false
 		})
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	return func(image images.Image) bool {
