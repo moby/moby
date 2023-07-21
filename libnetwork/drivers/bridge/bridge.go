@@ -1351,13 +1351,23 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 
 func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) (retErr error) {
 	cc := endpoint.containerConfig
-	if cc == nil {
-		return nil
-	}
 	ec := endpoint.extConnConfig
-	if ec == nil {
+	if cc == nil || ec == nil || (len(cc.ParentEndpoints) == 0 && len(cc.ChildEndpoints) == 0) {
+		// nothing to do
 		return nil
 	}
+
+	// Try to keep things atomic. addedLinks keeps track of links that were
+	// successfully added. If any error occurred, then roll back all.
+	var addedLinks []*link
+	defer func() {
+		if retErr == nil {
+			return
+		}
+		for _, l := range addedLinks {
+			l.Disable()
+		}
+	}()
 
 	if ec.ExposedPorts != nil {
 		for _, p := range cc.ParentEndpoints {
@@ -1374,11 +1384,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 				if err := l.Enable(); err != nil {
 					return err
 				}
-				defer func() {
-					if retErr != nil {
-						l.Disable()
-					}
-				}()
+				addedLinks = append(addedLinks, l)
 			} else {
 				l.Disable()
 			}
@@ -1402,11 +1408,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			if err := l.Enable(); err != nil {
 				return err
 			}
-			defer func() {
-				if retErr != nil {
-					l.Disable()
-				}
-			}()
+			addedLinks = append(addedLinks, l)
 		} else {
 			l.Disable()
 		}
