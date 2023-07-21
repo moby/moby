@@ -47,7 +47,7 @@ func newController(t *testing.T) *libnetwork.Controller {
 	return c
 }
 
-func createTestNetwork(c *libnetwork.Controller, networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (libnetwork.Network, error) {
+func createTestNetwork(c *libnetwork.Controller, networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (*libnetwork.Network, error) {
 	return c.NewNetwork(networkType, networkName, "",
 		libnetwork.NetworkOptionGeneric(netOption),
 		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", ipamV4Configs, ipamV6Configs, nil))
@@ -549,8 +549,8 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 
 	// Test Network Walk method
 	var netName string
-	var netWanted libnetwork.Network
-	nwWlk := func(nw libnetwork.Network) bool {
+	var netWanted *libnetwork.Network
+	nwWlk := func(nw *libnetwork.Network) bool {
 		if nw.Name() == netName {
 			netWanted = nw
 			return true

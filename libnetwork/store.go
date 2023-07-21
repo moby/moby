@@ -46,7 +46,7 @@ func (c *Controller) getStore() datastore.DataStore {
 	return c.store
 }
 
-func (c *Controller) getNetworkFromStore(nid string) (*network, error) {
+func (c *Controller) getNetworkFromStore(nid string) (*Network, error) {
 	for _, n := range c.getNetworksFromStore() {
 		if n.id == nid {
 			return n, nil
@@ -55,8 +55,8 @@ func (c *Controller) getNetworkFromStore(nid string) (*network, error) {
 	return nil, ErrNoSuchNetwork(nid)
 }
 
-func (c *Controller) getNetworks() ([]*network, error) {
-	var nl []*network
+func (c *Controller) getNetworks() ([]*Network, error) {
+	var nl []*Network
 
 	store := c.getStore()
 	if store == nil {
@@ -64,13 +64,13 @@ func (c *Controller) getNetworks() ([]*network, error) {
 	}
 
 	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix),
-		&network{ctrlr: c})
+		&Network{ctrlr: c})
 	if err != nil && err != datastore.ErrKeyNotFound {
 		return nil, fmt.Errorf("failed to get networks: %w", err)
 	}
 
 	for _, kvo := range kvol {
-		n := kvo.(*network)
+		n := kvo.(*Network)
 		n.ctrlr = c
 
 		ec := &endpointCnt{n: n}
@@ -90,11 +90,11 @@ func (c *Controller) getNetworks() ([]*network, error) {
 	return nl, nil
 }
 
-func (c *Controller) getNetworksFromStore() []*network { // FIXME: unify with c.getNetworks()
-	var nl []*network
+func (c *Controller) getNetworksFromStore() []*Network { // FIXME: unify with c.getNetworks()
+	var nl []*Network
 
 	store := c.getStore()
-	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix), &network{ctrlr: c})
+	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix), &Network{ctrlr: c})
 	if err != nil {
 		if err != datastore.ErrKeyNotFound {
 			log.G(context.TODO()).Debugf("failed to get networks from store: %v", err)
@@ -108,7 +108,7 @@ func (c *Controller) getNetworksFromStore() []*network { // FIXME: unify with c.
 	}
 
 	for _, kvo := range kvol {
-		n := kvo.(*network)
+		n := kvo.(*Network)
 		n.mu.Lock()
 		n.ctrlr = c
 		ec := &endpointCnt{n: n}
@@ -128,7 +128,7 @@ func (c *Controller) getNetworksFromStore() []*network { // FIXME: unify with c.
 	return nl
 }
 
-func (n *network) getEndpointFromStore(eid string) (*Endpoint, error) {
+func (n *Network) getEndpointFromStore(eid string) (*Endpoint, error) {
 	store := n.ctrlr.getStore()
 	ep := &Endpoint{id: eid, network: n}
 	err := store.GetObject(datastore.Key(ep.Key()...), ep)
@@ -138,7 +138,7 @@ func (n *network) getEndpointFromStore(eid string) (*Endpoint, error) {
 	return ep, nil
 }
 
-func (n *network) getEndpointsFromStore() ([]*Endpoint, error) {
+func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 	var epl []*Endpoint
 
 	tmp := Endpoint{network: n}
@@ -332,8 +332,8 @@ func (c *Controller) networkCleanup() {
 	}
 }
 
-var populateSpecial NetworkWalker = func(nw Network) bool {
-	if n := nw.(*network); n.hasSpecialDriver() && !n.ConfigOnly() {
+var populateSpecial NetworkWalker = func(nw *Network) bool {
+	if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
 		if err := n.getController().addNetwork(n); err != nil {
 			log.G(context.TODO()).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
 		}

@@ -67,12 +67,12 @@ func (daemon *Daemon) LogVolumeEvent(volumeID, action string, attributes map[str
 }
 
 // LogNetworkEvent generates an event related to a network with only the default attributes.
-func (daemon *Daemon) LogNetworkEvent(nw libnetwork.Network, action string) {
+func (daemon *Daemon) LogNetworkEvent(nw *libnetwork.Network, action string) {
 	daemon.LogNetworkEventWithAttributes(nw, action, map[string]string{})
 }
 
 // LogNetworkEventWithAttributes generates an event related to a network with specific given attributes.
-func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, action string, attributes map[string]string) {
+func (daemon *Daemon) LogNetworkEventWithAttributes(nw *libnetwork.Network, action string, attributes map[string]string) {
 	attributes["name"] = nw.Name()
 	attributes["type"] = nw.Type()
 	actor := events.Actor{

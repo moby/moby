@@ -61,9 +61,9 @@ func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 // 2. Full Name
 // 3. Partial ID
 // as long as there is no ambiguity
-func (daemon *Daemon) FindNetwork(term string) (libnetwork.Network, error) {
-	listByFullName := []libnetwork.Network{}
-	listByPartialID := []libnetwork.Network{}
+func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
+	listByFullName := []*libnetwork.Network{}
+	listByPartialID := []*libnetwork.Network{}
 	for _, nw := range daemon.getAllNetworks() {
 		if nw.ID() == term {
 			return nw, nil
@@ -94,7 +94,7 @@ func (daemon *Daemon) FindNetwork(term string) (libnetwork.Network, error) {
 
 // GetNetworkByID function returns a network whose ID matches the given ID.
 // It fails with an error if no matching network is found.
-func (daemon *Daemon) GetNetworkByID(id string) (libnetwork.Network, error) {
+func (daemon *Daemon) GetNetworkByID(id string) (*libnetwork.Network, error) {
 	c := daemon.netController
 	if c == nil {
 		return nil, errors.Wrap(libnetwork.ErrNoSuchNetwork(id), "netcontroller is nil")
@@ -104,7 +104,7 @@ func (daemon *Daemon) GetNetworkByID(id string) (libnetwork.Network, error) {
 
 // GetNetworkByName function returns a network for a given network name.
 // If no network name is given, the default network is returned.
-func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) {
+func (daemon *Daemon) GetNetworkByName(name string) (*libnetwork.Network, error) {
 	c := daemon.netController
 	if c == nil {
 		return nil, libnetwork.ErrNoSuchNetwork(name)
@@ -116,13 +116,13 @@ func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) 
 }
 
 // GetNetworksByIDPrefix returns a list of networks whose ID partially matches zero or more networks
-func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []libnetwork.Network {
+func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []*libnetwork.Network {
 	c := daemon.netController
 	if c == nil {
 		return nil
 	}
-	list := []libnetwork.Network{}
-	l := func(nw libnetwork.Network) bool {
+	list := []*libnetwork.Network{}
+	l := func(nw *libnetwork.Network) bool {
 		if strings.HasPrefix(nw.ID(), partialID) {
 			list = append(list, nw)
 		}
@@ -134,7 +134,7 @@ func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []libnetwork.Netwo
 }
 
 // getAllNetworks returns a list containing all networks
-func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
+func (daemon *Daemon) getAllNetworks() []*libnetwork.Network {
 	c := daemon.netController
 	if c == nil {
 		return nil
@@ -527,7 +527,7 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	return daemon.deleteNetwork(n, false)
 }
 
-func (daemon *Daemon) deleteNetwork(nw libnetwork.Network, dynamic bool) error {
+func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error {
 	if runconfig.IsPreDefinedNetwork(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
 		return errdefs.Forbidden(err)
@@ -564,9 +564,9 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListC
 	networks := daemon.getAllNetworks()
 
 	list := make([]types.NetworkResource, 0, len(networks))
-	var idx map[string]libnetwork.Network
+	var idx map[string]*libnetwork.Network
 	if config.Detailed {
-		idx = make(map[string]libnetwork.Network)
+		idx = make(map[string]*libnetwork.Network)
 	}
 
 	for _, n := range networks {
@@ -594,7 +594,7 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListC
 	return list, nil
 }
 
-func buildNetworkResource(nw libnetwork.Network) types.NetworkResource {
+func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 	r := types.NetworkResource{}
 	if nw == nil {
 		return r
@@ -628,7 +628,7 @@ func buildNetworkResource(nw libnetwork.Network) types.NetworkResource {
 	return r
 }
 
-func buildDetailedNetworkResources(r *types.NetworkResource, nw libnetwork.Network, verbose bool) {
+func buildDetailedNetworkResources(r *types.NetworkResource, nw *libnetwork.Network, verbose bool) {
 	if nw == nil {
 		return
 	}
@@ -797,7 +797,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 }
 
 // buildCreateEndpointOptions builds endpoint options from a given network.
-func buildCreateEndpointOptions(c *container.Container, n libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
+func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var (
 		bindings      = make(nat.PortMap)
 		pbList        []networktypes.PortBinding
@@ -1028,7 +1028,7 @@ func getEndpointPortMapInfo(ep *libnetwork.Endpoint) (nat.PortMap, error) {
 }
 
 // buildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
-func buildEndpointInfo(networkSettings *internalnetwork.Settings, n libnetwork.Network, ep *libnetwork.Endpoint) error {
+func buildEndpointInfo(networkSettings *internalnetwork.Settings, n *libnetwork.Network, ep *libnetwork.Endpoint) error {
 	if ep == nil {
 		return errors.New("endpoint cannot be nil")
 	}

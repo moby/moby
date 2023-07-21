@@ -95,7 +95,7 @@ type lnInterface struct {
 	provider *bridgeProvider
 }
 
-func (iface *lnInterface) init(c *libnetwork.Controller, n libnetwork.Network) {
+func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) {
 	defer close(iface.ready)
 	id := identity.NewID()
 

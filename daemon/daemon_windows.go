@@ -323,8 +323,8 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 		if networkTypeNorm == "private" || networkTypeNorm == "internal" {
 			continue // workaround for HNS reporting unsupported networks
 		}
-		var n libnetwork.Network
-		s := func(current libnetwork.Network) bool {
+		var n *libnetwork.Network
+		s := func(current *libnetwork.Network) bool {
 			hnsid := current.Info().DriverOptions()[winlibnetwork.HNSID]
 			if hnsid == v.Id {
 				n = current

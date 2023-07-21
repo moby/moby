@@ -14,7 +14,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []Network) {
+func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
 	const netType = "bridge"
@@ -33,7 +33,7 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []Network) 
 		return c, nil
 	}
 
-	nwList := make([]Network, 0, len(opts))
+	nwList := make([]*Network, 0, len(opts))
 	for i, opt := range opts {
 		name := "test_nw_" + strconv.Itoa(i)
 		newOptions := []NetworkOption{

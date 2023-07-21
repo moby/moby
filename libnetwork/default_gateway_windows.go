@@ -16,6 +16,6 @@ func getPlatformOption() EndpointOption {
 	return EndpointOptionGeneric(epOption)
 }
 
-func (c *Controller) createGWNetwork() (Network, error) {
+func (c *Controller) createGWNetwork() (*Network, error) {
 	return nil, types.NotImplementedErrorf("default gateway functionality is not implemented in windows")
 }

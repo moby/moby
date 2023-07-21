@@ -38,7 +38,7 @@ func (sb *Sandbox) populateLoadBalancers(ep *Endpoint) {
 	}
 }
 
-func (n *network) findLBEndpointSandbox() (*Endpoint, *Sandbox, error) {
+func (n *Network) findLBEndpointSandbox() (*Endpoint, *Sandbox, error) {
 	// TODO: get endpoint from store?  See EndpointInfo()
 	var ep *Endpoint
 	// Find this node's LB sandbox endpoint:  there should be exactly one
@@ -79,7 +79,7 @@ func findIfaceDstName(sb *Sandbox, ep *Endpoint) string {
 
 // Add loadbalancer backend to the loadbalncer sandbox for the network.
 // If needed add the service as well.
-func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
+func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
 	}
@@ -168,7 +168,7 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 // network. If 'rmService' is true, then remove the service entry as well.
 // If 'fullRemove' is true then completely remove the entry, otherwise
 // just deweight it for now.
-func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
+func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
 	if len(lb.vip) == 0 {
 		return
 	}

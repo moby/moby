@@ -76,7 +76,7 @@ import (
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
 // When the function returns true, the walk will stop.
-type NetworkWalker func(nw Network) bool
+type NetworkWalker func(nw *Network) bool
 
 // SandboxWalker is a client provided function which will be used to walk the Sandboxes.
 // When the function returns true, the walk will stop.
@@ -461,11 +461,11 @@ const overlayDSROptionString = "dsr"
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
+func (c *Controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (*Network, error) {
 	var (
 		caps           driverapi.Capability
 		err            error
-		t              *network
+		t              *Network
 		skipCfgEpCount bool
 	)
 
@@ -488,7 +488,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 
 	defaultIpam := defaultIpamForNetworkType(networkType)
 	// Construct the network object
-	nw := &network{
+	nw := &Network{
 		name:             name,
 		networkType:      networkType,
 		generic:          map[string]interface{}{netlabel.GenericData: make(map[string]string)},
@@ -603,7 +603,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	// time pressure to get this in without adding changes to moby,
 	// swarm and CLI, it is being implemented as a driver-specific
 	// option.  Unfortunately, drivers can't influence the core
-	// "libnetwork.network" data type.  Hence we need this hack code
+	// "libnetwork.Network" data type.  Hence we need this hack code
 	// to implement in this manner.
 	if gval, ok := nw.generic[netlabel.GenericData]; ok && nw.networkType == "overlay" {
 		optMap := gval.(map[string]string)
@@ -670,15 +670,14 @@ addToStore:
 	return nw, nil
 }
 
-var joinCluster NetworkWalker = func(nw Network) bool {
-	n := nw.(*network)
-	if n.configOnly {
+var joinCluster NetworkWalker = func(nw *Network) bool {
+	if nw.configOnly {
 		return false
 	}
-	if err := n.joinCluster(); err != nil {
-		log.G(context.TODO()).Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
+	if err := nw.joinCluster(); err != nil {
+		log.G(context.TODO()).Errorf("Failed to join network %s (%s) into agent cluster: %v", nw.Name(), nw.ID(), err)
 	}
-	n.addDriverWatches()
+	nw.addDriverWatches()
 	return false
 }
 
@@ -746,7 +745,7 @@ func (c *Controller) reservePools() {
 	}
 }
 
-func doReplayPoolReserve(n *network) bool {
+func doReplayPoolReserve(n *Network) bool {
 	_, caps, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to retrieve ipam driver for network %q (%s): %v", n.Name(), n.ID(), err)
@@ -755,7 +754,7 @@ func doReplayPoolReserve(n *network) bool {
 	return caps.RequiresRequestReplay
 }
 
-func (c *Controller) addNetwork(n *network) error {
+func (c *Controller) addNetwork(n *Network) error {
 	d, err := n.driver(true)
 	if err != nil {
 		return err
@@ -772,8 +771,8 @@ func (c *Controller) addNetwork(n *network) error {
 }
 
 // Networks returns the list of Network(s) managed by this controller.
-func (c *Controller) Networks() []Network {
-	var list []Network
+func (c *Controller) Networks() []*Network {
+	var list []*Network
 
 	for _, n := range c.getNetworksFromStore() {
 		if n.inDelete {
@@ -796,21 +795,19 @@ func (c *Controller) WalkNetworks(walker NetworkWalker) {
 
 // NetworkByName returns the Network which has the passed name.
 // If not found, the error [ErrNoSuchNetwork] is returned.
-func (c *Controller) NetworkByName(name string) (Network, error) {
+func (c *Controller) NetworkByName(name string) (*Network, error) {
 	if name == "" {
 		return nil, ErrInvalidName(name)
 	}
-	var n Network
+	var n *Network
 
-	s := func(current Network) bool {
+	c.WalkNetworks(func(current *Network) bool {
 		if current.Name() == name {
 			n = current
 			return true
 		}
 		return false
-	}
-
-	c.WalkNetworks(s)
+	})
 
 	if n == nil {
 		return nil, ErrNoSuchNetwork(name)
@@ -821,7 +818,7 @@ func (c *Controller) NetworkByName(name string) (Network, error) {
 
 // NetworkByID returns the Network which has the passed id.
 // If not found, the error [ErrNoSuchNetwork] is returned.
-func (c *Controller) NetworkByID(id string) (Network, error) {
+func (c *Controller) NetworkByID(id string) (*Network, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}

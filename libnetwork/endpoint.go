@@ -24,7 +24,7 @@ type EndpointOption func(ep *Endpoint)
 type Endpoint struct {
 	name              string
 	id                string
-	network           *network
+	network           *Network
 	iface             *endpointInterface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
@@ -378,14 +378,14 @@ func (ep *Endpoint) processOptions(options ...EndpointOption) {
 	}
 }
 
-func (ep *Endpoint) getNetwork() *network {
+func (ep *Endpoint) getNetwork() *Network {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 
 	return ep.network
 }
 
-func (ep *Endpoint) getNetworkFromStore() (*network, error) {
+func (ep *Endpoint) getNetworkFromStore() (*Network, error) {
 	if ep.network == nil {
 		return nil, fmt.Errorf("invalid network object in endpoint %s", ep.Name())
 	}
@@ -932,7 +932,7 @@ func CreateOptionIpam(ipV4, ipV6 net.IP, llIPs []net.IP, ipamOptions map[string]
 }
 
 // CreateOptionExposedPorts function returns an option setter for the container exposed
-// ports option to be passed to network.CreateEndpoint() method.
+// ports option to be passed to [Network.CreateEndpoint] method.
 func CreateOptionExposedPorts(exposedPorts []types.TransportPort) EndpointOption {
 	return func(ep *Endpoint) {
 		// Defensive copy
@@ -945,7 +945,7 @@ func CreateOptionExposedPorts(exposedPorts []types.TransportPort) EndpointOption
 }
 
 // CreateOptionPortMapping function returns an option setter for the mapping
-// ports option to be passed to network.CreateEndpoint() method.
+// ports option to be passed to [Network.CreateEndpoint] method.
 func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 	return func(ep *Endpoint) {
 		// Store a copy of the bindings as generic data to pass to the driver

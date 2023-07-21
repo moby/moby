@@ -162,7 +162,7 @@ func (ep *Endpoint) endpointInGWNetwork() bool {
 
 // Looks for the default gw network and creates it if not there.
 // Parallel executions are serialized.
-func (c *Controller) defaultGwNetwork() (Network, error) {
+func (c *Controller) defaultGwNetwork() (*Network, error) {
 	procGwNetwork <- true
 	defer func() { <-procGwNetwork }()
 
