@@ -7,9 +7,6 @@ import (
 	"github.com/docker/docker/libnetwork/types"
 )
 
-// ErrNotImplemented exported
-var ErrNotImplemented = errors.New("Functionality not implemented")
-
 // MockData exported
 type MockData struct {
 	Data  []byte
@@ -23,8 +20,7 @@ type MockStore struct {
 
 // NewMockStore creates a Map backed Datastore that is useful for mocking
 func NewMockStore() *MockStore {
-	db := make(map[string]*MockData)
-	return &MockStore{db}
+	return &MockStore{db: make(map[string]*MockData)}
 }
 
 // Get the value at "key", returns the last modified index
@@ -56,7 +52,7 @@ func (s *MockStore) Exists(key string) (bool, error) {
 
 // List gets a range of values at "directory"
 func (s *MockStore) List(prefix string) ([]*store.KVPair, error) {
-	return nil, ErrNotImplemented
+	return nil, errors.New("not implemented")
 }
 
 // AtomicPut put a value at "key" if the key has not been
