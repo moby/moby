@@ -310,13 +310,12 @@ func (n *bridgeNetwork) getNetworkBridgeName() string {
 }
 
 func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
-	n.Lock()
-	defer n.Unlock()
-
 	if eid == "" {
 		return nil, InvalidEndpointIDError(eid)
 	}
 
+	n.Lock()
+	defer n.Unlock()
 	if ep, ok := n.endpoints[eid]; ok {
 		return ep, nil
 	}
