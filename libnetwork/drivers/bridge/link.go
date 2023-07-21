@@ -33,9 +33,8 @@ func newLink(parentIP, childIP string, ports []types.TransportPort, bridge strin
 }
 
 func (l *link) Enable() error {
-	// -A == iptables append flag
 	linkFunction := func() error {
-		return linkContainers("-A", l.parentIP, l.childIP, l.ports, l.bridge, false)
+		return linkContainers(iptables.Append, l.parentIP, l.childIP, l.ports, l.bridge, false)
 	}
 
 	iptables.OnReloaded(func() { linkFunction() })
@@ -43,29 +42,13 @@ func (l *link) Enable() error {
 }
 
 func (l *link) Disable() {
-	// -D == iptables delete flag
-	err := linkContainers("-D", l.parentIP, l.childIP, l.ports, l.bridge, true)
-	if err != nil {
-		log.G(context.TODO()).Errorf("Error removing IPTables rules for a link %s due to %s", l.String(), err.Error())
+	if err := linkContainers(iptables.Delete, l.parentIP, l.childIP, l.ports, l.bridge, true); err != nil {
+		// @TODO: Return error once we have the iptables package return typed errors.
+		log.G(context.TODO()).WithError(err).Errorf("Error removing IPTables rules for link: %s", l.String())
 	}
-	// Return proper error once we move to use a proper iptables package
-	// that returns typed errors
 }
 
-func linkContainers(action, parentIP, childIP string, ports []types.TransportPort, bridge string, ignoreErrors bool) error {
-	var nfAction iptables.Action
-
-	switch action {
-	case "-A":
-		nfAction = iptables.Append
-	case "-I":
-		nfAction = iptables.Insert
-	case "-D":
-		nfAction = iptables.Delete
-	default:
-		return fmt.Errorf("invalid iptables action: %s", action)
-	}
-
+func linkContainers(action iptables.Action, parentIP, childIP string, ports []types.TransportPort, bridge string, ignoreErrors bool) error {
 	ip1 := net.ParseIP(parentIP)
 	if ip1 == nil {
 		return fmt.Errorf("cannot link to a container with an invalid parent IP address %q", parentIP)
@@ -77,7 +60,7 @@ func linkContainers(action, parentIP, childIP string, ports []types.TransportPor
 
 	chain := iptables.ChainInfo{Name: DockerChain}
 	for _, port := range ports {
-		err := chain.Link(nfAction, ip1, ip2, int(port.Port), port.Proto.String(), bridge)
+		err := chain.Link(action, ip1, ip2, int(port.Port), port.Proto.String(), bridge)
 		if !ignoreErrors && err != nil {
 			return err
 		}
