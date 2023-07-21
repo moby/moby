@@ -101,7 +101,7 @@ type hnsNetwork struct {
 type driver struct {
 	name     string
 	networks map[string]*hnsNetwork
-	store    datastore.DataStore
+	store    *datastore.Store
 	sync.Mutex
 }
 

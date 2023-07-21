@@ -11,9 +11,9 @@ import (
 
 var dummyKey = "dummy"
 
-// NewCustomDataStore can be used by other Tests in order to use custom datastore
-func NewTestDataStore() DataStore {
-	return &datastore{scope: LocalScope, store: NewMockStore()}
+// NewTestDataStore can be used by other Tests in order to use custom datastore
+func NewTestDataStore() *Store {
+	return &Store{scope: LocalScope, store: NewMockStore()}
 }
 
 func TestKey(t *testing.T) {
@@ -36,13 +36,12 @@ func TestParseKey(t *testing.T) {
 }
 
 func TestInvalidDataStore(t *testing.T) {
-	config := ScopeCfg{
+	_, err := New(ScopeCfg{
 		Client: ScopeClientCfg{
 			Provider: "invalid",
 			Address:  "localhost:8500",
 		},
-	}
-	_, err := NewDataStore(config)
+	})
 	if err == nil {
 		t.Fatal("Invalid Datastore connection configuration must result in a failure")
 	}

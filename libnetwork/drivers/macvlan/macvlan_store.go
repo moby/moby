@@ -49,7 +49,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 		if !ok {
 			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
 		}
-		d.store, err = datastore.NewDataStoreFromConfig(dsc)
+		d.store, err = datastore.FromConfig(dsc)
 		if err != nil {
 			return types.InternalErrorf("macvlan driver failed to initialize data store: %v", err)
 		}
