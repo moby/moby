@@ -1349,9 +1349,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) error {
-	var err error
-
+func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable bool) (retErr error) {
 	cc := endpoint.containerConfig
 	if cc == nil {
 		return nil
@@ -1363,24 +1361,21 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 
 	if ec.ExposedPorts != nil {
 		for _, p := range cc.ParentEndpoints {
-			var parentEndpoint *bridgeEndpoint
-			parentEndpoint, err = network.getEndpoint(p)
+			parentEndpoint, err := network.getEndpoint(p)
 			if err != nil {
 				return err
 			}
 			if parentEndpoint == nil {
-				err = InvalidEndpointIDError(p)
-				return err
+				return InvalidEndpointIDError(p)
 			}
 
 			l := newLink(parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts, network.config.BridgeName)
 			if enable {
-				err = l.Enable()
-				if err != nil {
+				if err := l.Enable(); err != nil {
 					return err
 				}
 				defer func() {
-					if err != nil {
+					if retErr != nil {
 						l.Disable()
 					}
 				}()
@@ -1391,14 +1386,12 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 	}
 
 	for _, c := range cc.ChildEndpoints {
-		var childEndpoint *bridgeEndpoint
-		childEndpoint, err = network.getEndpoint(c)
+		childEndpoint, err := network.getEndpoint(c)
 		if err != nil {
 			return err
 		}
 		if childEndpoint == nil {
-			err = InvalidEndpointIDError(c)
-			return err
+			return InvalidEndpointIDError(c)
 		}
 		if childEndpoint.extConnConfig == nil || childEndpoint.extConnConfig.ExposedPorts == nil {
 			continue
@@ -1406,12 +1399,11 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 
 		l := newLink(endpoint.addr.IP, childEndpoint.addr.IP, childEndpoint.extConnConfig.ExposedPorts, network.config.BridgeName)
 		if enable {
-			err = l.Enable()
-			if err != nil {
+			if err := l.Enable(); err != nil {
 				return err
 			}
 			defer func() {
-				if err != nil {
+				if retErr != nil {
 					l.Disable()
 				}
 			}()
