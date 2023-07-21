@@ -1373,9 +1373,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 				return err
 			}
 
-			l := newLink(parentEndpoint.addr.IP.String(),
-				endpoint.addr.IP.String(),
-				ec.ExposedPorts, network.config.BridgeName)
+			l := newLink(parentEndpoint.addr.IP, endpoint.addr.IP, ec.ExposedPorts, network.config.BridgeName)
 			if enable {
 				err = l.Enable()
 				if err != nil {
@@ -1406,9 +1404,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 			continue
 		}
 
-		l := newLink(endpoint.addr.IP.String(),
-			childEndpoint.addr.IP.String(),
-			childEndpoint.extConnConfig.ExposedPorts, network.config.BridgeName)
+		l := newLink(endpoint.addr.IP, childEndpoint.addr.IP, childEndpoint.extConnConfig.ExposedPorts, network.config.BridgeName)
 		if enable {
 			err = l.Enable()
 			if err != nil {

@@ -13,8 +13,8 @@ import (
 )
 
 type link struct {
-	parentIP string
-	childIP  string
+	parentIP net.IP
+	childIP  net.IP
 	ports    []types.TransportPort
 	bridge   string
 }
@@ -23,7 +23,7 @@ func (l *link) String() string {
 	return fmt.Sprintf("%s <-> %s [%v] on %s", l.parentIP, l.childIP, l.ports, l.bridge)
 }
 
-func newLink(parentIP, childIP string, ports []types.TransportPort, bridge string) *link {
+func newLink(parentIP, childIP net.IP, ports []types.TransportPort, bridge string) *link {
 	return &link{
 		childIP:  childIP,
 		parentIP: parentIP,
@@ -51,19 +51,17 @@ func (l *link) Disable() {
 	}
 }
 
-func linkContainers(action iptables.Action, parentIP, childIP string, ports []types.TransportPort, bridge string, ignoreErrors bool) error {
-	ip1 := net.ParseIP(parentIP)
-	if ip1 == nil {
-		return fmt.Errorf("cannot link to a container with an invalid parent IP address %q", parentIP)
+func linkContainers(action iptables.Action, parentIP, childIP net.IP, ports []types.TransportPort, bridge string, ignoreErrors bool) error {
+	if parentIP == nil {
+		return fmt.Errorf("cannot link to a container with an empty parent IP address")
 	}
-	ip2 := net.ParseIP(childIP)
-	if ip2 == nil {
-		return fmt.Errorf("cannot link to a container with an invalid child IP address %q", childIP)
+	if childIP == nil {
+		return fmt.Errorf("cannot link to a container with an empty child IP address")
 	}
 
 	chain := iptables.ChainInfo{Name: DockerChain}
 	for _, port := range ports {
-		err := chain.Link(action, ip1, ip2, int(port.Port), port.Proto.String(), bridge)
+		err := chain.Link(action, parentIP, childIP, int(port.Port), port.Proto.String(), bridge)
 		if !ignoreErrors && err != nil {
 			return err
 		}
