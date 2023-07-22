@@ -1560,14 +1560,6 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPo
 		// when we have either obtained a non-overlapping pool or ran out of
 		// pre-defined pools.
 		tmpPoolLeases = append(tmpPoolLeases, poolID)
-
-		// If this is a preferred pool request and the network
-		// is local scope and there is an overlap, we fail the
-		// network creation right here. The pool will be
-		// released in the defer.
-		if requestedPool != "" {
-			return "", nil, nil, fmt.Errorf("requested subnet %s overlaps in the host", requestedPool)
-		}
 	}
 }
 
