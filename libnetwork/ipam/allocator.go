@@ -67,8 +67,8 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 // If pool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
 // If subPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of pool.
 // subPool must be empty if pool is empty.
-func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
+func (a *Allocator) RequestPool(addressSpace, pool, subPool string, _ map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, _, %t)", addressSpace, pool, subPool, v6)
 
 	parseErr := func(err error) error {
 		return types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
