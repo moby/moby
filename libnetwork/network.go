@@ -1525,6 +1525,18 @@ func (n *Network) ipamAllocate() error {
 }
 
 func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
+	var tmpPoolLeases []string
+	defer func() {
+		// Prevent repeated lock/unlock in the loop.
+		nwName := n.Name()
+		// Release all pools we held on to.
+		for _, pID := range tmpPoolLeases {
+			if err := ipam.ReleasePool(pID); err != nil {
+				log.G(context.TODO()).Warnf("Failed to release overlapping pool %s while returning from pool request helper for network %s", pool, nwName)
+			}
+		}
+	}()
+
 	for {
 		poolID, pool, meta, err = ipam.RequestPool(addressSpace, requestedPool, requestedSubPool, options, v6)
 		if err != nil {
@@ -1542,18 +1554,12 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPo
 			return poolID, pool, meta, nil
 		}
 
-		// Pool obtained in this iteration is
-		// overlapping. Hold onto the pool and don't release
-		// it yet, because we don't want ipam to give us back
-		// the same pool over again. But make sure we still do
-		// a deferred release when we have either obtained a
-		// non-overlapping pool or ran out of pre-defined
-		// pools.
-		defer func() {
-			if err := ipam.ReleasePool(poolID); err != nil {
-				log.G(context.TODO()).Warnf("Failed to release overlapping pool %s while returning from pool request helper for network %s", pool, n.Name())
-			}
-		}()
+		// Pool obtained in this iteration is overlapping. Hold onto the pool
+		// and don't release it yet, because we don't want IPAM to give us back
+		// the same pool over again. But make sure we still do a deferred release
+		// when we have either obtained a non-overlapping pool or ran out of
+		// pre-defined pools.
+		tmpPoolLeases = append(tmpPoolLeases, poolID)
 
 		// If this is a preferred pool request and the network
 		// is local scope and there is an overlap, we fail the
