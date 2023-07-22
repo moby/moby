@@ -1543,9 +1543,24 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPo
 			return "", nil, nil, err
 		}
 
-		// If the network belongs to global scope or the pool was
-		// explicitly chosen or it is invalid, do not perform the overlap check.
-		if n.Scope() == scope.Global || requestedPool != "" || !types.IsIPNetValid(pool) {
+		// If the network pool was explicitly chosen, the network belongs to
+		// global scope, or it is invalid ("0.0.0.0/0"), then we don't perform
+		// check for overlaps.
+		//
+		// FIXME(thaJeztah): why are we ignoring invalid pools here?
+		//
+		// The "invalid" conditions was added in [libnetwork#1095][1], which
+		// moved code to reduce os-specific dependencies in the ipam package,
+		// but also introduced a types.IsIPNetValid() function, which considers
+		// "0.0.0.0/0" invalid, and added it to the conditions below.
+		//
+		// Unfortunately review does not mention this change, so there's no
+		// context why. Possibly this was done to prevent errors further down
+		// the line (when checking for overlaps), but returning an error here
+		// instead would likely have avoided that as well, so we can only guess.
+		//
+		// [1]: https://github.com/moby/libnetwork/commit/5ca79d6b87873264516323a7b76f0af7d0298492#diff-bdcd879439d041827d334846f9aba01de6e3683ed8fdd01e63917dae6df23846
+		if requestedPool != "" || n.Scope() == scope.Global || pool.String() == "0.0.0.0/0" {
 			return poolID, pool, meta, nil
 		}
 
