@@ -70,23 +70,23 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
 
-	parseErr := func(err error) (string, *net.IPNet, map[string]string, error) {
-		return "", nil, nil, types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
+	parseErr := func(err error) error {
+		return types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
 	}
 
 	if addressSpace == "" {
-		return parseErr(ipamapi.ErrInvalidAddressSpace)
+		return "", nil, nil, parseErr(ipamapi.ErrInvalidAddressSpace)
 	}
 	aSpace, err := a.getAddrSpace(addressSpace)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	k := PoolID{AddressSpace: addressSpace}
+	if pool == "" && subPool != "" {
+		return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
+	}
 
+	k := PoolID{AddressSpace: addressSpace}
 	if pool == "" {
-		if subPool != "" {
-			return parseErr(ipamapi.ErrInvalidSubPool)
-		}
 		k.Subnet, err = aSpace.allocatePredefinedPool(v6)
 		if err != nil {
 			return "", nil, nil, err
@@ -95,14 +95,13 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[
 	}
 
 	if k.Subnet, err = netip.ParsePrefix(pool); err != nil {
-		return parseErr(ipamapi.ErrInvalidPool)
+		return "", nil, nil, parseErr(ipamapi.ErrInvalidPool)
 	}
 
 	if subPool != "" {
-		var err error
 		k.ChildSubnet, err = netip.ParsePrefix(subPool)
 		if err != nil {
-			return parseErr(ipamapi.ErrInvalidSubPool)
+			return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
 		}
 	}
 
