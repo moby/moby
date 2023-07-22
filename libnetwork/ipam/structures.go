@@ -45,11 +45,11 @@ type addrSpace struct {
 
 // String returns the string form of the SubnetKey object
 func (s *PoolID) String() string {
-	k := fmt.Sprintf("%s/%s", s.AddressSpace, s.Subnet)
-	if s.ChildSubnet != (netip.Prefix{}) {
-		k = fmt.Sprintf("%s/%s", k, s.ChildSubnet)
+	if s.ChildSubnet == (netip.Prefix{}) {
+		return s.AddressSpace + "/" + s.Subnet.String()
+	} else {
+		return s.AddressSpace + "/" + s.Subnet.String() + "/" + s.ChildSubnet.String()
 	}
-	return k
 }
 
 // FromString populates the SubnetKey object reading it from string

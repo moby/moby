@@ -1276,3 +1276,14 @@ func TestParallelPredefinedRequest4(t *testing.T) {
 func TestParallelPredefinedRequest5(t *testing.T) {
 	runParallelTests(t, 4)
 }
+
+func BenchmarkPoolIDToString(b *testing.B) {
+	const poolIDString = "default/172.27.0.0/16/172.27.3.0/24"
+	k := PoolID{}
+	_ = k.FromString(poolIDString)
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = k.String()
+	}
+}
