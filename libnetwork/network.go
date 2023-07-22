@@ -1794,56 +1794,54 @@ func (n *Network) Scope() string {
 	return n.scope
 }
 
-func (n *Network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf) {
+func (n *Network) IpamConfig() (ipamType string, ipamOptions map[string]string, ipamV4Config []*IpamConf, ipamV6Config []*IpamConf) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	v4L := make([]*IpamConf, len(n.ipamV4Config))
-	v6L := make([]*IpamConf, len(n.ipamV6Config))
-
+	ipamV4Config = make([]*IpamConf, len(n.ipamV4Config))
 	for i, c := range n.ipamV4Config {
 		cc := &IpamConf{}
 		if err := c.CopyTo(cc); err != nil {
 			log.G(context.TODO()).WithError(err).Error("Error copying ipam ipv4 config")
 		}
-		v4L[i] = cc
+		ipamV4Config[i] = cc
 	}
 
+	ipamV6Config = make([]*IpamConf, len(n.ipamV6Config))
 	for i, c := range n.ipamV6Config {
 		cc := &IpamConf{}
 		if err := c.CopyTo(cc); err != nil {
 			log.G(context.TODO()).WithError(err).Debug("Error copying ipam ipv6 config")
 		}
-		v6L[i] = cc
+		ipamV6Config[i] = cc
 	}
 
-	return n.ipamType, n.ipamOptions, v4L, v6L
+	return n.ipamType, n.ipamOptions, ipamV4Config, ipamV6Config
 }
 
-func (n *Network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
+func (n *Network) IpamInfo() (ipamV4Info []*IpamInfo, ipamV6Info []*IpamInfo) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	v4Info := make([]*IpamInfo, len(n.ipamV4Info))
-	v6Info := make([]*IpamInfo, len(n.ipamV6Info))
-
+	ipamV4Info = make([]*IpamInfo, len(n.ipamV4Info))
 	for i, info := range n.ipamV4Info {
 		ic := &IpamInfo{}
 		if err := info.CopyTo(ic); err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error copying ipv4 ipam config")
+			log.G(context.TODO()).WithError(err).Error("Error copying IPv4 IPAM config")
 		}
-		v4Info[i] = ic
+		ipamV4Info[i] = ic
 	}
 
+	ipamV6Info = make([]*IpamInfo, len(n.ipamV6Info))
 	for i, info := range n.ipamV6Info {
 		ic := &IpamInfo{}
 		if err := info.CopyTo(ic); err != nil {
-			log.G(context.TODO()).WithError(err).Error("Error copying ipv6 ipam config")
+			log.G(context.TODO()).WithError(err).Error("Error copying IPv6 IPAM config")
 		}
-		v6Info[i] = ic
+		ipamV6Info[i] = ic
 	}
 
-	return v4Info, v6Info
+	return ipamV4Info, ipamV6Info
 }
 
 func (n *Network) Internal() bool {
