@@ -117,8 +117,8 @@ func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool st
 // ReleasePool releases the address pool identified by the passed id
 func (a *Allocator) ReleasePool(poolID string) error {
 	log.G(context.TODO()).Debugf("ReleasePool(%s)", poolID)
-	k := PoolID{}
-	if err := k.FromString(poolID); err != nil {
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
 		return types.BadRequestErrorf("invalid pool id: %s", poolID)
 	}
 
@@ -226,8 +226,8 @@ func (aSpace *addrSpace) allocatePredefinedPool(ipV6 bool) (netip.Prefix, error)
 // RequestAddress returns an address from the specified pool ID
 func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
 	log.G(context.TODO()).Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
-	k := PoolID{}
-	if err := k.FromString(poolID); err != nil {
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
 		return nil, nil, types.BadRequestErrorf("invalid pool id: %s", poolID)
 	}
 
@@ -286,8 +286,8 @@ func (aSpace *addrSpace) requestAddress(nw, sub netip.Prefix, prefAddress netip.
 // ReleaseAddress releases the address from the specified pool ID
 func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	log.G(context.TODO()).Debugf("ReleaseAddress(%s, %v)", poolID, address)
-	k := PoolID{}
-	if err := k.FromString(poolID); err != nil {
+	k, err := PoolIDFromString(poolID)
+	if err != nil {
 		return types.BadRequestErrorf("invalid pool id: %s", poolID)
 	}
 
