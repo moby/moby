@@ -51,12 +51,12 @@ type Ipam interface {
 	// GetDefaultAddressSpaces returns the default local and global address spaces for this ipam
 	GetDefaultAddressSpaces() (string, string, error)
 	// RequestPool returns an address pool along with its unique id. Address space is a mandatory field
-	// which denotes a set of non-overlapping pools. pool describes the pool of addresses in CIDR notation.
-	// subpool indicates a smaller range of addresses from the pool, for now it is specified in CIDR notation.
-	// Both pool and subpool are non mandatory fields. When they are not specified, Ipam driver may choose to
+	// which denotes a set of non-overlapping pools. requestedPool describes the pool of addresses in CIDR notation.
+	// requestedSubPool indicates a smaller range of addresses from the pool, for now it is specified in CIDR notation.
+	// Both requestedPool and requestedSubPool are non-mandatory fields. When they are not specified, Ipam driver may choose to
 	// return a self chosen pool for this request. In such case the v6 flag needs to be set appropriately so
 	// that the driver would return the expected ip version pool.
-	RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error)
+	RequestPool(addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error)
 	// ReleasePool releases the address pool identified by the passed id
 	ReleasePool(poolID string) error
 	// RequestAddress request an address from the specified pool ID. Input options or required IP can be passed.

@@ -32,17 +32,17 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 
 // RequestPool returns an address pool along with its unique id. This is a null ipam driver. It allocates the
 // subnet user asked and does not validate anything. Doesn't support subpool allocation
-func (a *allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
-	if subPool != "" || v6 {
+func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, requestedPool, requestedSubPool, options, v6)
+	if requestedSubPool != "" || v6 {
 		return "", nil, nil, types.InternalErrorf("This request is not supported by null ipam driver")
 	}
 
 	var ipNet *net.IPNet
 	var err error
 
-	if pool != "" {
-		_, ipNet, err = net.ParseCIDR(pool)
+	if requestedPool != "" {
+		_, ipNet, err = net.ParseCIDR(requestedPool)
 		if err != nil {
 			return "", nil, nil, err
 		}

@@ -23,14 +23,14 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 	return defaultAddressSpace, defaultAddressSpace, nil
 }
 
-func (a *allocator) RequestPool(addressSpace, pool, subPool string, _ map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	if addressSpace != defaultAddressSpace {
 		return "", nil, nil, types.BadRequestErrorf("unknown address space: %s", addressSpace)
 	}
-	if pool != "" {
+	if requestedPool != "" {
 		return "", nil, nil, types.BadRequestErrorf("null ipam driver does not handle specific address pool requests")
 	}
-	if subPool != "" {
+	if requestedSubPool != "" {
 		return "", nil, nil, types.BadRequestErrorf("null ipam driver does not handle specific address subpool requests")
 	}
 	if v6 {

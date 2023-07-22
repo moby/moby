@@ -1524,16 +1524,16 @@ func (n *Network) ipamAllocate() error {
 	return err
 }
 
-func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
 	for {
-		poolID, pool, meta, err := ipam.RequestPool(addressSpace, preferredPool, subPool, options, v6)
+		poolID, pool, meta, err = ipam.RequestPool(addressSpace, requestedPool, requestedSubPool, options, v6)
 		if err != nil {
 			return "", nil, nil, err
 		}
 
 		// If the network belongs to global scope or the pool was
 		// explicitly chosen or it is invalid, do not perform the overlap check.
-		if n.Scope() == scope.Global || preferredPool != "" || !types.IsIPNetValid(pool) {
+		if n.Scope() == scope.Global || requestedPool != "" || !types.IsIPNetValid(pool) {
 			return poolID, pool, meta, nil
 		}
 
@@ -1559,8 +1559,8 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		// is local scope and there is an overlap, we fail the
 		// network creation right here. The pool will be
 		// released in the defer.
-		if preferredPool != "" {
-			return "", nil, nil, fmt.Errorf("requested subnet %s overlaps in the host", preferredPool)
+		if requestedPool != "" {
+			return "", nil, nil, fmt.Errorf("requested subnet %s overlaps in the host", requestedPool)
 		}
 	}
 }

@@ -116,8 +116,8 @@ func (a *allocator) GetDefaultAddressSpaces() (string, string, error) {
 }
 
 // RequestPool requests an address pool in the specified address space
-func (a *allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	req := &api.RequestPoolRequest{AddressSpace: addressSpace, Pool: pool, SubPool: subPool, Options: options, V6: v6}
+func (a *allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+	req := &api.RequestPoolRequest{AddressSpace: addressSpace, Pool: requestedPool, SubPool: requestedSubPool, Options: options, V6: v6}
 	res := &api.RequestPoolResponse{}
 	if err := a.call("RequestPool", req, res); err != nil {
 		return "", nil, nil, err

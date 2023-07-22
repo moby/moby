@@ -64,14 +64,14 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 
 // RequestPool returns an address pool along with its unique id.
 // addressSpace must be a valid address space name and must not be the empty string.
-// If pool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
-// If subPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of pool.
-// subPool must be empty if pool is empty.
-func (a *Allocator) RequestPool(addressSpace, pool, subPool string, _ map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
-	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, _, %t)", addressSpace, pool, subPool, v6)
+// If requestedPool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
+// If requestedSubPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of requestedPool.
+// requestedSubPool must be empty if requestedPool is empty.
+func (a *Allocator) RequestPool(addressSpace, requestedPool, requestedSubPool string, _ map[string]string, v6 bool) (poolID string, pool *net.IPNet, meta map[string]string, err error) {
+	log.G(context.TODO()).Debugf("RequestPool(%s, %s, %s, _, %t)", addressSpace, requestedPool, requestedSubPool, v6)
 
 	parseErr := func(err error) error {
-		return types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
+		return types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, requestedPool, requestedSubPool, err)
 	}
 
 	if addressSpace == "" {
@@ -81,12 +81,12 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, _ map[string
 	if err != nil {
 		return "", nil, nil, err
 	}
-	if pool == "" && subPool != "" {
+	if requestedPool == "" && requestedSubPool != "" {
 		return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
 	}
 
 	k := PoolID{AddressSpace: addressSpace}
-	if pool == "" {
+	if requestedPool == "" {
 		k.Subnet, err = aSpace.allocatePredefinedPool(v6)
 		if err != nil {
 			return "", nil, nil, err
@@ -94,12 +94,12 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, _ map[string
 		return k.String(), toIPNet(k.Subnet), nil, nil
 	}
 
-	if k.Subnet, err = netip.ParsePrefix(pool); err != nil {
+	if k.Subnet, err = netip.ParsePrefix(requestedPool); err != nil {
 		return "", nil, nil, parseErr(ipamapi.ErrInvalidPool)
 	}
 
-	if subPool != "" {
-		k.ChildSubnet, err = netip.ParsePrefix(subPool)
+	if requestedSubPool != "" {
+		k.ChildSubnet, err = netip.ParsePrefix(requestedSubPool)
 		if err != nil {
 			return "", nil, nil, parseErr(ipamapi.ErrInvalidSubPool)
 		}
