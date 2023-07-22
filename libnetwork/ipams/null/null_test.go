@@ -9,7 +9,7 @@ import (
 func TestPoolRequest(t *testing.T) {
 	a := allocator{}
 
-	pid, pool, _, err := a.RequestPool(defaultAS, "", "", nil, false)
+	pid, pool, _, err := a.RequestPool(defaultAddressSpace, "", "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,17 +25,17 @@ func TestPoolRequest(t *testing.T) {
 		t.Fatal("Unexpected success")
 	}
 
-	_, _, _, err = a.RequestPool(defaultAS, "192.168.0.0/16", "", nil, false)
+	_, _, _, err = a.RequestPool(defaultAddressSpace, "192.168.0.0/16", "", nil, false)
 	if err == nil {
 		t.Fatal("Unexpected success")
 	}
 
-	_, _, _, err = a.RequestPool(defaultAS, "", "192.168.0.0/24", nil, false)
+	_, _, _, err = a.RequestPool(defaultAddressSpace, "", "192.168.0.0/24", nil, false)
 	if err == nil {
 		t.Fatal("Unexpected success")
 	}
 
-	_, _, _, err = a.RequestPool(defaultAS, "", "", nil, true)
+	_, _, _, err = a.RequestPool(defaultAddressSpace, "", "", nil, true)
 	if err == nil {
 		t.Fatal("Unexpected success")
 	}
