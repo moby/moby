@@ -800,10 +800,9 @@ func (daemon *Daemon) clearAttachableNetworks() {
 func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var createOptions []libnetwork.EndpointOption
 
+	nwName := n.Name()
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-
-	if (!serviceDiscoveryOnDefaultNetwork() && n.Name() == defaultNetName) ||
-		c.NetworkSettings.IsAnonymousEndpoint {
+	if c.NetworkSettings.IsAnonymousEndpoint || (nwName == defaultNetName && !serviceDiscoveryOnDefaultNetwork()) {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
@@ -860,7 +859,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, vip, portConfigs, svcCfg.Aliases[nwID]))
 	}
 
-	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
+	if !containertypes.NetworkMode(nwName).IsUserDefined() {
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
@@ -868,8 +867,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	// to which container was connected to on docker run.
 	// Ideally all these network-specific endpoint configurations must be moved under
 	// container.NetworkSettings.Networks[n.Name()]
-	if n.Name() == c.HostConfig.NetworkMode.NetworkName() ||
-		(n.Name() == defaultNetName && c.HostConfig.NetworkMode.IsDefault()) {
+	if nwName == c.HostConfig.NetworkMode.NetworkName() || (nwName == defaultNetName && c.HostConfig.NetworkMode.IsDefault()) {
 		if c.Config.MacAddress != "" {
 			mac, err := net.ParseMAC(c.Config.MacAddress)
 			if err != nil {
