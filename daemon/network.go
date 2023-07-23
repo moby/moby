@@ -615,14 +615,10 @@ func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 	buildIpamResources(&r, info)
 	r.Labels = info.Labels()
 	r.ConfigOnly = info.ConfigOnly()
+	r.Peers = buildPeerInfoResources(info.Peers())
 
 	if cn := info.ConfigFrom(); cn != "" {
 		r.ConfigFrom = network.ConfigReference{Network: cn}
-	}
-
-	peers := info.Peers()
-	if len(peers) != 0 {
-		r.Peers = buildPeerInfoResources(peers)
 	}
 
 	return r
@@ -672,13 +668,16 @@ func buildDetailedNetworkResources(r *types.NetworkResource, nw *libnetwork.Netw
 	}
 }
 
+// buildPeerInfoResources converts a list of [networkdb.PeerInfo] to a
+// [network.PeerInfo] for inclusion in API responses. It returns nil if
+// the list of peers is empty.
 func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
+	if len(peers) == 0 {
+		return nil
+	}
 	peerInfo := make([]network.PeerInfo, 0, len(peers))
 	for _, peer := range peers {
-		peerInfo = append(peerInfo, network.PeerInfo{
-			Name: peer.Name,
-			IP:   peer.IP,
-		})
+		peerInfo = append(peerInfo, network.PeerInfo(peer))
 	}
 	return peerInfo
 }
