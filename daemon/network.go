@@ -629,21 +629,18 @@ func buildDetailedNetworkResources(r *types.NetworkResource, nw *libnetwork.Netw
 		return
 	}
 
-	epl := nw.Endpoints()
-	for _, e := range epl {
+	for _, e := range nw.Endpoints() {
 		ei := e.Info()
 		if ei == nil {
 			continue
 		}
-		sb := ei.Sandbox()
-		tmpID := e.ID()
-		key := "ep-" + tmpID
-		if sb != nil {
-			key = sb.ContainerID()
+		if sb := ei.Sandbox(); sb != nil {
+			r.Containers[sb.ContainerID()] = buildEndpointResource(e, ei)
+		} else {
+			r.Containers["ep-"+e.ID()] = buildEndpointResource(e, ei)
 		}
-
-		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
 	}
+
 	if !verbose {
 		return
 	}
@@ -752,26 +749,22 @@ func buildIPAMResources(nw libnetwork.NetworkInfo) network.IPAM {
 	}
 }
 
-func buildEndpointResource(id string, name string, info libnetwork.EndpointInfo) types.EndpointResource {
-	er := types.EndpointResource{}
-
-	er.EndpointID = id
-	er.Name = name
-	ei := info
-	if ei == nil {
-		return er
+// buildEndpointResource combines information from the endpoint and additional
+// endpoint-info into a [types.EndpointResource].
+func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo) types.EndpointResource {
+	er := types.EndpointResource{
+		EndpointID: ep.ID(),
+		Name:       ep.Name(),
 	}
-
-	if iface := ei.Iface(); iface != nil {
+	if iface := info.Iface(); iface != nil {
 		if mac := iface.MacAddress(); mac != nil {
 			er.MacAddress = mac.String()
 		}
 		if ip := iface.Address(); ip != nil && len(ip.IP) > 0 {
 			er.IPv4Address = ip.String()
 		}
-
-		if ipv6 := iface.AddressIPv6(); ipv6 != nil && len(ipv6.IP) > 0 {
-			er.IPv6Address = ipv6.String()
+		if ip := iface.AddressIPv6(); ip != nil && len(ip.IP) > 0 {
+			er.IPv6Address = ip.String()
 		}
 	}
 	return er
