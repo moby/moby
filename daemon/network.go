@@ -893,9 +893,10 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
-	// Port-mapping rules belong to the container & applicable only to non-internal networks
-	portmaps := getPortMapInfo(sb)
-	if n.Info().Internal() || len(portmaps) > 0 {
+	// Port-mapping rules belong to the container & applicable only to non-internal networks.
+	//
+	// TODO(thaJeztah): Look if we can provide a more minimal function for getPortMapInfo, as it does a lot, and we only need the "length".
+	if n.Info().Internal() || len(getPortMapInfo(sb)) > 0 {
 		return createOptions, nil
 	}
 
