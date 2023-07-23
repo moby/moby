@@ -948,8 +948,6 @@ func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network *libnetwork.N
 }
 
 func (daemon *Daemon) initializeNetworking(cfg *config.Config, container *container.Container) error {
-	var err error
-
 	if container.HostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := daemon.getNetworkedContainer(container.ID, container.HostConfig.NetworkMode.ConnectedContainer())
@@ -967,13 +965,12 @@ func (daemon *Daemon) initializeNetworking(cfg *config.Config, container *contai
 		return nil
 	}
 
-	if container.HostConfig.NetworkMode.IsHost() {
-		if container.Config.Hostname == "" {
-			container.Config.Hostname, err = os.Hostname()
-			if err != nil {
-				return err
-			}
+	if container.HostConfig.NetworkMode.IsHost() && container.Config.Hostname == "" {
+		hn, err := os.Hostname()
+		if err != nil {
+			return err
 		}
+		container.Config.Hostname = hn
 	}
 
 	if err := daemon.allocateNetwork(cfg, container); err != nil {
