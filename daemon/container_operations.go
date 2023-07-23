@@ -28,18 +28,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-func (daemon *Daemon) getDNSSearchSettings(cfg *config.Config, container *container.Container) []string {
-	if len(container.HostConfig.DNSSearch) > 0 {
-		return container.HostConfig.DNSSearch
-	}
-
-	if len(cfg.DNSSearch) > 0 {
-		return cfg.DNSSearch
-	}
-
-	return nil
-}
-
 func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *container.Container) ([]libnetwork.SandboxOption, error) {
 	var (
 		sboxOptions []libnetwork.SandboxOption
@@ -77,8 +65,12 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(d))
 	}
 
-	dnsSearch := daemon.getDNSSearchSettings(cfg, container)
-
+	var dnsSearch []string
+	if len(container.HostConfig.DNSSearch) > 0 {
+		dnsSearch = container.HostConfig.DNSSearch
+	} else if len(cfg.DNSSearch) > 0 {
+		dnsSearch = cfg.DNSSearch
+	}
 	for _, ds := range dnsSearch {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(ds))
 	}

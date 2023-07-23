@@ -112,8 +112,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		mounts = append(mounts, secretMounts...)
 	}
 
-	configMounts := c.ConfigMounts()
-	if configMounts != nil {
+	if configMounts := c.ConfigMounts(); configMounts != nil {
 		mounts = append(mounts, configMounts...)
 	}
 
@@ -144,8 +143,6 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 	if err != nil {
 		return nil, errors.Wrapf(err, "container %s", c.ID)
 	}
-
-	dnsSearch := daemon.getDNSSearchSettings(&daemonCfg.Config, c)
 
 	// Get endpoints for the libnetwork allocated networks to the container
 	var epList []string
@@ -195,6 +192,13 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 
 	if gwHNSID != "" {
 		epList = append(epList, gwHNSID)
+	}
+
+	var dnsSearch []string
+	if len(c.HostConfig.DNSSearch) > 0 {
+		dnsSearch = c.HostConfig.DNSSearch
+	} else if len(daemonCfg.DNSSearch) > 0 {
+		dnsSearch = daemonCfg.DNSSearch
 	}
 
 	s.Windows.Network = &specs.WindowsNetwork{
