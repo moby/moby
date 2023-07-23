@@ -920,10 +920,8 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			Port:  portNum,
 		})
 
-		pb := networktypes.PortBinding{Port: portNum, Proto: portProto}
 		binding := bindings[port]
 		for i := 0; i < len(binding); i++ {
-			pbCopy := pb.GetCopy()
 			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
 			var portStart, portEnd int
 			if err == nil {
@@ -932,14 +930,20 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			if err != nil {
 				return nil, errors.Wrapf(err, "Error parsing HostPort value (%s)", binding[i].HostPort)
 			}
-			pbCopy.HostPort = uint16(portStart)
-			pbCopy.HostPortEnd = uint16(portEnd)
-			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
-			publishedPorts = append(publishedPorts, pbCopy)
+			publishedPorts = append(publishedPorts, networktypes.PortBinding{
+				Proto:       portProto,
+				Port:        portNum,
+				HostIP:      net.ParseIP(binding[i].HostIP),
+				HostPort:    uint16(portStart),
+				HostPortEnd: uint16(portEnd),
+			})
 		}
 
 		if c.HostConfig.PublishAllPorts && len(binding) == 0 {
-			publishedPorts = append(publishedPorts, pb)
+			publishedPorts = append(publishedPorts, networktypes.PortBinding{
+				Proto: portProto,
+				Port:  portNum,
+			})
 		}
 	}
 
