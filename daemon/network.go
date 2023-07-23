@@ -1030,13 +1030,14 @@ func buildEndpointInfo(networkSettings *internalnetwork.Settings, n *libnetwork.
 		return nil
 	}
 
-	if _, ok := networkSettings.Networks[n.Name()]; !ok {
-		networkSettings.Networks[n.Name()] = &internalnetwork.EndpointSettings{
+	nwName := n.Name()
+	if _, ok := networkSettings.Networks[nwName]; !ok {
+		networkSettings.Networks[nwName] = &internalnetwork.EndpointSettings{
 			EndpointSettings: &network.EndpointSettings{},
 		}
 	}
-	networkSettings.Networks[n.Name()].NetworkID = n.ID()
-	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
+	networkSettings.Networks[nwName].NetworkID = n.ID()
+	networkSettings.Networks[nwName].EndpointID = ep.ID()
 
 	iface := epInfo.Iface()
 	if iface == nil {
@@ -1044,19 +1045,19 @@ func buildEndpointInfo(networkSettings *internalnetwork.Settings, n *libnetwork.
 	}
 
 	if iface.MacAddress() != nil {
-		networkSettings.Networks[n.Name()].MacAddress = iface.MacAddress().String()
+		networkSettings.Networks[nwName].MacAddress = iface.MacAddress().String()
 	}
 
 	if iface.Address() != nil {
 		ones, _ := iface.Address().Mask.Size()
-		networkSettings.Networks[n.Name()].IPAddress = iface.Address().IP.String()
-		networkSettings.Networks[n.Name()].IPPrefixLen = ones
+		networkSettings.Networks[nwName].IPAddress = iface.Address().IP.String()
+		networkSettings.Networks[nwName].IPPrefixLen = ones
 	}
 
 	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP.To16() != nil {
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
-		networkSettings.Networks[n.Name()].GlobalIPv6Address = iface.AddressIPv6().IP.String()
-		networkSettings.Networks[n.Name()].GlobalIPv6PrefixLen = onesv6
+		networkSettings.Networks[nwName].GlobalIPv6Address = iface.AddressIPv6().IP.String()
+		networkSettings.Networks[nwName].GlobalIPv6PrefixLen = onesv6
 	}
 
 	return nil
