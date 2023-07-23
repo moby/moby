@@ -875,12 +875,9 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			if err != nil {
 				return nil, err
 			}
-
-			genericOption := options.Generic{
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(options.Generic{
 				netlabel.MacAddress: mac,
-			}
-
-			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+			}))
 		}
 	}
 
@@ -904,12 +901,10 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
-	portSpecs := c.Config.ExposedPorts
-	ports := make([]nat.Port, len(portSpecs))
-	var i int
-	for p := range portSpecs {
-		ports[i] = p
-		i++
+	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
+	ports := make([]nat.Port, 0, len(c.Config.ExposedPorts))
+	for p := range c.Config.ExposedPorts {
+		ports = append(ports, p)
 	}
 	nat.SortPortMap(ports, bindings)
 
@@ -918,12 +913,14 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		publishedPorts []networktypes.PortBinding
 	)
 	for _, port := range ports {
-		expose := networktypes.TransportPort{}
-		expose.Proto = networktypes.ParseProtocol(port.Proto())
-		expose.Port = uint16(port.Int())
-		exposedPorts = append(exposedPorts, expose)
+		portProto := networktypes.ParseProtocol(port.Proto())
+		portNum := uint16(port.Int())
+		exposedPorts = append(exposedPorts, networktypes.TransportPort{
+			Proto: portProto,
+			Port:  portNum,
+		})
 
-		pb := networktypes.PortBinding{Port: expose.Port, Proto: expose.Proto}
+		pb := networktypes.PortBinding{Port: portNum, Proto: portProto}
 		binding := bindings[port]
 		for i := 0; i < len(binding); i++ {
 			pbCopy := pb.GetCopy()
@@ -946,17 +943,10 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
-	var dns []string
-
 	if len(c.HostConfig.DNS) > 0 {
-		dns = c.HostConfig.DNS
+		createOptions = append(createOptions, libnetwork.CreateOptionDNS(c.HostConfig.DNS))
 	} else if len(daemonDNS) > 0 {
-		dns = daemonDNS
-	}
-
-	if len(dns) > 0 {
-		createOptions = append(createOptions,
-			libnetwork.CreateOptionDNS(dns))
+		createOptions = append(createOptions, libnetwork.CreateOptionDNS(daemonDNS))
 	}
 
 	createOptions = append(createOptions, libnetwork.CreateOptionPortMapping(publishedPorts), libnetwork.CreateOptionExposedPorts(exposedPorts))
