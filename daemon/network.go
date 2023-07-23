@@ -560,38 +560,37 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListConfig) ([]types.NetworkResource, error) {
-	networks := daemon.getAllNetworks()
-
-	list := make([]types.NetworkResource, 0, len(networks))
+func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListConfig) (networks []types.NetworkResource, err error) {
 	var idx map[string]*libnetwork.Network
 	if config.Detailed {
 		idx = make(map[string]*libnetwork.Network)
 	}
 
-	for _, n := range networks {
+	allNetworks := daemon.getAllNetworks()
+	networks = make([]types.NetworkResource, 0, len(allNetworks))
+	for _, n := range allNetworks {
 		nr := buildNetworkResource(n)
-		list = append(list, nr)
+		networks = append(networks, nr)
 		if config.Detailed {
 			idx[nr.ID] = n
 		}
 	}
 
-	var err error
-	list, err = internalnetwork.FilterNetworks(list, filter)
+	networks, err = internalnetwork.FilterNetworks(networks, filter)
 	if err != nil {
 		return nil, err
 	}
 
 	if config.Detailed {
-		for i := range list {
-			np := &list[i]
-			buildDetailedNetworkResources(np, idx[np.ID], config.Verbose)
-			list[i] = *np
+		for i, nw := range networks {
+			networks[i].Containers = buildContainerAttachments(idx[nw.ID])
+			if config.Verbose {
+				networks[i].Services = buildServiceAttachments(idx[nw.ID])
+			}
 		}
 	}
 
-	return list, nil
+	return networks, nil
 }
 
 func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
@@ -624,30 +623,31 @@ func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 	return r
 }
 
-func buildDetailedNetworkResources(r *types.NetworkResource, nw *libnetwork.Network, verbose bool) {
-	if nw == nil {
-		return
-	}
-
+// buildContainerAttachments creates a [types.EndpointResource] map of all
+// containers attached to the network. It is used when listing networks in
+// detailed mode.
+func buildContainerAttachments(nw *libnetwork.Network) map[string]types.EndpointResource {
+	containers := make(map[string]types.EndpointResource)
 	for _, e := range nw.Endpoints() {
 		ei := e.Info()
 		if ei == nil {
 			continue
 		}
 		if sb := ei.Sandbox(); sb != nil {
-			r.Containers[sb.ContainerID()] = buildEndpointResource(e, ei)
+			containers[sb.ContainerID()] = buildEndpointResource(e, ei)
 		} else {
-			r.Containers["ep-"+e.ID()] = buildEndpointResource(e, ei)
+			containers["ep-"+e.ID()] = buildEndpointResource(e, ei)
 		}
 	}
+	return containers
+}
 
-	if !verbose {
-		return
-	}
-	services := nw.Info().Services()
-	r.Services = make(map[string]network.ServiceInfo)
-	for name, service := range services {
-		tasks := []network.Task{}
+// buildServiceAttachments creates a [network.ServiceInfo] map of all services
+// attached to the network. It is used when listing networks in "verbose" mode.
+func buildServiceAttachments(nw *libnetwork.Network) map[string]network.ServiceInfo {
+	services := make(map[string]network.ServiceInfo)
+	for name, service := range nw.Info().Services() {
+		tasks := make([]network.Task, 0, len(service.Tasks))
 		for _, t := range service.Tasks {
 			tasks = append(tasks, network.Task{
 				Name:       t.Name,
@@ -656,13 +656,14 @@ func buildDetailedNetworkResources(r *types.NetworkResource, nw *libnetwork.Netw
 				Info:       t.Info,
 			})
 		}
-		r.Services[name] = network.ServiceInfo{
+		services[name] = network.ServiceInfo{
 			VIP:          service.VIP,
 			Ports:        service.Ports,
 			Tasks:        tasks,
 			LocalLBIndex: service.LocalLBIndex,
 		}
 	}
+	return services
 }
 
 // buildPeerInfoResources converts a list of [networkdb.PeerInfo] to a
