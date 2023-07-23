@@ -6,13 +6,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/libnetwork"
 )
 
 // Backend is all the methods that need to be implemented
 // to provide network specific functionality.
 type Backend interface {
-	FindNetwork(idName string) (*libnetwork.Network, error)
 	GetNetworks(filters.Args, types.NetworkListConfig) ([]types.NetworkResource, error)
 	CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
