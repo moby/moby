@@ -933,18 +933,17 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n *l
 }
 
 func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network *libnetwork.Network, container *container.Container) {
-	if daemon.clusterProvider != nil && network.Info().Dynamic() && !container.Managed {
+	if !container.Managed && daemon.clusterProvider != nil && network.Info().Dynamic() {
 		if err := daemon.clusterProvider.DetachNetwork(network.Name(), container.ID); err != nil {
-			log.G(context.TODO()).Warnf("error detaching from network %s: %v", network.Name(), err)
+			log.G(context.TODO()).WithError(err).Warn("error detaching from network")
 			if err := daemon.clusterProvider.DetachNetwork(network.ID(), container.ID); err != nil {
-				log.G(context.TODO()).Warnf("error detaching from network %s: %v", network.ID(), err)
+				log.G(context.TODO()).WithError(err).Warn("error detaching from network")
 			}
 		}
 	}
-	attributes := map[string]string{
+	daemon.LogNetworkEventWithAttributes(network, "disconnect", map[string]string{
 		"container": container.ID,
-	}
-	daemon.LogNetworkEventWithAttributes(network, "disconnect", attributes)
+	})
 }
 
 func (daemon *Daemon) initializeNetworking(cfg *config.Config, container *container.Container) error {
