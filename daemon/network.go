@@ -593,34 +593,32 @@ func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListC
 	return networks, nil
 }
 
+// buildNetworkResource builds a [types.NetworkResource] from the given
+// [libnetwork.Network], to be returned by the API.
 func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
-	r := types.NetworkResource{}
 	if nw == nil {
-		return r
+		return types.NetworkResource{}
 	}
 
 	info := nw.Info()
-	r.Name = nw.Name()
-	r.ID = nw.ID()
-	r.Created = info.Created()
-	r.Scope = info.Scope()
-	r.Driver = nw.Type()
-	r.EnableIPv6 = info.IPv6Enabled()
-	r.Internal = info.Internal()
-	r.Attachable = info.Attachable()
-	r.Ingress = info.Ingress()
-	r.Options = info.DriverOptions()
-	r.Containers = make(map[string]types.EndpointResource)
-	r.IPAM = buildIPAMResources(info)
-	r.Labels = info.Labels()
-	r.ConfigOnly = info.ConfigOnly()
-	r.Peers = buildPeerInfoResources(info.Peers())
-
-	if cn := info.ConfigFrom(); cn != "" {
-		r.ConfigFrom = network.ConfigReference{Network: cn}
+	return types.NetworkResource{
+		Name:       nw.Name(),
+		ID:         nw.ID(),
+		Created:    info.Created(),
+		Scope:      info.Scope(),
+		Driver:     nw.Type(),
+		EnableIPv6: info.IPv6Enabled(),
+		IPAM:       buildIPAMResources(info),
+		Internal:   info.Internal(),
+		Attachable: info.Attachable(),
+		Ingress:    info.Ingress(),
+		ConfigFrom: network.ConfigReference{Network: info.ConfigFrom()},
+		ConfigOnly: info.ConfigOnly(),
+		Containers: map[string]types.EndpointResource{},
+		Options:    info.DriverOptions(),
+		Labels:     info.Labels(),
+		Peers:      buildPeerInfoResources(info.Peers()),
 	}
-
-	return r
 }
 
 // buildContainerAttachments creates a [types.EndpointResource] map of all
