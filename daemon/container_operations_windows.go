@@ -163,7 +163,7 @@ func serviceDiscoveryOnDefaultNetwork() bool {
 	return true
 }
 
-func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
+func setupPathsAndSandboxOptions(container *container.Container, cfg *config.Config, sboxOptions *[]libnetwork.SandboxOption) error {
 	return nil
 }
 
