@@ -61,17 +61,17 @@ func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 // 3. Partial ID
 // as long as there is no ambiguity
 func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
-	listByFullName := []*libnetwork.Network{}
-	listByPartialID := []*libnetwork.Network{}
+	var listByFullName, listByPartialID []*libnetwork.Network
 	for _, nw := range daemon.getAllNetworks() {
-		if nw.ID() == term {
+		nwID := nw.ID()
+		if nwID == term {
 			return nw, nil
-		}
-		if nw.Name() == term {
-			listByFullName = append(listByFullName, nw)
 		}
 		if strings.HasPrefix(nw.ID(), term) {
 			listByPartialID = append(listByPartialID, nw)
+		}
+		if nw.Name() == term {
+			listByFullName = append(listByFullName, nw)
 		}
 	}
 	switch {
