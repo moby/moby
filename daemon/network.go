@@ -798,12 +798,7 @@ func (daemon *Daemon) clearAttachableNetworks() {
 
 // buildCreateEndpointOptions builds endpoint options from a given network.
 func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, epConfig *network.EndpointSettings, sb *libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
-	var (
-		bindings      = make(nat.PortMap)
-		pbList        []networktypes.PortBinding
-		exposeList    []networktypes.TransportPort
-		createOptions []libnetwork.EndpointOption
-	)
+	var createOptions []libnetwork.EndpointOption
 
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 
@@ -813,31 +808,27 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	}
 
 	if epConfig != nil {
-		ipam := epConfig.IPAMConfig
-
-		if ipam != nil {
-			var (
-				ipList          []net.IP
-				ip, ip6, linkip net.IP
-			)
-
+		if ipam := epConfig.IPAMConfig; ipam != nil {
+			var ipList []net.IP
 			for _, ips := range ipam.LinkLocalIPs {
-				if linkip = net.ParseIP(ips); linkip == nil && ips != "" {
+				linkIP := net.ParseIP(ips)
+				if linkIP == nil && ips != "" {
 					return nil, errors.Errorf("Invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
-				ipList = append(ipList, linkip)
+				ipList = append(ipList, linkIP)
 			}
 
-			if ip = net.ParseIP(ipam.IPv4Address); ip == nil && ipam.IPv4Address != "" {
+			ip := net.ParseIP(ipam.IPv4Address)
+			if ip == nil && ipam.IPv4Address != "" {
 				return nil, errors.Errorf("Invalid IPv4 address: %s)", ipam.IPv4Address)
 			}
 
-			if ip6 = net.ParseIP(ipam.IPv6Address); ip6 == nil && ipam.IPv6Address != "" {
+			ip6 := net.ParseIP(ipam.IPv6Address)
+			if ip6 == nil && ipam.IPv6Address != "" {
 				return nil, errors.Errorf("Invalid IPv6 address: %s)", ipam.IPv6Address)
 			}
 
-			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
+			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
 		}
 
 		for _, alias := range epConfig.Aliases {
@@ -848,9 +839,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		}
 	}
 
-	if c.NetworkSettings.Service != nil {
-		svcCfg := c.NetworkSettings.Service
-
+	if svcCfg := c.NetworkSettings.Service; svcCfg != nil {
 		var vip string
 		if svcCfg.VirtualAddresses[n.ID()] != nil {
 			vip = svcCfg.VirtualAddresses[n.ID()].IPv4
@@ -900,6 +889,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		return createOptions, nil
 	}
 
+	bindings := make(nat.PortMap)
 	if c.HostConfig.PortBindings != nil {
 		for p, b := range c.HostConfig.PortBindings {
 			bindings[p] = []nat.PortBinding{}
@@ -920,11 +910,16 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 		i++
 	}
 	nat.SortPortMap(ports, bindings)
+
+	var (
+		exposedPorts   []networktypes.TransportPort
+		publishedPorts []networktypes.PortBinding
+	)
 	for _, port := range ports {
 		expose := networktypes.TransportPort{}
 		expose.Proto = networktypes.ParseProtocol(port.Proto())
 		expose.Port = uint16(port.Int())
-		exposeList = append(exposeList, expose)
+		exposedPorts = append(exposedPorts, expose)
 
 		pb := networktypes.PortBinding{Port: expose.Port, Proto: expose.Proto}
 		binding := bindings[port]
@@ -941,11 +936,11 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			pbCopy.HostPort = uint16(portStart)
 			pbCopy.HostPortEnd = uint16(portEnd)
 			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
-			pbList = append(pbList, pbCopy)
+			publishedPorts = append(publishedPorts, pbCopy)
 		}
 
 		if c.HostConfig.PublishAllPorts && len(binding) == 0 {
-			pbList = append(pbList, pb)
+			publishedPorts = append(publishedPorts, pb)
 		}
 	}
 
@@ -962,9 +957,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			libnetwork.CreateOptionDNS(dns))
 	}
 
-	createOptions = append(createOptions,
-		libnetwork.CreateOptionPortMapping(pbList),
-		libnetwork.CreateOptionExposedPorts(exposeList))
+	createOptions = append(createOptions, libnetwork.CreateOptionPortMapping(publishedPorts), libnetwork.CreateOptionExposedPorts(exposedPorts))
 
 	return createOptions, nil
 }
