@@ -612,7 +612,7 @@ func buildNetworkResource(nw *libnetwork.Network) types.NetworkResource {
 	r.Ingress = info.Ingress()
 	r.Options = info.DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
-	buildIpamResources(&r, info)
+	r.IPAM = buildIPAMResources(info)
 	r.Labels = info.Labels()
 	r.ConfigOnly = info.ConfigOnly()
 	r.Peers = buildPeerInfoResources(info.Peers())
@@ -682,63 +682,73 @@ func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
 	return peerInfo
 }
 
-func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo) {
-	id, opts, ipv4conf, ipv6conf := nwInfo.IpamConfig()
+// buildIPAMResources constructs a [network.IPAM] from the network's
+// IPAM information for inclusion in API responses.
+func buildIPAMResources(nw libnetwork.NetworkInfo) network.IPAM {
+	var ipamConfig []network.IPAMConfig
 
-	ipv4Info, ipv6Info := nwInfo.IpamInfo()
+	ipamDriver, ipamOptions, ipv4Conf, ipv6Conf := nw.IpamConfig()
 
-	r.IPAM.Driver = id
-
-	r.IPAM.Options = opts
-
-	r.IPAM.Config = []network.IPAMConfig{}
-	for _, ip4 := range ipv4conf {
-		if ip4.PreferredPool == "" {
+	hasIPv4Config := false
+	for _, cfg := range ipv4Conf {
+		if cfg.PreferredPool == "" {
 			continue
 		}
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip4.PreferredPool
-		iData.IPRange = ip4.SubPool
-		iData.Gateway = ip4.Gateway
-		iData.AuxAddress = ip4.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
+		hasIPv4Config = true
+		ipamConfig = append(ipamConfig, network.IPAMConfig{
+			Subnet:     cfg.PreferredPool,
+			IPRange:    cfg.SubPool,
+			Gateway:    cfg.Gateway,
+			AuxAddress: cfg.AuxAddresses,
+		})
 	}
 
-	if len(r.IPAM.Config) == 0 {
-		for _, ip4Info := range ipv4Info {
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip4Info.IPAMData.Pool.String()
-			if ip4Info.IPAMData.Gateway != nil {
-				iData.Gateway = ip4Info.IPAMData.Gateway.IP.String()
-			}
-			r.IPAM.Config = append(r.IPAM.Config, iData)
-		}
-	}
-
-	hasIpv6Conf := false
-	for _, ip6 := range ipv6conf {
-		if ip6.PreferredPool == "" {
+	hasIPv6Config := false
+	for _, cfg := range ipv6Conf {
+		if cfg.PreferredPool == "" {
 			continue
 		}
-		hasIpv6Conf = true
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip6.PreferredPool
-		iData.IPRange = ip6.SubPool
-		iData.Gateway = ip6.Gateway
-		iData.AuxAddress = ip6.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
+		hasIPv6Config = true
+		ipamConfig = append(ipamConfig, network.IPAMConfig{
+			Subnet:     cfg.PreferredPool,
+			IPRange:    cfg.SubPool,
+			Gateway:    cfg.Gateway,
+			AuxAddress: cfg.AuxAddresses,
+		})
 	}
 
-	if !hasIpv6Conf {
-		for _, ip6Info := range ipv6Info {
-			if ip6Info.IPAMData.Pool == nil {
-				continue
+	if !hasIPv4Config || !hasIPv6Config {
+		ipv4Info, ipv6Info := nw.IpamInfo()
+		if !hasIPv4Config {
+			for _, info := range ipv4Info {
+				var gw string
+				if info.IPAMData.Gateway != nil {
+					gw = info.IPAMData.Gateway.IP.String()
+				}
+				ipamConfig = append(ipamConfig, network.IPAMConfig{
+					Subnet:  info.IPAMData.Pool.String(),
+					Gateway: gw,
+				})
 			}
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip6Info.IPAMData.Pool.String()
-			iData.Gateway = ip6Info.IPAMData.Gateway.String()
-			r.IPAM.Config = append(r.IPAM.Config, iData)
 		}
+
+		if !hasIPv6Config {
+			for _, info := range ipv6Info {
+				if info.IPAMData.Pool == nil {
+					continue
+				}
+				ipamConfig = append(ipamConfig, network.IPAMConfig{
+					Subnet:  info.IPAMData.Pool.String(),
+					Gateway: info.IPAMData.Gateway.String(),
+				})
+			}
+		}
+	}
+
+	return network.IPAM{
+		Driver:  ipamDriver,
+		Options: ipamOptions,
+		Config:  ipamConfig,
 	}
 }
 
