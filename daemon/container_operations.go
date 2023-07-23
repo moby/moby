@@ -671,6 +671,12 @@ func validateNetworkingConfig(n libnetwork.Network, epConfig *networktypes.Endpo
 
 // cleanOperationalData resets the operational data from the passed endpoint settings
 func cleanOperationalData(es *network.EndpointSettings) {
+	if es.EndpointSettings == nil {
+		// network.EndpointSettings is a wrapper around types.EndpointSettings,
+		// and the fields being cleared are all in that struct, so if it's nil,
+		// there's nothing to do.
+		return
+	}
 	es.EndpointID = ""
 	es.Gateway = ""
 	es.IPAddress = ""
@@ -1023,11 +1029,6 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 		if nw, err := daemon.FindNetwork(getNetworkID(n, epSettings.EndpointSettings)); err == nil {
 			networks = append(networks, nw)
 		}
-
-		if epSettings.EndpointSettings == nil {
-			continue
-		}
-
 		cleanOperationalData(epSettings)
 	}
 
