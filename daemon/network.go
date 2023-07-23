@@ -840,9 +840,11 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 	}
 
 	if svcCfg := c.NetworkSettings.Service; svcCfg != nil {
-		var vip string
-		if svcCfg.VirtualAddresses[n.ID()] != nil {
-			vip = svcCfg.VirtualAddresses[n.ID()].IPv4
+		nwID := n.ID()
+
+		var vip net.IP
+		if virtualAddress := svcCfg.VirtualAddresses[nwID]; virtualAddress != nil {
+			vip = net.ParseIP(virtualAddress.IPv4)
 		}
 
 		var portConfigs []*libnetwork.PortConfig
@@ -855,7 +857,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			})
 		}
 
-		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, net.ParseIP(vip), portConfigs, svcCfg.Aliases[n.ID()]))
+		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, vip, portConfigs, svcCfg.Aliases[nwID]))
 	}
 
 	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
