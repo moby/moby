@@ -28,9 +28,9 @@ type Settings struct {
 	HasSwarmEndpoint       bool
 }
 
-// EndpointSettings is a package local wrapper for
-// networktypes.EndpointSettings which stores Endpoint state that
-// needs to be persisted to disk but not exposed in the api.
+// EndpointSettings is a wrapper for [networktypes.EndpointSettings] which
+// stores Endpoint state that needs to be persisted to disk but not exposed
+// in the API.
 type EndpointSettings struct {
 	*networktypes.EndpointSettings
 	IPAMOperational bool

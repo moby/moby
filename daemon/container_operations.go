@@ -677,16 +677,9 @@ func cleanOperationalData(es *network.EndpointSettings) {
 		// there's nothing to do.
 		return
 	}
-	es.EndpointID = ""
-	es.Gateway = ""
-	es.IPAddress = ""
-	es.IPPrefixLen = 0
-	es.IPv6Gateway = ""
-	es.GlobalIPv6Address = ""
-	es.GlobalIPv6PrefixLen = 0
-	es.MacAddress = ""
+	es.EndpointSettings.EndpointOperationalData = networktypes.EndpointOperationalData{}
 	if es.IPAMOperational {
-		es.IPAMConfig = nil
+		es.EndpointSettings.IPAMConfig = nil
 	}
 }
 
