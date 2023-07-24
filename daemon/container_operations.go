@@ -102,12 +102,10 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		}
 	}
 
-	portSpecs := container.Config.ExposedPorts
-	ports := make([]nat.Port, len(portSpecs))
-	var i int
-	for p := range portSpecs {
-		ports[i] = p
-		i++
+	// TODO(thaJeztah): Move this code to a method on nat.PortSet.
+	ports := make([]nat.Port, 0, len(container.Config.ExposedPorts))
+	for p := range container.Config.ExposedPorts {
+		ports = append(ports, p)
 	}
 	nat.SortPortMap(ports, bindings)
 
@@ -116,12 +114,14 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		exposedPorts   []types.TransportPort
 	)
 	for _, port := range ports {
-		expose := types.TransportPort{}
-		expose.Proto = types.ParseProtocol(port.Proto())
-		expose.Port = uint16(port.Int())
-		exposedPorts = append(exposedPorts, expose)
+		portProto := types.ParseProtocol(port.Proto())
+		portNum := uint16(port.Int())
+		exposedPorts = append(exposedPorts, types.TransportPort{
+			Proto: portProto,
+			Port:  portNum,
+		})
 
-		pb := types.PortBinding{Port: expose.Port, Proto: expose.Proto}
+		pb := types.PortBinding{Port: portNum, Proto: portProto}
 		binding := bindings[port]
 		for i := 0; i < len(binding); i++ {
 			pbCopy := pb.GetCopy()
@@ -197,14 +197,12 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		}
 	}
 
-	linkOptions := options.Generic{
+	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(options.Generic{
 		netlabel.GenericData: options.Generic{
 			"ParentEndpoints": parentEndpoints,
 			"ChildEndpoints":  childEndpoints,
 		},
-	}
-
-	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(linkOptions))
+	}))
 	return sboxOptions, nil
 }
 
