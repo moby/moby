@@ -50,7 +50,7 @@ import (
 )
 
 func init() {
-	version.Version = "v0.11.6+0a15675913b7"
+	version.Version = "v0.11.6+616c3f613b54"
 }
 
 const labelCreatedAt = "buildkit/createdat"
