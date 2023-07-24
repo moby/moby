@@ -32,8 +32,6 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 	var (
 		sboxOptions []libnetwork.SandboxOption
 		err         error
-		dns         []string
-		dnsOptions  []string
 		bindings    = make(nat.PortMap)
 		pbList      []types.PortBinding
 		exposeList  []types.TransportPort
@@ -56,33 +54,19 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 	}
 
 	if len(container.HostConfig.DNS) > 0 {
-		dns = container.HostConfig.DNS
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(container.HostConfig.DNS))
 	} else if len(cfg.DNS) > 0 {
-		dns = cfg.DNS
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(cfg.DNS))
 	}
-
-	for _, d := range dns {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(d))
-	}
-
-	var dnsSearch []string
 	if len(container.HostConfig.DNSSearch) > 0 {
-		dnsSearch = container.HostConfig.DNSSearch
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(container.HostConfig.DNSSearch))
 	} else if len(cfg.DNSSearch) > 0 {
-		dnsSearch = cfg.DNSSearch
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(cfg.DNSSearch))
 	}
-	for _, ds := range dnsSearch {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(ds))
-	}
-
 	if len(container.HostConfig.DNSOptions) > 0 {
-		dnsOptions = container.HostConfig.DNSOptions
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(container.HostConfig.DNSOptions))
 	} else if len(cfg.DNSOptions) > 0 {
-		dnsOptions = cfg.DNSOptions
-	}
-
-	for _, ds := range dnsOptions {
-		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(ds))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(cfg.DNSOptions))
 	}
 
 	if container.NetworkSettings.SecondaryIPAddresses != nil {
