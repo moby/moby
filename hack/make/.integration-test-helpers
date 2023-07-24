@@ -66,6 +66,7 @@ run_test_integration() {
 run_test_integration_suites() {
 	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
 	local dirs="$1"
+	local failed=0
 	for dir in ${dirs}; do
 		if ! (
 			cd "$dir"
@@ -96,8 +97,16 @@ run_test_integration_suites() {
 				--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
 				--raw-command \
 				-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
-		); then exit 1; fi
+		); then
+			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
+				exit 1
+			fi
+			failed=1
+		fi
 	done
+	if [ $failed -eq 1 ]; then
+		exit 1
+	fi
 }
 
 build_test_suite_binaries() {
