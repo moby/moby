@@ -121,26 +121,25 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 			Port:  portNum,
 		})
 
-		binding := bindings[port]
-		for i := 0; i < len(binding); i++ {
-			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
+		for _, binding := range bindings[port] {
+			newP, err := nat.NewPort(nat.SplitProtoPort(binding.HostPort))
 			var portStart, portEnd int
 			if err == nil {
 				portStart, portEnd, err = newP.Range()
 			}
 			if err != nil {
-				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
+				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding.HostPort, err)
 			}
 			publishedPorts = append(publishedPorts, types.PortBinding{
 				Proto:       portProto,
 				Port:        portNum,
-				HostIP:      net.ParseIP(binding[i].HostIP),
+				HostIP:      net.ParseIP(binding.HostIP),
 				HostPort:    uint16(portStart),
 				HostPortEnd: uint16(portEnd),
 			})
 		}
 
-		if container.HostConfig.PublishAllPorts && len(binding) == 0 {
+		if container.HostConfig.PublishAllPorts && len(bindings[port]) == 0 {
 			publishedPorts = append(publishedPorts, types.PortBinding{
 				Proto: portProto,
 				Port:  portNum,
