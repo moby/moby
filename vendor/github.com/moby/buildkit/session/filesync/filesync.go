@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	io "io"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
@@ -82,6 +85,7 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) (retEr
 	}
 
 	opts, _ := metadata.FromIncomingContext(stream.Context()) // if no metadata continue with empty object
+	opts = decodeOpts(opts)
 
 	dirName := ""
 	name, ok := opts[keyDirName]
@@ -209,6 +213,8 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 
 	var stream grpc.ClientStream
 
+	opts = encodeOpts(opts)
+
 	ctx = metadata.NewOutgoingContext(ctx, opts)
 
 	switch pr.name {
@@ -280,7 +286,7 @@ func (sp *fsSyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	}
 	defer func() {
 		err1 := wc.Close()
-		if err != nil {
+		if err == nil {
 			err = err1
 		}
 	}()
@@ -336,4 +342,61 @@ func (e InvalidSessionError) Error() string {
 
 func (e InvalidSessionError) Unwrap() error {
 	return e.err
+}
+
+func encodeOpts(opts map[string][]string) map[string][]string {
+	md := make(map[string][]string, len(opts))
+	for k, v := range opts {
+		out, encoded := encodeStringForHeader(v)
+		md[k] = out
+		if encoded {
+			md[k+"-encoded"] = []string{"1"}
+		}
+	}
+	return md
+}
+
+func decodeOpts(opts map[string][]string) map[string][]string {
+	md := make(map[string][]string, len(opts))
+	for k, v := range opts {
+		out := make([]string, len(v))
+		var isDecoded bool
+		if v, ok := opts[k+"-encoded"]; ok && len(v) > 0 {
+			if b, _ := strconv.ParseBool(v[0]); b {
+				isDecoded = true
+			}
+		}
+		if isDecoded {
+			for i, s := range v {
+				out[i], _ = url.QueryUnescape(s)
+			}
+		} else {
+			copy(out, v)
+		}
+		md[k] = out
+	}
+	return md
+}
+
+// encodeStringForHeader encodes a string value so it can be used in grpc header. This encoding
+// is backwards compatible and avoids encoding ASCII characters.
+func encodeStringForHeader(inputs []string) ([]string, bool) {
+	var encode bool
+	for _, input := range inputs {
+		for _, runeVal := range input {
+			// Only encode non-ASCII characters, and characters that have special
+			// meaning during decoding.
+			if runeVal > unicode.MaxASCII {
+				encode = true
+				break
+			}
+		}
+	}
+	if !encode {
+		return inputs, false
+	}
+	for i, input := range inputs {
+		inputs[i] = url.QueryEscape(input)
+	}
+	return inputs, true
 }

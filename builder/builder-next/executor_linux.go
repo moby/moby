@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
+	"github.com/moby/buildkit/executor/resources"
 	"github.com/moby/buildkit/executor/runcexecutor"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
@@ -49,6 +50,11 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 		pidmap = nil
 	}
 
+	rm, err := resources.NewMonitor()
+	if err != nil {
+		return nil, err
+	}
+
 	return runcexecutor.New(runcexecutor.Opt{
 		Root:                filepath.Join(root, "executor"),
 		CommandCandidates:   []string{"runc"},
@@ -58,6 +64,7 @@ func newExecutor(root, cgroupParent string, net *libnetwork.Controller, dnsConfi
 		IdentityMapping:     pidmap,
 		DNS:                 dnsConfig,
 		ApparmorProfile:     apparmorProfile,
+		ResourceMonitor:     rm,
 	}, networkProviders)
 }
 
@@ -117,6 +124,11 @@ func (iface *lnInterface) init(c *libnetwork.Controller, n *libnetwork.Network) 
 
 	iface.sbx = sbx
 	iface.ep = ep
+}
+
+// TODO(neersighted): Unstub Sample(), and collect data from the libnetwork Endpoint.
+func (iface *lnInterface) Sample() (*network.Sample, error) {
+	return &network.Sample{}, nil
 }
 
 func (iface *lnInterface) Set(s *specs.Spec) error {

@@ -100,7 +100,7 @@ func (cm *combinedCacheManager) Save(key *CacheKey, s Result, createdAt time.Tim
 	return cm.main.Save(key, s, createdAt)
 }
 
-func (cm *combinedCacheManager) Records(ck *CacheKey) ([]*CacheRecord, error) {
+func (cm *combinedCacheManager) Records(ctx context.Context, ck *CacheKey) ([]*CacheRecord, error) {
 	if len(ck.ids) == 0 {
 		return nil, errors.Errorf("no results")
 	}
@@ -112,7 +112,7 @@ func (cm *combinedCacheManager) Records(ck *CacheKey) ([]*CacheRecord, error) {
 	for c := range ck.ids {
 		func(c *cacheManager) {
 			eg.Go(func() error {
-				recs, err := c.Records(ck)
+				recs, err := c.Records(ctx, ck)
 				if err != nil {
 					return err
 				}

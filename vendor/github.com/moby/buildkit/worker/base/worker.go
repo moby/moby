@@ -11,7 +11,6 @@ import (
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/pkg/idtools"
@@ -21,6 +20,7 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/buildkit/executor/resources"
 	"github.com/moby/buildkit/exporter"
 	imageexporter "github.com/moby/buildkit/exporter/containerimage"
 	localexporter "github.com/moby/buildkit/exporter/local"
@@ -30,6 +30,7 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
+	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/snapshot/imagerefchecker"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
@@ -42,6 +43,7 @@ import (
 	"github.com/moby/buildkit/source/local"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/progress/controller"
@@ -67,17 +69,18 @@ type WorkerOpt struct {
 	NetworkProviders map[pb.NetMode]network.Provider
 	Executor         executor.Executor
 	Snapshotter      snapshot.Snapshotter
-	ContentStore     content.Store
+	ContentStore     *containerdsnapshot.Store
 	Applier          diff.Applier
 	Differ           diff.Comparer
 	ImageStore       images.Store // optional
 	RegistryHosts    docker.RegistryHosts
 	IdentityMapping  *idtools.IdentityMapping
-	LeaseManager     leases.Manager
+	LeaseManager     *leaseutil.Manager
 	GarbageCollect   func(context.Context) (gc.Stats, error)
 	ParallelismSem   *semaphore.Weighted
 	MetadataStore    *metadata.Store
 	MountPoolRoot    string
+	ResourceMonitor  *resources.Monitor
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -213,14 +216,19 @@ func (w *Worker) Close() error {
 			rerr = multierror.Append(rerr, err)
 		}
 	}
+	if w.ResourceMonitor != nil {
+		if err := w.ResourceMonitor.Close(); err != nil {
+			rerr = multierror.Append(rerr, err)
+		}
+	}
 	return rerr
 }
 
-func (w *Worker) ContentStore() content.Store {
+func (w *Worker) ContentStore() *containerdsnapshot.Store {
 	return w.WorkerOpt.ContentStore
 }
 
-func (w *Worker) LeaseManager() leases.Manager {
+func (w *Worker) LeaseManager() *leaseutil.Manager {
 	return w.WorkerOpt.LeaseManager
 }
 
@@ -354,7 +362,7 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
 	return nil
 }
 
-func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (digest.Digest, []byte, error) {
+func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt, sm *session.Manager, g session.Group) (string, digest.Digest, []byte, error) {
 	// is this an registry source? Or an OCI layout source?
 	switch opt.ResolverType {
 	case llb.ResolverTypeOCILayout:

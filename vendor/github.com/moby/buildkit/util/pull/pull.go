@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/schema1"
+	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // SA1019 deprecated
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/flightcontrol"
@@ -32,7 +32,7 @@ type Puller struct {
 	Src          reference.Spec
 	Platform     ocispecs.Platform
 
-	g           flightcontrol.Group
+	g           flightcontrol.Group[struct{}]
 	resolveErr  error
 	resolveDone bool
 	desc        ocispecs.Descriptor
@@ -54,9 +54,9 @@ type PulledManifests struct {
 }
 
 func (p *Puller) resolve(ctx context.Context, resolver remotes.Resolver) error {
-	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
+	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, err error) {
 		if p.resolveErr != nil || p.resolveDone {
-			return nil, p.resolveErr
+			return struct{}{}, p.resolveErr
 		}
 		defer func() {
 			if !errors.Is(err, context.Canceled) {
@@ -68,12 +68,12 @@ func (p *Puller) resolve(ctx context.Context, resolver remotes.Resolver) error {
 		}
 		ref, desc, err := resolver.Resolve(ctx, p.Src.String())
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 		p.desc = desc
 		p.ref = ref
 		p.resolveDone = true
-		return nil, nil
+		return struct{}{}, nil
 	})
 	return err
 }
@@ -233,15 +233,15 @@ func filterLayerBlobs(metadata map[digest.Digest]ocispecs.Descriptor, mu sync.Lo
 		switch desc.MediaType {
 		case
 			ocispecs.MediaTypeImageLayer,
-			ocispecs.MediaTypeImageLayerNonDistributable,
+			ocispecs.MediaTypeImageLayerNonDistributable, //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 			images.MediaTypeDockerSchema2Layer,
 			images.MediaTypeDockerSchema2LayerForeign,
 			ocispecs.MediaTypeImageLayerGzip,
 			images.MediaTypeDockerSchema2LayerGzip,
-			ocispecs.MediaTypeImageLayerNonDistributableGzip,
+			ocispecs.MediaTypeImageLayerNonDistributableGzip, //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 			images.MediaTypeDockerSchema2LayerForeignGzip,
 			ocispecs.MediaTypeImageLayerZstd,
-			ocispecs.MediaTypeImageLayerNonDistributableZstd:
+			ocispecs.MediaTypeImageLayerNonDistributableZstd: //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 			return nil, images.ErrSkipDesc
 		default:
 			if metadata != nil {

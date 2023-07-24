@@ -31,14 +31,14 @@ const (
 // build-contexts or multi-stage builds. Handling these separately allows the
 // scanner to optionally ignore these or to mark them as such in the
 // attestation.
-type Scanner func(ctx context.Context, name string, ref llb.State, extras map[string]llb.State, opts ...llb.ConstraintsOpt) (result.Attestation[llb.State], error)
+type Scanner func(ctx context.Context, name string, ref llb.State, extras map[string]llb.State, opts ...llb.ConstraintsOpt) (result.Attestation[*llb.State], error)
 
-func CreateSBOMScanner(ctx context.Context, resolver llb.ImageMetaResolver, scanner string) (Scanner, error) {
+func CreateSBOMScanner(ctx context.Context, resolver llb.ImageMetaResolver, scanner string, resolveOpt llb.ResolveImageConfigOpt) (Scanner, error) {
 	if scanner == "" {
 		return nil, nil
 	}
 
-	_, dt, err := resolver.ResolveImageConfig(ctx, scanner, llb.ResolveImageConfigOpt{})
+	scanner, _, dt, err := resolver.ResolveImageConfig(ctx, scanner, resolveOpt)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func CreateSBOMScanner(ctx context.Context, resolver llb.ImageMetaResolver, scan
 		return nil, errors.Errorf("scanner %s does not have cmd", scanner)
 	}
 
-	return func(ctx context.Context, name string, ref llb.State, extras map[string]llb.State, opts ...llb.ConstraintsOpt) (result.Attestation[llb.State], error) {
+	return func(ctx context.Context, name string, ref llb.State, extras map[string]llb.State, opts ...llb.ConstraintsOpt) (result.Attestation[*llb.State], error) {
 		var env []string
 		env = append(env, cfg.Config.Env...)
 		env = append(env, "BUILDKIT_SCAN_DESTINATION="+outDir)
@@ -86,9 +86,9 @@ func CreateSBOMScanner(ctx context.Context, resolver llb.ImageMetaResolver, scan
 		}
 
 		stsbom := runscan.AddMount(outDir, llb.Scratch())
-		return result.Attestation[llb.State]{
+		return result.Attestation[*llb.State]{
 			Kind: gatewaypb.AttestationKindBundle,
-			Ref:  stsbom,
+			Ref:  &stsbom,
 			Metadata: map[string][]byte{
 				result.AttestationReasonKey: []byte(result.AttestationReasonSBOM),
 				result.AttestationSBOMCore:  []byte(CoreSBOMName),
@@ -100,7 +100,7 @@ func CreateSBOMScanner(ctx context.Context, resolver llb.ImageMetaResolver, scan
 	}, nil
 }
 
-func HasSBOM[T any](res *result.Result[T]) bool {
+func HasSBOM[T comparable](res *result.Result[T]) bool {
 	for _, as := range res.Attestations {
 		for _, a := range as {
 			if a.InToto.PredicateType == intoto.PredicateSPDX {

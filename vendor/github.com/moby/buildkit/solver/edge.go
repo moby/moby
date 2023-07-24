@@ -405,7 +405,7 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 					} else {
 						for _, k := range keys {
 							k.vtx = e.edge.Vertex.Digest()
-							records, err := e.op.Cache().Records(k)
+							records, err := e.op.Cache().Records(context.Background(), k)
 							if err != nil {
 								bklog.G(context.TODO()).Errorf("error receiving cache records: %v", err)
 								continue
@@ -583,7 +583,7 @@ func (e *edge) recalcCurrentState() {
 			}
 		}
 
-		records, err := e.op.Cache().Records(mergedKey)
+		records, err := e.op.Cache().Records(context.Background(), mergedKey)
 		if err != nil {
 			bklog.G(context.TODO()).Errorf("error receiving cache records: %v", err)
 			continue

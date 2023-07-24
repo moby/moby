@@ -2,7 +2,6 @@ package llbsolver
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/cache"
@@ -17,6 +17,8 @@ import (
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
 	controlgateway "github.com/moby/buildkit/control/gateway"
+	"github.com/moby/buildkit/executor/resources"
+	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
@@ -27,8 +29,7 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	"github.com/moby/buildkit/solver/result"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
-	"github.com/moby/buildkit/util/attestation"
-	"github.com/moby/buildkit/util/buildinfo"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/grpcerrors"
@@ -37,7 +38,6 @@ import (
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
@@ -76,6 +76,7 @@ type Opt struct {
 	SessionManager   *session.Manager
 	WorkerController *worker.Controller
 	HistoryQueue     *HistoryQueue
+	ResourceMonitor  *resources.Monitor
 }
 
 type Solver struct {
@@ -89,11 +90,12 @@ type Solver struct {
 	sm                        *session.Manager
 	entitlements              []string
 	history                   *HistoryQueue
+	sysSampler                *resources.Sampler[*resourcetypes.SysSample]
 }
 
 // Processor defines a processing function to be applied after solving, but
 // before exporting
-type Processor func(ctx context.Context, result *Result, s *Solver, j *solver.Job) (*Result, error)
+type Processor func(ctx context.Context, result *Result, s *Solver, j *solver.Job, usage *resources.SysSampler) (*Result, error)
 
 func New(opt Opt) (*Solver, error) {
 	s := &Solver{
@@ -107,6 +109,12 @@ func New(opt Opt) (*Solver, error) {
 		entitlements:              opt.Entitlements,
 		history:                   opt.HistoryQueue,
 	}
+
+	sampler, err := resources.NewSysSampler()
+	if err != nil {
+		return nil, err
+	}
+	s.sysSampler = sampler
 
 	s.solver = solver.NewSolver(solver.SolverOpt{
 		ResolveOpFunc: s.resolver(),
@@ -141,7 +149,7 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 	return s.bridge(b)
 }
 
-func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, j *solver.Job) (func(*Result, exporter.DescriptorReference, error) error, error) {
+func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, j *solver.Job, usage *resources.SysSampler) (func(*Result, exporter.DescriptorReference, error) error, error) {
 	var stopTrace func() []tracetest.SpanStub
 
 	if s := trace.SpanFromContext(ctx); s.SpanContext().IsValid() {
@@ -196,11 +204,12 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		var releasers []func()
 
 		attrs := map[string]string{
-			"mode": "max",
+			"mode":          "max",
+			"capture-usage": "true",
 		}
 
 		makeProvenance := func(res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
-			prc, err := NewProvenanceCreator(ctx2, cap, res, attrs, j)
+			prc, err := NewProvenanceCreator(ctx2, cap, res, attrs, j, usage)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -212,7 +221,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			if err != nil {
 				return nil, nil, err
 			}
-			w, err := s.history.OpenBlobWriter(ctx, attestation.MediaTypeDockerSchema2AttestationType)
+			w, err := s.history.OpenBlobWriter(ctx, intoto.PayloadType)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -333,7 +342,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		}()
 
 		if err != nil {
-			st, ok := grpcerrors.AsGRPCStatus(grpcerrors.ToGRPC(err))
+			st, ok := grpcerrors.AsGRPCStatus(grpcerrors.ToGRPC(ctx, err))
 			if !ok {
 				st = status.New(codes.Unknown, err.Error())
 			}
@@ -349,7 +358,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 		}
 
 		if stopTrace == nil {
-			logrus.Warn("no trace recorder found, skipping")
+			bklog.G(ctx).Warn("no trace recorder found, skipping")
 			return err
 		}
 		go func() {
@@ -391,7 +400,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 				}
 				return nil
 			}(); err != nil {
-				logrus.Errorf("failed to save trace for %s: %+v", id, err)
+				bklog.G(ctx).Errorf("failed to save trace for %s: %+v", id, err)
 			}
 		}()
 
@@ -406,6 +415,12 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}
 
 	defer j.Discard()
+
+	var usage *resources.Sub[*resourcetypes.SysSample]
+	if s.sysSampler != nil {
+		usage = s.sysSampler.Record()
+		defer usage.Close(false)
+	}
 
 	var res *frontend.Result
 	var resProv *Result
@@ -453,7 +468,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}
 
 	if !internal {
-		rec, err1 := s.recordBuildHistory(ctx, id, req, exp, j)
+		rec, err1 := s.recordBuildHistory(ctx, id, req, exp, j, usage)
 		if err1 != nil {
 			defer j.CloseProgress()
 			return nil, err1
@@ -510,7 +525,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}
 
 	for _, post := range post {
-		res2, err := post(ctx, resProv, s, j)
+		res2, err := post(ctx, resProv, s, j, usage)
 		if err != nil {
 			return nil, err
 		}
@@ -567,9 +582,6 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	for k, v := range res.Metadata {
 		if strings.HasPrefix(k, "frontend.") {
 			exporterResponse[k] = string(v)
-		}
-		if strings.HasPrefix(k, exptypes.ExporterBuildInfo) {
-			exporterResponse[k] = base64.StdEncoding.EncodeToString(v)
 		}
 	}
 	for k, v := range cacheExporterResponse {
@@ -700,9 +712,6 @@ func addProvenanceToResult(res *frontend.Result, br *provenanceBridge) (*Result,
 		if res.Metadata == nil {
 			res.Metadata = map[string][]byte{}
 		}
-		if err := buildinfo.AddMetadata(res.Metadata, exptypes.ExporterBuildInfo, cp); err != nil {
-			return nil, err
-		}
 	}
 
 	if len(res.Refs) != 0 {
@@ -716,9 +725,6 @@ func addProvenanceToResult(res *frontend.Result, br *provenanceBridge) (*Result,
 		out.Provenance.Refs[k] = cp
 		if res.Metadata == nil {
 			res.Metadata = map[string][]byte{}
-		}
-		if err := buildinfo.AddMetadata(res.Metadata, fmt.Sprintf("%s/%s", exptypes.ExporterBuildInfo, k), cp); err != nil {
-			return nil, err
 		}
 	}
 
@@ -746,8 +752,9 @@ func getRefProvenance(ref solver.ResultProxy, br *provenanceBridge) (*provenance
 	}
 	p := ref.Provenance()
 	if p == nil {
-		return nil, errors.Errorf("missing provenance for %s", ref.ID())
+		return nil, nil
 	}
+
 	pr, ok := p.(*provenance.Capture)
 	if !ok {
 		return nil, errors.Errorf("invalid provenance type %T", p)
@@ -892,6 +899,7 @@ func defaultResolver(wc *worker.Controller) ResolveWorkerFunc {
 		return wc.GetDefault()
 	}
 }
+
 func allWorkers(wc *worker.Controller) func(func(w worker.Worker) error) error {
 	return func(f func(worker.Worker) error) error {
 		all, err := wc.List()
@@ -917,27 +925,26 @@ func inBuilderContext(ctx context.Context, b solver.Builder, name, id string, f 
 	}
 	return b.InContext(ctx, func(ctx context.Context, g session.Group) error {
 		pw, _, ctx := progress.NewFromContext(ctx, progress.WithMetadata("vertex", v.Digest))
-		notifyCompleted := notifyStarted(ctx, &v, false)
+		notifyCompleted := notifyStarted(ctx, &v)
 		defer pw.Close()
 		err := f(ctx, g)
-		notifyCompleted(err, false)
+		notifyCompleted(err)
 		return err
 	})
 }
 
-func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) func(err error, cached bool) {
+func notifyStarted(ctx context.Context, v *client.Vertex) func(err error) {
 	pw, _, _ := progress.NewFromContext(ctx)
 	start := time.Now()
 	v.Started = &start
 	v.Completed = nil
-	v.Cached = cached
 	id := identity.NewID()
 	pw.Write(id, *v)
-	return func(err error, cached bool) {
+	return func(err error) {
 		defer pw.Close()
 		stop := time.Now()
 		v.Completed = &stop
-		v.Cached = cached
+		v.Cached = false
 		if err != nil {
 			v.Error = err.Error()
 		}
@@ -977,27 +984,21 @@ func loadEntitlements(b solver.Builder) (entitlements.Set, error) {
 }
 
 func loadSourcePolicy(b solver.Builder) (*spb.Policy, error) {
-	set := make(map[spb.Rule]struct{}, 0)
+	var srcPol spb.Policy
 	err := b.EachValue(context.TODO(), keySourcePolicy, func(v interface{}) error {
 		x, ok := v.(spb.Policy)
 		if !ok {
 			return errors.Errorf("invalid source policy %T", v)
 		}
 		for _, f := range x.Rules {
-			set[*f] = struct{}{}
+			r := *f
+			srcPol.Rules = append(srcPol.Rules, &r)
 		}
+		srcPol.Version = x.Version
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	var srcPol *spb.Policy
-	if len(set) > 0 {
-		srcPol = &spb.Policy{}
-		for k := range set {
-			k := k
-			srcPol.Rules = append(srcPol.Rules, &k)
-		}
-	}
-	return srcPol, nil
+	return &srcPol, nil
 }

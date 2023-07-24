@@ -25,13 +25,13 @@ type contextKeyT string
 var contextKey = contextKeyT("buildkit/util/flightcontrol.progress")
 
 // Group is a flightcontrol synchronization group
-type Group struct {
-	mu sync.Mutex       // protects m
-	m  map[string]*call // lazily initialized
+type Group[T any] struct {
+	mu sync.Mutex          // protects m
+	m  map[string]*call[T] // lazily initialized
 }
 
 // Do executes a context function syncronized by the key
-func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context) (interface{}, error)) (v interface{}, err error) {
+func (g *Group[T]) Do(ctx context.Context, key string, fn func(ctx context.Context) (T, error)) (v T, err error) {
 	var backoff time.Duration
 	for {
 		v, err = g.do(ctx, key, fn)
@@ -53,10 +53,10 @@ func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context)
 	}
 }
 
-func (g *Group) do(ctx context.Context, key string, fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
+func (g *Group[T]) do(ctx context.Context, key string, fn func(ctx context.Context) (T, error)) (T, error) {
 	g.mu.Lock()
 	if g.m == nil {
-		g.m = make(map[string]*call)
+		g.m = make(map[string]*call[T])
 	}
 
 	if c, ok := g.m[key]; ok { // register 2nd waiter
@@ -78,16 +78,16 @@ func (g *Group) do(ctx context.Context, key string, fn func(ctx context.Context)
 	return c.wait(ctx)
 }
 
-type call struct {
+type call[T any] struct {
 	mu      sync.Mutex
-	result  interface{}
+	result  T
 	err     error
 	ready   chan struct{}
 	cleaned chan struct{}
 
-	ctx  *sharedContext
+	ctx  *sharedContext[T]
 	ctxs []context.Context
-	fn   func(ctx context.Context) (interface{}, error)
+	fn   func(ctx context.Context) (T, error)
 	once sync.Once
 
 	closeProgressWriter func()
@@ -95,8 +95,8 @@ type call struct {
 	progressCtx         context.Context
 }
 
-func newCall(fn func(ctx context.Context) (interface{}, error)) *call {
-	c := &call{
+func newCall[T any](fn func(ctx context.Context) (T, error)) *call[T] {
+	c := &call[T]{
 		fn:            fn,
 		ready:         make(chan struct{}),
 		cleaned:       make(chan struct{}),
@@ -114,7 +114,7 @@ func newCall(fn func(ctx context.Context) (interface{}, error)) *call {
 	return c
 }
 
-func (c *call) run() {
+func (c *call[T]) run() {
 	defer c.closeProgressWriter()
 	ctx, cancel := context.WithCancel(c.ctx)
 	defer cancel()
@@ -126,7 +126,8 @@ func (c *call) run() {
 	close(c.ready)
 }
 
-func (c *call) wait(ctx context.Context) (v interface{}, err error) {
+func (c *call[T]) wait(ctx context.Context) (v T, err error) {
+	var empty T
 	c.mu.Lock()
 	// detect case where caller has just returned, let it clean up before
 	select {
@@ -134,7 +135,7 @@ func (c *call) wait(ctx context.Context) (v interface{}, err error) {
 		c.mu.Unlock()
 		if c.err != nil { // on error retry
 			<-c.cleaned
-			return nil, errRetry
+			return empty, errRetry
 		}
 		pw, ok, _ := progress.NewFromContext(ctx)
 		if ok {
@@ -145,7 +146,7 @@ func (c *call) wait(ctx context.Context) (v interface{}, err error) {
 	case <-c.ctx.done: // could return if no error
 		c.mu.Unlock()
 		<-c.cleaned
-		return nil, errRetry
+		return empty, errRetry
 	default:
 	}
 
@@ -174,13 +175,13 @@ func (c *call) wait(ctx context.Context) (v interface{}, err error) {
 		if ok {
 			c.progressState.close(pw)
 		}
-		return nil, ctx.Err()
+		return empty, ctx.Err()
 	case <-c.ready:
 		return c.result, c.err // shared not implemented yet
 	}
 }
 
-func (c *call) Deadline() (deadline time.Time, ok bool) {
+func (c *call[T]) Deadline() (deadline time.Time, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, ctx := range c.ctxs {
@@ -196,11 +197,11 @@ func (c *call) Deadline() (deadline time.Time, ok bool) {
 	return time.Time{}, false
 }
 
-func (c *call) Done() <-chan struct{} {
+func (c *call[T]) Done() <-chan struct{} {
 	return c.ctx.done
 }
 
-func (c *call) Err() error {
+func (c *call[T]) Err() error {
 	select {
 	case <-c.ctx.Done():
 		return c.ctx.err
@@ -209,7 +210,7 @@ func (c *call) Err() error {
 	}
 }
 
-func (c *call) Value(key interface{}) interface{} {
+func (c *call[T]) Value(key interface{}) interface{} {
 	if key == contextKey {
 		return c.progressState
 	}
@@ -239,17 +240,17 @@ func (c *call) Value(key interface{}) interface{} {
 	return nil
 }
 
-type sharedContext struct {
-	*call
+type sharedContext[T any] struct {
+	*call[T]
 	done chan struct{}
 	err  error
 }
 
-func newContext(c *call) *sharedContext {
-	return &sharedContext{call: c, done: make(chan struct{})}
+func newContext[T any](c *call[T]) *sharedContext[T] {
+	return &sharedContext[T]{call: c, done: make(chan struct{})}
 }
 
-func (sc *sharedContext) checkDone() bool {
+func (sc *sharedContext[T]) checkDone() bool {
 	sc.mu.Lock()
 	select {
 	case <-sc.done:

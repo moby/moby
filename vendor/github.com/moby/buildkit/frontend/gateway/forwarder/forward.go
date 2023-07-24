@@ -7,8 +7,8 @@ import (
 	cacheutil "github.com/moby/buildkit/cache/util"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend"
-	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/client"
+	"github.com/moby/buildkit/frontend/gateway/container"
 	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
@@ -26,8 +26,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, w worker.Infos, sid string, sm *session.Manager) (*bridgeClient, error) {
-	bc := &bridgeClient{
+func LLBBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string, inputs map[string]*opspb.Definition, w worker.Infos, sid string, sm *session.Manager) (*BridgeClient, error) {
+	bc := &BridgeClient{
 		opts:              opts,
 		inputs:            inputs,
 		FrontendLLBBridge: llbBridge,
@@ -40,7 +40,7 @@ func llbBridgeToGatewayClient(ctx context.Context, llbBridge frontend.FrontendLL
 	return bc, nil
 }
 
-type bridgeClient struct {
+type BridgeClient struct {
 	frontend.FrontendLLBBridge
 	mu            sync.Mutex
 	opts          map[string]string
@@ -54,7 +54,7 @@ type bridgeClient struct {
 	ctrs          []client.Container
 }
 
-func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
+func (c *BridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
 	res, err := c.FrontendLLBBridge.Solve(ctx, frontend.SolveRequest{
 		Evaluate:       req.Evaluate,
 		Definition:     req.Definition,
@@ -91,7 +91,7 @@ func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 
 	return cRes, nil
 }
-func (c *bridgeClient) loadBuildOpts() client.BuildOpts {
+func (c *BridgeClient) loadBuildOpts() client.BuildOpts {
 	wis := c.workers.WorkerInfos()
 	workers := make([]client.WorkerInfo, len(wis))
 	for i, w := range wis {
@@ -112,11 +112,11 @@ func (c *bridgeClient) loadBuildOpts() client.BuildOpts {
 	}
 }
 
-func (c *bridgeClient) BuildOpts() client.BuildOpts {
+func (c *BridgeClient) BuildOpts() client.BuildOpts {
 	return c.buildOpts
 }
 
-func (c *bridgeClient) Inputs(ctx context.Context) (map[string]llb.State, error) {
+func (c *BridgeClient) Inputs(ctx context.Context) (map[string]llb.State, error) {
 	inputs := make(map[string]llb.State)
 	for key, def := range c.inputs {
 		defop, err := llb.NewDefinitionOp(def)
@@ -128,7 +128,7 @@ func (c *bridgeClient) Inputs(ctx context.Context) (map[string]llb.State, error)
 	return inputs, nil
 }
 
-func (c *bridgeClient) wrapSolveError(solveErr error) error {
+func (c *BridgeClient) wrapSolveError(solveErr error) error {
 	var (
 		ee       *llberrdefs.ExecError
 		fae      *llberrdefs.FileActionError
@@ -162,7 +162,7 @@ func (c *bridgeClient) wrapSolveError(solveErr error) error {
 	return errdefs.WithSolveError(solveErr, subject, inputIDs, mountIDs)
 }
 
-func (c *bridgeClient) registerResultIDs(results ...solver.Result) (ids []string, err error) {
+func (c *BridgeClient) registerResultIDs(results ...solver.Result) (ids []string, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -181,7 +181,7 @@ func (c *bridgeClient) registerResultIDs(results ...solver.Result) (ids []string
 	return ids, nil
 }
 
-func (c *bridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, error) {
+func (c *BridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, error) {
 	if r == nil {
 		return nil, nil
 	}
@@ -206,7 +206,7 @@ func (c *bridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, err
 	return res, nil
 }
 
-func (c *bridgeClient) discard(err error) {
+func (c *BridgeClient) discard(err error) {
 	for _, ctr := range c.ctrs {
 		ctr.Release(context.TODO())
 	}
@@ -227,15 +227,16 @@ func (c *bridgeClient) discard(err error) {
 	}
 }
 
-func (c *bridgeClient) Warn(ctx context.Context, dgst digest.Digest, msg string, opts client.WarnOpts) error {
+func (c *BridgeClient) Warn(ctx context.Context, dgst digest.Digest, msg string, opts client.WarnOpts) error {
 	return c.FrontendLLBBridge.Warn(ctx, dgst, msg, opts)
 }
 
-func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainerRequest) (client.Container, error) {
-	ctrReq := gateway.NewContainerRequest{
+func (c *BridgeClient) NewContainer(ctx context.Context, req client.NewContainerRequest) (client.Container, error) {
+	ctrReq := container.NewContainerRequest{
 		ContainerID: identity.NewID(),
 		NetMode:     req.NetMode,
-		Mounts:      make([]gateway.Mount, len(req.Mounts)),
+		Hostname:    req.Hostname,
+		Mounts:      make([]container.Mount, len(req.Mounts)),
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -266,7 +267,7 @@ func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 					return errors.Errorf("failed to find ref %s for %q mount", m.ResultID, m.Dest)
 				}
 			}
-			ctrReq.Mounts[i] = gateway.Mount{
+			ctrReq.Mounts[i] = container.Mount{
 				WorkerRef: workerRef,
 				Mount: &opspb.Mount{
 					Dest:      m.Dest,
@@ -287,7 +288,7 @@ func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 		return nil, err
 	}
 
-	ctrReq.ExtraHosts, err = gateway.ParseExtraHosts(req.ExtraHosts)
+	ctrReq.ExtraHosts, err = container.ParseExtraHosts(req.ExtraHosts)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +299,7 @@ func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 	}
 
 	group := session.NewGroup(c.sid)
-	ctr, err := gateway.NewContainer(ctx, w, c.sm, group, ctrReq)
+	ctr, err := container.NewContainer(ctx, w, c.sm, group, ctrReq)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +307,7 @@ func (c *bridgeClient) NewContainer(ctx context.Context, req client.NewContainer
 	return ctr, nil
 }
 
-func (c *bridgeClient) newRef(r solver.ResultProxy, s session.Group) (*ref, error) {
+func (c *BridgeClient) newRef(r solver.ResultProxy, s session.Group) (*ref, error) {
 	return &ref{resultProxy: r, session: s, c: c}, nil
 }
 
@@ -315,7 +316,7 @@ type ref struct {
 	resultProxyClones []solver.ResultProxy
 
 	session session.Group
-	c       *bridgeClient
+	c       *BridgeClient
 }
 
 func (r *ref) acquireResultProxy() solver.ResultProxy {

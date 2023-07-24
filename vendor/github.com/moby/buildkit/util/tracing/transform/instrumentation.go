@@ -6,12 +6,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 )
 
-func instrumentationLibrary(il *commonpb.InstrumentationLibrary) instrumentation.Library {
-	if il == nil {
-		return instrumentation.Library{}
+func instrumentationScope(is *commonpb.InstrumentationScope) instrumentation.Scope {
+	if is == nil {
+		return instrumentation.Scope{}
 	}
-	return instrumentation.Library{
-		Name:    il.Name,
-		Version: il.Version,
+	return instrumentation.Scope{
+		Name:    is.Name,
+		Version: is.Version,
 	}
 }

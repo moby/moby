@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
+	resourcetypes "github.com/moby/buildkit/executor/resources/types"
 )
 
 func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool, _ idtools.IdentityMapping, _ string) (executor.Executor, error) {
@@ -20,8 +21,8 @@ func newExecutor(_, _ string, _ *libnetwork.Controller, _ *oci.DNSConfig, _ bool
 
 type stubExecutor struct{}
 
-func (w *stubExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (err error) {
-	return errors.New("buildkit executor not implemented for "+runtime.GOOS)
+func (w *stubExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (resourcetypes.Recorder, error) {
+	return nil, errors.New("buildkit executor not implemented for "+runtime.GOOS)
 }
 
 func (w *stubExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) error {

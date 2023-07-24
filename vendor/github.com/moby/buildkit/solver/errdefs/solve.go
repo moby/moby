@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/containerd/typeurl"
+	"github.com/containerd/typeurl/v2"
 	"github.com/golang/protobuf/jsonpb" //nolint:staticcheck
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"

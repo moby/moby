@@ -1,8 +1,6 @@
 package result
 
 import (
-	"reflect"
-
 	pb "github.com/moby/buildkit/frontend/gateway/pb"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -58,9 +56,11 @@ func FromDigestMap(m map[string]string) []digest.Digest {
 	return ds
 }
 
-func ConvertAttestation[U any, V any](a *Attestation[U], fn func(U) (V, error)) (*Attestation[V], error) {
+func ConvertAttestation[U comparable, V comparable](a *Attestation[U], fn func(U) (V, error)) (*Attestation[V], error) {
+	var zero U
+
 	var ref V
-	if reflect.ValueOf(a.Ref).IsValid() {
+	if a.Ref != zero {
 		var err error
 		ref, err = fn(a.Ref)
 		if err != nil {

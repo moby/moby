@@ -10,6 +10,7 @@ import (
 	"github.com/google/shlex"
 	"github.com/moby/buildkit/solver/pb"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 type contextKeyT string
@@ -29,10 +30,15 @@ var (
 	keySecurity = contextKeyT("llb.security")
 )
 
+// AddEnvf is the same as [AddEnv] but allows for a format string.
+// This is the equivalent of `[State.AddEnvf]`
 func AddEnvf(key, value string, v ...interface{}) StateOption {
 	return addEnvf(key, value, true, v...)
 }
 
+// AddEnv returns a [StateOption] whichs adds an environment variable to the state.
+// Use this with [State.With] to create a new state with the environment variable set.
+// This is the equivalent of `[State.AddEnv]`
 func AddEnv(key, value string) StateOption {
 	return addEnvf(key, value, false)
 }
@@ -52,10 +58,14 @@ func addEnvf(key, value string, replace bool, v ...interface{}) StateOption {
 	}
 }
 
+// Dir returns a [StateOption] sets the working directory for the state which will be used to resolve
+// relative paths as well as the working directory for [State.Run].
+// See [State.With] for where to use this.
 func Dir(str string) StateOption {
 	return dirf(str, false)
 }
 
+// Dirf is the same as [Dir] but allows for a format string.
 func Dirf(str string, v ...interface{}) StateOption {
 	return dirf(str, true, v...)
 }
@@ -69,7 +79,7 @@ func dirf(value string, replace bool, v ...interface{}) StateOption {
 			if !path.IsAbs(value) {
 				prev, err := getDir(s)(ctx, c)
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "getting dir from state")
 				}
 				if prev == "" {
 					prev = "/"
@@ -81,12 +91,18 @@ func dirf(value string, replace bool, v ...interface{}) StateOption {
 	}
 }
 
+// User returns a [StateOption] which sets the user for the state which will be used by [State.Run].
+// This is the equivalent of [State.User]
+// See [State.With] for where to use this.
 func User(str string) StateOption {
 	return func(s State) State {
 		return s.WithValue(keyUser, str)
 	}
 }
 
+// Reset returns a [StateOption] which creates a new [State] with just the
+// output of the current [State] and the provided [State] is set as the parent.
+// This is the equivalent of [State.Reset]
 func Reset(other State) StateOption {
 	return func(s State) State {
 		s = NewState(s.Output())
@@ -147,6 +163,9 @@ func getUser(s State) func(context.Context, *Constraints) (string, error) {
 	}
 }
 
+// Hostname returns a [StateOption] which sets the hostname used for containers created by [State.Run].
+// This is the equivalent of [State.Hostname]
+// See [State.With] for where to use this.
 func Hostname(str string) StateOption {
 	return func(s State) State {
 		return s.WithValue(keyHostname, str)
@@ -283,6 +302,9 @@ func getCgroupParent(s State) func(context.Context, *Constraints) (string, error
 	}
 }
 
+// Network returns a [StateOption] which sets the network mode used for containers created by [State.Run].
+// This is the equivalent of [State.Network]
+// See [State.With] for where to use this.
 func Network(v pb.NetMode) StateOption {
 	return func(s State) State {
 		return s.WithValue(keyNetwork, v)
@@ -302,6 +324,9 @@ func getNetwork(s State) func(context.Context, *Constraints) (pb.NetMode, error)
 	}
 }
 
+// Security returns a [StateOption] which sets the security mode used for containers created by [State.Run].
+// This is the equivalent of [State.Security]
+// See [State.With] for where to use this.
 func Security(v pb.SecurityMode) StateOption {
 	return func(s State) State {
 		return s.WithValue(keySecurity, v)

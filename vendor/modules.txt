@@ -87,6 +87,9 @@ github.com/RackSec/srslog
 # github.com/agext/levenshtein v1.2.3
 ## explicit
 github.com/agext/levenshtein
+# github.com/anchore/go-struct-converter v0.0.0-20221118182256-c68fdcfa2092
+## explicit; go 1.18
+github.com/anchore/go-struct-converter
 # github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 ## explicit
 github.com/armon/circbuf
@@ -363,11 +366,12 @@ github.com/containerd/go-cni
 # github.com/containerd/go-runc v1.1.0
 ## explicit; go 1.18
 github.com/containerd/go-runc
-# github.com/containerd/nydus-snapshotter v0.3.1
-## explicit; go 1.17
+# github.com/containerd/nydus-snapshotter v0.8.2
+## explicit; go 1.19
 github.com/containerd/nydus-snapshotter/pkg/converter
 github.com/containerd/nydus-snapshotter/pkg/converter/tool
 github.com/containerd/nydus-snapshotter/pkg/errdefs
+github.com/containerd/nydus-snapshotter/pkg/label
 # github.com/containerd/stargz-snapshotter/estargz v0.14.3
 ## explicit; go 1.19
 github.com/containerd/stargz-snapshotter/estargz
@@ -375,9 +379,6 @@ github.com/containerd/stargz-snapshotter/estargz/errorutil
 # github.com/containerd/ttrpc v1.2.2
 ## explicit; go 1.13
 github.com/containerd/ttrpc
-# github.com/containerd/typeurl v1.0.2
-## explicit; go 1.13
-github.com/containerd/typeurl
 # github.com/containerd/typeurl/v2 v2.1.1
 ## explicit; go 1.13
 github.com/containerd/typeurl/v2
@@ -664,8 +665,8 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.11.7-0.20230723230859-616c3f613b54
-## explicit; go 1.18
+# github.com/moby/buildkit v0.12.2
+## explicit; go 1.20
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
 github.com/moby/buildkit/cache
@@ -691,12 +692,15 @@ github.com/moby/buildkit/control/gateway
 github.com/moby/buildkit/executor
 github.com/moby/buildkit/executor/containerdexecutor
 github.com/moby/buildkit/executor/oci
+github.com/moby/buildkit/executor/resources
+github.com/moby/buildkit/executor/resources/types
 github.com/moby/buildkit/executor/runcexecutor
 github.com/moby/buildkit/exporter
 github.com/moby/buildkit/exporter/attestation
 github.com/moby/buildkit/exporter/containerimage
 github.com/moby/buildkit/exporter/containerimage/exptypes
 github.com/moby/buildkit/exporter/containerimage/image
+github.com/moby/buildkit/exporter/exptypes
 github.com/moby/buildkit/exporter/local
 github.com/moby/buildkit/exporter/oci
 github.com/moby/buildkit/exporter/tar
@@ -711,8 +715,10 @@ github.com/moby/buildkit/frontend/dockerfile/dockerignore
 github.com/moby/buildkit/frontend/dockerfile/instructions
 github.com/moby/buildkit/frontend/dockerfile/parser
 github.com/moby/buildkit/frontend/dockerfile/shell
+github.com/moby/buildkit/frontend/dockerui
 github.com/moby/buildkit/frontend/gateway
 github.com/moby/buildkit/frontend/gateway/client
+github.com/moby/buildkit/frontend/gateway/container
 github.com/moby/buildkit/frontend/gateway/forwarder
 github.com/moby/buildkit/frontend/gateway/grpcclient
 github.com/moby/buildkit/frontend/gateway/pb
@@ -760,8 +766,6 @@ github.com/moby/buildkit/util/appdefaults
 github.com/moby/buildkit/util/archutil
 github.com/moby/buildkit/util/attestation
 github.com/moby/buildkit/util/bklog
-github.com/moby/buildkit/util/buildinfo
-github.com/moby/buildkit/util/buildinfo/types
 github.com/moby/buildkit/util/compression
 github.com/moby/buildkit/util/cond
 github.com/moby/buildkit/util/contentutil
@@ -995,12 +999,16 @@ github.com/shibumi/go-pathspec
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# github.com/spdx/tools-golang v0.3.1-0.20230104082527-d6f58551be3f
+# github.com/spdx/tools-golang v0.5.1
 ## explicit; go 1.13
+github.com/spdx/tools-golang/convert
 github.com/spdx/tools-golang/json
+github.com/spdx/tools-golang/spdx
 github.com/spdx/tools-golang/spdx/common
-github.com/spdx/tools-golang/spdx/v2_2
-github.com/spdx/tools-golang/spdx/v2_3
+github.com/spdx/tools-golang/spdx/v2/common
+github.com/spdx/tools-golang/spdx/v2/v2_1
+github.com/spdx/tools-golang/spdx/v2/v2_2
+github.com/spdx/tools-golang/spdx/v2/v2_3
 # github.com/spf13/cobra v1.7.0
 ## explicit; go 1.15
 github.com/spf13/cobra

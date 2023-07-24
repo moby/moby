@@ -242,28 +242,56 @@ func (c *cniProvider) newNS(ctx context.Context, hostname string) (*cniNS, error
 			cni.WithArgs("IgnoreUnknown", "1"))
 	}
 
-	if _, err := c.CNI.Setup(context.TODO(), id, nativeID, nsOpts...); err != nil {
+	cniRes, err := c.CNI.Setup(context.TODO(), id, nativeID, nsOpts...)
+	if err != nil {
 		deleteNetNS(nativeID)
 		return nil, errors.Wrap(err, "CNI setup error")
 	}
 	trace.SpanFromContext(ctx).AddEvent("finished setting up network namespace")
 	bklog.G(ctx).Debugf("finished setting up network namespace %s", id)
 
-	return &cniNS{
+	vethName := ""
+	for k := range cniRes.Interfaces {
+		if strings.HasPrefix(k, "veth") {
+			if vethName != "" {
+				// invalid config
+				vethName = ""
+				break
+			}
+			vethName = k
+		}
+	}
+
+	ns := &cniNS{
 		nativeID: nativeID,
 		id:       id,
 		handle:   c.CNI,
 		opts:     nsOpts,
-	}, nil
+		vethName: vethName,
+	}
+
+	if ns.vethName != "" {
+		sample, err := ns.sample()
+		if err == nil && sample != nil {
+			ns.canSample = true
+			ns.offsetSample = sample
+		}
+	}
+
+	return ns, nil
 }
 
 type cniNS struct {
-	pool     *cniPool
-	handle   cni.CNI
-	id       string
-	nativeID string
-	opts     []cni.NamespaceOpts
-	lastUsed time.Time
+	pool         *cniPool
+	handle       cni.CNI
+	id           string
+	nativeID     string
+	opts         []cni.NamespaceOpts
+	lastUsed     time.Time
+	vethName     string
+	canSample    bool
+	offsetSample *network.Sample
+	prevSample   *network.Sample
 }
 
 func (ns *cniNS) Set(s *specs.Spec) error {
@@ -271,11 +299,38 @@ func (ns *cniNS) Set(s *specs.Spec) error {
 }
 
 func (ns *cniNS) Close() error {
+	if ns.prevSample != nil {
+		ns.offsetSample = ns.prevSample
+	}
 	if ns.pool == nil {
 		return ns.release()
 	}
 	ns.pool.put(ns)
 	return nil
+}
+
+func (ns *cniNS) Sample() (*network.Sample, error) {
+	if !ns.canSample {
+		return nil, nil
+	}
+	s, err := ns.sample()
+	if err != nil {
+		return nil, err
+	}
+	if s == nil {
+		return nil, nil
+	}
+	if ns.offsetSample != nil {
+		s.TxBytes -= ns.offsetSample.TxBytes
+		s.RxBytes -= ns.offsetSample.RxBytes
+		s.TxPackets -= ns.offsetSample.TxPackets
+		s.RxPackets -= ns.offsetSample.RxPackets
+		s.TxErrors -= ns.offsetSample.TxErrors
+		s.RxErrors -= ns.offsetSample.RxErrors
+		s.TxDropped -= ns.offsetSample.TxDropped
+		s.RxDropped -= ns.offsetSample.RxDropped
+	}
+	return s, nil
 }
 
 func (ns *cniNS) release() error {

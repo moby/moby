@@ -4,10 +4,18 @@
 package oci
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/containerd/containerd/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/solver/pb"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+)
+
+const (
+	tracingSocketPath = "//./pipe/otel-grpc"
 )
 
 func generateMountOpts(resolvConf, hostsFile string) ([]oci.SpecOpts, error) {
@@ -42,4 +50,20 @@ func generateRlimitOpts(ulimits []*pb.Ulimit) ([]oci.SpecOpts, error) {
 		return nil, nil
 	}
 	return nil, errors.New("no support for POSIXRlimit on Windows")
+}
+
+func getTracingSocketMount(socket string) specs.Mount {
+	return specs.Mount{
+		Destination: filepath.FromSlash(tracingSocketPath),
+		Source:      socket,
+		Options:     []string{"ro"},
+	}
+}
+
+func getTracingSocket() string {
+	return fmt.Sprintf("npipe://%s", filepath.ToSlash(tracingSocketPath))
+}
+
+func cgroupNamespaceSupported() bool {
+	return false
 }

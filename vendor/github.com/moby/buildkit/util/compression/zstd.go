@@ -47,7 +47,7 @@ func (c zstdType) NeedsForceCompression() bool {
 }
 
 func (c zstdType) MediaType() string {
-	return mediaTypeImageLayerZstd
+	return ocispecs.MediaTypeImageLayerZstd
 }
 
 func (c zstdType) String() string {

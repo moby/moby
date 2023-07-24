@@ -357,12 +357,13 @@ func parseFrom(req parseRequest) (*Stage, error) {
 	}, nil
 }
 
-func parseBuildStageName(args []string) (string, error) {
-	stageName := ""
+var validStageName = regexp.MustCompile("^[a-z][a-z0-9-_.]*$")
+
+func parseBuildStageName(args []string) (stageName string, err error) {
 	switch {
 	case len(args) == 3 && strings.EqualFold(args[1], "as"):
 		stageName = strings.ToLower(args[2])
-		if ok, _ := regexp.MatchString("^[a-z][a-z0-9-_\\.]*$", stageName); !ok {
+		if !validStageName.MatchString(stageName) {
 			return "", errors.Errorf("invalid name for build stage: %q, name can't start with a number or contain symbols", args[2])
 		}
 	case len(args) != 1:
@@ -543,6 +544,7 @@ func parseHealthcheck(req parseRequest) (*HealthCheckCommand, error) {
 		flInterval := req.flags.AddString("interval", "")
 		flTimeout := req.flags.AddString("timeout", "")
 		flStartPeriod := req.flags.AddString("start-period", "")
+		flStartInterval := req.flags.AddString("start-interval", "")
 		flRetries := req.flags.AddString("retries", "")
 
 		if err := req.flags.Parse(); err != nil {
@@ -582,6 +584,12 @@ func parseHealthcheck(req parseRequest) (*HealthCheckCommand, error) {
 			return nil, err
 		}
 		healthcheck.StartPeriod = startPeriod
+
+		startInterval, err := parseOptInterval(flStartInterval)
+		if err != nil {
+			return nil, err
+		}
+		healthcheck.StartInterval = startInterval
 
 		if flRetries.Value != "" {
 			retries, err := strconv.ParseInt(flRetries.Value, 10, 32)

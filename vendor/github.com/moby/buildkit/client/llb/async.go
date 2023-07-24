@@ -15,7 +15,7 @@ type asyncState struct {
 	target State
 	set    bool
 	err    error
-	g      flightcontrol.Group
+	g      flightcontrol.Group[State]
 }
 
 func (as *asyncState) Output() Output {
@@ -53,7 +53,7 @@ func (as *asyncState) ToInput(ctx context.Context, c *Constraints) (*pb.Input, e
 }
 
 func (as *asyncState) Do(ctx context.Context, c *Constraints) error {
-	_, err := as.g.Do(ctx, "", func(ctx context.Context) (interface{}, error) {
+	_, err := as.g.Do(ctx, "", func(ctx context.Context) (State, error) {
 		if as.set {
 			return as.target, as.err
 		}

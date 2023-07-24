@@ -167,8 +167,7 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 	}
 	mnt := mnts[0]
 
-	switch mnt.Type {
-	case "overlay":
+	if overlay.IsOverlayMountType(mnt) {
 		for _, opt := range mnt.Options {
 			if strings.HasPrefix(opt, "upperdir=") {
 				a.root = strings.TrimPrefix(opt, "upperdir=")
@@ -183,9 +182,9 @@ func applierFor(dest Mountable, tryCrossSnapshotLink, userxattr bool) (_ *applie
 			return nil, errors.Errorf("could not find lowerdir in mount options %v", mnt.Options)
 		}
 		a.createWhiteoutDelete = true
-	case "bind", "rbind":
+	} else if mnt.Type == "bind" || mnt.Type == "rbind" {
 		a.root = mnt.Source
-	default:
+	} else {
 		mnter := LocalMounter(dest)
 		root, err := mnter.Mount()
 		if err != nil {
@@ -570,10 +569,9 @@ func differFor(lowerMntable, upperMntable Mountable) (_ *differ, rerr error) {
 	}
 
 	if len(upperMnts) == 1 {
-		switch upperMnts[0].Type {
-		case "bind", "rbind":
+		if upperMnts[0].Type == "bind" || upperMnts[0].Type == "rbind" {
 			d.upperBindSource = upperMnts[0].Source
-		case "overlay":
+		} else if overlay.IsOverlayMountType(upperMnts[0]) {
 			overlayDirs, err := overlay.GetOverlayLayers(upperMnts[0])
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get overlay layers from mount %+v", upperMnts[0])

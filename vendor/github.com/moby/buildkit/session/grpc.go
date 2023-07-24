@@ -134,7 +134,7 @@ func monitorHealth(ctx context.Context, cc *grpc.ClientConn, cancelConn func()) 
 				}
 			}
 
-			bklog.G(ctx).WithFields(logFields).Debug("healthcheck completed")
+			bklog.G(ctx).WithFields(logFields).Trace("healthcheck completed")
 		}
 	}
 }

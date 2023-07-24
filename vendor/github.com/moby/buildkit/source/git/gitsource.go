@@ -671,13 +671,14 @@ func git(ctx context.Context, dir, sshAuthSock, knownHosts string, args ...strin
 			//	"GIT_TRACE=1",
 			"GIT_CONFIG_NOSYSTEM=1", // Disable reading from system gitconfig.
 			"HOME=/dev/null",        // Disable reading from user gitconfig.
+			"LC_ALL=C",              // Ensure consistent output.
 		}
 		if sshAuthSock != "" {
 			cmd.Env = append(cmd.Env, "SSH_AUTH_SOCK="+sshAuthSock)
 		}
 		// remote git commands spawn helper processes that inherit FDs and don't
 		// handle parent death signal so exec.CommandContext can't be used
-		err := runProcessGroup(ctx, cmd)
+		err := runWithStandardUmask(ctx, cmd)
 		if err != nil {
 			if strings.Contains(errbuf.String(), "--depth") || strings.Contains(errbuf.String(), "shallow") {
 				if newArgs := argsNoDepth(args); len(args) > len(newArgs) {

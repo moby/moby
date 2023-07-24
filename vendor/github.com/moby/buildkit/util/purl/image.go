@@ -14,7 +14,7 @@ import (
 // RefToPURL converts an image reference with optional platform constraint to a package URL.
 // Image references are defined in https://github.com/distribution/distribution/blob/v2.8.1/reference/reference.go#L1
 // Package URLs are defined in https://github.com/package-url/purl-spec
-func RefToPURL(ref string, platform *ocispecs.Platform) (string, error) {
+func RefToPURL(purlType string, ref string, platform *ocispecs.Platform) (string, error) {
 	named, err := reference.ParseNormalizedNamed(ref)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to parse ref %q", ref)
@@ -52,7 +52,7 @@ func RefToPURL(ref string, platform *ocispecs.Platform) (string, error) {
 		})
 	}
 
-	p := packageurl.NewPackageURL("docker", ns, name, version, qualifiers, "")
+	p := packageurl.NewPackageURL(purlType, ns, name, version, qualifiers, "")
 	return p.ToString(), nil
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -77,12 +77,6 @@ func getExporter() (sdktrace.SpanExporter, error) {
 	exp, err := detectExporter()
 	if err != nil {
 		return nil, err
-	}
-
-	if exp != nil {
-		exp = &threadSafeExporterWrapper{
-			exporter: exp,
-		}
 	}
 
 	if Recorder != nil {

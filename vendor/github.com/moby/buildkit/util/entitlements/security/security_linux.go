@@ -10,16 +10,16 @@ import (
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/pkg/cap"
 	"github.com/containerd/containerd/pkg/userns"
+	"github.com/moby/buildkit/util/bklog"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
 // WithInsecureSpec sets spec with All capability.
 func WithInsecureSpec() oci.SpecOpts {
-	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *specs.Spec) error {
-		addCaps, err := getAllCaps()
+	return func(ctx context.Context, _ oci.Client, _ *containers.Container, s *specs.Spec) error {
+		addCaps, err := getAllCaps(ctx)
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func WithInsecureSpec() oci.SpecOpts {
 
 			loopID, err := getFreeLoopID()
 			if err != nil {
-				logrus.Debugf("failed to get next free loop device: %v", err)
+				bklog.G(ctx).Debugf("failed to get next free loop device: %v", err)
 			}
 
 			for i := 0; i <= loopID+7; i++ {
@@ -142,7 +142,7 @@ func getCurrentCaps() ([]string, error) {
 	return currentCaps, currentCapsError
 }
 
-func getAllCaps() ([]string, error) {
+func getAllCaps(ctx context.Context) ([]string, error) {
 	availableCaps, err := getCurrentCaps()
 	if err != nil {
 		return nil, errors.Errorf("error getting current capabilities: %s", err)
@@ -152,7 +152,7 @@ func getAllCaps() ([]string, error) {
 	// they are either not supported by the kernel or dropped at the process level
 	for _, cap := range availableCaps {
 		if _, exists := linux35Caps[cap]; !exists {
-			logrus.Warnf("capability %s could not be granted for insecure mode", cap)
+			bklog.G(ctx).Warnf("capability %s could not be granted for insecure mode", cap)
 		}
 	}
 

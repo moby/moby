@@ -63,7 +63,7 @@ type SourceOpt struct {
 // Source is the source implementation for accessing container images
 type Source struct {
 	SourceOpt
-	g flightcontrol.Group
+	g flightcontrol.Group[interface{}]
 }
 
 // NewSource creates a new image source
@@ -187,7 +187,7 @@ func (is *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
-	g                flightcontrol.Group
+	g                flightcontrol.Group[struct{}]
 	src              *source.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
@@ -258,7 +258,7 @@ func (p *puller) resolveLocal() {
 }
 
 func (p *puller) resolve(ctx context.Context, g session.Group) error {
-	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ interface{}, err error) {
+	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, err error) {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
 			resolveProgressDone(err)
@@ -266,13 +266,13 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 
 		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 
 		if p.desc.Digest == "" && p.config == nil {
 			origRef, desc, err := p.resolver(g).Resolve(ctx, ref.String())
 			if err != nil {
-				return nil, err
+				return struct{}{}, err
 			}
 
 			p.desc = desc
@@ -287,16 +287,16 @@ func (p *puller) resolve(ctx context.Context, g session.Group) error {
 		if p.config == nil && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
 			ref, err := distreference.WithDigest(ref, p.desc.Digest)
 			if err != nil {
-				return nil, err
+				return struct{}{}, err
 			}
 			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), llb.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm, g)
 			if err != nil {
-				return nil, err
+				return struct{}{}, err
 			}
 
 			p.config = dt
 		}
-		return nil, nil
+		return struct{}{}, nil
 	})
 	return err
 }

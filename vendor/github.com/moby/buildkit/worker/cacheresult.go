@@ -95,8 +95,8 @@ func (s *cacheResultStorage) LoadRemotes(ctx context.Context, res solver.CacheRe
 	}
 	return remotes, nil
 }
-func (s *cacheResultStorage) Exists(id string) bool {
-	ref, err := s.load(context.TODO(), id, true)
+func (s *cacheResultStorage) Exists(ctx context.Context, id string) bool {
+	ref, err := s.load(ctx, id, true)
 	if err != nil {
 		return false
 	}

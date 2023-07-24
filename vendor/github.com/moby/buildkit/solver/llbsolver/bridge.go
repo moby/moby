@@ -155,7 +155,7 @@ type resultProxy struct {
 	id         string
 	b          *provenanceBridge
 	req        frontend.SolveRequest
-	g          flightcontrol.Group
+	g          flightcontrol.Group[solver.CachedResult]
 	mu         sync.Mutex
 	released   bool
 	v          solver.CachedResult
@@ -177,6 +177,9 @@ func (rp *resultProxy) Definition() *pb.Definition {
 }
 
 func (rp *resultProxy) Provenance() interface{} {
+	if rp.provenance == nil {
+		return nil
+	}
 	return rp.provenance
 }
 
@@ -241,7 +244,7 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 	defer func() {
 		err = rp.wrapError(err)
 	}()
-	r, err := rp.g.Do(ctx, "result", func(ctx context.Context) (interface{}, error) {
+	return rp.g.Do(ctx, "result", func(ctx context.Context) (solver.CachedResult, error) {
 		rp.mu.Lock()
 		if rp.released {
 			rp.mu.Unlock()
@@ -270,30 +273,27 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 			rp.mu.Unlock()
 			return nil, errors.Errorf("evaluating released result")
 		}
-		rp.v = v
-		rp.err = err
 		if err == nil {
-			capture, err := captureProvenance(ctx, v)
-			if err != nil && rp.err != nil {
-				rp.err = errors.Wrapf(rp.err, "failed to capture provenance: %v", err)
+			var capture *provenance.Capture
+			capture, err = captureProvenance(ctx, v)
+			if err != nil {
+				err = errors.Errorf("failed to capture provenance: %v", err)
 				v.Release(context.TODO())
-				rp.v = nil
+				v = nil
 			}
 			rp.provenance = capture
 		}
+		rp.v = v
+		rp.err = err
 		rp.mu.Unlock()
 		return v, err
 	})
-	if r != nil {
-		return r.(solver.CachedResult), nil
-	}
-	return nil, err
 }
 
-func (b *llbBridge) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (dgst digest.Digest, config []byte, err error) {
+func (b *llbBridge) ResolveImageConfig(ctx context.Context, ref string, opt llb.ResolveImageConfigOpt) (resolvedRef string, dgst digest.Digest, config []byte, err error) {
 	w, err := b.resolveWorker()
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 	if opt.LogName == "" {
 		opt.LogName = fmt.Sprintf("resolve image config for %s", ref)
@@ -304,11 +304,18 @@ func (b *llbBridge) ResolveImageConfig(ctx context.Context, ref string, opt llb.
 	} else {
 		id += platforms.Format(*platform)
 	}
+	pol, err := loadSourcePolicy(b.builder)
+	if err != nil {
+		return "", "", nil, err
+	}
+	if pol != nil {
+		opt.SourcePolicies = append(opt.SourcePolicies, pol)
+	}
 	err = inBuilderContext(ctx, b.builder, opt.LogName, id, func(ctx context.Context, g session.Group) error {
-		dgst, config, err = w.ResolveImageConfig(ctx, ref, opt, b.sm, g)
+		resolvedRef, dgst, config, err = w.ResolveImageConfig(ctx, ref, opt, b.sm, g)
 		return err
 	})
-	return dgst, config, err
+	return resolvedRef, dgst, config, err
 }
 
 type lazyCacheManager struct {
@@ -329,12 +336,12 @@ func (lcm *lazyCacheManager) Query(inp []solver.CacheKeyWithSelector, inputIndex
 	}
 	return lcm.main.Query(inp, inputIndex, dgst, outputIndex)
 }
-func (lcm *lazyCacheManager) Records(ck *solver.CacheKey) ([]*solver.CacheRecord, error) {
+func (lcm *lazyCacheManager) Records(ctx context.Context, ck *solver.CacheKey) ([]*solver.CacheRecord, error) {
 	lcm.wait()
 	if lcm.main == nil {
 		return nil, nil
 	}
-	return lcm.main.Records(ck)
+	return lcm.main.Records(ctx, ck)
 }
 func (lcm *lazyCacheManager) Load(ctx context.Context, rec *solver.CacheRecord) (solver.Result, error) {
 	if err := lcm.wait(); err != nil {

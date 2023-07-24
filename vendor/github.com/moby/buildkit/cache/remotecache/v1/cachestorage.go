@@ -291,7 +291,7 @@ func (cs *cacheResultStorage) LoadRemotes(ctx context.Context, res solver.CacheR
 	return nil, errors.WithStack(solver.ErrNotFound)
 }
 
-func (cs *cacheResultStorage) Exists(id string) bool {
+func (cs *cacheResultStorage) Exists(ctx context.Context, id string) bool {
 	return cs.byResultID(id) != nil
 }
 

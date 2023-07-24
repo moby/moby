@@ -49,7 +49,7 @@ const (
 	CapExecMetaUlimit                    apicaps.CapID = "exec.meta.ulimit"
 	CapExecMetaRemoveMountStubsRecursive apicaps.CapID = "exec.meta.removemountstubs.recursive"
 	CapExecMountBind                     apicaps.CapID = "exec.mount.bind"
-	CapExecMountBindReadWriteNoOuput     apicaps.CapID = "exec.mount.bind.readwrite-nooutput"
+	CapExecMountBindReadWriteNoOutput    apicaps.CapID = "exec.mount.bind.readwrite-nooutput"
 	CapExecMountCache                    apicaps.CapID = "exec.mount.cache"
 	CapExecMountCacheSharing             apicaps.CapID = "exec.mount.cache.sharing"
 	CapExecMountSelector                 apicaps.CapID = "exec.mount.selector"
@@ -288,7 +288,7 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
-		ID:      CapExecMountBindReadWriteNoOuput,
+		ID:      CapExecMountBindReadWriteNoOutput,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
