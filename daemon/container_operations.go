@@ -29,17 +29,8 @@ import (
 )
 
 func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *container.Container) ([]libnetwork.SandboxOption, error) {
-	var (
-		sboxOptions []libnetwork.SandboxOption
-		err         error
-		bindings    = make(nat.PortMap)
-		pbList      []types.PortBinding
-		exposeList  []types.TransportPort
-	)
-
-	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
-	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname),
-		libnetwork.OptionDomainname(container.Config.Domainname))
+	var sboxOptions []libnetwork.SandboxOption
+	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname), libnetwork.OptionDomainname(container.Config.Domainname))
 
 	if container.HostConfig.NetworkMode.IsHost() {
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
@@ -49,7 +40,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
 
-	if err = setupPathsAndSandboxOptions(container, cfg, &sboxOptions); err != nil {
+	if err := setupPathsAndSandboxOptions(container, cfg, &sboxOptions); err != nil {
 		return nil, err
 	}
 
@@ -74,7 +65,6 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		if container.Config.Domainname != "" {
 			name = name + "." + container.Config.Domainname
 		}
-
 		for _, a := range container.NetworkSettings.SecondaryIPAddresses {
 			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(name, a.Addr))
 		}
@@ -99,6 +89,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, ip))
 	}
 
+	bindings := make(nat.PortMap)
 	if container.HostConfig.PortBindings != nil {
 		for p, b := range container.HostConfig.PortBindings {
 			bindings[p] = []nat.PortBinding{}
@@ -119,11 +110,16 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		i++
 	}
 	nat.SortPortMap(ports, bindings)
+
+	var (
+		publishedPorts []types.PortBinding
+		exposedPorts   []types.TransportPort
+	)
 	for _, port := range ports {
 		expose := types.TransportPort{}
 		expose.Proto = types.ParseProtocol(port.Proto())
 		expose.Port = uint16(port.Int())
-		exposeList = append(exposeList, expose)
+		exposedPorts = append(exposedPorts, expose)
 
 		pb := types.PortBinding{Port: expose.Port, Proto: expose.Proto}
 		binding := bindings[port]
@@ -140,37 +136,30 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 			pbCopy.HostPort = uint16(portStart)
 			pbCopy.HostPortEnd = uint16(portEnd)
 			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
-			pbList = append(pbList, pbCopy)
+			publishedPorts = append(publishedPorts, pbCopy)
 		}
 
 		if container.HostConfig.PublishAllPorts && len(binding) == 0 {
-			pbList = append(pbList, pb)
+			publishedPorts = append(publishedPorts, pb)
 		}
 	}
 
-	sboxOptions = append(sboxOptions,
-		libnetwork.OptionPortMapping(pbList),
-		libnetwork.OptionExposedPorts(exposeList))
+	sboxOptions = append(sboxOptions, libnetwork.OptionPortMapping(publishedPorts), libnetwork.OptionExposedPorts(exposedPorts))
 
 	// Legacy Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
 	// Legacy Link is only supported by docker run --link
+	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	bridgeSettings, ok := container.NetworkSettings.Networks[defaultNetName]
-	if !ok || bridgeSettings.EndpointSettings == nil {
-		return sboxOptions, nil
-	}
-
-	if bridgeSettings.EndpointID == "" {
+	if !ok || bridgeSettings.EndpointSettings == nil || bridgeSettings.EndpointID == "" {
 		return sboxOptions, nil
 	}
 
 	var (
-		childEndpoints, parentEndpoints []string
-		cEndpointID                     string
+		childEndpoints []string
+		cEndpointID    string
 	)
-
-	children := daemon.children(container)
-	for linkAlias, child := range children {
+	for linkAlias, child := range daemon.children(container) {
 		if !isLinkable(child) {
 			return nil, fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
 		}
@@ -181,20 +170,20 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 		if alias != child.Name[1:] {
 			aliasList = aliasList + " " + child.Name[1:]
 		}
-		ipv4 := child.NetworkSettings.Networks[defaultNetName].IPAddress
-		ipv6 := child.NetworkSettings.Networks[defaultNetName].GlobalIPv6Address
-		if ipv4 != "" {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, ipv4))
+		defaultNW := child.NetworkSettings.Networks[defaultNetName]
+		if defaultNW.IPAddress != "" {
+			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, defaultNW.IPAddress))
 		}
-		if ipv6 != "" {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, ipv6))
+		if defaultNW.GlobalIPv6Address != "" {
+			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, defaultNW.GlobalIPv6Address))
 		}
-		cEndpointID = child.NetworkSettings.Networks[defaultNetName].EndpointID
+		cEndpointID = defaultNW.EndpointID
 		if cEndpointID != "" {
 			childEndpoints = append(childEndpoints, cEndpointID)
 		}
 	}
 
+	var parentEndpoints []string
 	for alias, parent := range daemon.parents(container) {
 		if cfg.DisableBridge || !container.HostConfig.NetworkMode.IsPrivate() {
 			continue
@@ -202,11 +191,7 @@ func (daemon *Daemon) buildSandboxOptions(cfg *config.Config, container *contain
 
 		_, alias = path.Split(alias)
 		log.G(context.TODO()).Debugf("Update /etc/hosts of %s for alias %s with ip %s", parent.ID, alias, bridgeSettings.IPAddress)
-		sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(
-			parent.ID,
-			alias,
-			bridgeSettings.IPAddress,
-		))
+		sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(parent.ID, alias, bridgeSettings.IPAddress))
 		if cEndpointID != "" {
 			parentEndpoints = append(parentEndpoints, cEndpointID)
 		}
