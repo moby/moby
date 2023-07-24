@@ -149,9 +149,14 @@ func (cfg *ScopeCfg) IsValid() bool {
 
 // Key provides convenient method to create a Key
 func Key(key ...string) string {
-	keychain := append(rootChain, key...)
-	str := strings.Join(keychain, "/")
-	return str + "/"
+	var b strings.Builder
+	for _, parts := range [][]string{rootChain, key} {
+		for _, part := range parts {
+			b.WriteString(part)
+			b.WriteString("/")
+		}
+	}
+	return b.String()
 }
 
 // ParseKey provides convenient method to unpack the key to complement the Key function
