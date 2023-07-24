@@ -630,7 +630,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.11.7-0.20230712171151-0a15675913b7
+# github.com/moby/buildkit v0.11.7-0.20230723230859-616c3f613b54
 ## explicit; go 1.18
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -881,10 +881,6 @@ github.com/moby/term/windows
 # github.com/morikuni/aec v1.0.0
 ## explicit
 github.com/morikuni/aec
-# github.com/onsi/ginkgo/v2 v2.1.4
-## explicit; go 1.18
-# github.com/onsi/gomega v1.20.1
-## explicit; go 1.18
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
