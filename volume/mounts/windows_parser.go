@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 )
 
 // NewWindowsParser creates a parser with Windows semantics.
@@ -246,6 +247,11 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 		if err != nil {
 			return &errMountConfig{mnt, err}
 		}
+
+		if windowsDetectMountType(mnt.Target) == mount.TypeNamedPipe {
+			return &errMountConfig{mnt, fmt.Errorf("'%s' is not a valid bind path", mnt.Target)}
+		}
+
 		if !exists {
 			return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 		}
@@ -335,6 +341,15 @@ func (p *windowsParser) parseMount(arr []string, raw, volumeDriver string, conve
 
 	spec.Type = windowsDetectMountType(spec.Source)
 	spec.ReadOnly = !p.ReadWrite(mode)
+
+	// We need to create source directory if it didn't exist for short hand bind mounts.
+	if spec.Type == mount.TypeBind {
+		if _, err := os.Stat(spec.Source); os.IsNotExist(err) {
+			if err := system.MkdirAllWithACL(spec.Source, 0, system.SddlAdministratorsLocalSystem); err != nil {
+				return nil, fmt.Errorf("failed to mkdir bind source path: %s", spec.Source)
+			}
+		}
+	}
 
 	// cannot assume that if a volume driver is passed in that we should set it
 	if volumeDriver != "" && spec.Type == mount.TypeVolume {
