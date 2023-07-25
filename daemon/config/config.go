@@ -14,7 +14,6 @@ import (
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 
-	"github.com/container-orchestrated-devices/container-device-interface/pkg/cdi"
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
@@ -288,7 +287,6 @@ func New() (*Config, error) {
 			ContainerdNamespace:       DefaultContainersNamespace,
 			ContainerdPluginNamespace: DefaultPluginNamespace,
 			DefaultRuntime:            StockRuntimeName,
-			CDISpecDirs:               append([]string(nil), cdi.DefaultSpecDirs...),
 		},
 	}
 

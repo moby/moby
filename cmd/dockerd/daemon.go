@@ -544,6 +544,18 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		return nil, err
 	}
 
+	if conf.CDISpecDirs == nil {
+		// If the CDISpecDirs is not set at this stage, we set it to the default.
+		conf.CDISpecDirs = append([]string(nil), cdi.DefaultSpecDirs...)
+	} else if len(conf.CDISpecDirs) == 1 && conf.CDISpecDirs[0] == "" {
+		// If CDISpecDirs is set to an empty string, we clear it to ensure that CDI is disabled.
+		conf.CDISpecDirs = nil
+	}
+	if !conf.Experimental {
+		// If experimental mode is not set, we clear the CDISpecDirs to ensure that CDI is disabled.
+		conf.CDISpecDirs = nil
+	}
+
 	return conf, nil
 }
 
