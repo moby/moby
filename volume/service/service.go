@@ -209,7 +209,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 	}
 	defer atomic.StoreInt32(&s.pruneRunning, 0)
 
-	if err := withPrune(filter); err != nil {
+	if err := withPrune(&filter); err != nil {
 		return nil, err
 	}
 
