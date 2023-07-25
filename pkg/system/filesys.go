@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+// SddlAdministratorsLocalSystem is local administrators plus NT AUTHORITY\System.
+// For non-Windows machine, it holds no meaning.
+const SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
+
 // IsAbs is a platform-agnostic wrapper for filepath.IsAbs.
 //
 // On Windows, golang filepath.IsAbs does not consider a path \windows\system32

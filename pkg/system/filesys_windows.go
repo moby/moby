@@ -9,9 +9,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// SddlAdministratorsLocalSystem is local administrators plus NT AUTHORITY\System.
-const SddlAdministratorsLocalSystem = "D:P(A;OICI;GA;;;BA)(A;OICI;GA;;;SY)"
-
 // volumePath is a regular expression to check if a path is a Windows
 // volume path (e.g., "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}"
 // or "\\?\Volume{4c1b02c1-d990-11dc-99ae-806e6f6e6963}\").
