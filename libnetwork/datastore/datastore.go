@@ -202,11 +202,6 @@ func (ds *Store) Scope() string {
 	return ds.scope
 }
 
-// KVStore returns access to the KV Store.
-func (ds *Store) KVStore() store.Store {
-	return ds.store
-}
-
 // PutObjectAtomic provides an atomic add and update operation for a Record.
 func (ds *Store) PutObjectAtomic(kvObject KVObject) error {
 	var (
