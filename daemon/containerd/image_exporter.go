@@ -147,7 +147,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 
 		// Create an additional image with dangling name for imported images...
 		containerd.WithDigestRef(danglingImageName),
-		/// ... but only if they don't have a name or it's invalid.
+		// ... but only if they don't have a name or it's invalid.
 		containerd.WithSkipDigestRef(func(nameFromArchive string) bool {
 			if nameFromArchive == "" {
 				return false
