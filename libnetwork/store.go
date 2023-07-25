@@ -24,7 +24,7 @@ func (c *Controller) initStores() error {
 		return nil
 	}
 	var err error
-	c.store, err = datastore.NewDataStore(c.cfg.Scope)
+	c.store, err = datastore.New(c.cfg.Scope)
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (c *Controller) closeStores() {
 	}
 }
 
-func (c *Controller) getStore() datastore.DataStore {
+func (c *Controller) getStore() *datastore.Store {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

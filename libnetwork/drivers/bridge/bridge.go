@@ -153,7 +153,7 @@ type driver struct {
 	isolationChain1V6 *iptables.ChainInfo
 	isolationChain2V6 *iptables.ChainInfo
 	networks          map[string]*bridgeNetwork
-	store             datastore.DataStore
+	store             *datastore.Store
 	nlh               *netlink.Handle
 	configNetwork     sync.Mutex
 	portAllocator     *portallocator.PortAllocator // Overridable for tests.

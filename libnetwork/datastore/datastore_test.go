@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/docker/docker/libnetwork/options"
@@ -11,9 +10,9 @@ import (
 
 var dummyKey = "dummy"
 
-// NewCustomDataStore can be used by other Tests in order to use custom datastore
-func NewTestDataStore() DataStore {
-	return &datastore{scope: LocalScope, store: NewMockStore()}
+// NewTestDataStore can be used by other Tests in order to use custom datastore
+func NewTestDataStore() *Store {
+	return &Store{scope: LocalScope, store: NewMockStore()}
 }
 
 func TestKey(t *testing.T) {
@@ -24,25 +23,13 @@ func TestKey(t *testing.T) {
 	}
 }
 
-func TestParseKey(t *testing.T) {
-	keySlice, err := ParseKey("/docker/network/v1.0/hello/world/")
-	if err != nil {
-		t.Fatal(err)
-	}
-	eKey := []string{"hello", "world"}
-	if len(keySlice) < 2 || !reflect.DeepEqual(eKey, keySlice) {
-		t.Fatalf("unexpected unkey : %s", keySlice)
-	}
-}
-
 func TestInvalidDataStore(t *testing.T) {
-	config := ScopeCfg{
+	_, err := New(ScopeCfg{
 		Client: ScopeClientCfg{
 			Provider: "invalid",
 			Address:  "localhost:8500",
 		},
-	}
-	_, err := NewDataStore(config)
+	})
 	if err == nil {
 		t.Fatal("Invalid Datastore connection configuration must result in a failure")
 	}

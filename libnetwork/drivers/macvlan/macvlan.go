@@ -34,7 +34,7 @@ type driver struct {
 	networks networkTable
 	sync.Once
 	sync.Mutex
-	store datastore.DataStore
+	store *datastore.Store
 }
 
 type endpoint struct {

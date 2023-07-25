@@ -13,10 +13,10 @@ type kvMap map[string]KVObject
 type cache struct {
 	sync.Mutex
 	kmm map[string]kvMap
-	ds  *datastore
+	ds  *Store
 }
 
-func newCache(ds *datastore) *cache {
+func newCache(ds *Store) *cache {
 	return &cache{kmm: make(map[string]kvMap), ds: ds}
 }
 

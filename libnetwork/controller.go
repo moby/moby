@@ -91,7 +91,7 @@ type Controller struct {
 	ipamRegistry     drvregistry.IPAMs
 	sandboxes        sandboxTable
 	cfg              *config.Config
-	store            datastore.DataStore
+	store            *datastore.Store
 	extKeyListener   net.Listener
 	watchCh          chan *Endpoint
 	unWatchCh        chan *Endpoint
