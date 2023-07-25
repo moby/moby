@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,12 +33,23 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	kvStore := testController.getStore().KVStore()
-	if exists, _ := kvStore.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); exists {
-		t.Fatalf("Network with persist=false should not be stored in KV Store")
+
+	// FIXME(thaJeztah): GetObject uses the given key for lookups if no cache-store is present, but the KvObject's Key() to look up in cache....
+	nwKVObject := &Network{id: nw.ID()}
+	err = testController.getStore().GetObject(datastore.Key(datastore.NetworkKeyPrefix, nw.ID()), nwKVObject)
+	if !errors.Is(err, store.ErrKeyNotFound) {
+		t.Errorf("Expected %v error when retrieving network from store, got: %v", store.ErrKeyNotFound, err)
 	}
-	if exists, _ := kvStore.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); exists {
-		t.Fatalf("Endpoint in Network with persist=false should not be stored in KV Store")
+	if nwKVObject.Exists() {
+		t.Errorf("Network with persist=false should not be stored in KV Store")
 	}
-	kvStore.Close()
+
+	epKVObject := &Endpoint{network: nw, id: ep.ID()}
+	err = testController.getStore().GetObject(datastore.Key(datastore.EndpointKeyPrefix, nw.ID(), ep.ID()), epKVObject)
+	if !errors.Is(err, store.ErrKeyNotFound) {
+		t.Errorf("Expected %v error when retrieving endpoint from store, got: %v", store.ErrKeyNotFound, err)
+	}
+	if epKVObject.Exists() {
+		t.Errorf("Endpoint in Network with persist=false should not be stored in KV Store")
+	}
 }

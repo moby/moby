@@ -36,14 +36,25 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	kvStore := testController.getStore().KVStore()
-	if exists, err := kvStore.Exists(datastore.Key(datastore.NetworkKeyPrefix, nw.ID())); !exists || err != nil {
-		t.Fatalf("Network key should have been created.")
+	// FIXME(thaJeztah): GetObject uses the given key for lookups if no cache-store is present, but the KvObject's Key() to look up in cache....
+	nwKVObject := &Network{id: nw.ID()}
+	err = testController.getStore().GetObject(datastore.Key(datastore.NetworkKeyPrefix, nw.ID()), nwKVObject)
+	if err != nil {
+		t.Errorf("Error when retrieving network key from store: %v", err)
 	}
-	if exists, err := kvStore.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, nw.ID(), ep.ID()}...)); !exists || err != nil {
-		t.Fatalf("Endpoint key should have been created.")
+	if !nwKVObject.Exists() {
+		t.Errorf("Network key should have been created.")
 	}
-	kvStore.Close()
+
+	epKVObject := &Endpoint{network: nw, id: ep.ID()}
+	err = testController.getStore().GetObject(datastore.Key(datastore.EndpointKeyPrefix, nw.ID(), ep.ID()), epKVObject)
+	if err != nil {
+		t.Errorf("Error when retrieving Endpoint key from store: %v", err)
+	}
+	if !epKVObject.Exists() {
+		t.Errorf("Endpoint key should have been created.")
+	}
+	testController.Stop()
 
 	// test restore of local store
 	testController, err = New(cfgOptions...)
@@ -52,7 +63,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	}
 	defer testController.Stop()
 	if _, err = testController.NetworkByID(nw.ID()); err != nil {
-		t.Fatalf("Error getting network %v", err)
+		t.Errorf("Error getting network %v", err)
 	}
 }
 
