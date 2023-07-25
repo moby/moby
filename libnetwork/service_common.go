@@ -31,23 +31,23 @@ func (c *Controller) addEndpointNameResolution(svcName, svcID, nID, eID, contain
 	}
 
 	// Add endpoint IP to special "tasks.svc_name" so that the applications have access to DNS RR.
-	n.(*network).addSvcRecords(eID, "tasks."+svcName, serviceID, ip, nil, false, method)
+	n.addSvcRecords(eID, "tasks."+svcName, serviceID, ip, nil, false, method)
 	for _, alias := range serviceAliases {
-		n.(*network).addSvcRecords(eID, "tasks."+alias, serviceID, ip, nil, false, method)
+		n.addSvcRecords(eID, "tasks."+alias, serviceID, ip, nil, false, method)
 	}
 
 	// Add service name to vip in DNS, if vip is valid. Otherwise resort to DNS RR
 	if len(vip) == 0 {
-		n.(*network).addSvcRecords(eID, svcName, serviceID, ip, nil, false, method)
+		n.addSvcRecords(eID, svcName, serviceID, ip, nil, false, method)
 		for _, alias := range serviceAliases {
-			n.(*network).addSvcRecords(eID, alias, serviceID, ip, nil, false, method)
+			n.addSvcRecords(eID, alias, serviceID, ip, nil, false, method)
 		}
 	}
 
 	if addService && len(vip) != 0 {
-		n.(*network).addSvcRecords(eID, svcName, serviceID, vip, nil, false, method)
+		n.addSvcRecords(eID, svcName, serviceID, vip, nil, false, method)
 		for _, alias := range serviceAliases {
-			n.(*network).addSvcRecords(eID, alias, serviceID, vip, nil, false, method)
+			n.addSvcRecords(eID, alias, serviceID, vip, nil, false, method)
 		}
 	}
 
@@ -62,11 +62,11 @@ func (c *Controller) addContainerNameResolution(nID, eID, containerName string, 
 	log.G(context.TODO()).Debugf("addContainerNameResolution %s %s", eID, containerName)
 
 	// Add resolution for container name
-	n.(*network).addSvcRecords(eID, containerName, eID, ip, nil, true, method)
+	n.addSvcRecords(eID, containerName, eID, ip, nil, true, method)
 
 	// Add resolution for taskaliases
 	for _, alias := range taskAliases {
-		n.(*network).addSvcRecords(eID, alias, eID, ip, nil, false, method)
+		n.addSvcRecords(eID, alias, eID, ip, nil, false, method)
 	}
 
 	return nil
@@ -93,25 +93,25 @@ func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, cont
 
 	// Delete the special "tasks.svc_name" backend record.
 	if !multipleEntries {
-		n.(*network).deleteSvcRecords(eID, "tasks."+svcName, serviceID, ip, nil, false, method)
+		n.deleteSvcRecords(eID, "tasks."+svcName, serviceID, ip, nil, false, method)
 		for _, alias := range serviceAliases {
-			n.(*network).deleteSvcRecords(eID, "tasks."+alias, serviceID, ip, nil, false, method)
+			n.deleteSvcRecords(eID, "tasks."+alias, serviceID, ip, nil, false, method)
 		}
 	}
 
 	// If we are doing DNS RR delete the endpoint IP from DNS record right away.
 	if !multipleEntries && len(vip) == 0 {
-		n.(*network).deleteSvcRecords(eID, svcName, serviceID, ip, nil, false, method)
+		n.deleteSvcRecords(eID, svcName, serviceID, ip, nil, false, method)
 		for _, alias := range serviceAliases {
-			n.(*network).deleteSvcRecords(eID, alias, serviceID, ip, nil, false, method)
+			n.deleteSvcRecords(eID, alias, serviceID, ip, nil, false, method)
 		}
 	}
 
 	// Remove the DNS record for VIP only if we are removing the service
 	if rmService && len(vip) != 0 && !multipleEntries {
-		n.(*network).deleteSvcRecords(eID, svcName, serviceID, vip, nil, false, method)
+		n.deleteSvcRecords(eID, svcName, serviceID, vip, nil, false, method)
 		for _, alias := range serviceAliases {
-			n.(*network).deleteSvcRecords(eID, alias, serviceID, vip, nil, false, method)
+			n.deleteSvcRecords(eID, alias, serviceID, vip, nil, false, method)
 		}
 	}
 
@@ -126,11 +126,11 @@ func (c *Controller) delContainerNameResolution(nID, eID, containerName string, 
 	log.G(context.TODO()).Debugf("delContainerNameResolution %s %s", eID, containerName)
 
 	// Delete resolution for container name
-	n.(*network).deleteSvcRecords(eID, containerName, eID, ip, nil, true, method)
+	n.deleteSvcRecords(eID, containerName, eID, ip, nil, true, method)
 
 	// Delete resolution for taskaliases
 	for _, alias := range taskAliases {
-		n.(*network).deleteSvcRecords(eID, alias, eID, ip, nil, true, method)
+		n.deleteSvcRecords(eID, alias, eID, ip, nil, true, method)
 	}
 
 	return nil
@@ -299,7 +299,7 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 	}
 
 	// Add loadbalancer service and backend to the network
-	n.(*network).addLBBackend(ip, lb)
+	n.addLBBackend(ip, lb)
 
 	// Add the appropriate name resolutions
 	if err := c.addEndpointNameResolution(svcName, svcID, nID, eID, containerName, vip, serviceAliases, taskAliases, ip, addService, "addServiceBinding"); err != nil {
@@ -382,7 +382,7 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 		// removing the network from the store or dataplane.
 		n, err := c.NetworkByID(nID)
 		if err == nil {
-			n.(*network).rmLBBackend(ip, lb, rmService, fullRemove)
+			n.rmLBBackend(ip, lb, rmService, fullRemove)
 		}
 	}
 

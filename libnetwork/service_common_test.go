@@ -20,7 +20,7 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 	assert.NilError(t, err)
 	defer c.Stop()
 
-	cleanup := func(n Network) {
+	cleanup := func(n *Network) {
 		if err := n.Delete(); err != nil {
 			t.Error(err)
 		}
@@ -33,11 +33,11 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 	assert.NilError(t, err)
 	defer cleanup(n2)
 
-	n1.(*network).addSvcRecords("N1ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
-	n1.(*network).addSvcRecords("N2ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.2"), net.IP{}, true, "test")
+	n1.addSvcRecords("N1ep1", "service_test", "serviceID1", net.ParseIP("192.168.0.1"), net.IP{}, true, "test")
+	n1.addSvcRecords("N2ep2", "service_test", "serviceID2", net.ParseIP("192.168.0.2"), net.IP{}, true, "test")
 
-	n2.(*network).addSvcRecords("N2ep1", "service_test", "serviceID1", net.ParseIP("192.168.1.1"), net.IP{}, true, "test")
-	n2.(*network).addSvcRecords("N2ep2", "service_test", "serviceID2", net.ParseIP("192.168.1.2"), net.IP{}, true, "test")
+	n2.addSvcRecords("N2ep1", "service_test", "serviceID1", net.ParseIP("192.168.1.1"), net.IP{}, true, "test")
+	n2.addSvcRecords("N2ep2", "service_test", "serviceID2", net.ParseIP("192.168.1.2"), net.IP{}, true, "test")
 
 	if len(c.svcRecords) != 2 {
 		t.Fatalf("Service record not added correctly:%v", c.svcRecords)

@@ -436,7 +436,7 @@ type epRecord struct {
 	lbIndex int
 }
 
-func (n *network) Services() map[string]ServiceInfo {
+func (n *Network) Services() map[string]ServiceInfo {
 	eps := make(map[string]epRecord)
 
 	if !n.isClusterEligible() {
@@ -519,14 +519,14 @@ func (n *network) Services() map[string]ServiceInfo {
 	return sinfo
 }
 
-func (n *network) isClusterEligible() bool {
+func (n *Network) isClusterEligible() bool {
 	if n.scope != datastore.SwarmScope || !n.driverIsMultihost() {
 		return false
 	}
 	return n.getController().getAgent() != nil
 }
 
-func (n *network) joinCluster() error {
+func (n *Network) joinCluster() error {
 	if !n.isClusterEligible() {
 		return nil
 	}
@@ -539,7 +539,7 @@ func (n *network) joinCluster() error {
 	return agent.networkDB.JoinNetwork(n.ID())
 }
 
-func (n *network) leaveCluster() error {
+func (n *Network) leaveCluster() error {
 	if !n.isClusterEligible() {
 		return nil
 	}
@@ -743,7 +743,7 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 	return nil
 }
 
-func disableServiceInNetworkDB(a *agent, n *network, ep *Endpoint) {
+func disableServiceInNetworkDB(a *agent, n *Network, ep *Endpoint) {
 	var epRec EndpointRecord
 
 	log.G(context.TODO()).Debugf("disableServiceInNetworkDB for %s %s", ep.svcName, ep.ID())
@@ -772,7 +772,7 @@ func disableServiceInNetworkDB(a *agent, n *network, ep *Endpoint) {
 	}
 }
 
-func (n *network) addDriverWatches() {
+func (n *Network) addDriverWatches() {
 	if !n.isClusterEligible() {
 		return
 	}
@@ -808,7 +808,7 @@ func (n *network) addDriverWatches() {
 	}
 }
 
-func (n *network) cancelDriverWatches() {
+func (n *Network) cancelDriverWatches() {
 	if !n.isClusterEligible() {
 		return
 	}
@@ -839,7 +839,7 @@ func (c *Controller) handleTableEvents(ch *events.Channel, fn func(events.Event)
 	}
 }
 
-func (n *network) handleDriverTableEvent(ev events.Event) {
+func (n *Network) handleDriverTableEvent(ev events.Event) {
 	d, err := n.driver(false)
 	if err != nil {
 		log.G(context.TODO()).Errorf("Could not resolve driver %s while handling driver table event: %v", n.networkType, err)

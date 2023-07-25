@@ -31,7 +31,7 @@ const (
 	bridgeNetType = "bridge"
 )
 
-func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) libnetwork.Network {
+func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) *libnetwork.Network {
 	t.Helper()
 	n, err := createTestNetwork(c, "host", "testhost", options.Generic{}, nil, nil)
 	if err != nil {
@@ -847,7 +847,7 @@ func TestResolvConf(t *testing.T) {
 type parallelTester struct {
 	osctx      *testutils.OSContext
 	controller *libnetwork.Controller
-	net1, net2 libnetwork.Network
+	net1, net2 *libnetwork.Network
 	iterCnt    int
 }
 

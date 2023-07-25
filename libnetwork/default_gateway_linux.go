@@ -13,15 +13,13 @@ func getPlatformOption() EndpointOption {
 	return nil
 }
 
-func (c *Controller) createGWNetwork() (Network, error) {
-	netOption := map[string]string{
-		bridge.BridgeName:         libnGWNetwork,
-		bridge.EnableICC:          strconv.FormatBool(false),
-		bridge.EnableIPMasquerade: strconv.FormatBool(true),
-	}
-
+func (c *Controller) createGWNetwork() (*Network, error) {
 	n, err := c.NewNetwork("bridge", libnGWNetwork, "",
-		NetworkOptionDriverOpts(netOption),
+		NetworkOptionDriverOpts(map[string]string{
+			bridge.BridgeName:         libnGWNetwork,
+			bridge.EnableICC:          strconv.FormatBool(false),
+			bridge.EnableIPMasquerade: strconv.FormatBool(true),
+		}),
 		NetworkOptionEnableIPv6(false),
 	)
 	if err != nil {

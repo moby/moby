@@ -35,7 +35,7 @@ import (
 type Backend interface {
 	CreateManagedNetwork(clustertypes.NetworkCreateRequest) error
 	DeleteManagedNetwork(networkID string) error
-	FindNetwork(idName string) (libnetwork.Network, error)
+	FindNetwork(idName string) (*libnetwork.Network, error)
 	SetupIngress(clustertypes.NetworkCreateRequest, string) (<-chan struct{}, error)
 	ReleaseIngress() (<-chan struct{}, error)
 	CreateManagedContainer(ctx context.Context, config types.ContainerCreateConfig) (container.CreateResponse, error)

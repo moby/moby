@@ -102,7 +102,7 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 	until, _ := getUntilFromPruneFilters(pruneFilters)
 
 	// When the function returns true, the walk will stop.
-	l := func(nw libnetwork.Network) bool {
+	daemon.netController.WalkNetworks(func(nw *libnetwork.Network) bool {
 		select {
 		case <-ctx.Done():
 			// context cancelled
@@ -131,8 +131,7 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 		}
 		rep.NetworksDeleted = append(rep.NetworksDeleted, nwName)
 		return false
-	}
-	daemon.netController.WalkNetworks(l)
+	})
 	return rep
 }
 

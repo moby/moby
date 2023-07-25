@@ -28,7 +28,7 @@ func executeInCompartment(compartmentID uint32, x func()) {
 	x()
 }
 
-func (n *network) startResolver() {
+func (n *Network) startResolver() {
 	if n.networkType == "ics" {
 		return
 	}

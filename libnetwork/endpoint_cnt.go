@@ -9,7 +9,7 @@ import (
 )
 
 type endpointCnt struct {
-	n        *network
+	n        *Network
 	Count    uint64
 	dbIndex  uint64
 	dbExists bool

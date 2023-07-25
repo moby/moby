@@ -234,7 +234,7 @@ func (c *Controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			var ep *Endpoint
 			if err != nil {
 				log.G(context.TODO()).Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
-				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}, persist: true}
+				n = &Network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}, persist: true}
 				ep = &Endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)

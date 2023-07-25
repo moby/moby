@@ -15,7 +15,7 @@ type policyLists struct {
 
 var lbPolicylistMap = make(map[*loadBalancer]*policyLists)
 
-func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
+func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
 	}
@@ -117,7 +117,7 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	}
 }
 
-func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
+func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
 	if len(lb.vip) == 0 {
 		return
 	}
