@@ -116,9 +116,7 @@ func DefaultScope(dataDir string) ScopeCfg {
 
 // IsValid checks if the scope config has valid configuration.
 func (cfg *ScopeCfg) IsValid() bool {
-	if cfg == nil ||
-		strings.TrimSpace(cfg.Client.Provider) == "" ||
-		strings.TrimSpace(cfg.Client.Address) == "" {
+	if cfg == nil || strings.TrimSpace(cfg.Client.Provider) == "" || strings.TrimSpace(cfg.Client.Address) == "" {
 		return false
 	}
 
