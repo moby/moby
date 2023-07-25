@@ -2118,7 +2118,7 @@ func (n *Network) NdotsSet() bool {
 func (c *Controller) getConfigNetwork(name string) (*Network, error) {
 	var n *Network
 	c.WalkNetworks(func(current *Network) bool {
-		if current.Info().ConfigOnly() && current.Name() == name {
+		if current.ConfigOnly() && current.Name() == name {
 			n = current
 			return true
 		}
