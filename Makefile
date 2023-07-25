@@ -196,6 +196,9 @@ build: bundles
 shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
+dev: build  ## start a shell inside the build env
+	$(DOCKER_RUN_DOCKER) hack/dev.sh 
+
 test: build test-unit ## run the unit, integration and docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration test-docker-py
 
