@@ -38,11 +38,8 @@ func TestKVObjectFlatKey(t *testing.T) {
 	err := store.PutObjectAtomic(expected)
 	assert.Check(t, err)
 
-	data, err := store.KVStore().Get(Key(dummyKey, "1000"))
-	assert.Check(t, err)
-
-	var n dummyObject
-	err = json.Unmarshal(data.Value, &n)
+	n := dummyObject{ID: "1000"} // GetObject uses KVObject.Key() for cache lookup.
+	err = store.GetObject(Key(dummyKey, "1000"), &n)
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(n.Name, expected.Name))
 }
@@ -62,20 +59,15 @@ func TestAtomicKVObjectFlatKey(t *testing.T) {
 
 	// Get the latest index and try PutObjectAtomic again for the same Key
 	// This must succeed as well
-	data, err := store.KVStore().Get(Key(expected.Key()...))
+	n := dummyObject{ID: "1111"} // GetObject uses KVObject.Key() for cache lookup.
+	err = store.GetObject(Key(expected.Key()...), &n)
 	assert.Check(t, err)
-
-	n := dummyObject{}
-	err = json.Unmarshal(data.Value, &n)
-	assert.Check(t, err)
-	n.ID = "1111"
-	n.SetIndex(data.LastIndex)
 	n.ReturnValue = true
 	err = store.PutObjectAtomic(&n)
 	assert.Check(t, err)
 
 	// Get the Object using GetObject, then set again.
-	newObj := dummyObject{}
+	newObj := dummyObject{ID: "1111"} // GetObject uses KVObject.Key() for cache lookup.
 	err = store.GetObject(Key(expected.Key()...), &newObj)
 	assert.Check(t, err)
 	assert.Check(t, newObj.Exists())
