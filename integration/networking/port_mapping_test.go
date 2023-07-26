@@ -4,6 +4,7 @@
 package networking
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -388,8 +389,15 @@ func synProbeFromAnotherHost(t *testing.T, sgmtNw netip.Prefix, destIP netip.Add
 		return fmt.Errorf("failed to warm-up victim's arp table: %w", err)
 	}
 
+	deadline := time.Now().Add(3 * time.Second)
+	stopCapture, err := victimHost.StartPacketCapture(deadline)
+	if err != nil {
+		return fmt.Errorf("could not start packet capture on victim's host iface: %+v", err)
+	}
+
+	var expectedPacket []byte
 	if err := attackerNs.InNetns(t, func() error {
-		err = prober.Probe(deadline)
+		expectedPacket, err = prober.Probe(deadline)
 		if errors.Is(err, networking.ErrNoSynAck) {
 			if manualDebug {
 				manualDebug = false
@@ -402,10 +410,22 @@ func synProbeFromAnotherHost(t *testing.T, sgmtNw netip.Prefix, destIP netip.Add
 
 		return err
 	}); err != nil {
+		_, _ = stopCapture()
 		return fmt.Errorf("failed to conduct attack: %w", err)
 	}
 
-	return nil
+	capturedPackets, err := stopCapture()
+	if err != nil {
+		return fmt.Errorf("an error happened during packet capture on victim host: %+v", err)
+	}
+
+	for _, pkt := range capturedPackets {
+		if bytes.Equal(pkt, expectedPacket) {
+			return nil
+		}
+	}
+
+	return errors.New("no SYN packet was received by the victim host")
 }
 
 func TestAccessPortPublishedToLoopbackFromAnotherHost(t *testing.T) {

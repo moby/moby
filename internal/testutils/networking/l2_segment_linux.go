@@ -6,13 +6,17 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/libnetwork/testutils"
+	"github.com/mdlayher/packet"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
 
@@ -336,4 +340,51 @@ func getHardwardAddr(nlh *netlink.Handle, iface string) (net.HardwareAddr, error
 
 func (host *L3Host) Destroy(logger testutils.Logger) {
 	host.Ns.Destroy(logger)
+}
+
+// StartPacketCapture creates an AF_RAW socket attached to the L3Host's host iface and starts a goroutine reading from
+// that socket. It returns a func that will stop the goroutine and return all packets captured and any capture error.
+func (host *L3Host) StartPacketCapture(deadline time.Time) (func() ([][]byte, error), error) {
+	iface, err := net.InterfaceByName(host.HostIfaceName)
+	if err != nil {
+		return nil, fmt.Errorf("could not get interface %s: %w", host.HostIfaceName, err)
+	}
+
+	conn, err := packet.Listen(iface, packet.Raw, syscall.ETH_P_IP, nil)
+	if err != nil {
+		if errors.Is(err, unix.EPERM) {
+			return nil, errors.New("you need CAP_NET_RAW")
+		}
+		return nil, fmt.Errorf("failed to open a raw conn from host interface: %w", err)
+	}
+
+	var packets [][]byte
+	var captureErr error
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		conn.SetReadDeadline(deadline)
+		for {
+			buf := make([]byte, 1500)
+			n, _, err := conn.ReadFrom(buf)
+			if err != nil {
+				if os.IsTimeout(err) {
+					break
+				}
+				captureErr = err
+				break
+			}
+			packets = append(packets, buf[:n])
+		}
+		wg.Done()
+	}()
+
+	return func() ([][]byte, error) {
+		conn.SetReadDeadline(time.Now())
+		wg.Wait()
+		conn.Close()
+
+		return packets, captureErr
+	}, nil
 }

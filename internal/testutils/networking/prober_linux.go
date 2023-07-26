@@ -29,19 +29,20 @@ type SynProber struct {
 var ErrNoSynAck = errors.New("no SYN-ACK received")
 
 // Probe sends a SYN packet to the source MAC set its SynProber receiver and then checks if any SYN-ACK is sent back by
-// that source. It returns an error if no SYN-ACK was received before reaching the deadline.
-func (p SynProber) Probe(deadline time.Time) error {
+// that source. It returns both the SYN packet sent and an error if no SYN-ACK was received before reaching the
+// deadline.
+func (p SynProber) Probe(deadline time.Time) ([]byte, error) {
 	iface, err := net.InterfaceByName(p.Iface)
 	if err != nil {
-		return fmt.Errorf("could not get interface %s: %w", p.Iface, err)
+		return nil, fmt.Errorf("could not get interface %s: %w", p.Iface, err)
 	}
 
 	l, err := packet.Listen(iface, packet.Raw, syscall.ETH_P_IP, nil)
 	if err != nil {
 		if errors.Is(err, unix.EPERM) {
-			return errors.New("you need CAP_NET_RAW")
+			return nil, errors.New("you need CAP_NET_RAW")
 		}
-		return err
+		return nil, err
 	}
 	defer l.Close()
 
@@ -67,20 +68,29 @@ func (p SynProber) Probe(deadline time.Time) error {
 	}
 	tcp.SetNetworkLayerForChecksum(&ip)
 
-	buf := gopacket.NewSerializeBuffer()
+	serializeBuf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	err = gopacket.SerializeLayers(buf, opts, &eth, &ip, &tcp)
+	err = gopacket.SerializeLayers(serializeBuf, opts, &eth, &ip, &tcp)
 	if err != nil {
-		return fmt.Errorf("failed to serialize crafted packet: %w", err)
+		return nil, fmt.Errorf("failed to serialize crafted packet: %w", err)
 	}
 
+	// As can be seen in [gopacket source code], Ethernet frames are padded with extra bytes to comply to the minimum
+	// frame length of 60 bytes (without FCS) defined by IEEE 802.3. However, the kernel will strip those extra bytes
+	// when receiving this frame.
+	// As the layers serialization above produces a 54-bytes long Ethernet frame, gopacket adds 6 padding bytes we
+	// strip here to make sure what's returned by this function is exactly what an AF_RAW socket will see on its
+	// receiving end.
+	// [gopacket source code]: https://github.com/google/gopacket/blob/32ee38206866f44a74a6033ec26aeeb474506804/layers/ethernet.go#L95-L102
+	buf := serializeBuf.Bytes()[:54]
+
 	daddr := &packet.Addr{HardwareAddr: p.DstMAC}
-	fmt.Printf("Sending Ethernet frame to %s (%d bytes).\n%s\n", daddr.String(), len(buf.Bytes()), hex.Dump(buf.Bytes()))
-	if _, err := l.WriteTo(buf.Bytes(), daddr); err != nil {
-		return err
+	fmt.Printf("Sending Ethernet frame to %s (%d bytes).\n%s\n", daddr.String(), len(buf), hex.Dump(buf))
+	if _, err := l.WriteTo(buf, daddr); err != nil {
+		return nil, err
 	}
 
 	l.SetReadDeadline(deadline)
@@ -91,7 +101,7 @@ func (p SynProber) Probe(deadline time.Time) error {
 			if os.IsTimeout(err) {
 				break
 			}
-			return err
+			return nil, err
 		}
 
 		gopkt := gopacket.NewPacket(buf[:n], layers.LayerTypeEthernet, gopacket.DecodeOptions{
@@ -120,9 +130,9 @@ func (p SynProber) Probe(deadline time.Time) error {
 
 		if ansTCP.ACK {
 			fmt.Printf("Received a SYN-ACK from %s:%d!\n", ansIP.SrcIP, ansTCP.SrcPort)
-			return nil
+			return buf, nil
 		}
 	}
 
-	return ErrNoSynAck
+	return buf, ErrNoSynAck
 }
