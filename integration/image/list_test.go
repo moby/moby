@@ -20,7 +20,7 @@ import (
 // Regression : #38171
 func TestImagesFilterMultiReference(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
@@ -42,13 +42,13 @@ func TestImagesFilterMultiReference(t *testing.T) {
 	filter.Add("reference", repoTags[1])
 	filter.Add("reference", repoTags[2])
 	options := types.ImageListOptions{
-		All:     false,
 		Filters: filter,
 	}
 	images, err := client.ImageList(ctx, options)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal(len(images[0].RepoTags), 3))
+	assert.Assert(t, is.Len(images, 1))
+	assert.Check(t, is.Len(images[0].RepoTags, 3))
 	for _, repoTag := range images[0].RepoTags {
 		if repoTag != repoTags[0] && repoTag != repoTags[1] && repoTag != repoTags[2] {
 			t.Errorf("list images doesn't match any repoTag we expected, repoTag: %s", repoTag)
@@ -57,7 +57,7 @@ func TestImagesFilterMultiReference(t *testing.T) {
 }
 
 func TestImagesFilterBeforeSince(t *testing.T) {
-	defer setupTest(t)()
+	t.Cleanup(setupTest(t))
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
@@ -92,4 +92,60 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 	// milliseconds of each other, listedIDs is effectively unordered and
 	// the assertion must therefore be order-independent.
 	assert.DeepEqual(t, listedIDs, imgs[1:len(imgs)-1], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
+}
+
+func TestAPIImagesFilters(t *testing.T) {
+	t.Cleanup(setupTest(t))
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	for _, n := range []string{"utest:tag1", "utest/docker:tag2", "utest:5000/docker:tag3"} {
+		err := client.ImageTag(ctx, "busybox:latest", n)
+		assert.NilError(t, err)
+	}
+
+	testcases := []struct {
+		name             string
+		filters          []filters.KeyValuePair
+		expectedImages   int
+		expectedRepoTags int
+	}{
+		{
+			name:             "repository regex",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest*/*")},
+			expectedImages:   1,
+			expectedRepoTags: 2,
+		},
+		{
+			name:             "image name regex",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest*")},
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+		{
+			name:             "image name without a tag",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "utest")},
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+		{
+			name:             "registry port regex",
+			filters:          []filters.KeyValuePair{filters.Arg("reference", "*5000*/*")},
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+	}
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			images, err := client.ImageList(context.Background(), types.ImageListOptions{
+				Filters: filters.NewArgs(tc.filters...),
+			})
+			assert.Check(t, err)
+			assert.Assert(t, is.Len(images, tc.expectedImages))
+			assert.Check(t, is.Len(images[0].RepoTags, tc.expectedRepoTags))
+		})
+	}
 }

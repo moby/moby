@@ -8,49 +8,12 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 )
-
-func (s *DockerAPISuite) TestAPIImagesFilter(c *testing.T) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	name := "utest:tag1"
-	name2 := "utest/docker:tag2"
-	name3 := "utest:5000/docker:tag3"
-	for _, n := range []string{name, name2, name3} {
-		dockerCmd(c, "tag", "busybox", n)
-	}
-	getImages := func(filter string) []types.ImageSummary {
-		options := types.ImageListOptions{
-			All:     false,
-			Filters: filters.NewArgs(filters.Arg("reference", filter)),
-		}
-		images, err := apiClient.ImageList(context.Background(), options)
-		assert.NilError(c, err)
-
-		return images
-	}
-
-	// incorrect number of matches returned
-	images := getImages("utest*/*")
-	assert.Equal(c, len(images[0].RepoTags), 2)
-
-	images = getImages("utest")
-	assert.Equal(c, len(images[0].RepoTags), 1)
-
-	images = getImages("utest*")
-	assert.Equal(c, len(images[0].RepoTags), 1)
-
-	images = getImages("*5000*/*")
-	assert.Equal(c, len(images[0].RepoTags), 1)
-}
 
 func (s *DockerAPISuite) TestAPIImagesSaveAndLoad(c *testing.T) {
 	testRequires(c, Network)
