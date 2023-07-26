@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -109,26 +110,69 @@ func TestNewClientWithOpsFromEnv(t *testing.T) {
 }
 
 func TestGetAPIPath(t *testing.T) {
-	testcases := []struct {
+	tests := []struct {
 		version  string
 		path     string
 		query    url.Values
 		expected string
 	}{
-		{"", "/containers/json", nil, "/v" + api.DefaultVersion + "/containers/json"},
-		{"", "/containers/json", url.Values{}, "/v" + api.DefaultVersion + "/containers/json"},
-		{"", "/containers/json", url.Values{"s": []string{"c"}}, "/v" + api.DefaultVersion + "/containers/json?s=c"},
-		{"1.22", "/containers/json", nil, "/v1.22/containers/json"},
-		{"1.22", "/containers/json", url.Values{}, "/v1.22/containers/json"},
-		{"1.22", "/containers/json", url.Values{"s": []string{"c"}}, "/v1.22/containers/json?s=c"},
-		{"v1.22", "/containers/json", nil, "/v1.22/containers/json"},
-		{"v1.22", "/containers/json", url.Values{}, "/v1.22/containers/json"},
-		{"v1.22", "/containers/json", url.Values{"s": []string{"c"}}, "/v1.22/containers/json?s=c"},
-		{"v1.22", "/networks/kiwl$%^", nil, "/v1.22/networks/kiwl$%25%5E"},
+		{
+			path:     "/containers/json",
+			expected: "/v" + api.DefaultVersion + "/containers/json",
+		},
+		{
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v" + api.DefaultVersion + "/containers/json",
+		},
+		{
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v" + api.DefaultVersion + "/containers/json?s=c",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "1.22",
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v1.22/containers/json?s=c",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			query:    url.Values{},
+			expected: "/v1.22/containers/json",
+		},
+		{
+			version:  "v1.22",
+			path:     "/containers/json",
+			query:    url.Values{"s": []string{"c"}},
+			expected: "/v1.22/containers/json?s=c",
+		},
+		{
+			version:  "v1.22",
+			path:     "/networks/kiwl$%^",
+			expected: "/v1.22/networks/kiwl$%25%5E",
+		},
 	}
 
 	ctx := context.TODO()
-	for _, tc := range testcases {
+	for _, tc := range tests {
 		client, err := NewClientWithOpts(
 			WithVersion(tc.version),
 			WithHost("tcp://localhost:2375"),
@@ -384,28 +428,43 @@ func TestClientRedirect(t *testing.T) {
 		CheckRedirect: CheckRedirect,
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.String() == "/bla" {
-				return &http.Response{StatusCode: 404}, nil
+				return &http.Response{StatusCode: http.StatusNotFound}, nil
 			}
 			return &http.Response{
-				StatusCode: 301,
-				Header:     map[string][]string{"Location": {"/bla"}},
+				StatusCode: http.StatusMovedPermanently,
+				Header:     http.Header{"Location": {"/bla"}},
 				Body:       bytesBufferClose{bytes.NewBuffer(nil)},
 			}, nil
 		}),
 	}
 
-	cases := []struct {
+	tests := []struct {
 		httpMethod  string
 		expectedErr *url.Error
 		statusCode  int
 	}{
-		{http.MethodGet, nil, 301},
-		{http.MethodPost, &url.Error{Op: "Post", URL: "/bla", Err: ErrRedirect}, 301},
-		{http.MethodPut, &url.Error{Op: "Put", URL: "/bla", Err: ErrRedirect}, 301},
-		{http.MethodDelete, &url.Error{Op: "Delete", URL: "/bla", Err: ErrRedirect}, 301},
+		{
+			httpMethod: http.MethodGet,
+			statusCode: http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodPost,
+			expectedErr: &url.Error{Op: "Post", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodPut,
+			expectedErr: &url.Error{Op: "Put", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
+		{
+			httpMethod:  http.MethodDelete,
+			expectedErr: &url.Error{Op: "Delete", URL: "/bla", Err: ErrRedirect},
+			statusCode:  http.StatusMovedPermanently,
+		},
 	}
 
-	for _, tc := range cases {
+	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.httpMethod, func(t *testing.T) {
 			req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
@@ -413,10 +472,11 @@ func TestClientRedirect(t *testing.T) {
 			resp, err := client.Do(req)
 			assert.Check(t, is.Equal(resp.StatusCode, tc.statusCode))
 			if tc.expectedErr == nil {
-				assert.NilError(t, err)
+				assert.Check(t, err)
 			} else {
-				urlError, ok := err.(*url.Error)
-				assert.Assert(t, ok, "%T is not *url.Error", err)
+				assert.Check(t, is.ErrorType(err, &url.Error{}))
+				var urlError *url.Error
+				assert.Assert(t, errors.As(err, &urlError), "%T is not *url.Error", err)
 				assert.Check(t, is.Equal(*urlError, *tc.expectedErr))
 			}
 		})

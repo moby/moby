@@ -86,9 +86,6 @@ import (
 // [Go stdlib]: https://github.com/golang/go/blob/6244b1946bc2101b01955468f1be502dbadd6807/src/net/http/transport.go#L558-L569
 const DummyHost = "api.moby.localhost"
 
-// ErrRedirect is the error returned by checkRedirect when the request is non-GET.
-var ErrRedirect = errors.New("unexpected redirect in response")
-
 // Client is the API client that performs all operations
 // against a docker server.
 type Client struct {
@@ -111,7 +108,7 @@ type Client struct {
 	// header variables. When set to an empty string, the User-Agent header
 	// is removed, and no header is sent.
 	userAgent *string
-	// custom http headers configured by users.
+	// custom HTTP headers configured by users.
 	customHTTPHeaders map[string]string
 	// manualOverride is set to true when the version was set by users.
 	manualOverride bool
@@ -126,20 +123,25 @@ type Client struct {
 	negotiated bool
 }
 
-// CheckRedirect specifies the policy for dealing with redirect responses:
-// If the request is non-GET return ErrRedirect, otherwise use the last response.
+// ErrRedirect is the error returned by checkRedirect when the request is non-GET.
+var ErrRedirect = errors.New("unexpected redirect in response")
+
+// CheckRedirect specifies the policy for dealing with redirect responses. It
+// can be set on [http.Client.CheckRedirect] to prevent HTTP redirects for
+// non-GET requests. It returns an [ErrRedirect] for non-GET request, otherwise
+// returns a [http.ErrUseLastResponse], which is special-cased by http.Client
+// to use the last response.
 //
-// Go 1.8 changes behavior for HTTP redirects (specifically 301, 307, and 308)
-// in the client. The Docker client (and by extension docker API client) can be
-// made to send a request like POST /containers//start where what would normally
-// be in the name section of the URL is empty. This triggers an HTTP 301 from
-// the daemon.
+// Go 1.8 changed behavior for HTTP redirects (specifically 301, 307, and 308)
+// in the client. The client (and by extension API client) can be made to send
+// a request like "POST /containers//start" where what would normally be in the
+// name section of the URL is empty. This triggers an HTTP 301 from the daemon.
 //
-// In go 1.8 this 301 will be converted to a GET request, and ends up getting
+// In go 1.8 this 301 is converted to a GET request, and ends up getting
 // a 404 from the daemon. This behavior change manifests in the client in that
 // before, the 301 was not followed and the client did not generate an error,
-// but now results in a message like Error response from daemon: page not found.
-func CheckRedirect(req *http.Request, via []*http.Request) error {
+// but now results in a message like "Error response from daemon: page not found".
+func CheckRedirect(_ *http.Request, via []*http.Request) error {
 	if via[0].Method == http.MethodGet {
 		return http.ErrUseLastResponse
 	}
@@ -150,11 +152,11 @@ func CheckRedirect(req *http.Request, via []*http.Request) error {
 // default API host and version. It also initializes the custom HTTP headers to
 // add to each request.
 //
-// It takes an optional list of Opt functional arguments, which are applied in
+// It takes an optional list of [Opt] functional arguments, which are applied in
 // the order they're provided, which allows modifying the defaults when creating
 // the client. For example, the following initializes a client that configures
-// itself with values from environment variables (client.FromEnv), and has
-// automatic API version negotiation enabled (client.WithAPIVersionNegotiation()).
+// itself with values from environment variables ([FromEnv]), and has automatic
+// API version negotiation enabled ([WithAPIVersionNegotiation]).
 //
 //	cli, err := client.NewClientWithOpts(
 //		client.FromEnv,
@@ -221,7 +223,7 @@ func (cli *Client) Close() error {
 	return nil
 }
 
-// getAPIPath returns the versioned request path to call the api.
+// getAPIPath returns the versioned request path to call the API.
 // It appends the query parameters to the path if they are not empty.
 func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) string {
 	var apiPath string
@@ -249,8 +251,8 @@ func (cli *Client) ClientVersion() string {
 // by the client, it uses the client's maximum version.
 //
 // If a manual override is in place, either through the "DOCKER_API_VERSION"
-// (EnvOverrideAPIVersion) environment variable, or if the client is initialized
-// with a fixed version (WithVersion(xx)), no negotiation is performed.
+// ([EnvOverrideAPIVersion]) environment variable, or if the client is initialized
+// with a fixed version ([WithVersion]), no negotiation is performed.
 //
 // If the API server's ping response does not contain an API version, or if the
 // client did not get a successful ping response, it assumes it is connected with
@@ -270,8 +272,8 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 // version.
 //
 // If a manual override is in place, either through the "DOCKER_API_VERSION"
-// (EnvOverrideAPIVersion) environment variable, or if the client is initialized
-// with a fixed version (WithVersion(xx)), no negotiation is performed.
+// ([EnvOverrideAPIVersion]) environment variable, or if the client is initialized
+// with a fixed version ([WithVersion]), no negotiation is performed.
 //
 // If the API server's ping response does not contain an API version, we assume
 // we are connected with an old daemon without API version negotiation support,
@@ -344,9 +346,10 @@ func ParseHostURL(host string) (*url.URL, error) {
 }
 
 // Dialer returns a dialer for a raw stream connection, with an HTTP/1.1 header,
-// that can be used for proxying the daemon connection.
+// that can be used for proxying the daemon connection. It is used by
+// ["docker dial-stdio"].
 //
-// Used by `docker dial-stdio` (docker/cli#889).
+// ["docker dial-stdio"]: https://github.com/docker/cli/pull/1014
 func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
 	return func(ctx context.Context) (net.Conn, error) {
 		if transport, ok := cli.client.Transport.(*http.Transport); ok {
