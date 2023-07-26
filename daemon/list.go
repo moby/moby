@@ -41,7 +41,7 @@ type iterationAction int
 
 // containerReducer represents a reducer for a container.
 // Returns the object to serialize by the api.
-type containerReducer func(context.Context, *container.Snapshot, *listContext) (*types.Container, error)
+type containerReducer func(context.Context, *container.Snapshot) (*types.Container, error)
 
 const (
 	// includeContainer is the action to include a container in the reducer.
@@ -230,7 +230,7 @@ func (daemon *Daemon) reducePsContainer(ctx context.Context, container *containe
 	}
 
 	// transform internal container struct into api structs
-	newC, err := reducer(ctx, container, filter)
+	newC, err := reducer(ctx, container)
 	if err != nil {
 		return nil, err
 	}
@@ -600,7 +600,7 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 // $ docker ps -a
 // CONTAINER ID   IMAGE          COMMAND   CREATED       STATUS                  PORTS     NAMES
 // b0318bca5aef   3fbc63216742   "sh"      3 years ago   Exited (0) 3 years ago            ecstatic_beaver
-func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot, filter *listContext) (*types.Container, error) {
+func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) (*types.Container, error) {
 	c := s.Container
 
 	// s.Image is the image reference passed by the user to create an image
