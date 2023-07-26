@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -142,41 +143,32 @@ func (i *ImageService) Images(ctx context.Context, opts types.ImageListOptions) 
 func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, image *ImageManifest) (*types.ImageSummary, []digest.Digest, error) {
 	diffIDs, err := image.RootFS(ctx)
 	if err != nil {
-		return nil, nil, err
-	}
-	chainIDs := identity.ChainIDs(diffIDs)
-
-	size, err := image.Size(ctx)
-	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "failed to get rootfs of image %s", image.Name())
 	}
 
 	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
 	snapshotter := i.client.SnapshotService(i.snapshotter)
-	sizeCache := make(map[digest.Digest]int64)
 
-	snapshotSizeFn := func(d digest.Digest) (int64, error) {
-		if s, ok := sizeCache[d]; ok {
-			return s, nil
+	imageSnapshotID := identity.ChainID(diffIDs).String()
+	unpackedUsage, err := calculateSnapshotTotalUsage(ctx, snapshotter, imageSnapshotID)
+	if err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			log.G(ctx).WithError(err).WithFields(logrus.Fields{
+				"image":      image.Name(),
+				"snapshotID": imageSnapshotID,
+			}).Warn("failed to calculate unpacked size of image")
 		}
-		usage, err := snapshotter.Usage(ctx, d.String())
-		if err != nil {
-			if cerrdefs.IsNotFound(err) {
-				return 0, nil
-			}
-			return 0, err
-		}
-		sizeCache[d] = usage.Size
-		return usage.Size, nil
+		unpackedUsage = snapshots.Usage{Size: 0}
 	}
-	snapshotSize, err := computeSnapshotSize(chainIDs, snapshotSizeFn)
+
+	contentSize, err := image.Size(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// totalSize is the size of the image's packed layers and snapshots
 	// (unpacked layers) combined.
-	totalSize := size + snapshotSize
+	totalSize := contentSize + unpackedUsage.Size
 
 	var repoTags, repoDigests []string
 	rawImg := image.Metadata()
@@ -224,7 +216,7 @@ func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore con
 		Containers: -1,
 	}
 
-	return summary, chainIDs, nil
+	return summary, identity.ChainIDs(diffIDs), nil
 }
 
 type imageFilterFunc func(image images.Image) bool
@@ -441,20 +433,6 @@ func setupLabelFilter(store content.Store, fltrs filters.Args) (func(image image
 
 		return false
 	}, nil
-}
-
-// computeSnapshotSize calculates the total size consumed by the snapshots
-// for the given chainIDs.
-func computeSnapshotSize(chainIDs []digest.Digest, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {
-	var totalSize int64
-	for _, chainID := range chainIDs {
-		size, err := sizeFn(chainID)
-		if err != nil {
-			return totalSize, err
-		}
-		totalSize += size
-	}
-	return totalSize, nil
 }
 
 func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {
