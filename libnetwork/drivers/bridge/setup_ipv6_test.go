@@ -9,12 +9,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/testutils"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupIPv6(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {
@@ -55,7 +55,7 @@ func TestSetupIPv6(t *testing.T) {
 }
 
 func TestSetupGatewayIPv6(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	_, nw, _ := net.ParseCIDR("2001:db8:ea9:9abc:ffff::/80")
 	gw := net.ParseIP("2001:db8:ea9:9abc:ffff::254")

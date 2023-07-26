@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/log"
-	"github.com/docker/docker/libnetwork/testutils"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -98,7 +98,7 @@ func checkDNSRRType(t *testing.T, actual, expected uint16) {
 func TestDNSIPQuery(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	c, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -237,7 +237,7 @@ func waitForLocalDNSServer(t *testing.T) {
 func TestDNSProxyServFail(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	osctx := testutils.SetupTestOSContextEx(t)
+	osctx := netnsutils.SetupTestOSContextEx(t)
 	defer osctx.Cleanup(t)
 
 	c, err := New()
@@ -501,7 +501,7 @@ func TestProxyNXDOMAIN(t *testing.T) {
 	// whether we are leaking unlocked OS threads set to the wrong network
 	// namespace. Make a best-effort attempt to detect that situation so we
 	// are not left chasing ghosts next time.
-	testutils.AssertSocketSameNetNS(t, srv.PacketConn.(*net.UDPConn))
+	netnsutils.AssertSocketSameNetNS(t, srv.PacketConn.(*net.UDPConn))
 
 	srvAddr := srv.PacketConn.LocalAddr().(*net.UDPAddr)
 	rsv := NewResolver("", true, noopDNSBackend{})

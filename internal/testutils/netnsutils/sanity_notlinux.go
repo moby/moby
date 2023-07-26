@@ -1,6 +1,6 @@
 //go:build !linux
 
-package testutils
+package netnsutils
 
 import (
 	"syscall"

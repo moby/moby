@@ -5,8 +5,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/docker/docker/libnetwork/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -15,7 +15,7 @@ import (
 func TestCleanupServiceDiscovery(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	c, err := New()
 	assert.NilError(t, err)
 	defer c.Stop()

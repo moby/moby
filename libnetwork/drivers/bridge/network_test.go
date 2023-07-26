@@ -5,14 +5,14 @@ package bridge
 import (
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestLinkCreate(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {
@@ -107,7 +107,7 @@ func TestLinkCreate(t *testing.T) {
 }
 
 func TestLinkCreateTwo(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {
@@ -145,7 +145,7 @@ func TestLinkCreateTwo(t *testing.T) {
 }
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {
@@ -180,7 +180,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 }
 
 func TestLinkDelete(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {

@@ -1,6 +1,6 @@
 //go:build linux || freebsd
 
-package testutils
+package netnsutils
 
 import (
 	"fmt"

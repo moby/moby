@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -160,7 +160,7 @@ func verifyCleanup(t *testing.T, s Sandbox, wait bool) {
 }
 
 func TestDisableIPv6DAD(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
@@ -219,7 +219,7 @@ func destroyTest(t *testing.T, s Sandbox) {
 }
 
 func TestSetInterfaceIP(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
@@ -293,7 +293,7 @@ func TestSetInterfaceIP(t *testing.T) {
 }
 
 func TestLiveRestore(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
@@ -384,7 +384,7 @@ func TestLiveRestore(t *testing.T) {
 }
 
 func TestSandboxCreate(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
@@ -435,7 +435,7 @@ func TestSandboxCreate(t *testing.T) {
 }
 
 func TestSandboxCreateTwice(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
@@ -483,7 +483,7 @@ func TestSandboxGC(t *testing.T) {
 }
 
 func TestAddRemoveInterface(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {

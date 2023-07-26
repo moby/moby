@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/datastore"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugins"
 )
@@ -73,7 +73,7 @@ func isNotFound(err error) bool {
 }
 
 func TestNull(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	cnt, err := controller.NewSandbox("null_container",
@@ -123,7 +123,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestUnknownDriver(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	_, err := createTestNetwork(controller, "unknowndriver", "testnetwork", options.Generic{}, nil, nil)
@@ -137,7 +137,7 @@ func TestUnknownDriver(t *testing.T) {
 }
 
 func TestNilRemoteDriver(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	_, err := controller.NewNetwork("framerelay", "dummy", "",
@@ -152,7 +152,7 @@ func TestNilRemoteDriver(t *testing.T) {
 }
 
 func TestNetworkName(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -187,7 +187,7 @@ func TestNetworkName(t *testing.T) {
 }
 
 func TestNetworkType(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -212,7 +212,7 @@ func TestNetworkType(t *testing.T) {
 }
 
 func TestNetworkID(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -237,7 +237,7 @@ func TestNetworkID(t *testing.T) {
 }
 
 func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -277,7 +277,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 }
 
 func TestNetworkConfig(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	// Verify config network cannot inherit another config network
@@ -378,7 +378,7 @@ func TestNetworkConfig(t *testing.T) {
 }
 
 func TestUnknownNetwork(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -409,7 +409,7 @@ func TestUnknownNetwork(t *testing.T) {
 }
 
 func TestUnknownEndpoint(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -450,7 +450,7 @@ func TestUnknownEndpoint(t *testing.T) {
 }
 
 func TestNetworkEndpointsWalkers(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
@@ -579,7 +579,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 }
 
 func TestDuplicateEndpoint(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -627,7 +627,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 }
 
 func TestControllerQuery(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	// Create network 1
@@ -728,7 +728,7 @@ func TestControllerQuery(t *testing.T) {
 }
 
 func TestNetworkQuery(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
@@ -814,7 +814,7 @@ func TestNetworkQuery(t *testing.T) {
 const containerID = "valid_c"
 
 func TestEndpointDeleteWithActiveContainer(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
@@ -888,7 +888,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 }
 
 func TestEndpointMultipleJoins(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testmultiple", options.Generic{
@@ -961,7 +961,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 }
 
 func TestLeaveAll(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
@@ -1025,7 +1025,7 @@ func TestLeaveAll(t *testing.T) {
 }
 
 func TestContainerInvalidLeave(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
@@ -1090,7 +1090,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 }
 
 func TestEndpointUpdateParent(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{

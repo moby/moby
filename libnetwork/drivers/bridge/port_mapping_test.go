@@ -5,14 +5,14 @@ package bridge
 import (
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/ns"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 )
 
 func TestPortMappingConfig(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -91,7 +91,7 @@ func TestPortMappingConfig(t *testing.T) {
 }
 
 func TestPortMappingV6Config(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	if err := loopbackUp(); err != nil {
 		t.Fatalf("Could not bring loopback iface up: %v", err)
 	}

@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/config"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
-	"github.com/docker/docker/libnetwork/testutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -51,7 +51,7 @@ func TestUserChain(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(fmt.Sprintf("iptables=%v,insert=%v", tc.iptables, tc.insert), func(t *testing.T) {
-			defer testutils.SetupTestOSContext(t)()
+			defer netnsutils.SetupTestOSContext(t)()
 			defer resetIptables(t)
 
 			c, err := New(config.OptionDriverConfig("bridge", map[string]any{

@@ -5,12 +5,12 @@ package bridge
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/testutils"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestInterfaceDefaultName(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {
@@ -28,7 +28,7 @@ func TestInterfaceDefaultName(t *testing.T) {
 }
 
 func TestAddressesEmptyInterface(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {
