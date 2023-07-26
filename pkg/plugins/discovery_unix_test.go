@@ -15,8 +15,11 @@ import (
 
 func TestLocalSocket(t *testing.T) {
 	// TODO Windows: Enable a similar version for Windows named pipes
-	tmpdir, unregister, r := Setup(t)
-	defer unregister()
+	tmpdir := t.TempDir()
+	r := LocalRegistry{
+		socketsPath: tmpdir,
+		specsPaths:  []string{tmpdir},
+	}
 
 	cases := []string{
 		filepath.Join(tmpdir, "echo.sock"),
@@ -62,8 +65,11 @@ func TestLocalSocket(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
-	tmpdir, unregister, r := Setup(t)
-	defer unregister()
+	tmpdir := t.TempDir()
+	r := LocalRegistry{
+		socketsPath: tmpdir,
+		specsPaths:  []string{tmpdir},
+	}
 
 	pluginNames, err := r.Scan()
 	if err != nil {
@@ -103,8 +109,11 @@ func TestScan(t *testing.T) {
 }
 
 func TestScanNotPlugins(t *testing.T) {
-	tmpdir, unregister, localRegistry := Setup(t)
-	defer unregister()
+	tmpdir := t.TempDir()
+	localRegistry := LocalRegistry{
+		socketsPath: tmpdir,
+		specsPaths:  []string{tmpdir},
+	}
 
 	// not that `Setup()` above sets the sockets path and spec path dirs, which
 	// `Scan()` uses to find plugins to the returned `tmpdir`

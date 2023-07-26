@@ -26,7 +26,7 @@ const (
 	dummyHost = "plugin.moby.localhost"
 )
 
-func newTransport(addr string, tlsConfig *tlsconfig.Options) (transport.Transport, error) {
+func newTransport(addr string, tlsConfig *tlsconfig.Options) (*transport.HTTPTransport, error) {
 	tr := &http.Transport{}
 
 	if tlsConfig != nil {
@@ -77,7 +77,7 @@ func NewClientWithTimeout(addr string, tlsConfig *tlsconfig.Options, timeout tim
 }
 
 // newClientWithTransport creates a new plugin client with a given transport.
-func newClientWithTransport(tr transport.Transport, timeout time.Duration) *Client {
+func newClientWithTransport(tr *transport.HTTPTransport, timeout time.Duration) *Client {
 	return &Client{
 		http: &http.Client{
 			Transport: tr,
@@ -87,10 +87,16 @@ func newClientWithTransport(tr transport.Transport, timeout time.Duration) *Clie
 	}
 }
 
+// requestFactory defines an interface that transports can implement to
+// create new requests. It's used in testing.
+type requestFactory interface {
+	NewRequest(path string, data io.Reader) (*http.Request, error)
+}
+
 // Client represents a plugin client.
 type Client struct {
 	http           *http.Client // http client to use
-	requestFactory transport.RequestFactory
+	requestFactory requestFactory
 }
 
 // RequestOpts is the set of options that can be passed into a request

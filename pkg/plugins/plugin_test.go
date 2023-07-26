@@ -64,27 +64,33 @@ func TestGet(t *testing.T) {
 	p.Manifest = &Manifest{Implements: []string{fruitImplements}}
 	storage.plugins[fruitPlugin] = p
 
-	plugin, err := Get(fruitPlugin, fruitImplements)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p.Name() != plugin.Name() {
-		t.Fatalf("No matching plugin with name %s found", plugin.Name())
-	}
-	if plugin.Client() != nil {
-		t.Fatal("expected nil Client but found one")
-	}
-	if !plugin.IsV1() {
-		t.Fatal("Expected true for V1 plugin")
-	}
+	t.Run("success", func(t *testing.T) {
+		plugin, err := Get(fruitPlugin, fruitImplements)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.Name() != plugin.Name() {
+			t.Errorf("no matching plugin with name %s found", plugin.Name())
+		}
+		if plugin.Client() != nil {
+			t.Error("expected nil Client but found one")
+		}
+		if !plugin.IsV1() {
+			t.Error("Expected true for V1 plugin")
+		}
+	})
 
 	// check negative case where plugin fruit doesn't implement banana
-	_, err = Get("fruit", "banana")
-	assert.Assert(t, errors.Is(err, ErrNotImplements))
+	t.Run("not implemented", func(t *testing.T) {
+		_, err := Get("fruit", "banana")
+		assert.Assert(t, errors.Is(err, ErrNotImplements))
+	})
 
 	// check negative case where plugin vegetable doesn't exist
-	_, err = Get("vegetable", "potato")
-	assert.Assert(t, errors.Is(err, ErrNotFound))
+	t.Run("not exists", func(t *testing.T) {
+		_, err := Get("vegetable", "potato")
+		assert.Assert(t, errors.Is(err, ErrNotFound))
+	})
 }
 
 func TestPluginWithNoManifest(t *testing.T) {
@@ -127,8 +133,11 @@ func TestPluginWithNoManifest(t *testing.T) {
 
 func TestGetAll(t *testing.T) {
 	t.Parallel()
-	tmpdir, unregister, r := Setup(t)
-	defer unregister()
+	tmpdir := t.TempDir()
+	r := LocalRegistry{
+		socketsPath: tmpdir,
+		specsPaths:  []string{tmpdir},
+	}
 
 	p := filepath.Join(tmpdir, "example.json")
 	spec := `{
