@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"gotest.tools/v3/skip"
 )
@@ -311,7 +311,7 @@ func compareNwLists(a, b []*net.IPNet) bool {
 }
 
 func TestAuxAddresses(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	c, err := New()
 	if err != nil {
@@ -350,7 +350,7 @@ func TestAuxAddresses(t *testing.T) {
 func TestSRVServiceQuery(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	c, err := New()
 	if err != nil {
@@ -447,7 +447,7 @@ func TestSRVServiceQuery(t *testing.T) {
 func TestServiceVIPReuse(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	c, err := New()
 	if err != nil {
@@ -564,7 +564,7 @@ func TestServiceVIPReuse(t *testing.T) {
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	c, err := New(OptionBoltdbWithRandomDBFile(t))
 	if err != nil {

@@ -6,9 +6,9 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/iptables"
 	"github.com/docker/docker/libnetwork/portmapper"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/vishvananda/netlink"
 )
 
@@ -18,7 +18,7 @@ const (
 
 func TestProgramIPTable(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {
@@ -48,7 +48,7 @@ func TestProgramIPTable(t *testing.T) {
 
 func TestSetupIPChains(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {

@@ -1,6 +1,6 @@
 //go:build linux || freebsd
 
-package testutils
+package netnsutils
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netns"
@@ -131,7 +132,7 @@ func (c *OSContext) restore(t *testing.T) {
 //			t.Fatalf("%+v", err)
 //		}
 //	}
-func (c *OSContext) Set() (func(Logger), error) {
+func (c *OSContext) Set() (func(testutils.Logger), error) {
 	runtime.LockOSThread()
 	orig, err := netns.Get()
 	if err != nil {
@@ -146,7 +147,7 @@ func (c *OSContext) Set() (func(Logger), error) {
 	tid := unix.Gettid()
 	_, file, line, callerOK := runtime.Caller(0)
 
-	return func(log Logger) {
+	return func(log testutils.Logger) {
 		if unix.Gettid() != tid {
 			msg := "teardown function must be called from the same goroutine as c.Set()"
 			if callerOK {

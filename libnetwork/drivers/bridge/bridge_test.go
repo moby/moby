@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/libnetwork/iptables"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/portallocator"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
@@ -181,7 +181,7 @@ func getIPv4Data(t *testing.T, iface string) []driverapi.IPAMData {
 }
 
 func TestCreateFullOptions(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -235,7 +235,7 @@ func TestCreateFullOptions(t *testing.T) {
 }
 
 func TestCreateNoConfig(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
@@ -248,7 +248,7 @@ func TestCreateNoConfig(t *testing.T) {
 }
 
 func TestCreateFullOptionsLabels(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -354,7 +354,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -380,7 +380,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateFail(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -398,7 +398,7 @@ func TestCreateFail(t *testing.T) {
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -606,7 +606,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 }
 
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 	d.portAllocator = portallocator.NewInstance()
 
@@ -708,7 +708,7 @@ func getPortMapping() []types.PortBinding {
 }
 
 func TestLinkContainers(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 	iptable := iptables.GetIptable(iptables.IPv4)
@@ -862,7 +862,7 @@ func TestLinkContainers(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	// Test mtu
 	c := networkConfiguration{Mtu: -2}
@@ -933,7 +933,7 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaultGw(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -985,7 +985,7 @@ func TestSetDefaultGw(t *testing.T) {
 }
 
 func TestCleanupIptableRules(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	bridgeChain := []iptables.ChainInfo{
 		{Name: DockerChain, Table: iptables.Nat},
 		{Name: DockerChain, Table: iptables.Filter},
@@ -1015,7 +1015,7 @@ func TestCleanupIptableRules(t *testing.T) {
 }
 
 func TestCreateWithExistingBridge(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {
@@ -1085,7 +1085,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 }
 
 func TestCreateParallel(t *testing.T) {
-	c := testutils.SetupTestOSContextEx(t)
+	c := netnsutils.SetupTestOSContextEx(t)
 	defer c.Cleanup(t)
 
 	d := newDriver()

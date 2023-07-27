@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/libnetwork/testutils"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/sys/mount"
@@ -357,7 +357,7 @@ func TestIfaceAddrs(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			defer testutils.SetupTestOSContext(t)()
+			defer netnsutils.SetupTestOSContext(t)()
 
 			createBridge(t, "test", tt.nws...)
 

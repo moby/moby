@@ -7,13 +7,13 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/netutils"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupNewBridge(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {
@@ -39,7 +39,7 @@ func TestSetupNewBridge(t *testing.T) {
 }
 
 func TestSetupNewNonDefaultBridge(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {
@@ -61,7 +61,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 }
 
 func TestSetupDeviceUp(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nh, err := netlink.NewHandle()
 	if err != nil {
@@ -86,7 +86,7 @@ func TestSetupDeviceUp(t *testing.T) {
 }
 
 func TestGenerateRandomMAC(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	mac1 := netutils.GenerateRandomMAC()
 	mac2 := netutils.GenerateRandomMAC()

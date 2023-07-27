@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/ipamutils"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
@@ -247,7 +247,7 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 }
 
 func TestNetworkRequest(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 
 	nw, err := FindAvailableNetwork(ipamutils.GetLocalScopeDefaultNetworks())
 	if err != nil {

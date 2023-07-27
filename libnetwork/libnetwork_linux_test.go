@@ -13,12 +13,12 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/log"
+	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
-	"github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/pkg/errors"
@@ -41,7 +41,7 @@ func makeTesthostNetwork(t *testing.T, c *libnetwork.Controller) *libnetwork.Net
 }
 
 func TestHost(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	sbx1, err := controller.NewSandbox("host_c1",
@@ -142,7 +142,7 @@ func TestHost(t *testing.T) {
 
 // Testing IPV6 from MAC address
 func TestBridgeIpv6FromMac(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -217,7 +217,7 @@ func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 }
 
 func TestEndpointJoin(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
@@ -392,7 +392,7 @@ func TestExternalKey(t *testing.T) {
 }
 
 func externalKeyTest(t *testing.T, reexec bool) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", options.Generic{
@@ -553,7 +553,7 @@ func reexecSetKey(key string, containerID string, controllerID string) error {
 }
 
 func TestEnableIPv6(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
@@ -630,7 +630,7 @@ func TestEnableIPv6(t *testing.T) {
 }
 
 func TestResolvConfHost(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	tmpResolvConf := []byte("search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888\n")
@@ -705,7 +705,7 @@ func TestResolvConfHost(t *testing.T) {
 }
 
 func TestResolvConf(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	tmpResolvConf1 := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888\n")
@@ -845,7 +845,7 @@ func TestResolvConf(t *testing.T) {
 }
 
 type parallelTester struct {
-	osctx      *testutils.OSContext
+	osctx      *netnsutils.OSContext
 	controller *libnetwork.Controller
 	net1, net2 *libnetwork.Network
 	iterCnt    int
@@ -912,7 +912,7 @@ func TestParallel(t *testing.T) {
 		iterCnt    = 25
 	)
 
-	osctx := testutils.SetupTestOSContextEx(t)
+	osctx := netnsutils.SetupTestOSContextEx(t)
 	defer osctx.Cleanup(t)
 	controller := newController(t)
 
@@ -974,7 +974,7 @@ func TestParallel(t *testing.T) {
 }
 
 func TestBridge(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	netOption := options.Generic{
@@ -1062,7 +1062,7 @@ func isV6Listenable() bool {
 }
 
 func TestNullIpam(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
 	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", "", libnetwork.NetworkOptionIpam(ipamapi.NullIPAM, "", nil, nil, nil))
