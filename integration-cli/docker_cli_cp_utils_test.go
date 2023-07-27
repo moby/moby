@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/archive"
 	"gotest.tools/v3/assert"
 )
@@ -150,15 +151,15 @@ func makeTestContainer(c *testing.T, options testContainerOptions) (containerID 
 
 	args = append(args, "busybox", "/bin/sh", "-c", options.command)
 
-	out, _ := dockerCmd(c, args...)
+	out := cli.DockerCmd(c, args...).Combined()
 
 	containerID = strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", containerID)
+	out = cli.DockerCmd(c, "wait", containerID).Combined()
 
 	exitCode := strings.TrimSpace(out)
 	if exitCode != "0" {
-		out, _ = dockerCmd(c, "logs", containerID)
+		out = cli.DockerCmd(c, "logs", containerID).Combined()
 	}
 	assert.Equal(c, exitCode, "0", "failed to make test container: %s", out)
 

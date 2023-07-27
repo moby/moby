@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -48,11 +49,10 @@ func (s *DockerCLICpSuite) TestCpLocalOnly(c *testing.T) {
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
 func (s *DockerCLICpSuite) TestCpGarbagePath(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath).Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 	assert.NilError(c, os.MkdirAll(cpTestPath, os.ModeDir))
 
@@ -69,9 +69,8 @@ func (s *DockerCLICpSuite) TestCpGarbagePath(c *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := path.Join("../../../../../../../../../../../../", cpFullPath)
-
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	containerPath := path.Join("../../../../../../../../../../../../", cpFullPath)
+	cli.DockerCmd(c, "cp", containerID+":"+containerPath, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -84,11 +83,10 @@ func (s *DockerCLICpSuite) TestCpGarbagePath(c *testing.T) {
 
 // Check that relative paths are relative to the container's rootfs
 func (s *DockerCLICpSuite) TestCpRelativePath(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath).Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 	assert.NilError(c, os.MkdirAll(cpTestPath, os.ModeDir))
 
@@ -113,7 +111,7 @@ func (s *DockerCLICpSuite) TestCpRelativePath(c *testing.T) {
 	}
 	assert.Assert(c, path.IsAbs(cpFullPath), "path %s was assumed to be an absolute path", cpFullPath)
 
-	dockerCmd(c, "cp", containerID+":"+relPath, tmpdir)
+	cli.DockerCmd(c, "cp", containerID+":"+relPath, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -126,11 +124,10 @@ func (s *DockerCLICpSuite) TestCpRelativePath(c *testing.T) {
 
 // Check that absolute paths are relative to the container's rootfs
 func (s *DockerCLICpSuite) TestCpAbsolutePath(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath).Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 	assert.NilError(c, os.MkdirAll(cpTestPath, os.ModeDir))
 
@@ -147,9 +144,7 @@ func (s *DockerCLICpSuite) TestCpAbsolutePath(c *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := cpFullPath
-
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	cli.DockerCmd(c, "cp", containerID+":"+cpFullPath, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -164,11 +159,10 @@ func (s *DockerCLICpSuite) TestCpAbsolutePath(c *testing.T) {
 // Check that absolute symlinks are still relative to the container's rootfs
 func (s *DockerCLICpSuite) TestCpAbsoluteSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	assert.NilError(c, os.MkdirAll(cpTestPath, os.ModeDir))
@@ -186,9 +180,8 @@ func (s *DockerCLICpSuite) TestCpAbsoluteSymlink(c *testing.T) {
 	tmpname := filepath.Join(tmpdir, "container_path")
 	defer os.RemoveAll(tmpdir)
 
-	path := path.Join("/", "container_path")
-
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	containerPath := path.Join("/", "container_path")
+	cli.DockerCmd(c, "cp", containerID+":"+containerPath, tmpdir)
 
 	// We should have copied a symlink *NOT* the file itself!
 	linkTarget, err := os.Readlink(tmpname)
@@ -200,11 +193,10 @@ func (s *DockerCLICpSuite) TestCpAbsoluteSymlink(c *testing.T) {
 // a container.
 func (s *DockerCLICpSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPathParent+" /dir_link")
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPathParent+" /dir_link").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	testDir, err := os.MkdirTemp("", "test-cp-from-symlink-to-dir-")
@@ -213,7 +205,7 @@ func (s *DockerCLICpSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
 
 	// This copy command should copy the symlink, not the target, into the
 	// temporary directory.
-	dockerCmd(c, "cp", containerID+":"+"/dir_link", testDir)
+	cli.DockerCmd(c, "cp", containerID+":"+"/dir_link", testDir)
 
 	expectedPath := filepath.Join(testDir, "dir_link")
 	linkTarget, err := os.Readlink(expectedPath)
@@ -225,7 +217,7 @@ func (s *DockerCLICpSuite) TestCpFromSymlinkToDirectory(c *testing.T) {
 
 	// This copy command should resolve the symlink (note the trailing
 	// separator), copying the target into the temporary directory.
-	dockerCmd(c, "cp", containerID+":"+"/dir_link/", testDir)
+	cli.DockerCmd(c, "cp", containerID+":"+"/dir_link/", testDir)
 
 	// It *should not* have copied the directory using the target's name, but
 	// used the given name instead.
@@ -254,9 +246,8 @@ func (s *DockerCLICpSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 
 	// Create a test container with a local volume. We will test by copying
 	// to the volume path in the container which we can then verify locally.
-	out, _ := dockerCmd(c, "create", "-v", testVol+":/testVol", "busybox")
-
-	containerID := strings.TrimSpace(out)
+	containerID := cli.DockerCmd(c, "create", "-v", testVol+":/testVol", "busybox").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
 	// Create a temp directory to hold a test file nested in a directory.
 	testDir, err := os.MkdirTemp("", "test-cp-to-symlink-to-dir-")
@@ -281,7 +272,7 @@ func (s *DockerCLICpSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	assert.NilError(c, os.Symlink(linkTarget, localLink))
 
 	// Now copy that symlink into the test volume in the container.
-	dockerCmd(c, "cp", localLink, containerID+":/testVol")
+	cli.DockerCmd(c, "cp", localLink, containerID+":/testVol")
 
 	// This copy command should have copied the symlink *not* the target.
 	expectedPath := filepath.Join(testVol, "dir_link")
@@ -295,16 +286,15 @@ func (s *DockerCLICpSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 	// This copy command should resolve the symlink (note the trailing
 	// separator), copying the target into the test volume directory in the
 	// container.
-	dockerCmd(c, "cp", localLink+"/", containerID+":/testVol")
+	cli.DockerCmd(c, "cp", localLink+"/", containerID+":/testVol")
 
 	// It *should not* have copied the directory using the target's name, but
 	// used the given name instead.
 	unexpectedPath := filepath.Join(testVol, cpTestPathParent)
 	stat, err := os.Lstat(unexpectedPath)
 	if err == nil {
-		out = fmt.Sprintf("target name was copied: %q - %q", stat.Mode(), stat.Name())
+		c.Errorf("target name was unexpectedly preserved: %q - %q", stat.Mode(), stat.Name())
 	}
-	assert.ErrorContains(c, err, "", out)
 
 	// It *should* have copied the directory using the asked name "dir_link".
 	stat, err = os.Lstat(expectedPath)
@@ -323,11 +313,10 @@ func (s *DockerCLICpSuite) TestCpToSymlinkToDirectory(c *testing.T) {
 // Check that symlinks which are part of the resource path are still relative to the container's rootfs
 func (s *DockerCLICpSuite) TestCpSymlinkComponent(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	assert.NilError(c, os.MkdirAll(cpTestPath, os.ModeDir))
@@ -346,9 +335,8 @@ func (s *DockerCLICpSuite) TestCpSymlinkComponent(c *testing.T) {
 	tmpname := filepath.Join(tmpdir, cpTestName)
 	defer os.RemoveAll(tmpdir)
 
-	path := path.Join("/", "container_path", cpTestName)
-
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	containerPath := path.Join("/", "container_path", cpTestName)
+	cli.DockerCmd(c, "cp", containerID+":"+containerPath, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -364,11 +352,10 @@ func (s *DockerCLICpSuite) TestCpUnprivilegedUser(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	testRequires(c, UnixCli) // uses chmod/su: not available on windows
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName).Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	tmpdir, err := os.MkdirTemp("", "docker-integration")
@@ -379,8 +366,7 @@ func (s *DockerCLICpSuite) TestCpUnprivilegedUser(c *testing.T) {
 	err = os.Chmod(tmpdir, 0o777)
 	assert.NilError(c, err)
 
-	result := icmd.RunCommand("su", "unprivilegeduser", "-c",
-		fmt.Sprintf("%s cp %s:%s %s", dockerBinary, containerID, cpTestName, tmpdir))
+	result := icmd.RunCommand("su", "unprivilegeduser", "-c", fmt.Sprintf("%s cp %s:%s %s", dockerBinary, containerID, cpTestName, tmpdir))
 	result.Assert(c, icmd.Expected{})
 }
 
@@ -392,15 +378,14 @@ func (s *DockerCLICpSuite) TestCpSpecialFiles(c *testing.T) {
 	assert.NilError(c, err)
 	defer os.RemoveAll(outDir)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch /foo")
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch /foo").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	// Copy actual /etc/resolv.conf
-	dockerCmd(c, "cp", containerID+":/etc/resolv.conf", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/etc/resolv.conf", outDir)
 
 	expected := readContainerFile(c, containerID, "resolv.conf")
 	actual, err := os.ReadFile(outDir + "/resolv.conf")
@@ -408,7 +393,7 @@ func (s *DockerCLICpSuite) TestCpSpecialFiles(c *testing.T) {
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container resolvconf")
 
 	// Copy actual /etc/hosts
-	dockerCmd(c, "cp", containerID+":/etc/hosts", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/etc/hosts", outDir)
 
 	expected = readContainerFile(c, containerID, "hosts")
 	actual, err = os.ReadFile(outDir + "/hosts")
@@ -416,7 +401,7 @@ func (s *DockerCLICpSuite) TestCpSpecialFiles(c *testing.T) {
 	assert.Assert(c, bytes.Equal(actual, expected), "Expected copied file to be duplicate of the container hosts")
 
 	// Copy actual /etc/resolv.conf
-	dockerCmd(c, "cp", containerID+":/etc/hostname", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/etc/hostname", outDir)
 
 	expected = readContainerFile(c, containerID, "hostname")
 	actual, err = os.ReadFile(outDir + "/hostname")
@@ -439,15 +424,14 @@ func (s *DockerCLICpSuite) TestCpVolumePath(c *testing.T) {
 	_, err = os.Create(tmpDir + "/test")
 	assert.NilError(c, err)
 
-	out, _ := dockerCmd(c, "run", "-d", "-v", "/foo", "-v", tmpDir+"/test:/test", "-v", tmpDir+":/baz", "busybox", "/bin/sh", "-c", "touch /foo/bar")
+	containerID := cli.DockerCmd(c, "run", "-d", "-v", "/foo", "-v", tmpDir+"/test:/test", "-v", tmpDir+":/baz", "busybox", "/bin/sh", "-c", "touch /foo/bar").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	// Copy actual volume path
-	dockerCmd(c, "cp", containerID+":/foo", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/foo", outDir)
 
 	stat, err := os.Stat(outDir + "/foo")
 	assert.NilError(c, err)
@@ -458,20 +442,20 @@ func (s *DockerCLICpSuite) TestCpVolumePath(c *testing.T) {
 	assert.Assert(c, !stat.IsDir(), "Expected file `bar` to be a file")
 
 	// Copy file nested in volume
-	dockerCmd(c, "cp", containerID+":/foo/bar", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/foo/bar", outDir)
 
 	stat, err = os.Stat(outDir + "/bar")
 	assert.NilError(c, err)
 	assert.Assert(c, !stat.IsDir(), "Expected file `bar` to be a file")
 
 	// Copy Bind-mounted dir
-	dockerCmd(c, "cp", containerID+":/baz", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/baz", outDir)
 	stat, err = os.Stat(outDir + "/baz")
 	assert.NilError(c, err)
 	assert.Assert(c, stat.IsDir(), "Expected `baz` to be a dir")
 
 	// Copy file nested in bind-mounted dir
-	dockerCmd(c, "cp", containerID+":/baz/test", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/baz/test", outDir)
 	fb, err := os.ReadFile(outDir + "/baz/test")
 	assert.NilError(c, err)
 	fb2, err := os.ReadFile(tmpDir + "/test")
@@ -479,7 +463,7 @@ func (s *DockerCLICpSuite) TestCpVolumePath(c *testing.T) {
 	assert.Assert(c, bytes.Equal(fb, fb2), "Expected copied file to be duplicate of bind-mounted file")
 
 	// Copy bind-mounted file
-	dockerCmd(c, "cp", containerID+":/test", outDir)
+	cli.DockerCmd(c, "cp", containerID+":/test", outDir)
 	fb, err = os.ReadFile(outDir + "/test")
 	assert.NilError(c, err)
 	fb2, err = os.ReadFile(tmpDir + "/test")
@@ -488,11 +472,10 @@ func (s *DockerCLICpSuite) TestCpVolumePath(c *testing.T) {
 }
 
 func (s *DockerCLICpSuite) TestCpToDot(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	tmpdir, err := os.MkdirTemp("", "docker-integration")
@@ -504,18 +487,17 @@ func (s *DockerCLICpSuite) TestCpToDot(c *testing.T) {
 	err = os.Chdir(tmpdir)
 	assert.NilError(c, err)
 
-	dockerCmd(c, "cp", containerID+":/test", ".")
+	cli.DockerCmd(c, "cp", containerID+":/test", ".")
 	content, err := os.ReadFile("./test")
 	assert.NilError(c, err)
 	assert.Equal(c, string(content), "lololol\n")
 }
 
 func (s *DockerCLICpSuite) TestCpToStdout(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	out, err := RunCommandPipelineWithOutput(
@@ -530,17 +512,16 @@ func (s *DockerCLICpSuite) TestCpToStdout(c *testing.T) {
 func (s *DockerCLICpSuite) TestCpNameHasColon(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	tmpdir, err := os.MkdirTemp("", "docker-integration")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpdir)
-	dockerCmd(c, "cp", containerID+":/te:s:t", tmpdir)
+	cli.DockerCmd(c, "cp", containerID+":/te:s:t", tmpdir)
 	content, err := os.ReadFile(tmpdir + "/te:s:t")
 	assert.NilError(c, err)
 	assert.Equal(c, string(content), "lololol\n")
@@ -548,31 +529,31 @@ func (s *DockerCLICpSuite) TestCpNameHasColon(c *testing.T) {
 
 func (s *DockerCLICpSuite) TestCopyAndRestart(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	expectedMsg := "hello"
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", expectedMsg)
-	containerID := strings.TrimSpace(out)
+	const expectedMsg = "hello"
+	containerID := cli.DockerCmd(c, "run", "-d", "busybox", "echo", expectedMsg).Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	out, _ = dockerCmd(c, "wait", containerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	tmpDir, err := os.MkdirTemp("", "test-docker-restart-after-copy-")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
-	dockerCmd(c, "cp", fmt.Sprintf("%s:/etc/group", containerID), tmpDir)
+	cli.DockerCmd(c, "cp", fmt.Sprintf("%s:/etc/group", containerID), tmpDir)
 
-	out, _ = dockerCmd(c, "start", "-a", containerID)
+	out = cli.DockerCmd(c, "start", "-a", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), expectedMsg)
 }
 
 func (s *DockerCLICpSuite) TestCopyCreatedContainer(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "create", "--name", "test_cp", "-v", "/test", "busybox")
+	cli.DockerCmd(c, "create", "--name", "test_cp", "-v", "/test", "busybox")
 
 	tmpDir, err := os.MkdirTemp("", "test")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
-	dockerCmd(c, "cp", "test_cp:/bin/sh", tmpDir)
+	cli.DockerCmd(c, "cp", "test_cp:/bin/sh", tmpDir)
 }
 
 // test copy with option `-L`: following symbol link
@@ -580,12 +561,11 @@ func (s *DockerCLICpSuite) TestCopyCreatedContainer(c *testing.T) {
 // a container to host following symbol link
 func (s *DockerCLICpSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" /dir_link")
-	assert.Equal(c, exitCode, 0, "failed to set up container: %s", out)
+	result := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" /dir_link")
+	assert.Equal(c, result.ExitCode, 0, "failed to set up container: %s", result.Combined())
+	containerID := strings.TrimSpace(result.Stdout())
 
-	cleanedContainerID := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
 	testDir, err := os.MkdirTemp("", "test-cp-symlink-container-to-host-follow-symlink")
@@ -594,7 +574,7 @@ func (s *DockerCLICpSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T)
 
 	// This copy command should copy the symlink, not the target, into the
 	// temporary directory.
-	dockerCmd(c, "cp", "-L", cleanedContainerID+":"+"/dir_link", testDir)
+	cli.DockerCmd(c, "cp", "-L", containerID+":"+"/dir_link", testDir)
 
 	expectedPath := filepath.Join(testDir, "dir_link")
 
@@ -611,7 +591,7 @@ func (s *DockerCLICpSuite) TestCpSymlinkFromConToHostFollowSymlink(c *testing.T)
 		os.Remove(expectedPath)
 	}
 
-	dockerCmd(c, "cp", "-L", cleanedContainerID+":"+"/dir_link", expectedPath)
+	cli.DockerCmd(c, "cp", "-L", containerID+":"+"/dir_link", expectedPath)
 
 	actual, err = os.ReadFile(expectedPath)
 	assert.NilError(c, err)
