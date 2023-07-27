@@ -1,3 +1,5 @@
+//go:build unix && !linux
+
 package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
@@ -15,9 +17,9 @@ import (
 )
 
 const (
-	packCmd        = "freebsd-pack-in-chroot"
-	unpackCmd      = "freebsd-unpack-in-chroot"
-	unpackLayerCmd = "freebsd-unpack-layer-in-chroot"
+	packCmd        = "chrootarchive-pack-in-chroot"
+	unpackCmd      = "chrootarchive-unpack-in-chroot"
+	unpackLayerCmd = "chrootarchive-unpack-layer-in-chroot"
 )
 
 func init() {
