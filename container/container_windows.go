@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -128,7 +129,7 @@ func (container *Container) ConfigMounts() []Mount {
 // On Windows it only delegates to `UnmountVolumes` since there is nothing to
 // force unmount.
 func (container *Container) DetachAndUnmount(volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
-	return container.UnmountVolumes(volumeEventLog)
+	return container.UnmountVolumes(context.TODO(), volumeEventLog)
 }
 
 // TmpfsMounts returns the list of tmpfs mounts

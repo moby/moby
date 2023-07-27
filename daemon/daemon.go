@@ -466,7 +466,7 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 						ces.ExitCode = 255
 					}
 					c.SetStopped(&ces)
-					daemon.Cleanup(c)
+					daemon.Cleanup(context.TODO(), c)
 					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 						baseLogger.WithError(err).Error("failed to update stopped container state")
 					}

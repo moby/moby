@@ -83,7 +83,7 @@ type MountPoint struct {
 
 // Cleanup frees resources used by the mountpoint and cleans up all the paths
 // returned by Setup that hasn't been cleaned up by the caller.
-func (m *MountPoint) Cleanup() error {
+func (m *MountPoint) Cleanup(ctx context.Context) error {
 	if m.Volume == nil || m.ID == "" {
 		return nil
 	}
@@ -93,9 +93,9 @@ func (m *MountPoint) Cleanup() error {
 			continue
 		}
 
-		err := p.Close()
+		err := p.Close(ctx)
 		base, sub := p.SourcePath()
-		log.G(context.TODO()).WithFields(log.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"error":         err,
 			"path":          p.Path(),
 			"sourceBase":    base,
@@ -126,7 +126,7 @@ func (m *MountPoint) Cleanup() error {
 // still points to the same target (to avoid TOCTOU attack).
 //
 // Cleanup function doesn't need to be called when error is returned.
-func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, cleanup func() error, retErr error) {
+func (m *MountPoint) Setup(ctx context.Context, mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, cleanup func(context.Context) error, retErr error) {
 	if m.SkipMountpointCreation {
 		return m.Source, noCleanup, nil
 	}
@@ -140,8 +140,8 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		if err != nil {
 			path = ""
 			retErr = errors.Wrapf(err, "error evaluating symlinks from mount source %q", m.Source)
-			if cleanupErr := cleanup(); cleanupErr != nil {
-				log.G(context.TODO()).WithError(cleanupErr).Warn("failed to cleanup after error")
+			if cleanupErr := cleanup(ctx); cleanupErr != nil {
+				log.G(ctx).WithError(cleanupErr).Warn("failed to cleanup after error")
 			}
 			cleanup = noCleanup
 			return
@@ -150,8 +150,8 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		if err != nil && !errors.Is(err, syscall.ENOTSUP) {
 			path = ""
 			retErr = errors.Wrapf(err, "error setting label on mount source '%s'", sourcePath)
-			if cleanupErr := cleanup(); cleanupErr != nil {
-				log.G(context.TODO()).WithError(cleanupErr).Warn("failed to cleanup after error")
+			if cleanupErr := cleanup(ctx); cleanupErr != nil {
+				log.G(ctx).WithError(cleanupErr).Warn("failed to cleanup after error")
 			}
 			cleanup = noCleanup
 		}
@@ -172,15 +172,15 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 		if m.Spec.VolumeOptions != nil && m.Spec.VolumeOptions.Subpath != "" {
 			subpath := m.Spec.VolumeOptions.Subpath
 
-			safePath, err := safepath.Join(volumePath, subpath)
+			safePath, err := safepath.Join(ctx, volumePath, subpath)
 			if err != nil {
 				if err := m.Volume.Unmount(id); err != nil {
-					log.G(context.TODO()).WithError(err).Error("failed to unmount after safepath.Join failed")
+					log.G(ctx).WithError(err).Error("failed to unmount after safepath.Join failed")
 				}
 				return "", noCleanup, err
 			}
 			m.safePaths = append(m.safePaths, safePath)
-			log.G(context.TODO()).Debugf("mounting (%s|%s) via %s", volumePath, subpath, safePath.Path())
+			log.G(ctx).Debugf("mounting (%s|%s) via %s", volumePath, subpath, safePath.Path())
 
 			clean = safePath.Close
 			volumePath = safePath.Path()
@@ -260,6 +260,6 @@ func errInvalidSpec(spec string) error {
 }
 
 // noCleanup is a no-op cleanup function.
-func noCleanup() error {
+func noCleanup(_ context.Context) error {
 	return nil
 }

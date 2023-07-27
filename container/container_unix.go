@@ -371,7 +371,7 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name string, ac
 				Warn("Unable to unmount")
 		}
 	}
-	return container.UnmountVolumes(volumeEventLog)
+	return container.UnmountVolumes(ctx, volumeEventLog)
 }
 
 // ignoreUnsupportedXAttrs ignores errors when extended attributes

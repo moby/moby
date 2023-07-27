@@ -15,6 +15,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/cleanups"
+	"github.com/docker/docker/internal/compatcontext"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/pkg/errors"
 )
@@ -25,7 +26,7 @@ import (
 //
 // The cleanup function should be called as soon as the container has been
 // started.
-func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, func() error, error) {
+func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) ([]container.Mount, func(context.Context) error, error) {
 	var mounts []container.Mount
 	// TODO: tmpfs mounts should be part of Mountpoints
 	tmpfsMounts := make(map[string]bool)
@@ -39,8 +40,8 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, fu
 
 	cleanups := cleanups.Composite{}
 	defer func() {
-		if err := cleanups.Call(); err != nil {
-			log.G(context.TODO()).WithError(err).Warn("failed to cleanup temporary mounts created by MountPoint.Setup")
+		if err := cleanups.Call(compatcontext.WithoutCancel(ctx)); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to cleanup temporary mounts created by MountPoint.Setup")
 		}
 	}()
 
@@ -62,7 +63,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, fu
 			return nil
 		}
 
-		path, clean, err := m.Setup(c.MountLabel, daemon.idMapping.RootPair(), checkfunc)
+		path, clean, err := m.Setup(ctx, c.MountLabel, daemon.idMapping.RootPair(), checkfunc)
 		if err != nil {
 			return nil, nil, err
 		}

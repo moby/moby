@@ -514,14 +514,14 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 }
 
 // UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
+func (container *Container) UnmountVolumes(ctx context.Context, volumeEventLog func(name string, action events.Action, attributes map[string]string)) error {
 	var errs []string
 	for _, volumeMount := range container.MountPoints {
 		if volumeMount.Volume == nil {
 			continue
 		}
 
-		if err := volumeMount.Cleanup(); err != nil {
+		if err := volumeMount.Cleanup(ctx); err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}

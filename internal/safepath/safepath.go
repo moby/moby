@@ -10,7 +10,7 @@ import (
 
 type SafePath struct {
 	path    string
-	cleanup func() error
+	cleanup func(ctx context.Context) error
 	mutex   sync.Mutex
 
 	// Immutable fields
@@ -18,13 +18,13 @@ type SafePath struct {
 }
 
 // Close releases the resources used by the path.
-func (s *SafePath) Close() error {
+func (s *SafePath) Close(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if s.path == "" {
 		base, sub := s.SourcePath()
-		log.G(context.TODO()).WithFields(log.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"path":          s.Path(),
 			"sourceBase":    base,
 			"sourceSubpath": sub,
@@ -34,7 +34,7 @@ func (s *SafePath) Close() error {
 
 	s.path = ""
 	if s.cleanup != nil {
-		return s.cleanup()
+		return s.cleanup(ctx)
 	}
 	return nil
 }

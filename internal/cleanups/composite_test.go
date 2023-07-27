@@ -1,6 +1,7 @@
 package cleanups
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -18,20 +19,20 @@ func TestCall(t *testing.T) {
 	var errZ = errors.New("errorZ")
 	var errYZ = errors.Join(errY, errZ)
 
-	c.Add(func() error {
+	c.Add(func(ctx context.Context) error {
 		return err1
 	})
-	c.Add(func() error {
+	c.Add(func(ctx context.Context) error {
 		return nil
 	})
-	c.Add(func() error {
+	c.Add(func(ctx context.Context) error {
 		return fmt.Errorf("something happened: %w", err2)
 	})
-	c.Add(func() error {
+	c.Add(func(ctx context.Context) error {
 		return errors.Join(errX, fmt.Errorf("joined: %w", errYZ))
 	})
 
-	err := c.Call()
+	err := c.Call(context.Background())
 
 	errs := err.(interface{ Unwrap() []error }).Unwrap()
 

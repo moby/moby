@@ -20,7 +20,7 @@ import (
 // After use, it is the caller's responsibility to call Close on the returned
 // SafePath object, which will unmount the temporary file/directory
 // and remove it.
-func Join(path, subpath string) (*SafePath, error) {
+func Join(_ context.Context, path, subpath string) (*SafePath, error) {
 	base, subpart, err := evaluatePath(path, subpath)
 	if err != nil {
 		return nil, err
@@ -126,20 +126,20 @@ func tempMountPoint(sourceFd int) (string, error) {
 
 // cleanupSafePaths returns a function that unmounts the path and removes the
 // mountpoint.
-func cleanupSafePath(path string) func() error {
-	return func() error {
-		log.G(context.TODO()).WithField("path", path).Debug("removing safe temp mount")
+func cleanupSafePath(path string) func(context.Context) error {
+	return func(ctx context.Context) error {
+		log.G(ctx).WithField("path", path).Debug("removing safe temp mount")
 
 		if err := unix_noeintr.Unmount(path, unix.MNT_DETACH); err != nil {
 			if errors.Is(err, unix.EINVAL) {
-				log.G(context.TODO()).WithField("path", path).Warn("safe temp mount no longer exists?")
+				log.G(ctx).WithField("path", path).Warn("safe temp mount no longer exists?")
 				return nil
 			}
 			return errors.Wrapf(err, "error unmounting safe mount %s", path)
 		}
 		if err := os.Remove(path); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				log.G(context.TODO()).WithField("path", path).Warn("safe temp mount no longer exists?")
+				log.G(ctx).WithField("path", path).Warn("safe temp mount no longer exists?")
 				return nil
 			}
 			return errors.Wrapf(err, "failed to delete temporary safe mount")

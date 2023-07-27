@@ -1,6 +1,7 @@
 package safepath
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -40,9 +41,9 @@ func TestJoinEscapingSymlink(t *testing.T) {
 			err = os.Symlink(tc.target, filepath.Join(dir, "link"))
 			assert.NilError(t, err, "failed to create symlink to %s", tc.target)
 
-			safe, err := Join(dir, "link")
+			safe, err := Join(context.Background(), dir, "link")
 			if err == nil {
-				safe.Close()
+				safe.Close(context.Background())
 			}
 			assert.ErrorType(t, err, &ErrEscapesBase{})
 		})
@@ -70,10 +71,10 @@ func TestJoinGoodSymlink(t *testing.T) {
 		"subdir_link_relative", "foo_link_relative",
 	} {
 		t.Run(target, func(t *testing.T) {
-			safe, err := Join(dir, target)
+			safe, err := Join(context.Background(), dir, target)
 			assert.NilError(t, err)
 
-			defer safe.Close()
+			defer safe.Close(context.Background())
 			if strings.HasPrefix(target, "subdir") {
 				data, err := os.ReadFile(filepath.Join(safe.Path(), "hello.txt"))
 				assert.NilError(t, err)
@@ -97,10 +98,10 @@ func TestJoinWithSymlinkReplace(t *testing.T) {
 	err = os.Symlink(target, link)
 	assert.Check(t, err, "failed to create symlink to foo")
 
-	safe, err := Join(dir, "link")
+	safe, err := Join(context.Background(), dir, "link")
 	assert.NilError(t, err)
 
-	defer safe.Close()
+	defer safe.Close(context.Background())
 
 	// Delete the link target.
 	err = os.Remove(target)
@@ -133,12 +134,12 @@ func TestJoinCloseInvalidates(t *testing.T) {
 	err = os.WriteFile(foo, []byte("bar"), 0o744)
 	assert.NilError(t, err, "failed to create test file")
 
-	safe, err := Join(dir, "foo")
+	safe, err := Join(context.Background(), dir, "foo")
 	assert.NilError(t, err)
 
 	assert.Check(t, safe.IsValid())
 
-	assert.NilError(t, safe.Close())
+	assert.NilError(t, safe.Close(context.Background()))
 
 	assert.Check(t, !safe.IsValid())
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/cleanups"
+	"github.com/docker/docker/internal/compatcontext"
 	"github.com/docker/docker/pkg/idtools"
 	volumemounts "github.com/docker/docker/volume/mounts"
 )
@@ -23,11 +24,11 @@ import (
 // BUGBUG TODO Windows containerd. This would be much better if it returned
 // an array of runtime spec mounts, not container mounts. Then no need to
 // do multiple transitions.
-func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, func() error, error) {
+func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) ([]container.Mount, func(context.Context) error, error) {
 	cleanups := cleanups.Composite{}
 	defer func() {
-		if err := cleanups.Call(); err != nil {
-			log.G(context.TODO()).WithError(err).Warn("failed to cleanup temporary mounts created by MountPoint.Setup")
+		if err := cleanups.Call(compatcontext.WithoutCancel(ctx)); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to cleanup temporary mounts created by MountPoint.Setup")
 		}
 	}()
 
@@ -36,7 +37,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, fu
 		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, nil, err
 		}
-		s, c, err := mount.Setup(c.MountLabel, idtools.Identity{}, nil)
+		s, c, err := mount.Setup(ctx, c.MountLabel, idtools.Identity{}, nil)
 		if err != nil {
 			return nil, nil, err
 		}
