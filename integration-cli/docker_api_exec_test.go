@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -26,7 +27,7 @@ import (
 // Regression test for #9414
 func (s *DockerAPISuite) TestExecAPICreateNoCmd(c *testing.T) {
 	name := "exec_test"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	res, body, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": nil}))
 	assert.NilError(c, err)
@@ -42,7 +43,7 @@ func (s *DockerAPISuite) TestExecAPICreateNoCmd(c *testing.T) {
 
 func (s *DockerAPISuite) TestExecAPICreateNoValidContentType(c *testing.T) {
 	name := "exec_test"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	jsonData := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(jsonData).Encode(map[string]interface{}{"Cmd": nil}); err != nil {
@@ -65,9 +66,9 @@ func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 	// Not relevant on Windows as Windows containers cannot be paused
 	testRequires(c, DaemonIsLinux)
 	name := "exec_create_test"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
-	dockerCmd(c, "pause", name)
+	cli.DockerCmd(c, "pause", name)
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -82,7 +83,7 @@ func (s *DockerAPISuite) TestExecAPICreateContainerPaused(c *testing.T) {
 
 func (s *DockerAPISuite) TestExecAPIStart(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Uses pause/unpause but bits may be salvageable to Windows to Windows CI
-	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
 	id := createExec(c, "test")
 	startExec(c, id, http.StatusOK)
@@ -92,24 +93,24 @@ func (s *DockerAPISuite) TestExecAPIStart(c *testing.T) {
 	assert.Assert(c, execJSON.PID > 1)
 
 	id = createExec(c, "test")
-	dockerCmd(c, "stop", "test")
+	cli.DockerCmd(c, "stop", "test")
 
 	startExec(c, id, http.StatusNotFound)
 
-	dockerCmd(c, "start", "test")
+	cli.DockerCmd(c, "start", "test")
 	startExec(c, id, http.StatusNotFound)
 
 	// make sure exec is created before pausing
 	id = createExec(c, "test")
-	dockerCmd(c, "pause", "test")
+	cli.DockerCmd(c, "pause", "test")
 	startExec(c, id, http.StatusConflict)
-	dockerCmd(c, "unpause", "test")
+	cli.DockerCmd(c, "unpause", "test")
 	startExec(c, id, http.StatusOK)
 }
 
 func (s *DockerAPISuite) TestExecAPIStartEnsureHeaders(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
 	id := createExec(c, "test")
 	resp, _, err := request.Post(testutil.GetContext(c), fmt.Sprintf("/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.JSON)
@@ -177,7 +178,7 @@ func (s *DockerAPISuite) TestExecAPIStartWithDetach(c *testing.T) {
 // #30311
 func (s *DockerAPISuite) TestExecAPIStartValidCommand(c *testing.T) {
 	name := "exec_test"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	id := createExecCmd(c, name, "true")
 	startExec(c, id, http.StatusOK)
@@ -194,7 +195,7 @@ func (s *DockerAPISuite) TestExecAPIStartValidCommand(c *testing.T) {
 // #30311
 func (s *DockerAPISuite) TestExecAPIStartInvalidCommand(c *testing.T) {
 	name := "exec_test"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	id := createExecCmd(c, name, "invalid")
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
@@ -217,7 +218,7 @@ func (s *DockerAPISuite) TestExecStateCleanup(c *testing.T) {
 	// This test checks accidental regressions. Not part of stable API.
 
 	name := "exec_cleanup"
-	cid, _ := dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cid := cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh").Stdout()
 	cid = strings.TrimSpace(cid)
 
 	stateDir := "/var/run/docker/containerd/" + cid
@@ -246,7 +247,7 @@ func (s *DockerAPISuite) TestExecStateCleanup(c *testing.T) {
 
 	poll.WaitOn(c, pollCheck(c, checkReadDir, checker.Equals(len(fi))), poll.WithTimeout(5*time.Second))
 
-	dockerCmd(c, "stop", name)
+	cli.DockerCmd(c, "stop", name)
 	_, err = os.Stat(stateDir)
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, os.IsNotExist(err))

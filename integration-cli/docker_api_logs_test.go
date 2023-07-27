@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
@@ -20,9 +21,9 @@ import (
 )
 
 func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
+	out := cli.DockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done").Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
 	type logOut struct {
 		out string
@@ -56,8 +57,8 @@ func (s *DockerAPISuite) TestLogsAPIWithStdout(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
-	name := "logs_test"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	const name = "logs_test"
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
@@ -68,9 +69,9 @@ func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 
 // Regression test for #12704
 func (s *DockerAPISuite) TestLogsAPIFollowEmptyOutput(c *testing.T) {
-	name := "logs_test"
+	const name = "logs_test"
 	t0 := time.Now()
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
+	cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
 
 	_, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	t1 := time.Now()
@@ -91,21 +92,21 @@ func (s *DockerAPISuite) TestLogsAPIContainerNotFound(c *testing.T) {
 
 func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	name := "logsuntilfuturefollow"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", "while true; do date +%s; sleep 1; done")
-	assert.NilError(c, waitRun(name))
+	const name = "logsuntilfuturefollow"
+	cli.DockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", "while true; do date +%s; sleep 1; done")
+	cli.WaitRun(c, name)
 
 	untilSecs := 5
 	untilDur, err := time.ParseDuration(fmt.Sprintf("%ds", untilSecs))
 	assert.NilError(c, err)
 	until := daemonTime(c).Add(untilDur)
 
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	reader, err := client.ContainerLogs(testutil.GetContext(c), name, container.LogsOptions{
+	reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, container.LogsOptions{
 		Until:      until.Format(time.RFC3339Nano),
 		Follow:     true,
 		ShowStdout: true,
@@ -163,16 +164,16 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 
 func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 	testRequires(c, MinimumAPIVersion("1.34"))
-	name := "logsuntil"
-	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
+	const name = "logsuntil"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
 
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
 
 	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
-		reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
+		reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)
@@ -200,16 +201,16 @@ func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
-	name := "logsuntildefaultval"
-	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
+	const name = "logsuntildefaultval"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
 
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
 
 	extractBody := func(c *testing.T, cfg container.LogsOptions) []string {
-		reader, err := client.ContainerLogs(testutil.GetContext(c), name, cfg)
+		reader, err := apiClient.ContainerLogs(testutil.GetContext(c), name, cfg)
 		assert.NilError(c, err)
 
 		actualStdout := new(bytes.Buffer)

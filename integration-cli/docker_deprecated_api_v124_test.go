@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -21,7 +22,7 @@ func formatV123StartAPIURL(url string) string {
 
 func (s *DockerAPISuite) TestDeprecatedContainerAPIStartHostConfig(c *testing.T) {
 	name := "test-deprecated-api-124"
-	dockerCmd(c, "create", "--name", name, "busybox")
+	cli.DockerCmd(c, "create", "--name", name, "busybox")
 	config := map[string]interface{}{
 		"Binds": []string{"/aa:/bb"},
 	}
@@ -108,7 +109,7 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartVolumesFrom(c *testing.T
 	volName := "voltst"
 	volPath := "/tmp"
 
-	dockerCmd(c, "run", "--name", volName, "-v", volPath, "busybox")
+	cli.DockerCmd(c, "run", "--name", volName, "-v", volPath, "busybox")
 
 	name := "TestContainerAPIStartVolumesFrom"
 	config := map[string]interface{}{
@@ -138,12 +139,12 @@ func (s *DockerAPISuite) TestDeprecatedContainerAPIStartVolumesFrom(c *testing.T
 func (s *DockerAPISuite) TestDeprecatedPostContainerBindNormalVolume(c *testing.T) {
 	// TODO Windows to Windows CI - Port this
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
+	cli.DockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
 
 	fooDir, err := inspectMountSourceField("one", "/foo")
 	assert.NilError(c, err)
 
-	dockerCmd(c, "create", "-v", "/foo", "--name=two", "busybox")
+	cli.DockerCmd(c, "create", "-v", "/foo", "--name=two", "busybox")
 
 	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
 	res, _, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/two/start"), request.JSONBody(bindSpec))
@@ -158,11 +159,10 @@ func (s *DockerAPISuite) TestDeprecatedPostContainerBindNormalVolume(c *testing.
 func (s *DockerAPISuite) TestDeprecatedStartWithTooLowMemoryLimit(c *testing.T) {
 	// TODO Windows: Port once memory is supported
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "create", "busybox")
+	containerID := cli.DockerCmd(c, "create", "busybox").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	containerID := strings.TrimSpace(out)
-
-	config := `{
+	const config = `{
                 "CpuShares": 100,
                 "Memory":    524287
         }`
@@ -185,7 +185,7 @@ func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithoutLinksInHostConf
 	// An alternate test could be written to validate the negative testing aspect of this
 	testRequires(c, DaemonIsLinux)
 	name := "test-host-config-links"
-	dockerCmd(c, append([]string{"create", "--name", name, "busybox"}, sleepCommandForDaemonPlatform()...)...)
+	cli.DockerCmd(c, append([]string{"create", "--name", name, "busybox"}, sleepCommandForDaemonPlatform()...)...)
 
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
@@ -202,8 +202,8 @@ func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithLinksInHostConfig(
 	// An alternate test could be written to validate the negative testing aspect of this
 	testRequires(c, DaemonIsLinux)
 	name := "test-host-config-links"
-	dockerCmd(c, "run", "--name", "foo", "-d", "busybox", "top")
-	dockerCmd(c, "create", "--name", name, "--link", "foo:bar", "busybox", "top")
+	cli.DockerCmd(c, "run", "--name", "foo", "-d", "busybox", "top")
+	cli.DockerCmd(c, "create", "--name", name, "--link", "foo:bar", "busybox", "top")
 
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
@@ -218,12 +218,12 @@ func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithLinksInHostConfig(
 func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithLinksInHostConfigIdLinked(c *testing.T) {
 	// Windows does not support links
 	testRequires(c, DaemonIsLinux)
-	name := "test-host-config-links"
-	out, _ := dockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top")
-	defer dockerCmd(c, "stop", "link0")
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
-	defer dockerCmd(c, "stop", name)
+	const name = "test-host-config-links"
+	containerID := cli.DockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top").Combined()
+	containerID = strings.TrimSpace(containerID)
+	defer cli.DockerCmd(c, "stop", "link0")
+	cli.DockerCmd(c, "create", "--name", name, "--link", containerID, "busybox", "top")
+	defer cli.DockerCmd(c, "stop", name)
 
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
@@ -237,10 +237,10 @@ func (s *DockerAPISuite) TestDeprecatedPostContainersStartWithLinksInHostConfigI
 func (s *DockerAPISuite) TestDeprecatedStartWithNilDNS(c *testing.T) {
 	// TODO Windows: Add once DNS is supported
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "create", "busybox")
-	containerID := strings.TrimSpace(out)
+	containerID := cli.DockerCmd(c, "create", "busybox").Stdout()
+	containerID = strings.TrimSpace(containerID)
 
-	config := `{"HostConfig": {"Dns": null}}`
+	const config = `{"HostConfig": {"Dns": null}}`
 
 	res, b, err := request.Post(testutil.GetContext(c), formatV123StartAPIURL("/containers/"+containerID+"/start"), request.RawString(config), request.JSON)
 	assert.NilError(c, err)

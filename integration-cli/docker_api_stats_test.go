@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -26,10 +27,9 @@ var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors
 
 func (s *DockerAPISuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;usleep 100; do echo 'Hello'; done")
-
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;usleep 100; do echo 'Hello'; done").Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 	resp, body, err := request.Get(testutil.GetContext(c), fmt.Sprintf("/containers/%s/stats?stream=false", id))
 	assert.NilError(c, err)
 	assert.Equal(c, resp.StatusCode, http.StatusOK)
@@ -66,7 +66,7 @@ func (s *DockerAPISuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestAPIStatsStoppedContainerInGoroutines(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1").Stdout()
 	id := strings.TrimSpace(out)
 
 	getGoRoutines := func() int {
@@ -104,9 +104,8 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStats(c *testing.T) {
 	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 	testRequires(c, testEnv.IsLocalDaemon)
 
-	out := runSleepingContainer(c)
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	id := runSleepingContainer(c)
+	cli.WaitRun(c, id)
 
 	// Retrieve the container address
 	net := "bridge"
@@ -170,9 +169,8 @@ func (s *DockerAPISuite) TestAPIStatsNetworkStatsVersioning(c *testing.T) {
 	// Windows doesn't support API versions less than 1.25, so no point testing 1.17 .. 1.21
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	out := runSleepingContainer(c)
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	id := runSleepingContainer(c)
+	cli.WaitRun(c, id)
 	wg := sync.WaitGroup{}
 
 	for i := 17; i <= 21; i++ {
@@ -278,13 +276,11 @@ func (s *DockerAPISuite) TestAPIStatsContainerNotFound(c *testing.T) {
 func (s *DockerAPISuite) TestAPIStatsNoStreamConnectedContainers(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	out1 := runSleepingContainer(c)
-	id1 := strings.TrimSpace(out1)
-	assert.NilError(c, waitRun(id1))
+	id1 := runSleepingContainer(c)
+	cli.WaitRun(c, id1)
 
-	out2 := runSleepingContainer(c, "--net", "container:"+id1)
-	id2 := strings.TrimSpace(out2)
-	assert.NilError(c, waitRun(id2))
+	id2 := runSleepingContainer(c, "--net", "container:"+id1)
+	cli.WaitRun(c, id2)
 
 	ch := make(chan error, 1)
 	go func() {

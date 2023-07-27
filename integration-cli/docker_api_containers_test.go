@@ -38,18 +38,17 @@ import (
 
 func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 	startCount := getContainerCount(c)
-	name := "getall"
-	dockerCmd(c, "run", "--name", name, "busybox", "true")
+	const name = "getall"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "true")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	options := container.ListOptions{
-		All: true,
-	}
 	ctx := testutil.GetContext(c)
-	containers, err := apiClient.ContainerList(ctx, options)
+	containers, err := apiClient.ContainerList(ctx, container.ListOptions{
+		All: true,
+	})
 	assert.NilError(c, err)
 	assert.Equal(c, len(containers), startCount+1)
 	actual := containers[0].Names[0]
@@ -59,7 +58,7 @@ func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
 // regression test for empty json field being omitted #13691
 func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 	startCount := getContainerCount(c)
-	dockerCmd(c, "run", "busybox", "true")
+	cli.DockerCmd(c, "run", "busybox", "true")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -101,8 +100,8 @@ func (s *DockerAPISuite) TestContainerAPIGetJSONNoFieldsOmitted(c *testing.T) {
 func (s *DockerAPISuite) TestContainerAPIGetExport(c *testing.T) {
 	// Not supported on Windows as Windows does not support docker export
 	testRequires(c, DaemonIsLinux)
-	name := "exportcontainer"
-	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test")
+	const name = "exportcontainer"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -128,8 +127,8 @@ func (s *DockerAPISuite) TestContainerAPIGetExport(c *testing.T) {
 func (s *DockerAPISuite) TestContainerAPIGetChanges(c *testing.T) {
 	// Not supported on Windows as Windows does not support docker diff (/containers/name/changes)
 	testRequires(c, DaemonIsLinux)
-	name := "changescontainer"
-	dockerCmd(c, "run", "--name", name, "busybox", "rm", "/etc/passwd")
+	const name = "changescontainer"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "rm", "/etc/passwd")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -170,7 +169,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 
 	// allow some time to stream the stats from the container
 	time.Sleep(4 * time.Second)
-	dockerCmd(c, "rm", "-f", name)
+	cli.DockerCmd(c, "rm", "-f", name)
 
 	// collect the results from the stats stream or timeout and fail
 	// if the stream was not disconnected.
@@ -187,8 +186,7 @@ func (s *DockerAPISuite) TestGetContainerStats(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestGetContainerStatsRmRunning(c *testing.T) {
-	out := runSleepingContainer(c)
-	id := strings.TrimSpace(out)
+	id := runSleepingContainer(c)
 
 	buf := &ChannelBuffer{C: make(chan []byte, 1)}
 	defer buf.Close()
@@ -218,7 +216,7 @@ func (s *DockerAPISuite) TestGetContainerStatsRmRunning(c *testing.T) {
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	assert.NilError(c, err)
 
-	dockerCmd(c, "rm", "-f", id)
+	cli.DockerCmd(c, "rm", "-f", id)
 	assert.Assert(c, <-chErr == nil)
 }
 
@@ -254,7 +252,7 @@ func (c *ChannelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
 // previous test was just checking one stat entry so it didn't fail (stats with
 // stream false always return one stat)
 func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
-	name := "statscontainer"
+	const name = "statscontainer"
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
@@ -275,7 +273,7 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 
 	// allow some time to stream the stats from the container
 	time.Sleep(4 * time.Second)
-	dockerCmd(c, "rm", "-f", name)
+	cli.DockerCmd(c, "rm", "-f", name)
 
 	// collect the results from the stats stream or timeout and fail
 	// if the stream was not disconnected.
@@ -295,7 +293,7 @@ func (s *DockerAPISuite) TestGetContainerStatsStream(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
-	name := "statscontainer"
+	const name = "statscontainer2"
 	runSleepingContainer(c, "--name", name)
 
 	type b struct {
@@ -317,7 +315,7 @@ func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
 
 	// allow some time to stream the stats from the container
 	time.Sleep(4 * time.Second)
-	dockerCmd(c, "rm", "-f", name)
+	cli.DockerCmd(c, "rm", "-f", name)
 
 	// collect the results from the stats stream or timeout and fail
 	// if the stream was not disconnected.
@@ -335,8 +333,8 @@ func (s *DockerAPISuite) TestGetContainerStatsNoStream(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestGetStoppedContainerStats(c *testing.T) {
-	name := "statscontainer"
-	dockerCmd(c, "create", "--name", name, "busybox", "ps")
+	const name = "statscontainer3"
+	cli.DockerCmd(c, "create", "--name", name, "busybox", "ps")
 
 	chResp := make(chan error, 1)
 
@@ -394,9 +392,9 @@ func (s *DockerAPISuite) TestContainerAPIPause(c *testing.T) {
 
 func (s *DockerAPISuite) TestContainerAPITop(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top && true")
+	out := cli.DockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top && true").Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -417,9 +415,8 @@ func (s *DockerAPISuite) TestContainerAPITop(c *testing.T) {
 
 func (s *DockerAPISuite) TestContainerAPITopWindows(c *testing.T) {
 	testRequires(c, DaemonIsWindows)
-	out := runSleepingContainer(c, "-d")
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	id := runSleepingContainer(c, "-d")
+	cli.WaitRun(c, id)
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -447,8 +444,8 @@ func (s *DockerAPISuite) TestContainerAPITopWindows(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPICommit(c *testing.T) {
-	cName := "testapicommit"
-	dockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
+	const cName = "testapicommit"
+	cli.DockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -465,12 +462,12 @@ func (s *DockerAPISuite) TestContainerAPICommit(c *testing.T) {
 	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", fmt.Sprintf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
-	dockerCmd(c, "run", img.ID, "ls", "/test")
+	cli.DockerCmd(c, "run", img.ID, "ls", "/test")
 }
 
 func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
-	cName := "testapicommitwithconfig"
-	dockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
+	const cName = "testapicommitwithconfig"
+	cli.DockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -498,7 +495,7 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", fmt.Sprintf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
-	dockerCmd(c, "run", img.ID, "ls", "/test")
+	cli.DockerCmd(c, "run", img.ID, "ls", "/test")
 }
 
 func (s *DockerAPISuite) TestContainerAPIBadPort(c *testing.T) {
@@ -542,7 +539,7 @@ func (s *DockerAPISuite) TestContainerAPICreate(c *testing.T) {
 	ctr, err := apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "")
 	assert.NilError(c, err)
 
-	out, _ := dockerCmd(c, "start", "-a", ctr.ID)
+	out := cli.DockerCmd(c, "start", "-a", ctr.ID).Stdout()
 	assert.Equal(c, strings.TrimSpace(out), "/test")
 }
 
@@ -848,10 +845,9 @@ func (s *DockerAPISuite) TestCreateWithTooLowMemoryLimit(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIRename(c *testing.T) {
-	out, _ := dockerCmd(c, "run", "--name", "TestContainerAPIRename", "-d", "busybox", "sh")
-
+	out := cli.DockerCmd(c, "run", "--name", "TestContainerAPIRename", "-d", "busybox", "sh").Stdout()
 	containerID := strings.TrimSpace(out)
-	newName := "TestContainerAPIRenameNew"
+	const newName = "TestContainerAPIRenameNew"
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -865,7 +861,7 @@ func (s *DockerAPISuite) TestContainerAPIRename(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
-	name := "test-api-kill"
+	const name = "test-api-kill"
 	runSleepingContainer(c, "-i", "--name", name)
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
@@ -880,7 +876,7 @@ func (s *DockerAPISuite) TestContainerAPIKill(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
-	name := "test-api-restart"
+	const name = "test-api-restart"
 	runSleepingContainer(c, "-di", "--name", name)
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -894,10 +890,9 @@ func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
-	name := "test-api-restart-no-timeout-param"
-	out := runSleepingContainer(c, "-di", "--name", name)
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	const name = "test-api-restart-no-timeout-param"
+	id := runSleepingContainer(c, "-di", "--name", name)
+	cli.WaitRun(c, id)
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -910,7 +905,7 @@ func (s *DockerAPISuite) TestContainerAPIRestartNotimeoutParam(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
-	name := "testing-start"
+	const name = "testing-start"
 	config := container.Config{
 		Image:     "busybox",
 		Cmd:       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
@@ -936,7 +931,7 @@ func (s *DockerAPISuite) TestContainerAPIStart(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
-	name := "test-api-stop"
+	const name = "test-api-stop"
 	runSleepingContainer(c, "-i", "--name", name)
 	timeout := 30
 
@@ -959,13 +954,13 @@ func (s *DockerAPISuite) TestContainerAPIStop(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIWait(c *testing.T) {
-	name := "test-api-wait"
+	const name = "test-api-wait"
 
 	sleepCmd := "/bin/sleep"
 	if testEnv.DaemonInfo.OSType == "windows" {
 		sleepCmd = "sleep"
 	}
-	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
+	cli.DockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -982,8 +977,8 @@ func (s *DockerAPISuite) TestContainerAPIWait(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPICopyNotExistsAnyMore(c *testing.T) {
-	name := "test-container-api-copy"
-	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+	const name = "test-container-api-copy"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "/test.txt",
@@ -996,8 +991,8 @@ func (s *DockerAPISuite) TestContainerAPICopyNotExistsAnyMore(c *testing.T) {
 
 func (s *DockerAPISuite) TestContainerAPICopyPre124(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	name := "test-container-api-copy"
-	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+	const name = "test-container-api-copy"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "/test.txt",
@@ -1026,8 +1021,8 @@ func (s *DockerAPISuite) TestContainerAPICopyPre124(c *testing.T) {
 
 func (s *DockerAPISuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	name := "test-container-api-copy-resource-empty"
-	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+	const name = "test-container-api-copy-resource-empty"
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "",
@@ -1047,8 +1042,8 @@ func (s *DockerAPISuite) TestContainerAPICopyResourcePathEmptyPre124(c *testing.
 
 func (s *DockerAPISuite) TestContainerAPICopyResourcePathNotFoundPre124(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows only supports 1.25 or later
-	name := "test-container-api-copy-resource-not-found"
-	dockerCmd(c, "run", "--name", name, "busybox")
+	const name = "test-container-api-copy-resource-not-found"
+	cli.DockerCmd(c, "run", "--name", name, "busybox")
 
 	postData := types.CopyConfig{
 		Resource: "/notexist",
@@ -1078,12 +1073,9 @@ func (s *DockerAPISuite) TestContainerAPICopyContainerNotFoundPr124(c *testing.T
 }
 
 func (s *DockerAPISuite) TestContainerAPIDelete(c *testing.T) {
-	out := runSleepingContainer(c)
-
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
-
-	dockerCmd(c, "stop", id)
+	id := runSleepingContainer(c)
+	cli.WaitRun(c, id)
+	cli.DockerCmd(c, "stop", id)
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -1103,9 +1095,8 @@ func (s *DockerAPISuite) TestContainerAPIDeleteNotExist(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIDeleteForce(c *testing.T) {
-	out := runSleepingContainer(c)
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	id := runSleepingContainer(c)
+	cli.WaitRun(c, id)
 
 	removeOptions := container.RemoveOptions{
 		Force: true,
@@ -1122,15 +1113,13 @@ func (s *DockerAPISuite) TestContainerAPIDeleteForce(c *testing.T) {
 func (s *DockerAPISuite) TestContainerAPIDeleteRemoveLinks(c *testing.T) {
 	// Windows does not support links
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "--name", "tlink1", "busybox", "top")
-
+	out := cli.DockerCmd(c, "run", "-d", "--name", "tlink1", "busybox", "top").Stdout()
 	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	cli.WaitRun(c, id)
 
-	out, _ = dockerCmd(c, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
-
+	out = cli.DockerCmd(c, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top").Stdout()
 	id2 := strings.TrimSpace(out)
-	assert.Assert(c, waitRun(id2) == nil)
+	cli.WaitRun(c, id2)
 
 	links := inspectFieldJSON(c, id2, "HostConfig.Links")
 	assert.Equal(c, links, `["/tlink1:/tlink2/tlink1"]`, "expected to have links between containers")
@@ -1158,10 +1147,8 @@ func (s *DockerAPISuite) TestContainerAPIDeleteRemoveVolume(c *testing.T) {
 		vol = `c:\testvolume`
 	}
 
-	out := runSleepingContainer(c, "-v", vol)
-
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	id := runSleepingContainer(c, "-v", vol)
+	cli.WaitRun(c, id)
 
 	source, err := inspectMountSourceField(id, vol)
 	assert.NilError(c, err)
@@ -1205,10 +1192,8 @@ func (s *DockerAPISuite) TestContainerAPIChunkedEncoding(c *testing.T) {
 }
 
 func (s *DockerAPISuite) TestContainerAPIPostContainerStop(c *testing.T) {
-	out := runSleepingContainer(c)
-
-	containerID := strings.TrimSpace(out)
-	assert.Assert(c, waitRun(containerID) == nil)
+	containerID := runSleepingContainer(c)
+	cli.WaitRun(c, containerID)
 
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(c, err)
@@ -1233,7 +1218,7 @@ func (s *DockerAPISuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c
 
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "echotest")
 	assert.NilError(c, err)
-	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	out := cli.DockerCmd(c, "start", "-a", "echotest").Combined()
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
 
 	config2 := struct {
@@ -1243,7 +1228,7 @@ func (s *DockerAPISuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c
 	}{"busybox", "echo", []string{"hello", "world"}}
 	_, _, err = request.Post(testutil.GetContext(c), "/containers/create?name=echotest2", request.JSONBody(config2))
 	assert.NilError(c, err)
-	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	out = cli.DockerCmd(c, "start", "-a", "echotest2").Combined()
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
 }
 
@@ -1260,7 +1245,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithStringOrSliceCmd(c *testing
 
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &container.HostConfig{}, &network.NetworkingConfig{}, nil, "echotest")
 	assert.NilError(c, err)
-	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	out := cli.DockerCmd(c, "start", "-a", "echotest").Combined()
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
 
 	config2 := struct {
@@ -1270,7 +1255,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithStringOrSliceCmd(c *testing
 	}{"busybox", "echo", "hello world"}
 	_, _, err = request.Post(testutil.GetContext(c), "/containers/create?name=echotest2", request.JSONBody(config2))
 	assert.NilError(c, err)
-	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	out = cli.DockerCmd(c, "start", "-a", "echotest2").Combined()
 	assert.Equal(c, strings.TrimSpace(out), "hello world")
 }
 
@@ -1364,7 +1349,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 			CpusetCpus: "1-42,,",
 		},
 	}
-	name := "wrong-cpuset-cpus"
+	const name = "wrong-cpuset-cpus"
 
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig1, &network.NetworkingConfig{}, nil, name)
 	expected := "Invalid value 1-42,, for cpuset cpus"
@@ -1375,8 +1360,8 @@ func (s *DockerAPISuite) TestPostContainersCreateWithWrongCpusetValues(c *testin
 			CpusetMems: "42-3,1--",
 		},
 	}
-	name = "wrong-cpuset-mems"
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig2, &network.NetworkingConfig{}, nil, name)
+	const name2 = "wrong-cpuset-mems"
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig2, &network.NetworkingConfig{}, nil, name2)
 	expected = "Invalid value 42-3,1-- for cpuset mems"
 	assert.ErrorContains(c, err, expected)
 }
@@ -1420,7 +1405,7 @@ func (s *DockerAPISuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *tes
 
 	assert.Equal(c, containerJSON.HostConfig.ShmSize, dconfig.DefaultShmSize)
 
-	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
+	out := cli.DockerCmd(c, "start", "-i", containerJSON.ID).Combined()
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
 	if !shmRegexp.MatchString(out) {
 		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
@@ -1447,7 +1432,7 @@ func (s *DockerAPISuite) TestPostContainersCreateShmSizeOmitted(c *testing.T) {
 
 	assert.Equal(c, containerJSON.HostConfig.ShmSize, int64(67108864))
 
-	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
+	out := cli.DockerCmd(c, "start", "-i", containerJSON.ID).Combined()
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
 	if !shmRegexp.MatchString(out) {
 		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
@@ -1478,7 +1463,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithShmSize(c *testing.T) {
 
 	assert.Equal(c, containerJSON.HostConfig.ShmSize, int64(1073741824))
 
-	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
+	out := cli.DockerCmd(c, "start", "-i", containerJSON.ID).Combined()
 	shmRegex := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=1048576k`)
 	if !shmRegex.MatchString(out) {
 		c.Fatalf("Expected shm of 1GB in mount command, got %v", out)
@@ -1526,7 +1511,7 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 	assert.NilError(c, err)
 	defer apiClient.Close()
 
-	name := "oomscoreadj-over"
+	const name = "oomscoreadj-over"
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, name)
 
 	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
@@ -1536,8 +1521,8 @@ func (s *DockerAPISuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *
 		OomScoreAdj: -1001,
 	}
 
-	name = "oomscoreadj-low"
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, name)
+	const name2 = "oomscoreadj-low"
+	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, name2)
 
 	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
 	assert.ErrorContains(c, err, expected)
@@ -1557,7 +1542,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 	// Problematic on Windows as Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
-	name := "testing-network-disabled"
+	const name = "testing-network-disabled"
 
 	config := container.Config{
 		Image:           "busybox",
@@ -1574,8 +1559,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 
 	err = apiClient.ContainerStart(testutil.GetContext(c), name, container.StartOptions{})
 	assert.NilError(c, err)
-
-	assert.Assert(c, waitRun(name) == nil)
+	cli.WaitRun(c, name)
 
 	type b struct {
 		stats types.ContainerStats
@@ -1589,7 +1573,7 @@ func (s *DockerAPISuite) TestContainerAPIStatsWithNetworkDisabled(c *testing.T) 
 
 	// allow some time to stream the stats from the container
 	time.Sleep(4 * time.Second)
-	dockerCmd(c, "rm", "-f", name)
+	cli.DockerCmd(c, "rm", "-f", name)
 
 	// collect the results from the stats stream or timeout and fail
 	// if the stream was not disconnected.
@@ -1943,7 +1927,7 @@ func (s *DockerAPISuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, "test")
 	assert.NilError(c, err)
 
-	out, _ := dockerCmd(c, "start", "-a", "test")
+	out := cli.DockerCmd(c, "start", "-a", "test").Combined()
 	assert.Equal(c, out, "hello")
 }
 
@@ -2197,7 +2181,7 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {
 
 		_, err = apiClient.ContainerCreate(testutil.GetContext(c), &config, &hostConfig, &network.NetworkingConfig{}, nil, cName)
 		assert.NilError(c, err)
-		out, _ := dockerCmd(c, "start", "-a", cName)
+		out := cli.DockerCmd(c, "start", "-a", cName).Combined()
 		for _, option := range x.expectedOptions {
 			assert.Assert(c, strings.Contains(out, option))
 		}
