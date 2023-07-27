@@ -29,9 +29,9 @@ func (s *DockerCLIStatsSuite) OnTimeout(c *testing.T) {
 func (s *DockerCLIStatsSuite) TestStatsNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
-	id := strings.TrimSpace(out)
-	assert.NilError(c, waitRun(id))
+	id := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
+	id = strings.TrimSpace(id)
+	cli.WaitRun(c, id)
 
 	statsCmd := exec.Command(dockerBinary, "stats", "--no-stream", id)
 	type output struct {
@@ -72,18 +72,18 @@ func (s *DockerCLIStatsSuite) TestStatsAllRunningNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
-	id1 := strings.TrimSpace(out)[:12]
-	assert.NilError(c, waitRun(id1))
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
-	id2 := strings.TrimSpace(out)[:12]
-	assert.NilError(c, waitRun(id2))
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
-	id3 := strings.TrimSpace(out)[:12]
-	assert.NilError(c, waitRun(id3))
-	dockerCmd(c, "stop", id3)
+	id1 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
+	id1 = strings.TrimSpace(id1)[:12]
+	cli.WaitRun(c, id1)
+	id2 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
+	id2 = strings.TrimSpace(id2)[:12]
+	cli.WaitRun(c, id2)
+	id3 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
+	id3 = strings.TrimSpace(id3)[:12]
+	cli.WaitRun(c, id3)
+	cli.DockerCmd(c, "stop", id3)
 
-	out, _ = dockerCmd(c, "stats", "--no-stream")
+	out := cli.DockerCmd(c, "stats", "--no-stream").Combined()
 	if !strings.Contains(out, id1) || !strings.Contains(out, id2) {
 		c.Fatalf("Expected stats output to contain both %s and %s, got %s", id1, id2, out)
 	}
@@ -108,15 +108,15 @@ func (s *DockerCLIStatsSuite) TestStatsAllNoStream(c *testing.T) {
 	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
-	id1 := strings.TrimSpace(out)[:12]
-	assert.NilError(c, waitRun(id1))
-	dockerCmd(c, "stop", id1)
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
-	id2 := strings.TrimSpace(out)[:12]
-	assert.NilError(c, waitRun(id2))
+	id1 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
+	id1 = strings.TrimSpace(id1)[:12]
+	cli.WaitRun(c, id1)
+	cli.DockerCmd(c, "stop", id1)
+	id2 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
+	id2 = strings.TrimSpace(id2)[:12]
+	cli.WaitRun(c, id2)
 
-	out, _ = dockerCmd(c, "stats", "--all", "--no-stream")
+	out := cli.DockerCmd(c, "stats", "--all", "--no-stream").Combined()
 	if !strings.Contains(out, id1) || !strings.Contains(out, id2) {
 		c.Fatalf("Expected stats output to contain both %s and %s, got %s", id1, id2, out)
 	}
@@ -164,7 +164,7 @@ func (s *DockerCLIStatsSuite) TestStatsAllNewContainersAdded(c *testing.T) {
 	}()
 
 	out := runSleepingContainer(c, "-d")
-	assert.NilError(c, waitRun(strings.TrimSpace(out)))
+	cli.WaitRun(c, out)
 	id <- strings.TrimSpace(out)[:12]
 
 	select {
