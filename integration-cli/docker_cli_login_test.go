@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"gotest.tools/v3/assert"
 )
 
@@ -30,7 +31,7 @@ func (s *DockerCLILoginSuite) TestLoginWithoutTTY(c *testing.T) {
 
 	// run the command and block until it's done
 	err := cmd.Run()
-	assert.ErrorContains(c, err, "") //"Expected non nil err when logging in & TTY not available"
+	assert.ErrorContains(c, err, "") // "Expected non nil err when logging in & TTY not available"
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *testing.T) {
@@ -40,5 +41,5 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *testing.
 	assert.Assert(c, strings.Contains(out, "401 Unauthorized"))
 
 	// now it's fine
-	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
+	cli.DockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
 }
