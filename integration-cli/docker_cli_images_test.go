@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/v3/assert"
@@ -31,22 +32,22 @@ func (s *DockerCLIImagesSuite) OnTimeout(c *testing.T) {
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImageIsListed(c *testing.T) {
-	imagesOut, _ := dockerCmd(c, "images")
+	imagesOut := cli.DockerCmd(c, "images").Stdout()
 	assert.Assert(c, strings.Contains(imagesOut, "busybox"))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithTagIsListed(c *testing.T) {
-	name := "imagewithtag"
-	dockerCmd(c, "tag", "busybox", name+":v1")
-	dockerCmd(c, "tag", "busybox", name+":v1v1")
-	dockerCmd(c, "tag", "busybox", name+":v2")
+	const name = "imagewithtag"
+	cli.DockerCmd(c, "tag", "busybox", name+":v1")
+	cli.DockerCmd(c, "tag", "busybox", name+":v1v1")
+	cli.DockerCmd(c, "tag", "busybox", name+":v2")
 
-	imagesOut, _ := dockerCmd(c, "images", name+":v1")
+	imagesOut := cli.DockerCmd(c, "images", name+":v1").Stdout()
 	assert.Assert(c, strings.Contains(imagesOut, name))
 	assert.Assert(c, strings.Contains(imagesOut, "v1"))
 	assert.Assert(c, !strings.Contains(imagesOut, "v2"))
 	assert.Assert(c, !strings.Contains(imagesOut, "v1v1"))
-	imagesOut, _ = dockerCmd(c, "images", name)
+	imagesOut = cli.DockerCmd(c, "images", name).Stdout()
 	assert.Assert(c, strings.Contains(imagesOut, name))
 	assert.Assert(c, strings.Contains(imagesOut, "v1"))
 	assert.Assert(c, strings.Contains(imagesOut, "v1v1"))
@@ -54,7 +55,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithTagIsListed(c *testing.T
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *testing.T) {
-	imagesOut, _ := dockerCmd(c, "images", "busybox:nonexistent")
+	imagesOut := cli.DockerCmd(c, "images", "busybox:nonexistent").Stdout()
 	assert.Assert(c, !strings.Contains(imagesOut, "busybox"))
 }
 
@@ -71,7 +72,7 @@ func (s *DockerCLIImagesSuite) TestImagesOrderedByCreationDate(c *testing.T) {
                 MAINTAINER dockerio3`))
 	id3 := getIDByName(c, "order:test_b")
 
-	out, _ := dockerCmd(c, "images", "-q", "--no-trunc")
+	out := cli.DockerCmd(c, "images", "-q", "--no-trunc").Stdout()
 	imgs := strings.Split(out, "\n")
 	assert.Equal(c, imgs[0], id3, fmt.Sprintf("First image must be %s, got %s", id3, imgs[0]))
 	assert.Equal(c, imgs[1], id2, fmt.Sprintf("First image must be %s, got %s", id2, imgs[1]))
@@ -85,9 +86,9 @@ func (s *DockerCLIImagesSuite) TestImagesErrorWithInvalidFilterNameTest(c *testi
 }
 
 func (s *DockerCLIImagesSuite) TestImagesFilterLabelMatch(c *testing.T) {
-	imageName1 := "images_filter_test1"
-	imageName2 := "images_filter_test2"
-	imageName3 := "images_filter_test3"
+	const imageName1 = "images_filter_test1"
+	const imageName2 = "images_filter_test2"
+	const imageName3 = "images_filter_test3"
 	buildImageSuccessfully(c, imageName1, build.WithDockerfile(`FROM busybox
                  LABEL match me`))
 	image1ID := getIDByName(c, imageName1)
@@ -100,7 +101,7 @@ func (s *DockerCLIImagesSuite) TestImagesFilterLabelMatch(c *testing.T) {
                  LABEL nomatch me`))
 	image3ID := getIDByName(c, imageName3)
 
-	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
+	out := cli.DockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match").Stdout()
 	out = strings.TrimSpace(out)
 	assert.Assert(c, is.Regexp(fmt.Sprintf("^[\\s\\w:]*%s[\\s\\w:]*$", image1ID), out))
 
@@ -108,7 +109,7 @@ func (s *DockerCLIImagesSuite) TestImagesFilterLabelMatch(c *testing.T) {
 
 	assert.Assert(c, !is.Regexp(fmt.Sprintf("^[\\s\\w:]*%s[\\s\\w:]*$", image3ID), out)().Success())
 
-	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
+	out = cli.DockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too").Stdout()
 	out = strings.TrimSpace(out)
 	assert.Equal(c, out, image2ID)
 }
@@ -116,12 +117,12 @@ func (s *DockerCLIImagesSuite) TestImagesFilterLabelMatch(c *testing.T) {
 // Regression : #15659
 func (s *DockerCLIImagesSuite) TestCommitWithFilterLabel(c *testing.T) {
 	// Create a container
-	dockerCmd(c, "run", "--name", "bar", "busybox", "/bin/sh")
+	cli.DockerCmd(c, "run", "--name", "bar", "busybox", "/bin/sh")
 	// Commit with labels "using changes"
-	out, _ := dockerCmd(c, "commit", "-c", "LABEL foo.version=1.0.0-1", "-c", "LABEL foo.name=bar", "-c", "LABEL foo.author=starlord", "bar", "bar:1.0.0-1")
-	imageID := strings.TrimSpace(out)
+	imageID := cli.DockerCmd(c, "commit", "-c", "LABEL foo.version=1.0.0-1", "-c", "LABEL foo.name=bar", "-c", "LABEL foo.author=starlord", "bar", "bar:1.0.0-1").Stdout()
+	imageID = strings.TrimSpace(imageID)
 
-	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=foo.version=1.0.0-1")
+	out := cli.DockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=foo.version=1.0.0-1").Stdout()
 	out = strings.TrimSpace(out)
 	assert.Equal(c, out, imageID)
 }
@@ -139,34 +140,34 @@ LABEL number=3`))
 
 	expected := []string{imageID3, imageID2}
 
-	out, _ := dockerCmd(c, "images", "-f", "since=image:1", "image")
+	out := cli.DockerCmd(c, "images", "-f", "since=image:1", "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
-	out, _ = dockerCmd(c, "images", "-f", "since="+imageID1, "image")
+	out = cli.DockerCmd(c, "images", "-f", "since="+imageID1, "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID3}
 
-	out, _ = dockerCmd(c, "images", "-f", "since=image:2", "image")
+	out = cli.DockerCmd(c, "images", "-f", "since=image:2", "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
-	out, _ = dockerCmd(c, "images", "-f", "since="+imageID2, "image")
+	out = cli.DockerCmd(c, "images", "-f", "since="+imageID2, "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID2, imageID1}
 
-	out, _ = dockerCmd(c, "images", "-f", "before=image:3", "image")
+	out = cli.DockerCmd(c, "images", "-f", "before=image:3", "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
-	out, _ = dockerCmd(c, "images", "-f", "before="+imageID3, "image")
+	out = cli.DockerCmd(c, "images", "-f", "before="+imageID3, "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
 	expected = []string{imageID1}
 
-	out, _ = dockerCmd(c, "images", "-f", "before=image:2", "image")
+	out = cli.DockerCmd(c, "images", "-f", "before=image:2", "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 
-	out, _ = dockerCmd(c, "images", "-f", "before="+imageID2, "image")
+	out = cli.DockerCmd(c, "images", "-f", "before="+imageID2, "image").Stdout()
 	assert.Equal(c, assertImageList(out, expected), true, fmt.Sprintf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
 }
 
@@ -197,7 +198,7 @@ func assertImageList(out string, expected []string) bool {
 
 // FIXME(vdemeester) should be a unit test on `docker image ls`
 func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
-	imageName := "images_filter_test"
+	const imageName = "images_filter_test"
 	// Build a image and fail to build so that we have dangling images ?
 	buildImage(imageName, build.WithDockerfile(`FROM busybox
                  RUN touch /test/foo
@@ -216,7 +217,7 @@ func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 
 	imageListings := make([][]string, 5)
 	for idx, filter := range filters {
-		out, _ := dockerCmd(c, "images", "-q", "-f", filter)
+		out := cli.DockerCmd(c, "images", "-q", "-f", filter).Stdout()
 		listing := strings.Split(out, "\n")
 		sort.Strings(listing)
 		imageListings[idx] = listing
@@ -239,24 +240,24 @@ func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 func (s *DockerCLIImagesSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// create container 1
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-	containerID1 := strings.TrimSpace(out)
+	containerID1 := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
+	containerID1 = strings.TrimSpace(containerID1)
 
 	// tag as foobox
-	out, _ = dockerCmd(c, "commit", containerID1, "foobox")
-	imageID := stringid.TruncateID(strings.TrimSpace(out))
+	imageID := cli.DockerCmd(c, "commit", containerID1, "foobox").Stdout()
+	imageID = stringid.TruncateID(strings.TrimSpace(imageID))
 
 	// overwrite the tag, making the previous image dangling
-	dockerCmd(c, "tag", "busybox", "foobox")
+	cli.DockerCmd(c, "tag", "busybox", "foobox")
 
-	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
+	out := cli.DockerCmd(c, "images", "-q", "-f", "dangling=true").Stdout()
 	// Expect one dangling image
 	assert.Equal(c, strings.Count(out, imageID), 1)
 
-	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=false")
+	out = cli.DockerCmd(c, "images", "-q", "-f", "dangling=false").Stdout()
 	// dangling=false would not include dangling images
 	assert.Assert(c, !strings.Contains(out, imageID))
-	out, _ = dockerCmd(c, "images")
+	out = cli.DockerCmd(c, "images").Stdout()
 	// docker images still include dangling images
 	assert.Assert(c, strings.Contains(out, imageID))
 }
@@ -269,11 +270,11 @@ func (s *DockerCLIImagesSuite) TestImagesWithIncorrectFilter(c *testing.T) {
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T) {
-	dockerfile := `
+	const dockerfile = `
         FROM busybox
         MAINTAINER docker
         ENV foo bar`
-	name := "scratch-image"
+	const name = "scratch-image"
 	result := buildImage(name, build.WithDockerfile(dockerfile))
 	result.Assert(c, icmd.Success)
 	id := getIDByName(c, name)
@@ -284,7 +285,7 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T
 	split := strings.Split(result.Combined(), "\n")
 	intermediate := strings.TrimSpace(split[5][7:])
 
-	out, _ := dockerCmd(c, "images")
+	out := cli.DockerCmd(c, "images").Stdout()
 	// images shouldn't show non-heads images
 	assert.Assert(c, !strings.Contains(out, intermediate))
 	// images should contain final built images
@@ -293,15 +294,15 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromScratchShown(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support FROM scratch
-	dockerfile := `
+	const dockerfile = `
         FROM scratch
         MAINTAINER docker`
 
-	name := "scratch-image"
+	const name = "scratch-image"
 	buildImageSuccessfully(c, name, build.WithDockerfile(dockerfile))
 	id := getIDByName(c, name)
 
-	out, _ := dockerCmd(c, "images")
+	out := cli.DockerCmd(c, "images").Stdout()
 	// images should contain images built from scratch
 	assert.Assert(c, strings.Contains(out, stringid.TruncateID(id)))
 }
@@ -309,41 +310,41 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromScratchShown(c *testing
 // For W2W - equivalent to TestImagesEnsureImagesFromScratchShown but Windows
 // doesn't support from scratch
 func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromBusyboxShown(c *testing.T) {
-	dockerfile := `
+	const dockerfile = `
         FROM busybox
         MAINTAINER docker`
-	name := "busybox-image"
+	const name = "busybox-image"
 
 	buildImageSuccessfully(c, name, build.WithDockerfile(dockerfile))
 	id := getIDByName(c, name)
 
-	out, _ := dockerCmd(c, "images")
+	out := cli.DockerCmd(c, "images").Stdout()
 	// images should contain images built from busybox
 	assert.Assert(c, strings.Contains(out, stringid.TruncateID(id)))
 }
 
 // #18181
 func (s *DockerCLIImagesSuite) TestImagesFilterNameWithPort(c *testing.T) {
-	tag := "a.b.c.d:5000/hello"
-	dockerCmd(c, "tag", "busybox", tag)
-	out, _ := dockerCmd(c, "images", tag)
+	const tag = "a.b.c.d:5000/hello"
+	cli.DockerCmd(c, "tag", "busybox", tag)
+	out := cli.DockerCmd(c, "images", tag).Stdout()
 	assert.Assert(c, strings.Contains(out, tag))
-	out, _ = dockerCmd(c, "images", tag+":latest")
+	out = cli.DockerCmd(c, "images", tag+":latest").Stdout()
 	assert.Assert(c, strings.Contains(out, tag))
-	out, _ = dockerCmd(c, "images", tag+":no-such-tag")
+	out = cli.DockerCmd(c, "images", tag+":no-such-tag").Stdout()
 	assert.Assert(c, !strings.Contains(out, tag))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesFormat(c *testing.T) {
 	// testRequires(c, DaemonIsLinux)
-	tag := "myimage"
-	dockerCmd(c, "tag", "busybox", tag+":v1")
-	dockerCmd(c, "tag", "busybox", tag+":v2")
+	const imageName = "myimage"
+	cli.DockerCmd(c, "tag", "busybox", imageName+":v1")
+	cli.DockerCmd(c, "tag", "busybox", imageName+":v2")
 
-	out, _ := dockerCmd(c, "images", "--format", "{{.Repository}}", tag)
+	out := cli.DockerCmd(c, "images", "--format", "{{.Repository}}", imageName).Stdout()
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 
-	expected := []string{"myimage", "myimage"}
+	expected := []string{imageName, imageName}
 	var names []string
 	names = append(names, lines...)
 	assert.Assert(c, is.DeepEqual(names, expected), "Expected array with truncated names: %v, got: %v", expected, names)
@@ -354,14 +355,14 @@ func (s *DockerCLIImagesSuite) TestImagesFormatDefaultFormat(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
 	// create container 1
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-	containerID1 := strings.TrimSpace(out)
+	containerID1 := cli.DockerCmd(c, "run", "-d", "busybox", "true").Stdout()
+	containerID1 = strings.TrimSpace(containerID1)
 
 	// tag as foobox
-	out, _ = dockerCmd(c, "commit", containerID1, "myimage")
-	imageID := stringid.TruncateID(strings.TrimSpace(out))
+	imageID := cli.DockerCmd(c, "commit", containerID1, "myimage").Stdout()
+	imageID = stringid.TruncateID(strings.TrimSpace(imageID))
 
-	config := `{
+	const config = `{
 		"imagesFormat": "{{ .ID }} default"
 }`
 	d, err := os.MkdirTemp("", "integration-cli-")
@@ -371,6 +372,6 @@ func (s *DockerCLIImagesSuite) TestImagesFormatDefaultFormat(c *testing.T) {
 	err = os.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0o644)
 	assert.NilError(c, err)
 
-	out, _ = dockerCmd(c, "--config", d, "images", "-q", "myimage")
+	out := cli.DockerCmd(c, "--config", d, "images", "-q", "myimage").Stdout()
 	assert.Equal(c, out, imageID+"\n", "Expected to print only the image id, got %v\n", out)
 }
