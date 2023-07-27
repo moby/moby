@@ -46,6 +46,7 @@ require (
 	github.com/golang/gddo v0.0.0-20190904175337-72a348e765d2
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
+	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
@@ -57,6 +58,7 @@ require (
 	github.com/imdario/mergo v0.3.13
 	github.com/ishidawataru/sctp v0.0.0-20230406120618-7ff4192f6ff2
 	github.com/klauspost/compress v1.16.3
+	github.com/mdlayher/packet v1.1.2
 	github.com/miekg/dns v1.1.43
 	github.com/mistifyio/go-zfs/v3 v3.0.1
 	github.com/mitchellh/copystructure v1.2.0
@@ -158,7 +160,9 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/in-toto/in-toto-golang v0.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/josharian/native v1.1.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
+	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20221107090550-2e043c6bd626 // indirect

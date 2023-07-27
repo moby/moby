@@ -1,0 +1,57 @@
+language: go
+go:
+ - 1.11.x
+ - 1.12.x
+ - 1.13.x
+ - master
+
+addons:
+  apt:
+    packages:
+      libpcap-dev
+
+# use modules except for older versions (see below)
+install: true
+
+env:
+  - GO111MODULE=on
+
+script: ./.travis.script.sh
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - go: master
+
+jobs:
+  include:
+    - go: 1.5.x
+      install: ./.travis.install.sh
+    - go: 1.6.x
+      install: ./.travis.install.sh
+    - go: 1.7.x
+      install: ./.travis.install.sh
+    - go: 1.8.x
+      install: ./.travis.install.sh
+    - go: 1.9.x
+      install: ./.travis.install.sh
+    - go: 1.10.x
+      install: ./.travis.install.sh
+    - os: osx
+      go: 1.x
+# windows doesn't work on travis (package installation just hangs and then errors out)
+#    - os: windows
+#      go: 1.x
+#      # We don't need nmap - but that's the only way to get npcap:
+#      before_install: choco install npcap --version 0.86 -y
+    - stage: style
+      name: "fmt/vet/lint"
+      go: 1.x
+      script:
+        - ./.travis.gofmt.sh
+        - ./.travis.govet.sh
+        - ./.travis.golint.sh
+
+stages:
+  - style
+  - test
