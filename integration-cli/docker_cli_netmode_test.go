@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/runconfig"
 	"gotest.tools/v3/assert"
 )
@@ -39,18 +40,18 @@ func dockerCmdWithFail(c *testing.T, args ...string) (string, int) {
 func (s *DockerCLINetmodeSuite) TestNetHostnameWithNetHost(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ps")
+	out := cli.DockerCmd(c, "run", "--net=host", "busybox", "ps").Stdout()
 	assert.Assert(c, strings.Contains(out, stringCheckPS))
 }
 
 func (s *DockerCLINetmodeSuite) TestNetHostname(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-h=name", "busybox", "ps")
+	out := cli.DockerCmd(c, "run", "-h=name", "busybox", "ps").Stdout()
 	assert.Assert(c, strings.Contains(out, stringCheckPS))
-	out, _ = dockerCmd(c, "run", "-h=name", "--net=bridge", "busybox", "ps")
+	out = cli.DockerCmd(c, "run", "-h=name", "--net=bridge", "busybox", "ps").Stdout()
 	assert.Assert(c, strings.Contains(out, stringCheckPS))
-	out, _ = dockerCmd(c, "run", "-h=name", "--net=none", "busybox", "ps")
+	out = cli.DockerCmd(c, "run", "-h=name", "--net=none", "busybox", "ps").Stdout()
 	assert.Assert(c, strings.Contains(out, stringCheckPS))
 	out, _ = dockerCmdWithFail(c, "run", "-h=name", "--net=container:other", "busybox", "ps")
 	assert.Assert(c, strings.Contains(out, runconfig.ErrConflictNetworkHostname.Error()))
