@@ -255,3 +255,21 @@ func WithCDIDevices(cdiDeviceNames ...string) func(*TestContainerConfig) {
 		c.HostConfig.DeviceRequests = append(c.HostConfig.DeviceRequests, request)
 	}
 }
+
+func WithCapability(capabilities ...string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.CapAdd = append(c.HostConfig.CapAdd, capabilities...)
+	}
+}
+
+func WithDropCapability(capabilities ...string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.CapDrop = append(c.HostConfig.CapDrop, capabilities...)
+	}
+}
+
+func WithSecurityOpt(opt string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.SecurityOpt = append(c.HostConfig.SecurityOpt, opt)
+	}
+}
