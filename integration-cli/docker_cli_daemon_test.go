@@ -1267,7 +1267,7 @@ func pingContainers(c *testing.T, d *daemon.Daemon, expectFailure bool) {
 	}
 
 	args := append(dargs, "run", "-d", "--name", "container1", "busybox", "top")
-	dockerCmd(c, args...)
+	cli.DockerCmd(c, args...)
 
 	args = append(dargs, "run", "--rm", "--link", "container1:alias1", "busybox", "sh", "-c")
 	pingCmd := "ping -c 1 %s -W 1"
@@ -1281,7 +1281,7 @@ func pingContainers(c *testing.T, d *daemon.Daemon, expectFailure bool) {
 	}
 
 	args = append(dargs, "rm", "-f", "container1")
-	dockerCmd(c, args...)
+	cli.DockerCmd(c, args...)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *testing.T) {
@@ -1549,14 +1549,13 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *testing.T) {
 	// The client with --tlsverify should also use default host localhost:2376
 	c.Setenv("DOCKER_HOST", "")
 
-	out, _ := dockerCmd(
-		c,
+	out := cli.DockerCmd(c,
 		"--tlsverify",
 		"--tlscacert", "fixtures/https/ca.pem",
 		"--tlscert", "fixtures/https/client-cert.pem",
 		"--tlskey", "fixtures/https/client-key.pem",
 		"version",
-	)
+	).Stdout()
 	if !strings.Contains(out, "Server") {
 		c.Fatalf("docker version should return information of server side")
 	}
@@ -1627,10 +1626,10 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 
 	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as graph root
 	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:bullseye (which is what the test suite runs under if run from the Makefile)
-	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
+	cli.DockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
 	icmd.RunCommand("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img")).Assert(c, icmd.Success)
 
-	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount && mount -n -t ext4 /test/testfs.img /test/test-mount")
+	cli.DockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount && mount -n -t ext4 /test/testfs.img /test/test-mount")
 	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
 
 	driver := "vfs"
@@ -1732,8 +1731,8 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *testing.T) {
 	id := strings.TrimSpace(out)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
-	for _, path := range cgroupPaths {
-		if strings.HasSuffix(path, expectedCgroup) {
+	for _, p := range cgroupPaths {
+		if strings.HasSuffix(p, expectedCgroup) {
 			found = true
 			break
 		}
@@ -2768,13 +2767,13 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	testRequires(c, DaemonIsLinux, IsAmd64, testEnv.IsLocalDaemon)
 	d := daemon.New(c, dockerBinary, dockerdBinary)
 	d.Start(c)
-	cli := d.NewClientT(c)
+	apiClient := d.NewClientT(c)
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 300*time.Second)
 	defer cancel()
 
 	name := "test-plugin-rm-fail"
-	out, err := cli.PluginInstall(ctx, name, types.PluginInstallOptions{
+	out, err := apiClient.PluginInstall(ctx, name, types.PluginInstallOptions{
 		Disabled:             true,
 		AcceptAllPermissions: true,
 		RemoteRef:            "cpuguy83/docker-logdriver-test",
@@ -2785,7 +2784,7 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 
 	ctx, cancel = context.WithTimeout(testutil.GetContext(c), 30*time.Second)
 	defer cancel()
-	p, _, err := cli.PluginInspectWithRaw(ctx, name)
+	p, _, err := apiClient.PluginInspectWithRaw(ctx, name)
 	assert.NilError(c, err)
 
 	// simulate a bad/partial removal by removing the plugin config.
@@ -2795,10 +2794,10 @@ func (s *DockerDaemonSuite) TestFailedPluginRemove(c *testing.T) {
 	d.Restart(c)
 	ctx, cancel = context.WithTimeout(testutil.GetContext(c), 30*time.Second)
 	defer cancel()
-	_, err = cli.Ping(ctx)
+	_, err = apiClient.Ping(ctx)
 	assert.NilError(c, err)
 
-	_, _, err = cli.PluginInspectWithRaw(ctx, name)
+	_, _, err = apiClient.PluginInspectWithRaw(ctx, name)
 	// plugin should be gone since the config.json is gone
 	assert.ErrorContains(c, err, "")
 }
