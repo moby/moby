@@ -2450,7 +2450,7 @@ func (s *DockerCLIRunSuite) TestRunModeUTSHost(c *testing.T) {
 		c.Fatalf("UTS should be different without --uts=host %s == %s\n", hostUTS, out)
 	}
 
-	out, _ = dockerCmdWithFail(c, "run", "-h=name", "--uts=host", "busybox", "ps")
+	out = dockerCmdWithFail(c, "run", "-h=name", "--uts=host", "busybox", "ps")
 	assert.Assert(c, strings.Contains(out, runconfig.ErrConflictUTSHostname.Error()))
 }
 
