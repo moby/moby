@@ -2,17 +2,16 @@ package containerd
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/content"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/distribution/reference"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/images"
@@ -21,8 +20,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/registry"
-	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -162,72 +159,29 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 	}
 
 	snapshotter := i.client.SnapshotService(ctr.Driver)
-
-	usage, err := snapshotter.Usage(ctx, containerID)
+	rwLayerUsage, err := snapshotter.Usage(ctx, containerID)
 	if err != nil {
-		return 0, 0, err
-	}
-
-	imageManifest, err := getContainerImageManifest(ctr)
-	if err != nil {
-		// Best efforts attempt to pick an image.
-		// We don't have platform information at this point, so we can only
-		// assume that the platform matches host.
-		// Otherwise this will give a wrong base image size (different
-		// platform), but should be close enough.
-		mfst, err := i.GetImageManifest(ctx, ctr.Config.Image, imagetypes.GetImageOpts{})
-		if err != nil {
-			// Log error, don't error out whole operation.
-			log.G(ctx).WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-				"container":     containerID,
-			}).Warn("empty ImageManifest, can't calculate base image size")
-			return usage.Size, 0, nil
+		if cerrdefs.IsNotFound(err) {
+			return 0, 0, errdefs.NotFound(fmt.Errorf("rw layer snapshot not found for container %s", containerID))
 		}
-		imageManifest = *mfst
+		return 0, 0, errdefs.System(errors.Wrapf(err, "snapshotter.Usage failed for %s", containerID))
 	}
-	cs := i.client.ContentStore()
 
-	imageManifestBytes, err := content.ReadBlob(ctx, cs, imageManifest)
+	unpackedUsage, err := calculateSnapshotParentUsage(ctx, snapshotter, containerID)
 	if err != nil {
-		return 0, 0, err
-	}
-
-	var manifest ocispec.Manifest
-	if err := json.Unmarshal(imageManifestBytes, &manifest); err != nil {
-		return 0, 0, err
-	}
-
-	imageConfigBytes, err := content.ReadBlob(ctx, cs, manifest.Config)
-	if err != nil {
-		return 0, 0, err
-	}
-	var img ocispec.Image
-	if err := json.Unmarshal(imageConfigBytes, &img); err != nil {
-		return 0, 0, err
-	}
-
-	sizeCache := make(map[digest.Digest]int64)
-	snapshotSizeFn := func(d digest.Digest) (int64, error) {
-		if s, ok := sizeCache[d]; ok {
-			return s, nil
+		if cerrdefs.IsNotFound(err) {
+			log.G(ctx).WithField("ctr", containerID).Warn("parent of container snapshot no longer present")
+		} else {
+			log.G(ctx).WithError(err).WithField("ctr", containerID).Warn("unexpected error when calculating usage of the parent snapshots")
 		}
-		u, err := snapshotter.Usage(ctx, d.String())
-		if err != nil {
-			return 0, err
-		}
-		sizeCache[d] = u.Size
-		return u.Size, nil
 	}
-
-	chainIDs := identity.ChainIDs(img.RootFS.DiffIDs)
-	snapShotSize, err := computeSnapshotSize(chainIDs, snapshotSizeFn)
-	if err != nil {
-		return 0, 0, err
-	}
+	log.G(ctx).WithFields(logrus.Fields{
+		"rwLayerUsage": rwLayerUsage.Size,
+		"unpacked":     unpackedUsage.Size,
+	}).Debug("GetContainerLayerSize")
 
 	// TODO(thaJeztah): include content-store size for the image (similar to "GET /images/json")
-	return usage.Size, usage.Size + snapShotSize, nil
+	return rwLayerUsage.Size, rwLayerUsage.Size + unpackedUsage.Size, nil
 }
 
 // getContainerImageManifest safely dereferences ImageManifest.
