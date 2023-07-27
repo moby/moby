@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -520,11 +521,20 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 func readConfig(ctx context.Context, store content.Provider, desc ocispec.Descriptor, out interface{}) error {
 	data, err := content.ReadBlob(ctx, store, desc)
 	if err != nil {
-		return errors.Wrapf(err, "failed to read config content")
+		err = errors.Wrapf(err, "failed to read config content")
+		if cerrdefs.IsNotFound(err) {
+			return errdefs.NotFound(err)
+		}
+		return err
 	}
+
 	err = json.Unmarshal(data, out)
 	if err != nil {
-		return errors.Wrapf(err, "could not deserialize image config")
+		err = errors.Wrapf(err, "could not deserialize image config")
+		if cerrdefs.IsNotFound(err) {
+			return errdefs.NotFound(err)
+		}
+		return err
 	}
 
 	return nil

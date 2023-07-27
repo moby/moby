@@ -12,11 +12,11 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 var acceptedPsFilterTags = map[string]bool{
@@ -42,7 +42,7 @@ type iterationAction int
 
 // containerReducer represents a reducer for a container.
 // Returns the object to serialize by the api.
-type containerReducer func(context.Context, *container.Snapshot, *listContext) (*types.Container, error)
+type containerReducer func(context.Context, *container.Snapshot) (*types.Container, error)
 
 const (
 	// includeContainer is the action to include a container in the reducer.
@@ -231,7 +231,7 @@ func (daemon *Daemon) reducePsContainer(ctx context.Context, container *containe
 	}
 
 	// transform internal container struct into api structs
-	newC, err := reducer(ctx, container, filter)
+	newC, err := reducer(ctx, container)
 	if err != nil {
 		return nil, err
 	}
@@ -578,21 +578,70 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	return includeContainer
 }
 
-// refreshImage checks if the Image ref still points to the correct ID, and updates the ref to the actual ID when it doesn't
-func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot, filter *listContext) (*types.Container, error) {
+// refreshImage checks if the Image ref still points to the correct ID, and
+// updates the ref to the actual ID when it doesn't.
+// This happens when the image with a reference that was used to create
+// container was deleted or updated and now resolves to a different ID.
+//
+// For example:
+// $ docker run -d busybox:latest
+// $ docker ps -a
+// CONTAINER ID   IMAGE     COMMAND   CREATED         STATUS                     PORTS     NAMES
+// b0318bca5aef   busybox   "sh"      4 seconds ago   Exited (0) 3 seconds ago             ecstatic_beaver
+//
+// After some time, busybox image got updated on the Docker Hub:
+// $ docker pull busybox:latest
+//
+// So now busybox:latest points to a different digest, but that doesn't impact
+// the ecstatic_beaver container which was still created under an older
+// version. In this case, it should still point to the original image ID it was
+// created from.
+//
+// $ docker ps -a
+// CONTAINER ID   IMAGE          COMMAND   CREATED       STATUS                  PORTS     NAMES
+// b0318bca5aef   3fbc63216742   "sh"      3 years ago   Exited (0) 3 years ago            ecstatic_beaver
+func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) (*types.Container, error) {
 	c := s.Container
-	tmpImage := s.Image // keep the original ref if still valid (hasn't changed)
-	if tmpImage != s.ImageID {
-		img, err := daemon.imageService.GetImage(ctx, tmpImage, imagetypes.GetImageOpts{})
-		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
-			return nil, err
-		}
-		if err != nil || img.ImageID() != s.ImageID {
-			// ref changed, we need to use original ID
-			tmpImage = s.ImageID
-		}
+
+	// s.Image is the image reference passed by the user to create an image
+	//         can be a:
+	//         - name (like nginx, ubuntu:latest, docker.io/library/busybox:latest),
+	//         - truncated ID (abcdef),
+	//         - full digest (sha256:abcdef...)
+	//
+	// s.ImageID is the ID of the image that s.Image resolved to at the time
+	// of the container creation. It's always a full digest.
+
+	// If these match, there's nothing to refresh.
+	if s.Image == s.ImageID {
+		return &c, nil
 	}
-	c.Image = tmpImage
+
+	// Check if the image reference still resolves to the same digest.
+	img, err := daemon.imageService.GetImage(ctx, s.Image, imagetypes.GetImageOpts{})
+
+	// If the image is no longer found or can't be resolved for some other
+	// reason. Update the Image to the specific ID of the original image it
+	// resolved to when the container was created.
+	if err != nil {
+		if !errdefs.IsNotFound(err) {
+			log.G(ctx).WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"containerID":   c.ID,
+				"image":         s.Image,
+				"imageID":       s.ImageID,
+			}).Warn("failed to resolve container image")
+		}
+		c.Image = s.ImageID
+		return &c, nil
+	}
+
+	// Also update the image to the specific image ID, if the Image now
+	// resolves to a different ID.
+	if img.ImageID() != s.ImageID {
+		c.Image = s.ImageID
+	}
+
 	return &c, nil
 }
 
