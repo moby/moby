@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 type mockFiProvider struct{}
@@ -50,41 +52,44 @@ func TestParseMountSpec(t *testing.T) {
 		input    mount.Mount
 		expected MountPoint
 	}{
-		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, ReadOnly: true}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()}},
-		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, RW: true, Propagation: parser.DefaultPropagationMode()}},
-		{mount.Mount{Type: mount.TypeBind, Source: testDir + string(os.PathSeparator), Target: testDestinationPath, ReadOnly: true}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()}},
-		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath + string(os.PathSeparator), ReadOnly: true}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()}},
-		{mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath}, MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, CopyData: parser.DefaultCopyMode()}},
-		{mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath + string(os.PathSeparator)}, MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, CopyData: parser.DefaultCopyMode()}},
+		{
+			input:    mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, ReadOnly: true},
+			expected: MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()},
+		},
+		{
+			input:    mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath},
+			expected: MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, RW: true, Propagation: parser.DefaultPropagationMode()},
+		},
+		{
+			input:    mount.Mount{Type: mount.TypeBind, Source: testDir + string(os.PathSeparator), Target: testDestinationPath, ReadOnly: true},
+			expected: MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()},
+		},
+		{
+			input:    mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath + string(os.PathSeparator), ReadOnly: true},
+			expected: MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()},
+		},
+		{
+			input:    mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath},
+			expected: MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, CopyData: parser.DefaultCopyMode()},
+		},
+		{
+			input:    mount.Mount{Type: mount.TypeVolume, Target: testDestinationPath + string(os.PathSeparator)},
+			expected: MountPoint{Type: mount.TypeVolume, Destination: testDestinationPath, RW: true, CopyData: parser.DefaultCopyMode()},
+		},
 	}
 
-	for i, c := range cases {
-		t.Logf("case %d", i)
-		mp, err := parser.ParseMountSpec(c.input)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if c.expected.Type != mp.Type {
-			t.Errorf("Expected mount types to match. Expected: '%s', Actual: '%s'", c.expected.Type, mp.Type)
-		}
-		if c.expected.Destination != mp.Destination {
-			t.Errorf("Expected mount destination to match. Expected: '%s', Actual: '%s'", c.expected.Destination, mp.Destination)
-		}
-		if c.expected.Source != mp.Source {
-			t.Errorf("Expected mount source to match. Expected: '%s', Actual: '%s'", c.expected.Source, mp.Source)
-		}
-		if c.expected.RW != mp.RW {
-			t.Errorf("Expected mount writable to match. Expected: '%v', Actual: '%v'", c.expected.RW, mp.RW)
-		}
-		if c.expected.Propagation != mp.Propagation {
-			t.Errorf("Expected mount propagation to match. Expected: '%v', Actual: '%s'", c.expected.Propagation, mp.Propagation)
-		}
-		if c.expected.Driver != mp.Driver {
-			t.Errorf("Expected mount driver to match. Expected: '%v', Actual: '%s'", c.expected.Driver, mp.Driver)
-		}
-		if c.expected.CopyData != mp.CopyData {
-			t.Errorf("Expected mount copy data to match. Expected: '%v', Actual: '%v'", c.expected.CopyData, mp.CopyData)
-		}
+	for _, tc := range cases {
+		tc := tc
+		t.Run("", func(t *testing.T) {
+			mp, err := parser.ParseMountSpec(tc.input)
+			assert.Check(t, err)
+			assert.Check(t, is.Equal(mp.Type, tc.expected.Type))
+			assert.Check(t, is.Equal(mp.Destination, tc.expected.Destination))
+			assert.Check(t, is.Equal(mp.Source, tc.expected.Source))
+			assert.Check(t, is.Equal(mp.RW, tc.expected.RW))
+			assert.Check(t, is.Equal(mp.Propagation, tc.expected.Propagation))
+			assert.Check(t, is.Equal(mp.Driver, tc.expected.Driver))
+			assert.Check(t, is.Equal(mp.CopyData, tc.expected.CopyData))
+		})
 	}
 }

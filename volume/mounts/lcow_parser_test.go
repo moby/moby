@@ -1,12 +1,12 @@
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types/mount"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLCOWParseMountRaw(t *testing.T) {
@@ -112,18 +112,98 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 		expRW     bool
 		fail      bool
 	}{
-		{`c:\:/foo`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", true, false},
-		{`c:\:/foo:ro`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", false, false},
-		{`c:\:/foo:rw`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", true, false},
-		{`c:\:/foo:foo`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", false, true},
-		{`name:/foo:rw`, "local", mount.TypeVolume, `/foo`, ``, `name`, "local", true, false},
-		{`name:/foo`, "local", mount.TypeVolume, `/foo`, ``, `name`, "local", true, false},
-		{`name:/foo:ro`, "local", mount.TypeVolume, `/foo`, ``, `name`, "local", false, false},
-		{`name:/`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
-		{`driver/name:/`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
-		{`\\.\pipe\foo:\\.\pipe\bar`, "local", mount.TypeNamedPipe, `\\.\pipe\bar`, `\\.\pipe\foo`, "", "", true, true},
-		{`\\.\pipe\foo:/data`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
-		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
+		{
+			bind:      `c:\:/foo`,
+			driver:    "local",
+			expType:   mount.TypeBind,
+			expDest:   `/foo`,
+			expSource: `c:\`,
+			expRW:     true,
+		},
+		{
+			bind:      `c:\:/foo:ro`,
+			driver:    "local",
+			expType:   mount.TypeBind,
+			expDest:   `/foo`,
+			expSource: `c:\`,
+		},
+		{
+			bind:      `c:\:/foo:rw`,
+			driver:    "local",
+			expType:   mount.TypeBind,
+			expDest:   `/foo`,
+			expSource: `c:\`,
+			expRW:     true,
+		},
+		{
+			bind:      `c:\:/foo:foo`,
+			driver:    "local",
+			expType:   mount.TypeBind,
+			expDest:   `/foo`,
+			expSource: `c:\`,
+			fail:      true,
+		},
+		{
+			bind:      `name:/foo:rw`,
+			driver:    "local",
+			expType:   mount.TypeVolume,
+			expDest:   `/foo`,
+			expName:   `name`,
+			expDriver: "local",
+			expRW:     true,
+		},
+		{
+			bind:      `name:/foo`,
+			driver:    "local",
+			expType:   mount.TypeVolume,
+			expDest:   `/foo`,
+			expName:   `name`,
+			expDriver: "local",
+			expRW:     true,
+		},
+		{
+			bind:      `name:/foo:ro`,
+			driver:    "local",
+			expType:   mount.TypeVolume,
+			expDest:   `/foo`,
+			expName:   `name`,
+			expDriver: "local",
+		},
+		{
+			bind:    `name:/`,
+			expType: mount.TypeVolume,
+			expRW:   true,
+			fail:    true,
+		},
+		{
+			bind:    `driver/name:/`,
+			expType: mount.TypeVolume,
+			expRW:   true,
+			fail:    true,
+		},
+		{
+			bind:      `\\.\pipe\foo:\\.\pipe\bar`,
+			driver:    "local",
+			expType:   mount.TypeNamedPipe,
+			expDest:   `\\.\pipe\bar`,
+			expSource: `\\.\pipe\foo`,
+			expRW:     true,
+			fail:      true,
+		},
+		{
+			bind:    `\\.\pipe\foo:/data`,
+			driver:  "local",
+			expType: mount.TypeNamedPipe,
+			expRW:   true,
+			fail:    true,
+		},
+		{
+			bind:    `c:\foo\bar:\\.\pipe\foo`,
+			driver:  "local",
+			expType: mount.TypeNamedPipe,
+			expRW:   true,
+			fail:    true,
+		},
 	}
 
 	parser := NewLCOWParser()
@@ -131,22 +211,22 @@ func TestLCOWParseMountRawSplit(t *testing.T) {
 		p.fi = mockFiProvider{}
 	}
 
-	for i, c := range cases {
-		c := c
-		t.Run(fmt.Sprintf("%d_%s", i, c.bind), func(t *testing.T) {
-			m, err := parser.ParseMountRaw(c.bind, c.driver)
-			if c.fail {
-				assert.ErrorContains(t, err, "", "expected an error")
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.bind, func(t *testing.T) {
+			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
+			if tc.fail {
+				assert.Check(t, is.ErrorContains(err, ""), "expected an error")
 				return
 			}
 
-			assert.NilError(t, err)
-			assert.Equal(t, m.Destination, c.expDest)
-			assert.Equal(t, m.Source, c.expSource)
-			assert.Equal(t, m.Name, c.expName)
-			assert.Equal(t, m.Driver, c.expDriver)
-			assert.Equal(t, m.RW, c.expRW)
-			assert.Equal(t, m.Type, c.expType)
+			assert.Check(t, err)
+			assert.Check(t, is.Equal(m.Destination, tc.expDest))
+			assert.Check(t, is.Equal(m.Source, tc.expSource))
+			assert.Check(t, is.Equal(m.Name, tc.expName))
+			assert.Check(t, is.Equal(m.Driver, tc.expDriver))
+			assert.Check(t, is.Equal(m.RW, tc.expRW))
+			assert.Check(t, is.Equal(m.Type, tc.expType))
 		})
 	}
 }
