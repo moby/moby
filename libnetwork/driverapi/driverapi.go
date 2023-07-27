@@ -1,18 +1,12 @@
 package driverapi
 
-import (
-	"net"
-
-	"github.com/docker/docker/libnetwork/discoverapi"
-)
+import "net"
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
 const NetworkPluginEndpointType = "NetworkDriver"
 
 // Driver is an interface that every plugin driver needs to implement.
 type Driver interface {
-	discoverapi.Discover
-
 	// NetworkAllocate invokes the driver method to allocate network
 	// specific resources passing network id and network specific config.
 	// It returns a key,value pair of network specific driver allocations

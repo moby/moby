@@ -182,8 +182,11 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	}
 
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc)
-		if err != nil {
+		dr, ok := driver.(discoverapi.Discover)
+		if !ok {
+			return false
+		}
+		if err := dr.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc); err != nil {
 			log.G(context.TODO()).Warnf("Failed to update datapath keys in driver %s: %v", name, err)
 			// Attempt to reconfigure keys in case of a update failure
 			// which can arise due to a mismatch of keys
@@ -191,7 +194,7 @@ func (c *Controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			log.G(context.TODO()).Warnf("Reconfiguring datapath keys for  %s", name)
 			drvCfgEnc := discoverapi.DriverEncryptionConfig{}
 			drvCfgEnc.Keys, drvCfgEnc.Tags = c.getKeys(subsysIPSec)
-			err = driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvCfgEnc)
+			err = dr.DiscoverNew(discoverapi.EncryptionKeysConfig, drvCfgEnc)
 			if err != nil {
 				log.G(context.TODO()).Warnf("Failed to reset datapath keys in driver %s: %v", name, err)
 			}
@@ -232,7 +235,9 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 		}
 		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 			if capability.ConnectivityScope == datastore.GlobalScope {
-				c.agentDriverNotify(driver)
+				if d, ok := driver.(discoverapi.Discover); ok {
+					c.agentDriverNotify(d)
+				}
 			}
 			return false
 		})
@@ -337,9 +342,10 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	drvEnc.Tags = tags
 
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
-		if err != nil {
-			log.G(context.TODO()).Warnf("Failed to set datapath keys in driver %s: %v", name, err)
+		if dr, ok := driver.(discoverapi.Discover); ok {
+			if err := dr.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc); err != nil {
+				log.G(context.TODO()).Warnf("Failed to set datapath keys in driver %s: %v", name, err)
+			}
 		}
 		return false
 	})
@@ -357,7 +363,7 @@ func (c *Controller) agentJoin(remoteAddrList []string) error {
 	return agent.networkDB.Join(remoteAddrList)
 }
 
-func (c *Controller) agentDriverNotify(d driverapi.Driver) {
+func (c *Controller) agentDriverNotify(d discoverapi.Discover) {
 	agent := c.getAgent()
 	if agent == nil {
 		return

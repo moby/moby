@@ -23,6 +23,9 @@ const (
 	secureOption = "encrypted"
 )
 
+// overlay driver must implement the discover-API.
+var _ discoverapi.Discover = (*driver)(nil)
+
 type driver struct {
 	bindAddress      string
 	advertiseAddress string
