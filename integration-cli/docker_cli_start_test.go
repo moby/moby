@@ -28,7 +28,7 @@ func (s *DockerCLIStartSuite) OnTimeout(c *testing.T) {
 func (s *DockerCLIStartSuite) TestStartAttachReturnsOnError(c *testing.T) {
 	// Windows does not support link
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "test", "busybox")
+	cli.DockerCmd(c, "run", "--name", "test", "busybox")
 
 	// Expect this to fail because the above container is stopped, this is what we want
 	out, _, err := dockerCmdWithError("run", "--name", "test2", "--link", "test:test", "busybox")
@@ -69,12 +69,12 @@ func (s *DockerCLIStartSuite) TestStartAttachCorrectExitCode(c *testing.T) {
 
 func (s *DockerCLIStartSuite) TestStartAttachSilent(c *testing.T) {
 	name := "teststartattachcorrectexitcode"
-	dockerCmd(c, "run", "--name", name, "busybox", "echo", "test")
+	cli.DockerCmd(c, "run", "--name", name, "busybox", "echo", "test")
 
 	// make sure the container has exited before trying the "start -a"
-	dockerCmd(c, "wait", name)
+	cli.DockerCmd(c, "wait", name)
 
-	startOut, _ := dockerCmd(c, "start", "-a", name)
+	startOut := cli.DockerCmd(c, "start", "-a", name).Combined()
 	// start -a produced unexpected output
 	assert.Equal(c, startOut, "test\n")
 }
@@ -83,7 +83,7 @@ func (s *DockerCLIStartSuite) TestStartRecordError(c *testing.T) {
 	// TODO Windows CI: Requires further porting work. Should be possible.
 	testRequires(c, DaemonIsLinux)
 	// when container runs successfully, we should not have state.Error
-	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
 	stateErr := inspectField(c, "test", "State.Error")
 	// Expected to not have state error
 	assert.Equal(c, stateErr, "")
@@ -96,8 +96,8 @@ func (s *DockerCLIStartSuite) TestStartRecordError(c *testing.T) {
 	stateErr = inspectField(c, "test2", "State.Error")
 	assert.Assert(c, strings.Contains(stateErr, "port is already allocated"))
 	// Expect the conflict to be resolved when we stop the initial container
-	dockerCmd(c, "stop", "test")
-	dockerCmd(c, "start", "test2")
+	cli.DockerCmd(c, "stop", "test")
+	cli.DockerCmd(c, "start", "test2")
 	stateErr = inspectField(c, "test2", "State.Error")
 	// Expected to not have state error but got one
 	assert.Equal(c, stateErr, "")
@@ -109,7 +109,7 @@ func (s *DockerCLIStartSuite) TestStartPausedContainer(c *testing.T) {
 
 	runSleepingContainer(c, "-d", "--name", "testing")
 
-	dockerCmd(c, "pause", "testing")
+	cli.DockerCmd(c, "pause", "testing")
 
 	out, _, err := dockerCmdWithError("start", "testing")
 	// an error should have been shown that you cannot start paused container
@@ -122,14 +122,14 @@ func (s *DockerCLIStartSuite) TestStartMultipleContainers(c *testing.T) {
 	// Windows does not support --link
 	testRequires(c, DaemonIsLinux)
 	// run a container named 'parent' and create two container link to `parent`
-	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
 	for _, container := range []string{"child_first", "child_second"} {
-		dockerCmd(c, "create", "--name", container, "--link", "parent:parent", "busybox", "top")
+		cli.DockerCmd(c, "create", "--name", container, "--link", "parent:parent", "busybox", "top")
 	}
 
 	// stop 'parent' container
-	dockerCmd(c, "stop", "parent")
+	cli.DockerCmd(c, "stop", "parent")
 
 	out := inspectField(c, "parent", "State.Running")
 	// Container should be stopped
@@ -137,8 +137,8 @@ func (s *DockerCLIStartSuite) TestStartMultipleContainers(c *testing.T) {
 
 	// start all the three containers, container `child_first` start first which should be failed
 	// container 'parent' start second and then start container 'child_second'
-	expOut := "Cannot link to a non running container"
-	expErr := "failed to start containers: [child_first]"
+	const expOut = "Cannot link to a non running container"
+	const expErr = "failed to start containers: [child_first]"
 	out, _, err := dockerCmdWithError("start", "child_first", "parent", "child_second")
 	// err shouldn't be nil because start will fail
 	assert.Assert(c, err != nil, "out: %s", out)
@@ -162,7 +162,7 @@ func (s *DockerCLIStartSuite) TestStartAttachMultipleContainers(c *testing.T) {
 
 	// stop all the containers
 	for _, container := range []string{"test1", "test2", "test3"} {
-		dockerCmd(c, "stop", container)
+		cli.DockerCmd(c, "stop", container)
 	}
 
 	// test start and attach multiple containers at once, expected error
