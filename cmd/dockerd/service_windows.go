@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -147,16 +146,8 @@ func (h *etwHook) Fire(e *logrus.Entry) error {
 	return windows.ReportEvent(h.log.Handle, etype, 0, eid, 0, count, 0, &ss[0], nil)
 }
 
-func getServicePath() (string, error) {
-	p, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		return "", err
-	}
-	return filepath.Abs(p)
-}
-
 func registerService() error {
-	p, err := getServicePath()
+	p, err := os.Executable()
 	if err != nil {
 		return err
 	}
