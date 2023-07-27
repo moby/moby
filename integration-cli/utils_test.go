@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/icmd"
@@ -130,7 +131,7 @@ func existingElements(c *testing.T, opts elementListOptions) []string {
 	if opts.format != "" {
 		args = append(args, "--format", opts.format)
 	}
-	out, _ := dockerCmd(c, args...)
+	out := cli.DockerCmd(c, args...).Combined()
 	var lines []string
 	for _, l := range strings.Split(out, "\n") {
 		if l != "" {

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/testutil/fixtures/load"
 	"gotest.tools/v3/assert"
 )
@@ -61,7 +62,7 @@ func ensureSyscallTest(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "syscall-test", tmp}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
 func ensureSyscallTestBuild(ctx context.Context, c *testing.T) {
@@ -74,7 +75,7 @@ func ensureSyscallTestBuild(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "syscall-test", "../contrib/syscall-test"}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
 func ensureNNPTest(ctx context.Context, c *testing.T) {
@@ -116,7 +117,7 @@ func ensureNNPTest(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "nnp-test", tmp}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
 
 func ensureNNPTestBuild(ctx context.Context, c *testing.T) {
@@ -129,5 +130,5 @@ func ensureNNPTestBuild(ctx context.Context, c *testing.T) {
 	}
 	buildArgs = append(buildArgs, []string{"-q", "-t", "npp-test", "../contrib/nnp-test"}...)
 	buildArgs = append([]string{"build"}, buildArgs...)
-	dockerCmd(c, buildArgs...)
+	cli.DockerCmd(c, buildArgs...)
 }
