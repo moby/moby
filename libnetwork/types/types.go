@@ -413,12 +413,6 @@ type MaskableError interface {
 	Maskable()
 }
 
-// RetryError is an interface for errors which might get resolved through retry
-type RetryError interface {
-	// Retry makes implementer into RetryError type
-	Retry()
-}
-
 // BadRequestError is an interface for errors originated by a bad request
 type BadRequestError interface {
 	// BadRequest makes implementer into BadRequestError type
@@ -441,12 +435,6 @@ type ForbiddenError interface {
 type NoServiceError interface {
 	// NoService makes implementer into NoServiceError type
 	NoService()
-}
-
-// TimeoutError is an interface for errors raised because of timeout
-type TimeoutError interface {
-	// Timeout makes implementer into TimeoutError type
-	Timeout()
 }
 
 // NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
@@ -490,11 +478,6 @@ func NotImplementedErrorf(format string, params ...interface{}) error {
 	return notImpl(fmt.Sprintf(format, params...))
 }
 
-// TimeoutErrorf creates an instance of TimeoutError
-func TimeoutErrorf(format string, params ...interface{}) error {
-	return timeout(fmt.Sprintf(format, params...))
-}
-
 // InternalErrorf creates an instance of InternalError
 func InternalErrorf(format string, params ...interface{}) error {
 	return internal(fmt.Sprintf(format, params...))
@@ -503,11 +486,6 @@ func InternalErrorf(format string, params ...interface{}) error {
 // InternalMaskableErrorf creates an instance of InternalError and MaskableError
 func InternalMaskableErrorf(format string, params ...interface{}) error {
 	return maskInternal(fmt.Sprintf(format, params...))
-}
-
-// RetryErrorf creates an instance of RetryError
-func RetryErrorf(format string, params ...interface{}) error {
-	return retry(fmt.Sprintf(format, params...))
 }
 
 /***********************
@@ -541,13 +519,6 @@ func (ns noService) Error() string {
 }
 func (ns noService) NoService() {}
 
-type timeout string
-
-func (to timeout) Error() string {
-	return string(to)
-}
-func (to timeout) Timeout() {}
-
 type notImpl string
 
 func (ni notImpl) Error() string {
@@ -569,10 +540,3 @@ func (mnt maskInternal) Error() string {
 }
 func (mnt maskInternal) Internal() {}
 func (mnt maskInternal) Maskable() {}
-
-type retry string
-
-func (r retry) Error() string {
-	return string(r)
-}
-func (r retry) Retry() {}
