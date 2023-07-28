@@ -276,6 +276,7 @@ func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Clien
 
 	c, err := d.NewClient(extraOpts...)
 	assert.NilError(t, err, "[%s] could not create daemon client", d.id)
+	t.Cleanup(func() { c.Close() })
 	return c
 }
 
@@ -312,23 +313,51 @@ func (d *Daemon) TailLogsT(t LogT, n int) {
 	}
 }
 
-// PollCheckLogs is a poll.Check that checks the daemon logs for the passed in string (`contains`).
-func (d *Daemon) PollCheckLogs(ctx context.Context, contains string) poll.Check {
+// PollCheckLogs is a poll.Check that checks the daemon logs using the passed in match function.
+func (d *Daemon) PollCheckLogs(ctx context.Context, match func(s string) bool) poll.Check {
 	return func(t poll.LogT) poll.Result {
-		ok, _, err := d.ScanLogs(ctx, contains)
+		ok, _, err := d.ScanLogs(ctx, match)
 		if err != nil {
 			return poll.Error(err)
 		}
 		if !ok {
-			return poll.Continue("waiting for %q in daemon logs", contains)
+			return poll.Continue("waiting for daemon logs match")
 		}
 		return poll.Success()
 	}
 }
 
-// ScanLogs scans the daemon logs for the passed in string (`contains`).
-// If the context is canceled, the function returns false but does not error out the test.
-func (d *Daemon) ScanLogs(ctx context.Context, contains string) (bool, string, error) {
+// ScanLogsMatchString returns a function that can be used to scan the daemon logs for the passed in string (`contains`).
+func ScanLogsMatchString(contains string) func(string) bool {
+	return func(line string) bool {
+		return strings.Contains(line, contains)
+	}
+}
+
+// ScanLogsMatchAll returns a function that can be used to scan the daemon logs until *all* the passed in strings are matched
+func ScanLogsMatchAll(contains ...string) func(string) bool {
+	matched := make(map[string]bool)
+	return func(line string) bool {
+		for _, c := range contains {
+			if strings.Contains(line, c) {
+				matched[c] = true
+			}
+		}
+		return len(matched) == len(contains)
+	}
+}
+
+// ScanLogsT uses `ScanLogs` to match the daemon logs using the passed in match function.
+// If there is an error or the match fails, the test will fail.
+func (d *Daemon) ScanLogsT(ctx context.Context, t testing.TB, match func(s string) bool) (bool, string) {
+	t.Helper()
+	ok, line, err := d.ScanLogs(ctx, match)
+	assert.NilError(t, err)
+	return ok, line
+}
+
+// ScanLogs scans the daemon logs and passes each line to the match function.
+func (d *Daemon) ScanLogs(ctx context.Context, match func(s string) bool) (bool, string, error) {
 	stat, err := d.logFile.Stat()
 	if err != nil {
 		return false, "", err
@@ -337,7 +366,7 @@ func (d *Daemon) ScanLogs(ctx context.Context, contains string) (bool, string, e
 
 	scanner := bufio.NewScanner(rdr)
 	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), contains) {
+		if match(scanner.Text()) {
 			return true, scanner.Text(), nil
 		}
 		select {
@@ -363,7 +392,6 @@ func (d *Daemon) TailLogs(n int) ([][]byte, error) {
 	}
 
 	return lines, nil
-
 }
 
 // Start starts the daemon and return once it is ready to receive requests.

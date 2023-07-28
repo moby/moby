@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 	"testing"
 
@@ -186,27 +185,34 @@ func TestDaemonProxy(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, os.Getenv("DOCKER_ROOTLESS") != "", "cannot connect to localhost proxy in rootless environment")
 
-	var received string
-	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		received = r.Host
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("OK"))
-	}))
-	defer proxyServer.Close()
+	newProxy := func(rcvd *string, t *testing.T) *httptest.Server {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			*rcvd = r.Host
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte("OK"))
+		}))
+		t.Cleanup(s.Close)
+		return s
+	}
 
 	const userPass = "myuser:mypassword@"
 
 	// Configure proxy through env-vars
 	t.Run("environment variables", func(t *testing.T) {
-		t.Setenv("HTTP_PROXY", proxyServer.URL)
-		t.Setenv("HTTPS_PROXY", proxyServer.URL)
-		t.Setenv("NO_PROXY", "example.com")
+		t.Parallel()
 
-		d := daemon.New(t)
-		c := d.NewClientT(t)
-		defer func() { _ = c.Close() }()
 		ctx := context.Background()
-		d.Start(t)
+		var received string
+		proxyServer := newProxy(&received, t)
+
+		d := daemon.New(t, daemon.WithEnvVars(
+			"HTTP_PROXY="+proxyServer.URL,
+			"HTTPS_PROXY="+proxyServer.URL,
+			"NO_PROXY=example.com",
+		))
+		c := d.NewClientT(t)
+
+		d.Start(t, "--iptables=false")
 		defer d.Stop(t)
 
 		info := d.Info(t)
@@ -226,35 +232,45 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Configure proxy through command-line flags
 	t.Run("command-line options", func(t *testing.T) {
-		t.Setenv("HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("http_proxy", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("NO_PROXY", "ignore.invalid")
-		t.Setenv("no_proxy", "ignore.invalid")
+		t.Parallel()
 
-		d := daemon.New(t)
-		d.Start(t, "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
+		ctx := context.Background()
+		var received string
+		proxyServer := newProxy(&received, t)
+
+		d := daemon.New(t, daemon.WithEnvVars(
+			"HTTP_PROXY="+"http://"+userPass+"from-env-http.invalid",
+			"http_proxy="+"http://"+userPass+"from-env-http.invalid",
+			"HTTPS_PROXY="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"NO_PROXY=ignore.invalid",
+			"no_proxy=ignore.invalid",
+		))
+		d.Start(t, "--iptables=false", "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
 		defer d.Stop(t)
 
-		logs, err := d.ReadLogFile()
-		assert.NilError(t, err)
-		assert.Assert(t, is.Contains(string(logs), "overriding existing proxy variable with value from configuration"))
-		for _, v := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY"} {
-			assert.Assert(t, is.Contains(string(logs), "name="+v))
-			assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
-		}
-
 		c := d.NewClientT(t)
-		defer func() { _ = c.Close() }()
-		ctx := context.Background()
 
 		info := d.Info(t)
 		assert.Check(t, is.Equal(info.HTTPProxy, proxyServer.URL))
 		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
 		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
 
-		_, err = c.ImagePull(ctx, "example.org:5001/some/image:latest", types.ImagePullOptions{})
+		ok, _ := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchAll(
+			"overriding existing proxy variable with value from configuration",
+			"http_proxy",
+			"HTTP_PROXY",
+			"https_proxy",
+			"HTTPS_PROXY",
+			"no_proxy",
+			"NO_PROXY",
+		))
+		assert.Assert(t, ok)
+
+		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
+		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
+
+		_, err := c.ImagePull(ctx, "example.org:5001/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001")
 
@@ -266,23 +282,27 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Configure proxy through configuration file
 	t.Run("configuration file", func(t *testing.T) {
-		t.Setenv("HTTP_PROXY", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("http_proxy", "http://"+userPass+"from-env-http.invalid")
-		t.Setenv("HTTPS_PROXY", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("https_proxy", "https://"+userPass+"myuser:mypassword@from-env-https.invalid")
-		t.Setenv("NO_PROXY", "ignore.invalid")
-		t.Setenv("no_proxy", "ignore.invalid")
-
-		d := daemon.New(t)
-		c := d.NewClientT(t)
-		defer func() { _ = c.Close() }()
+		t.Parallel()
 		ctx := context.Background()
+
+		var received string
+		proxyServer := newProxy(&received, t)
+
+		d := daemon.New(t, daemon.WithEnvVars(
+			"HTTP_PROXY="+"http://"+userPass+"from-env-http.invalid",
+			"http_proxy="+"http://"+userPass+"from-env-http.invalid",
+			"HTTPS_PROXY="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"https_proxy="+"https://"+userPass+"myuser:mypassword@from-env-https-invalid",
+			"NO_PROXY=ignore.invalid",
+			"no_proxy=ignore.invalid",
+		))
+		c := d.NewClientT(t)
 
 		configFile := filepath.Join(d.RootDir(), "daemon.json")
 		configJSON := fmt.Sprintf(`{"proxies":{"http-proxy":%[1]q, "https-proxy": %[1]q, "no-proxy": "example.com"}}`, proxyServer.URL)
 		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
 
-		d.Start(t, "--config-file", configFile)
+		d.Start(t, "--iptables=false", "--config-file", configFile)
 		defer d.Stop(t)
 
 		info := d.Info(t)
@@ -290,15 +310,17 @@ func TestDaemonProxy(t *testing.T) {
 		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
 		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
 
-		logs, err := d.ReadLogFile()
-		assert.NilError(t, err)
-		assert.Assert(t, is.Contains(string(logs), "overriding existing proxy variable with value from configuration"))
-		for _, v := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "no_proxy", "NO_PROXY"} {
-			assert.Assert(t, is.Contains(string(logs), "name="+v))
-			assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
-		}
+		d.ScanLogsT(ctx, t, daemon.ScanLogsMatchAll(
+			"overriding existing proxy variable with value from configuration",
+			"http_proxy",
+			"HTTP_PROXY",
+			"https_proxy",
+			"HTTPS_PROXY",
+			"no_proxy",
+			"NO_PROXY",
+		))
 
-		_, err = c.ImagePull(ctx, "example.org:5002/some/image:latest", types.ImagePullOptions{})
+		_, err := c.ImagePull(ctx, "example.org:5002/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002")
 
@@ -306,12 +328,11 @@ func TestDaemonProxy(t *testing.T) {
 		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002", "should not have used proxy")
-
-		d.Stop(t)
 	})
 
 	// Conflicting options (passed both through command-line options and config file)
 	t.Run("conflicting options", func(t *testing.T) {
+		ctx := context.Background()
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
@@ -325,13 +346,12 @@ func TestDaemonProxy(t *testing.T) {
 
 		err := d.StartWithError("--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com", "--config-file", configFile, "--validate")
 		assert.ErrorContains(t, err, "daemon exited during startup")
-		logs, err := d.ReadLogFile()
-		assert.NilError(t, err)
+
 		expected := fmt.Sprintf(
 			`the following directives are specified both as a flag and in the configuration file: http-proxy: (from flag: %[1]s, from file: %[1]s), https-proxy: (from flag: %[1]s, from file: %[1]s), no-proxy: (from flag: example.com, from file: example.com)`,
 			proxyURL,
 		)
-		assert.Assert(t, is.Contains(string(logs), expected))
+		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchString(expected)))
 	})
 
 	// Make sure values are sanitized when reloading the daemon-config
@@ -350,11 +370,9 @@ func TestDaemonProxy(t *testing.T) {
 		err := d.Signal(syscall.SIGHUP)
 		assert.NilError(t, err)
 
-		poll.WaitOn(t, d.PollCheckLogs(ctx, "Reloaded configuration:"))
-		poll.WaitOn(t, d.PollCheckLogs(ctx, proxyURL))
+		poll.WaitOn(t, d.PollCheckLogs(ctx, daemon.ScanLogsMatchAll("Reloaded configuration:", proxyURL)))
 
-		ok, logs, err := d.ScanLogs(ctx, userPass)
-		assert.NilError(t, err)
+		ok, logs := d.ScanLogsT(ctx, t, daemon.ScanLogsMatchString(userPass))
 		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
 	})
 }
