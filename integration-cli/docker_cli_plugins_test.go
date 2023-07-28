@@ -22,7 +22,7 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-var (
+const (
 	pluginProcessName = "sample-volume-plugin"
 	pName             = "tiborvass/sample-volume-plugin"
 	npName            = "tiborvass/test-docker-netplugin"
@@ -44,27 +44,27 @@ func (s *DockerCLIPluginsSuite) OnTimeout(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginBasicOps(c *testing.T) {
-	plugin := ps.getPluginRepoWithTag()
-	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", plugin)
+	pluginName := ps.getPluginRepoWithTag()
+	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pluginName)
 	assert.NilError(c, err)
 
 	out, _, err := dockerCmdWithError("plugin", "ls")
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, plugin))
+	assert.Check(c, is.Contains(out, pluginName))
 	assert.Check(c, is.Contains(out, "true"))
-	id, _, err := dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", plugin)
+	id, _, err := dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pluginName)
 	id = strings.TrimSpace(id)
 	assert.NilError(c, err)
 
-	out, _, err = dockerCmdWithError("plugin", "remove", plugin)
+	out, _, err = dockerCmdWithError("plugin", "remove", pluginName)
 	assert.ErrorContains(c, err, "")
 	assert.Check(c, is.Contains(out, "is enabled"))
-	_, _, err = dockerCmdWithError("plugin", "disable", plugin)
+	_, _, err = dockerCmdWithError("plugin", "disable", pluginName)
 	assert.NilError(c, err)
 
-	out, _, err = dockerCmdWithError("plugin", "remove", plugin)
+	out, _, err = dockerCmdWithError("plugin", "remove", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, plugin))
+	assert.Check(c, is.Contains(out, pluginName))
 	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id))
 	if !os.IsNotExist(err) {
 		c.Fatal(err)
@@ -72,16 +72,16 @@ func (ps *DockerPluginSuite) TestPluginBasicOps(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginForceRemove(c *testing.T) {
-	pNameWithTag := ps.getPluginRepoWithTag()
+	pluginName := ps.getPluginRepoWithTag()
 
-	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
+	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pluginName)
 	assert.NilError(c, err)
 
-	out, _, _ := dockerCmdWithError("plugin", "remove", pNameWithTag)
+	out, _, _ := dockerCmdWithError("plugin", "remove", pluginName)
 	assert.Check(c, is.Contains(out, "is enabled"))
-	out, _, err = dockerCmdWithError("plugin", "remove", "--force", pNameWithTag)
+	out, _, err = dockerCmdWithError("plugin", "remove", "--force", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pNameWithTag))
+	assert.Check(c, is.Contains(out, pluginName))
 }
 
 func (s *DockerCLIPluginsSuite) TestPluginActive(c *testing.T) {
@@ -132,23 +132,23 @@ func (s *DockerCLIPluginsSuite) TestPluginActiveNetwork(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginInstallDisable(c *testing.T) {
-	pName := ps.getPluginRepoWithTag()
+	pluginName := ps.getPluginRepoWithTag()
 
-	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pName)
+	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pName))
+	assert.Check(c, is.Contains(out, pluginName))
 	out, _, err = dockerCmdWithError("plugin", "ls")
 	assert.NilError(c, err)
 	assert.Check(c, is.Contains(out, "false"))
-	out, _, err = dockerCmdWithError("plugin", "enable", pName)
+	out, _, err = dockerCmdWithError("plugin", "enable", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pName))
-	out, _, err = dockerCmdWithError("plugin", "disable", pName)
+	assert.Check(c, is.Contains(out, pluginName))
+	out, _, err = dockerCmdWithError("plugin", "disable", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pName))
-	out, _, err = dockerCmdWithError("plugin", "remove", pName)
+	assert.Check(c, is.Contains(out, pluginName))
+	out, _, err = dockerCmdWithError("plugin", "remove", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pName))
+	assert.Check(c, is.Contains(out, pluginName))
 }
 
 func (s *DockerCLIPluginsSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
@@ -156,7 +156,7 @@ func (s *DockerCLIPluginsSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
 	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", pName)
 	assert.NilError(c, err)
 	assert.Check(c, is.Contains(out, pName))
-	dockerCmd(c, "volume", "ls")
+	cli.DockerCmd(c, "volume", "ls")
 }
 
 func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
@@ -184,20 +184,20 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 	})
 	assert.Assert(c, err == nil, "failed to create test plugin")
 
-	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
+	env := cli.DockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name).Stdout()
 	assert.Check(c, is.Equal(strings.TrimSpace(env), "[DEBUG=0]"))
 
-	dockerCmd(c, "plugin", "set", name, "DEBUG=1")
+	cli.DockerCmd(c, "plugin", "set", name, "DEBUG=1")
 
-	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
+	env = cli.DockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name).Stdout()
 	assert.Check(c, is.Equal(strings.TrimSpace(env), "[DEBUG=1]"))
 
-	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}", name)
-	assert.Check(c, is.Contains(env, mntSrc))
-	dockerCmd(c, "plugin", "set", name, "pmount1.source=bar")
+	mounts := cli.DockerCmd(c, "plugin", "inspect", "-f", "{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}", name).Stdout()
+	assert.Check(c, is.Contains(mounts, mntSrc))
+	cli.DockerCmd(c, "plugin", "set", name, "pmount1.source=bar")
 
-	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}", name)
-	assert.Check(c, is.Contains(env, "bar"))
+	mounts = cli.DockerCmd(c, "plugin", "inspect", "-f", "{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}", name).Stdout()
+	assert.Check(c, is.Contains(mounts, "bar"))
 	out, _, err := dockerCmdWithError("plugin", "set", name, "pmount2.source=bar2")
 	assert.ErrorContains(c, err, "")
 	assert.Check(c, is.Contains(out, "Plugin config has no mount source"))
@@ -207,17 +207,17 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginInstallArgs(c *testing.T) {
-	pName := path.Join(ps.registryHost(), "plugin", "testplugininstallwithargs")
+	pluginName := path.Join(ps.registryHost(), "plugin", "testplugininstallwithargs")
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	defer cancel()
 
-	plugin.CreateInRegistry(ctx, pName, nil, func(cfg *plugin.Config) {
+	plugin.CreateInRegistry(ctx, pluginName, nil, func(cfg *plugin.Config) {
 		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Settable: []string{"value"}}}
 	})
 
-	out, _ := dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--disable", pName, "DEBUG=1")
-	assert.Check(c, is.Contains(out, pName))
-	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", pName)
+	out := cli.DockerCmd(c, "plugin", "install", "--grant-all-permissions", "--disable", pluginName, "DEBUG=1").Stdout()
+	assert.Check(c, is.Contains(out, pluginName))
+	env := cli.DockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", pluginName).Stdout()
 	assert.Check(c, is.Equal(strings.TrimSpace(env), "[DEBUG=1]"))
 }
 
@@ -225,33 +225,33 @@ func (ps *DockerPluginSuite) TestPluginInstallImage(c *testing.T) {
 	testRequires(c, IsAmd64)
 	skip.If(c, GitHubActions, "FIXME: https://github.com/moby/moby/issues/43996")
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	const imgRepo = privateRegistryURL + "/dockercli/busybox"
 	// tag the image to upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	cli.DockerCmd(c, "tag", "busybox", imgRepo)
 	// push the image to the registry
-	dockerCmd(c, "push", repoName)
+	cli.DockerCmd(c, "push", imgRepo)
 
-	out, _, err := dockerCmdWithError("plugin", "install", repoName)
+	out, _, err := dockerCmdWithError("plugin", "install", imgRepo)
 	assert.ErrorContains(c, err, "")
 	assert.Check(c, is.Contains(out, `Encountered remote "application/vnd.docker.container.image.v1+json"(image) when fetching`))
 }
 
 func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *testing.T) {
-	pName := ps.getPluginRepoWithTag()
+	pluginName := ps.getPluginRepoWithTag()
 
-	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pName)
+	out, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pName))
-	out, _, err = dockerCmdWithError("plugin", "enable", pName)
+	assert.Check(c, is.Contains(out, pluginName))
+	out, _, err = dockerCmdWithError("plugin", "enable", pluginName)
 	assert.ErrorContains(c, err, "")
 	assert.Check(c, is.Contains(out, "already enabled"))
-	_, _, err = dockerCmdWithError("plugin", "disable", pName)
+	_, _, err = dockerCmdWithError("plugin", "disable", pluginName)
 	assert.NilError(c, err)
 
-	out, _, err = dockerCmdWithError("plugin", "disable", pName)
+	out, _, err = dockerCmdWithError("plugin", "disable", pluginName)
 	assert.ErrorContains(c, err, "")
 	assert.Check(c, is.Contains(out, "already disabled"))
-	_, _, err = dockerCmdWithError("plugin", "remove", pName)
+	_, _, err = dockerCmdWithError("plugin", "remove", pluginName)
 	assert.NilError(c, err)
 }
 
@@ -285,17 +285,17 @@ func (ps *DockerPluginSuite) TestPluginCreate(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
-	pNameWithTag := ps.getPluginRepoWithTag()
+	pluginName := ps.getPluginRepoWithTag()
 
-	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pNameWithTag)
+	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", pluginName)
 	assert.NilError(c, err)
 
 	out, _, err := dockerCmdWithError("plugin", "ls")
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pNameWithTag))
+	assert.Check(c, is.Contains(out, pluginName))
 	assert.Check(c, is.Contains(out, "true"))
 	// Find the ID first
-	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pNameWithTag)
+	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pluginName)
 	assert.NilError(c, err)
 	id := strings.TrimSpace(out)
 	assert.Assert(c, id != "")
@@ -311,7 +311,7 @@ func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
 	assert.Check(c, is.Equal(strings.TrimSpace(out), id))
 
 	// Name with tag form
-	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pNameWithTag)
+	out, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", pluginName)
 	assert.NilError(c, err)
 	assert.Check(c, is.Equal(strings.TrimSpace(out), id))
 
@@ -320,12 +320,12 @@ func (ps *DockerPluginSuite) TestPluginInspect(c *testing.T) {
 	assert.NilError(c, err)
 	assert.Check(c, is.Equal(strings.TrimSpace(out), id))
 
-	_, _, err = dockerCmdWithError("plugin", "disable", pNameWithTag)
+	_, _, err = dockerCmdWithError("plugin", "disable", pluginName)
 	assert.NilError(c, err)
 
-	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
+	out, _, err = dockerCmdWithError("plugin", "remove", pluginName)
 	assert.NilError(c, err)
-	assert.Check(c, is.Contains(out, pNameWithTag))
+	assert.Check(c, is.Contains(out, pluginName))
 	// After remove nothing should be found
 	_, _, err = dockerCmdWithError("plugin", "inspect", "-f", "{{.Id}}", id[:5])
 	assert.ErrorContains(c, err, "")
@@ -365,12 +365,12 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	assert.NilError(c, err)
 	assert.Check(c, is.Contains(out, name))
 	assert.Check(c, is.Contains(out, "false"))
-	env, _ := dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5])
+	env := cli.DockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5]).Stdout()
 	assert.Check(c, is.Equal(strings.TrimSpace(env), "[DEBUG=0]"))
 
-	dockerCmd(c, "plugin", "set", id[:5], "DEBUG=1")
+	cli.DockerCmd(c, "plugin", "set", id[:5], "DEBUG=1")
 
-	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5])
+	env = cli.DockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", id[:5]).Stdout()
 	assert.Check(c, is.Equal(strings.TrimSpace(env), "[DEBUG=1]"))
 
 	// Enable
@@ -414,8 +414,8 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	})
 	assert.Assert(c, err == nil, "failed to create test plugin")
 
-	out, _ := dockerCmd(c, "plugin", "inspect", "--format", "{{.ID}}", name)
-	id := strings.TrimSpace(out)
+	id := cli.DockerCmd(c, "plugin", "inspect", "--format", "{{.ID}}", name).Stdout()
+	id = strings.TrimSpace(id)
 
 	// We expect the format to be in `raw + --no-trunc`
 	expectedOutput := fmt.Sprintf(`plugin_id: %s
@@ -423,39 +423,39 @@ name: %s
 description: test plugin
 enabled: false`, id, name)
 
-	out, _ = dockerCmd(c, "--config", config, "plugin", "ls", "--no-trunc")
+	out := cli.DockerCmd(c, "--config", config, "plugin", "ls", "--no-trunc").Combined()
 	assert.Check(c, is.Contains(out, expectedOutput))
 }
 
 func (s *DockerCLIPluginsSuite) TestPluginUpgrade(c *testing.T) {
 	testRequires(c, DaemonIsLinux, Network, testEnv.IsLocalDaemon, IsAmd64, NotUserNamespace)
-	plugin := "cpuguy83/docker-volume-driver-plugin-local:latest"
-	pluginV2 := "cpuguy83/docker-volume-driver-plugin-local:v2"
+	const pluginName = "cpuguy83/docker-volume-driver-plugin-local:latest"
+	const pluginV2 = "cpuguy83/docker-volume-driver-plugin-local:v2"
 
-	dockerCmd(c, "plugin", "install", "--grant-all-permissions", plugin)
-	dockerCmd(c, "volume", "create", "--driver", plugin, "bananas")
-	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "touch /apple/core")
+	cli.DockerCmd(c, "plugin", "install", "--grant-all-permissions", pluginName)
+	cli.DockerCmd(c, "volume", "create", "--driver", pluginName, "bananas")
+	cli.DockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "touch /apple/core")
 
-	out, _, err := dockerCmdWithError("plugin", "upgrade", "--grant-all-permissions", plugin, pluginV2)
+	out, _, err := dockerCmdWithError("plugin", "upgrade", "--grant-all-permissions", pluginName, pluginV2)
 	assert.ErrorContains(c, err, "", out)
 	assert.Check(c, is.Contains(out, "disabled before upgrading"))
-	out, _ = dockerCmd(c, "plugin", "inspect", "--format={{.ID}}", plugin)
-	id := strings.TrimSpace(out)
+	id := cli.DockerCmd(c, "plugin", "inspect", "--format={{.ID}}", pluginName).Stdout()
+	id = strings.TrimSpace(id)
 
 	// make sure "v2" does not exists
 	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id, "rootfs", "v2"))
 	assert.Assert(c, os.IsNotExist(err), out)
 
-	dockerCmd(c, "plugin", "disable", "-f", plugin)
-	dockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", plugin, pluginV2)
+	cli.DockerCmd(c, "plugin", "disable", "-f", pluginName)
+	cli.DockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", pluginName, pluginV2)
 
 	// make sure "v2" file exists
 	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id, "rootfs", "v2"))
 	assert.NilError(c, err)
 
-	dockerCmd(c, "plugin", "enable", plugin)
-	dockerCmd(c, "volume", "inspect", "bananas")
-	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "ls -lh /apple/core")
+	cli.DockerCmd(c, "plugin", "enable", pluginName)
+	cli.DockerCmd(c, "volume", "inspect", "bananas")
+	cli.DockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "ls -lh /apple/core")
 }
 
 func (s *DockerCLIPluginsSuite) TestPluginMetricsCollector(c *testing.T) {
