@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -31,7 +32,6 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
-	"github.com/pkg/errors"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.
@@ -78,11 +78,11 @@ func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
 	case len(listByFullName) == 1:
 		return listByFullName[0], nil
 	case len(listByFullName) > 1:
-		return nil, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found on name)", term, len(listByFullName)))
+		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found on name)", term, len(listByFullName)))
 	case len(listByPartialID) == 1:
 		return listByPartialID[0], nil
 	case len(listByPartialID) > 1:
-		return nil, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
+		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
 
 	// Be very careful to change the error type here, the
@@ -96,7 +96,7 @@ func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
 func (daemon *Daemon) GetNetworkByID(id string) (*libnetwork.Network, error) {
 	c := daemon.netController
 	if c == nil {
-		return nil, errors.Wrap(libnetwork.ErrNoSuchNetwork(id), "netcontroller is nil")
+		return nil, fmt.Errorf("netcontroller is nil: %w", libnetwork.ErrNoSuchNetwork(id))
 	}
 	return c.NetworkByID(id)
 }
@@ -521,7 +521,7 @@ func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
 func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	n, err := daemon.GetNetworkByID(networkID)
 	if err != nil {
-		return errors.Wrap(err, "could not find network by ID")
+		return fmt.Errorf("could not find network by ID: %w", err)
 	}
 	return daemon.deleteNetwork(n, false)
 }
@@ -543,7 +543,7 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 	}
 
 	if err := nw.Delete(); err != nil {
-		return errors.Wrap(err, "error while removing network")
+		return fmt.Errorf("error while removing network: %w", err)
 	}
 
 	// If this is not a configuration only network, we need to
@@ -812,19 +812,19 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 			for _, ips := range ipam.LinkLocalIPs {
 				linkIP := net.ParseIP(ips)
 				if linkIP == nil && ips != "" {
-					return nil, errors.Errorf("Invalid link-local IP address: %s", ipam.LinkLocalIPs)
+					return nil, fmt.Errorf("Invalid link-local IP address: %s", ipam.LinkLocalIPs)
 				}
 				ipList = append(ipList, linkIP)
 			}
 
 			ip := net.ParseIP(ipam.IPv4Address)
 			if ip == nil && ipam.IPv4Address != "" {
-				return nil, errors.Errorf("Invalid IPv4 address: %s)", ipam.IPv4Address)
+				return nil, fmt.Errorf("Invalid IPv4 address: %s", ipam.IPv4Address)
 			}
 
 			ip6 := net.ParseIP(ipam.IPv6Address)
 			if ip6 == nil && ipam.IPv6Address != "" {
-				return nil, errors.Errorf("Invalid IPv6 address: %s)", ipam.IPv6Address)
+				return nil, fmt.Errorf("Invalid IPv6 address: %s", ipam.IPv6Address)
 			}
 
 			createOptions = append(createOptions, libnetwork.CreateOptionIpam(ip, ip6, ipList, nil))
@@ -925,7 +925,7 @@ func buildCreateEndpointOptions(c *container.Container, n *libnetwork.Network, e
 				portStart, portEnd, err = newP.Range()
 			}
 			if err != nil {
-				return nil, errors.Wrapf(err, "Error parsing HostPort value (%s)", binding.HostPort)
+				return nil, fmt.Errorf("Error parsing HostPort value (%s): %w", binding.HostPort, err)
 			}
 			publishedPorts = append(publishedPorts, networktypes.PortBinding{
 				Proto:       portProto,
