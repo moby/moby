@@ -99,17 +99,6 @@ func (ace *ActiveContainerError) Error() string {
 // Forbidden denotes the type of this error
 func (ace *ActiveContainerError) Forbidden() {}
 
-// InvalidContainerIDError is returned when an invalid container id is passed
-// in Join/Leave
-type InvalidContainerIDError string
-
-func (id InvalidContainerIDError) Error() string {
-	return fmt.Sprintf("invalid container id %s", string(id))
-}
-
-// BadRequest denotes the type of this error
-func (id InvalidContainerIDError) BadRequest() {}
-
 // ManagerRedirectError is returned when the request should be redirected to Manager
 type ManagerRedirectError string
 
