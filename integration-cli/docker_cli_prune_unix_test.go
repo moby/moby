@@ -169,42 +169,48 @@ func (s *DockerCLIPruneSuite) TestPruneContainerLabel(c *testing.T) {
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id3))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id4))
+
 	out = cli.DockerCmd(c, "container", "prune", "--force", "--filter", "label=foo").Combined()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id3))
+
 	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc").Combined()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
+
 	out = cli.DockerCmd(c, "container", "prune", "--force", "--filter", "label!=bar").Combined()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
+
 	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc").Combined()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id3))
+
 	// With config.json label=foobar and CLI label!=foobar, CLI label!=foobar supersede
 	out = cli.DockerCmd(c, "--config", d, "container", "prune", "--force", "--filter", "label!=foobar").Combined()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
+
 	out = cli.DockerCmd(c, "ps", "-a", "-q", "--no-trunc").Combined()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 }
 
 func (s *DockerCLIPruneSuite) TestPruneVolumeLabel(c *testing.T) {
-	out, _ := dockerCmd(c, "volume", "create", "--label", "foo")
-	id1 := strings.TrimSpace(out)
+	id1 := cli.DockerCmd(c, "volume", "create", "--label", "foo").Stdout()
+	id1 = strings.TrimSpace(id1)
 	assert.Assert(c, id1 != "")
 
-	out, _ = dockerCmd(c, "volume", "create", "--label", "bar")
-	id2 := strings.TrimSpace(out)
+	id2 := cli.DockerCmd(c, "volume", "create", "--label", "bar").Stdout()
+	id2 = strings.TrimSpace(id2)
 	assert.Assert(c, id2 != "")
 
-	out, _ = dockerCmd(c, "volume", "create")
-	id3 := strings.TrimSpace(out)
+	id3 := cli.DockerCmd(c, "volume", "create").Stdout()
+	id3 = strings.TrimSpace(id3)
 	assert.Assert(c, id3 != "")
 
-	out, _ = dockerCmd(c, "volume", "create", "--label", "foobar")
-	id4 := strings.TrimSpace(out)
+	id4 := cli.DockerCmd(c, "volume", "create", "--label", "foobar").Stdout()
+	id4 = strings.TrimSpace(id4)
 	assert.Assert(c, id4 != "")
 
 	// Add a config file of label=foobar, that will have no impact if cli is label!=foobar
@@ -216,46 +222,53 @@ func (s *DockerCLIPruneSuite) TestPruneVolumeLabel(c *testing.T) {
 	assert.NilError(c, err)
 
 	// With config.json only, prune based on label=foobar
-	out, _ = dockerCmd(c, "--config", d, "volume", "prune", "--force")
+	out := cli.DockerCmd(c, "--config", d, "volume", "prune", "--force").Combined()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id3))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id4))
-	out, _ = dockerCmd(c, "volume", "prune", "--force", "--filter", "label=foo")
+
+	out = cli.DockerCmd(c, "volume", "prune", "--force", "--filter", "label=foo").Combined()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id3))
-	out, _ = dockerCmd(c, "volume", "ls", "--format", "{{.Name}}")
+
+	out = cli.DockerCmd(c, "volume", "ls", "--format", "{{.Name}}").Stdout()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
-	out, _ = dockerCmd(c, "volume", "prune", "--force", "--filter", "label!=bar")
+
+	out = cli.DockerCmd(c, "volume", "prune", "--force", "--filter", "label!=bar").Combined()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id3))
-	out, _ = dockerCmd(c, "volume", "ls", "--format", "{{.Name}}")
+
+	out = cli.DockerCmd(c, "volume", "ls", "--format", "{{.Name}}").Stdout()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id3))
+
 	// With config.json label=foobar and CLI label!=foobar, CLI label!=foobar supersede
-	out, _ = dockerCmd(c, "--config", d, "volume", "prune", "--force", "--filter", "label!=foobar")
+	out = cli.DockerCmd(c, "--config", d, "volume", "prune", "--force", "--filter", "label!=foobar").Combined()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
-	out, _ = dockerCmd(c, "volume", "ls", "--format", "{{.Name}}")
+	out = cli.DockerCmd(c, "volume", "ls", "--format", "{{.Name}}").Stdout()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
 }
 
 func (s *DockerCLIPruneSuite) TestPruneNetworkLabel(c *testing.T) {
-	dockerCmd(c, "network", "create", "--label", "foo", "n1")
-	dockerCmd(c, "network", "create", "--label", "bar", "n2")
-	dockerCmd(c, "network", "create", "n3")
+	cli.DockerCmd(c, "network", "create", "--label", "foo", "n1")
+	cli.DockerCmd(c, "network", "create", "--label", "bar", "n2")
+	cli.DockerCmd(c, "network", "create", "n3")
 
-	out, _ := dockerCmd(c, "network", "prune", "--force", "--filter", "label=foo")
+	out := cli.DockerCmd(c, "network", "prune", "--force", "--filter", "label=foo").Combined()
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "n1"))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), "n2"))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), "n3"))
-	out, _ = dockerCmd(c, "network", "prune", "--force", "--filter", "label!=bar")
+
+	out = cli.DockerCmd(c, "network", "prune", "--force", "--filter", "label!=bar").Combined()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), "n1"))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), "n2"))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "n3"))
-	out, _ = dockerCmd(c, "network", "prune", "--force")
+
+	out = cli.DockerCmd(c, "network", "prune", "--force").Combined()
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), "n1"))
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), "n2"))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), "n3"))
@@ -282,17 +295,21 @@ func (s *DockerDaemonSuite) TestPruneImageLabel(c *testing.T) {
 	)
 	result.Assert(c, icmd.Success)
 	id2 := strings.TrimSpace(result.Combined())
+
 	out, err = s.d.Cmd("images", "-q", "--no-trunc")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id2))
+
 	out, err = s.d.Cmd("image", "prune", "--force", "--all", "--filter", "label=foo=bar")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
+
 	out, err = s.d.Cmd("image", "prune", "--force", "--all", "--filter", "label!=bar=foo")
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id1))
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id2))
+
 	out, err = s.d.Cmd("image", "prune", "--force", "--all", "--filter", "label=bar=foo")
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(strings.TrimSpace(out), id1))
