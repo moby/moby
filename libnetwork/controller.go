@@ -385,12 +385,14 @@ func (c *Controller) BuiltinIPAMDrivers() []string {
 
 func (c *Controller) processNodeDiscovery(nodes []net.IP, add bool) {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		c.pushNodeDiscovery(driver, capability, nodes, add)
+		if d, ok := driver.(discoverapi.Discover); ok {
+			c.pushNodeDiscovery(d, capability, nodes, add)
+		}
 		return false
 	})
 }
 
-func (c *Controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capability, nodes []net.IP, add bool) {
+func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, cap driverapi.Capability, nodes []net.IP, add bool) {
 	var self net.IP
 	// try swarm-mode config
 	if agent := c.getAgent(); agent != nil {
@@ -452,7 +454,9 @@ func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
 }
 
 func (c *Controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	c.agentDriverNotify(driver)
+	if d, ok := driver.(discoverapi.Discover); ok {
+		c.agentDriverNotify(d)
+	}
 	return nil
 }
 

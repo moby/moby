@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -54,14 +53,6 @@ func (a *allocator) ReleaseAddress(poolID string, ip net.IP) error {
 	if poolID != defaultPoolID {
 		return types.BadRequestErrorf("unknown pool id: %s", poolID)
 	}
-	return nil
-}
-
-func (a *allocator) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
-
-func (a *allocator) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
 

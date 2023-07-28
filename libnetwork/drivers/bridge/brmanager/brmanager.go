@@ -2,7 +2,6 @@ package brmanager
 
 import (
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/types"
 )
@@ -68,14 +67,6 @@ func (d *driver) Type() string {
 
 func (d *driver) IsBuiltIn() bool {
 	return true
-}
-
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
-}
-
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
-	return types.NotImplementedErrorf("not implemented")
 }
 
 func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {

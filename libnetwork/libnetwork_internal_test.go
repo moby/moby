@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
 	"github.com/docker/docker/libnetwork/datastore"
-	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
@@ -671,14 +670,6 @@ func (b *badDriver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinIn
 }
 
 func (b *badDriver) Leave(nid, eid string) error {
-	return nil
-}
-
-func (b *badDriver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	return nil
-}
-
-func (b *badDriver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
 

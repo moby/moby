@@ -16,6 +16,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// remote driver must implement the discover-API.
+var _ discoverapi.Discover = (*driver)(nil)
+
 type driver struct {
 	endpoint    *plugins.Client
 	networkType string
