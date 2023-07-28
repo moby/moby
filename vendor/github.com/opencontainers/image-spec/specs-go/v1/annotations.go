@@ -59,10 +59,4 @@ const (
 
 	// AnnotationBaseImageName is the annotation key for the image reference of the image's base image.
 	AnnotationBaseImageName = "org.opencontainers.image.base.name"
-
-	// AnnotationArtifactCreated is the annotation key for the date and time on which the artifact was built, conforming to RFC 3339.
-	AnnotationArtifactCreated = "org.opencontainers.artifact.created"
-
-	// AnnotationArtifactDescription is the annotation key for the human readable description for the artifact.
-	AnnotationArtifactDescription = "org.opencontainers.artifact.description"
 )
