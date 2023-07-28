@@ -47,13 +47,6 @@ func (in ErrInvalidName) Error() string {
 // BadRequest denotes the type of this error
 func (in ErrInvalidName) BadRequest() {}
 
-// ErrInvalidConfigFile type is returned when an invalid LibNetwork config file is detected
-type ErrInvalidConfigFile string
-
-func (cf ErrInvalidConfigFile) Error() string {
-	return fmt.Sprintf("Invalid Config file %q", string(cf))
-}
-
 // NetworkTypeError type is returned when the network type string is not
 // known to libnetwork.
 type NetworkTypeError string
