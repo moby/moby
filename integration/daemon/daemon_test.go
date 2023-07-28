@@ -22,6 +22,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -335,32 +336,26 @@ func TestDaemonProxy(t *testing.T) {
 
 	// Make sure values are sanitized when reloading the daemon-config
 	t.Run("reload sanitized", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := context.Background()
 		const (
 			proxyRawURL = "https://" + userPass + "example.org"
 			proxyURL    = "https://xxxxx:xxxxx@example.org"
 		)
 
 		d := daemon.New(t)
-		d.Start(t, "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
+		d.Start(t, "--iptables=false", "--http-proxy", proxyRawURL, "--https-proxy", proxyRawURL, "--no-proxy", "example.com")
 		defer d.Stop(t)
 		err := d.Signal(syscall.SIGHUP)
 		assert.NilError(t, err)
 
-		logs, err := d.ReadLogFile()
+		poll.WaitOn(t, d.PollCheckLogs(ctx, "Reloaded configuration:"))
+		poll.WaitOn(t, d.PollCheckLogs(ctx, proxyURL))
+
+		ok, logs, err := d.ScanLogs(ctx, userPass)
 		assert.NilError(t, err)
-
-		// FIXME: there appears to ba a race condition, which causes ReadLogFile
-		//        to not contain the full logs after signaling the daemon to reload,
-		//        causing the test to fail here. As a workaround, check if we
-		//        received the "reloaded" message after signaling, and only then
-		//        check that it's sanitized properly. For more details on this
-		//        issue, see https://github.com/moby/moby/pull/42835/files#r713120315
-		if !strings.Contains(string(logs), "Reloaded configuration:") {
-			t.Skip("Skipping test, because we did not find 'Reloaded configuration' in the logs")
-		}
-
-		assert.Assert(t, is.Contains(string(logs), proxyURL))
-		assert.Assert(t, !strings.Contains(string(logs), userPass), "logs should not contain the non-sanitized proxy URL: %s", string(logs))
+		assert.Assert(t, !ok, "logs should not contain the non-sanitized proxy URL: %s", logs)
 	})
 }
 
