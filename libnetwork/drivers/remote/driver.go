@@ -25,7 +25,7 @@ type maybeError interface {
 	GetError() string
 }
 
-func newDriver(name string, client *plugins.Client) driverapi.Driver {
+func newDriver(name string, client *plugins.Client) *driver {
 	return &driver{networkType: name, endpoint: client}
 }
 
@@ -35,7 +35,7 @@ func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {
 	newPluginHandler := func(name string, client *plugins.Client) {
 		// negotiate driver capability with client
 		d := newDriver(name, client)
-		c, err := d.(*driver).getCapabilities()
+		c, err := d.getCapabilities()
 		if err != nil {
 			log.G(context.TODO()).Errorf("error getting capability for %s due to %v", name, err)
 			return
