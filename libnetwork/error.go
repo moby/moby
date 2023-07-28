@@ -25,17 +25,6 @@ func (nse ErrNoSuchEndpoint) Error() string {
 // NotFound denotes the type of this error
 func (nse ErrNoSuchEndpoint) NotFound() {}
 
-// ErrInvalidJoin is returned if a join is attempted on an endpoint
-// which already has a container joined.
-type ErrInvalidJoin struct{}
-
-func (ij ErrInvalidJoin) Error() string {
-	return "a container has already joined the endpoint"
-}
-
-// BadRequest denotes the type of this error
-func (ij ErrInvalidJoin) BadRequest() {}
-
 // ErrNoContainer is returned when the endpoint has no container
 // attached to it.
 type ErrNoContainer struct{}
