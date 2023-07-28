@@ -25,17 +25,6 @@ func (nse ErrNoSuchEndpoint) Error() string {
 // NotFound denotes the type of this error
 func (nse ErrNoSuchEndpoint) NotFound() {}
 
-// ErrInvalidNetworkDriver is returned if an invalid driver
-// name is passed.
-type ErrInvalidNetworkDriver string
-
-func (ind ErrInvalidNetworkDriver) Error() string {
-	return fmt.Sprintf("invalid driver bound to network: %s", string(ind))
-}
-
-// BadRequest denotes the type of this error
-func (ind ErrInvalidNetworkDriver) BadRequest() {}
-
 // ErrInvalidJoin is returned if a join is attempted on an endpoint
 // which already has a container joined.
 type ErrInvalidJoin struct{}

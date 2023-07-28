@@ -7,7 +7,7 @@ import (
 )
 
 func TestErrorInterfaces(t *testing.T) {
-	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName(""), ErrInvalidJoin{}, ErrInvalidNetworkDriver(""), InvalidContainerIDError("")}
+	badRequestErrorList := []error{ErrInvalidID(""), ErrInvalidName(""), ErrInvalidJoin{}, InvalidContainerIDError("")}
 	for _, err := range badRequestErrorList {
 		switch u := err.(type) {
 		case types.BadRequestError:
