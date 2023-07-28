@@ -1,8 +1,10 @@
 package daemon // import "github.com/docker/docker/testutil/daemon"
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -25,6 +27,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/poll"
 )
 
 // LogT is the subset of the testing.TB interface used by the daemon.
@@ -308,6 +311,43 @@ func (d *Daemon) TailLogsT(t LogT, n int) {
 	for _, l := range lines {
 		t.Logf("[%s] %s", d.id, string(l))
 	}
+}
+
+// PollCheckLogs is a poll.Check that checks the daemon logs for the passed in string (`contains`).
+func (d *Daemon) PollCheckLogs(ctx context.Context, contains string) poll.Check {
+	return func(t poll.LogT) poll.Result {
+		ok, _, err := d.ScanLogs(ctx, contains)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if !ok {
+			return poll.Continue("waiting for %q in daemon logs", contains)
+		}
+		return poll.Success()
+	}
+}
+
+// ScanLogs scans the daemon logs for the passed in string (`contains`).
+// If the context is canceled, the function returns false but does not error out the test.
+func (d *Daemon) ScanLogs(ctx context.Context, contains string) (bool, string, error) {
+	stat, err := d.logFile.Stat()
+	if err != nil {
+		return false, "", err
+	}
+	rdr := io.NewSectionReader(d.logFile, 0, stat.Size())
+
+	scanner := bufio.NewScanner(rdr)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), contains) {
+			return true, scanner.Text(), nil
+		}
+		select {
+		case <-ctx.Done():
+			return false, "", ctx.Err()
+		default:
+		}
+	}
+	return false, "", scanner.Err()
 }
 
 // TailLogs tails N lines from the daemon logs
