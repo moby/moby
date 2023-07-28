@@ -25,7 +25,7 @@ func TestErrorInterfaces(t *testing.T) {
 		}
 	}
 
-	notFoundErrorList := []error{NetworkTypeError(""), &UnknownNetworkError{}, &UnknownEndpointError{}, ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
+	notFoundErrorList := []error{&UnknownNetworkError{}, &UnknownEndpointError{}, ErrNoSuchNetwork(""), ErrNoSuchEndpoint("")}
 	for _, err := range notFoundErrorList {
 		switch u := err.(type) {
 		case types.NotFoundError:

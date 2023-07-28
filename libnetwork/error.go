@@ -47,17 +47,6 @@ func (in ErrInvalidName) Error() string {
 // BadRequest denotes the type of this error
 func (in ErrInvalidName) BadRequest() {}
 
-// NetworkTypeError type is returned when the network type string is not
-// known to libnetwork.
-type NetworkTypeError string
-
-func (nt NetworkTypeError) Error() string {
-	return fmt.Sprintf("unknown driver %q", string(nt))
-}
-
-// NotFound denotes the type of this error
-func (nt NetworkTypeError) NotFound() {}
-
 // NetworkNameError is returned when a network with the same name already exists.
 type NetworkNameError string
 
