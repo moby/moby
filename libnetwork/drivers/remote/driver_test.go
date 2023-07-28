@@ -239,7 +239,7 @@ func TestGetEmptyCapabilities(t *testing.T) {
 		t.Fatal("Driver type does not match that given")
 	}
 
-	_, err = d.(*driver).getCapabilities()
+	_, err = d.getCapabilities()
 	if err == nil {
 		t.Fatal("There should be error reported when get empty capability")
 	}
@@ -273,7 +273,7 @@ func TestGetExtraCapabilities(t *testing.T) {
 		t.Fatal("Driver type does not match that given")
 	}
 
-	c, err := d.(*driver).getCapabilities()
+	c, err := d.getCapabilities()
 	if err != nil {
 		t.Fatal(err)
 	} else if c.DataScope != datastore.LocalScope {
@@ -309,7 +309,7 @@ func TestGetInvalidCapabilities(t *testing.T) {
 		t.Fatal("Driver type does not match that given")
 	}
 
-	_, err = d.(*driver).getCapabilities()
+	_, err = d.getCapabilities()
 	if err == nil {
 		t.Fatal("There should be error reported when get invalid capability")
 	}
@@ -427,7 +427,7 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal("Driver type does not match that given")
 	}
 
-	c, err := d.(*driver).getCapabilities()
+	c, err := d.getCapabilities()
 	if err != nil {
 		t.Fatal(err)
 	} else if c.DataScope != datastore.GlobalScope {
