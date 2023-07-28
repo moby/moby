@@ -7,7 +7,10 @@ package types
 // swagger:model ErrorResponse
 type ErrorResponse struct {
 
-	// The error message.
+	// The list of underlying errors making up the precomposed error message, if applicable.
+	Errors []*ErrorResponse `json:"errors"`
+
+	// The error message. It is precomposed if multiple error messages are coalesced.
 	// Required: true
 	Message string `json:"message"`
 }
