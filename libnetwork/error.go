@@ -85,20 +85,6 @@ func (aee *ActiveEndpointsError) Error() string {
 // Forbidden denotes the type of this error
 func (aee *ActiveEndpointsError) Forbidden() {}
 
-// UnknownEndpointError is returned when libnetwork could not find in its database
-// an endpoint with the same name and id.
-type UnknownEndpointError struct {
-	name string
-	id   string
-}
-
-func (uee *UnknownEndpointError) Error() string {
-	return fmt.Sprintf("unknown endpoint %s id %s", uee.name, uee.id)
-}
-
-// NotFound denotes the type of this error
-func (uee *UnknownEndpointError) NotFound() {}
-
 // ActiveContainerError is returned when an endpoint is deleted which has active
 // containers attached to it.
 type ActiveContainerError struct {
