@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -70,8 +71,8 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		return err
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
-		DataScope:         datastore.LocalScope,
-		ConnectivityScope: datastore.GlobalScope,
+		DataScope:         scope.Local,
+		ConnectivityScope: scope.Global,
 	})
 }
 

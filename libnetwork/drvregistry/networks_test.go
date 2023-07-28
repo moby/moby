@@ -3,8 +3,8 @@ package drvregistry
 import (
 	"testing"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -15,7 +15,7 @@ type mockDriver struct {
 	driverapi.Driver
 }
 
-var mockDriverCaps = driverapi.Capability{DataScope: datastore.LocalScope}
+var mockDriverCaps = driverapi.Capability{DataScope: scope.Local}
 
 var md = mockDriver{}
 

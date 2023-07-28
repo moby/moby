@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/portallocator"
 	"github.com/docker/docker/libnetwork/portmapper"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
@@ -174,8 +175,8 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		return err
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
-		DataScope:         datastore.LocalScope,
-		ConnectivityScope: datastore.LocalScope,
+		DataScope:         scope.Local,
+		ConnectivityScope: scope.Local,
 	})
 }
 

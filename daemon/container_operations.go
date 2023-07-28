@@ -18,9 +18,9 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stringid"
@@ -270,7 +270,7 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n *l
 			// is an attachable network, which may not
 			// be locally available previously.
 			// So always update.
-			if n.Info().Scope() == datastore.SwarmScope {
+			if n.Info().Scope() == scope.Swarm {
 				continue
 			}
 			// Avoid duplicate config

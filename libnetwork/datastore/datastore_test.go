@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/scope"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -13,7 +14,7 @@ const dummyKey = "dummy"
 
 // NewTestDataStore can be used by other Tests in order to use custom datastore
 func NewTestDataStore() *Store {
-	return &Store{scope: LocalScope, store: NewMockStore()}
+	return &Store{scope: scope.Local, store: NewMockStore()}
 }
 
 func TestKey(t *testing.T) {
@@ -132,7 +133,7 @@ func (n *dummyObject) Skip() bool {
 }
 
 func (n *dummyObject) DataScope() string {
-	return LocalScope
+	return scope.Local
 }
 
 func (n *dummyObject) MarshalJSON() ([]byte, error) {

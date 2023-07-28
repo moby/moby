@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/portmapper"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -140,8 +141,8 @@ func RegisterBuiltinLocalDrivers(r driverapi.Registerer, driverConfig func(strin
 		}
 
 		err = r.RegisterDriver(networkType, d, driverapi.Capability{
-			DataScope:         datastore.LocalScope,
-			ConnectivityScope: datastore.LocalScope,
+			DataScope:         scope.Local,
+			ConnectivityScope: scope.Local,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to register %q driver: %w", networkType, err)

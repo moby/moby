@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/libnetwork/scope"
 )
 
 const (
@@ -121,7 +122,7 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 }
 
 func (sbs *sbState) DataScope() string {
-	return datastore.LocalScope
+	return scope.Local
 }
 
 func (sb *Sandbox) storeUpdate() error {

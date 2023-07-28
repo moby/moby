@@ -18,10 +18,10 @@ import (
 	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/libnetwork"
 	nwconfig "github.com/docker/docker/libnetwork/config"
-	"github.com/docker/docker/libnetwork/datastore"
 	winlibnetwork "github.com/docker/docker/libnetwork/drivers/windows"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
@@ -290,7 +290,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			}
 
 			// global networks should not be deleted by local HNS
-			if v.Info().Scope() != datastore.GlobalScope {
+			if v.Info().Scope() != scope.Global {
 				err = v.Delete()
 				if err != nil {
 					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
@@ -341,7 +341,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			nid = n.ID()
 
 			// global networks should not be deleted by local HNS
-			if n.Info().Scope() == datastore.GlobalScope {
+			if n.Info().Scope() == scope.Global {
 				continue
 			}
 			v.Name = n.Name()

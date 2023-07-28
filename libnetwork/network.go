@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/networkdb"
 	"github.com/docker/docker/libnetwork/options"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/stringid"
 )
@@ -510,8 +511,8 @@ func (n *Network) CopyTo(o datastore.KVObject) error {
 func (n *Network) DataScope() string {
 	s := n.Scope()
 	// All swarm scope networks have local datascope
-	if s == datastore.SwarmScope {
-		s = datastore.LocalScope
+	if s == scope.Swarm {
+		s = scope.Local
 	}
 	return s
 }
@@ -916,7 +917,7 @@ func (n *Network) driverIsMultihost() bool {
 	if err != nil {
 		return false
 	}
-	return cap.ConnectivityScope == datastore.GlobalScope
+	return cap.ConnectivityScope == scope.Global
 }
 
 func (n *Network) driver(load bool) (driverapi.Driver, error) {
@@ -933,7 +934,7 @@ func (n *Network) driver(load bool) (driverapi.Driver, error) {
 	if n.dynamic {
 		// If the network is dynamic, then it is swarm
 		// scoped regardless of the backing driver.
-		n.scope = datastore.SwarmScope
+		n.scope = scope.Swarm
 	}
 	n.mu.Unlock()
 	return d, nil
@@ -1532,7 +1533,7 @@ func (n *Network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 
 		// If the network belongs to global scope or the pool was
 		// explicitly chosen or it is invalid, do not perform the overlap check.
-		if n.Scope() == datastore.GlobalScope || preferredPool != "" || !types.IsIPNetValid(pool) {
+		if n.Scope() == scope.Global || preferredPool != "" || !types.IsIPNetValid(pool) {
 			return poolID, pool, meta, nil
 		}
 
@@ -1752,7 +1753,7 @@ func (n *Network) deriveAddressSpace() (string, error) {
 	if err != nil {
 		return "", types.NotFoundErrorf("failed to get default address space: %v", err)
 	}
-	if n.DataScope() == datastore.GlobalScope {
+	if n.DataScope() == scope.Global {
 		return global, nil
 	}
 	return local, nil

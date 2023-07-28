@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/docker/docker/internal/testutils/netnsutils"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/ipamapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/netutils"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"gotest.tools/v3/skip"
 )
@@ -639,7 +639,7 @@ type badDriver struct {
 var bd = badDriver{failNetworkCreation: true}
 
 func badDriverRegister(reg driverapi.Registerer) error {
-	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: datastore.LocalScope})
+	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
 }
 
 func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {

@@ -6,10 +6,10 @@ import (
 	"net"
 
 	"github.com/containerd/containerd/log"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/remote/api"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -97,19 +97,15 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 
 	c := &driverapi.Capability{}
 	switch capResp.Scope {
-	case "global":
-		c.DataScope = datastore.GlobalScope
-	case "local":
-		c.DataScope = datastore.LocalScope
+	case scope.Global, scope.Local:
+		c.DataScope = capResp.Scope
 	default:
 		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
 	}
 
 	switch capResp.ConnectivityScope {
-	case "global":
-		c.ConnectivityScope = datastore.GlobalScope
-	case "local":
-		c.ConnectivityScope = datastore.LocalScope
+	case scope.Global, scope.Local:
+		c.ConnectivityScope = capResp.ConnectivityScope
 	case "":
 		c.ConnectivityScope = c.DataScope
 	default:

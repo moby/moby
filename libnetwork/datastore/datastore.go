@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/libnetwork/discoverapi"
 	store "github.com/docker/docker/libnetwork/internal/kvstore"
 	"github.com/docker/docker/libnetwork/internal/kvstore/boltdb"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -72,13 +73,18 @@ type ScopeClientCfg struct {
 
 const (
 	// LocalScope indicates to store the KV object in local datastore such as boltdb
-	LocalScope = "local"
+	//
+	// Deprecated: use [scope.Local].
+	LocalScope = scope.Local
 	// GlobalScope indicates to store the KV object in global datastore
-	GlobalScope = "global"
+	//
+	// Deprecated: use [scope.Global].
+	GlobalScope = scope.Global
 	// SwarmScope is not indicating a datastore location. It is defined here
 	// along with the other two scopes just for consistency.
-	SwarmScope    = "swarm"
-	defaultPrefix = "/var/lib/docker/network/files"
+	//
+	// Deprecated: use [scope.Swarm].
+	SwarmScope = scope.Swarm
 )
 
 const (
@@ -92,6 +98,8 @@ var (
 	defaultRootChain = []string{"docker", "network", "v1.0"}
 	rootChain        = defaultRootChain
 )
+
+const defaultPrefix = "/var/lib/docker/network/files"
 
 // DefaultScope returns a default scope config for clients to use.
 func DefaultScope(dataDir string) ScopeCfg {
@@ -151,7 +159,7 @@ func newClient(kv string, addr string, config *store.Config) (*Store, error) {
 		return nil, err
 	}
 
-	ds := &Store{scope: LocalScope, store: s}
+	ds := &Store{scope: scope.Local, store: s}
 	ds.cache = newCache(ds)
 
 	return ds, nil
