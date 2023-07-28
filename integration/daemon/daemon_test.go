@@ -190,6 +190,12 @@ func TestDaemonProxy(t *testing.T) {
 		defer func() { _ = c.Close() }()
 		ctx := context.Background()
 		d.Start(t)
+		defer d.Stop(t)
+
+		info := d.Info(t)
+		assert.Check(t, is.Equal(info.HTTPProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
 
 		_, err := c.ImagePull(ctx, "example.org:5000/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
@@ -199,12 +205,6 @@ func TestDaemonProxy(t *testing.T) {
 		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5000", "should not have used proxy")
-
-		info := d.Info(t)
-		assert.Equal(t, info.HTTPProxy, proxyServer.URL)
-		assert.Equal(t, info.HTTPSProxy, proxyServer.URL)
-		assert.Equal(t, info.NoProxy, "example.com")
-		d.Stop(t)
 	})
 
 	// Configure proxy through command-line flags
@@ -218,6 +218,7 @@ func TestDaemonProxy(t *testing.T) {
 
 		d := daemon.New(t)
 		d.Start(t, "--http-proxy", proxyServer.URL, "--https-proxy", proxyServer.URL, "--no-proxy", "example.com")
+		defer d.Stop(t)
 
 		logs, err := d.ReadLogFile()
 		assert.NilError(t, err)
@@ -231,6 +232,11 @@ func TestDaemonProxy(t *testing.T) {
 		defer func() { _ = c.Close() }()
 		ctx := context.Background()
 
+		info := d.Info(t)
+		assert.Check(t, is.Equal(info.HTTPProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
+
 		_, err = c.ImagePull(ctx, "example.org:5001/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001")
@@ -239,13 +245,6 @@ func TestDaemonProxy(t *testing.T) {
 		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5001", "should not have used proxy")
-
-		info := d.Info(t)
-		assert.Equal(t, info.HTTPProxy, proxyServer.URL)
-		assert.Equal(t, info.HTTPSProxy, proxyServer.URL)
-		assert.Equal(t, info.NoProxy, "example.com")
-
-		d.Stop(t)
 	})
 
 	// Configure proxy through configuration file
@@ -267,6 +266,12 @@ func TestDaemonProxy(t *testing.T) {
 		assert.NilError(t, os.WriteFile(configFile, []byte(configJSON), 0644))
 
 		d.Start(t, "--config-file", configFile)
+		defer d.Stop(t)
+
+		info := d.Info(t)
+		assert.Check(t, is.Equal(info.HTTPProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.HTTPSProxy, proxyServer.URL))
+		assert.Check(t, is.Equal(info.NoProxy, "example.com"))
 
 		logs, err := d.ReadLogFile()
 		assert.NilError(t, err)
@@ -284,11 +289,6 @@ func TestDaemonProxy(t *testing.T) {
 		_, err = c.ImagePull(ctx, "example.com/some/image:latest", types.ImagePullOptions{})
 		assert.ErrorContains(t, err, "", "pulling should have failed")
 		assert.Equal(t, received, "example.org:5002", "should not have used proxy")
-
-		info := d.Info(t)
-		assert.Equal(t, info.HTTPProxy, proxyServer.URL)
-		assert.Equal(t, info.HTTPSProxy, proxyServer.URL)
-		assert.Equal(t, info.NoProxy, "example.com")
 
 		d.Stop(t)
 	})
