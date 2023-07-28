@@ -25,17 +25,6 @@ func (nse ErrNoSuchEndpoint) Error() string {
 // NotFound denotes the type of this error
 func (nse ErrNoSuchEndpoint) NotFound() {}
 
-// ErrNoContainer is returned when the endpoint has no container
-// attached to it.
-type ErrNoContainer struct{}
-
-func (nc ErrNoContainer) Error() string {
-	return "no container is attached to the endpoint"
-}
-
-// Maskable denotes the type of this error
-func (nc ErrNoContainer) Maskable() {}
-
 // ErrInvalidID is returned when a query-by-id method is being invoked
 // with an empty id parameter
 type ErrInvalidID string

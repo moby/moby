@@ -16,7 +16,7 @@ func TestErrorInterfaces(t *testing.T) {
 		}
 	}
 
-	maskableErrorList := []error{ErrNoContainer{}}
+	maskableErrorList := []error{ManagerRedirectError("")}
 	for _, err := range maskableErrorList {
 		switch u := err.(type) {
 		case types.MaskableError:
