@@ -10,9 +10,9 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/containerd/containerd/log"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -34,8 +34,8 @@ func Register(r driverapi.Registerer) error {
 	d.restoreHNSNetworks()
 
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
-		DataScope:         datastore.GlobalScope,
-		ConnectivityScope: datastore.GlobalScope,
+		DataScope:         scope.Global,
+		ConnectivityScope: scope.Global,
 	})
 }
 

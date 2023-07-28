@@ -9,10 +9,10 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/bitmap"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -48,8 +48,8 @@ type network struct {
 // Register registers a new instance of the overlay driver.
 func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(networkType, newDriver(), driverapi.Capability{
-		DataScope:         datastore.GlobalScope,
-		ConnectivityScope: datastore.GlobalScope,
+		DataScope:         scope.Global,
+		ConnectivityScope: scope.Global,
 	})
 }
 

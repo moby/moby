@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/log"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 )
 
 const (
@@ -51,8 +51,8 @@ func Register(r driverapi.Registerer, config map[string]interface{}) error {
 		config: config,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
-		DataScope:         datastore.GlobalScope,
-		ConnectivityScope: datastore.GlobalScope,
+		DataScope:         scope.Global,
+		ConnectivityScope: scope.Global,
 	})
 }
 

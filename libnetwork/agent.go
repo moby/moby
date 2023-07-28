@@ -12,10 +12,10 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/libnetwork/cluster"
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/networkdb"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/go-events"
 	"github.com/gogo/protobuf/proto"
@@ -234,7 +234,7 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 			return err
 		}
 		c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-			if capability.ConnectivityScope == datastore.GlobalScope {
+			if capability.ConnectivityScope == scope.Global {
 				if d, ok := driver.(discoverapi.Discover); ok {
 					c.agentDriverNotify(d)
 				}
@@ -526,7 +526,7 @@ func (n *Network) Services() map[string]ServiceInfo {
 }
 
 func (n *Network) isClusterEligible() bool {
-	if n.scope != datastore.SwarmScope || !n.driverIsMultihost() {
+	if n.scope != scope.Swarm || !n.driverIsMultihost() {
 		return false
 	}
 	return n.getController().getAgent() != nil

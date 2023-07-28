@@ -3,8 +3,8 @@ package null
 import (
 	"sync"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -18,7 +18,7 @@ type driver struct {
 // Register registers a new instance of the null driver.
 func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(NetworkType, &driver{}, driverapi.Capability{
-		DataScope: datastore.LocalScope,
+		DataScope: scope.Local,
 	})
 }
 

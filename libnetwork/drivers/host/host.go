@@ -3,8 +3,8 @@ package host
 import (
 	"sync"
 
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -17,8 +17,8 @@ type driver struct {
 
 func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(NetworkType, &driver{}, driverapi.Capability{
-		DataScope:         datastore.LocalScope,
-		ConnectivityScope: datastore.LocalScope,
+		DataScope:         scope.Local,
+		ConnectivityScope: scope.Local,
 	})
 }
 

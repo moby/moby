@@ -1,8 +1,8 @@
 package mvmanager
 
 import (
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -13,8 +13,8 @@ type driver struct{}
 // Register registers a new instance of the macvlan manager driver.
 func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(networkType, &driver{}, driverapi.Capability{
-		DataScope:         datastore.LocalScope,
-		ConnectivityScope: datastore.GlobalScope,
+		DataScope:         scope.Local,
+		ConnectivityScope: scope.Global,
 	})
 }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libnetwork"
-	"github.com/docker/docker/libnetwork/datastore"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/pkg/errors"
 )
 
@@ -102,7 +102,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 			return errors.Wrapf(invalidRequestError{err}, "invalid value for verbose: %s", v)
 		}
 	}
-	scope := r.URL.Query().Get("scope")
+	networkScope := r.URL.Query().Get("scope")
 
 	// In case multiple networks have duplicate names, return error.
 	// TODO (yongtang): should we wrap with version here for backward compatibility?
@@ -118,8 +118,8 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	// TODO(@cpuguy83): All this logic for figuring out which network to return does not belong here
 	// Instead there should be a backend function to just get one network.
 	filter := filters.NewArgs(filters.Arg("idOrName", term))
-	if scope != "" {
-		filter.Add("scope", scope)
+	if networkScope != "" {
+		filter.Add("scope", networkScope)
 	}
 	networks, _ := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: true, Verbose: verbose})
 	for _, nw := range networks {
@@ -144,7 +144,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		// or if the get network was passed with a network name and scope as swarm
 		// return the network. Skipped using isMatchingScope because it is true if the scope
 		// is not set which would be case if the client API v1.30
-		if strings.HasPrefix(nwk.ID, term) || (datastore.SwarmScope == scope) {
+		if strings.HasPrefix(nwk.ID, term) || networkScope == scope.Swarm {
 			// If we have a previous match "backend", return it, we need verbose when enabled
 			// ex: overlay/partial_ID or name/swarm_scope
 			if nwv, ok := listByPartialID[nwk.ID]; ok {

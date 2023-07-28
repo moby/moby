@@ -1,8 +1,8 @@
 package brmanager
 
 import (
-	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/driverapi"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -13,8 +13,8 @@ type driver struct{}
 // Register registers a new instance of the bridge manager driver with r.
 func Register(r driverapi.Registerer) error {
 	return r.RegisterDriver(networkType, &driver{}, driverapi.Capability{
-		DataScope:         datastore.LocalScope,
-		ConnectivityScope: datastore.LocalScope,
+		DataScope:         scope.Local,
+		ConnectivityScope: scope.Local,
 	})
 }
 

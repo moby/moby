@@ -66,6 +66,7 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	"github.com/docker/docker/libnetwork/options"
 	"github.com/docker/docker/libnetwork/osl"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
@@ -344,7 +345,7 @@ func (c *Controller) makeDriverConfig(ntype string) map[string]interface{} {
 		// FIXME: every driver instance constructs a new DataStore
 		// instance against the same database. Yikes!
 		cfg[netlabel.LocalKVClient] = discoverapi.DatastoreConfigData{
-			Scope:    datastore.LocalScope,
+			Scope:    scope.Local,
 			Provider: c.cfg.Scope.Client.Provider,
 			Address:  c.cfg.Scope.Client.Address,
 			Config:   c.cfg.Scope.Client.Config,
@@ -399,7 +400,7 @@ func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, cap driverapi.Cap
 		self = net.ParseIP(agent.advertiseAddr)
 	}
 
-	if d == nil || cap.ConnectivityScope != datastore.GlobalScope || nodes == nil {
+	if d == nil || cap.ConnectivityScope != scope.Global || nodes == nil {
 		return
 	}
 
@@ -515,7 +516,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 	// network drivers is needed so that this special network is not
 	// usable by old engine versions.
 	if nw.configOnly {
-		nw.scope = datastore.LocalScope
+		nw.scope = scope.Local
 		nw.networkType = "null"
 		goto addToStore
 	}
@@ -525,15 +526,15 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
-	if nw.scope == datastore.LocalScope && caps.DataScope == datastore.GlobalScope {
+	if nw.scope == scope.Local && caps.DataScope == scope.Global {
 		return nil, types.ForbiddenErrorf("cannot downgrade network scope for %s networks", networkType)
 	}
-	if nw.ingress && caps.DataScope != datastore.GlobalScope {
+	if nw.ingress && caps.DataScope != scope.Global {
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
 	}
 
 	// At this point the network scope is still unknown if not set by user
-	if (caps.DataScope == datastore.GlobalScope || nw.scope == datastore.SwarmScope) &&
+	if (caps.DataScope == scope.Global || nw.scope == scope.Swarm) &&
 		!c.isDistributedControl() && !nw.dynamic {
 		if c.isManager() {
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
@@ -542,7 +543,7 @@ func (c *Controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
 	}
 
-	if nw.scope == datastore.SwarmScope && c.isDistributedControl() {
+	if nw.scope == scope.Swarm && c.isDistributedControl() {
 		return nil, types.ForbiddenErrorf("cannot create a swarm scoped network when swarm is not active")
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
+	"github.com/docker/docker/libnetwork/scope"
 	"github.com/docker/docker/libnetwork/types"
 )
 
@@ -265,7 +266,7 @@ func (ncfg *networkConfiguration) CopyTo(o datastore.KVObject) error {
 }
 
 func (ncfg *networkConfiguration) DataScope() string {
-	return datastore.LocalScope
+	return scope.Local
 }
 
 func (ep *bridgeEndpoint) MarshalJSON() ([]byte, error) {
@@ -382,7 +383,7 @@ func (ep *bridgeEndpoint) CopyTo(o datastore.KVObject) error {
 }
 
 func (ep *bridgeEndpoint) DataScope() string {
-	return datastore.LocalScope
+	return scope.Local
 }
 
 func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
