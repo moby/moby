@@ -332,22 +332,26 @@ install-cri-deps: $(BINARIES)
 	@$(INSTALL) $(BINARIES) $(CRIDIR)/bin
 endif
 
+$(CRIDIR)/cri-containerd.DEPRECATED.txt:
+	@mkdir -p $(CRIDIR)
+	@$(INSTALL) -m 644 releases/cri-containerd.DEPRECATED.txt $@
+
 ifeq ($(GOOS),windows)
-releases/$(CRIRELEASE).tar.gz: install-cri-deps
+releases/$(CRIRELEASE).tar.gz: install-cri-deps $(CRIDIR)/cri-containerd.DEPRECATED.txt
 	@echo "$(WHALE) $@"
 	@cd $(CRIDIR) && tar -czf ../../releases/$(CRIRELEASE).tar.gz *
 
-releases/$(CRICNIRELEASE).tar.gz: install-cri-deps
+releases/$(CRICNIRELEASE).tar.gz: install-cri-deps $(CRIDIR)/cri-containerd.DEPRECATED.txt
 	@echo "$(WHALE) $@"
 	@cd $(CRIDIR) && tar -czf ../../releases/$(CRICNIRELEASE).tar.gz *
 else
-releases/$(CRIRELEASE).tar.gz: install-cri-deps
+releases/$(CRIRELEASE).tar.gz: install-cri-deps $(CRIDIR)/cri-containerd.DEPRECATED.txt
 	@echo "$(WHALE) $@"
-	@tar -czf releases/$(CRIRELEASE).tar.gz -C $(CRIDIR) etc/crictl.yaml etc/systemd usr opt/containerd
+	@tar -czf releases/$(CRIRELEASE).tar.gz -C $(CRIDIR) cri-containerd.DEPRECATED.txt etc/crictl.yaml etc/systemd usr opt/containerd
 
-releases/$(CRICNIRELEASE).tar.gz: install-cri-deps
+releases/$(CRICNIRELEASE).tar.gz: install-cri-deps $(CRIDIR)/cri-containerd.DEPRECATED.txt
 	@echo "$(WHALE) $@"
-	@tar -czf releases/$(CRICNIRELEASE).tar.gz -C $(CRIDIR) etc usr opt
+	@tar -czf releases/$(CRICNIRELEASE).tar.gz -C $(CRIDIR) cri-containerd.DEPRECATED.txt etc usr opt
 endif
 
 cri-release: releases/$(CRIRELEASE).tar.gz

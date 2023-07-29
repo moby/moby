@@ -26,7 +26,7 @@ require (
 	github.com/cloudflare/cfssl v0.0.0-20180323000720-5d63dbd981b5
 	github.com/container-orchestrated-devices/container-device-interface v0.6.0
 	github.com/containerd/cgroups/v3 v3.0.2
-	github.com/containerd/containerd v1.6.21
+	github.com/containerd/containerd v1.6.22
 	github.com/containerd/continuity v0.4.1
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/typeurl/v2 v2.1.1
