@@ -86,6 +86,9 @@ func (r *diffRemote) Compare(ctx context.Context, a, b []mount.Mount, opts ...di
 }
 
 func toDescriptor(d *types.Descriptor) ocispec.Descriptor {
+	if d == nil {
+		return ocispec.Descriptor{}
+	}
 	return ocispec.Descriptor{
 		MediaType:   d.MediaType,
 		Digest:      d.Digest,
