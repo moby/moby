@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -108,7 +107,3 @@ func (mr ManagerRedirectError) Error() string {
 
 // Maskable denotes the type of this error
 func (mr ManagerRedirectError) Maskable() {}
-
-// ErrDataStoreNotInitialized is returned if an invalid data scope is passed
-// for getting data store
-var ErrDataStoreNotInitialized = errors.New("datastore is not initialized")

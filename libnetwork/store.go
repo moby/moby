@@ -157,7 +157,7 @@ func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 func (c *Controller) updateToStore(kvObject datastore.KVObject) error {
 	cs := c.getStore()
 	if cs == nil {
-		return ErrDataStoreNotInitialized
+		return fmt.Errorf("datastore is not initialized")
 	}
 
 	if err := cs.PutObjectAtomic(kvObject); err != nil {
@@ -173,7 +173,7 @@ func (c *Controller) updateToStore(kvObject datastore.KVObject) error {
 func (c *Controller) deleteFromStore(kvObject datastore.KVObject) error {
 	cs := c.getStore()
 	if cs == nil {
-		return ErrDataStoreNotInitialized
+		return fmt.Errorf("datastore is not initialized")
 	}
 
 retry:
