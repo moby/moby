@@ -195,6 +195,7 @@ type Cmd struct {
 	Timeout    time.Duration
 	Stdin      io.Reader
 	Stdout     io.Writer
+	Stderr     io.Writer
 	Dir        string
 	Env        []string
 	ExtraFiles []*os.File
@@ -207,10 +208,7 @@ func Command(command string, args ...string) Cmd {
 
 // RunCmd runs a command and returns a Result
 func RunCmd(cmd Cmd, cmdOperators ...CmdOp) *Result {
-	for _, op := range cmdOperators {
-		op(&cmd)
-	}
-	result := StartCmd(cmd)
+	result := StartCmd(cmd, cmdOperators...)
 	if result.Error != nil {
 		return result
 	}
@@ -223,7 +221,10 @@ func RunCommand(command string, args ...string) *Result {
 }
 
 // StartCmd starts a command, but doesn't wait for it to finish
-func StartCmd(cmd Cmd) *Result {
+func StartCmd(cmd Cmd, cmdOperators ...CmdOp) *Result {
+	for _, op := range cmdOperators {
+		op(&cmd)
+	}
 	result := buildCmd(cmd)
 	if result.Error != nil {
 		return result
@@ -252,7 +253,11 @@ func buildCmd(cmd Cmd) *Result {
 	} else {
 		execCmd.Stdout = outBuffer
 	}
-	execCmd.Stderr = errBuffer
+	if cmd.Stderr != nil {
+		execCmd.Stderr = io.MultiWriter(errBuffer, cmd.Stderr)
+	} else {
+		execCmd.Stderr = errBuffer
+	}
 	execCmd.ExtraFiles = cmd.ExtraFiles
 
 	return &Result{
