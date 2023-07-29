@@ -101,7 +101,7 @@ require (
 	golang.org/x/time v0.3.0
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4
 	google.golang.org/grpc v1.53.0
-	gotest.tools/v3 v3.4.0
+	gotest.tools/v3 v3.5.0
 	resenje.org/singleflight v0.3.0
 )
 
