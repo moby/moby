@@ -12,17 +12,16 @@ import (
 	"gotest.tools/v3/internal/format"
 )
 
-// Comparison is a function which compares values and returns ResultSuccess if
+// Comparison is a function which compares values and returns [ResultSuccess] if
 // the actual value matches the expected value. If the values do not match the
-// Result will contain a message about why it failed.
+// [Result] will contain a message about why it failed.
 type Comparison func() Result
 
-// DeepEqual compares two values using google/go-cmp
-// (https://godoc.org/github.com/google/go-cmp/cmp)
+// DeepEqual compares two values using [github.com/google/go-cmp/cmp]
 // and succeeds if the values are equal.
 //
 // The comparison can be customized using comparison Options.
-// Package http://pkg.go.dev/gotest.tools/v3/assert/opt provides some additional
+// Package [gotest.tools/v3/assert/opt] provides some additional
 // commonly used Options.
 func DeepEqual(x, y interface{}, opts ...cmp.Option) Comparison {
 	return func() (result Result) {
@@ -61,7 +60,7 @@ func toResult(success bool, msg string) Result {
 	return ResultFailure(msg)
 }
 
-// RegexOrPattern may be either a *regexp.Regexp or a string that is a valid
+// RegexOrPattern may be either a [*regexp.Regexp] or a string that is a valid
 // regexp pattern.
 type RegexOrPattern interface{}
 
@@ -95,7 +94,7 @@ func Regexp(re RegexOrPattern, v string) Comparison {
 	}
 }
 
-// Equal succeeds if x == y. See assert.Equal for full documentation.
+// Equal succeeds if x == y. See [gotest.tools/v3/assert.Equal] for full documentation.
 func Equal(x, y interface{}) Comparison {
 	return func() Result {
 		switch {
@@ -159,10 +158,10 @@ func Len(seq interface{}, expected int) Comparison {
 // slice, or array.
 //
 // If collection is a string, item must also be a string, and is compared using
-// strings.Contains().
+// [strings.Contains].
 // If collection is a Map, contains will succeed if item is a key in the map.
 // If collection is a slice or array, item is compared to each item in the
-// sequence using reflect.DeepEqual().
+// sequence using [reflect.DeepEqual].
 func Contains(collection interface{}, item interface{}) Comparison {
 	return func() Result {
 		colValue := reflect.ValueOf(collection)
@@ -259,7 +258,7 @@ func formatErrorMessage(err error) string {
 
 // Nil succeeds if obj is a nil interface, pointer, or function.
 //
-// Use NilError() for comparing errors. Use Len(obj, 0) for comparing slices,
+// Use [gotest.tools/v3/assert.NilError] for comparing errors. Use Len(obj, 0) for comparing slices,
 // maps, and channels.
 func Nil(obj interface{}) Comparison {
 	msgFunc := func(value reflect.Value) string {
@@ -306,7 +305,9 @@ func isNil(obj interface{}, msgFunc func(reflect.Value) string) Comparison {
 //
 //	reflect.Type
 //
-// Fails if err does not implement the reflect.Type
+// Fails if err does not implement the [reflect.Type].
+//
+// Deprecated: Use [ErrorIs]
 func ErrorType(err error, expected interface{}) Comparison {
 	return func() Result {
 		switch expectedType := expected.(type) {
@@ -381,7 +382,7 @@ var (
 )
 
 // ErrorIs succeeds if errors.Is(actual, expected) returns true. See
-// https://golang.org/pkg/errors/#Is for accepted argument values.
+// [errors.Is] for accepted argument values.
 func ErrorIs(actual error, expected error) Comparison {
 	return func() Result {
 		if errors.Is(actual, expected) {

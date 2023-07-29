@@ -72,7 +72,7 @@ func PatchAll(t assert.TestingT, env map[string]string) func() {
 	return clean
 }
 
-// ToMap takes a list of strings in the format returned by os.Environ() and
+// ToMap takes a list of strings in the format returned by [os.Environ] and
 // returns a mapping of keys to values.
 func ToMap(env []string) map[string]string {
 	result := map[string]string{}
