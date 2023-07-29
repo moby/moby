@@ -148,10 +148,48 @@ func compareConnConfig(a, b *connectivityConfiguration) bool {
 		}
 	}
 	for i := 0; i < len(a.PortBindings); i++ {
-		if !a.PortBindings[i].Equal(&b.PortBindings[i]) {
+		if !comparePortBinding(&a.PortBindings[i], &b.PortBindings[i]) {
 			return false
 		}
 	}
+	return true
+}
+
+// comparePortBinding returns whether the given PortBindings are equal.
+func comparePortBinding(p *types.PortBinding, o *types.PortBinding) bool {
+	if p == o {
+		return true
+	}
+
+	if o == nil {
+		return false
+	}
+
+	if p.Proto != o.Proto || p.Port != o.Port ||
+		p.HostPort != o.HostPort || p.HostPortEnd != o.HostPortEnd {
+		return false
+	}
+
+	if p.IP != nil {
+		if !p.IP.Equal(o.IP) {
+			return false
+		}
+	} else {
+		if o.IP != nil {
+			return false
+		}
+	}
+
+	if p.HostIP != nil {
+		if !p.HostIP.Equal(o.HostIP) {
+			return false
+		}
+	} else {
+		if o.HostIP != nil {
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -160,7 +198,7 @@ func compareBindings(a, b []types.PortBinding) bool {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
-		if !a[i].Equal(&b[i]) {
+		if !comparePortBinding(&a[i], &b[i]) {
 			return false
 		}
 	}
@@ -674,7 +712,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatal("Incomplete data for port mapping in endpoint operational data")
 	}
 	for i, pb := range ep.portMapping {
-		if !pb.Equal(&pm[i]) {
+		if !comparePortBinding(&pb, &pm[i]) {
 			t.Fatal("Unexpected data for port mapping in endpoint operational data")
 		}
 	}
