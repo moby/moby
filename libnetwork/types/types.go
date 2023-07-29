@@ -86,7 +86,7 @@ func (p PortBinding) HostAddr() (net.Addr, error) {
 	case SCTP:
 		return &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: p.HostIP}}, Port: int(p.HostPort)}, nil
 	default:
-		return nil, ErrInvalidProtocolBinding(p.Proto.String())
+		return nil, fmt.Errorf("invalid transport protocol: %s", p.Proto.String())
 	}
 }
 
@@ -100,7 +100,7 @@ func (p PortBinding) ContainerAddr() (net.Addr, error) {
 	case SCTP:
 		return &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: p.IP}}, Port: int(p.Port)}, nil
 	default:
-		return nil, ErrInvalidProtocolBinding(p.Proto.String())
+		return nil, fmt.Errorf("invalid transport protocol: %s", p.Proto.String())
 	}
 }
 
@@ -128,13 +128,6 @@ func (p *PortBinding) String() string {
 	}
 	ret = fmt.Sprintf("%s:%d", ret, p.HostPort)
 	return ret
-}
-
-// ErrInvalidProtocolBinding is returned when the port binding protocol is not valid.
-type ErrInvalidProtocolBinding string
-
-func (ipb ErrInvalidProtocolBinding) Error() string {
-	return fmt.Sprintf("invalid transport protocol: %s", string(ipb))
 }
 
 const (
