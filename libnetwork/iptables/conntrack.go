@@ -14,19 +14,20 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// ErrConntrackNotConfigurable means that conntrack module is not loaded or does not have the netlink module loaded
-var ErrConntrackNotConfigurable = errors.New("conntrack is not available")
-
-// IsConntrackProgrammable returns true if the handle supports the NETLINK_NETFILTER and the base modules are loaded
-func IsConntrackProgrammable(nlh *netlink.Handle) bool {
-	return nlh.SupportsNetlinkFamily(syscall.NETLINK_NETFILTER)
+// checkConntrackProgrammable checks if the handle supports the
+// NETLINK_NETFILTER and the base modules are loaded.
+func checkConntrackProgrammable(nlh *netlink.Handle) error {
+	if !nlh.SupportsNetlinkFamily(syscall.NETLINK_NETFILTER) {
+		return errors.New("conntrack is not available")
+	}
+	return nil
 }
 
 // DeleteConntrackEntries deletes all the conntrack connections on the host for the specified IP
 // Returns the number of flows deleted for IPv4, IPv6 else error
 func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []net.IP) (uint, uint, error) {
-	if !IsConntrackProgrammable(nlh) {
-		return 0, 0, ErrConntrackNotConfigurable
+	if err := checkConntrackProgrammable(nlh); err != nil {
+		return 0, 0, err
 	}
 
 	var totalIPv4FlowPurged uint
@@ -54,8 +55,8 @@ func DeleteConntrackEntries(nlh *netlink.Handle, ipv4List []net.IP, ipv6List []n
 }
 
 func DeleteConntrackEntriesByPort(nlh *netlink.Handle, proto types.Protocol, ports []uint16) error {
-	if !IsConntrackProgrammable(nlh) {
-		return ErrConntrackNotConfigurable
+	if err := checkConntrackProgrammable(nlh); err != nil {
+		return err
 	}
 
 	var totalIPv4FlowPurged uint
