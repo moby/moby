@@ -28,9 +28,6 @@ type EncryptionKey struct {
 	LamportTime uint64
 }
 
-// UUID represents a globally unique ID of various resources like network and endpoint
-type UUID string
-
 // QosPolicy represents a quality of service policy on an endpoint
 type QosPolicy struct {
 	MaxEgressBandwidth uint64
