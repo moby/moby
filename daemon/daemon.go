@@ -329,6 +329,16 @@ func (daemon *Daemon) restore(cfg *configStore) error {
 						delete(c.NetworkSettings.Networks, networktypes.NetworkDefault)
 					}
 				}
+
+				// The logger option 'fluentd-async-connect' has been
+				// deprecated in v20.10 in favor of 'fluentd-async', and
+				// removed in v28.0.
+				// TODO(aker): remove this migration once the next LTS version of MCR is released.
+				if _, ok := c.HostConfig.LogConfig.Config["fluentd-async-connect"]; ok {
+					if _, ok := c.HostConfig.LogConfig.Config["fluentd-async"]; !ok {
+						c.HostConfig.LogConfig.Config["fluentd-async"] = c.HostConfig.LogConfig.Config["fluentd-async-connect"]
+					}
+				}
 			}
 
 			if err := daemon.checkpointAndSave(c); err != nil {
