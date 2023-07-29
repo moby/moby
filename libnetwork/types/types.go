@@ -226,16 +226,6 @@ func CompareIPNet(a, b *net.IPNet) bool {
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
 }
 
-// GetMinimalIP returns the address in its shortest form
-// If ip contains an IPv4-mapped IPv6 address, the 4-octet form of the IPv4 address will be returned.
-// Otherwise ip is returned unchanged.
-func GetMinimalIP(ip net.IP) net.IP {
-	if ip != nil && ip.To4() != nil {
-		return ip.To4()
-	}
-	return ip
-}
-
 // IsIPNetValid returns true if the ipnet is a valid network/mask
 // combination. Otherwise returns false.
 func IsIPNetValid(nw *net.IPNet) bool {
