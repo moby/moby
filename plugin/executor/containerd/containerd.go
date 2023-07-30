@@ -15,12 +15,11 @@ import (
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ExitHandler represents an object that is called when the exit event is received from containerd
 type ExitHandler interface {
-	HandleExitEvent(id string) error
+	HandleExitEvent(ctx context.Context, id string) error
 }
 
 // New creates a new containerd plugin executor
@@ -54,7 +53,6 @@ type Executor struct {
 }
 
 type c8dPlugin struct {
-	log *logrus.Entry
 	ctr libcontainerdtypes.Container
 	tsk libcontainerdtypes.Task
 }
@@ -63,25 +61,26 @@ type c8dPlugin struct {
 func (p c8dPlugin) deleteTaskAndContainer(ctx context.Context) {
 	if p.tsk != nil {
 		if err := p.tsk.ForceDelete(ctx); err != nil && !errdefs.IsNotFound(err) {
-			p.log.WithError(err).Error("failed to delete plugin task from containerd")
+			log.G(ctx).WithError(err).Error("failed to delete plugin task from containerd")
 		}
 	}
 	if p.ctr != nil {
 		if err := p.ctr.Delete(ctx); err != nil && !errdefs.IsNotFound(err) {
-			p.log.WithError(err).Error("failed to delete plugin container from containerd")
+			log.G(ctx).WithError(err).Error("failed to delete plugin container from containerd")
 		}
 	}
 }
 
 // Create creates a new container
-func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
-	ctx := context.Background()
+func (e *Executor) Create(ctx context.Context, id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("plugin", id))
+
 	ctr, err := libcontainerd.ReplaceContainer(ctx, e.client, id, &spec, e.shim, e.shimOpts)
 	if err != nil {
 		return errors.Wrap(err, "error creating containerd container for plugin")
 	}
 
-	p := c8dPlugin{log: log.G(ctx).WithField("plugin", id), ctr: ctr}
+	p := c8dPlugin{ctr: ctr}
 	p.tsk, err = ctr.Start(ctx, "", false, attachStreamsFunc(stdout, stderr))
 	if err != nil {
 		p.deleteTaskAndContainer(ctx)
@@ -94,9 +93,8 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 }
 
 // Restore restores a container
-func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
-	ctx := context.Background()
-	p := c8dPlugin{log: log.G(ctx).WithField("plugin", id)}
+func (e *Executor) Restore(ctx context.Context, id string, stdout, stderr io.WriteCloser) (bool, error) {
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("plugin", id))
 	ctr, err := e.client.LoadContainer(ctx, id)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
@@ -104,6 +102,8 @@ func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, erro
 		}
 		return false, err
 	}
+
+	p := c8dPlugin{}
 	p.tsk, err = ctr.AttachTask(ctx, attachStreamsFunc(stdout, stderr))
 	if err != nil {
 		if errdefs.IsNotFound(err) {
@@ -133,42 +133,42 @@ func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, erro
 }
 
 // IsRunning returns if the container with the given id is running
-func (e *Executor) IsRunning(id string) (bool, error) {
+func (e *Executor) IsRunning(ctx context.Context, id string) (bool, error) {
 	e.mu.Lock()
 	p := e.plugins[id]
 	e.mu.Unlock()
 	if p == nil {
 		return false, errdefs.NotFound(fmt.Errorf("unknown plugin %q", id))
 	}
-	status, err := p.tsk.Status(context.Background())
+	status, err := p.tsk.Status(ctx)
 	return status.Status == containerd.Running, err
 }
 
 // Signal sends the specified signal to the container
-func (e *Executor) Signal(id string, signal syscall.Signal) error {
+func (e *Executor) Signal(ctx context.Context, id string, signal syscall.Signal) error {
 	e.mu.Lock()
 	p := e.plugins[id]
 	e.mu.Unlock()
 	if p == nil {
 		return errdefs.NotFound(fmt.Errorf("unknown plugin %q", id))
 	}
-	return p.tsk.Kill(context.Background(), signal)
+	return p.tsk.Kill(ctx, signal)
 }
 
 // ProcessEvent handles events from containerd
 // All events are ignored except the exit event, which is sent of to the stored handler
-func (e *Executor) ProcessEvent(id string, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
+func (e *Executor) ProcessEvent(ctx context.Context, id string, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
 	switch et {
 	case libcontainerdtypes.EventExit:
 		e.mu.Lock()
 		p := e.plugins[id]
 		e.mu.Unlock()
 		if p == nil {
-			log.G(context.TODO()).WithField("id", id).Warn("Received exit event for an unknown plugin")
+			log.G(ctx).WithField("id", id).Warn("Received exit event for an unknown plugin")
 		} else {
-			p.deleteTaskAndContainer(context.Background())
+			p.deleteTaskAndContainer(ctx)
 		}
-		return e.exitHandler.HandleExitEvent(ei.ContainerID)
+		return e.exitHandler.HandleExitEvent(ctx, ei.ContainerID)
 	}
 	return nil
 }

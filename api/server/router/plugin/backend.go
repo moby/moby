@@ -14,12 +14,12 @@ import (
 
 // Backend for Plugin
 type Backend interface {
-	Disable(name string, config *types.PluginDisableConfig) error
-	Enable(name string, config *types.PluginEnableConfig) error
-	List(filters.Args) ([]types.Plugin, error)
-	Inspect(name string) (*types.Plugin, error)
-	Remove(name string, config *types.PluginRmConfig) error
-	Set(name string, args []string) error
+	Disable(ctx context.Context, name string, config *types.PluginDisableConfig) error
+	Enable(ctx context.Context, name string, config *types.PluginEnableConfig) error
+	List(context.Context, filters.Args) ([]types.Plugin, error)
+	Inspect(ctx context.Context, name string) (*types.Plugin, error)
+	Remove(ctx context.Context, name string, config *types.PluginRmConfig) error
+	Set(ctx context.Context, name string, args []string) error
 	Privileges(ctx context.Context, ref reference.Named, metaHeaders http.Header, authConfig *registry.AuthConfig) (types.PluginPrivileges, error)
 	Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...plugin.CreateOpt) error
 	Push(ctx context.Context, name string, metaHeaders http.Header, authConfig *registry.AuthConfig, outStream io.Writer) error

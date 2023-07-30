@@ -571,7 +571,7 @@ func closeStdin(ctx context.Context, p containerd.Process) error {
 
 func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) {
 	c.eventQ.Append(ei.ContainerID, func() {
-		err := c.backend.ProcessEvent(ei.ContainerID, et, ei)
+		err := c.backend.ProcessEvent(ctx, ei.ContainerID, et, ei)
 		if err != nil {
 			c.logger.WithContext(ctx).WithError(err).WithFields(log.Fields{
 				"container":  ei.ContainerID,

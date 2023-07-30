@@ -791,6 +791,12 @@ func (t *task) Pause(ctx context.Context) error {
 	t.ctr.isPaused = true
 
 	t.ctr.client.eventQ.Append(t.ctr.id, func() {
+		// TODO(@cpuguy83): This context really just needs to not be cancellable since this is processed asyncornously from the `Pause` call.
+		// We could just wrap the current context into a non-cancellable one, but go1.21 is right around the corner with `context.WithoutCancel`
+		// Instead we can leave this context.TODO and wait for go1.21.
+		// Using a context wrapper will make this more difficult to find/come back to later.
+		ctx := context.TODO()
+
 		err := t.ctr.client.backend.ProcessEvent(ctx, t.ctr.id, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
 			ContainerID: t.ctr.id,
 			ProcessID:   t.id,
@@ -1109,6 +1115,7 @@ func (ctr *container) terminateContainer() error {
 }
 
 func (p *process) reap() {
+	ctx := context.TODO()
 	logger := p.ctr.client.logger.WithFields(log.Fields{
 		"container": p.ctr.id,
 		"process":   p.id,

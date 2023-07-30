@@ -26,11 +26,11 @@ const allowV1PluginsFallback = true
 const defaultAPIVersion = "1.0"
 
 // GetV2Plugin retrieves a plugin by name, id or partial ID.
-func (ps *Store) GetV2Plugin(refOrID string) (*v2.Plugin, error) {
+func (ps *Store) GetV2Plugin(ctx context.Context, refOrID string) (*v2.Plugin, error) {
 	ps.RLock()
 	defer ps.RUnlock()
 
-	id, err := ps.resolvePluginID(refOrID)
+	id, err := ps.resolvePluginID(ctx, refOrID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,9 +135,10 @@ func (ps *Store) Remove(p *v2.Plugin) {
 
 // Get returns an enabled plugin matching the given name and capability.
 func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlugin, error) {
+	ctx := context.TODO()
 	// Lookup using new model.
 	if ps != nil {
-		p, err := ps.GetV2Plugin(name)
+		p, err := ps.GetV2Plugin(ctx, name)
 		if err == nil {
 			if p.IsEnabled() {
 				fp, err := p.FilterByCap(capability)
@@ -250,7 +251,7 @@ func (ps *Store) CallHandler(p *v2.Plugin) {
 }
 
 // resolvePluginID must be protected by ps.RLock
-func (ps *Store) resolvePluginID(idOrName string) (string, error) {
+func (ps *Store) resolvePluginID(ctx context.Context, idOrName string) (string, error) {
 	if validFullID.MatchString(idOrName) {
 		return idOrName, nil
 	}
@@ -260,7 +261,7 @@ func (ps *Store) resolvePluginID(idOrName string) (string, error) {
 		return "", errors.WithStack(errNotFound(idOrName))
 	}
 	if _, ok := ref.(reference.Canonical); ok {
-		log.G(context.TODO()).Warnf("canonical references cannot be resolved: %v", reference.FamiliarString(ref))
+		log.G(ctx).Warnf("canonical references cannot be resolved: %v", reference.FamiliarString(ref))
 		return "", errors.WithStack(errNotFound(idOrName))
 	}
 

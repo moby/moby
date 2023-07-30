@@ -981,7 +981,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
-	d.pluginManager, err = plugin.NewManager(plugin.ManagerConfig{
+	d.pluginManager, err = plugin.NewManager(ctx, plugin.ManagerConfig{
 		Root:               filepath.Join(cfgStore.Root, "plugins"),
 		ExecRoot:           getPluginExecRoot(&cfgStore.Config),
 		Store:              d.PluginStore,
@@ -1314,7 +1314,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	daemon.cleanupMetricsPlugins()
 
 	// Shutdown plugins after containers and layerstore. Don't change the order.
-	daemon.pluginShutdown()
+	daemon.pluginShutdown(ctx)
 
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
@@ -1444,12 +1444,12 @@ func (daemon *Daemon) SetCluster(cluster Cluster) {
 	daemon.cluster = cluster
 }
 
-func (daemon *Daemon) pluginShutdown() {
+func (daemon *Daemon) pluginShutdown(ctx context.Context) {
 	manager := daemon.pluginManager
 	// Check for a valid manager object. In error conditions, daemon init can fail
 	// and shutdown called, before plugin manager is initialized.
 	if manager != nil {
-		manager.Shutdown()
+		manager.Shutdown(ctx)
 	}
 }
 

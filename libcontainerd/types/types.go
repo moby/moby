@@ -38,7 +38,7 @@ type EventInfo struct {
 
 // Backend defines callbacks that the client of the library needs to implement.
 type Backend interface {
-	ProcessEvent(containerID string, event EventType, ei EventInfo) error
+	ProcessEvent(ctx context.Context, containerID string, event EventType, ei EventInfo) error
 }
 
 // Process of a container

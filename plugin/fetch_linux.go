@@ -33,7 +33,7 @@ const mediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
 //
 // The returned function is used to wait for the progress writer to be finished.
 // Call it to make sure the progress writer is done before returning from your function as needed.
-func setupProgressOutput(outStream io.Writer, cancel func()) (progress.Output, func()) {
+func setupProgressOutput(ctx context.Context, outStream io.Writer, cancel func()) (progress.Output, func()) {
 	var out progress.Output
 	f := func() {}
 
@@ -41,7 +41,7 @@ func setupProgressOutput(outStream io.Writer, cancel func()) (progress.Output, f
 		ch := make(chan progress.Progress, 100)
 		out = progress.ChanOutput(ch)
 
-		ctx, retCancel := context.WithCancel(context.Background())
+		ctx, retCancel := context.WithCancel(ctx)
 		go func() {
 			progressutils.WriteDistributionProgress(cancel, outStream, ch)
 			retCancel()
@@ -242,7 +242,8 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 					ctxErr = ctx.Err()
 					// make sure we can still fetch from the content store
 					// TODO: Might need to add some sort of timeout
-					ctx = context.Background()
+					// TODO(@cpuguy83): Inject span context to ctx after https://github.com/moby/moby/pull/45652 is merged
+					ctx = context.TODO()
 				case <-timer.C:
 				}
 
