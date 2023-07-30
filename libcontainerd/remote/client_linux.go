@@ -90,7 +90,7 @@ func withLogLevel(_ logrus.Level) containerd.NewTaskOpts {
 	panic("Not implemented")
 }
 
-func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
+func newFIFOSet(ctx context.Context, bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
 	config := cio.Config{
 		Terminal: withTerminal,
 		Stdout:   filepath.Join(bundleDir, processID+"-stdout"),
@@ -108,7 +108,7 @@ func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.
 	closer := func() error {
 		for _, path := range paths {
 			if err := os.RemoveAll(path); err != nil {
-				log.G(context.TODO()).Warnf("libcontainerd: failed to remove fifo %v: %v", path, err)
+				log.G(ctx).Warnf("libcontainerd: failed to remove fifo %v: %v", path, err)
 			}
 		}
 		return nil
