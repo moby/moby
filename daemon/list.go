@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var acceptedPsFilterTags = map[string]bool{
@@ -619,17 +618,16 @@ func (daemon *Daemon) refreshImage(ctx context.Context, s *container.Snapshot) (
 
 	// Check if the image reference still resolves to the same digest.
 	img, err := daemon.imageService.GetImage(ctx, s.Image, imagetypes.GetImageOpts{})
-
 	// If the image is no longer found or can't be resolved for some other
 	// reason. Update the Image to the specific ID of the original image it
 	// resolved to when the container was created.
 	if err != nil {
 		if !errdefs.IsNotFound(err) {
-			log.G(ctx).WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-				"containerID":   c.ID,
-				"image":         s.Image,
-				"imageID":       s.ImageID,
+			log.G(ctx).WithFields(log.Fields{
+				"error":       err,
+				"containerID": c.ID,
+				"image":       s.Image,
+				"imageID":     s.ImageID,
 			}).Warn("failed to resolve container image")
 		}
 		c.Image = s.ImageID

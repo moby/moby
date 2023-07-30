@@ -7,8 +7,8 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/log"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type delayedConnection struct {
@@ -59,7 +59,7 @@ type stdioPipes struct {
 func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 	p := &stdioPipes{}
 	if fifos.Stdin != "" {
-		c.logger.WithFields(logrus.Fields{"stdin": fifos.Stdin}).Debug("listen")
+		c.logger.WithField("stdin", fifos.Stdin).Debug("listen")
 		l, err := winio.ListenPipe(fifos.Stdin, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create stdin pipe %s", fifos.Stdin)
@@ -76,7 +76,7 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 		p.stdin = dc
 
 		go func() {
-			c.logger.WithFields(logrus.Fields{"stdin": fifos.Stdin}).Debug("accept")
+			c.logger.WithField("stdin", fifos.Stdin).Debug("accept")
 			conn, err := l.Accept()
 			if err != nil {
 				dc.Close()
@@ -85,14 +85,14 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 				}
 				return
 			}
-			c.logger.WithFields(logrus.Fields{"stdin": fifos.Stdin}).Debug("connected")
+			c.logger.WithField("stdin", fifos.Stdin).Debug("connected")
 			dc.con = conn
 			dc.unblockConnectionWaiters()
 		}()
 	}
 
 	if fifos.Stdout != "" {
-		c.logger.WithFields(logrus.Fields{"stdout": fifos.Stdout}).Debug("listen")
+		c.logger.WithField("stdout", fifos.Stdout).Debug("listen")
 		l, err := winio.ListenPipe(fifos.Stdout, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create stdout pipe %s", fifos.Stdout)
@@ -109,23 +109,23 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 		p.stdout = dc
 
 		go func() {
-			c.logger.WithFields(logrus.Fields{"stdout": fifos.Stdout}).Debug("accept")
+			c.logger.WithField("stdout", fifos.Stdout).Debug("accept")
 			conn, err := l.Accept()
 			if err != nil {
 				dc.Close()
 				if err != winio.ErrPipeListenerClosed {
-					c.logger.WithError(err).Errorf("failed to accept stdout connection on %s", fifos.Stdout)
+					c.logger.WithFields(log.Fields{"error": err, "stdout": fifos.Stdout}).Error("failed to accept stdout connection")
 				}
 				return
 			}
-			c.logger.WithFields(logrus.Fields{"stdout": fifos.Stdout}).Debug("connected")
+			c.logger.WithField("stdout", fifos.Stdout).Debug("connected")
 			dc.con = conn
 			dc.unblockConnectionWaiters()
 		}()
 	}
 
 	if fifos.Stderr != "" {
-		c.logger.WithFields(logrus.Fields{"stderr": fifos.Stderr}).Debug("listen")
+		c.logger.WithField("stderr", fifos.Stderr).Debug("listen")
 		l, err := winio.ListenPipe(fifos.Stderr, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create stderr pipe %s", fifos.Stderr)
@@ -142,7 +142,7 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 		p.stderr = dc
 
 		go func() {
-			c.logger.WithFields(logrus.Fields{"stderr": fifos.Stderr}).Debug("accept")
+			c.logger.WithField("stderr", fifos.Stderr).Debug("accept")
 			conn, err := l.Accept()
 			if err != nil {
 				dc.Close()
@@ -151,7 +151,7 @@ func (c *client) newStdioPipes(fifos *cio.FIFOSet) (_ *stdioPipes, err error) {
 				}
 				return
 			}
-			c.logger.WithFields(logrus.Fields{"stderr": fifos.Stderr}).Debug("connected")
+			c.logger.WithField("stderr", fifos.Stderr).Debug("connected")
 			dc.con = conn
 			dc.unblockConnectionWaiters()
 		}()

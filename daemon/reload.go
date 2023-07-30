@@ -9,7 +9,6 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/copystructure"
-	"github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/daemon/config"
 )
@@ -280,7 +279,7 @@ func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg *config
 			return nil
 		}
 		// Enable the network diagnostic if the flag is set with a valid port within the range
-		log.G(context.TODO()).WithFields(logrus.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
+		log.G(context.TODO()).WithFields(log.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
 		daemon.netController.StartDiagnostic(conf.NetworkDiagnosticPort)
 		return nil
 	})

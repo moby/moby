@@ -76,13 +76,12 @@ func (p c8dPlugin) deleteTaskAndContainer(ctx context.Context) {
 // Create creates a new container
 func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
 	ctx := context.Background()
-	log := log.G(ctx).WithField("plugin", id)
 	ctr, err := libcontainerd.ReplaceContainer(ctx, e.client, id, &spec, e.shim, e.shimOpts)
 	if err != nil {
 		return errors.Wrap(err, "error creating containerd container for plugin")
 	}
 
-	p := c8dPlugin{log: log, ctr: ctr}
+	p := c8dPlugin{log: log.G(ctx).WithField("plugin", id), ctr: ctr}
 	p.tsk, err = ctr.Start(ctx, "", false, attachStreamsFunc(stdout, stderr))
 	if err != nil {
 		p.deleteTaskAndContainer(ctx)

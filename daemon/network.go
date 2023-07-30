@@ -32,7 +32,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.
@@ -328,7 +327,7 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
 		for k, v := range defaultOpts {
 			if _, ok := networkOptions[k]; !ok {
-				log.G(context.TODO()).WithFields(logrus.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
+				log.G(context.TODO()).WithFields(log.Fields{"driver": driver, "network": id, k: v}).Debug("Applying network default option")
 				networkOptions[k] = v
 			}
 		}
@@ -412,7 +411,7 @@ func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 	if daemon.PluginStore != nil {
 		_, err := daemon.PluginStore.Get(driver, capability, mode)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).WithFields(logrus.Fields{"mode": mode, "driver": driver}).Error("Error handling plugin refcount operation")
+			log.G(context.TODO()).WithError(err).WithFields(log.Fields{"mode": mode, "driver": driver}).Error("Error handling plugin refcount operation")
 		}
 	}
 }

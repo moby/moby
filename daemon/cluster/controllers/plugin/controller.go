@@ -62,7 +62,7 @@ func NewController(backend Backend, t *api.Task) (*Controller, error) {
 		backend:   backend,
 		spec:      spec,
 		serviceID: t.ServiceID,
-		logger: log.G(context.TODO()).WithFields(logrus.Fields{
+		logger: log.G(context.TODO()).WithFields(log.Fields{
 			"controller": "plugin",
 			"task":       t.ID,
 			"plugin":     spec.Name,

@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
-	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -24,7 +23,7 @@ var dbPort int32 = 10000
 
 func TestMain(m *testing.M) {
 	os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0o644)
-	logrus.SetLevel(logrus.ErrorLevel)
+	log.SetLevel("error")
 	os.Exit(m.Run())
 }
 
@@ -840,7 +839,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		return defaultTimeout
 	}
 
-	logrus.SetLevel(logrus.DebugLevel)
+	_ = log.SetLevel("debug")
 	conf := DefaultConfig()
 	// Shorten durations to speed up test execution.
 	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10

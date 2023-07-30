@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // MountPoint is the intersection point between a volume and a container. It
@@ -169,7 +168,7 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 
 func (m *MountPoint) LiveRestore(ctx context.Context) error {
 	if m.Volume == nil {
-		logrus.Debug("No volume to restore")
+		log.G(ctx).Debug("No volume to restore")
 		return nil
 	}
 

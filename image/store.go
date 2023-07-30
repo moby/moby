@@ -13,7 +13,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/go-digest/digestset"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Store is an interface for creating and accessing images
@@ -75,7 +74,7 @@ func (is *store) restore() error {
 	// if we don't need it. The "f" type alias is here is just for convenience,
 	// and to make the code _slightly_ more DRY. See the discussion on GitHub;
 	// https://github.com/moby/moby/pull/44426#discussion_r1059519071
-	type f = logrus.Fields
+	type f = log.Fields
 	err := is.fs.Walk(func(dgst digest.Digest) error {
 		img, err := is.Get(ID(dgst))
 		if err != nil {

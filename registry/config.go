@@ -1,15 +1,16 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"net"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/sirupsen/logrus"
 )
 
 // ServiceOptions holds command line options.
@@ -197,10 +198,10 @@ skip:
 			return err
 		}
 		if strings.HasPrefix(strings.ToLower(r), "http://") {
-			logrus.Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
+			log.G(context.TODO()).Warnf("insecure registry %s should not contain 'http://' and 'http://' has been removed from the insecure registry config", r)
 			r = r[7:]
 		} else if strings.HasPrefix(strings.ToLower(r), "https://") {
-			logrus.Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
+			log.G(context.TODO()).Warnf("insecure registry %s should not contain 'https://' and 'https://' has been removed from the insecure registry config", r)
 			r = r[8:]
 		} else if hasScheme(r) {
 			return invalidParamf("insecure registry %s should not contain '://'", r)

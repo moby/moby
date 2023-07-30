@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"
 )
@@ -67,7 +67,7 @@ func (s *DockerCLILogsSuite) TestLogsTimestamps(c *testing.T) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(jsonmessage.RFC3339NanoFixed+" ", ts.FindString(l))
+			_, err := time.Parse(log.RFC3339NanoFixed+" ", ts.FindString(l))
 			assert.NilError(c, err, "Failed to parse timestamp from %v", l)
 			// ensure we have padded 0's
 			assert.Equal(c, l[29], uint8('Z'))

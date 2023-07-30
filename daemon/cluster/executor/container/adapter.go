@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -27,10 +28,9 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
-	"github.com/moby/swarmkit/v2/log"
+	swarmlog "github.com/moby/swarmkit/v2/log"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -95,7 +95,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	authConfig := &registry.AuthConfig{}
 	if encodedAuthConfig != "" {
 		if err := json.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(encodedAuthConfig))).Decode(authConfig); err != nil {
-			log.G(ctx).Warnf("invalid authconfig: %v", err)
+			swarmlog.G(ctx).Warnf("invalid authconfig: %v", err)
 		}
 	}
 
@@ -121,19 +121,19 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 			}
 			return err
 		}
-		l := log.G(ctx)
+		l := swarmlog.G(ctx)
 		// limit pull progress logs unless the status changes
 		if spamLimiter.Allow() || lastStatus != m["status"] {
 			// if we have progress details, we have everything we need
 			if progress, ok := m["progressDetail"].(map[string]interface{}); ok {
 				// first, log the image and status
-				l = l.WithFields(logrus.Fields{
+				l = l.WithFields(log.Fields{
 					"image":  c.container.image(),
 					"status": m["status"],
 				})
 				// then, if we have progress, log the progress
 				if progress["current"] != nil && progress["total"] != nil {
-					l = l.WithFields(logrus.Fields{
+					l = l.WithFields(log.Fields{
 						"current": progress["current"],
 						"total":   progress["total"],
 					})
@@ -240,7 +240,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 			case errors.As(err, &errNoSuchNetwork):
 				continue
 			default:
-				log.G(ctx).Errorf("network %s remove failed: %v", name, err)
+				swarmlog.G(ctx).Errorf("network %s remove failed: %v", name, err)
 				return err
 			}
 		}
@@ -374,7 +374,7 @@ func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, er
 // events issues a call to the events API and returns a channel with all
 // events. The stream of events can be shutdown by cancelling the context.
 func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
-	log.G(ctx).Debugf("waiting on events")
+	swarmlog.G(ctx).Debugf("waiting on events")
 	buffer, l := c.backend.SubscribeToEvents(time.Time{}, time.Time{}, c.container.eventFilter())
 	eventsq := make(chan events.Message, len(buffer))
 
@@ -390,7 +390,7 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 			case ev := <-l:
 				jev, ok := ev.(events.Message)
 				if !ok {
-					log.G(ctx).Warnf("unexpected event message: %q", ev)
+					swarmlog.G(ctx).Warnf("unexpected event message: %q", ev)
 					continue
 				}
 				select {
@@ -485,7 +485,7 @@ func (c *containerAdapter) waitClusterVolumes(ctx context.Context) error {
 			}
 		}
 	}
-	log.G(ctx).Debug("volumes ready")
+	swarmlog.G(ctx).Debug("volumes ready")
 	return nil
 }
 

@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/quota"
 	"github.com/docker/docker/volume"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -390,7 +389,7 @@ func (v *localVolume) LiveRestoreVolume(ctx context.Context, _ string) error {
 	}
 	v.active.count++
 	v.active.mounted = true
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"volume":        v.name,
 		"active mounts": v.active,
 	}).Debugf("Live restored volume")

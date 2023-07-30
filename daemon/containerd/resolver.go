@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/useragent"
 	"github.com/docker/docker/registry"
-	"github.com/sirupsen/logrus"
 )
 
 func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig) (remotes.Resolver, docker.StatusTracker) {
@@ -64,7 +63,7 @@ func authorizationCredsFromAuthConfig(authConfig registrytypes.AuthConfig) docke
 
 	return docker.WithAuthCreds(func(host string) (string, string, error) {
 		if cfgHost != host {
-			log.G(context.TODO()).WithFields(logrus.Fields{
+			log.G(context.TODO()).WithFields(log.Fields{
 				"host":    host,
 				"cfgHost": cfgHost,
 			}).Warn("Host doesn't match")
